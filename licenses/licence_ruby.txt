@@ -1,9 +1,6 @@
 Ruby written by Petru Soroaga (petrusoroaga@yahoo.com)
 Contributors: Tree Orbit, Piotr Kujawski (aka bitkuna)
 
-Ruby written by Petru Soroaga (petrusoroaga@yahoo.com)
-Contributors: Tree Orbit, Piotr Kujawski (aka bitkuna)
-
 More info about Ruby here:
 https://rubyfpv.com
 https://www.rcgroups.com/forums/showthread.php?3880253-Ruby-Digital-FPV-Video-Link-%28v-2-3%29
@@ -22,9 +19,15 @@ https://www.rcgroups.com/forums/showthread.php?3880253-Ruby-Digital-FPV-Video-Li
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
 
-Redistribution and use in binary or any form, with or without 
-modification, are permitted provided that the the above copyright notice and 
-this condition are retained and reproduced in the documentation 
+A. Redistribution and/or use in binary form, with or without 
+modification(s), is permitted provided that the the above copyright notice and 
+this conditions are retained and reproduced in the documentation 
+and/or other materials provided with the distribution.
+
+B. Redistribution and/or use of the C/C++ source code, with or without 
+modification(s), is permitted provided that:
+1. a priori written consent is obtained from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use;
+2. the above copyright notice and this conditions are retained and reproduced in the documentation 
 and/or other materials provided with the distribution.
 
 See the res/licences folder for additional details.
