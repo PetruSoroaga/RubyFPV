@@ -20,14 +20,14 @@ https://www.rcgroups.com/forums/showthread.php?3880253-Ruby-Digital-FPV-Video-Li
  * OF SUCH DAMAGE.
 
 A. Redistribution and/or use in binary form, with or without 
-modification(s), is permitted provided that the the above copyright notice and 
-this conditions are retained and reproduced in the documentation 
+modification(s), is permitted provided that the this copyright notice and 
+these conditions are retained and reproduced in the documentation 
 and/or other materials provided with the distribution.
 
 B. Redistribution and/or use of the C/C++ source code, with or without 
 modification(s), is permitted provided that:
 1. a priori written consent is obtained from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use;
-2. the above copyright notice and this conditions are retained and reproduced in the documentation 
+2. this copyright notice and these conditions are retained and reproduced in the documentation 
 and/or other materials provided with the distribution.
 
 See the res/licences folder for additional details.
