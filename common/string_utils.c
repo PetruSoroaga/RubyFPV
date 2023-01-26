@@ -1,3 +1,13 @@
+/*
+You can use this C/C++ code however you wish (for example, but not limited to:
+     as is, or by modifying it, or adding new code, or removing parts of the code;
+     in public or private projects, in new free (or not) products) 
+     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use.
+     This code is public for learning and academic purposes.
+Also, check the licences folder for additional licences terms.
+Code written by: Petru Soroaga
+*/
+
 #include "../base/base.h"
 #include "../base/hardware.h"
 #include "../base/hardware_radio.h"

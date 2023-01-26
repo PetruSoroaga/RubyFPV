@@ -1,3 +1,13 @@
+/*
+You can use this C/C++ code however you wish (for example, but not limited to:
+     as is, or by modifying it, or adding new code, or removing parts of the code;
+     in public or private projects, in new free (or not) products) 
+     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use.
+     This code is public for learning and academic purposes.
+Also, check the licences folder for additional licences terms.
+Code written by: Petru Soroaga
+*/
+
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
@@ -20,8 +30,6 @@ static u32 s_uStreamsLastPacketsHistoryMaxRecvIndexesPerRadioLink[MAX_RADIO_INTE
 static u32 s_uControllerLinkStats_tmpRecv[MAX_RADIO_INTERFACES];
 static u32 s_uControllerLinkStats_tmpRecvBad[MAX_RADIO_INTERFACES];
 static u32 s_uControllerLinkStats_tmpRecvLost[MAX_RADIO_INTERFACES];
-
-static int s_iIsFirstEverPacketReceived = 1;
 
 static u32 s_uLastLinkRTDelayValues[10];
 static u32 s_uLastCommandsRTDelayValues[5];
@@ -505,9 +513,6 @@ int radio_stats_update_on_packet_received(shared_mem_radio_stats* pSMRS, u32 tim
    pSMRS->timeLastRxPacket = timeNow;
    
    int nRadioLinkId = pSMRS->radio_interfaces[iInterfaceIndex].assignedRadioLinkId;
-
-   if ( s_iIsFirstEverPacketReceived )
-      s_iIsFirstEverPacketReceived = 0;
 
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
 
