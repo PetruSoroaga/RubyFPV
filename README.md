@@ -17,4 +17,4 @@ or by sending an email to petrusoroaga@yahoo.com, providing a short explanation 
 
 # Adding code
 
-You can create pull requests if you really want.
+You can create pull requests if that's what you really want.
