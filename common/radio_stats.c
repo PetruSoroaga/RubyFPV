@@ -1,6 +1,6 @@
 /*
 You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or adding new code, or removing parts of the code;
+     as is, or by modifying it, or by adding new code, or by removing parts of the code;
      in public or private projects, in new free (or not) products) 
      only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use.
      This code is public for learning and academic purposes.
