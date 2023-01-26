@@ -1,2 +1,2 @@
-# ruby
+# RubyFPV
 Ruby FPV digital system
