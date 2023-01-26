@@ -1,0 +1,42 @@
+#pragma once
+
+#define MAX_RC_CHANNELS 16
+#define MAX_MAVLINK_RC_CHANNELS 14
+
+#define RECEIVER_TYPE_BUILDIN 1
+#define RECEIVER_TYPE_SPI 2
+#define RECEIVER_TYPE_LAST 3
+
+#define RC_INPUT_TYPE_NONE 0
+#define RC_INPUT_TYPE_USB 1
+#define RC_INPUT_TYPE_RC_IN_SBUS_IBUS 2
+
+#define RC_FAILSAFE_NOOUTPUT 0
+#define RC_FAILSAFE_KEEPLAST 1
+#define RC_FAILSAFE_BELOWRANGE 2
+#define RC_FAILSAFE_VALUE 3
+#define RC_FAILSAFE_CUSTOM 4
+
+// rc_params.rcChAssignment flags:
+#define RC_CH_ASSIGNMENT_FLAG_ASSIGNED 0x01 // bit 0
+#define RC_CH_ASSIGNMENT_FLAG_BUTTON   0x02 // bit 1
+#define RC_CH_ASSIGNMENT_FLAG_TOGGLE   0x04 // bit 2
+#define RC_CH_ASSIGNMENT_FLAG_MULTIPLE ((u32)(0x01<<31)) // bit 31
+
+// rc_params.rcChFlags[x] fields:
+#define RC_CH_FLAGS_INVERTED  0x01 // bit 0
+#define RC_CH_FLAGS_LINEAR ((u32)(0x01<<4)) // bit 4
+#define RC_CH_FLAGS_RELATIVE_MOVE ((u32)(0x01<<5)) // bit 5
+
+// rc_params.flags fields:
+
+#define RC_FLAGS_OUTPUT_ENABLED  0x01 // bit 0
+
+
+#define DEFAULT_RC_FRAMES_PER_SECOND 35
+#define DEFAULT_RC_FAILSAFE_TIME 800
+#define DEFAULT_RC_FAILSAFE_TYPE ((u32)0)   // No output
+#define DEFAULT_RC_CHANNEL_LOW_VALUE 1000
+#define DEFAULT_RC_CHANNEL_HIGH_VALUE 2000
+#define DEFAULT_RC_CHANNEL_MID_VALUE 1500
+#define DEFAULT_RC_CHANNEL_FAILSAFE 500

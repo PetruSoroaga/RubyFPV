@@ -1,0 +1,30 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
+int hw_launch_process(const char *szFile);
+int hw_launch_process1(const char *szFile, const char* szParam1);
+int hw_launch_process2(const char *szFile, const char* szParam1, const char* szParam2);
+int hw_launch_process3(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3);
+int hw_launch_process4(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3, const char* szParam4);
+int hw_process_exists(const char* szProcName);
+void hw_stop_process(const char* szProcName);
+void hw_kill_process(const char* szProcName);
+
+void hw_set_priority_current_proc(int nice);
+void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int waitForProcess);
+void hw_get_proc_priority(const char* szProgName, char* szOutput);
+
+void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd);
+
+int hw_execute_bash_command(const char* command, char* outBuffer);
+int hw_execute_bash_command_raw(const char* command, char* outBuffer);
+int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer);
+int hw_execute_bash_command_silent(const char* command, char* outBuffer);
+
+
+#ifdef __cplusplus
+}  
+#endif
