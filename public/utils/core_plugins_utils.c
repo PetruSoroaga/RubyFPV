@@ -9,6 +9,8 @@
 extern "C" {
 #endif 
 
+/* some comments needed */
+    
 typedef struct
 {
     long type;
