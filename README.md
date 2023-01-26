@@ -1,4 +1,4 @@
-# Ruby FPV Digital System
+# Ruby Digital FPV Radio System
 Ruby is a complete solution (hardware and software) for robust end to end digital radio links, designed specifically for controlling and managing UAVs/drones/planes/cars and other remote vehicles
 
 You can get Ruby FPV and read more about it here: https://rubyfpv.com/
