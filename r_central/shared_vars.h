@@ -1,0 +1,78 @@
+#pragma once
+#include "../base/base.h"
+#include "../radio/radiopackets2.h"
+#include "../radio/radiopackets_rc.h"
+#include "../base/shared_mem.h"
+#include "../base/shared_mem_i2c.h"
+#include "../base/models.h"
+#include "../base/commands.h"
+#include "../base/core_plugins_settings.h"
+#include "../renderer/render_engine.h"
+#include "../base/plugins_settings.h"
+#include "../public/telemetry_info.h"
+#include "../public/settings_info.h"
+#include "../public/render_engine_ui.h"
+
+#include "popup_commands.h"
+#include "popup_camera_params.h"
+#include "menu_objects.h"
+#include "osd_plugins.h"
+#include "shared_vars_ipc.h"
+#include "shared_vars_state.h"
+
+
+extern vehicle_and_telemetry_info_t g_VehicleTelemetryInfo;
+
+extern u32 g_uControllerId;
+extern int g_iBootCount;
+
+extern RenderEngine* g_pRenderEngine;
+extern RenderEngineUI* g_pRenderEngineOSDPlugins;
+extern u32 g_idFontOSD;
+extern u32 g_idFontOSDBig;
+extern u32 g_idFontOSDSmall;
+extern u32 g_idFontOSDExtraSmall;
+extern u32 g_idFontOSDWarnings;
+extern u32 g_idFontStats;
+extern u32 g_idFontStatsSmall;
+extern u32 g_idFontMenu;
+extern u32 g_idFontMenuSmall;
+extern u32 g_idFontMenuLarge;
+
+
+extern u32 g_uVideoRecordStartTime;
+extern bool g_bVideoRecordingStarted;
+extern bool g_bVideoProcessing;
+extern bool g_bVideoPlaying;
+extern u32 g_uVideoPlayingStartTime;
+extern u32 g_uVideoPlayingLengthSec;
+
+extern int g_ControllerCPUSpeed;
+extern int g_ControllerCPULoad;
+extern int g_ControllerTemp;
+
+extern PopupCameraParams* g_pPopupCameraParams;
+extern Popup* g_pPopupLooking;
+extern Popup* g_pPopupWrongModel;
+
+extern bool g_bToglleOSDOff;
+extern bool g_bToglleStatsOff;
+extern bool g_bToglleAllOSDOff;
+
+extern bool g_bIsRouterPacketsHistoryGraphOn;
+extern bool g_bIsRouterPacketsHistoryGraphPaused;
+
+extern bool g_bMenuPopupUpdateVehicleShown;
+extern int  g_PendingRadioFlagsConfirmationLinkId;
+extern type_radio_links_parameters g_LastGoodRadioLinksParams;
+
+
+extern bool g_bHasVideoDataOverloadAlarm;
+extern bool g_bHasVideoTxOverloadAlarm;
+extern Popup* g_pPopupVideoOverloadAlarm;
+
+extern int g_iMustSendCurrentActiveOSDLayoutCounter;
+
+extern CorePluginSettings g_listVehicleCorePlugins[MAX_CORE_PLUGINS_COUNT];
+extern int g_iVehicleCorePluginsCount;
+
