@@ -1,0 +1,171 @@
+#pragma once
+#include "config.h"
+#include "../radio/radiotap.h"
+#include "../radio/radiopackets2.h"
+
+#define MAX_RADIO_HW_PARAMS 16
+
+#define RADIO_TYPE_OTHER 0
+#define RADIO_TYPE_RALINK 1
+#define RADIO_TYPE_ATHEROS 2
+#define RADIO_TYPE_REALTEK 3
+#define RADIO_TYPE_MEDIATEK 4
+#define RADIO_TYPE_SIK 5
+
+#define RADIO_HW_DRIVER_ATHEROS 0       // ath9k_htc
+#define RADIO_HW_DRIVER_RALINK 1        // rt2800usb
+#define RADIO_HW_DRIVER_MEDIATEK 3      // mt7601u
+#define RADIO_HW_DRIVER_REALTEK_RTL88XXAU 4       // rtl88xxau
+#define RADIO_HW_DRIVER_REALTEK_RTL8812AU 5       // rtl8812au
+#define RADIO_HW_DRIVER_REALTEK_8812AU 6          // 8812au
+#define RADIO_HW_DRIVER_REALTEK_RTL88X2BU 7       // rtl88x2bu
+#define RADIO_HW_DRIVER_SERIAL_SIK 8
+
+// 0 is generic card model
+#define CARD_MODEL_TPLINK722N       1
+#define CARD_MODEL_ALFA_AWUS036NHA  2
+#define CARD_MODEL_ALFA_AWUS036NH   3
+#define CARD_MODEL_ALFA_AWUS036ACH  4
+#define CARD_MODEL_ASUS_AC56        5
+#define CARD_MODEL_BLUE_STICK       6
+#define CARD_MODEL_RTL8812AU_DUAL_ANTENNA 7
+#define CARD_MODEL_NETGEAR_A6100    8
+#define CARD_MODEL_TENDA_U12        9
+#define CARD_MODEL_RTL8812AU_LOW_POWER 10
+#define CARD_MODEL_ZIPRAY 11
+#define CARD_MODEL_ARCHER_T2UPLUS 12
+
+#define CARD_MODEL_SIK_RADIO 100
+
+
+#define RADIO_HW_SUPPORTED_BAND_23 1
+#define RADIO_HW_SUPPORTED_BAND_24 2
+#define RADIO_HW_SUPPORTED_BAND_25 4
+#define RADIO_HW_SUPPORTED_BAND_58 8
+#define RADIO_HW_SUPPORTED_BAND_433 16
+#define RADIO_HW_SUPPORTED_BAND_868 32
+#define RADIO_HW_SUPPORTED_BAND_915 64
+
+#define RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ((u32)(((u32)0x01)))
+#define RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA  ((u32)(((u32)0x01)<<2))
+#define RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY  ((u32)(((u32)0x01)<<4))
+#define RADIO_HW_CAPABILITY_FLAG_CAN_RX ((u32)(((u32)0x01)<<5))
+#define RADIO_HW_CAPABILITY_FLAG_CAN_TX ((u32)(((u32)0x01)<<6))
+#define RADIO_HW_CAPABILITY_FLAG_DISABLED ((u32)(((u32)0x01)<<7))
+#define RADIO_HW_CAPABILITY_FLAG_USE_LOWEST_DATARATE_FOR_DATA ((u32)(((u32)0x01)<<8))
+#define RADIO_HW_CAPABILITY_HIGH_CAPACITY ((u32)(((u32)0x01)<<9))
+
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
+typedef struct
+{
+   int nChannel;
+   int nChannelFlags;
+   int nRate;
+   int nAntenna;
+   int nRadiotapFlags;
+   int nDbm;
+   int nDbmNoise;
+} __attribute__((packed)) radiotap_rx_info_t;
+
+
+typedef struct
+{
+   pcap_t *ppcap;
+   int selectable_fd;
+   int n80211HeaderLength;
+   int nRadioType;
+   int nPort;
+   radiotap_rx_info_t radioInfo;
+} monitor_interface_t;
+
+
+typedef struct
+{
+   int phy_index;
+   int iCardModel;
+   int isSupported;
+   int isEnabled;
+   u8 supportedBands;  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
+   int isHighCapacityInterface;
+   int isTxCapable;
+   u32 uCurrentFrequency; // < 10000 = Mhz; > 10000 = Khz
+   int lastFrequencySetFailed;
+   u32 failedFrequency;
+   char szName[32];
+   char szDescription[64];
+   char szDriver[32];
+   char szMAC[MAX_MAC_LENGTH]; // MAC or serial port name or SPI name
+   char szProductId[12];
+   char szUSBPort[6];  // [A-X], [A-X][1-9], ... or serial port name or SPI name
+   int typeAndDriver; // first byte: radio type, second byte = driver type
+   u32 uHardwareParamsList[MAX_RADIO_HW_PARAMS];
+   int openedForRead;
+   int openedForWrite;
+   monitor_interface_t monitor_interface_read;
+   monitor_interface_t monitor_interface_write;
+} radio_hw_info_t;
+
+
+typedef struct
+{
+   u8 radio_type;
+   u8 tx_power;
+   u8 tx_powerAtheros;
+   u8 tx_powerRTL;
+   u8 slot_time;
+   u8 thresh62;
+   u32 extraInfo; // not used, for future use;
+} __attribute__((packed)) radio_info_wifi_t;
+
+
+typedef struct
+{
+   int iBusNb;
+   int iPortNb;
+   int iDeviceNb;
+   char szProductId[32];
+   char szName[64];
+} usb_radio_interface_info_t;
+
+
+void hardware_save_radio_info();
+int hardware_load_radio_info();
+void hardware_log_radio_info();
+
+void hardware_reset_radio_enumerated_flag();
+int hardware_enumerate_radio_interfaces();
+int hardware_enumerate_radio_interfaces_step(int iStep);
+
+int hardware_get_radio_interfaces_count();
+radio_hw_info_t* hardware_get_radio_info_array();
+int hardware_add_radio_interface_info(radio_hw_info_t* pRadioInfo);
+int hardware_get_radio_index_by_name(const char* szName);
+int hardware_get_radio_index_from_mac(const char* szMAC);
+
+const char* hardware_get_radio_name(int iRadioIndex);
+const char* hardware_get_radio_description(int iRadioIndex);
+
+int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
+
+int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freq);
+int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freq);
+
+int hardware_get_radio_count_opened_for_read();
+radio_hw_info_t* hardware_get_radio_info(int iRadioIndex);
+radio_hw_info_t* hardware_get_radio_info_for_usb_port(const char* szUSBPort);
+radio_hw_info_t* hardware_get_radio_info_from_mac(const char* szMAC);
+
+int hardware_get_radio_tx_power_atheros();
+int hardware_get_radio_tx_power_rtl();
+
+int hardware_set_radio_tx_power_atheros(int txPower);
+int hardware_set_radio_tx_power_rtl(int txPower);
+
+int hardware_get_basic_radio_wifi_info(radio_info_wifi_t* pdptr);
+
+#ifdef __cplusplus
+}  
+#endif 
