@@ -1,6 +1,26 @@
 # Ruby: Digital FPV Radio System
 Ruby is a complete solution (hardware and software) for robust end to end digital radio links, designed specifically for controlling and managing UAVs/drones/planes/cars and other remote vehicles
 
+Features highlights:
+
+<B>Mutiple, rendundant radio links on 433/868/915 Mhz and 2.4/5.8 Ghz bands:</B>
+Multiple redundant radio links in different bands (433Mhz, 868/915Mhz, 2.3, 2.4, 2.5 and 5.8Ghz) can be used simultaneously between vehicles, ground control stations and relays for better resilience, link quality and range;
+
+Relaying:
+Mobile (vehicles) and/or fixed relay nodes can be inserted in the system for longer range and penetration beyond line of sight;
+
+Encryption:
+The radio links can be encrypted end to end so that only authorized components can decode the radio data;
+
+Live video, telemetry, remote control, auxiliary & custom data streams:
+By default Ruby supports all the required data capabilities for UAVs (video, telemetry, control and user defined data streams).
+
+Rich user interface/control interface;
+
+SDKs for third party development of new features:
+There are public SDKs available so that 3rd parties can add custom functionalities and capabilities to Ruby system.
+
+
 You can read more about it and get the Ruby FPV system for free here: https://rubyfpv.com/
 
 # Licences
