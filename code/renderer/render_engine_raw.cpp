@@ -195,10 +195,10 @@ u32 RenderEngineRaw::loadFont(const char* szFontFile)
 
    m_pFonts[m_iCountFonts] = (RenderEngineRawFont*) malloc(sizeof(RenderEngineRawFont));
 
-   sprintf(szFile, "%s", szFontFile);
-   szFile[strlen(szFile)-3] = 'p';
-   szFile[strlen(szFile)-2] = 'n';
-   szFile[strlen(szFile)-1] = 'g';
+   int len = snprintf(szFile, sizeof(szFile), "%s", szFontFile);
+   szFile[len-3] = 'p';
+   szFile[len-2] = 'n';
+   szFile[len-1] = 'g';
 
    log_line("Loading font: %s", szFile);
    m_pFonts[m_iCountFonts]->pImage = fbg_loadPNG(m_pFBG, szFile);

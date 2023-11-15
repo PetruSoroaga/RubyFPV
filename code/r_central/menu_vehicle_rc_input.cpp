@@ -44,14 +44,14 @@ MenuVehicleRCInput::MenuVehicleRCInput(void)
 
    strcpy(szLegend, "Use this option when you connect a USB joystick, a USB gamepad or a USB RC transmitter to your controller");
    if ( 0 == pCI->inputInterfacesCount )
-      strcat(szLegend, ".\nNo USB HID devices detected on the controller");
+      strlcat(szLegend, ".\nNo USB HID devices detected on the controller", sizeof(szLegend));
    m_pItemsRadio[0]->addSelection("USB HID device", szLegend);
 
    strcpy(szLegend, "Use this option when you connect a SBUS/IBUS input adapter to the I2C bus on the controller");
    if ( (! hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_RC_IN)) &&
         (! hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_EXTENDER)) &&
         (! hardware_i2c_has_external_extenders_rcin()) )
-      strcat(szLegend, ".\nNo RC In device detected on the I2C busses");
+      strlcat(szLegend, ".\nNo RC In device detected on the I2C busses", sizeof(szLegend));
    m_pItemsRadio[0]->addSelection("RC In (SBUS/IBUS)", szLegend);
 
    m_pItemsRadio[0]->setEnabled(true);

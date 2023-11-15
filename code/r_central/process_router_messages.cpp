@@ -391,14 +391,14 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(iRadioInterface);
       if ( NULL == pNICInfo )
-         sprintf(szBuff, "Radio Interface %d failed to initialize!", iRadioInterface+1);
+         snprintf(szBuff, sizeof(szBuff), "Radio Interface %d failed to initialize!", iRadioInterface+1);
       else
       {
          t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNICInfo->szMAC);
          if ( NULL != pCardInfo )
-            sprintf(szBuff, "Radio Interface %d (%s) failed to initialize!", iRadioInterface+1, str_get_radio_card_model_string(pCardInfo->cardModel));
+            snprintf(szBuff, sizeof(szBuff), "Radio Interface %d (%s) failed to initialize!", iRadioInterface+1, str_get_radio_card_model_string(pCardInfo->cardModel));
          else
-            sprintf(szBuff, "Radio Interface %d (%s) failed to initialize!", iRadioInterface+1, "Unknown Type");
+            snprintf(szBuff, sizeof(szBuff), "Radio Interface %d (%s) failed to initialize!", iRadioInterface+1, "Unknown Type");
       }
       warnings_add(szBuff);
 

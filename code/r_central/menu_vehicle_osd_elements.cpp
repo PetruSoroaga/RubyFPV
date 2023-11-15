@@ -37,7 +37,7 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_yPos = 0.12;
 
    char szBuff[256];
-   sprintf(szBuff, "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   snprintf(szBuff, sizeof(szBuff), "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
    setTitle(szBuff);
    
    setColumnsCount(2);

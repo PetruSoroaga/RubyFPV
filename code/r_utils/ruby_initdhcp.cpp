@@ -49,7 +49,7 @@ void configureDHCP()
       else
          strcpy(szType, "STATION");
 
-      sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s", szType);
+      snprintf(szBuff, sizeof(szBuff), "nice pump -i eth0 --no-ntp -h Ruby%s", szType);
       hw_execute_bash_command(szBuff, NULL);
       //ETHCLIENTIP=`ip addr show eth0 | grep -Po 'inet \K[\d.]+'`            
       //echo "Ethernet IP: $ETHCLIENTIP"
@@ -120,10 +120,10 @@ int main(int argc, char *argv[])
                //execute_bash_command("ip link set dev eth0 down", NULL);
 
                char szBuff[128];
-               sprintf(szBuff, "ifconfig eth0 %d.%d.%d.%d up &", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
+               snprintf(szBuff, sizeof(szBuff), "ifconfig eth0 %d.%d.%d.%d up &", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
                hw_execute_bash_command(szBuff, NULL);
                log_line("Setting a fixed IP done.");
-               sprintf(szBuff, "ip r a default via 192.168.1.1 2>/dev/null");
+               snprintf(szBuff, sizeof(szBuff), "ip r a default via 192.168.1.1 2>/dev/null");
                hw_execute_bash_command(szBuff, NULL);
                log_line("Added default ETH route done.");
             }

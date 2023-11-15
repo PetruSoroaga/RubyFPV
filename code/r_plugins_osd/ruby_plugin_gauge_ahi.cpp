@@ -376,7 +376,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
    // Show roll, pitch values
 
-   sprintf(szBuff, "%d", -(int)(pTelemetryInfo->roll));
+   snprintf(szBuff, sizeof(szBuff), "%d", -(int)(pTelemetryInfo->roll));
    float wText = g_pEngine->textWidth(fontIdSmall, szBuff);
 
    g_pEngine->setFill(0,0,0,0.3);
@@ -387,7 +387,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
    g_pEngine->setStroke(colorPlane, 3.0);
    show_value_centered(g_pEngine, xCenter, yCenter - fRadius*0.64, szBuff, fontIdSmall);
 
-   sprintf(szBuff, "%d", (int)(pTelemetryInfo->pitch));
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)(pTelemetryInfo->pitch));
    wText = g_pEngine->textWidth(fontIdSmall, szBuff);
 
    g_pEngine->setFill(0,0,0,0.3);
@@ -454,7 +454,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
    // Show heading value
 
-   sprintf(szBuff, "%d", (int)(pTelemetryInfo->heading));
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)(pTelemetryInfo->heading));
    wText = g_pEngine->textWidth(fontIdSmall, szBuff);
 
    g_pEngine->setFill(0,0,0,0.3);

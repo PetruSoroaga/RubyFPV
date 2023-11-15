@@ -333,7 +333,7 @@ void MenuController::onSelectItem()
       char szBuff2[64];
       getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
 
-      sprintf(szBuff, "Your controller has software version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
+      snprintf(szBuff, sizeof(szBuff), "Your controller has software version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
 
       m_iConfirmationId = 1;
       MenuConfirmation* pMC = new MenuConfirmation("Update Controller Software","Insert an USB stick containing the Ruby update archive file and then press Ok to start the update process.",m_iConfirmationId, true);
@@ -413,11 +413,11 @@ void MenuController::updateSoftware()
       char szTitle[64];
       strcpy(szTitle, "Updating. Please wait..");
       if ( 0 == (counter % 3) )
-         strcat(szTitle, ".");
+         strlcat(szTitle, ".", sizeof(szTitle));
       if ( 1 == (counter % 3) )
-         strcat(szTitle, "..");
+         strlcat(szTitle, "..", sizeof(szTitle));
       if ( 2 == (counter % 3) )
-         strcat(szTitle, "...");
+         strlcat(szTitle, "...", sizeof(szTitle));
       p->setTitle(szTitle);
       ruby_input_loop(true);
       render_all(g_TimeNow);

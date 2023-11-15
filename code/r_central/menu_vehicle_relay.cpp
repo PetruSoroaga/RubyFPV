@@ -98,7 +98,7 @@ void MenuVehicleRelay::onShow()
    m_pItemsSelect[0]->addSelection("Disabled");
    for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
    {
-      sprintf(szBuff,"Enable on radio link %d", i+1);
+      snprintf(szBuff, sizeof(szBuff),"Enable on radio link %d", i+1);
       m_pItemsSelect[0]->addSelection(szBuff);
    }
    m_pItemsSelect[0]->setIsEditable();
@@ -128,10 +128,10 @@ void MenuVehicleRelay::onShow()
       m_iCountVehiclesIDs++;
 
       char szName[128];
-      strncpy(szName, pModel->getLongName(), 127);
+      strlcpy(szName, pModel->getLongName(), sizeof(szName));
       szName[0] = toupper(szName[0]);
 
-      sprintf(szBuff,"%s, %s", szName, str_format_frequency(pModel->radioLinksParams.link_frequency[0]));
+      snprintf(szBuff, sizeof(szBuff),"%s, %s", szName, str_format_frequency(pModel->radioLinksParams.link_frequency[0]));
       m_pItemsSelect[2]->addSelection(szBuff);
    }
 
@@ -145,10 +145,10 @@ void MenuVehicleRelay::onShow()
          continue;
 
       char szName[128];
-      strncpy(szName, pModel->getLongName(), 127);
+       strlcpy(szName, pModel->getLongName(), sizeof(szName));
       szName[0] = toupper(szName[0]);
 
-      sprintf(szBuff,"%s (S), %s", szName, str_format_frequency(pModel->radioLinksParams.link_frequency[0]));
+      snprintf(szBuff, sizeof(szBuff),"%s (S), %s", szName, str_format_frequency(pModel->radioLinksParams.link_frequency[0]));
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    */
@@ -424,7 +424,7 @@ void MenuVehicleRelay::_drawHeader(float yPos)
 
    if ( iRelayVehicleFreq != g_pCurrentModel->relay_params.uRelayFrequency )
    {
-      sprintf(szBuff, "Now at %s !", str_format_frequency(iRelayVehicleFreq) );
+      snprintf(szBuff, sizeof(szBuff), "Now at %s !", str_format_frequency(iRelayVehicleFreq) );
       fW = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
       g_pRenderEngine->drawText(xPos + 0.5*fSpacing - 0.5*fW, yMidLine + height_text*0.1, g_idFontMenu, szBuff);
    }
@@ -522,7 +522,7 @@ bool MenuVehicleRelay::_check_enable_relay(int iRadioLinkRelay)
 
    if ( ! bHasHighCapacityRemaining )
    {
-      sprintf(szBuff, "You can't use vehicle radio link %d for relaying. You will not have any remaining high capacity link between your controller and this vehicle.", iRadioLinkRelay+1);
+      snprintf(szBuff, sizeof(szBuff), "You can't use vehicle radio link %d for relaying. You will not have any remaining high capacity link between your controller and this vehicle.", iRadioLinkRelay+1);
       addMessage(szBuff);
       return false;
    }
@@ -558,13 +558,13 @@ bool MenuVehicleRelay::_check_enable_relay(int iRadioLinkRelay)
 
    if ( !bHasRxRemaining )
    {
-      sprintf(szBuff, "You can't use vehicle radio link %d for relaying. You will not have any remaining downlink link between your controller and this vehicle. Check your radio cards uplink/downlink settings.", iRadioLinkRelay+1);
+      snprintf(szBuff, sizeof(szBuff), "You can't use vehicle radio link %d for relaying. You will not have any remaining downlink link between your controller and this vehicle. Check your radio cards uplink/downlink settings.", iRadioLinkRelay+1);
       addMessage(szBuff);
       return false;
    }
    if ( !bHasTxRemaining )
    {
-      sprintf(szBuff, "You can't use vehicle radio link %d for relaying. You will not have any remaining uplink link between your controller and this vehicle. Check your radio cards uplink/downlink settings.", iRadioLinkRelay+1);
+      snprintf(szBuff, sizeof(szBuff), "You can't use vehicle radio link %d for relaying. You will not have any remaining uplink link between your controller and this vehicle. Check your radio cards uplink/downlink settings.", iRadioLinkRelay+1);
       addMessage(szBuff);
       return false;
    }
@@ -603,13 +603,13 @@ bool MenuVehicleRelay::_check_enable_relay(int iRadioLinkRelay)
 
    if ( !bHasDataRemaining )
    {
-      sprintf(szBuff, "You can't use vehicle radio link %d for relaying. You will not have any remaining data link between your controller and this vehicle. Check your radio cards capabilities (data/video) settings.", iRadioLinkRelay+1);
+      snprintf(szBuff, sizeof(szBuff), "You can't use vehicle radio link %d for relaying. You will not have any remaining data link between your controller and this vehicle. Check your radio cards capabilities (data/video) settings.", iRadioLinkRelay+1);
       addMessage(szBuff);
       return false;
    }
    if ( !bHasVideoRemaining )
    {
-      sprintf(szBuff, "You can't use vehicle radio link %d for relaying. You will not have any remaining video link between your controller and this vehicle. Check your radio cards capabilities (data/video) settings.", iRadioLinkRelay+1);
+      snprintf(szBuff, sizeof(szBuff), "You can't use vehicle radio link %d for relaying. You will not have any remaining video link between your controller and this vehicle. Check your radio cards capabilities (data/video) settings.", iRadioLinkRelay+1);
       addMessage(szBuff);
       return false;
    }
@@ -724,26 +724,26 @@ void MenuVehicleRelay::onSelectItem()
       }
 
       char szName[128];
-      strncpy(szName, pModel->getLongName(), 127);
+       strlcpy(szName, pModel->getLongName(), sizeof(szName));
       szName[0] = toupper(szName[0]);
 
       log_line("Check configuration for relaying vehicle %s: ", szName);
       for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
       {
-         sprintf(szBuff, "Vehicle %s (VID: %u) radio link %d of %d: %s;",
+         snprintf(szBuff, sizeof(szBuff), "Vehicle %s (VID: %u) radio link %d of %d: %s;",
              szName, pModel->vehicle_id, i+1, pModel->radioLinksParams.links_count, str_format_frequency(pModel->radioLinksParams.link_frequency[i]));
          log_line(szBuff);
       }
       for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
       {
-         sprintf(szBuff, "Current vehicle (VID %u) radio link %d of %d: %s;",
+         snprintf(szBuff, sizeof(szBuff), "Current vehicle (VID %u) radio link %d of %d: %s;",
              g_pCurrentModel->vehicle_id, i+1, g_pCurrentModel->radioLinksParams.links_count, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[i]));
          log_line(szBuff);
       }
       
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         sprintf(szBuff, "Current vehicle (VID %u) radio interface %d of %d: %s, for radio link %d;",
+         snprintf(szBuff, sizeof(szBuff), "Current vehicle (VID %u) radio interface %d of %d: %s, for radio link %d;",
              g_pCurrentModel->vehicle_id, i+1, g_pCurrentModel->radioInterfacesParams.interfaces_count,
              str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[i]),
              g_pCurrentModel->radioInterfacesParams.interface_link_id[i]+1);
@@ -769,7 +769,7 @@ void MenuVehicleRelay::onSelectItem()
 
       if ( bConflictWithActiveRadioLinks )
       {
-         sprintf(szBuff, "You can't relay this vehicle (%s) as it's main frequency %s would conflict with your remaining active radio link(s) between your controller and current vehicle (it's on the same frequency).",
+         snprintf(szBuff, sizeof(szBuff), "You can't relay this vehicle (%s) as it's main frequency %s would conflict with your remaining active radio link(s) between your controller and current vehicle (it's on the same frequency).",
             szName, str_format_frequency(iMainFreqRelayedVehicle));
          addMessage(szBuff);
          valuesToUI();
@@ -785,7 +785,7 @@ void MenuVehicleRelay::onSelectItem()
 
       if ( ! isFrequencyInBands(iMainFreqRelayedVehicle, g_pCurrentModel->radioInterfacesParams.interface_supported_bands[iVehicleCardForRelaying]) )
       {
-         sprintf(szBuff, "Your vehicle relay link does not support the relayed vehicle frequency %s.", str_format_frequency(iMainFreqRelayedVehicle));
+         snprintf(szBuff, sizeof(szBuff), "Your vehicle relay link does not support the relayed vehicle frequency %s.", str_format_frequency(iMainFreqRelayedVehicle));
          addMessage(szBuff);
          valuesToUI();
          return;

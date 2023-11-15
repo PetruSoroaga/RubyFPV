@@ -148,7 +148,7 @@ void rx_scope_render_bg()
    float width_text = TextWidth(SYSTEM_NAME, *render_getFontMenu(), text_scale);
 
    Text(toScreenX(0.91), toScreenX(0.05), SYSTEM_NAME, *render_getFontMenu(), text_scale);
-   sprintf(szBuff, "%d.%d", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR);
+   snprintf(szBuff, sizeof(szBuff), "%d.%d", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR);
    if ( szBuff[strlen(szBuff)-1] == '0' && szBuff[strlen(szBuff)-2] != '.' )
       szBuff[strlen(szBuff)-1] = 0;
    Text(toScreenX(0.915)+width_text, toScreenX(0.05), szBuff, *render_getFontMenu(), text_scale*0.8);
@@ -163,16 +163,16 @@ void rx_scope_render_bg()
    yPos -= text_scale * 1.2;
 
    text_scale = toScreenX(0.01);
-   sprintf(szBuff, "[Menu/Cancel]: Close");
+   snprintf(szBuff, sizeof(szBuff), "[Menu/Cancel]: Close");
    Text(toScreenX(0.03), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
 
-   sprintf(szBuff, "[Up/Down]: Page");
+   snprintf(szBuff, sizeof(szBuff), "[Up/Down]: Page");
    Text(toScreenX(0.03), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
 
    char szPage[64];
-   sprintf(szPage, "%d", s_RXScopePage );
+   snprintf(szPage, sizeof(szPage), "%d", s_RXScopePage );
    if ( s_RXScopePage == 0 )
       strcpy(szPage, "1");
    if ( s_RXScopePage == 1 )
@@ -182,27 +182,27 @@ void rx_scope_render_bg()
    if ( s_RXScopePage == 3 )
       strcpy(szPage, "4");
 
-   sprintf(szBuff, "Page: %s", szPage);
+   snprintf(szBuff, sizeof(szBuff), "Page: %s", szPage);
    Text(toScreenX(0.03), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
 
    yPos = toScreenY(0.1);
    text_scale = toScreenX(0.008);
-   sprintf(szBuff, "Data FPS: %d", s_RXScopeDataFPS);
+   snprintf(szBuff, sizeof(szBuff), "Data FPS: %d", s_RXScopeDataFPS);
    Text(toScreenX(0.2), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
    
-   sprintf(szBuff, "Render FPS: %d", s_RXScopeRenderFPS);
+   snprintf(szBuff, sizeof(szBuff), "Render FPS: %d", s_RXScopeRenderFPS);
    Text(toScreenX(0.2), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
 
    yPos = toScreenY(0.1);
    text_scale = toScreenX(0.008);
-   sprintf(szBuff, "kBytes/sec: %d", s_RXScopeLastFrameKb);
+   snprintf(szBuff, sizeof(szBuff), "kBytes/sec: %d", s_RXScopeLastFrameKb);
    Text(toScreenX(0.36), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
    
-   sprintf(szBuff, "Packets/sec: %d", s_RXScopeLastFramePackets);
+   snprintf(szBuff, sizeof(szBuff), "Packets/sec: %d", s_RXScopeLastFramePackets);
    Text(toScreenX(0.36), yPos, szBuff, *render_getFontMenu(), text_scale);
    yPos -= text_scale * 1.3;
 
@@ -219,13 +219,13 @@ void rx_scope_render_bg()
 
    for( int i=0; i<=10; i++ )
    {
-      sprintf(szBuff, "%d", i*100);
+      snprintf(szBuff, sizeof(szBuff), "%d", i*100);
       if ( s_RXScopeZoom == 1 )
-        sprintf(szBuff, "%d", i*50);
+        snprintf(szBuff, sizeof(szBuff), "%d", i*50);
       if ( s_RXScopeZoom == 2 )
-        sprintf(szBuff, "%d", i*25);
+        snprintf(szBuff, sizeof(szBuff), "%d", i*25);
       if ( s_RXScopeZoom == 3 )
-        sprintf(szBuff, "%d", i*10);
+        snprintf(szBuff, sizeof(szBuff), "%d", i*10);
 
       float width_text = TextWidth(szBuff, *render_getFontMenu(), text_scale);   
       int x = startX + (endX-startX)*i/10;
@@ -239,7 +239,7 @@ void rx_scope_render_bg()
    TextEnd(startX-60, startY+(endY-startY)/2-text_scale*0.4, "kBytes", *render_getFontMenu(), text_scale);
    for( int i=0; i<=s_RXScopeYMax; i+=500 )
    {
-      sprintf(szBuff, "%.1f", i/1000.0);
+      snprintf(szBuff, sizeof(szBuff), "%.1f", i/1000.0);
       int y = startY + s_RXScopeRenderBottomBand + (endY-startY - s_RXScopeRenderBottomBand)*i/s_RXScopeYMax;
       TextEnd(startX-22, y-text_scale*0.4, szBuff, *render_getFontMenu(), text_scale);
       Line(startX-10, y, startX, y);

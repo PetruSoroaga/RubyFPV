@@ -361,7 +361,7 @@ void fbg_computeFramerate(struct _fbg *fbg, int to_string) {
         fbg->frame = 0;
 
         if (to_string) {
-            sprintf(fbg->fps_char, "%lu", (long unsigned int)fbg->fps);
+            snprintf(fbg->fps_char, sizeof(fbg->fps_char), "%lu", (long unsigned int)fbg->fps);
         }
     }
 
@@ -388,7 +388,7 @@ void fbg_drawFramerate(struct _fbg *fbg, struct _fbg_font *fnt, int task, int x,
 
         atomic_uint_fast16_t fps = atomic_load_explicit(&fbg->fragments[task]->fbg->fps, memory_order_relaxed);
 
-        sprintf(fps_char, "%i", (int)fps);
+        snprintf(fps_char, sizeof(fps_char), "%i", (int)fps);
 
         fbg_text(fbg, fnt, fps_char, x, y, r, g, b);
 

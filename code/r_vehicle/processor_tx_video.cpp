@@ -335,7 +335,7 @@ void _log_encoding_scheme()
    if ( (s_CurrentPHVF.video_link_profile & 0x0F) == VIDEO_PROFILE_PIP )
       strcpy(szScheme, "PIP");
 
-   sprintf(szVideoStream, "[%d]", (s_CurrentPHVF.video_link_profile>>4) & 0x0F );
+   snprintf(szVideoStream, sizeof(szVideoStream), "[%d]", (s_CurrentPHVF.video_link_profile>>4) & 0x0F );
    u32 uValueDup = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
 
    log_line("New current video profile used: %s (video stream Id: %s), extra params: 0x%08X, (for video res %d x %d, %d FPS, %d keyframe):",
@@ -1198,9 +1198,9 @@ void _process_command_resend_packets(u8* pPacketBuffer, u8 packetType)
          pTmp++;
 
          if ( 0 != szBuff[0] )
-            strcat(szBuff, ", ");
-         sprintf(szTmp, "[%u/%d] x %d", requested_video_block_index, requested_video_packet_index, requested_retry_count);
-         strcat(szBuff, szTmp);
+            strlcat(szBuff, ", ", sizeof(szBuff));
+         snprintf(szTmp, sizeof(szTmp), "[%u/%d] x %d", requested_video_block_index, requested_video_packet_index, requested_retry_count);
+         strlcat(szBuff, szTmp, sizeof(szBuff));
          if ( c > 4 )
             break;
       }

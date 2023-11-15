@@ -92,7 +92,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO: strcpy(szCommandDesc, "Manual switch to auto video link quality"); break;
 
       default:
-         sprintf(szCommandDesc, "%d", command_type);
+         snprintf(szCommandDesc, sizeof(szCommandDesc), "%d", command_type);
          break;
    }
    return szCommandDesc;

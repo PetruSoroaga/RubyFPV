@@ -39,17 +39,17 @@ void core_plugin_util_log_line(const char* szLine)
 
 
    strcpy(msg.text, "S-CorePlugin");
-   strcat(msg.text, ": ");
+   int len = strlcat(msg.text, ": ", sizeof(msg.text));
 
-   if ( strlen(szLine) > 300 - 2 - strlen(msg.text) )
+   if ( strlen(szLine) > 300 - 2 - len )
    {
-      char szTmp[301];
-      strncpy(szTmp, szLine, 300);
-      szTmp[300-2-strlen(msg.text)] = 0;
-      strcat(msg.text, szTmp);
+      char szTmp[300];
+      strlcpy(szTmp, szLine, sizeof(szLine));
+      szTmp[300 - 2 - len] = 0;
+      strlcat(msg.text, szTmp, sizeof(msg.text));
    }
    else
-      strcat(msg.text, szLine);
+      strlcat(msg.text, szLine, sizeof(msg.text));
 
    msgsnd(s_logServiceMessageQueueCorePlugin, &msg, sizeof(msg), 0);  
 }

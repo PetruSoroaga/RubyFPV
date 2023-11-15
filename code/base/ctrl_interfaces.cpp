@@ -33,12 +33,12 @@ void _controller_interfaces_add_card(const char* szMAC)
 
    radio_hw_info_t* pRadioInfo = hardware_get_radio_info_from_mac(szMAC);
 
-   strncpy(s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szMAC, szMAC, MAX_MAC_LENGTH);
+   strlcpy(s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szMAC, szMAC, MAX_MAC_LENGTH);
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].cardModel = 0;
    if ( NULL != pRadioInfo )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].cardModel = pRadioInfo->iCardModel;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags = RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA | RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
-   
+
    if ( hardware_radio_is_sik_radio(pRadioInfo) )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
 
@@ -330,12 +330,12 @@ void controllerRadioInterfacesLogInfo()
       t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioInfo->szMAC);
       szBuff[0] = 0;
       if ( controllerIsCardRXOnly(pRadioInfo->szMAC) )
-         strcat(szBuff, "[RX ONLY]");
+         strlcat(szBuff, "[RX ONLY]", sizeof(szBuff));
       if ( controllerIsCardTXOnly(pRadioInfo->szMAC) )
-         strcat(szBuff, "[TX ONLY]");
+         strlcat(szBuff, "[TX ONLY]", sizeof(szBuff));
       if ( ! controllerIsCardRXOnly(pRadioInfo->szMAC) )
       if ( ! controllerIsCardTXOnly(pRadioInfo->szMAC) )
-         strcat(szBuff, "[TX/RX]");
+         strlcat(szBuff, "[TX/RX]", sizeof(szBuff));
       if ( NULL != pCardInfo )
          log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff);
       else

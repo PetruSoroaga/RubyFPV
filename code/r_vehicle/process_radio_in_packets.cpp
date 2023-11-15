@@ -607,7 +607,7 @@ void _process_received_full_radio_packet(int iInterfaceIndex)
          if ( ! s_bRCLinkDetected )
          {
             char szBuff[64];
-            snprintf(szBuff, 63, "touch %s", FILE_TMP_RC_DETECTED);
+            snprintf(szBuff, sizeof(szBuff), "touch %s", FILE_TMP_RC_DETECTED);
             hw_execute_bash_command(szBuff, NULL);
          }
          s_bRCLinkDetected = true;

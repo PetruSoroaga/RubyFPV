@@ -47,13 +47,13 @@ void hardware_enumerate_i2c_busses()
 
    for( int i=0; i<4; i++ )
    {
-      snprintf(szBuff, 255, "/dev/i2c-%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/i2c-%d", i);
       if( access( szBuff, R_OK ) != -1 )
       if ( s_iHardwareI2CBusCount < MAX_I2C_BUS_COUNT )
       {
          log_line("[Hardware]: Found I2C bus: %s", szBuff);
          s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].nBusNumber = i;
-         snprintf(szBuff, 255, "i2c-%d", i);
+         snprintf(szBuff, sizeof(szBuff), "i2c-%d", i);
          strcpy(s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].szName, szBuff);
          for( int k=0; k<128; k++ )
             s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].devices[k] = 0;
@@ -63,13 +63,13 @@ void hardware_enumerate_i2c_busses()
    }
    for( int i=10; i<14; i++ )
    {
-      snprintf(szBuff, 255, "/dev/i2c-%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/i2c-%d", i);
       if( access( szBuff, R_OK ) != -1 )
       if ( s_iHardwareI2CBusCount < MAX_I2C_BUS_COUNT )
       {
          log_line("[Hardware]: Found I2C bus: %s", szBuff);
          s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].nBusNumber = i;
-         snprintf(szBuff, 255, "i2c-%d", i);
+         snprintf(szBuff, sizeof(szBuff), "i2c-%d", i);
          strcpy(s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].szName, szBuff);
          for( int k=0; k<128; k++ )
             s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].devices[k] = 0;
@@ -79,13 +79,13 @@ void hardware_enumerate_i2c_busses()
    }
    for( int i=20; i<24; i++ )
    {
-      snprintf(szBuff, 255, "/dev/i2c-%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/i2c-%d", i);
       if( access( szBuff, R_OK ) != -1 )
       if ( s_iHardwareI2CBusCount < MAX_I2C_BUS_COUNT )
       {
          log_line("[Hardware]: Found I2C bus: %s", szBuff);
          s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].nBusNumber = i;
-         snprintf(szBuff, 255, "i2c-%d", i);
+         snprintf(szBuff, sizeof(szBuff), "i2c-%d", i);
          strcpy(s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].szName, szBuff);
          for( int k=0; k<128; k++ )
             s_HardwareI2CBusInfo[s_iHardwareI2CBusCount].devices[k] = 0;
@@ -809,9 +809,10 @@ int _hardware_i2c_check_and_update_extender_device_settings(u8 i2cAddress)
          log_line("[Hardware]: Got I2C device 0x%02X name: [%s]. Unchanged.", i2cAddress, szBuff);
       else
       {
+         int len;
          log_line("[Hardware]: Got I2C device 0x%02X name: [%s]. Different from old one. Updating local info.", i2cAddress, szBuff);
-         strncpy(pDeviceInfo->szDeviceName, szBuff, MAX_I2C_DEVICE_NAME-1);
-         pDeviceInfo->szDeviceName[MAX_I2C_DEVICE_NAME-1] = 0;
+         len = strlcpy(pDeviceInfo->szDeviceName, szBuff, MAX_I2C_DEVICE_NAME);
+         pDeviceInfo->szDeviceName[len] = 0;
          iUpdatedI2CSettings = 1;
       }
       iTryGetName = 0;

@@ -46,7 +46,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    else if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_USER ) 
       strcpy(szBuff, "Settings for User video profile:");
    else
-      sprintf(szBuff, "Settings for %s video profile:", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+      snprintf(szBuff, sizeof(szBuff), "Settings for %s video profile:", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
    addTopLine(szBuff);
 
    addMenuItem(new MenuItemSection("Video Link Features"));
@@ -124,7 +124,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[12] = new MenuItemSelect("H264 Slices", "Split video frames into multiple smaller parts. When having heavy radio interference there is a chance that not the entire video is corrupted if video is sliced up. But is uses more processing power.");
    for( int i=1; i<=16; i++ )
    {
-      sprintf(szBuff, "%d", i);
+      snprintf(szBuff, sizeof(szBuff), "%d", i);
       m_pItemsSelect[12]->addSelection(szBuff);
    }
    m_pItemsSelect[12]->setIsEditable();
@@ -304,7 +304,7 @@ void MenuVehicleVideoEncodings::Render()
       {
          y += 0.004*menu_getScaleMenus();
          char szBuff[64];
-         sprintf(szBuff, "EC rate: %d%%", 100*g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs/(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets));
+         snprintf(szBuff, sizeof(szBuff), "EC rate: %d%%", 100*g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs/(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets));
          g_pRenderEngine->drawText( x, y, height_text, g_idFontMenu, szBuff);
          y += menu_getScaleMenus()*MENU_FONT_SIZE_TOOLTIPS + 0.006*menu_getScaleMenus();
       }

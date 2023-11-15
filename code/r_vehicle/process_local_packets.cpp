@@ -272,10 +272,10 @@ void process_local_control_packet(t_packet_header* pPH)
       g_uTimeStartSiKConfigCommand = g_TimeNow;
       
       char szCommand[256];
-      sprintf(szCommand, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+      snprintf(szCommand, sizeof(szCommand), "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
       hw_execute_bash_command(szCommand, NULL);
 
-      sprintf(szCommand, "./ruby_sik_config %s %d -serialspeed %d &", pRadioHWInfo->szDriver, iBaudRate, (int)pSerialPort->lPortSpeed);
+      snprintf(szCommand, sizeof(szCommand), "./ruby_sik_config %s %d -serialspeed %d &", pRadioHWInfo->szDriver, iBaudRate, (int)pSerialPort->lPortSpeed);
       hw_execute_bash_command(szCommand, NULL);
       return;
    }

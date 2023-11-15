@@ -221,7 +221,7 @@ void osd_show_HID()
 
       g_pRenderEngine->setColors(get_Color_OSDText(), 0.8);
       char szBuff[16];
-      sprintf(szBuff, "%d",i+1);
+      snprintf(szBuff, sizeof(szBuff), "%d",i+1);
       osd_show_value(xPos,yPos-height_text_small*0.2, szBuff, g_idFontOSDSmall);
 
       g_pRenderEngine->setColors(get_Color_OSDText());

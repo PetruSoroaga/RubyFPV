@@ -42,8 +42,8 @@ void _forward_on_usb_device_detected()
 
    hw_stop_process("pump");
 
-   sprintf(szBuff, "pump -i usb0 --no-ntp -h Ruby%s_FWD", szSysType);
-   //sprintf(szBuff, "dhclient usb0", szSysType);
+   snprintf(szBuff, sizeof(szBuff), "pump -i usb0 --no-ntp -h Ruby%s_FWD", szSysType);
+   //snprintf(szBuff, sizeof(szBuff), "dhclient usb0", szSysType);
    hw_execute_bash_command_raw(szBuff, NULL);
 
    hardware_sleep_ms(200);
@@ -79,14 +79,14 @@ void _forward_on_usb_device_detected()
    else
    {
       log_line("DHCP is enabled. Reneable the ETH routing on USB tethering start.");
-      sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s &", szSysType);
+      snprintf(szBuff, sizeof(szBuff), "nice pump -i eth0 --no-ntp -h Ruby%s &", szSysType);
       hw_execute_bash_command(szBuff, NULL);
    }
 
    
-   sprintf(szBuff, "touch %s", TEMP_USB_TETHERING_DEVICE);
+   snprintf(szBuff, sizeof(szBuff), "touch %s", TEMP_USB_TETHERING_DEVICE);
    hw_execute_bash_command(szBuff, NULL);
-   sprintf(szBuff, "echo \"%s\" > %s", szIP, TEMP_USB_TETHERING_DEVICE);
+   snprintf(szBuff, sizeof(szBuff), "echo \"%s\" > %s", szIP, TEMP_USB_TETHERING_DEVICE);
    hw_execute_bash_command(szBuff, NULL);
    log_line("Done configuring USB tethering device connection.");
    ruby_resume_watchdog();
@@ -115,7 +115,7 @@ void _forward_on_usb_device_unplugged()
    else
    {
       log_line("DHCP is enabled. Reneable the ETH routing on USB tethering stop.");
-      sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s &", szSysType);
+      snprintf(szBuff, sizeof(szBuff), "nice pump -i eth0 --no-ntp -h Ruby%s &", szSysType);
       hw_execute_bash_command(szBuff, NULL);
    }
    ruby_resume_watchdog();
@@ -178,7 +178,7 @@ void forward_streams_loop()
             log_line("USB tethering device unplugged.");
             _forward_on_usb_device_unplugged();
             char szBuff[256];
-            sprintf(szBuff, "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
+            snprintf(szBuff, sizeof(szBuff), "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
             hw_execute_bash_command(szBuff, NULL);
             s_bForwardHasUSBDevice = false;
          }

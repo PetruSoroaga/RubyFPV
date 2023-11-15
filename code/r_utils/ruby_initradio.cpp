@@ -93,20 +93,20 @@ int init_Radios()
          continue;
       }
 
-      sprintf(szBuff, "ifconfig %s mtu 2304", pRadioHWInfo->szName );
+      snprintf(szBuff, sizeof(szBuff), "ifconfig %s mtu 2304", pRadioHWInfo->szName );
       hw_execute_bash_command(szBuff, NULL);
       hardware_sleep_ms(delayMs);
 
       if ( ((pRadioHWInfo->typeAndDriver) & 0xFF) == RADIO_TYPE_ATHEROS )
       {
-         //sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
+         //snprintf(szBuff, sizeof(szBuff), "ifconfig %s down", pRadioHWInfo->szName );
          //execute_bash_command(szBuff, NULL);
          //hardware_sleep_ms(delayMs);
-         //sprintf(szBuff, "iw dev %s set type managed", pRadioHWInfo->szName );
+         //snprintf(szBuff, sizeof(szBuff), "iw dev %s set type managed", pRadioHWInfo->szName );
          //execute_bash_command(szBuff, NULL);
          //hardware_sleep_ms(delayMs);
 
-         sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
+         snprintf(szBuff, sizeof(szBuff), "ifconfig %s up", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
          int dataRate = DEFAULT_RADIO_DATARATE;
@@ -121,18 +121,18 @@ int init_Radios()
          if ( dataRate == 0 )
             dataRate = DEFAULT_RADIO_DATARATE;
          if ( dataRate > 0 )
-            sprintf(szBuff, "iw dev %s set bitrates legacy-2.4 %d", pRadioHWInfo->szName, dataRate );
+            snprintf(szBuff, sizeof(szBuff), "iw dev %s set bitrates legacy-2.4 %d", pRadioHWInfo->szName, dataRate );
          else
-            sprintf(szBuff, "iw dev %s set bitrates ht-mcs-2.4 %d", pRadioHWInfo->szName, -dataRate-1 );
+            snprintf(szBuff, sizeof(szBuff), "iw dev %s set bitrates ht-mcs-2.4 %d", pRadioHWInfo->szName, -dataRate-1 );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
+         snprintf(szBuff, sizeof(szBuff), "ifconfig %s down", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "iw dev %s set monitor none", pRadioHWInfo->szName);
+         snprintf(szBuff, sizeof(szBuff), "iw dev %s set monitor none", pRadioHWInfo->szName);
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
+         snprintf(szBuff, sizeof(szBuff), "ifconfig %s up", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
          //printf(szBuff, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
@@ -142,21 +142,21 @@ int init_Radios()
       //if ( ((pRadioHWInfo->type) & 0xFF) == RADIO_TYPE_RALINK )
       else
       {
-         sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
+         snprintf(szBuff, sizeof(szBuff), "ifconfig %s down", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
 
-         sprintf(szBuff, "iw dev %s set monitor none", pRadioHWInfo->szName);
+         snprintf(szBuff, sizeof(szBuff), "iw dev %s set monitor none", pRadioHWInfo->szName);
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
+         snprintf(szBuff, sizeof(szBuff), "ifconfig %s up", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
       }
 
       if ( hardware_radioindex_supports_frequency(i, DEFAULT_FREQUENCY58) )
       {
-         sprintf(szBuff, "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY58);
+         snprintf(szBuff, sizeof(szBuff), "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY58);
          pRadioHWInfo->uCurrentFrequency = DEFAULT_FREQUENCY58;
          hw_execute_bash_command(szBuff, NULL);
          pRadioHWInfo->lastFrequencySetFailed = 0;
@@ -164,7 +164,7 @@ int init_Radios()
       }
       else if ( hardware_radioindex_supports_frequency(i, DEFAULT_FREQUENCY) )
       {
-         sprintf(szBuff, "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY);
+         snprintf(szBuff, sizeof(szBuff), "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY);
          pRadioHWInfo->uCurrentFrequency = DEFAULT_FREQUENCY;
          hw_execute_bash_command(szBuff, NULL);
          pRadioHWInfo->lastFrequencySetFailed = 0;
@@ -178,13 +178,13 @@ int init_Radios()
       }
       //if ( isStation && controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       //{
-      //   sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
+      //   snprintf(szBuff, sizeof(szBuff), "ifconfig %s down", pRadioHWInfo->szName );
       //   execute_bash_command(szBuff, NULL);
       //}
       hardware_sleep_ms(2*delayMs);
 
       char szOutput[2048];
-      sprintf(szBuff, "ifconfig | grep %s", pRadioHWInfo->szName);
+      snprintf(szBuff, sizeof(szBuff), "ifconfig | grep %s", pRadioHWInfo->szName);
       hw_execute_bash_command(szBuff, szOutput);
       log_line("Radio interface %s state: [%s]", pRadioHWInfo->szName, szOutput);
    }
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
    {
       hardware_sleep_ms(200);
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
       hardware_enumerate_radio_interfaces();

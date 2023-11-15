@@ -46,7 +46,7 @@ void _sw_update_close_remove_temp_files()
    if ( 0 != s_szUpdateArchiveFile[0] )
    {
       char szComm[512];
-      sprintf(szComm, "rm -rf %s", s_szUpdateArchiveFile);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", s_szUpdateArchiveFile);
       hw_execute_bash_command_silent(szComm, NULL);
       s_szUpdateArchiveFile[0] = 0;
    }
@@ -78,7 +78,7 @@ void _sw_update_close_remove_temp_files()
    if ( s_bSoftwareUpdateStoppedVideoPipeline )
    {
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_UPDATE_IN_PROGRESS);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_UPDATE_IN_PROGRESS);
       hw_execute_bash_command_silent(szComm, NULL);
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO, 0);
       s_bSoftwareUpdateStoppedVideoPipeline = false;
@@ -133,7 +133,7 @@ void _process_upload_apply()
       char szComm[512];
 
       log_line("Apply update using controller mirrored files...");
-      sprintf(szComm, "tar -zxf %s", s_szUpdateArchiveFile);
+      snprintf(szComm, sizeof(szComm), "tar -zxf %s", s_szUpdateArchiveFile);
       hw_execute_bash_command(szComm, NULL);
       hw_execute_bash_command("chmod 777 ruby*", NULL);
 
@@ -223,7 +223,7 @@ void process_sw_upload_old(u32 command_param, u8* pBuffer, int length)
 
    if ( 0 == s_uLastReceivedSoftwareBlockIndex )
    {
-      sprintf(szComm, "touch %s", FILE_TMP_UPDATE_IN_PROGRESS);
+      snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_UPDATE_IN_PROGRESS);
       hw_execute_bash_command_silent(szComm, NULL);
       s_bSoftwareUpdateStoppedVideoPipeline = true;
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO, 0);
@@ -304,7 +304,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
 
    if ( ! s_bSoftwareUpdateStoppedVideoPipeline )
    {
-      sprintf(szComm, "touch %s", FILE_TMP_UPDATE_IN_PROGRESS);
+      snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_UPDATE_IN_PROGRESS);
       hw_execute_bash_command_silent(szComm, NULL);
       s_bSoftwareUpdateStoppedVideoPipeline = true;
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO, 0);

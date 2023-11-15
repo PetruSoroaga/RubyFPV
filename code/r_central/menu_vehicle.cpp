@@ -161,7 +161,7 @@ void MenuVehicle::addTopDescription()
 {
    removeAllTopLines();
    char szBuff[256];
-   sprintf(szBuff, "%s Settings", g_pCurrentModel->getLongName());
+   snprintf(szBuff, sizeof(szBuff), "%s Settings", g_pCurrentModel->getLongName());
    szBuff[0] = toupper(szBuff[0]);
    setTitle(szBuff);
    //setSubTitle("Vehicle Settings");

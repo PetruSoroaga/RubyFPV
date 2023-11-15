@@ -114,19 +114,19 @@ float MenuItemRange::getValueWidth(float maxWidth)
    //   return m_RenderValueWidth;
 
    char szBuff[128];
-   sprintf(szBuff, "%.1f", m_ValueCurrent);
+   snprintf(szBuff, sizeof(szBuff), "%.1f", m_ValueCurrent);
    if ( szBuff[strlen(szBuff)-1] == '0' )
    if ( szBuff[strlen(szBuff)-2] == '.' )
       szBuff[strlen(szBuff)-2] = 0;
    if ( 0 != m_szPrefix[0] )
    {
-      strcat(szBuff, " ");
-      strcat(szBuff, m_szPrefix);
+      strlcat(szBuff, " ", sizeof(szBuff));
+      strlcat(szBuff, m_szPrefix, sizeof(szBuff));
    }
    if ( 0 != m_szSufix[0] )
    {
-      strcat(szBuff, " ");
-      strcat(szBuff, m_szSufix);
+      strlcat(szBuff, " ", sizeof(szBuff));
+      strlcat(szBuff, m_szSufix, sizeof(szBuff));
    }
    float height_text = g_pRenderEngine->textHeight(MENU_FONT_SIZE_ITEMS*menu_getScaleMenus(), g_idFontMenu);
    m_RenderValueWidth = g_pRenderEngine->textWidth(height_text, g_idFontMenu, szBuff);
@@ -146,21 +146,21 @@ void MenuItemRange::Render(float xPos, float yPos, bool bSelected, float fWidthS
    szBuff[0] = 0;
    if ( 0 != m_szPrefix[0] )
    {
-      strcat(szBuff, m_szPrefix);
-      strcat(szBuff, " ");
+      strlcat(szBuff, m_szPrefix, sizeof(szBuff));
+      strlcat(szBuff, " ", sizeof(szBuff));
    }
 
    char szValue[32];
-   sprintf(szValue, "%.1f", m_ValueCurrent);
+   snprintf(szValue, sizeof(szValue), "%.1f", m_ValueCurrent);
    if ( szValue[strlen(szValue)-1] == '0' )
    if ( szValue[strlen(szValue)-2] == '.' )
       szValue[strlen(szValue)-2] = 0;
-   strcat(szBuff, szValue);
+   strlcat(szBuff, szValue, sizeof(szBuff));
 
    if ( 0 != m_szSufix[0] )
    {
-      strcat(szBuff, " ");
-      strcat(szBuff, m_szSufix);
+      strlcat(szBuff, " ", sizeof(szBuff));
+      strlcat(szBuff, m_szSufix, sizeof(szBuff));
    }
 
    m_RenderValueWidth = getValueWidth(m_pMenu->getUsableWidth());
@@ -192,14 +192,14 @@ void MenuItemRange::RenderCondensed(float xPos, float yPos, bool bSelected, floa
    float padding = MENU_SELECTION_PADDING*menu_getScaleMenus();
 
    char szBuff[32];
-   sprintf(szBuff, "%.1f", m_ValueCurrent);
+   snprintf(szBuff, sizeof(szBuff), "%.1f", m_ValueCurrent);
    if ( szBuff[strlen(szBuff)-1] == '0' )
    if ( szBuff[strlen(szBuff)-2] == '.' )
       szBuff[strlen(szBuff)-2] = 0;
    if ( 0 != m_szSufix[0] )
    {
-      strcat(szBuff, " ");
-      strcat(szBuff, m_szSufix);
+      strlcat(szBuff, " ", sizeof(szBuff));
+      strlcat(szBuff, m_szSufix, sizeof(szBuff));
    }
 
    if ( m_bIsEditing )

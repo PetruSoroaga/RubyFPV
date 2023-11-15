@@ -209,7 +209,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
       if ( (nSpeed%10) == 0 )
       {
-         sprintf(szBuff, "%d", nSpeed);
+         snprintf(szBuff, sizeof(szBuff), "%d", nSpeed);
          float w = g_pEngine->textWidth(fontIdSmall, szBuff);
          g_pEngine->drawText(xtext-0.5*w,ytext-0.5*height_text_small, fontIdSmall, szBuff);
       }
@@ -230,14 +230,14 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
    static float s_fPluginSpeedSmooth = 0.0;
    s_fPluginSpeedSmooth = 0.8*s_fPluginSpeedSmooth + 0.2 * hspeed;
 
-   sprintf(szBuff, "%d km/h", (int)s_fPluginSpeedSmooth);
+   snprintf(szBuff, sizeof(szBuff), "%d km/h", (int)s_fPluginSpeedSmooth);
    
    if ( NULL != pCurrentSettings->pExtraInfo )
    {
       plugin_settings_info_t2_extra* pExtraInfo2 = (plugin_settings_info_t2_extra*) pCurrentSettings->pExtraInfo;
       
       if ( pExtraInfo2->iMeasureUnitsType == 1 || pExtraInfo2->iMeasureUnitsType == 3 )
-         sprintf(szBuff, "%d mi/h", (int) s_fPluginSpeedSmooth);
+         snprintf(szBuff, sizeof(szBuff), "%d mi/h", (int) s_fPluginSpeedSmooth);
    }
    g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
    // Use a smaller font is the plugin size is small
@@ -250,7 +250,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
    if ( 1 == pCurrentSettings->nSettingsValues[1] )
    {
-      sprintf(szBuff, "TH: %d%%", pTelemetryInfo->throttle);
+      snprintf(szBuff, sizeof(szBuff), "TH: %d%%", pTelemetryInfo->throttle);
       g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
       // Use a smaller font is the plugin size is small
       if ( fHeight < 0.3 )

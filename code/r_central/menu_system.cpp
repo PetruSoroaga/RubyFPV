@@ -136,7 +136,7 @@ void MenuSystem::onReturnFromChild(int returnValue)
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+      snprintf(szBuff, sizeof(szBuff), "touch %s", LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
 
       hw_execute_bash_command("sudo reboot -f", NULL);

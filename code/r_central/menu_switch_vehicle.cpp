@@ -36,7 +36,7 @@ MenuSwitchVehicle::MenuSwitchVehicle(int vehicleIndex)
 
    szBuff[0] = 0;
    szName[0] = 0;
-   //sprintf(szName,"%s ", Model::getVehicleType(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_type));
+   //snprintf(szName, sizeof(szName),"%s ", Model::getVehicleType(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_type));
    strcpy(szName, "Unknown");
    if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
    {
@@ -47,16 +47,16 @@ MenuSwitchVehicle::MenuSwitchVehicle(int vehicleIndex)
    }
    if ( NULL != g_pCurrentModel )
    {
-      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getShortName());
+      snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getShortName());
       if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-         sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]), g_pCurrentModel->getShortName());
+         snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]), g_pCurrentModel->getShortName());
       else if ( 2 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
       {
          char szFreq1[64];
          char szFreq2[64];
          strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
          strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-         sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getShortName());
+         snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getShortName());
       }
       else
       {
@@ -66,7 +66,7 @@ MenuSwitchVehicle::MenuSwitchVehicle(int vehicleIndex)
          strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
          strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
          strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[2]));
-         sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getShortName());
+         snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getShortName());
       }
    }
    if ( 0 != szBuff[0] )

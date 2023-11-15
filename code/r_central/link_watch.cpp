@@ -204,22 +204,22 @@ void link_watch_loop_popup_looking()
          char szBuff[256];
          char szName[128];
          szName[0] = 0;
-         //sprintf(szName,"%s ", Model::getVehicleType(g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_type));
+         //snprintf(szName, sizeof(szName),"%s ", Model::getVehicleType(g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_type));
          if ( 0 == g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_name[0] )
-            strcat(szName, "No Name");
+            strlcat(szName, "No Name", sizeof(szName));
          else
-            strcat(szName, (char*)g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_name);
+            snprintf(szName, sizeof(szName), "%.*s", MAX_VEHICLE_NAME_LENGTH, (char*)g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_name);
          if ( 0 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getShortName());
+            snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getShortName());
          else if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]), g_pCurrentModel->getShortName());
+            snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]), g_pCurrentModel->getShortName());
          else if ( 2 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
          {
             char szFreq1[64];
             char szFreq2[64];
             strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
             strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getShortName());
+            snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getShortName());
          }
          else
          {
@@ -229,7 +229,7 @@ void link_watch_loop_popup_looking()
             strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
             strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
             strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[2]));
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getShortName());
+            snprintf(szBuff, sizeof(szBuff), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getShortName());
          }
          g_pPopupWrongModel = new Popup(szBuff, 0.2, 0.32, 0.5, 0);
          g_pPopupWrongModel->setCentered();
@@ -324,13 +324,13 @@ void link_watch_loop_popup_looking()
                if ( NULL != pNICInfo )
                   freq = pNICInfo->uCurrentFrequency;
             }
-            sprintf(szText, "Looking for default vehicle (%s)...", str_format_frequency(freq));
+            snprintf(szText, sizeof(szText), "Looking for default vehicle (%s)...", str_format_frequency(freq));
          }
          else
          {
             idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
             if ( g_pCurrentModel->radioInterfacesParams.interfaces_count < 2 )
-               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
+               snprintf(szText, sizeof(szText), "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
             else
             {
                if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId <= 0 )
@@ -339,14 +339,14 @@ void link_watch_loop_popup_looking()
                   char szFreq2[64];
                   strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
                   strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-                  sprintf(szText, "Looking for %s (%s, %s/%s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
+                  snprintf(szText, sizeof(szText), "Looking for %s (%s, %s/%s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
                }
                else
                {
                    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId-1 == 0 )
-                     sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
+                     snprintf(szText, sizeof(szText), "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
                    else
-                     sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
+                     snprintf(szText, sizeof(szText), "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
                }
             }
          }
@@ -538,12 +538,12 @@ void link_watch_loop_telemetry()
              if ( s_szLastMessageFromFC[0] == 'R' && s_szLastMessageFromFC[1] == ':' )
              {
                 strcpy(szBuff, "Ruby: ");
-                strcat(szBuff, &(s_szLastMessageFromFC[0]));
+                strlcat(szBuff, &(s_szLastMessageFromFC[0]), sizeof(szBuff));
              }
              else
              {
                 strcpy(szBuff, "Vehicle: ");
-             	  strcat(szBuff, s_szLastMessageFromFC);
+             	  strlcat(szBuff, s_szLastMessageFromFC, sizeof(szBuff));
              }
              warnings_add(szBuff, g_idIconInfo, get_Color_IconNormal(), 8);
              s_TimeLastMessageFromFC = g_TimeNow;
@@ -610,8 +610,8 @@ void link_watch_loop_video()
          {
             s_TimeLastAlarmRadioLinkBehind = g_TimeNow;
             char szBuff[256];
-            //sprintf(szBuff, "Link %d is behind on stream id %d, received packet index: %u, maximum packet index for this stream is: %u.", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[3], g_pProcessStatsRouter->alarmParam[1] );
-            sprintf(szBuff, "Link %d is behind on stream id %d by %d packets", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[1] - g_pProcessStatsRouter->alarmParam[3]);
+            //snprintf(szBuff, sizeof(szBuff), "Link %d is behind on stream id %d, received packet index: %u, maximum packet index for this stream is: %u.", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[3], g_pProcessStatsRouter->alarmParam[1] );
+            snprintf(szBuff, sizeof(szBuff), "Link %d is behind on stream id %d by %d packets", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[1] - g_pProcessStatsRouter->alarmParam[3]);
             warnings_add(szBuff, g_idIconWarning);
          }
       }
@@ -722,7 +722,7 @@ void link_watch_loop_processes()
             char szComm[1024];
             char szBuff[2048];
             char szTemp[64];
-            sprintf(szComm, "df %s | sed -n 2p", TEMP_VIDEO_MEM_FOLDER);
+            snprintf(szComm, sizeof(szComm), "df %s | sed -n 2p", TEMP_VIDEO_MEM_FOLDER);
             hw_execute_bash_command_raw(szComm, szBuff);
             long lu, lf, lt;
             sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
@@ -761,7 +761,7 @@ void link_watch_loop_processes()
             }
             if ( NULL != fd )
                fclose(fd);
-            sprintf(szBuff, "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
+            snprintf(szBuff, sizeof(szBuff), "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
             hw_execute_bash_command(szBuff, NULL );
          }
          else

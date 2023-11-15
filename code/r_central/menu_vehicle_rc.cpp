@@ -331,17 +331,17 @@ void MenuVehicleRC::valuesToUI()
                {
                   char szTmp[32];
                   if ( 0 == szBuff[0] )
-                     sprintf(szBuff, "B-%d", ((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse >> shift) & 0x0F));
+                     snprintf(szBuff, sizeof(szBuff), "B-%d", ((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse >> shift) & 0x0F));
                   else
                   {
-                     sprintf(szTmp, ", B-%d", ((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse >> shift) & 0x0F));
-                     strcat(szBuff, szTmp);
+                     snprintf(szTmp, sizeof(szTmp), ", B-%d", ((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse >> shift) & 0x0F));
+                     strlcat(szBuff, szTmp, sizeof(szBuff));
                   }
                }
             }
          }
          else if ( ((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse >> 4 ) & 0x0F) > 0 )
-            sprintf(szBuff, "A-%d", (((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse) >>4 ) & 0x0F));
+            snprintf(szBuff, sizeof(szBuff), "A-%d", (((g_pCurrentModel->rc_params.rcChAssignmentThrotleReverse) >>4 ) & 0x0F));
          m_pItemsSelect[5]->addSelection(szBuff);
       }
       m_pItemsSelect[5]->setSelectedIndex(0);
@@ -506,7 +506,7 @@ void MenuVehicleRC::onAssignButton(int buttonIndex)
    }
 
    char szBuff[64];
-   sprintf(szBuff, "Assigned button %d to throttle reverse/fwd", buttonIndex+1);
+   snprintf(szBuff, sizeof(szBuff), "Assigned button %d to throttle reverse/fwd", buttonIndex+1);
    m_pPopupAssignment = new Popup(true, szBuff, 3 );
    m_pPopupAssignment->setIconId(g_idIconInfo, get_Color_IconNormal());
    popups_add_topmost(m_pPopupAssignment);
@@ -567,7 +567,7 @@ void MenuVehicleRC::onAssignAxe(int axeIndex)
    }
 
    char szBuff[64];
-   sprintf(szBuff, "Assigned axe %d to throttle reverse/fwd", axeIndex+1);
+   snprintf(szBuff, sizeof(szBuff), "Assigned axe %d to throttle reverse/fwd", axeIndex+1);
    m_pPopupAssignment = new Popup(true, szBuff, 3 );
    m_pPopupAssignment->setIconId(g_idIconInfo, get_Color_IconNormal());
    popups_add_topmost(m_pPopupAssignment);
@@ -626,7 +626,7 @@ void MenuVehicleRC::renderLiveValues()
    xPos += fMarginX;
    fWidth -= fMarginX;
 
-   sprintf(szBuff, "RC Output: %s", (g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED)?"Enabled":"Disabled");
+   snprintf(szBuff, sizeof(szBuff), "RC Output: %s", (g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED)?"Enabled":"Disabled");
    g_pRenderEngine->drawText(xPos, y, 0, g_idFontMenu, szBuff);
    y += height_text;
 
@@ -635,22 +635,22 @@ void MenuVehicleRC::renderLiveValues()
    u8 fsMode = g_pCurrentModel->rc_params.failsafeFlags & 0xFF;
 
    if ( RC_FAILSAFE_NOOUTPUT == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: No output");
+      snprintf(szBuff, sizeof(szBuff), "RC Failsafe Type: No output");
    if ( RC_FAILSAFE_KEEPLAST == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Keep last values");
+      snprintf(szBuff, sizeof(szBuff), "RC Failsafe Type: Keep last values");
    if ( RC_FAILSAFE_BELOWRANGE == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Output below range");
+      snprintf(szBuff, sizeof(szBuff), "RC Failsafe Type: Output below range");
    if ( RC_FAILSAFE_VALUE == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Fixed values");
+      snprintf(szBuff, sizeof(szBuff), "RC Failsafe Type: Fixed values");
    if ( RC_FAILSAFE_CUSTOM == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Custom");
+      snprintf(szBuff, sizeof(szBuff), "RC Failsafe Type: Custom");
    g_pRenderEngine->drawText(xPos, y, 0, g_idFontMenu, szBuff);
    y += height_text;
 
-   sprintf(szBuff, "Input: Ok");
+   snprintf(szBuff, sizeof(szBuff), "Input: Ok");
    if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE )
    {
-      sprintf(szBuff, "Input: No Input Source");
+      snprintf(szBuff, sizeof(szBuff), "Input: No Input Source");
       bIsFailSafe = true;
    }
 
@@ -664,7 +664,7 @@ void MenuVehicleRC::renderLiveValues()
    if ( NULL != g_pSM_RCIn )
    if ( ! (g_pSM_RCIn->uFlags & RC_IN_FLAG_HAS_INPUT) )
    {
-      sprintf(szBuff, "Input: No SBUS/IBUS frames");
+      snprintf(szBuff, sizeof(szBuff), "Input: No SBUS/IBUS frames");
       bIsFailSafe = true;
    }
 
@@ -719,34 +719,34 @@ void MenuVehicleRC::renderLiveValues()
       g_pRenderEngine->drawRoundRect(x1, y, rectW, rectH, corner);
    
       g_pRenderEngine->setColors(get_Color_MenuText());
-      sprintf(szBuff, "%d", val);
+      snprintf(szBuff, sizeof(szBuff), "%d", val);
       if ( bIsFailSafe )
       {
          u32 fsChType = get_rc_channel_failsafe_type(g_pCurrentModel, ch);
-         sprintf(szBuff, "FS: %d", val);
+         snprintf(szBuff, sizeof(szBuff), "FS: %d", val);
          if ( RC_FAILSAFE_NOOUTPUT == fsChType )
-            sprintf(szBuff, "FS ---");
+            snprintf(szBuff, sizeof(szBuff), "FS ---");
       }
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
       if ( ! (g_pCurrentModel->rc_params.rcChAssignment[ch] & RC_CH_ASSIGNMENT_FLAG_ASSIGNED ) )
-         sprintf(szBuff, "Not Assigned");
+         snprintf(szBuff, sizeof(szBuff), "Not Assigned");
 
       g_pRenderEngine->drawText(x1+0.003*menu_getScaleMenus(), y-height_text*0.001, height_text, g_idFontMenu, szBuff);
       g_pRenderEngine->setColors(get_Color_MenuText());
 
-      sprintf(szBuff, "%d", fsValue);
+      snprintf(szBuff, sizeof(szBuff), "%d", fsValue);
       if ( RC_FAILSAFE_NOOUTPUT == fsChType )
-         sprintf(szBuff, "No output");
+         snprintf(szBuff, sizeof(szBuff), "No output");
       if ( RC_FAILSAFE_BELOWRANGE == fsChType )
-         sprintf(szBuff, "Below Range (%d)", fsValue);
+         snprintf(szBuff, sizeof(szBuff), "Below Range (%d)", fsValue);
       if ( RC_FAILSAFE_KEEPLAST == fsChType )
-         sprintf(szBuff, "Keep Last (%d)", fsValue);
+         snprintf(szBuff, sizeof(szBuff), "Keep Last (%d)", fsValue);
 
       g_pRenderEngine->drawText(x2, y, 0, g_idFontMenu, szBuff);
 
       if ( g_pCurrentModel->rc_params.inputType != RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
       {
-         sprintf(szBuff, "%d%%", g_pCurrentModel->rc_params.rcChExpo[ch]);
+         snprintf(szBuff, sizeof(szBuff), "%d%%", g_pCurrentModel->rc_params.rcChExpo[ch]);
          g_pRenderEngine->drawText(x3, y, 0, g_idFontMenu, szBuff);
       }
       y += height_text;
@@ -843,9 +843,9 @@ void MenuVehicleRC::onSelectItem()
          m_bPendingEnable = enable;
          char szBuff[256];
          if ( ! enable )
-            sprintf(szBuff, "Your vehicle is armed. Are you sure you want to disable the RC link? You will lose RC controll of the vehicle.");
+            snprintf(szBuff, sizeof(szBuff), "Your vehicle is armed. Are you sure you want to disable the RC link? You will lose RC controll of the vehicle.");
          else
-            sprintf(szBuff, "Your vehicle is armed. Are you sure you want to enable the RC link? It can have unintended consequences depending on how the flight controller is setup.");
+            snprintf(szBuff, sizeof(szBuff), "Your vehicle is armed. Are you sure you want to enable the RC link? It can have unintended consequences depending on how the flight controller is setup.");
          m_iConfirmationId = 2;
          MenuConfirmation* pMC = new MenuConfirmation("WARNING!",szBuff,m_iConfirmationId);
          add_menu_to_stack(pMC);         

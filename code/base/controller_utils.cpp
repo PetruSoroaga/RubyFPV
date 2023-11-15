@@ -82,31 +82,31 @@ int controller_utils_export_all_to_usb()
       return -2;
 
    u32 uControllerId = controller_utils_getControllerId();
-   sprintf(szOutFile, "ruby_export_all_controller_%u.zip", uControllerId);
+   snprintf(szOutFile, sizeof(szOutFile), "ruby_export_all_controller_%u.zip", uControllerId);
 
    hw_execute_bash_command("mkdir -p tmp/importexport", NULL);
    hw_execute_bash_command("chmod 777 tmp/importexport", NULL);
 
-   sprintf(szComm, "rm -rf tmp/importexport/%s 2>/dev/null", szOutFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf tmp/importexport/%s 2>/dev/null", szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "zip tmp/importexport/%s config/*", szOutFile);
+   snprintf(szComm, sizeof(szComm), "zip tmp/importexport/%s config/*", szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "zip -r tmp/importexport/%s /boot/config.txt", szOutFile);
+   snprintf(szComm, sizeof(szComm), "zip -r tmp/importexport/%s /boot/config.txt", szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "chmod 777 tmp/importexport/%s", szOutFile);
+   snprintf(szComm, sizeof(szComm), "chmod 777 tmp/importexport/%s", szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szBuff, "%s/Ruby_Exports", FOLDER_USB_MOUNT);
-   sprintf(szComm, "mkdir -p %s", szBuff );
+   snprintf(szBuff, sizeof(szBuff), "%s/Ruby_Exports", FOLDER_USB_MOUNT);
+   snprintf(szComm, sizeof(szComm), "mkdir -p %s", szBuff );
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "rm -rf %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
+   snprintf(szComm, sizeof(szComm), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
    if( access( szComm, R_OK ) != -1 )
    {
       hardware_unmount_usb();
@@ -115,13 +115,13 @@ int controller_utils_export_all_to_usb()
       return -10;
    }
 
-   sprintf(szComm, "cp -rf tmp/importexport/%s %s/Ruby_Exports/%s", szOutFile, FOLDER_USB_MOUNT, szOutFile);
+   snprintf(szComm, sizeof(szComm), "cp -rf tmp/importexport/%s %s/Ruby_Exports/%s", szOutFile, FOLDER_USB_MOUNT, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "chmod 777 %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
+   snprintf(szComm, sizeof(szComm), "chmod 777 %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
+   snprintf(szComm, sizeof(szComm), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
    if( access( szComm, R_OK ) == -1 )
    {
       hardware_unmount_usb();
@@ -152,15 +152,15 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
       return -2;
 
    u32 uControllerId = controller_utils_getControllerId();
-   sprintf(szInFile, "ruby_export_all_controller_%u.zip", uControllerId);
-   snprintf(szUSBFile, 511, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
+   snprintf(szInFile, sizeof(szInFile), "ruby_export_all_controller_%u.zip", uControllerId);
+   snprintf(szUSBFile, sizeof(szUSBFile), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
 
    if( access( szUSBFile, R_OK ) == -1 )
    {
       if ( bImportAnyFound )
       {
-         sprintf(szInFile, "%s/Ruby_Exports/ruby_export_all_controller_*", FOLDER_USB_MOUNT);
-         sprintf(szComm, "find %s 2>/dev/null", szInFile);
+         snprintf(szInFile, sizeof(szInFile), "%s/Ruby_Exports/ruby_export_all_controller_*", FOLDER_USB_MOUNT);
+         snprintf(szComm, sizeof(szComm), "find %s 2>/dev/null", szInFile);
          szOutput[0] = 0;
          hw_execute_bash_command(szComm, szOutput);
          if ( (0 != szOutput[0]) && (NULL != strstr(szOutput, "ruby_export_all_controller_") ) )
@@ -171,7 +171,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
                   szOutput[i] = 0;
 
             strcpy(szInFile, szOutput);
-            snprintf(szUSBFile, 511, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
+            snprintf(szUSBFile, sizeof(szUSBFile), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
          }
          if( access( szUSBFile, R_OK ) == -1 )
          {
@@ -191,21 +191,21 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
    hw_execute_bash_command("mkdir -p tmp/importexport", NULL);
    hw_execute_bash_command("chmod 777 tmp/importexport", NULL);
 
-   sprintf(szComm, "rm -rf tmp/importexport/%s 2>/dev/null", szInFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf tmp/importexport/%s 2>/dev/null", szInFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s tmp/importexport/%s", szUSBFile, szInFile);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s tmp/importexport/%s", szUSBFile, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
    hw_execute_bash_command("rm -rf config/*", NULL);
 
-   sprintf(szComm, "unzip tmp/importexport/%s", szInFile);
+   snprintf(szComm, sizeof(szComm), "unzip tmp/importexport/%s", szInFile);
    hw_execute_bash_command(szComm, NULL);
 
    hw_execute_bash_command("cp -rf boot/config.txt /boot/config.txt", NULL);
    hw_execute_bash_command("rm -rf boot/config.txt", NULL);
 
-   sprintf(szComm, "rm -rf tmp/importexport/%s", szInFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf tmp/importexport/%s", szInFile);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_unmount_usb();
@@ -225,8 +225,8 @@ bool controller_utils_usb_import_has_matching_controller_id_file()
    char szFile[256];
    char szComm[1024];
    szOutput[0] = 0;
-   sprintf(szFile, "%s/Ruby_Exports/ruby_export_all_controller_%u.zip", FOLDER_USB_MOUNT, uControllerId);
-   sprintf(szComm, "find %s 2>/dev/null", szFile);
+   snprintf(szFile, sizeof(szFile), "%s/Ruby_Exports/ruby_export_all_controller_%u.zip", FOLDER_USB_MOUNT, uControllerId);
+   snprintf(szComm, sizeof(szComm), "find %s 2>/dev/null", szFile);
    hw_execute_bash_command(szComm, szOutput);
 
    hardware_unmount_usb();
@@ -248,8 +248,8 @@ bool controller_utils_usb_import_has_any_controller_id_file()
    char szFile[256];
    char szComm[1024];
    szOutput[0] = 0;
-   sprintf(szFile, "%s/Ruby_Exports/ruby_export_all_controller_*", FOLDER_USB_MOUNT);
-   sprintf(szComm, "find %s 2>/dev/null", szFile);
+   snprintf(szFile, sizeof(szFile), "%s/Ruby_Exports/ruby_export_all_controller_*", FOLDER_USB_MOUNT);
+   snprintf(szComm, sizeof(szComm), "find %s 2>/dev/null", szFile);
    hw_execute_bash_command(szComm, szOutput);
 
    hardware_unmount_usb();

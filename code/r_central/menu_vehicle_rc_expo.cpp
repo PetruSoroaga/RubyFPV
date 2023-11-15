@@ -126,11 +126,11 @@ void MenuVehicleRCExpo::Render()
    g_pRenderEngine->drawTextLeft(xPos+fWidth, yPos+fHeight, height_text_small, g_idFontMenuSmall, "100%");
 
    char szBuff[32];
-   sprintf(szBuff, "%d", g_pCurrentModel->rc_params.rcChMax[m_IndexComputedChannel]);
+   snprintf(szBuff, sizeof(szBuff), "%d", g_pCurrentModel->rc_params.rcChMax[m_IndexComputedChannel]);
    g_pRenderEngine->drawTextLeft(xPos-0.005*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), yPos, height_text_small, g_idFontMenuSmall, szBuff);
-   sprintf(szBuff, "%d", g_pCurrentModel->rc_params.rcChMid[m_IndexComputedChannel]);
+   snprintf(szBuff, sizeof(szBuff), "%d", g_pCurrentModel->rc_params.rcChMid[m_IndexComputedChannel]);
    g_pRenderEngine->drawTextLeft(xPos-0.005*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), yPos+fHeight*0.5 - height_text_small*0.5, height_text_small, g_idFontMenuSmall, szBuff);
-   sprintf(szBuff, "%d", g_pCurrentModel->rc_params.rcChMin[m_IndexComputedChannel]);
+   snprintf(szBuff, sizeof(szBuff), "%d", g_pCurrentModel->rc_params.rcChMin[m_IndexComputedChannel]);
    g_pRenderEngine->drawTextLeft(xPos-0.005*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), yPos+fHeight-height_text_small, height_text_small, g_idFontMenuSmall, szBuff);
 
    if ( g_pCurrentModel->rc_params.rcChMax[m_IndexComputedChannel] < g_pCurrentModel->rc_params.rcChMin[m_IndexComputedChannel]+0.001 )

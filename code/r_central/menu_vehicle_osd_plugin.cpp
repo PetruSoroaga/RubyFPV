@@ -64,7 +64,7 @@ void MenuVehicleOSDPlugin::readPlugin()
 
    char* szName = osd_plugins_get_name(m_nPluginIndex);
    char szBuff[256];
-   sprintf(szBuff, "Configure %s", szName);
+   snprintf(szBuff, sizeof(szBuff), "Configure %s", szName);
    setTitle(szBuff);
 
    int iMaxStringLenght = 0;

@@ -1226,7 +1226,7 @@ bool Menu::uploadSoftware()
    {
       if ( (g_nFailedOTAUpdates == 0) && (g_nSucceededOTAUpdates == 0) )
       {
-         sprintf(szComm, "find updates/ruby_update_%d.%d.zip 2>/dev/null", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
+         snprintf(szComm, sizeof(szComm), "find updates/ruby_update_%d.%d.zip 2>/dev/null", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
          hw_execute_bash_command(szComm, szBuff);
          if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "ruby_update") )
          {
@@ -1249,11 +1249,11 @@ bool Menu::uploadSoftware()
       // Add update info file
       if( access( FILE_INFO_LAST_UPDATE, R_OK ) == -1 )
       {
-         sprintf(szComm, "cp %s %s 2>/dev/null", FILE_INFO_VERSION, FILE_INFO_LAST_UPDATE);
+         snprintf(szComm, sizeof(szComm), "cp %s %s 2>/dev/null", FILE_INFO_VERSION, FILE_INFO_LAST_UPDATE);
          hw_execute_bash_command(szComm, NULL);
       }
 
-      sprintf(szComm, "rm -rf %s 2>/dev/null", szArchiveToUpload);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s 2>/dev/null", szArchiveToUpload);
       hw_execute_bash_command(szComm, NULL);
 
       g_TimeNow = get_current_timestamp_ms();
@@ -1261,7 +1261,7 @@ bool Menu::uploadSoftware()
 
       hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
 
-      sprintf(szComm, "tar -czf %s ruby_*", szArchiveToUpload);
+      snprintf(szComm, sizeof(szComm), "tar -czf %s ruby_*", szArchiveToUpload);
       hw_execute_bash_command(szComm, NULL);
       g_TimeNow = get_current_timestamp_ms();
       ruby_signal_alive();

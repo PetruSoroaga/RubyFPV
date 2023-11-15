@@ -697,7 +697,7 @@ void do_update_to_62()
    log_line("Doing update to 6.2");
 
    char szBuff[256];
-   sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+   snprintf(szBuff, sizeof(szBuff), "touch %s", LOG_USE_PROCESS);
    hw_execute_bash_command(szBuff,NULL);
 
    if ( s_isVehicle )

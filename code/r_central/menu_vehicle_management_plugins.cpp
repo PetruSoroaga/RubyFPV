@@ -82,11 +82,11 @@ void MenuVehicleManagePlugins::populateInfo()
       addTopLine("No core plugins installed on this vehicle.");
       char szBuff[256];
       if ( 0 == get_CorePluginsCount() )
-         sprintf(szBuff, "No core plugins installed on this controller.");
+         snprintf(szBuff, sizeof(szBuff), "No core plugins installed on this controller.");
       else if ( 1 == get_CorePluginsCount() )
-         sprintf(szBuff, "1 core plugin available on this controller.");
+         snprintf(szBuff, sizeof(szBuff), "1 core plugin available on this controller.");
       else
-         sprintf(szBuff, "%d core plugins available on this controller.", get_CorePluginsCount());
+         snprintf(szBuff, sizeof(szBuff), "%d core plugins available on this controller.", get_CorePluginsCount());
       addTopLine(szBuff);
    }
    else
@@ -152,9 +152,9 @@ bool MenuVehicleManagePlugins::periodicLoop()
    }
 
    char szBuff[128];
-   sprintf(szBuff, "Uploading core plugins. Please wait..");
+   snprintf(szBuff, sizeof(szBuff), "Uploading core plugins. Please wait..");
    for( int i=0; i<(s_iStaticMenuManagePluginsCounter%3); i++ )
-      strcat(szBuff, ".");
+      strlcat(szBuff, ".", sizeof(szBuff));
    m_pPopup->setTitle(szBuff);
 
    if ( g_bHasFileUploadInProgress )

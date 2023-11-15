@@ -221,7 +221,7 @@ bool loadModelsSpectator()
    {
       spModelsSpectator[sModelsSpectatorCount] = new Model();
       char szBuff[256];
-      sprintf(szBuff, FILE_VEHICLE_SPECTATOR, sModelsSpectatorCount);
+      snprintf(szBuff, sizeof(szBuff), FILE_VEHICLE_SPECTATOR, sModelsSpectatorCount);
       if( access( szBuff, R_OK ) != -1 )
       {   
          if ( ! spModelsSpectator[sModelsSpectatorCount]->loadFromFile(szBuff, true) )
@@ -240,7 +240,7 @@ bool saveModelsSpectator()
    for( int i=0; i<sModelsSpectatorCount; i++ )
    {
       char szBuff[256];
-      sprintf(szBuff, FILE_VEHICLE_SPECTATOR, i);
+      snprintf(szBuff, sizeof(szBuff), FILE_VEHICLE_SPECTATOR, i);
       spModelsSpectator[i]->saveToFile(szBuff, true);
    }
    return true;
@@ -328,7 +328,7 @@ void loadModels()
    {
       spModels[i] = new Model();
       char szFile[256];
-      sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+      snprintf(szFile, sizeof(szFile), FILE_VEHICLE_CONTROLLER, i);
       if ( ! spModels[i]->loadFromFile(szFile, true) )
          break;
       sModelsCount++;
@@ -343,7 +343,7 @@ void saveModels()
    for( int i=0; i<sModelsCount; i++ )
    {
       char szFile[256];
-      sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+      snprintf(szFile, sizeof(szFile), FILE_VEHICLE_CONTROLLER, i);
       spModels[i]->saveToFile(szFile, true);
    }
 }
@@ -359,7 +359,7 @@ void saveModel(Model* pModel)
       {
          log_line("Found matching controller vehicle in list.");
          char szFile[256];
-         sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+         snprintf(szFile, sizeof(szFile), FILE_VEHICLE_CONTROLLER, i);
          pModel->saveToFile(szFile, true);
          spModels[i]->loadFromFile(szFile);
       }
@@ -372,7 +372,7 @@ void saveModel(Model* pModel)
       {
          log_line("Found matching spectator vehicle in list.");
          char szFile[256];
-         sprintf(szFile, FILE_VEHICLE_SPECTATOR, i);
+         snprintf(szFile, sizeof(szFile), FILE_VEHICLE_SPECTATOR, i);
          pModel->saveToFile(szFile, true);
          spModelsSpectator[i]->loadFromFile(szFile);
       }
@@ -1178,8 +1178,8 @@ bool Model::saveToFile(const char* filename, bool isOnController)
 
    if ( isOnController )
    {
-      sprintf(szBuff, FOLDER_VEHICLE_HISTORY, vehicle_id);
-      sprintf(szComm, "mkdir -p %s", szBuff);
+      snprintf(szBuff, sizeof(szBuff), FOLDER_VEHICLE_HISTORY, vehicle_id);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s", szBuff);
       hw_execute_bash_command_silent(szComm, NULL);
    }
 
@@ -1228,7 +1228,7 @@ bool Model::saveToFile(const char* filename, bool isOnController)
    strcpy(szFreq2, str_format_frequency(radioLinksParams.link_frequency[1]));
    strcpy(szFreq3, str_format_frequency(radioLinksParams.link_frequency[2]));
    
-   sprintf(szLog, "Saved model version 8 (%d ms) to file [%s] and [*.bak], UID: %u, save count: %d: name: [%s], vehicle id: %u, software: %d.%d (b%d), (is on controller side: %s, is in control mode: %s), %d radio links: 1: %s 2: %s 3: %s",
+   snprintf(szLog, sizeof(szLog), "Saved model version 8 (%d ms) to file [%s] and [*.bak], UID: %u, save count: %d: name: [%s], vehicle id: %u, software: %d.%d (b%d), (is on controller side: %s, is in control mode: %s), %d radio links: 1: %s 2: %s 3: %s",
       timeStart, filename, vehicle_id,
       iSaveCount, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version >> 16, isOnController?"yes":"no", is_spectator?"no (spectator mode)":"yes",
       radioLinksParams.links_count, szFreq1, szFreq2, szFreq3 );
@@ -1249,17 +1249,17 @@ bool Model::saveVersion8(const char* szFile, FILE* fd, bool isOnController)
       sw_version = (SYSTEM_SW_VERSION_MAJOR * 256 + SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16);
 
 
-   sprintf(szSetting, "ver: 8\n"); // version number
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%s\n",MODEL_FILE_STAMP_ID);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "savecounter: %d\n", iSaveCount);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, vehicle_id, controller_id, board_type); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "ver: 8\n"); // version number
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%s\n",MODEL_FILE_STAMP_ID);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "savecounter: %d\n", iSaveCount);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "id: %u %u %u %d\n", sw_version, vehicle_id, controller_id, board_type); 
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    char szVeh[MAX_VEHICLE_NAME_LENGTH+1];
-   strncpy(szVeh, vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+    strlcpy(szVeh, vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    szVeh[MAX_VEHICLE_NAME_LENGTH] = 0;
    str_sanitize_modelname(szVeh);
    for( int i=0; i<(int)strlen(szVeh); i++ )
@@ -1269,129 +1269,129 @@ bool Model::saveVersion8(const char* szFile, FILE* fd, bool isOnController)
    }
 
    if ( 0 == szVeh[0] )
-      sprintf(szSetting, "*\n"); 
+      snprintf(szSetting, sizeof(szSetting), "*\n"); 
    else
-      sprintf(szSetting, "%s\n", szVeh);
-   strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%s\n", szVeh);
+   strlcat(szModel, szSetting, sizeof(szModel));
  
-   sprintf(szSetting, "%d %u %d\n", clock_sync_type, camera_rc_channels, niceTelemetry );
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %u %d\n", is_spectator, vehicle_type, m_Stats.uTotalFlightTime, iGPSCount);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%d %u %d\n", clock_sync_type, camera_rc_channels, niceTelemetry );
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %u %d\n", is_spectator, vehicle_type, m_Stats.uTotalFlightTime, iGPSCount);
+   strlcat(szModel, szSetting, sizeof(szModel));
    
    //----------------------------------------
    // CPU 
 
-   sprintf(szSetting, "cpu: %d %d %d\n", niceVideo, niceOthers, ioNiceVideo); 
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", iOverVoltage, iFreqARM, iFreqGPU);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", niceRouter, ioNiceRouter, niceRC);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "cpu: %d %d %d\n", niceVideo, niceOthers, ioNiceVideo); 
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d\n", iOverVoltage, iFreqARM, iFreqGPU);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d\n", niceRouter, ioNiceRouter, niceRC);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    // Radio
 
-   sprintf(szSetting, "radio_interfaces: %d\n", radioInterfacesParams.interfaces_count); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "radio_interfaces: %d\n", radioInterfacesParams.interfaces_count); 
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
    {
-      sprintf(szSetting, "%d %d %u\n", radioInterfacesParams.interface_card_model[i], radioInterfacesParams.interface_link_id[i], radioInterfacesParams.interface_current_frequency[i]);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "  %u %d %u %d %d %d %s- %s-\n", radioInterfacesParams.interface_capabilities_flags[i], radioInterfacesParams.interface_supported_bands[i], radioInterfacesParams.interface_type_and_driver[i], radioInterfacesParams.interface_current_radio_flags[i], radioInterfacesParams.interface_datarates[i][0], radioInterfacesParams.interface_datarates[i][1], radioInterfacesParams.interface_szMAC[i], radioInterfacesParams.interface_szPort[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%d %d %u\n", radioInterfacesParams.interface_card_model[i], radioInterfacesParams.interface_link_id[i], radioInterfacesParams.interface_current_frequency[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "  %u %d %u %d %d %d %s- %s-\n", radioInterfacesParams.interface_capabilities_flags[i], radioInterfacesParams.interface_supported_bands[i], radioInterfacesParams.interface_type_and_driver[i], radioInterfacesParams.interface_current_radio_flags[i], radioInterfacesParams.interface_datarates[i][0], radioInterfacesParams.interface_datarates[i][1], radioInterfacesParams.interface_szMAC[i], radioInterfacesParams.interface_szPort[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "%d %d %d %d %d %d %d %d %d\n", enableDHCP, radioInterfacesParams.txPower, radioInterfacesParams.txPowerAtheros, radioInterfacesParams.txPowerRTL, radioInterfacesParams.txMaxPower, radioInterfacesParams.txMaxPowerAtheros, radioInterfacesParams.txMaxPowerRTL, radioInterfacesParams.slotTime, radioInterfacesParams.thresh62); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d %d %d %d %d %d %d\n", enableDHCP, radioInterfacesParams.txPower, radioInterfacesParams.txPowerAtheros, radioInterfacesParams.txPowerRTL, radioInterfacesParams.txMaxPower, radioInterfacesParams.txMaxPowerAtheros, radioInterfacesParams.txMaxPowerRTL, radioInterfacesParams.slotTime, radioInterfacesParams.thresh62); 
+   strlcat(szModel, szSetting, sizeof(szModel));
 
-   sprintf(szSetting, "radio_links: %d\n", radioLinksParams.links_count); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "radio_links: %d\n", radioLinksParams.links_count); 
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       sprintf( szSetting, "%u %u %u %d %d   ", radioLinksParams.link_frequency[i], radioLinksParams.link_capabilities_flags[i], radioLinksParams.link_radio_flags[i], radioLinksParams.link_datarates[i][0], radioLinksParams.link_datarates[i][1] );
-      strcat(szModel, szSetting);
+      strlcat(szModel, szSetting, sizeof(szModel));
       sprintf( szSetting, "%d %u %d %d\n", radioLinksParams.bUplinkSameAsDownlink[i], radioLinksParams.uplink_radio_flags[i], radioLinksParams.uplink_datarates[i][0], radioLinksParams.uplink_datarates[i][1] );
-      strcat(szModel, szSetting);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
    for( unsigned int j=0; j<(sizeof(radioLinksParams.dummy)/sizeof(radioLinksParams.dummy[0])); j++ )
    {
-      sprintf(szSetting, " %d", radioLinksParams.dummy[j]); 
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %d", radioLinksParams.dummy[j]); 
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "\n");      
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "\n");      
+   strlcat(szModel, szSetting, sizeof(szModel));
 
-   sprintf(szSetting, "relay: %d %d %u %u\n", relay_params.isRelayEnabledOnRadioLinkId, relay_params.uCurrentRelayMode, relay_params.uRelayVehicleId, relay_params.uRelayFlags); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "relay: %d %d %u %u\n", relay_params.isRelayEnabledOnRadioLinkId, relay_params.uCurrentRelayMode, relay_params.uRelayVehicleId, relay_params.uRelayFlags); 
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    // Telemetry
 
-   sprintf(szSetting, "telem: %d %d %d %d %d\n", telemetry_params.fc_telemetry_type, telemetry_params.controller_telemetry_type, telemetry_params.update_rate, telemetry_params.bControllerHasOutputTelemetry, telemetry_params.bControllerHasInputTelemetry);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %u %d %u\n", telemetry_params.dummy1, telemetry_params.dummy2, telemetry_params.dummy3, telemetry_params.dummy4);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", telemetry_params.vehicle_mavlink_id, telemetry_params.controller_mavlink_id, telemetry_params.flags);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %u\n", telemetry_params.dummy5, telemetry_params.dummy6);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d\n", 0); // not used
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "telem: %d %d %d %d %d\n", telemetry_params.fc_telemetry_type, telemetry_params.controller_telemetry_type, telemetry_params.update_rate, telemetry_params.bControllerHasOutputTelemetry, telemetry_params.bControllerHasInputTelemetry);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %u %d %u\n", telemetry_params.dummy1, telemetry_params.dummy2, telemetry_params.dummy3, telemetry_params.dummy4);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d\n", telemetry_params.vehicle_mavlink_id, telemetry_params.controller_mavlink_id, telemetry_params.flags);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %u\n", telemetry_params.dummy5, telemetry_params.dummy6);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d\n", 0); // not used
+   strlcat(szModel, szSetting, sizeof(szModel));
  
    //----------------------------------------
    // Video 
 
-   sprintf(szSetting, "video: %d %d %d %u\n", video_params.user_selected_video_link_profile, video_params.iH264Slices, video_params.videoAdjustmentStrength, video_params.lowestAllowedAdaptiveVideoBitrate);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "video: %d %d %d %u\n", video_params.user_selected_video_link_profile, video_params.iH264Slices, video_params.videoAdjustmentStrength, video_params.lowestAllowedAdaptiveVideoBitrate);
+   strlcat(szModel, szSetting, sizeof(szModel));
    
-   sprintf(szSetting, "%u\n", video_params.uMaxAutoKeyframeInterval);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%u\n", video_params.uMaxAutoKeyframeInterval);
+   strlcat(szModel, szSetting, sizeof(szModel));
    
-   sprintf(szSetting, "%u\n", video_params.uExtraFlags);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%u\n", video_params.uExtraFlags);
+   strlcat(szModel, szSetting, sizeof(szModel));
    
    for( unsigned int i=0; i<(sizeof(video_params.dummy)/sizeof(video_params.dummy[0])); i++ )
    {
-      sprintf(szSetting, " %u",video_params.dummy[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %u",video_params.dummy[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "\n");
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "\n");
+   strlcat(szModel, szSetting, sizeof(szModel));
    
    //----------------------------------------
    // Video link profiles
 
-   sprintf(szSetting, "video_link_profiles: %d\n", (int)MAX_VIDEO_LINK_PROFILES);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "video_link_profiles: %d\n", (int)MAX_VIDEO_LINK_PROFILES);
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      sprintf(szSetting, "%u %u %u %d %d %u   ", video_link_profiles[i].flags, video_link_profiles[i].encoding_extra_flags, video_link_profiles[i].bitrate_fixed_bps, video_link_profiles[i].radio_datarate_video, video_link_profiles[i].radio_datarate_data, video_link_profiles[i].radio_flags);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].packet_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d %d\n", video_link_profiles[i].h264profile, video_link_profiles[i].h264level, video_link_profiles[i].h264refresh, video_link_profiles[i].h264quantization, video_link_profiles[i].insertPPS);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%u %u %u %d %d %u   ", video_link_profiles[i].flags, video_link_profiles[i].encoding_extra_flags, video_link_profiles[i].bitrate_fixed_bps, video_link_profiles[i].radio_datarate_video, video_link_profiles[i].radio_datarate_data, video_link_profiles[i].radio_flags);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].packet_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d %d %d %d\n", video_link_profiles[i].h264profile, video_link_profiles[i].h264level, video_link_profiles[i].h264refresh, video_link_profiles[i].h264quantization, video_link_profiles[i].insertPPS);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
    //----------------------------------------
    // Camera params
 
-   sprintf(szSetting, "cameras: %d %d\n", iCameraCount, iCurrentCamera); 
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "cameras: %d %d\n", iCameraCount, iCurrentCamera); 
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
    {
 
-      sprintf(szSetting, "camera_%d: %d %d %d\n", k, camera_params[k].iCameraType, camera_params[k].iForcedCameraType, camera_params[k].iCurrentProfile); 
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "camera_%d: %d %d %d\n", k, camera_params[k].iCameraType, camera_params[k].iForcedCameraType, camera_params[k].iCurrentProfile); 
+      strlcat(szModel, szSetting, sizeof(szModel));
 
       //----------------------------------------
       // Camera sensor name
 
       char szTmp[MAX_CAMERA_NAME_LENGTH+1];
-      strncpy(szTmp, camera_params[k].szCameraName, MAX_CAMERA_NAME_LENGTH);
+       strlcpy(szTmp, camera_params[k].szCameraName, MAX_CAMERA_NAME_LENGTH);
       szTmp[MAX_CAMERA_NAME_LENGTH] = 0;
       for( int i=0; i<(int)strlen(szTmp); i++ )
       {
@@ -1400,195 +1400,195 @@ bool Model::saveVersion8(const char* szFile, FILE* fd, bool isOnController)
       }
 
       if ( 0 == szTmp[0] )
-         sprintf(szSetting, "cname: *\n"); 
+         snprintf(szSetting, sizeof(szSetting), "cname: *\n"); 
       else
-         sprintf(szSetting, "cname: %s\n", szTmp);
-      strcat(szModel, szSetting);
+         snprintf(szSetting, sizeof(szSetting), "cname: %s\n", szTmp);
+      strlcat(szModel, szSetting, sizeof(szModel));
 
 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-      sprintf(szSetting, "cam_profile_%d: %d %d\n", i, camera_params[k].profiles[i].flags, camera_params[k].profiles[i].flip_image); 
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d\n", camera_params[k].profiles[i].brightness, camera_params[k].profiles[i].contrast, camera_params[k].profiles[i].saturation, camera_params[k].profiles[i].sharpness);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d\n", camera_params[k].profiles[i].exposure, camera_params[k].profiles[i].whitebalance, camera_params[k].profiles[i].metering, camera_params[k].profiles[i].drc);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%f %f %f\n", camera_params[k].profiles[i].analogGain, camera_params[k].profiles[i].awbGainB, camera_params[k].profiles[i].awbGainR);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%f %f\n", camera_params[k].profiles[i].fovH, camera_params[k].profiles[i].fovV);
-      strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d\n", camera_params[k].profiles[i].vstab, camera_params[k].profiles[i].ev, camera_params[k].profiles[i].iso, camera_params[k].profiles[i].shutterspeed); 
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "cam_profile_%d: %d %d\n", i, camera_params[k].profiles[i].flags, camera_params[k].profiles[i].flip_image); 
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d %d %d\n", camera_params[k].profiles[i].brightness, camera_params[k].profiles[i].contrast, camera_params[k].profiles[i].saturation, camera_params[k].profiles[i].sharpness);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d %d %d\n", camera_params[k].profiles[i].exposure, camera_params[k].profiles[i].whitebalance, camera_params[k].profiles[i].metering, camera_params[k].profiles[i].drc);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%f %f %f\n", camera_params[k].profiles[i].analogGain, camera_params[k].profiles[i].awbGainB, camera_params[k].profiles[i].awbGainR);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%f %f\n", camera_params[k].profiles[i].fovH, camera_params[k].profiles[i].fovV);
+      strlcat(szModel, szSetting, sizeof(szModel));
+      snprintf(szSetting, sizeof(szSetting), "%d %d %d %d\n", camera_params[k].profiles[i].vstab, camera_params[k].profiles[i].ev, camera_params[k].profiles[i].iso, camera_params[k].profiles[i].shutterspeed); 
+      strlcat(szModel, szSetting, sizeof(szModel));
 
-      sprintf(szSetting, "%d\n", (int)camera_params[k].profiles[i].wdr); 
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%d\n", (int)camera_params[k].profiles[i].wdr); 
+      strlcat(szModel, szSetting, sizeof(szModel));
 
-      sprintf(szSetting, "%d ", (int)camera_params[k].profiles[i].dayNightMode); 
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%d ", (int)camera_params[k].profiles[i].dayNightMode); 
+      strlcat(szModel, szSetting, sizeof(szModel));
 
       for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummy)/sizeof(camera_params[k].profiles[i].dummy[0])); j++ )
       {
-         sprintf(szSetting, " %d", camera_params[k].profiles[i].dummy[j]); 
-         strcat(szModel, szSetting);
+         snprintf(szSetting, sizeof(szSetting), " %d", camera_params[k].profiles[i].dummy[j]); 
+         strlcat(szModel, szSetting, sizeof(szModel));
       }
-      sprintf(szSetting, "\n");      
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "\n");      
+      strlcat(szModel, szSetting, sizeof(szModel));
       }
    }
    //----------------------------------------
    // Audio
 
-   sprintf(szSetting, "audio: %d\n", (int)audio_params.has_audio_device);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d %u\n", (int)audio_params.enabled, audio_params.volume, audio_params.quality, audio_params.flags);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "audio: %d\n", (int)audio_params.has_audio_device);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d %u\n", (int)audio_params.enabled, audio_params.volume, audio_params.quality, audio_params.flags);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
-   sprintf(szSetting, "alarms: %u\n", alarms);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "alarms: %u\n", alarms);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    // Hardware Info
 
-   sprintf(szSetting, "hw_info: %d %d %d %d\n", hardware_info.radio_interface_count, hardware_info.i2c_bus_count, hardware_info.i2c_device_count, hardware_info.serial_bus_count);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "hw_info: %d %d %d %d\n", hardware_info.radio_interface_count, hardware_info.i2c_bus_count, hardware_info.i2c_device_count, hardware_info.serial_bus_count);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    for( int i=0; i<hardware_info.i2c_bus_count; i++ )
    {
-      sprintf(szSetting, " %d", hardware_info.i2c_bus_numbers[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %d", hardware_info.i2c_bus_numbers[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "\n");
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "\n");
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    for( int i=0; i<hardware_info.i2c_device_count; i++ )
    {
-      sprintf(szSetting, " %d %d\n", hardware_info.i2c_devices_bus[i], hardware_info.i2c_devices_address[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %d %d\n", hardware_info.i2c_devices_bus[i], hardware_info.i2c_devices_address[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
    for( int i=0; i<hardware_info.serial_bus_count; i++ )
    {
-      sprintf(szSetting, " %u %s\n", hardware_info.serial_bus_supported_and_usage[i], hardware_info.serial_bus_names[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %u %s\n", hardware_info.serial_bus_supported_and_usage[i], hardware_info.serial_bus_names[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
    //----------------------------------------
    // OSD 
 
-   sprintf(szSetting, "osd: %d %d %f %d %d\n", osd_params.layout, osd_params.voltage_alarm_enabled, osd_params.voltage_alarm, osd_params.altitude_relative, osd_params.show_gps_position); 
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d %d %d\n", osd_params.battery_show_per_cell, osd_params.battery_cell_count, osd_params.battery_capacity_percent_alarm, osd_params.invert_home_arrow, osd_params.home_arrow_rotate); 
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d %d %d %d %d\n", osd_params.show_overload_alarm, osd_params.show_stats_rx_detailed, osd_params.show_stats_decode, osd_params.show_stats_rc, osd_params.show_full_stats, osd_params.show_instruments, osd_params.ahi_warning_angle);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "osd: %d %d %f %d %d\n", osd_params.layout, osd_params.voltage_alarm_enabled, osd_params.voltage_alarm, osd_params.altitude_relative, osd_params.show_gps_position); 
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d %d %d\n", osd_params.battery_show_per_cell, osd_params.battery_cell_count, osd_params.battery_capacity_percent_alarm, osd_params.invert_home_arrow, osd_params.home_arrow_rotate); 
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d %d %d %d %d\n", osd_params.show_overload_alarm, osd_params.show_stats_rx_detailed, osd_params.show_stats_decode, osd_params.show_stats_rc, osd_params.show_full_stats, osd_params.show_instruments, osd_params.ahi_warning_angle);
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( int i=0; i<5; i++ )
    {
-      sprintf(szSetting, "%u %u %u %u\n", osd_params.osd_flags[i], osd_params.osd_flags2[i], osd_params.instruments_flags[i], osd_params.osd_preferences[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%u %u %u %u\n", osd_params.osd_flags[i], osd_params.osd_flags2[i], osd_params.instruments_flags[i], osd_params.osd_preferences[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
    //----------------------------------------
    // RC 
 
-   sprintf(szSetting, "rc: %d %d %d %d\n", rc_params.rc_enabled, rc_params.dummy1, rc_params.receiver_type, rc_params.rc_frames_per_second);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d\n", rc_params.inputType);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %ld %d %ld\n", rc_params.inputSerialPort, rc_params.inputSerialPortSpeed, rc_params.outputSerialPort, rc_params.outputSerialPortSpeed);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "rc: %d %d %d %d\n", rc_params.rc_enabled, rc_params.dummy1, rc_params.receiver_type, rc_params.rc_frames_per_second);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d\n", rc_params.inputType);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %ld %d %ld\n", rc_params.inputSerialPort, rc_params.inputSerialPortSpeed, rc_params.outputSerialPort, rc_params.outputSerialPortSpeed);
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( int i=0; i<MAX_RC_CHANNELS; i++ )
    {
-      sprintf(szSetting, "%u %u %u %u %u %u %u\n", (u32)rc_params.rcChAssignment[i], (u32)rc_params.rcChMid[i], (u32)rc_params.rcChMin[i], (u32)rc_params.rcChMax[i], (u32)rc_params.rcChFailSafe[i], (u32)rc_params.rcChExpo[i], (u32)rc_params.rcChFlags[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%u %u %u %u %u %u %u\n", (u32)rc_params.rcChAssignment[i], (u32)rc_params.rcChMid[i], (u32)rc_params.rcChMin[i], (u32)rc_params.rcChMax[i], (u32)rc_params.rcChFailSafe[i], (u32)rc_params.rcChExpo[i], (u32)rc_params.rcChFlags[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
-   sprintf(szSetting, "%d %u %u\n", rc_params.rc_failsafe_timeout_ms, rc_params.failsafeFlags, rc_params.channelsCount );
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u\n", rc_params.hid_id );
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u\n", rc_params.flags );
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u\n", rc_params.rcChAssignmentThrotleReverse );
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%d %u %u\n", rc_params.rc_failsafe_timeout_ms, rc_params.failsafeFlags, rc_params.channelsCount );
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u\n", rc_params.hid_id );
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u\n", rc_params.flags );
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u\n", rc_params.rcChAssignmentThrotleReverse );
+   strlcat(szModel, szSetting, sizeof(szModel));
    for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
    {
-      sprintf(szSetting, " %u",rc_params.dummy[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %u",rc_params.dummy[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "\n");
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "\n");
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    // Misc
 
-   sprintf(szSetting, "misc_dev: %d %u\n", bDeveloperMode, uDeveloperFlags);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u\n", enc_flags);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "misc_dev: %d %u\n", bDeveloperMode, uDeveloperFlags);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u\n", enc_flags);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
-   sprintf(szSetting, "stats: %u\n", m_Stats.uTotalFlights);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u %u %u %u\n", m_Stats.uCurrentOnTime, m_Stats.uCurrentFlightTime, m_Stats.uCurrentFlightDistance, m_Stats.uCurrentFlightTotalCurrent);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u %u %u %u %u\n", m_Stats.uCurrentTotalCurrent, m_Stats.uCurrentMaxAltitude, m_Stats.uCurrentMaxDistance, m_Stats.uCurrentMaxCurrent, m_Stats.uCurrentMinVoltage);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u %u %u\n", m_Stats.uTotalOnTime, m_Stats.uTotalFlightTime, m_Stats.uTotalFlightDistance);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%u %u %u %u %u\n", m_Stats.uTotalTotalCurrent, m_Stats.uTotalMaxAltitude, m_Stats.uTotalMaxDistance, m_Stats.uTotalMaxCurrent, m_Stats.uTotalMinVoltage);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "stats: %u\n", m_Stats.uTotalFlights);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u %u %u %u\n", m_Stats.uCurrentOnTime, m_Stats.uCurrentFlightTime, m_Stats.uCurrentFlightDistance, m_Stats.uCurrentFlightTotalCurrent);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u %u %u %u %u\n", m_Stats.uCurrentTotalCurrent, m_Stats.uCurrentMaxAltitude, m_Stats.uCurrentMaxDistance, m_Stats.uCurrentMaxCurrent, m_Stats.uCurrentMinVoltage);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u %u %u\n", m_Stats.uTotalOnTime, m_Stats.uTotalFlightTime, m_Stats.uTotalFlightDistance);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%u %u %u %u %u\n", m_Stats.uTotalTotalCurrent, m_Stats.uTotalMaxAltitude, m_Stats.uTotalMaxDistance, m_Stats.uTotalMaxCurrent, m_Stats.uTotalMinVoltage);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    // Functions triggers 
 
-   sprintf(szSetting, "func: %d %d %d\n", functions_params.bEnableRCTriggerFreqSwitchLink1, functions_params.bEnableRCTriggerFreqSwitchLink2, functions_params.bEnableRCTriggerFreqSwitchLink3);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", functions_params.iRCTriggerChannelFreqSwitchLink1, functions_params.iRCTriggerChannelFreqSwitchLink2, functions_params.iRCTriggerChannelFreqSwitchLink3);
-   strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", functions_params.bRCTriggerFreqSwitchLink1_is3Position, functions_params.bRCTriggerFreqSwitchLink2_is3Position, functions_params.bRCTriggerFreqSwitchLink3_is3Position);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "func: %d %d %d\n", functions_params.bEnableRCTriggerFreqSwitchLink1, functions_params.bEnableRCTriggerFreqSwitchLink2, functions_params.bEnableRCTriggerFreqSwitchLink3);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d\n", functions_params.iRCTriggerChannelFreqSwitchLink1, functions_params.iRCTriggerChannelFreqSwitchLink2, functions_params.iRCTriggerChannelFreqSwitchLink3);
+   strlcat(szModel, szSetting, sizeof(szModel));
+   snprintf(szSetting, sizeof(szSetting), "%d %d %d\n", functions_params.bRCTriggerFreqSwitchLink1_is3Position, functions_params.bRCTriggerFreqSwitchLink2_is3Position, functions_params.bRCTriggerFreqSwitchLink3_is3Position);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    for( int i=0; i<3; i++ )
    {
-      sprintf(szSetting, "%u %u %u %u %u %u\n", functions_params.uChannels433FreqSwitch[i], functions_params.uChannels868FreqSwitch[i], functions_params.uChannels23FreqSwitch[i], functions_params.uChannels24FreqSwitch[i], functions_params.uChannels25FreqSwitch[i], functions_params.uChannels58FreqSwitch[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), "%u %u %u %u %u %u\n", functions_params.uChannels433FreqSwitch[i], functions_params.uChannels868FreqSwitch[i], functions_params.uChannels23FreqSwitch[i], functions_params.uChannels24FreqSwitch[i], functions_params.uChannels25FreqSwitch[i], functions_params.uChannels58FreqSwitch[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
    for( unsigned int i=0; i<(sizeof(functions_params.dummy)/sizeof(functions_params.dummy[0])); i++ )
    {
-      sprintf(szSetting, " %u",functions_params.dummy[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %u",functions_params.dummy[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   sprintf(szSetting, "\n");
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "\n");
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    //----------------------------------------
    //-------------------------------------------
    // Starting extra params, might be zero on load
 
-   sprintf(szSetting, "%u\n", uModelFlags);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%u\n", uModelFlags);
+   strlcat(szModel, szSetting, sizeof(szModel));
 
    for( int i=0; i<hardware_info.serial_bus_count; i++ )
    {
-      sprintf(szSetting, " %d\n", hardware_info.serial_bus_speed[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %d\n", hardware_info.serial_bus_speed[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
 
    for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
    {
-      sprintf(szSetting, " %u", osd_params.osd_flags3[i]);
-      strcat(szModel, szSetting);
+      snprintf(szSetting, sizeof(szSetting), " %u", osd_params.osd_flags3[i]);
+      strlcat(szModel, szSetting, sizeof(szModel));
    }
-   strcat(szModel, "\n");
+   strlcat(szModel, "\n", sizeof(szModel));
 
-   sprintf(szSetting, "%u\n", relay_params.uRelayFrequency);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%u\n", relay_params.uRelayFrequency);
+   strlcat(szModel, szSetting, sizeof(szModel));
   
-   sprintf(szSetting, "%d\n", (int)alarms_params.uAlarmMotorCurrentThreshold);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%d\n", (int)alarms_params.uAlarmMotorCurrentThreshold);
+   strlcat(szModel, szSetting, sizeof(szModel));
    
-   sprintf(szSetting, "%d\n", radioInterfacesParams.txPowerSiK);
-   strcat(szModel, szSetting);
+   snprintf(szSetting, sizeof(szSetting), "%d\n", radioInterfacesParams.txPowerSiK);
+   strlcat(szModel, szSetting, sizeof(szModel));
  
    // End writing values to file
 
@@ -1779,8 +1779,8 @@ void Model::generateUID()
          //log_line("Serial ID of HW: %s", szBuff);
          vehicle_id += szBuff[strlen(szBuff)-1] + 256 * szBuff[strlen(szBuff)-2];
          
-         //strcat(vehicle_name, "-");
-         //strcat(vehicle_name, szBuff + (strlen(szBuff)-4));
+         //strlcat(vehicle_name, "-", sizeof(vehicle_name));
+         //strlcat(vehicle_name, szBuff + (strlen(szBuff)-4), sizeof(vehicle_name));
       }
       fclose(fd);
    }
@@ -2307,10 +2307,10 @@ void Model::logVehicleRadioInfo()
             {
                char szInfo[256];
                if ( 0 != szBuff2[0] )
-                  sprintf(szInfo, ", %d", k+1);
+                  snprintf(szInfo, sizeof(szInfo), ", %d", k+1);
                else
-                  sprintf(szInfo, "%d", k+1);
-               strcat(szBuff2, szInfo);
+                  snprintf(szInfo, sizeof(szInfo), "%d", k+1);
+               strlcat(szBuff2, szInfo, sizeof(szBuff2));
             }
          char szPrefix[32];
          char szRelayFreq[32];
@@ -2319,7 +2319,7 @@ void Model::logVehicleRadioInfo()
          if ( radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
          {
             strcpy(szPrefix, "Relay ");
-            sprintf(szRelayFreq, " (Relay on %s)", str_format_frequency(relay_params.uRelayFrequency));
+            snprintf(szRelayFreq, sizeof(szRelayFreq), " (Relay on %s)", str_format_frequency(relay_params.uRelayFrequency));
          }
          log_line("* %sRadio Link %d: %s%s, Radio frame flags: %s, used on radio interfaces: [%s]",
                   szPrefix,i+1, str_format_frequency(radioLinksParams.link_frequency[i]), szRelayFreq, szBuff, szBuff2);
@@ -3048,7 +3048,7 @@ void Model::setCameraName(int iCameraIndex, const char* szCamName)
       camera_params[iCameraIndex].szCameraName[0] = 0;
       return;
    }
-   strncpy(camera_params[iCameraIndex].szCameraName, szCamName, MAX_CAMERA_NAME_LENGTH-1);
+    strlcpy(camera_params[iCameraIndex].szCameraName, szCamName, MAX_CAMERA_NAME_LENGTH);
    camera_params[iCameraIndex].szCameraName[MAX_CAMERA_NAME_LENGTH-1] = 0;
 }
 
@@ -3174,21 +3174,21 @@ void Model::getCameraFlags(char* szCameraFlags)
    if ( pParams->ev >= 1 &&pParams->ev <= 21 )
    {
       char szBuff[32];
-      sprintf(szBuff, " -ev %d", ((int)pParams->ev)-11);
+      snprintf(szBuff, sizeof(szBuff), " -ev %d", ((int)pParams->ev)-11);
       strcat(szCameraFlags, szBuff);
    }
 
    if ( pParams->iso != 0 )
    {
       char szBuff[32];
-      sprintf(szBuff, " -ISO %d", (int)pParams->iso);
+      snprintf(szBuff, sizeof(szBuff), " -ISO %d", (int)pParams->iso);
       strcat(szCameraFlags, szBuff);
    }
 
    if ( pParams->shutterspeed != 0 )
    {
       char szBuff[32];
-      sprintf(szBuff, " -ss %d", (int)(1000000l/(long)(pParams->shutterspeed)));
+      snprintf(szBuff, sizeof(szBuff), " -ss %d", (int)(1000000l/(long)(pParams->shutterspeed)));
       strcat(szCameraFlags, szBuff);
    }
 
@@ -3234,9 +3234,9 @@ void Model::getCameraFlags(char* szCameraFlags)
    if ( 0 == pParams->whitebalance )
    {
       char szBuff[32];
-      sprintf(szBuff, " -ag %.1f", pParams->analogGain);
+      snprintf(szBuff, sizeof(szBuff), " -ag %.1f", pParams->analogGain);
       strcat(szCameraFlags, szBuff);
-      sprintf(szBuff, " -awbg %.1f,%.1f", pParams->awbGainR, pParams->awbGainB);
+      snprintf(szBuff, sizeof(szBuff), " -awbg %.1f,%.1f", pParams->awbGainR, pParams->awbGainB);
       strcat(szCameraFlags, szBuff);
    }
    //if ( bDeveloperMode )
@@ -3257,25 +3257,25 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
    if ( uBitrate > 6000000 )
       uBitrate = uBitrate*4/5;
 
-   sprintf(szBuff, "-b %u", uBitrate);
+   snprintf(szBuff, sizeof(szBuff), "-b %u", uBitrate);
 
    //if ( isCameraCSICompatible() )
    //{
    //   bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false; 
    //   if ( bUseAdaptiveVideo )
-   //      sprintf(szBuff, "-b %d", 1500000);
+   //      snprintf(szBuff, sizeof(szBuff), "-b %d", 1500000);
    //}
 
    char szKeyFrame[64];
 
    if ( video_link_profiles[iVideoProfile].keyframe > 0 )
-      sprintf(szKeyFrame, "%d", video_link_profiles[iVideoProfile].keyframe );
+      snprintf(szKeyFrame, sizeof(szKeyFrame), "%d", video_link_profiles[iVideoProfile].keyframe );
    else
    {
       int keyframe = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL * video_link_profiles[iVideoProfile].fps / 1000;
       //if ( NULL != pVideoOverwrites )
       //   keyframe = pVideoOverwrites->uCurrentKeyframe;
-      sprintf(szKeyFrame, "%d", keyframe );
+      snprintf(szKeyFrame, sizeof(szKeyFrame), "%d", keyframe );
    }
 
    if ( isCameraVeye() )
@@ -3291,7 +3291,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
          else
             sprintf(szVideoFlags, "-cd H264 -n -fl -md 1 -fps %d -g %s %s", fps, szKeyFrame, szBuff);
 
-         //sprintf(szVideoFlags, "-cd H264 -n -fl -w %d -h %d -fps %d -g %s %s", video_link_profiles[iVideoProfile].width, video_link_profiles[iVideoProfile].height, video_link_profiles[iVideoProfile].fps, szKeyFrame, szBuff);
+         //snprintf(szVideoFlags, sizeof(szVideoFlags), "-cd H264 -n -fl -w %d -h %d -fps %d -g %s %s", video_link_profiles[iVideoProfile].width, video_link_profiles[iVideoProfile].height, video_link_profiles[iVideoProfile].fps, szKeyFrame, szBuff);
       }
       else
       {
@@ -3304,12 +3304,12 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
    else
    {
       sprintf(szVideoFlags, "-cd H264 -n -fl -w %d -h %d -fps %d -g %s %s", video_link_profiles[iVideoProfile].width, video_link_profiles[iVideoProfile].height, video_link_profiles[iVideoProfile].fps, szKeyFrame, szBuff);
-      //sprintf(szVideoFlags, "-cd MJPEG -n -fl -w %d -h %d -fps %d -g %s %s", video_params.width, video_params.height, video_params.fps, szKeyFrame, szBuff);
+      //snprintf(szVideoFlags, sizeof(szVideoFlags), "-cd MJPEG -n -fl -w %d -h %d -fps %d -g %s %s", video_params.width, video_params.height, video_params.fps, szKeyFrame, szBuff);
    }
 
    if ( video_link_profiles[iVideoProfile].h264quantization > 5 )
    {
-      sprintf(szBuff, " -qp %d", video_link_profiles[iVideoProfile].h264quantization);
+      snprintf(szBuff, sizeof(szBuff), " -qp %d", video_link_profiles[iVideoProfile].h264quantization);
       strcat(szVideoFlags, szBuff);
    }
 
@@ -3320,7 +3320,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
    if ( video_link_profiles[iVideoProfile].width <= 1280 )
    if ( video_link_profiles[iVideoProfile].h264quantization <= 720 )
    {
-      sprintf(szBuff, " -sl %d", video_params.iH264Slices );
+      snprintf(szBuff, sizeof(szBuff), " -sl %d", video_params.iH264Slices );
       strcat(szVideoFlags, szBuff);
    }
 
@@ -3362,7 +3362,7 @@ void Model::populateVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_exten
       populateRadioInterfacesInfoFromHardware();
 
    pPHRTE->vehicle_name[0] = 0;
-   strncpy( (char*)pPHRTE->vehicle_name, vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
+    strlcpy( (char*)pPHRTE->vehicle_name, vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    pPHRTE->vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    pPHRTE->vehicle_id = vehicle_id;
    pPHRTE->vehicle_type = vehicle_type;
@@ -3390,7 +3390,7 @@ void Model::populateVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_exten
 void Model::populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_extended_v1* pPHRTE)
 {
    vehicle_id = pPHRTE->vehicle_id;
-   strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
+    strlcpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
 
@@ -3460,7 +3460,7 @@ void Model::populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_e
 void Model::populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_extended_v2* pPHRTE)
 {
    vehicle_id = pPHRTE->vehicle_id;
-   strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
+    strlcpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
 
@@ -3570,7 +3570,7 @@ void Model::constructLongName()
       case MODEL_TYPE_ROBOT: strcpy(vehicle_long_name, "robot "); break;
       default: strcpy(vehicle_long_name, "vehicle "); break;
    }
-   strcat(vehicle_long_name, getShortName());
+   strlcat(vehicle_long_name, getShortName(), sizeof(vehicle_long_name));
 }
 
 const char* Model::getVehicleType(u8 vtype)

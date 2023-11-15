@@ -185,7 +185,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
    int angle = pitch - range/2;
    int max = pitch + range/2;
 
-   sprintf(szBuff, "%d", roll);
+   snprintf(szBuff, sizeof(szBuff), "%d", roll);
 
    g_pEngine->setColors(g_pEngine->getColorOSDOutline());
    g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
@@ -208,7 +208,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
         float xt, yt;
         if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[0] != 0 )
         {
-           sprintf(szBuff, "0");
+           snprintf(szBuff, sizeof(szBuff), "0");
            g_pEngine->setColors(g_pEngine->getColorOSDOutline());
            g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
            xl = xCenter - width_ladder*0.5 - space_text;
@@ -277,7 +277,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
       rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
       rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
 
-      sprintf(szBuff, "%d", angle);
+      snprintf(szBuff, sizeof(szBuff), "%d", angle);
 
       g_pEngine->setColors(g_pEngine->getColorOSDOutline());
       g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);

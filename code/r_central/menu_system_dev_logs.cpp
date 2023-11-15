@@ -161,7 +161,7 @@ void MenuSystemDevLogs::exportVehicleLogs(char* szVehicleFolder)
    char szFolder[256];
    char szComm[256];
 
-   sprintf(szFolder, "%s/%s/", FOLDER_MEDIA, szVehicleFolder);
+   snprintf(szFolder, sizeof(szFolder), "%s/%s/", FOLDER_MEDIA, szVehicleFolder);
    d = opendir(szFolder);
    if (d)
    {
@@ -170,10 +170,10 @@ void MenuSystemDevLogs::exportVehicleLogs(char* szVehicleFolder)
          if ( strlen(dir->d_name) < 4 )
             continue;
          ruby_signal_alive();
-         sprintf(szComm, "mkdir -p %s/%s/Ruby/%s/", FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder);
+         snprintf(szComm, sizeof(szComm), "mkdir -p %s/%s/Ruby/%s/", FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder);
          hw_execute_bash_command(szComm, NULL);
 
-         sprintf(szComm, "cp -rf %s/%s %s/%s/Ruby/%s/%s", szFolder, dir->d_name, FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder, dir->d_name);
+         snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s/%s/Ruby/%s/%s", szFolder, dir->d_name, FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder, dir->d_name);
          hw_execute_bash_command(szComm, NULL);
       }
       closedir(d);
@@ -213,14 +213,14 @@ void MenuSystemDevLogs::exportAllLogs()
    hw_execute_bash_command("mkdir -p tmp/exportcontrollerlogs", NULL);
    hw_execute_bash_command("chmod 777 tmp/exportcontrollerlogs", NULL);
    hw_execute_bash_command("rm -rf tmp/exportcontrollerlogs/* 2>/dev/null", NULL);
-   sprintf(szComm, "zip tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip logs/*", g_uControllerId, g_iBootCount);
+   snprintf(szComm, sizeof(szComm), "zip tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip logs/*", g_uControllerId, g_iBootCount);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szComm, "mkdir -p %s", szBuff );
+   snprintf(szBuff, sizeof(szBuff), "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
+   snprintf(szComm, sizeof(szComm), "mkdir -p %s", szBuff );
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip %s/%s/Ruby/ruby_controller_logs_controller_id_%u_%d.zip", g_uControllerId, g_iBootCount, FOLDER_RUBY, FOLDER_USB_MOUNT, g_uControllerId, g_iBootCount);
+   snprintf(szComm, sizeof(szComm), "cp -rf tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip %s/%s/Ruby/ruby_controller_logs_controller_id_%u_%d.zip", g_uControllerId, g_iBootCount, FOLDER_RUBY, FOLDER_USB_MOUNT, g_uControllerId, g_iBootCount);
    hw_execute_bash_command(szComm, NULL);
    hw_execute_bash_command("rm -rf tmp/exportcontrollerlogs 2>/dev/null", NULL);
 
@@ -300,9 +300,9 @@ void MenuSystemDevLogs::onSelectItem()
    {
       char szBuff[128];
       if ( 0 == m_pItemsSelect[0]->getSelectedIndex() )
-         sprintf(szBuff, "rm -rf %s", LOG_USE_PROCESS);
+         snprintf(szBuff, sizeof(szBuff), "rm -rf %s", LOG_USE_PROCESS);
       else
-         sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+         snprintf(szBuff, sizeof(szBuff), "touch %s", LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
       return;
    }

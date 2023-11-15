@@ -107,24 +107,24 @@ void MenuSearchConnect::Render()
       g_pRenderEngine->setColors(get_Color_MenuText());
    }
     
-   sprintf(szBuff,"Found vehicle on %s", str_format_frequency(m_CurrentSearchFrequency));
+   snprintf(szBuff, sizeof(szBuff),"Found vehicle on %s", str_format_frequency(m_CurrentSearchFrequency));
    g_pRenderEngine->drawMessageLines(xPos, y, szBuff, height_text, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
 
    y += height_text *(1.0+MENU_ITEM_SPACING);
    if ( ! g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo )
    {
-      sprintf(szBuff, "Can't get vehicle info");
+      snprintf(szBuff, sizeof(szBuff), "Can't get vehicle info");
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, height_text, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text *(1.0+MENU_ITEM_SPACING);
       RenderEnd(yTop);
       return;
    }
 
-   sprintf(szBuff,"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
+   snprintf(szBuff, sizeof(szBuff),"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
    if ( 0 == g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
-      strcat(szBuff, "No Name");
+      strlcat(szBuff, "No Name", sizeof(szBuff));
    else
-      strncat(szBuff, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+      snprintf(szBuff, sizeof(szBuff), "%.*s", MAX_VEHICLE_NAME_LENGTH, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name);
    g_pRenderEngine->drawMessageLines(xPos, y, szBuff, height_text, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
 
@@ -139,16 +139,16 @@ void MenuSearchConnect::Render()
       {
          iCountLinks++;
          if ( 0 != szLinks[0] )
-            strcat(szLinks, ", ");
+            strlcat(szLinks, ", ", sizeof(szLinks));
          char szTmp[32];
-         sprintf(szTmp, "%s", str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequencies[i]) );
-         strcat(szLinks, szTmp);
+         snprintf(szTmp, sizeof(szTmp), "%s", str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequencies[i]) );
+         strlcat(szLinks, szTmp, sizeof(szLinks));
       }
    }
 
    if ( iCountLinks > 1 )
    {
-      sprintf(szBuff, "Vehicle has %d radio links on: %s", iCountLinks, szLinks);
+      snprintf(szBuff, sizeof(szBuff), "Vehicle has %d radio links on: %s", iCountLinks, szLinks);
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, height_text, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += g_pRenderEngine->getMessageHeight(szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text * MENU_ITEM_SPACING;    
@@ -157,8 +157,8 @@ void MenuSearchConnect::Render()
    u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
    vMaj = vMaj >> 4;
    vMin = vMin & 0x0F;
-   //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
-   sprintf(szBuff,"Version: %d.%d", vMaj, vMin);
+   //snprintf(szBuff, sizeof(szBuff),"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
+   snprintf(szBuff, sizeof(szBuff),"Version: %d.%d", vMaj, vMin);
    g_pRenderEngine->drawMessageLines(xPos, y, szBuff, height_text, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
    y += height_text *0.6;

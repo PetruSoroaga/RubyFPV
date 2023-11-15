@@ -46,7 +46,7 @@ void _osd_plugins_populate_public_telemetry_info()
    g_VehicleTelemetryInfo.throttled = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.throttled;
    g_VehicleTelemetryInfo.rssi_dbm = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_rssi_dbm[0];
    g_VehicleTelemetryInfo.rssi_quality = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_link_quality[0];
-   strncpy(&g_VehicleTelemetryInfo.vehicle_name[0], (char*)&(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_name[0]), MAX_VEHICLE_NAME_LENGTH);
+   strlcpy(&g_VehicleTelemetryInfo.vehicle_name[0], (char*)&(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_name[0]), MAX_VEHICLE_NAME_LENGTH);
    g_VehicleTelemetryInfo.vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    g_VehicleTelemetryInfo.vehicle_type = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_type;
 
@@ -370,7 +370,7 @@ void osd_plugins_load()
             match = true;
          if ( ! match )
             continue;
-         sprintf(szFile, "%s/%s%s", FOLDER_RUBY, FOLDER_OSD_PLUGINS, dir->d_name);
+         snprintf(szFile, sizeof(szFile), "%s/%s%s", FOLDER_RUBY, FOLDER_OSD_PLUGINS, dir->d_name);
          _osd_load_plugin(szFile);
       }
       closedir(d);
@@ -581,7 +581,7 @@ char* osd_plugins_get_name(int index)
    {
       char* szPluginName = (*(g_pPluginsOSD[index]->pFunctionGetName))();
       if ( NULL != g_pPluginsOSD[index]->pFunctionGetVersion )
-         sprintf(s_szOSDPluginName, "%s v.%d", szPluginName,(*(g_pPluginsOSD[index]->pFunctionGetVersion))());
+         snprintf(s_szOSDPluginName, sizeof(s_szOSDPluginName), "%s v.%d", szPluginName,(*(g_pPluginsOSD[index]->pFunctionGetVersion))());
       else
          strcpy(s_szOSDPluginName, szPluginName);
    }
@@ -627,7 +627,7 @@ void osd_plugins_delete(int index)
       dlclose(g_pPluginsOSD[index]->pLibrary);
 
    char szComm[1024];
-   sprintf(szComm, "rm -rf %s", g_pPluginsOSD[index]->szPluginFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", g_pPluginsOSD[index]->szPluginFile);
    hw_execute_bash_command(szComm, NULL);
 
    for( int k=index; k<g_iPluginsOSDCount-1; k++ )

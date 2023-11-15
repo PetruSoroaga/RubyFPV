@@ -91,7 +91,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
                if ( g_listVehicleCorePlugins[n].uRequestedCapabilities & CORE_PLUGIN_CAPABILITY_HARDWARE_ACCESS_UART )
                {
                   char szOption[256];
-                  sprintf(szOption, "Core Plugin %s", g_listVehicleCorePlugins[n].szName);
+                  snprintf(szOption, sizeof(szOption), "Core Plugin %s", g_listVehicleCorePlugins[n].szName);
                   m_pItemsSelect[i*2]->addSelection(szOption);
                }
             }
@@ -105,7 +105,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       m_pItemsSelect[i*2+1] = new MenuItemSelect(szBuff, "Sets the baud rate of this serial port.");
       for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
       {
-         sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+         snprintf(szBuff, sizeof(szBuff), "%d bps", hardware_get_serial_baud_rates()[n]);
          m_pItemsSelect[i*2+1]->addSelection(szBuff);
       }
       m_pItemsSelect[i*2+1]->setIsEditable();
@@ -113,7 +113,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
 
       //if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
       //{
-      //   sprintf(szBuff,"This serial port is used by a radio interface. Radio interfaces settings are configured from [Radio Configuration] menu.");
+      //   snprintf(szBuff, sizeof(szBuff),"This serial port is used by a radio interface. Radio interfaces settings are configured from [Radio Configuration] menu.");
       //   addMenuItem( new MenuItemText(szBuff, true) );
       //}
    }

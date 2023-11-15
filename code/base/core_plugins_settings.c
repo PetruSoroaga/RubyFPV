@@ -166,7 +166,7 @@ int _load_CorePlugin(char* szFileName, int iEnumerateOnly)
    if ( s_iCorePluginsRuntimeCount >= MAX_CORE_PLUGINS_COUNT )
       return -2;
 
-   sprintf(szFile, "%s%s", FOLDER_CORE_PLUGINS, szFileName);
+   snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_CORE_PLUGINS, szFileName);
 
    long lSize = get_filesize(szFile);
    log_line("Try to load plugin from file: [%s], %u bytes", szFile, lSize);
@@ -205,16 +205,16 @@ int _load_CorePlugin(char* szFileName, int iEnumerateOnly)
       return -6;
    }
 
-   strncpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName, szPluginName, 64);
-   strncpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID, szPluginGUID, 32);
+   int nameLen = strlcpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName, szPluginName, sizeof(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName));
+   int GUIDLen = strlcpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID, szPluginGUID, sizeof(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID));
 
-   for( int i=0; i<strlen(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName); i++ )
+   for( int i=0; i<nameLen; i++ )
       if ( s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName[i] == ' ' ||
          s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName[i] == 10 ||
          s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName[i] == 13 )
          s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName[i] = '_';
 
-   for( int i=0; i<strlen(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID); i++ )
+   for( int i=0; i<GUIDLen; i++ )
       if ( s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID[i] == ' ' ||
          s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID[i] == 10 ||
          s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID[i] == 13 )
@@ -235,15 +235,15 @@ int _load_CorePlugin(char* szFileName, int iEnumerateOnly)
 
    s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].pFunctionCoreUninit = (void (*)(void)) dlsym(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].pLibrary, "core_plugin_uninit");
    s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].pFunctionCoreGetVersion = (int (*)(void)) dlsym(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].pLibrary, "core_plugin_get_version");
-   strcpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szFile, szFile);
+   strlcpy(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szFile, szFile, sizeof(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szFile));
 
    if ( NULL == get_CorePluginSettings(s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID) )
    {
       if ( s_iCorePluginsSettingsCount < MAX_CORE_PLUGINS_COUNT )
       {
          iIsNew = 1;
-         strncpy(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szName, s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName, 127); 
-         strncpy(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szGUID, s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID, 127); 
+         strlcpy(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szName, s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szName, sizeof(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szName));
+         strlcpy(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szGUID, s_CorePluginsRuntimeInfo[s_iCorePluginsRuntimeCount].szGUID, sizeof(s_CorePluginsSettings[s_iCorePluginsSettingsCount].szGUID)); 
          s_CorePluginsSettings[s_iCorePluginsSettingsCount].iEnabled = 1;
          s_CorePluginsSettings[s_iCorePluginsSettingsCount].iVersion = 0;
          
@@ -372,7 +372,7 @@ void delete_CorePlugin(char* szGUID)
    log_line("[CorePlugins] Deleted plugin [%s]", s_CorePluginsRuntimeInfo[iIndex].szName);
 
    char szComm[256];
-   sprintf(szComm, "rm -rf %s", s_CorePluginsRuntimeInfo[iIndex].szFile);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", s_CorePluginsRuntimeInfo[iIndex].szFile);
    hw_execute_bash_command(szComm, NULL);
 
    for( int i=iIndex; i<s_iCorePluginsRuntimeCount-1; i++ )

@@ -37,7 +37,7 @@ MenuConfirmationHDMI::~MenuConfirmationHDMI()
 {
    log_line("Closed HDMI resolution change confirmation dialog.");
    char szBuff[128];
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+   snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_HDMI_CHANGED);
    hw_execute_bash_command(szBuff, NULL);
 }
 
@@ -72,14 +72,14 @@ void MenuConfirmationHDMI::onSelectItem()
          fscanf(fd, "%d %d", &group, &mode );
          fclose(fd);
          log_line("Reverting HDMI resolution back to: group: %d, mode: %d", group, mode);
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+         snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_HDMI_CHANGED);
          hw_execute_bash_command(szBuff, NULL);
 
          hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-         sprintf(szBuff, "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", group);
+         snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", group);
          hw_execute_bash_command(szBuff, NULL);
-         sprintf(szBuff, "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", mode);
+         snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", mode);
          hw_execute_bash_command(szBuff, NULL);
          hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       }

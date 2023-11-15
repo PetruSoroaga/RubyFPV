@@ -311,13 +311,13 @@ void _log_service_entry(char* szBuff)
    msg.type = 1;
    msg.text[0] = 0;
 
-   strcpy(msg.text, "S");
-   strcat(msg.text, s_szTimeLog);
-   strcat(msg.text, " ");
-   strcat(msg.text, sszComponentName);
-   strcat(msg.text, ": ");
+   strlcpy(msg.text, "S", sizeof(msg.text));
+   strlcat(msg.text, s_szTimeLog, sizeof(msg.text));
+   strlcat(msg.text, " ", sizeof(msg.text));
+   strlcat(msg.text, sszComponentName, sizeof(msg.text));
+   strlcat(msg.text, ": ", sizeof(msg.text));
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
-   strcat(msg.text, szBuff);
+   strlcat(msg.text, szBuff, sizeof(msg.text));
 
    msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
 }
@@ -330,12 +330,12 @@ void _log_service_entry_error(char* szBuff)
    msg.text[0] = 0;
 
    strcpy(msg.text, "S");
-   strcat(msg.text, s_szTimeLog);
-   strcat(msg.text, " ");
-   strcat(msg.text, sszComponentName);
-   strcat(msg.text, ": ERROR: ");
+   strlcat(msg.text, s_szTimeLog, sizeof(msg.text));
+   strlcat(msg.text, " ", sizeof(msg.text));
+   strlcat(msg.text, sszComponentName, sizeof(msg.text));
+   strlcat(msg.text, ": ERROR: ", sizeof(msg.text));
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
-   strcat(msg.text, szBuff);
+   strlcat(msg.text, szBuff, sizeof(msg.text));
 
    msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
 }
@@ -347,12 +347,12 @@ void _log_service_entry_softerror(char* szBuff)
    msg.text[0] = 0;
 
    strcpy(msg.text, "S");
-   strcat(msg.text, s_szTimeLog);
-   strcat(msg.text, " ");
-   strcat(msg.text, sszComponentName);
-   strcat(msg.text, ": SOFTERROR: ");
+   strlcat(msg.text, s_szTimeLog, sizeof(msg.text));
+   strlcat(msg.text, " ", sizeof(msg.text));
+   strlcat(msg.text, sszComponentName, sizeof(msg.text));
+   strlcat(msg.text, ": SOFTERROR: ", sizeof(msg.text));
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
-   strcat(msg.text, szBuff);
+   strlcat(msg.text, szBuff, sizeof(msg.text));
 
    msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
 }
@@ -393,7 +393,7 @@ void log_add_file(const char* szFileName)
    if ( NULL == szFileName )
       return;
 
-   strncpy(s_szAdditionalLogFile, szFileName, 127);
+   strlcpy(s_szAdditionalLogFile, szFileName, sizeof(s_szAdditionalLogFile));
    s_szAdditionalLogFile[127] = 0;
    log_line("Starting additional log output to file: %s", s_szAdditionalLogFile);
 }
@@ -419,11 +419,11 @@ void log_only_errors()
    s_logOnlyErrors = 1;
 }
 
-void log_format_time(u32 miliseconds, char* szOutTime)
+void log_format_time(u32 miliseconds, char* szOutTime, size_t size)
 {
    if ( NULL == szOutTime )
       return;
-   sprintf(szOutTime,"%d-%d:%02d:%02d.%03d", s_bootCount, (int)(miliseconds/1000/60/60), (int)(miliseconds/1000/60)%60, (int)((miliseconds/1000)%60), (int)(miliseconds%1000));
+   snprintf(szOutTime, size, "%u-%u:%02u:%02u.%03u", s_bootCount, (unsigned int)(miliseconds/1000/60/60), (unsigned int)(miliseconds/1000/60)%60, (unsigned int)((miliseconds/1000)%60), (unsigned int)(miliseconds%1000));
 }
 
 void log_line(const char* format, ...)
@@ -436,7 +436,7 @@ void log_line(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
  
    if ( _log_check_for_service_log_access() )
    {
@@ -510,12 +510,12 @@ void log_line_watchdog(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
  
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
+      vsnprintf(szBuff, sizeof(szBuff), format, args);
       _log_service_entry(szBuff);
       return;
    }
@@ -564,12 +564,12 @@ void log_line_commands(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
  
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
+      vsnprintf(szBuff, sizeof(szBuff), format, args);
       _log_service_entry(szBuff);
       return;
    }
@@ -640,17 +640,13 @@ void log_buffer5(const u8* buffer, int size, int delim1, int delim2, int delim3,
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
-      char szTmp[16];
-      snprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, "Buff-len %d: [", size);
-      int len = strlen(szBuff);
+      int len = snprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, "Buff-len %d: [", size);
 
       int i=0;
       for( i=0; i<size-1; i++ )
       {
-         sprintf(szTmp, "%x", buffer[i]);
-         strcat(szBuff, szTmp);
-         len += strlen(szTmp);
-    
+         len += snprintf(szBuff+len, sizeof(szBuff)-len, "%x", buffer[i]);
+
          int bBreak = 0;
          if ( delim1 > 0 )
          if ( (i+1) == delim1 )
@@ -670,31 +666,26 @@ void log_buffer5(const u8* buffer, int size, int delim1, int delim2, int delim3,
 
          if ( bBreak )
          {
-            strcat(szBuff, "] - [");
-            len += 5;
+            len = strlcat(szBuff, "] - [", sizeof(szBuff));
             continue;
          }
 
          if ( (i%8) == 7 )
          {
-            strcat(szBuff, " - ");
-            len += 3;
+            len = strlcat(szBuff, " - ", sizeof(szBuff));
          }
          else
          {
-            strcat(szBuff, ",");
-            len++;
+            len = strlcat(szBuff, ",", sizeof(szBuff));
          }
          if ( len > MAX_SERVICE_LOG_ENTRY_LENGTH-16 )
          {
-            strcat(szBuff, " ...");
+            len = strlcat(szBuff, " ...", sizeof(szBuff));
             _log_service_entry(szBuff);
-            snprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, "Buff (cont): [... ");
-            len = strlen(szBuff);
+            len = snprintf(szBuff, sizeof(szBuff), "Buff (cont): [... ");
          }
       }
-      sprintf(szTmp,"%x]\n", buffer[size-1]);  
-      strcat(szBuff, szTmp);
+      snprintf(szBuff+len, sizeof(szBuff)-len, "%x]\n", buffer[size-1]);
       _log_service_entry(szBuff);
       return;
    }
@@ -774,12 +765,12 @@ void log_dword(const char* szText, u32 value)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
  
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[1200];
-      snprintf(szBuff, 1199, "%s %u", szText, value);
+      snprintf(szBuff, sizeof(szBuff), "%s %u", szText, value);
       _log_service_entry(szBuff);
       return;
    }
@@ -793,9 +784,9 @@ void log_dword(const char* szText, u32 value)
 
    
    if ( NULL != fd )
-   {   fprintf(fd, szText); fprintf(fd, ": "); }
+   {   fputs(szText, fd); fputs(": ", fd); }
    if ( ! s_logDisabledStdout )
-   {   printf(szText); printf(": "); }
+   {   puts(szText); puts(": "); }
 
    for( int i=31; i>=0; i-- )
    {
@@ -828,12 +819,12 @@ void log_dword_bits(const char* szText, u32 value)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
  
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[200];
-      snprintf(szBuff, 199, "%s %u", szText, value);
+      snprintf(szBuff, sizeof(szBuff), "%s %u", szText, value);
       _log_service_entry(szBuff);
       return;
    }
@@ -847,9 +838,9 @@ void log_dword_bits(const char* szText, u32 value)
 
    
    if ( NULL != fd )
-   {   fprintf(fd, szText); fprintf(fd, ": "); }
+   {   fputs(szText, fd); fputs(": ", fd); }
    if ( ! s_logDisabledStdout )
-   {   printf(szText); printf(": "); }
+   {   puts(szText); puts(": "); }
 
    for( int i=31; i>=0; i-- )
    {
@@ -887,12 +878,12 @@ void log_error_and_alarm(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
 
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
+      vsnprintf(szBuff, sizeof(szBuff), format, args);
       _log_service_entry_error(szBuff);
       return;
    }
@@ -976,12 +967,12 @@ void log_softerror_and_alarm(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog, sizeof(s_szTimeLog));
 
    if ( _log_check_for_service_log_access() )
    {
       char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
+      vsnprintf(szBuff, sizeof(szBuff), format, args);
       _log_service_entry_softerror(szBuff);
       return;
    }

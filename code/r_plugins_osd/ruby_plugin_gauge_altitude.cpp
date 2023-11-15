@@ -164,11 +164,11 @@ void _render_vspeed_only(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_se
       if ( (nVSpeed%5) == 0 )
       {
          if ( nVSpeed == nMaxVSpeed )
-            sprintf(szBuff, "+/-%d", nVSpeed);
+            snprintf(szBuff, sizeof(szBuff), "+/-%d", nVSpeed);
          else if ( nVSpeed > nMaxVSpeed )
-            sprintf(szBuff, "%d", - nMaxVSpeed - (nMaxVSpeed-nVSpeed));
+            snprintf(szBuff, sizeof(szBuff), "%d", - nMaxVSpeed - (nMaxVSpeed-nVSpeed));
          else
-            sprintf(szBuff, "%d", nVSpeed);
+            snprintf(szBuff, sizeof(szBuff), "%d", nVSpeed);
          if ( fHeight > 0.2 )
          {
             float w = g_pEngine->textWidth(fontId, szBuff);
@@ -192,7 +192,7 @@ void _render_vspeed_only(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_se
    static float s_fPluginVSpeedSmooth = 0.0;
    s_fPluginVSpeedSmooth = 0.6*s_fPluginVSpeedSmooth + 0.4 * fVSpeed;
 
-   sprintf(szBuff, "%1.f m/s", s_fPluginVSpeedSmooth);
+   snprintf(szBuff, sizeof(szBuff), "%1.f m/s", s_fPluginVSpeedSmooth);
 
    g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
 
@@ -375,7 +375,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
       
       if ( (value%2) == 0 )
       {
-         sprintf(szBuff, "%d", value/2);
+         snprintf(szBuff, sizeof(szBuff), "%d", value/2);
          if ( fRadiusAltitude > 0.1 )
          {
             float w = g_pEngine->textWidth(fontId, szBuff);
@@ -400,9 +400,9 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
    s_fPluginAltitudeSmooth = 0.8*s_fPluginAltitudeSmooth + 0.2 * fAltitude;
 
    if ( fabs(s_fPluginAltitudeSmooth) < 10.0 )
-      sprintf(szBuff, "%1.f m", s_fPluginAltitudeSmooth);
+      snprintf(szBuff, sizeof(szBuff), "%1.f m", s_fPluginAltitudeSmooth);
    else
-      sprintf(szBuff, "%d m", (int)s_fPluginAltitudeSmooth);
+      snprintf(szBuff, sizeof(szBuff), "%d m", (int)s_fPluginAltitudeSmooth);
 
    g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
 
@@ -610,11 +610,11 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
          if ( (nVSpeed%5) == 0 )
          {
             if ( nVSpeed == nMaxVSpeed )
-               sprintf(szBuff, "(%d)", nVSpeed);
+               snprintf(szBuff, sizeof(szBuff), "(%d)", nVSpeed);
             else if ( nVSpeed > nMaxVSpeed )
-               sprintf(szBuff, "%d", - nMaxVSpeed - (nMaxVSpeed-nVSpeed));
+               snprintf(szBuff, sizeof(szBuff), "%d", - nMaxVSpeed - (nMaxVSpeed-nVSpeed));
             else
-               sprintf(szBuff, "%d", nVSpeed);
+               snprintf(szBuff, sizeof(szBuff), "%d", nVSpeed);
             float w = g_pEngine->textWidth(fontIdSmall, szBuff);
             g_pEngine->drawText((x+xinner)*0.5-0.5*w, (y+yinner)*0.5-0.5*height_text_small, fontIdSmall, szBuff);
          }

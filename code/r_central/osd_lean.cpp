@@ -63,7 +63,7 @@ void render_osd_layout_lean()
 
    strcpy(szBuff, "THROTTLE % 0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "THROTTLE %% %d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.throttle);
+      snprintf(szBuff, sizeof(szBuff), "THROTTLE %% %d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.throttle);
 
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_THROTTLE) )
       osd_show_value_centered(xCell+xCellWidth/2, yLine2, szBuff, g_idFontOSD);
@@ -72,7 +72,7 @@ void render_osd_layout_lean()
 
    strcpy(szBuff, "AMPS (A) 0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "AMPS (A) %.1f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.current/1000.0);
+      snprintf(szBuff, sizeof(szBuff), "AMPS (A) %.1f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.current/1000.0);
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
       osd_show_value_centered(xCell+xCellWidth/2, yLine2, szBuff, g_idFontOSD);
 
@@ -93,7 +93,7 @@ void render_osd_layout_lean()
 
    strcpy(szBuff, "BATT (V) 0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "BATT (V) %.2f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0);
+      snprintf(szBuff, sizeof(szBuff), "BATT (V) %.2f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0);
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
       osd_show_value_centered(xCell+xCellWidth/2, yLine2, szBuff, g_idFontOSD);
 
@@ -102,7 +102,7 @@ void render_osd_layout_lean()
 
    strcpy(szBuff, "BAT USED (mAh) 0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "BAT USED (mAh) %u", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.mah);
+      snprintf(szBuff, sizeof(szBuff), "BAT USED (mAh) %u", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.mah);
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
       osd_show_value_centered(xCell+xCellWidth/2, yLine2, szBuff, g_idFontOSD);
 
@@ -110,9 +110,9 @@ void render_osd_layout_lean()
 
    szBuff[0] = 0;
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-      strcat(szBuff, "NONE");
+      strlcat(szBuff, "NONE", sizeof(szBuff));
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
-      strcat(szBuff, " 0:00");
+      strlcat(szBuff, " 0:00", sizeof(szBuff));
    
    
    int sec = (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60;
@@ -120,22 +120,22 @@ void render_osd_layout_lean()
 
    szBuff[0] = 0;   
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-      strcat(szBuff, "NONE");
+      strlcat(szBuff, "NONE", sizeof(szBuff));
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
    {
-      sprintf(szTmp, " %d:%02d", min, sec);
-      strcat(szBuff, szTmp);
+      snprintf(szTmp, sizeof(szTmp), " %d:%02d", min, sec);
+      strlcat(szBuff, szTmp, sizeof(szBuff));
    }
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
    {
       u8 mode = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.flight_mode & (~FLIGHT_MODE_ARMED);
       szBuff[0] = 0;   
       if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-         strcat(szBuff, model_getShortFlightMode(mode));
+         strlcat(szBuff, model_getShortFlightMode(mode), sizeof(szBuff));
       if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
       {
-         sprintf(szTmp, " %d:%02d", min, sec);
-         strcat(szBuff, szTmp);
+         snprintf(szTmp, sizeof(szTmp), " %d:%02d", min, sec);
+         strlcat(szBuff, szTmp, sizeof(szBuff));
       }
    }
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) ||
@@ -155,7 +155,7 @@ void render_osd_layout_lean()
             nQualityMain = g_pSM_RadioStats->radio_interfaces[i].rxQuality;
       }
    }
-   sprintf(szBuff, "LINK QUALITY %d%%", nQualityMain);
+   snprintf(szBuff, sizeof(szBuff), "LINK QUALITY %d%%", nQualityMain);
 
    bool bHasRubyRC = false;
    
@@ -177,7 +177,7 @@ void render_osd_layout_lean()
       //   val = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_mavlink_rx_rssi;
 
       if ( val != 255 )
-         sprintf(szBuff, "RC RSSI: %d%%", val);
+         snprintf(szBuff, sizeof(szBuff), "RC RSSI: %d%%", val);
       else
          strcpy(szBuff, "RC RSSI: ---");
    }
@@ -213,42 +213,42 @@ void render_osd_layout_lean()
       if ( bShowBothSpeeds )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
 
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
          {
             if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-               sprintf(szBuff, "%.1f / %.1f", 0.0, _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", 0.0, _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
             else
-               sprintf(szBuff, "%.1f / %.1f", 0.0, _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", 0.0, _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
          }
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed )
          {
             if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-               sprintf(szBuff, "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), 0.0);
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), 0.0);
             else
-               sprintf(szBuff, "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), 0.0);
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), 0.0);
          }
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed && 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
-            sprintf(szBuff, "0/0");
+            snprintf(szBuff, sizeof(szBuff), "0/0");
       }
       else if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_GROUND_SPEED )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f));
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
             strcpy(szBuff,"0");
       }
       else if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_AIR_SPEED )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed )
             strcpy(szBuff,"0");
       }
@@ -287,10 +287,10 @@ void render_osd_layout_lean()
    {
    strcpy(szBuff, "0");
    bool bKm = false;
-   sprintf(szBuff, "%u", (unsigned int)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0));
+   snprintf(szBuff, sizeof(szBuff), "%u", (unsigned int)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0));
    if ( _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0) >= 1000 )
    {
-      sprintf(szBuff, "%.1f", _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0/1000.0));
+      snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0/1000.0));
       bKm = true;
    }
    osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff, g_idFontOSDBig);
@@ -330,12 +330,12 @@ void render_osd_layout_lean()
       {
          if ( fabs(alt) < 0.1 )
             alt = 0.0;
-         sprintf(szBuff, "%.1f", alt);
+         snprintf(szBuff, sizeof(szBuff), "%.1f", alt);
       }
       else
-         sprintf(szBuff, "%d", (int)alt);
+         snprintf(szBuff, sizeof(szBuff), "%d", (int)alt);
       if ( (! link_has_fc_telemetry()) || (alt < -500.0) )
-         sprintf(szBuff, "0");
+         snprintf(szBuff, sizeof(szBuff), "0");
 
       osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff,  g_idFontOSDBig);
       if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -357,7 +357,7 @@ void render_osd_layout_lean()
         g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
    {
       if ( link_has_fc_telemetry() )
-         sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
+         snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
 
       osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff, g_idFontOSDBig);
       if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -373,7 +373,7 @@ void render_osd_layout_lean()
    {
    strcpy(szBuff, "0");
    if ( link_has_fc_telemetry() )
-     sprintf(szBuff, "%d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.heading);
+     snprintf(szBuff, sizeof(szBuff), "%d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.heading);
 
    osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff, g_idFontOSDBig);
    osd_show_value_centered(xCell+xCellWidth/2, yText, "HEADING", g_idFontOSDSmall);
@@ -384,7 +384,7 @@ void render_osd_layout_lean()
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_TOTAL_DISTANCE) )
    {
    strcpy(szBuff, "0");
-   sprintf(szBuff, "%u", (unsigned long)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.total_distance/100));
+   snprintf(szBuff, sizeof(szBuff), "%lu", (unsigned long)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.total_distance/100));
 
    osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff, g_idFontOSDBig);
    if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -450,42 +450,42 @@ void render_osd_layout_lean_extended()
       if ( bShowBothSpeeds )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
 
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
          {
             if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-               sprintf(szBuff, "%.1f / %.1f", 0.0, _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", 0.0, _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
             else
-               sprintf(szBuff, "%.1f / %.1f", 0.0, _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", 0.0, _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
          }
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed )
          {
             if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-               sprintf(szBuff, "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), 0.0);
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0), 0.0);
             else
-               sprintf(szBuff, "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), 0.0);
+               snprintf(szBuff, sizeof(szBuff), "%.1f / %.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f), 0.0);
          }
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed && 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
-            sprintf(szBuff, "0/0");
+            snprintf(szBuff, sizeof(szBuff), "0/0");
       }
       else if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_GROUND_SPEED )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed/100.0f-1000.0)*3.6f));
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
             strcpy(szBuff,"0");
       }
       else if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_AIR_SPEED )
       {
          if ( pP->iUnits == prefUnitsMeters || pP->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0));
          else
-            sprintf(szBuff, "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm((g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed/100.0f-1000.0)*3.6f));
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.aspeed )
             strcpy(szBuff,"0");
       }
@@ -525,10 +525,10 @@ void render_osd_layout_lean_extended()
    {
       strcpy(szBuff, "0");
       bool bKm = false;
-      sprintf(szBuff, "%u", (unsigned int)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0));
+      snprintf(szBuff, sizeof(szBuff), "%u", (unsigned int)_osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0));
       if ( _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0) >= 1000 )
       {
-         sprintf(szBuff, "%.1f", _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0/1000.0));
+         snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertKm(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100.0/1000.0));
          bKm = true;
       }
       osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff, fontLine1);
@@ -567,12 +567,12 @@ void render_osd_layout_lean_extended()
          {
             if ( fabs(alt) < 0.1 )
                alt = 0.0;
-            sprintf(szBuff, "%.1f", alt);
+            snprintf(szBuff, sizeof(szBuff), "%.1f", alt);
          }
          else
-            sprintf(szBuff, "%d", (int)alt);
+            snprintf(szBuff, sizeof(szBuff), "%d", (int)alt);
          if ( (! link_has_fc_telemetry()) || (alt < -500.0) )
-            sprintf(szBuff, "0");
+            snprintf(szBuff, sizeof(szBuff), "0");
 
          osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff,  fontLine1);
          if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -593,7 +593,7 @@ void render_osd_layout_lean_extended()
            g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
       {
          if ( link_has_fc_telemetry() )
-            sprintf(szBuff, "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
+            snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
 
          osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff, fontLine1);
          if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -613,7 +613,7 @@ void render_osd_layout_lean_extended()
 
    strcpy(szBuff, "% 0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "%% %d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.throttle);
+      snprintf(szBuff, sizeof(szBuff), "%% %d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.throttle);
 
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_THROTTLE) )
    {
@@ -637,7 +637,7 @@ void render_osd_layout_lean_extended()
 
    strcpy(szBuff, "0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "%.2f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0);
+      snprintf(szBuff, sizeof(szBuff), "%.2f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0);
 
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
    {
@@ -649,7 +649,7 @@ void render_osd_layout_lean_extended()
 
    strcpy(szBuff, "0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.current/1000.0);
+      snprintf(szBuff, sizeof(szBuff), "%.1f", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.current/1000.0);
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
    {
       osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff, fontLine1);
@@ -659,7 +659,7 @@ void render_osd_layout_lean_extended()
 
    strcpy(szBuff, "0");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "%u", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.mah);
+      snprintf(szBuff, sizeof(szBuff), "%u", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.mah);
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_BATTERY) )
    {
       osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff, fontLine1);
@@ -679,8 +679,8 @@ void render_osd_layout_lean_extended()
       }
    }
 
-   sprintf(szBuff, "%d%%", nQualityMain);
-   sprintf(szBuff2, "LINK");
+   snprintf(szBuff, sizeof(szBuff), "%d%%", nQualityMain);
+   snprintf(szBuff2, sizeof(szBuff2), "LINK");
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_RADIO_LINKS) )
    {
       bool bHasRubyRC = false;
@@ -693,17 +693,17 @@ void render_osd_layout_lean_extended()
       {
          if ( bHasRubyRC )
          {
-            sprintf(szBuff, "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_rc_rssi);
+            snprintf(szBuff, sizeof(szBuff), "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_rc_rssi);
             strcpy(szBuff2, "RC RSSI");
          }
          else if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI )
          {
-            sprintf(szBuff, "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_mavlink_rc_rssi);
+            snprintf(szBuff, sizeof(szBuff), "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_mavlink_rc_rssi);
             strcpy(szBuff2, "RC RSSI");
          }
          else if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI )
          {
-            sprintf(szBuff, "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_mavlink_rx_rssi);
+            snprintf(szBuff, sizeof(szBuff), "RC RSSI: %d%%", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_mavlink_rx_rssi);
             strcpy(szBuff2, "RC RSSI");
          }
       }
@@ -720,9 +720,9 @@ void render_osd_layout_lean_extended()
    szBuff[0] = 0;
    szBuff2[0] = 0;
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-      strcat(szBuff, "NONE");
+      strlcat(szBuff, "NONE", sizeof(szBuff));
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
-      strcat(szBuff2, "0:00");
+      strlcat(szBuff2, "0:00", sizeof(szBuff2));
    
    int sec = (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60;
    int min = (g_pCurrentModel->m_Stats.uCurrentFlightTime)/60;
@@ -730,11 +730,11 @@ void render_osd_layout_lean_extended()
    szBuff[0] = 0;
    szBuff2[0] = 0;   
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-      strcat(szBuff, "NONE");
+      strlcat(szBuff, "NONE", sizeof(szBuff));
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
    {
-      sprintf(szTmp, "%d:%02d", min, sec);
-      strcat(szBuff2, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "%d:%02d", min, sec);
+      strlcat(szBuff2, szTmp, sizeof(szBuff2));
    }
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
    {
@@ -742,11 +742,11 @@ void render_osd_layout_lean_extended()
       szBuff[0] = 0; 
       szBuff2[0] = 0;  
       if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) )
-         strcat(szBuff, model_getShortFlightMode(mode));
+         strlcat(szBuff, model_getShortFlightMode(mode), sizeof(szBuff));
       if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_TIME) )
       {
-         sprintf(szTmp, "%d:%02d", min, sec);
-         strcat(szBuff2, szTmp);
+         snprintf(szTmp, sizeof(szTmp), "%d:%02d", min, sec);
+         strlcat(szBuff2, szTmp, sizeof(szBuff2));
       }
    }
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout] & OSD_FLAG_SHOW_FLIGHT_MODE) ||

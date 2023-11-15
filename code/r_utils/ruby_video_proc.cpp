@@ -81,10 +81,10 @@ bool store_video()
 
    if ( NULL != strstr(szFileIn, TEMP_VIDEO_MEM_FOLDER) )
    {
-      snprintf(szComm, 511, "nice -n %d mv %s %s", niceValue, szFileIn, TEMP_VIDEO_FILE);
+      snprintf(szComm, sizeof(szComm), "nice -n %d mv %s %s", niceValue, szFileIn, TEMP_VIDEO_FILE);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "umount %s", TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "umount %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command(szComm, NULL);
       strcpy(szFileIn, TEMP_VIDEO_FILE);
    }
@@ -128,15 +128,15 @@ bool store_video()
    str_sanitize_filename(vehicle_name);
 
    u32 timeNow = get_current_timestamp_ms();
-   sprintf(szOutFileInfo, FILE_FORMAT_VIDEO_INFO, vehicle_name, g_iBootCount, timeNow/1000, timeNow%1000 );
+   snprintf(szOutFileInfo, sizeof(szOutFileInfo), FILE_FORMAT_VIDEO_INFO, vehicle_name, g_iBootCount, timeNow/1000, timeNow%1000 );
 
-   strncpy(szOutFile, szOutFileInfo, 512);
+    strlcpy(szOutFile, szOutFileInfo, sizeof(szOutFile));
    szOutFile[strlen(szOutFile)-4] = 'h';
    szOutFile[strlen(szOutFile)-3] = '2';
    szOutFile[strlen(szOutFile)-2] = '6';
    szOutFile[strlen(szOutFile)-1] = '4';
 
-   snprintf(szFileInfo, 1023, "%s%s", FOLDER_MEDIA, szOutFileInfo);
+   snprintf(szFileInfo, sizeof(szFileInfo), "%s%s", FOLDER_MEDIA, szOutFileInfo);
    fd = fopen(szFileInfo, "w");
    if ( NULL == fd )
    {
@@ -153,11 +153,11 @@ bool store_video()
 
    log_line("Moving video file %s to: %s%s", szFileIn, FOLDER_MEDIA, szOutFile);
 
-   snprintf(szComm, 1023, "nice -n %d mv %s %s%s", niceValue, szFileIn, FOLDER_MEDIA, szOutFile);
+   snprintf(szComm, sizeof(szComm), "nice -n %d mv %s %s%s", niceValue, szFileIn, FOLDER_MEDIA, szOutFile);
    hw_execute_bash_command(szComm, NULL);
    //launch_set_proc_priority("cp", 10,0,1);
 
-   sprintf(szComm, "rm -rf %s", TEMP_VIDEO_FILE_INFO);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", TEMP_VIDEO_FILE_INFO);
    hw_execute_bash_command(szComm, NULL);
 
    return true;
@@ -189,7 +189,7 @@ bool process_video(char* szFileInfo, char* szFileOut)
    }
 
    // Convert input file to output file
-   snprintf(szComm, 1023, "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileIn, szFileOut);
+   snprintf(szComm, sizeof(szComm), "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileIn, szFileOut);
    log_line("Execute ffmpeg: %s", szComm);
    //hw_execute_bash_command(szComm, NULL);
    system(szComm);

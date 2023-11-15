@@ -155,7 +155,7 @@ void osd_render_stats_full_rx_port()
 
    osd_set_colors();
 
-   sprintf(szBuff, "Full Radio Interfaces RX Stats (update rate: %d ms)", g_pSM_RadioStats->refreshIntervalMs);
+   snprintf(szBuff, sizeof(szBuff), "Full Radio Interfaces RX Stats (update rate: %d ms)", g_pSM_RadioStats->refreshIntervalMs);
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -185,44 +185,44 @@ void osd_render_stats_full_rx_port()
 
       char* szName = controllerGetCardUserDefinedName(pNICInfo->szMAC);
       if ( NULL != szName && 0 != szName[0] )
-         sprintf(szBuff, "%s%s (%s): %s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(E)"), szName, pNICInfo->szDriver);
+         snprintf(szBuff, sizeof(szBuff), "%s%s (%s): %s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(E)"), szName, pNICInfo->szDriver);
       else
-         sprintf(szBuff, "%s%s: %s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(E)"), pNICInfo->szDriver);
+         snprintf(szBuff, sizeof(szBuff), "%s%s: %s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(E)"), pNICInfo->szDriver);
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
       y += lineHeight;
 
-      sprintf(szBuff2, "%.1f", ((float)(g_pSM_RadioStats->radio_interfaces[i].lastDataRate))/2.0);
+      snprintf(szBuff2, sizeof(szBuff2), "%.1f", ((float)(g_pSM_RadioStats->radio_interfaces[i].lastDataRate))/2.0);
 
-      sprintf(szBuff, "Mode: N/A %s Mbs", removeTrailingZero(szBuff2));
+      snprintf(szBuff, sizeof(szBuff), "Mode: N/A %s Mbs", removeTrailingZero(szBuff2));
       if ( g_pSM_RadioStats->radio_interfaces[i].openedForWrite && g_pSM_RadioStats->radio_interfaces[i].openedForRead )
-         sprintf(szBuff, "Mode: TX/RX %s Mbs", removeTrailingZero(szBuff2)); 
+         snprintf(szBuff, sizeof(szBuff), "Mode: TX/RX %s Mbs", removeTrailingZero(szBuff2)); 
       else if ( g_pSM_RadioStats->radio_interfaces[i].openedForWrite )
-         sprintf(szBuff, "Mode: TX %s Mbs", removeTrailingZero(szBuff2)); 
+         snprintf(szBuff, sizeof(szBuff), "Mode: TX %s Mbs", removeTrailingZero(szBuff2)); 
       else if (g_pSM_RadioStats->radio_interfaces[i].openedForRead )
-         sprintf(szBuff, "Mode: RX %s Mbs", removeTrailingZero(szBuff2));
+         snprintf(szBuff, sizeof(szBuff), "Mode: RX %s Mbs", removeTrailingZero(szBuff2));
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
       y += lineHeight + 0.01;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Rx Quality:");
-      sprintf(szBuff, "%d%%  %d dbm", g_pSM_RadioStats->radio_interfaces[i].rxQuality, g_pSM_RadioStats->radio_interfaces[i].lastDbm);
+      snprintf(szBuff, sizeof(szBuff), "%d%%  %d dbm", g_pSM_RadioStats->radio_interfaces[i].rxQuality, g_pSM_RadioStats->radio_interfaces[i].lastDbm);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Rx Relative Quality:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].rxRelativeQuality);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].rxRelativeQuality);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       if ( iRadioLinkId >= 0 )
       {
-         sprintf(szBuff, "TX Time/Sec (link %d):", iRadioLinkId+1);
+         snprintf(szBuff, sizeof(szBuff), "TX Time/Sec (link %d):", iRadioLinkId+1);
          g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
          // TO DO : to fix: show tx time per radio link
-         //sprintf(szBuff, "%d ms", g_pSM_RadioStats->radio_links[iRadioLinkId].downlink_tx_time_per_sec);
+         //snprintf(szBuff, sizeof(szBuff), "%d ms", g_pSM_RadioStats->radio_links[iRadioLinkId].downlink_tx_time_per_sec);
          if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-            sprintf(szBuff, "%d ms/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.txTimePerSec);
+            snprintf(szBuff, sizeof(szBuff), "%d ms/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.txTimePerSec);
          else
             strcpy(szBuff, "N/A ms/sec");
          g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
@@ -235,46 +235,46 @@ void osd_render_stats_full_rx_port()
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX Total:");
-      sprintf(szBuff, "%d kbps", g_pSM_RadioStats->radio_interfaces[i].rxBytesPerSec * 8 / 1000 );
+      snprintf(szBuff, sizeof(szBuff), "%d kbps", g_pSM_RadioStats->radio_interfaces[i].rxBytesPerSec * 8 / 1000 );
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX Packets/Sec:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].rxPacketsPerSec);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].rxPacketsPerSec);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawLine(xPos + padding, y - 0.003, xPos + widthCol - 2.0*padding, y - 0.003 );
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX Recv Packets:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPackets);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPackets);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX OK Packets:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPackets - g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsBad);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPackets - g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsBad);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX Lost Packets:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsLost);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsLost);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "RX Broken Packets:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsBad);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].totalRxPacketsBad);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawLine(xPos + padding, y - 0.003, xPos + widthCol - 2.0*padding, y - 0.003 );
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "TX Packets/Sec:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].txPacketsPerSec);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].txPacketsPerSec);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "TX Total Packets:");
-      sprintf(szBuff, "%d", g_pSM_RadioStats->radio_interfaces[i].totalTxPackets);
+      snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->radio_interfaces[i].totalTxPackets);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, height_text, fontId, szBuff);
       y += lineHeight;
 
@@ -296,40 +296,40 @@ void osd_render_stats_full_rx_port()
       if ( g_pSM_RadioStats->radio_streams[i].timeLastRxPacket == 0 && g_pSM_RadioStats->radio_streams[i].timeLastTxPacket == 0 )
          continue;
 
-      sprintf(szBuff, "%s Rx Total:", str_get_radio_stream_name(i));
+      snprintf(szBuff, sizeof(szBuff), "%s Rx Total:", str_get_radio_stream_name(i));
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
 
       if ( g_pSM_RadioStats->radio_streams[i].totalRxBytes >= 1000000 )
-         sprintf(szBuff, "%u MB", g_pSM_RadioStats->radio_streams[i].totalRxBytes/1000/1000);
+         snprintf(szBuff, sizeof(szBuff), "%u MB", g_pSM_RadioStats->radio_streams[i].totalRxBytes/1000/1000);
       else if ( g_pSM_RadioStats->radio_streams[i].totalRxBytes >= 1000 )
-         sprintf(szBuff, "%u kB", g_pSM_RadioStats->radio_streams[i].totalRxBytes/1000);
+         snprintf(szBuff, sizeof(szBuff), "%u kB", g_pSM_RadioStats->radio_streams[i].totalRxBytes/1000);
       else
-         sprintf(szBuff, "%u bytes", g_pSM_RadioStats->radio_streams[i].totalRxBytes);
+         snprintf(szBuff, sizeof(szBuff), "%u bytes", g_pSM_RadioStats->radio_streams[i].totalRxBytes);
       g_pRenderEngine->drawTextLeft(xEnd, y, height_text, fontId, szBuff);
       y += lineHeight;
 
-      sprintf(szBuff, "%s Rx:", str_get_radio_stream_name(i));
+      snprintf(szBuff, sizeof(szBuff), "%s Rx:", str_get_radio_stream_name(i));
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
-      sprintf(szBuff, "%u kbps", g_pSM_RadioStats->radio_streams[i].rxBytesPerSec * 8 / 1000);
+      snprintf(szBuff, sizeof(szBuff), "%u kbps", g_pSM_RadioStats->radio_streams[i].rxBytesPerSec * 8 / 1000);
       g_pRenderEngine->drawTextLeft(xEnd, y, height_text, fontId, szBuff);
       y += lineHeight;
 
-      sprintf(szBuff, "%s Rx Packets:", str_get_radio_stream_name(i));
+      snprintf(szBuff, sizeof(szBuff), "%s Rx Packets:", str_get_radio_stream_name(i));
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
-      sprintf(szBuff, "%u", g_pSM_RadioStats->radio_streams[i].totalRxPackets);
+      snprintf(szBuff, sizeof(szBuff), "%u", g_pSM_RadioStats->radio_streams[i].totalRxPackets);
       g_pRenderEngine->drawTextLeft(xEnd, y, height_text, fontId, szBuff);
       y += lineHeight;
 
 
-      sprintf(szBuff, "%s Rx Lost Packets:", str_get_radio_stream_name(i));
+      snprintf(szBuff, sizeof(szBuff), "%s Rx Lost Packets:", str_get_radio_stream_name(i));
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
-      sprintf(szBuff, "%u", g_pSM_RadioStats->radio_streams[i].totalLostPackets);
+      snprintf(szBuff, sizeof(szBuff), "%u", g_pSM_RadioStats->radio_streams[i].totalLostPackets);
       g_pRenderEngine->drawTextLeft(xEnd, y, height_text, fontId, szBuff);
       y += lineHeight;
 
-      sprintf(szBuff, "%s Rx Lost Percent:", str_get_radio_stream_name(i));
+      snprintf(szBuff, sizeof(szBuff), "%s Rx Lost Percent:", str_get_radio_stream_name(i));
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
-      sprintf(szBuff, "%.1f%%", (float)g_pSM_RadioStats->radio_streams[i].totalLostPackets*100.0/(float)g_pSM_RadioStats->radio_streams[i].totalRxPackets);
+      snprintf(szBuff, sizeof(szBuff), "%.1f%%", (float)g_pSM_RadioStats->radio_streams[i].totalLostPackets*100.0/(float)g_pSM_RadioStats->radio_streams[i].totalRxPackets);
       g_pRenderEngine->drawTextLeft(xEnd, y, height_text, fontId, szBuff);
       y += lineHeight;
 
@@ -410,7 +410,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
    if ( ! (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG_EXT_SHOW_RADIO_INTERFACES_COMPACT) )
    {
-      sprintf(szBuff, "%s", szTitle); 
+      snprintf(szBuff, sizeof(szBuff), "%s", szTitle); 
       g_pRenderEngine->drawText(xPos, yPos, height_text, s_idFontStats, szBuff);
    }
    osd_set_colors();
@@ -422,11 +422,11 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
    if ( ! (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG_EXT_SHOW_RADIO_INTERFACES_COMPACT) )
    {
-      sprintf(szBuff,"%d ms/bar", pStats->graphRefreshIntervalMs);
+      snprintf(szBuff, sizeof(szBuff),"%d ms/bar", pStats->graphRefreshIntervalMs);
       g_pRenderEngine->drawTextLeft(rightMargin, yPos, height_text_small, s_idFontStatsSmall, szBuff);
 
       float w = g_pRenderEngine->textWidth(height_text_small, s_idFontStatsSmall, szBuff);
-      sprintf(szBuff,"%.1f sec, ", (((float)MAX_HISTORY_RADIO_STATS_RECV_SLICES) * pStats->graphRefreshIntervalMs)/1000.0);
+      snprintf(szBuff, sizeof(szBuff),"%.1f sec, ", (((float)MAX_HISTORY_RADIO_STATS_RECV_SLICES) * pStats->graphRefreshIntervalMs)/1000.0);
       g_pRenderEngine->drawTextLeft(rightMargin-w, yPos, height_text_small, s_idFontStatsSmall, szBuff);
       w += g_pRenderEngine->textWidth( height_text_small, s_idFontStatsSmall, szBuff);
       y += height_text*1.0*s_OSDStatsLineSpacing + 2.0*s_fOSDStatsMargin*0.3;
@@ -553,7 +553,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
       {
          g_pRenderEngine->setColors(get_Color_Dev());
-         sprintf(szBuff, "Avg/Max Gap: %d/%d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
+         snprintf(szBuff, sizeof(szBuff), "Avg/Max Gap: %d/%d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
          g_pRenderEngine->drawBackgroundBoundingBoxes(true);
          g_pRenderEngine->drawText(xPos, y - height_text*0.8, height_text, s_idFontStats, szBuff);
          g_pRenderEngine->drawBackgroundBoundingBoxes(false);
@@ -561,7 +561,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       }
       else
       {
-         sprintf(szBuff, "MaxGap: %d ms, %d pkts", (int)uMaxGapMs, maxBadLost);
+         snprintf(szBuff, sizeof(szBuff), "MaxGap: %d ms, %d pkts", (int)uMaxGapMs, maxBadLost);
          g_pRenderEngine->drawBackgroundBoundingBoxes(true);
          g_pRenderEngine->drawText(xPos, y - height_text*0.8, height_text, s_idFontStats, szBuff);
          g_pRenderEngine->drawBackgroundBoundingBoxes(false);       
@@ -572,9 +572,9 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       char szBuffU[64];
       str_format_bitrate(pStats->radio_interfaces[i].rxBytesPerSec * 8, szBuffD);
       str_format_bitrate(pStats->radio_interfaces[i].txBytesPerSec * 8, szBuffU);
-      sprintf(szBuff, "%s / %s", szBuffU, szBuffD);
+      snprintf(szBuff, sizeof(szBuff), "%s / %s", szBuffU, szBuffD);
       if ( pStats->radio_interfaces[i].txBytesPerSec == 0 )
-         sprintf(szBuff, "- / %s", szBuffD);
+         snprintf(szBuff, sizeof(szBuff), "- / %s", szBuffD);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       float fWT = g_pRenderEngine->textWidth(0.0, s_idFontStats, szBuff);
       if ( bIsTxCard )
@@ -602,12 +602,12 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
       strcpy(szBuff,szName);
 
-      sprintf(szName, "%s%s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(Ext)"));
+      snprintf(szName, sizeof(szName), "%s%s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(Ext)"));
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szName);
       float fW = g_pRenderEngine->textWidth(s_idFontStats, szName);
       if ( 0 != szBuff[0] )
       {
-         sprintf(szName, "(%s)", szBuff);
+         snprintf(szName, sizeof(szName), "(%s)", szBuff);
          g_pRenderEngine->drawText(xPos + fW + height_text_small*0.2, y + 0.5*(height_text-height_text_small), s_idFontStatsSmall, szName);
          fW += height_text_small*0.2 + g_pRenderEngine->textWidth(s_idFontStatsSmall, szName);
       }    
@@ -629,13 +629,13 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       else
          strcpy(szName,"NOT USED");
 
-      sprintf(szBuff, "Link %d, %s, %s, %d dbm", iRadioLinkId+1, szName, str_format_frequency(pStats->radio_interfaces[i].uCurrentFrequency), (int)g_fOSDDbm[i] );
+      snprintf(szBuff, sizeof(szBuff), "Link %d, %s, %s, %d dbm", iRadioLinkId+1, szName, str_format_frequency(pStats->radio_interfaces[i].uCurrentFrequency), (int)g_fOSDDbm[i] );
       if ( controllerIsCardDisabled(pNICInfo->szMAC) )
-         sprintf(szBuff, "DISABLED");
+         snprintf(szBuff, sizeof(szBuff), "DISABLED");
       else if ( iRadioLinkId < 0 || iRadioLinkId >= MAX_RADIO_INTERFACES )
-         sprintf(szBuff, "No Radio Link");
+         snprintf(szBuff, sizeof(szBuff), "No Radio Link");
       if ( pNICInfo->lastFrequencySetFailed || 0 == pStats->radio_interfaces[i].uCurrentFrequency )
-         sprintf(szBuff, "Set Freq Failed");
+         snprintf(szBuff, sizeof(szBuff), "Set Freq Failed");
 
       g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
 
@@ -776,7 +776,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
          {
             g_pRenderEngine->setColors(get_Color_Dev());
-            sprintf(szBuff, "Avg/Max Gap: %d/%d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
+            snprintf(szBuff, sizeof(szBuff), "Avg/Max Gap: %d/%d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
             g_pRenderEngine->drawBackgroundBoundingBoxes(true);
             g_pRenderEngine->drawText(xPos, y - height_text*0.8, height_text, s_idFontStats, szBuff);
             g_pRenderEngine->drawBackgroundBoundingBoxes(false);
@@ -784,24 +784,24 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          }
          else
          {
-            sprintf(szBuff, "MaxGap: %d ms, %d pkts", (int)uMaxGapMs, maxBadLost);
+            snprintf(szBuff, sizeof(szBuff), "MaxGap: %d ms, %d pkts", (int)uMaxGapMs, maxBadLost);
             g_pRenderEngine->drawBackgroundBoundingBoxes(true);
             g_pRenderEngine->drawText(xPos, y - height_text*0.8, height_text, s_idFontStats, szBuff);
             g_pRenderEngine->drawBackgroundBoundingBoxes(false);       
          }
          y += height_text*0.2;
 
-         //sprintf(szBuff, "Link %d, %s (%s)", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_card_model_string_short(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]) );
-         sprintf(szBuff, "Link %d, %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i]);
+         //snprintf(szBuff, sizeof(szBuff), "Link %d, %s (%s)", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_card_model_string_short(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]) );
+         snprintf(szBuff, sizeof(szBuff), "Link %d, %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i]);
          if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-            sprintf(szBuff, "DISABLED");
+            snprintf(szBuff, sizeof(szBuff), "DISABLED");
          int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[i];
          if ( iRadioLinkId < 0 || iRadioLinkId >= MAX_RADIO_INTERFACES )
-            sprintf(szBuff, "No Radio Link");
+            snprintf(szBuff, sizeof(szBuff), "No Radio Link");
          
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
          float fW = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
-         sprintf(szBuff, "(%s)", str_get_radio_card_model_string_short(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]));
+         snprintf(szBuff, sizeof(szBuff), "(%s)", str_get_radio_card_model_string_short(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]));
          g_pRenderEngine->drawText(xPos + fW + height_text_small*0.2, y + 0.5*(height_text-height_text_small), s_idFontStatsSmall, szBuff);
          fW += height_text_small*0.2 + g_pRenderEngine->textWidth(s_idFontStatsSmall, szBuff);  
 
@@ -809,12 +809,12 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
          char szTmp[64];
          str_getDataRateDescription(g_SM_VehicleRxStats[i].lastDataRate/2, szTmp);
-         sprintf(szBuff, "RX Quality: %d%%, Radio rate: %s", g_SM_VehicleRxStats[i].rxQuality, szTmp);
+         snprintf(szBuff, sizeof(szBuff), "RX Quality: %d%%, Radio rate: %s", g_SM_VehicleRxStats[i].rxQuality, szTmp);
          
          int iRadioLink = g_pCurrentModel->radioInterfacesParams.interface_link_id[i];
          if ( iRadioLink >= 0 && iRadioLink < g_pCurrentModel->radioLinksParams.links_count )
          if ( g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][1] < 0 )
-            sprintf(szBuff, "RX Quality: %d%%, Radio rate: MCS-%d", g_SM_VehicleRxStats[i].rxQuality, (-g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][1])-1);
+            snprintf(szBuff, sizeof(szBuff), "RX Quality: %d%%, Radio rate: MCS-%d", g_SM_VehicleRxStats[i].rxQuality, (-g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][1])-1);
          g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
          y += height_text*s_OSDStatsLineSpacing;
 
@@ -905,13 +905,13 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
    width -= 2*s_fOSDStatsMargin*scale/g_pRenderEngine->getAspectRatio();
    float rightMargin = xPos + width;
 
-   sprintf(szBuff, "%s", szTitle);
+   snprintf(szBuff, sizeof(szBuff), "%s", szTitle);
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
       if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->clock_sync_type == CLOCK_SYNC_TYPE_NONE) )
-         sprintf(szBuff, "%s (ping freq %d)", szTitle, pCS->nPingClockSyncFrequency/2 );
+         snprintf(szBuff, sizeof(szBuff), "%s (ping freq %d)", szTitle, pCS->nPingClockSyncFrequency/2 );
       else
-         sprintf(szBuff, "%s (ping freq %d)", szTitle, pCS->nPingClockSyncFrequency );
+         snprintf(szBuff, sizeof(szBuff), "%s (ping freq %d)", szTitle, pCS->nPingClockSyncFrequency );
    }
    g_pRenderEngine->drawText(xPos, yPos, height_text, s_idFontStats, szBuff);
    
@@ -951,15 +951,15 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
    {
       char szQ[16];
       if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         sprintf(szQ, "N/A");
+         snprintf(szQ, sizeof(szQ), "N/A");
       else
-         sprintf(szQ, "%d%%", nQualityRadioLink[i]);
+         snprintf(szQ, sizeof(szQ), "%d%%", nQualityRadioLink[i]);
       if ( i == 0 )
          strcpy(szBuff, szQ);
       else
       {
-         strcat(szBuff, ", ");
-         strcat(szBuff, szQ);
+         strlcat(szBuff, ", ", sizeof(szBuff));
+         strlcat(szBuff, szQ, sizeof(szBuff));
       }
    }
    g_pRenderEngine->drawTextLeft(rightMargin, yPos, height_text, s_idFontStats, szBuff);
@@ -974,12 +974,12 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
       for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
       {
          if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-            sprintf(szBuff, "Disabled");
+            snprintf(szBuff, sizeof(szBuff), "Disabled");
          else if ( (0 != g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMs) && (g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMsLastTime != 0) && (g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMsLastTime != MAX_U32) && (g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMsLastTime > g_TimeNow-1000) )
-            sprintf(szBuff, "%d ms", g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMs);
+            snprintf(szBuff, sizeof(szBuff), "%d ms", g_pSM_RadioStats->radio_links[i].linkDelayRoundtripMs);
          else
             strcpy(szBuff, "N/A");
-         sprintf(szBuff2, "Link %d RT delay:", i+1);
+         snprintf(szBuff2, sizeof(szBuff2), "Link %d RT delay:", i+1);
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff2, szBuff);
          y += height_text*s_OSDStatsLineSpacing;
       }
@@ -987,14 +987,14 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
       if ( g_pSM_RadioStats->uAverageCommandRoundtripMiliseconds == MAX_U32 )
          strcpy(szBuff, "N/A");
       else
-         sprintf(szBuff, "%d", g_pSM_RadioStats->uAverageCommandRoundtripMiliseconds);
+         snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->uAverageCommandRoundtripMiliseconds);
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
       if ( g_pSM_RadioStats->uMinCommandRoundtripMiliseconds == MAX_U32 )
          strcpy(szBuff, "N/A");
       else
-         sprintf(szBuff, "%d", g_pSM_RadioStats->uMinCommandRoundtripMiliseconds);
+         snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RadioStats->uMinCommandRoundtripMiliseconds);
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay (min):", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
    }
@@ -1006,7 +1006,7 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
          strcpy(szBuff, "Disabled");
       else
          str_format_bitrate(g_pSM_RadioStats->radio_links[i].rxBytesPerSec*8, szBuff);
-      sprintf(szBuff2, "Downlink %d (%s):", i+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[i]));
+      snprintf(szBuff2, sizeof(szBuff2), "Downlink %d (%s):", i+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[i]));
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff2, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
       osd_set_colors();
@@ -1018,7 +1018,7 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
          strcpy(szBuff, "Disabled");
       else
          str_format_bitrate(g_pSM_RadioStats->radio_links[i].txBytesPerSec*8, szBuff);
-      sprintf(szBuff2, "Uplink %d (%s):", i+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[i]));
+      snprintf(szBuff2, sizeof(szBuff2), "Uplink %d (%s):", i+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[i]));
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff2, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
       osd_set_colors();
@@ -1030,11 +1030,11 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
       {
          g_pRenderEngine->setColors(get_Color_Dev());
 
-         sprintf(szBuff2, "Uplink %d packets:", i+1);
+         snprintf(szBuff2, sizeof(szBuff2), "Uplink %d packets:", i+1);
          if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
             strcpy(szBuff, "Disabled");
          else
-            sprintf(szBuff,"%d pk/sec", g_pSM_RadioStats->radio_links[i].txPacketsPerSec);
+            snprintf(szBuff, sizeof(szBuff),"%d pk/sec", g_pSM_RadioStats->radio_links[i].txPacketsPerSec);
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, szBuff2, szBuff);
          y += height_text_small*s_OSDStatsLineSpacing;
       }
@@ -1044,15 +1044,15 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
 
    {
       if ( NULL != g_psmvds )
-         sprintf(szBuff, "%d ms/sec", g_psmvds->fec_time/1000);
+         snprintf(szBuff, sizeof(szBuff), "%d ms/sec", g_psmvds->fec_time/1000);
       else
-         sprintf(szBuff, "N/A");
+         snprintf(szBuff, sizeof(szBuff), "N/A");
 
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video Encoding Time:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-         sprintf(szBuff, "%d ms/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.txTimePerSec);
+         snprintf(szBuff, sizeof(szBuff), "%d ms/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.txTimePerSec);
       else
          strcpy(szBuff, "N/A ms/sec");
 
@@ -1078,18 +1078,18 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
          cst = g_pCurrentModel->clock_sync_type;
       
       if ( cst == CLOCK_SYNC_TYPE_NONE )
-         strcat(szBuff, "None");
+         strlcat(szBuff, "None", sizeof(szBuff));
       if ( cst == CLOCK_SYNC_TYPE_BASIC )
-         strcat(szBuff, "Basic");
+         strlcat(szBuff, "Basic", sizeof(szBuff));
       if ( cst == CLOCK_SYNC_TYPE_ADV )
-         strcat(szBuff, "Advanced");
+         strlcat(szBuff, "Advanced", sizeof(szBuff));
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Clock Sync:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
       if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
       {
          u32 ping_freq_ms = compute_ping_frequency(g_pCurrentModel->uModelFlags, g_pCurrentModel->clock_sync_type, g_psmvds->encoding_extra_flags);
-         sprintf(szBuff, "%d ms", ping_freq_ms);
+         snprintf(szBuff, sizeof(szBuff), "%d ms", ping_freq_ms);
          g_pRenderEngine->setColors(get_Color_Dev());
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Clock Sync Freq:", szBuff);
          osd_set_colors();
@@ -1104,14 +1104,14 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
 
       g_pRenderEngine->setColors(pColorDev);
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-         sprintf(szBuff, "%d/sec", (g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_packets_per_sec+g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_data_packets_per_sec));
+         snprintf(szBuff, sizeof(szBuff), "%d/sec", (g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_packets_per_sec+g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_data_packets_per_sec));
       else
          strcpy(szBuff, "N/A");
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Downlinks Total Packets:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-         sprintf(szBuff, "%d/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_data_packets_per_sec);
+         snprintf(szBuff, sizeof(szBuff), "%d/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_data_packets_per_sec);
       else
          strcpy(szBuff, "N/A");
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Downlinks Data Packets:", szBuff);
@@ -1119,7 +1119,7 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
 
 
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-         sprintf(szBuff, "%d/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_compacted_packets_per_sec);
+         snprintf(szBuff, sizeof(szBuff), "%d/sec", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_compacted_packets_per_sec);
       else
          strcpy(szBuff, "N/A");
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Downlinks Data Packets-C:", szBuff);
@@ -1128,7 +1128,7 @@ float osd_render_stats_radio_links( float xPos, float yPos, const char* szTitle,
       for( int i=0; i<MAX_RADIO_STREAMS; i++ )
          if ( pStats->radio_streams[i].totalRxPackets > 0 )
          {
-            sprintf(szBuff, "%s:", str_get_radio_stream_name(i));
+            snprintf(szBuff, sizeof(szBuff), "%s:", str_get_radio_stream_name(i));
             str_format_bitrate(pStats->radio_streams[i].rxBytesPerSec*8, szBuff2);
             _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff, szBuff2);
             y += height_text*s_OSDStatsLineSpacing;
@@ -1418,7 +1418,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    }
    else
    {
-      sprintf(szBuff, "Snapshot %d", s_uOSDSnapshotCount);
+      snprintf(szBuff, sizeof(szBuff), "Snapshot %d", s_uOSDSnapshotCount);
       g_pRenderEngine->drawText(xPos, yPos, height_text, s_idFontStats, szBuff);
    }
    
@@ -1433,14 +1433,14 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       strcpy(szMode, str_get_video_profile_name(pSM_VideoStats->video_link_profile & 0x0F));
       if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_COMPACT_VIDEO_DECODE_STATS )
          szMode[0] = 0;
-      sprintf(szBuff, "%s %.1f Mbs", szMode, video_mbps);
+      snprintf(szBuff, sizeof(szBuff), "%s %.1f Mbs", szMode, video_mbps);
       if ( (NULL != g_psmvds) && (g_psmvds->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
-         sprintf(szBuff, "%s- %.1f Mbs", szMode, video_mbps);
+         snprintf(szBuff, sizeof(szBuff), "%s- %.1f Mbs", szMode, video_mbps);
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
       {
-         sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_bitrate/1000.0/1000.0);
+         snprintf(szBuff, sizeof(szBuff), "%s %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_bitrate/1000.0/1000.0);
          if ( (NULL != g_psmvds) && (g_psmvds->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
-            sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_bitrate/1000.0/1000.0);
+            snprintf(szBuff, sizeof(szBuff), "%s- %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.downlink_tx_video_bitrate/1000.0/1000.0);
       }
       u32 uRealDataRate = g_pCurrentModel->getLinkRealDataRate(0);
       if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
@@ -1469,7 +1469,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    szCurrentProfile[0] = 0;
    strcpy(szCurrentProfile, str_get_video_profile_name(pSM_VideoStats->video_link_profile & 0x0F));
    if ( (NULL != g_psmvds) && (g_psmvds->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
-      strcat(szCurrentProfile, "-");
+      strlcat(szCurrentProfile, "-", sizeof(szCurrentProfile));
 
    // Not compact mode
 
@@ -1477,19 +1477,19 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    {
       if ( pairing_hasReceivedVideoStreamData())
       {
-         //sprintf(szBuff, "Stream: %s %dx%d, %d fps %d key", szCurrentProfile, pSM_VideoStats->width, pSM_VideoStats->height, pSM_VideoStats->fps, g_pCurrentModel->video_link_profiles[(pSM_VideoStats->video_link_profile & 0x0F)].keyframe);
+         //snprintf(szBuff, sizeof(szBuff), "Stream: %s %dx%d, %d fps %d key", szCurrentProfile, pSM_VideoStats->width, pSM_VideoStats->height, pSM_VideoStats->fps, g_pCurrentModel->video_link_profiles[(pSM_VideoStats->video_link_profile & 0x0F)].keyframe);
          strcpy(szBuff, "N/A");
          for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
             if ( g_iOptionsVideoWidth[i] == pSM_VideoStats->width )
             if ( g_iOptionsVideoHeight[i] == pSM_VideoStats->height )
             {
-               sprintf(szBuff, "%s %s %d fps %d KF", szCurrentProfile, g_szOptionsVideoRes[i], pSM_VideoStats->fps, pSM_VideoStats->keyframe);
+               snprintf(szBuff, sizeof(szBuff), "%s %s %d fps %d KF", szCurrentProfile, g_szOptionsVideoRes[i], pSM_VideoStats->fps, pSM_VideoStats->keyframe);
                break;
             }
 
       }
       else
-         sprintf(szBuff, "Stream: N/A");
+         snprintf(szBuff, sizeof(szBuff), "Stream: N/A");
       g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;
    }
@@ -1503,11 +1503,11 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       char szBuff3[64];
       szBuff3[0] = 0;
       if ( pSM_VideoStats->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-         sprintf(szBuff3, "%d", g_pCurrentModel->video_params.videoAdjustmentStrength);
+         snprintf(szBuff3, sizeof(szBuff3), "%d", g_pCurrentModel->video_params.videoAdjustmentStrength);
 
       char szDynamic[64];
       if ( pSM_VideoStats->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-         sprintf(szDynamic, "Dynamic (%d)", g_pCurrentModel->video_params.videoAdjustmentStrength);
+         snprintf(szDynamic, sizeof(szDynamic), "Dynamic (%d)", g_pCurrentModel->video_params.videoAdjustmentStrength);
       else
          strcpy(szDynamic, "Fixed");
 
@@ -1515,28 +1515,28 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       {
          if ( (g_pCurrentModel->osd_params.osd_flags[g_iCurrentOSDVehicleLayout]) & OSD_FLAG_EXTENDED_VIDEO_DECODE_HISTORY )
          {
-            sprintf(szBuff, "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
+            snprintf(szBuff, sizeof(szBuff), "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
                 szBuff3, 5*(((pSM_VideoStats->encoding_extra_flags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
             g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
          }
          else
          {
-            sprintf(szBuff, "Params: 2Way / %s %s", szDynamic, szBuff3);
+            snprintf(szBuff, sizeof(szBuff), "Params: 2Way / %s %s", szDynamic, szBuff3);
             g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
             y += height_text_small*s_OSDStatsLineSpacing;
-            sprintf(szBuff, "     %d ms / %d ms / %d ms", 5*(((pSM_VideoStats->encoding_extra_flags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
+            snprintf(szBuff, sizeof(szBuff), "     %d ms / %d ms / %d ms", 5*(((pSM_VideoStats->encoding_extra_flags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
             g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
          }
       }
       else
       {
-         sprintf(szBuff, "Params: 1Way / %s %s", szDynamic, szBuff3 );
+         snprintf(szBuff, sizeof(szBuff), "Params: 1Way / %s %s", szDynamic, szBuff3 );
          g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
       }
    }
    else
    {
-      sprintf(szBuff, "Params: N/A");
+      snprintf(szBuff, sizeof(szBuff), "Params: N/A");
       g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStatsSmall, szBuff);
    }
    y += height_text_small*s_OSDStatsLineSpacing;
@@ -1552,12 +1552,12 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_SHOW_COMPACT_VIDEO_DECODE_STATS )
    {
       if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe > 0 )
-         sprintf(szBuff, "EC: %s %d/%d/%d, %d KF (Fixed)", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, pSM_VideoStats->keyframe);
+         snprintf(szBuff, sizeof(szBuff), "EC: %s %d/%d/%d, %d KF (Fixed)", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, pSM_VideoStats->keyframe);
       else
-         sprintf(szBuff, "EC: %s %d/%d/%d, %d KF (Auto)", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, pSM_VideoStats->keyframe);
+         snprintf(szBuff, sizeof(szBuff), "EC: %s %d/%d/%d, %d KF (Auto)", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, pSM_VideoStats->keyframe);
    }
    else
-      sprintf(szBuff, "EC: %s %d/%d/%d, data/ec: %d/%d ms", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, msData, msFEC);
+      snprintf(szBuff, sizeof(szBuff), "EC: %s %d/%d/%d, data/ec: %d/%d ms", szCurrentProfile, pSM_VideoStats->data_packets_per_block, pSM_VideoStats->fec_packets_per_block, pSM_VideoStats->video_packet_length, msData, msFEC);
    
    if ( ! bIsSnapshot )
    {
@@ -1626,7 +1626,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       osd_set_colors();
       
       hBar += 4.0/g_pRenderEngine->getScreenHeight();
-      sprintf(szBuff, "%d", pSM_VideoStats->maxPacketsInBuffers);
+      snprintf(szBuff, sizeof(szBuff), "%d", pSM_VideoStats->maxPacketsInBuffers);
       g_pRenderEngine->drawText(xPos + wPrefix-2.0/g_pRenderEngine->getScreenWidth(), y+hBar*1.0, height_text*0.9, s_idFontStatsSmall, "0");
       g_pRenderEngine->drawTextLeft(xPos + wPrefix + width-2.0/g_pRenderEngine->getScreenWidth(), y+hBar*1.0, height_text*0.9, s_idFontStatsSmall, szBuff);
 
@@ -1695,10 +1695,10 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    if ( ! bIsSnapshot )
       y += height_text_small*0.1;
-   sprintf(szBuff,"%d ms/bar, buff: max %d blocks", pSM_VideoHistoryStats->outputHistoryIntervalMs, pSM_VideoStats->maxBlocksAllowedInBuffers);
+   snprintf(szBuff, sizeof(szBuff),"%d ms/bar, buff: max %d blocks", pSM_VideoHistoryStats->outputHistoryIntervalMs, pSM_VideoStats->maxBlocksAllowedInBuffers);
    if ( bIsSnapshot )
    {
-      sprintf(szBuff,"%d ms/bar, dx: %d", pSM_VideoHistoryStats->outputHistoryIntervalMs, iHistoryEndRetransmissionsIndex);
+      snprintf(szBuff, sizeof(szBuff),"%d ms/bar, dx: %d", pSM_VideoHistoryStats->outputHistoryIntervalMs, iHistoryEndRetransmissionsIndex);
       g_pRenderEngine->drawTextLeft(xPos+widthMax, y, height_text, s_idFontStats, szBuff);
    }
    else
@@ -1706,7 +1706,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, height_text_small, s_idFontStatsSmall, szBuff);
       float w = g_pRenderEngine->textWidth(height_text_small, s_idFontStatsSmall, szBuff);
 
-      sprintf(szBuff,"%.1f sec, ", (((float)totalHistoryValues) * pSM_VideoHistoryStats->outputHistoryIntervalMs)/1000.0);
+      snprintf(szBuff, sizeof(szBuff),"%.1f sec, ", (((float)totalHistoryValues) * pSM_VideoHistoryStats->outputHistoryIntervalMs)/1000.0);
       g_pRenderEngine->drawTextLeft(xPos+widthMax-w, y-height_text_small*0.2, height_text_small, s_idFontStatsSmall, szBuff);
       w += g_pRenderEngine->textWidth( height_text_small, s_idFontStatsSmall, szBuff);
    }
@@ -1718,7 +1718,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    float yStartGraphs = y;
 
-   sprintf(szBuff, "%d", maxGraphValue);
+   snprintf(szBuff, sizeof(szBuff), "%d", maxGraphValue);
    g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
    g_pRenderEngine->drawText(xPos, y+hGraphHistory-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, "0");
 
@@ -1900,36 +1900,36 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( pSM_VideoStats->isRetransmissionsOn )
       {
          char szBuff3[64];
-         sprintf(szBuff3, "2Way %d ms, ", 5*(((pSM_VideoStats->encoding_extra_flags) & 0xFF00) >> 8));
-         strcat(szBuff, szBuff3);
+         snprintf(szBuff3, sizeof(szBuff3), "2Way %d ms, ", 5*(((pSM_VideoStats->encoding_extra_flags) & 0xFF00) >> 8));
+         strlcat(szBuff, szBuff3, sizeof(szBuff));
       }
       else
-         strcat(szBuff, "1Way, ");
+         strlcat(szBuff, "1Way, ", sizeof(szBuff));
 
       if ( pSM_VideoStats->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
       {
-         strcat(szBuff, "Dynamic ");
+         strlcat(szBuff, "Dynamic ", sizeof(szBuff));
          char szTmp5[32];
-         sprintf(szTmp5,"(%d)", g_pCurrentModel->video_params.videoAdjustmentStrength);
-         strcat(szBuff, szTmp5);
+         snprintf(szTmp5, sizeof(szTmp5),"(%d)", g_pCurrentModel->video_params.videoAdjustmentStrength);
+         strlcat(szBuff, szTmp5, sizeof(szBuff));
       }
       else
-         strcat(szBuff, "Fixed");
+         strlcat(szBuff, "Fixed", sizeof(szBuff));
 
       //char szBuff2[64];
-      //sprintf(szBuff2, " %d KF", pSM_VideoStats->keyframe);
-      //strcat(szBuff, szBuff2);
+      //snprintf(szBuff2, sizeof(szBuff2), " %d KF", pSM_VideoStats->keyframe);
+      //strlcat(szBuff, szBuff2, sizeof(szBuff));
       g_pRenderEngine->drawText(xPos, y, height_text*0.86, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
       
       int maxPacketsPerSec = pSM_RadioStats->radio_streams[STREAM_ID_VIDEO_1].rxPacketsPerSec; 
       g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Received Packets/sec:");
-      sprintf(szBuff, "%d", maxPacketsPerSec);
+      snprintf(szBuff, sizeof(szBuff), "%d", maxPacketsPerSec);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
       g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Discarded buff/seg/pack:");
-      sprintf(szBuff, "%u/%u/%u", pSM_VideoStats->total_DiscardedBuffers, pSM_VideoStats->total_DiscardedSegments, pSM_VideoStats->total_DiscardedLostPackets);
+      snprintf(szBuff, sizeof(szBuff), "%u/%u/%u", pSM_VideoStats->total_DiscardedBuffers, pSM_VideoStats->total_DiscardedSegments, pSM_VideoStats->total_DiscardedLostPackets);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
@@ -1947,7 +1947,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          {
             if ( pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions > 0 )
                percent = pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions*100/pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions;
-            sprintf(szBuff, "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUnique, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions, percent);
+            snprintf(szBuff, sizeof(szBuff), "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUnique, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions, percent);
          }
          g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
          y += height_text*s_OSDStatsLineSpacing;
@@ -1959,7 +1959,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          {
             if ( pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms > 0 )
                percent = pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms*100/pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms;
-            sprintf(szBuff, "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUniqueLast5Sec, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms, percent);
+            snprintf(szBuff, sizeof(szBuff), "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUniqueLast5Sec, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms, percent);
          }
          g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
          y += height_text*s_OSDStatsLineSpacing;
@@ -1989,7 +1989,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text_small, s_idFontStatsSmall, "Max EC packets used");
       y += height_text_small*1.0;
 
-      sprintf(szBuff, "%d", (int)maxValue);
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)maxValue);
       g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
       g_pRenderEngine->drawText(xPos, y+hGraph*0.6-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, "0");
 
@@ -2044,7 +2044,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             maxGraphValue = pSM_VideoHistoryStats->outputHistoryBlocksMaxPacketsGapPerPeriod[i];
       }
 
-      sprintf(szBuff, "%d", maxGraphValue);
+      snprintf(szBuff, sizeof(szBuff), "%d", maxGraphValue);
       g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, height_text_small*0.8, s_idFontStatsSmall, szBuff);
       g_pRenderEngine->drawText( xPos, y+hGraph*0.6-height_text_small*0.5, height_text_small*0.8, s_idFontStatsSmall, "0");
 
@@ -2103,7 +2103,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text_small, s_idFontStatsSmall, "Max good blocks pending output");
       y += height_text_small*1.1;
 
-      sprintf(szBuff, "%d", (int)maxValue);
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)maxValue);
       g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
       g_pRenderEngine->drawText(xPos, y+hGraph*0.8-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, "0");
 
@@ -2196,9 +2196,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    
    osd_set_colors();
 
-   sprintf(szBuff, "%d", (int)maxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)maxValue);
    g_pRenderEngine->drawTextLeft(xPos+dxGraph-2.0*g_pRenderEngine->getPixelWidth(), y-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
-   sprintf(szBuff, "%d", (int)(maxValue/2.0));
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)(maxValue/2.0));
    g_pRenderEngine->drawTextLeft(xPos+dxGraph-2.0*g_pRenderEngine->getPixelWidth(), y+hGraphRetransmissions*0.5-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
    g_pRenderEngine->drawTextLeft(xPos+dxGraph-2.0*g_pRenderEngine->getPixelWidth(), y+hGraphRetransmissions-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, "0");
 
@@ -2300,9 +2300,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text_small, s_idFontStatsSmall, "Received video / retransmission packets");
       y += height_text_small*1.1;
 
-      sprintf(szBuff, "%d", (int)maxValue);
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)maxValue);
       g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
-      sprintf(szBuff, "%d", (int)(maxValue/2.0));
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)(maxValue/2.0));
       g_pRenderEngine->drawText(xPos, y+hGraph*0.5-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, szBuff);
       g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.5, height_text*0.9, s_idFontStatsSmall, "0");
 
@@ -2455,7 +2455,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
              g_pRenderEngine->drawLine((xS+xE)/2.0, yTmp, (xS+xE)/2.0, yTmp+0.01);
       }
       osd_set_colors();
-      sprintf(szBuff, "%d ms (%d intervals)", (iHistoryStartRetransmissionsIndex-iHistoryEndRetransmissionsIndex+1)*pSM_VideoHistoryStats->outputHistoryIntervalMs, iHistoryStartRetransmissionsIndex-iHistoryEndRetransmissionsIndex+1);
+      snprintf(szBuff, sizeof(szBuff), "%d ms (%d intervals)", (iHistoryStartRetransmissionsIndex-iHistoryEndRetransmissionsIndex+1)*pSM_VideoHistoryStats->outputHistoryIntervalMs, iHistoryStartRetransmissionsIndex-iHistoryEndRetransmissionsIndex+1);
       osd_show_value_centered((xS+xE)/2.0,y, szBuff, s_idFontStats);
       y += 1.1*height_text*s_OSDStatsLineSpacing;
    }
@@ -2475,15 +2475,15 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text_small*0.3;
 
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Lost packets max gap:");
-   sprintf(szBuff, "%d", maxHistoryPacketsGap);
+   snprintf(szBuff, sizeof(szBuff), "%d", maxHistoryPacketsGap);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Lost packets max gap time:");
    if ( videoBitrate > 0 )
-      sprintf(szBuff, "%d ms", (maxHistoryPacketsGap*pSM_VideoStats->video_packet_length*1000*8)/videoBitrate);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", (maxHistoryPacketsGap*pSM_VideoStats->video_packet_length*1000*8)/videoBitrate);
    else
-      sprintf(szBuff, "N/A ms");
+      snprintf(szBuff, sizeof(szBuff), "N/A ms");
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -2491,7 +2491,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( ! bIsSnapshot )
    {
       g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Received Packets/sec:");
-      sprintf(szBuff, "%d", maxPacketsPerSec);
+      snprintf(szBuff, sizeof(szBuff), "%d", maxPacketsPerSec);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
@@ -2499,9 +2499,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       //int val = pSM_VideoStats->data_packets_per_block + pSM_VideoStats->fec_packets_per_block;
       //if ( val > 0 )
-      //   sprintf(szBuff, "%d", maxPacketsPerSec/val);
+      //   snprintf(szBuff, sizeof(szBuff), "%d", maxPacketsPerSec/val);
       //else
-      //   sprintf(szBuff, "0");
+      //   snprintf(szBuff, sizeof(szBuff), "0");
       u32 uCountBlocksOut = 0;
       u32 uTimeMs = 0;
       for( int i=0; i<totalHistoryValues/2; i++ )
@@ -2511,9 +2511,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          uTimeMs += pSM_VideoHistoryStats->outputHistoryIntervalMs;
       }
       if ( uTimeMs != 0 )
-         sprintf(szBuff, "%d", uCountBlocksOut * 1000 / uTimeMs );
+         snprintf(szBuff, sizeof(szBuff), "%d", uCountBlocksOut * 1000 / uTimeMs );
       else
-         sprintf(szBuff, "0");
+         snprintf(szBuff, sizeof(szBuff), "0");
 
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
@@ -2534,7 +2534,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       {
          if ( pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions > 0 )
             percent = pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions*100/pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions;
-         sprintf(szBuff, "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUnique, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions, percent);
+         snprintf(szBuff, sizeof(szBuff), "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissions, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUnique, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissions, percent);
       }
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
@@ -2546,7 +2546,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       {
          if ( pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms > 0 )
             percent = pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms*100/pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms;
-         sprintf(szBuff, "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUniqueLast5Sec, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms, percent);
+         snprintf(szBuff, sizeof(szBuff), "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedRetransmissionsLast500Ms, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsUniqueLast5Sec, pSM_ControllerRetransmissionsStats->totalReceivedRetransmissionsLast500Ms, percent);
       }
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
@@ -2560,7 +2560,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          if ( 0 != pSM_ControllerRetransmissionsStats->totalRequestedSegments )
             percent = pSM_ControllerRetransmissionsStats->totalReceivedSegments*100/pSM_ControllerRetransmissionsStats->totalRequestedSegments;
 
-         sprintf(szBuff, "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedSegments, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsSegmentsUnique, pSM_ControllerRetransmissionsStats->totalReceivedSegments, percent );
+         snprintf(szBuff, sizeof(szBuff), "%u / %u / %u %d%%", pSM_ControllerRetransmissionsStats->totalRequestedSegments, g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtraInfoRetransmissions.totalReceivedRetransmissionsRequestsSegmentsUnique, pSM_ControllerRetransmissionsStats->totalReceivedSegments, percent );
       }
 
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
@@ -2589,9 +2589,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( uCountValues > 0 )
          uAverage = uAverage/uCountValues;
       if ( uMin == 0xFF )
-         sprintf(szBuff, "0/0/0");
+         snprintf(szBuff, sizeof(szBuff), "0/0/0");
       else
-         sprintf(szBuff, "%d/%d/%d", uMin, uAverage, uMax);
+         snprintf(szBuff, sizeof(szBuff), "%d/%d/%d", uMin, uAverage, uMax);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
       
@@ -2601,7 +2601,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( ! bIsSnapshot )
    {
       g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, "Discarded buff/seg/pack:");
-      sprintf(szBuff, "%u/%u/%u", pSM_VideoStats->total_DiscardedBuffers, pSM_VideoStats->total_DiscardedSegments, pSM_VideoStats->total_DiscardedLostPackets);
+      snprintf(szBuff, sizeof(szBuff), "%u/%u/%u", pSM_VideoStats->total_DiscardedBuffers, pSM_VideoStats->total_DiscardedSegments, pSM_VideoStats->total_DiscardedLostPackets);
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
    }
@@ -2611,12 +2611,12 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       for( int i=0; i<SNAPSHOT_HISTORY_SIZE; i++ )
       {
          if ( 0 == i )
-            sprintf(szBuff, "Discared buff/seg/pack:");
+            snprintf(szBuff, sizeof(szBuff), "Discared buff/seg/pack:");
          else
-            sprintf(szBuff, "Prev Discared b/s/p:");
+            snprintf(szBuff, sizeof(szBuff), "Prev Discared b/s/p:");
 
          g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStats, szBuff);
-         sprintf(szBuff, "%u/%u/%u", s_uOSDSnapshotHistoryDiscardedBuffers[i], s_uOSDSnapshotHistoryDiscardedSegments[i], s_uOSDSnapshotHistoryDiscardedPackets[i]);
+         snprintf(szBuff, sizeof(szBuff), "%u/%u/%u", s_uOSDSnapshotHistoryDiscardedBuffers[i], s_uOSDSnapshotHistoryDiscardedSegments[i], s_uOSDSnapshotHistoryDiscardedPackets[i]);
          g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
          y += height_text*s_OSDStatsLineSpacing;
       }
@@ -2670,7 +2670,7 @@ float osd_render_stats_rc(float xPos, float yPos, float scale)
    float wPixel = g_pRenderEngine->getPixelWidth();
 
    g_pRenderEngine->drawText(xPos, yPos, height_text, s_idFontStats, "RC Stats");
-   sprintf(szBuff, "%.1f sec", RC_INFO_HISTORY_SIZE*50/1000.0);
+   snprintf(szBuff, sizeof(szBuff), "%.1f sec", RC_INFO_HISTORY_SIZE*50/1000.0);
    g_pRenderEngine->drawTextLeft(rightMargin, yPos, height_text, s_idFontStats, szBuff);
    
    float y = yPos + height_text*1.5*s_OSDStatsLineSpacing;
@@ -2792,47 +2792,47 @@ float osd_render_stats_rc(float xPos, float yPos, float scale)
    if ( NULL != g_pCurrentModel && g_pCurrentModel->rc_params.failsafeFlags == RC_FAILSAFE_NOOUTPUT )
       bShowMAVLink = true;
 
-   sprintf(szBuff, "CH1: %04d", g_pPHDownstreamInfoRC->rc_channels[0]);
+   snprintf(szBuff, sizeof(szBuff), "CH1: %04d", g_pPHDownstreamInfoRC->rc_channels[0]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH1: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[0]);
+      snprintf(szBuff, sizeof(szBuff), "ECH1: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[0]);
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStatsSmall, szBuff);
 
-   sprintf(szBuff, "CH5: %04d", g_pPHDownstreamInfoRC->rc_channels[4]);
+   snprintf(szBuff, sizeof(szBuff), "CH5: %04d", g_pPHDownstreamInfoRC->rc_channels[4]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH5: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[4]);
+      snprintf(szBuff, sizeof(szBuff), "ECH5: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[4]);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text*0.9, s_idFontStatsSmall, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   sprintf(szBuff, "CH2: %04d", g_pPHDownstreamInfoRC->rc_channels[1]);
+   snprintf(szBuff, sizeof(szBuff), "CH2: %04d", g_pPHDownstreamInfoRC->rc_channels[1]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH2: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[1]);
+      snprintf(szBuff, sizeof(szBuff), "ECH2: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[1]);
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStatsSmall, szBuff);
 
-   sprintf(szBuff, "CH6: %04d", g_pPHDownstreamInfoRC->rc_channels[5]);
+   snprintf(szBuff, sizeof(szBuff), "CH6: %04d", g_pPHDownstreamInfoRC->rc_channels[5]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH6: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[5]);
+      snprintf(szBuff, sizeof(szBuff), "ECH6: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[5]);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text*0.9, s_idFontStatsSmall, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   sprintf(szBuff, "CH3: %04d", g_pPHDownstreamInfoRC->rc_channels[2]);
+   snprintf(szBuff, sizeof(szBuff), "CH3: %04d", g_pPHDownstreamInfoRC->rc_channels[2]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH3: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[2]);
+      snprintf(szBuff, sizeof(szBuff), "ECH3: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[2]);
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStatsSmall, szBuff);
 
-   sprintf(szBuff, "CH7: %04d", g_pPHDownstreamInfoRC->rc_channels[6]);
+   snprintf(szBuff, sizeof(szBuff), "CH7: %04d", g_pPHDownstreamInfoRC->rc_channels[6]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH7: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[6]);
+      snprintf(szBuff, sizeof(szBuff), "ECH7: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[6]);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text*0.9, s_idFontStatsSmall, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   sprintf(szBuff, "CH4: %04d", g_pPHDownstreamInfoRC->rc_channels[3]);
+   snprintf(szBuff, sizeof(szBuff), "CH4: %04d", g_pPHDownstreamInfoRC->rc_channels[3]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH4: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[3]);
+      snprintf(szBuff, sizeof(szBuff), "ECH4: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[3]);
    g_pRenderEngine->drawText(xPos, y, height_text*0.9, s_idFontStatsSmall, szBuff);
 
-   sprintf(szBuff, "CH8: %04d", g_pPHDownstreamInfoRC->rc_channels[7]);
+   snprintf(szBuff, sizeof(szBuff), "CH8: %04d", g_pPHDownstreamInfoRC->rc_channels[7]);
    if ( bShowMAVLink && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "ECH8: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[7]);
+      snprintf(szBuff, sizeof(szBuff), "ECH8: %04d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryRCChannels.channels[7]);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text*0.9, s_idFontStatsSmall, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
    y += height_text*0.3;
@@ -2841,22 +2841,22 @@ float osd_render_stats_rc(float xPos, float yPos, float scale)
       return height;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Recv frames:");
-   sprintf(szBuff, "%u", g_pPHDownstreamInfoRC->recv_packets);
+   snprintf(szBuff, sizeof(szBuff), "%u", g_pPHDownstreamInfoRC->recv_packets);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Lost frames:");
-   sprintf(szBuff, "%u", g_pPHDownstreamInfoRC->lost_packets);
+   snprintf(szBuff, sizeof(szBuff), "%u", g_pPHDownstreamInfoRC->lost_packets);
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max gap:");
-   sprintf(szBuff, "%d ms", maxGap * 1000 / g_pCurrentModel->rc_params.rc_frames_per_second );
+   snprintf(szBuff, sizeof(szBuff), "%d ms", maxGap * 1000 / g_pCurrentModel->rc_params.rc_frames_per_second );
    g_pRenderEngine->drawTextLeft( rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Failsafed count:");
-   sprintf(szBuff, "%d", g_pPHDownstreamInfoRC->failsafe_count);
+   snprintf(szBuff, sizeof(szBuff), "%d", g_pPHDownstreamInfoRC->failsafe_count);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -2912,7 +2912,7 @@ float osd_render_stats_efficiency(float xPos, float yPos, float scale)
    u32 dist = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.total_distance;
    if ( NULL != g_pCurrentModel && g_pCurrentModel->m_Stats.uCurrentFlightDistance > 500 )
       eff = (float)g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent/10.0/((float)g_pCurrentModel->m_Stats.uCurrentFlightDistance/100.0/1000.0);
-   sprintf(szBuff, "%d", (int)eff);
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)eff);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -2920,7 +2920,7 @@ float osd_render_stats_efficiency(float xPos, float yPos, float scale)
    eff = 0;
    if ( NULL != g_pCurrentModel && g_pCurrentModel->m_Stats.uCurrentFlightTime > 0 )
       eff = ( (float)g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent/10.0/((float)g_pCurrentModel->m_Stats.uCurrentFlightTime))*3600.0;
-   sprintf(szBuff, "%d", (int)eff);
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)eff);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3008,11 +3008,11 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
 
    if ( NULL != g_psmvds )
    {
-      sprintf(szBuff, "Video Stream Info (%u FPS / %d KF ", g_psmvds->fps, g_psmvds->keyframe);
+      snprintf(szBuff, sizeof(szBuff), "Video Stream Info (%u FPS / %d KF ", g_psmvds->fps, g_psmvds->keyframe);
       if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe < 0 )
-         strcat(szBuff, " Auto)");
+         strlcat(szBuff, " Auto)", sizeof(szBuff));
       else
-         strcat(szBuff, " Fixed)");
+         strlcat(szBuff, " Fixed)", sizeof(szBuff));
    }
    else
       strcpy(szBuff, "Video Stream Info");
@@ -3062,7 +3062,7 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    u32 uMaxFrameKb = uMaxValue;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Avg/Max Frame size:");
-   sprintf(szBuff, "%d / %u kbits", g_VideoInfoStatsFromVehicle.uAverageFrameSize/1000, uMaxFrameKb);
+   snprintf(szBuff, sizeof(szBuff), "%d / %u kbits", g_VideoInfoStatsFromVehicle.uAverageFrameSize/1000, uMaxFrameKb);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
    
@@ -3081,7 +3081,7 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
       iKeyframeSizeBitsSum /= iKeyframeCount;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Keyframe:");
-   sprintf(szBuff, "x%d @ %d kbits/keyfr", g_VideoInfoStatsFromVehicle.uKeyframeInterval, iKeyframeSizeBitsSum);
+   snprintf(szBuff, sizeof(szBuff), "x%d @ %d kbits/keyfr", g_VideoInfoStatsFromVehicle.uKeyframeInterval, iKeyframeSizeBitsSum);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3090,20 +3090,20 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    //--------------------------------------------------------------------------
    // kb/frame
 
-   sprintf(szBuff, "Camera source (%d FPS)", g_VideoInfoStatsFromVehicle.uAverageFPS/iSlices);
+   snprintf(szBuff, sizeof(szBuff), "Camera source (%d FPS)", g_VideoInfoStatsFromVehicle.uAverageFPS/iSlices);
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
    y += height_text*1.2;
 
    float yBottomGraph = y + hGraph;
    yBottomGraph = ((int)(yBottomGraph/g_pRenderEngine->getPixelHeight())) * g_pRenderEngine->getPixelHeight();
 
-   sprintf(szBuff, "%d kb", (int)uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d kb", (int)uMaxValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y-height_text_small*0.6, height_text_small, s_idFontStatsSmall, szBuff);
    
-   sprintf(szBuff, "%d kb", (int)(uMaxValue+uMinValue)/2);
+   snprintf(szBuff, sizeof(szBuff), "%d kb", (int)(uMaxValue+uMinValue)/2);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph*0.5-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
-   sprintf(szBuff, "%d kb", (int)uMinValue);
+   snprintf(szBuff, sizeof(szBuff), "%d kb", (int)uMinValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
@@ -3177,13 +3177,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    if ( uMaxValue <= uMinValue )
       uMaxValue = uMinValue+4;
    
-   sprintf(szBuff, "%d ms", (int)uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMaxValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y-height_text_small*0.6, height_text_small, s_idFontStatsSmall, szBuff);
    
-   sprintf(szBuff, "%d ms", (int)(uMaxValue+uMinValue)/2);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)(uMaxValue+uMinValue)/2);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph*0.5-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
-   sprintf(szBuff, "%d ms", (int)uMinValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMinValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
@@ -3258,13 +3258,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    y += hGraph + height_text*0.4;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStatsSmall, "Avg/Min/Max frame:");
-   sprintf(szBuff, "%d / %d / %d ms", g_VideoInfoStatsFromVehicle.uAverageFrameTime, uMinValue, uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d / %d / %d ms", g_VideoInfoStatsFromVehicle.uAverageFrameTime, uMinValue, uMaxValue);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStatsSmall, szBuff);
    y += height_text_small*s_OSDStatsLineSpacing;
    
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max deviation from avg:");
    strcpy(szBuff, "N/A");
-   sprintf(szBuff, "%d ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3273,7 +3273,7 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    // -----------------------------------------------------------
    // Radio output info
 
-   sprintf(szBuff, "Radio output (%d FPS)", g_VideoInfoStatsFromVehicleRadioOut.uAverageFPS/iSlices);
+   snprintf(szBuff, sizeof(szBuff), "Radio output (%d FPS)", g_VideoInfoStatsFromVehicleRadioOut.uAverageFPS/iSlices);
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
    y += height_text*1.2;
 
@@ -3295,13 +3295,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
       uMaxValue = uMinValue+4;
    
 
-   sprintf(szBuff, "%d ms", (int)uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMaxValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y-height_text_small*0.6, height_text_small, s_idFontStatsSmall, szBuff);
    
-   sprintf(szBuff, "%d ms", (int)(uMaxValue+uMinValue)/2);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)(uMaxValue+uMinValue)/2);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph*0.5-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
-   sprintf(szBuff, "%d ms", (int)uMinValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMinValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
@@ -3377,13 +3377,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStatsSmall, "Avg/Min/Max frame:");
    strcpy(szBuff, "N/A");
-   sprintf(szBuff, "%d / %d / %d ms", g_VideoInfoStatsFromVehicleRadioOut.uAverageFrameTime, uMinValue, uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d / %d / %d ms", g_VideoInfoStatsFromVehicleRadioOut.uAverageFrameTime, uMinValue, uMaxValue);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStatsSmall, szBuff);
    y += height_text_small*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max deviation from avg:");
    strcpy(szBuff, "N/A");
-   sprintf(szBuff, "%d ms", g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
    
@@ -3392,7 +3392,7 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    // -----------------------------------------------------------
    // Radio In graph
 
-   sprintf(szBuff, "Radio In (%d FPS)", g_pSM_VideoInfoStatsRadioIn->uAverageFPS/iSlices);
+   snprintf(szBuff, sizeof(szBuff), "Radio In (%d FPS)", g_pSM_VideoInfoStatsRadioIn->uAverageFPS/iSlices);
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
    y += height_text*1.2;
 
@@ -3419,13 +3419,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    if ( uMaxValue <= uMinValue )
       uMaxValue = uMinValue+4;
    
-   sprintf(szBuff, "%d ms", (int)uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMaxValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y-height_text_small*0.6, height_text_small, s_idFontStatsSmall, szBuff);
    
-   sprintf(szBuff, "%d ms", (int)(uMaxValue+uMinValue)/2);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)(uMaxValue+uMinValue)/2);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph*0.5-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
-   sprintf(szBuff, "%d ms", (int)uMinValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMinValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
@@ -3503,21 +3503,21 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStatsSmall, "Avg/Min/Max frame:");
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_VideoInfoStatsRadioIn )
-      sprintf(szBuff, "%d / %d / %d ms", g_pSM_VideoInfoStatsRadioIn->uAverageFrameTime, uMinValue, uMaxValue);
+      snprintf(szBuff, sizeof(szBuff), "%d / %d / %d ms", g_pSM_VideoInfoStatsRadioIn->uAverageFrameTime, uMinValue, uMaxValue);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStatsSmall, szBuff);
    y += height_text_small*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max deviation from avg:");
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_VideoInfoStatsRadioIn )
-      sprintf(szBuff, "%d ms", g_pSM_VideoInfoStatsRadioIn->uMaxFrameDeltaTime);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", g_pSM_VideoInfoStatsRadioIn->uMaxFrameDeltaTime);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    // -----------------------------------------------------------
    // Player output info
 
-   sprintf(szBuff, "Player output (%d FPS)", g_pSM_VideoInfoStats->uAverageFPS/iSlices);
+   snprintf(szBuff, sizeof(szBuff), "Player output (%d FPS)", g_pSM_VideoInfoStats->uAverageFPS/iSlices);
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, szBuff);
    y += height_text*1.2;
 
@@ -3544,13 +3544,13 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    if ( uMaxValue <= uMinValue )
       uMaxValue = uMinValue+4;
    
-   sprintf(szBuff, "%d ms", (int)uMaxValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMaxValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y-height_text_small*0.6, height_text_small, s_idFontStatsSmall, szBuff);
    
-   sprintf(szBuff, "%d ms", (int)(uMaxValue+uMinValue)/2);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)(uMaxValue+uMinValue)/2);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph*0.5-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
-   sprintf(szBuff, "%d ms", (int)uMinValue);
+   snprintf(szBuff, sizeof(szBuff), "%d ms", (int)uMinValue);
    g_pRenderEngine->drawText(xPos+widthGraph+4.0*wPixel, y+hGraph-height_text_small*0.6, height_text_small, s_idFontStatsSmall,szBuff);
    
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
@@ -3628,14 +3628,14 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStatsSmall, "Avg/Min/Max frame:");
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_VideoInfoStats )
-      sprintf(szBuff, "%d / %d / %d ms", g_pSM_VideoInfoStats->uAverageFrameTime, uMinValue, uMaxValue);
+      snprintf(szBuff, sizeof(szBuff), "%d / %d / %d ms", g_pSM_VideoInfoStats->uAverageFrameTime, uMinValue, uMaxValue);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStatsSmall, szBuff);
    y += height_text_small*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max deviation from avg:");
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_VideoInfoStats )
-      sprintf(szBuff, "%d ms", g_pSM_VideoInfoStats->uMaxFrameDeltaTime);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", g_pSM_VideoInfoStats->uMaxFrameDeltaTime);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3646,9 +3646,9 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max dev cam/tx/rx now:");
    if ( NULL != g_pSM_VideoInfoStats && NULL != g_pSM_VideoInfoStatsRadioIn)
-      sprintf(szBuff, "%u / %u / %d / %d ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime, g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime, g_pSM_VideoInfoStatsRadioIn->uMaxFrameDeltaTime, g_pSM_VideoInfoStats->uMaxFrameDeltaTime );
+      snprintf(szBuff, sizeof(szBuff), "%u / %u / %d / %d ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime, g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime, g_pSM_VideoInfoStatsRadioIn->uMaxFrameDeltaTime, g_pSM_VideoInfoStats->uMaxFrameDeltaTime );
    else
-      sprintf(szBuff, "%u / %u / N/A / N/A ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime, g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime );
+      snprintf(szBuff, sizeof(szBuff), "%u / %u / N/A / N/A ms", g_VideoInfoStatsFromVehicle.uMaxFrameDeltaTime, g_VideoInfoStatsFromVehicleRadioOut.uMaxFrameDeltaTime );
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3670,9 +3670,9 @@ float osd_render_stats_video_stream_info(float xPos, float yPos)
 
    g_pRenderEngine->drawText(xPos, y, height_text, s_idFontStats, "Max dev cam/tx/rx all:");
    if ( NULL != g_pSM_VideoInfoStats && NULL != g_pSM_VideoInfoStatsRadioIn )
-      sprintf(szBuff, "%u / %u / %d / %d ms", s_uOSDMaxFrameDeviationCamera, s_uOSDMaxFrameDeviationTx, s_uOSDMaxFrameDeviationRx, s_uOSDMaxFrameDeviationPlayer );
+      snprintf(szBuff, sizeof(szBuff), "%u / %u / %d / %d ms", s_uOSDMaxFrameDeviationCamera, s_uOSDMaxFrameDeviationTx, s_uOSDMaxFrameDeviationRx, s_uOSDMaxFrameDeviationPlayer );
    else
-      sprintf(szBuff, "%u / %u / N/A / N/A ms", s_uOSDMaxFrameDeviationCamera, s_uOSDMaxFrameDeviationTx );
+      snprintf(szBuff, sizeof(szBuff), "%u / %u / N/A / N/A ms", s_uOSDMaxFrameDeviationCamera, s_uOSDMaxFrameDeviationTx );
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -3759,9 +3759,9 @@ float osd_render_stats_flight_end(float scale)
    if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
         g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
         g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
-      sprintf(szBuff, "Flight No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
+      snprintf(szBuff, sizeof(szBuff), "Flight No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
    else
-      sprintf(szBuff, "Run No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
+      snprintf(szBuff, sizeof(szBuff), "Run No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
 
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, szBuff);
    y += lineHeight;
@@ -3773,9 +3773,9 @@ float osd_render_stats_flight_end(float scale)
    else
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Run time:");
    if ( g_pCurrentModel->m_Stats.uCurrentFlightTime >= 3600 )
-      sprintf(szBuff, "%dh:%02dm:%02ds", g_pCurrentModel->m_Stats.uCurrentFlightTime/3600, (g_pCurrentModel->m_Stats.uCurrentFlightTime/60)%60, (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60);
+      snprintf(szBuff, sizeof(szBuff), "%dh:%02dm:%02ds", g_pCurrentModel->m_Stats.uCurrentFlightTime/3600, (g_pCurrentModel->m_Stats.uCurrentFlightTime/60)%60, (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60);
    else
-      sprintf(szBuff, "%02dm:%02ds", (g_pCurrentModel->m_Stats.uCurrentFlightTime/60)%60, (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60);
+      snprintf(szBuff, sizeof(szBuff), "%02dm:%02ds", (g_pCurrentModel->m_Stats.uCurrentFlightTime/60)%60, (g_pCurrentModel->m_Stats.uCurrentFlightTime)%60);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3789,22 +3789,22 @@ float osd_render_stats_flight_end(float scale)
    if ( pP->iUnits == prefUnitsImperial )
    {
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-         sprintf(szBuff, "%.1f mi", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentFlightDistance/100)/1000.0);
+         snprintf(szBuff, sizeof(szBuff), "%.1f mi", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentFlightDistance/100)/1000.0);
       else
-         sprintf(szBuff, "0.0 mi");
+         snprintf(szBuff, sizeof(szBuff), "0.0 mi");
    }
    else
    {
       if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-         sprintf(szBuff, "%.1f km", (g_pCurrentModel->m_Stats.uCurrentFlightDistance/100)/1000.0);
+         snprintf(szBuff, sizeof(szBuff), "%.1f km", (g_pCurrentModel->m_Stats.uCurrentFlightDistance/100)/1000.0);
       else
-         sprintf(szBuff, "0.0 km");
+         snprintf(szBuff, sizeof(szBuff), "0.0 km");
    }
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Total current:");
-   sprintf(szBuff, "%d mA", (int)(g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent/10));
+   snprintf(szBuff, sizeof(szBuff), "%d mA", (int)(g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent/10));
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3812,16 +3812,16 @@ float osd_render_stats_flight_end(float scale)
    if ( g_pCurrentModel->m_Stats.uCurrentMaxDistance < 1500 )
    {
       if ( pP->iUnits == prefUnitsImperial )
-         sprintf(szBuff, "%d ft", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxDistance));
+         snprintf(szBuff, sizeof(szBuff), "%d ft", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxDistance));
       else
-         sprintf(szBuff, "%d m", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxDistance));
+         snprintf(szBuff, sizeof(szBuff), "%d m", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxDistance));
    }
    else
    {
       if ( pP->iUnits == prefUnitsImperial )
-         sprintf(szBuff, "%.1f mi", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentMaxDistance/1000.0));
+         snprintf(szBuff, sizeof(szBuff), "%.1f mi", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentMaxDistance/1000.0));
       else
-         sprintf(szBuff, "%.1f km", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentMaxDistance/1000.0));
+         snprintf(szBuff, sizeof(szBuff), "%.1f km", _osd_convertKm(g_pCurrentModel->m_Stats.uCurrentMaxDistance/1000.0));
    }
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
@@ -3832,20 +3832,20 @@ float osd_render_stats_flight_end(float scale)
    {
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Max Altitude:");
       if ( pP->iUnits == prefUnitsImperial )
-         sprintf(szBuff, "%d ft", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxAltitude));
+         snprintf(szBuff, sizeof(szBuff), "%d ft", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxAltitude));
       else
-         sprintf(szBuff, "%d m", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxAltitude));
+         snprintf(szBuff, sizeof(szBuff), "%d m", (int)_osd_convertMeters(g_pCurrentModel->m_Stats.uCurrentMaxAltitude));
       g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
       y += lineHeight;
    }
 
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Max Current:");
-   sprintf(szBuff, "%.1f A", (float)g_pCurrentModel->m_Stats.uCurrentMaxCurrent/1000.0);
+   snprintf(szBuff, sizeof(szBuff), "%.1f A", (float)g_pCurrentModel->m_Stats.uCurrentMaxCurrent/1000.0);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Min Voltage:");
-   sprintf(szBuff, "%.1f V", (float)g_pCurrentModel->m_Stats.uCurrentMinVoltage/1000.0);
+   snprintf(szBuff, sizeof(szBuff), "%.1f V", (float)g_pCurrentModel->m_Stats.uCurrentMinVoltage/1000.0);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3859,10 +3859,10 @@ float osd_render_stats_flight_end(float scale)
       float fv = (float)_osd_convertKm((float)g_pCurrentModel->m_Stats.uCurrentFlightDistance/100.0/1000.0);
       if ( fv > 0.0000001 )
          eff = g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent/10.0/fv;
-      sprintf(szBuff, "%d", (int)eff);
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)eff);
    }
    else
-      sprintf(szBuff, "Too Short");
+      snprintf(szBuff, sizeof(szBuff), "Too Short");
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3870,7 +3870,7 @@ float osd_render_stats_flight_end(float scale)
    eff = 0;
    if ( g_pCurrentModel->m_Stats.uCurrentFlightTime > 0 )
       eff = ((float)g_pCurrentModel->m_Stats.uCurrentTotalCurrent/10.0/((float)g_pCurrentModel->m_Stats.uCurrentFlightTime))*3600.0;
-   sprintf(szBuff, "%d", (int)eff);
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)eff);
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3879,9 +3879,9 @@ float osd_render_stats_flight_end(float scale)
 
    g_pRenderEngine->drawText(xPos, y, height_text, fontId, "Odometer:");
    if ( pP->iUnits == prefUnitsImperial )
-      sprintf(szBuff, "%.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+      snprintf(szBuff, sizeof(szBuff), "%.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
    else
-      sprintf(szBuff, "%.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+      snprintf(szBuff, sizeof(szBuff), "%.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
 
@@ -3893,9 +3893,9 @@ float osd_render_stats_flight_end(float scale)
       g_pRenderEngine->drawText(xPos, y, height_text, fontId, "All time drive time:");
 
    if ( g_pCurrentModel->m_Stats.uTotalFlightTime >= 3600 )
-      sprintf(szBuff, "%dh:%02dm:%02ds", g_pCurrentModel->m_Stats.uTotalFlightTime/3600, (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60, (g_pCurrentModel->m_Stats.uTotalFlightTime)%60);
+      snprintf(szBuff, sizeof(szBuff), "%dh:%02dm:%02ds", g_pCurrentModel->m_Stats.uTotalFlightTime/3600, (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60, (g_pCurrentModel->m_Stats.uTotalFlightTime)%60);
    else
-      sprintf(szBuff, "%02dm:%02ds", (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60, (g_pCurrentModel->m_Stats.uTotalFlightTime)%60);
+      snprintf(szBuff, sizeof(szBuff), "%02dm:%02ds", (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60, (g_pCurrentModel->m_Stats.uTotalFlightTime)%60);
 
    g_pRenderEngine->drawTextLeft(rightMargin, y, height_text, fontId, szBuff);
    y += lineHeight;
@@ -3946,7 +3946,7 @@ float osd_render_stats_flights(float scale)
       return height;
    }
 
-   sprintf(szBuff, "%s Statistics", g_pCurrentModel->getShortName());
+   snprintf(szBuff, sizeof(szBuff), "%s Statistics", g_pCurrentModel->getShortName());
    draw_message(szBuff, xPos, yPos, text_scale*0.98, render_getFontOSD());
    
    yPos -= height_text*1.4;
@@ -3954,12 +3954,12 @@ float osd_render_stats_flights(float scale)
    osd_set_colors();
 
    if ( pP->iUnits == prefUnitsImperial )
-      sprintf(szBuff, "Total flights: %d,  Total flight time: %dh:%02dm:%02ds,  Total flight distance: %.1f mi",
+      snprintf(szBuff, sizeof(szBuff), "Total flights: %d,  Total flight time: %dh:%02dm:%02ds,  Total flight distance: %.1f mi",
                        g_pCurrentModel->stats_TotalFlights, g_pCurrentModel->stats_TotalFlightTime/10/3600,
                        (g_pCurrentModel->stats_TotalFlightTime/10/60)%60, (g_pCurrentModel->stats_TotalFlightTime/10)%60,
                        _osd_convertKm(g_pCurrentModel->stats_TotalFlightDistance/10.0/1000.0));
    else
-      sprintf(szBuff, "Total flights: %d,  Total flight time: %dh:%02dm:%02ds,  Total flight distance: %.1f km",
+      snprintf(szBuff, sizeof(szBuff), "Total flights: %d,  Total flight time: %dh:%02dm:%02ds,  Total flight distance: %.1f km",
               g_pCurrentModel->stats_TotalFlights, g_pCurrentModel->stats_TotalFlightTime/10/3600,
               (g_pCurrentModel->stats_TotalFlightTime/10/60)%60, (g_pCurrentModel->stats_TotalFlightTime/10)%60,
               g_pCurrentModel->stats_TotalFlightDistance/10.0/1000.0);
@@ -4054,14 +4054,14 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    if ( p->iDebugShowDevRadioStats )
    {
    if ( 0 != linkMax )
-      sprintf(szBuff, "%d ms", linkMax);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", linkMax);
    else
       strcpy(szBuff, "N/A");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Link RT (max):", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    if ( 0 != linkMin )
-      sprintf(szBuff, "%d ms", linkMin);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", linkMin);
    else
       strcpy(szBuff, "N/A");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Link RT (minim):", szBuff);
@@ -4071,7 +4071,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    /*
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_pSM_ControllerRetransmissionsStats->retransmissionTimeAverage && MAX_U32 != g_pSM_ControllerRetransmissionsStats->retransmissionTimeMinim )
-      sprintf(szBuff, "%d/%d ms", g_pSM_ControllerRetransmissionsStats->retransmissionTimeMinim, g_pSM_ControllerRetransmissionsStats->retransmissionTimeAverage);
+      snprintf(szBuff, sizeof(szBuff), "%d/%d ms", g_pSM_ControllerRetransmissionsStats->retransmissionTimeMinim, g_pSM_ControllerRetransmissionsStats->retransmissionTimeAverage);
    if ( ! (g_pCurrentModel->video_link_profiles[(g_psmvds->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Min/Avg:", szBuff);
@@ -4079,7 +4079,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_pSM_ControllerRetransmissionsStats->retransmissionTimeLast )
-      sprintf(szBuff, "%d ms", g_pSM_ControllerRetransmissionsStats->retransmissionTimeLast);
+      snprintf(szBuff, sizeof(szBuff), "%d ms", g_pSM_ControllerRetransmissionsStats->retransmissionTimeLast);
    if ( ! (g_pCurrentModel->video_link_profiles[(g_psmvds->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Last:", szBuff);
@@ -4091,44 +4091,44 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1], ((g_pSM_ControllerRetransmissionsStats->totalCountReceivedVideoPackets[1] + g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1])>0)?g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]*100/(g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]+g_pSM_ControllerRetransmissionsStats->totalCountReceivedVideoPackets[1]):0);
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1], ((g_pSM_ControllerRetransmissionsStats->totalCountReceivedVideoPackets[1] + g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1])>0)?g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]*100/(g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]+g_pSM_ControllerRetransmissionsStats->totalCountReceivedVideoPackets[1]):0);
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Requested:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountReRequestedPackets[1], (g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]>0)?(g_pSM_ControllerRetransmissionsStats->totalCountReRequestedPackets[1]*100/g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]):0);
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountReRequestedPackets[1], (g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]>0)?(g_pSM_ControllerRetransmissionsStats->totalCountReRequestedPackets[1]*100/g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]):0);
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Retried:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountReceivedRetransmissions[1], (g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]>0)?(g_pSM_ControllerRetransmissionsStats->totalCountReceivedRetransmissions[1]*100/g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]):0);
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_ControllerRetransmissionsStats->totalCountReceivedRetransmissions[1], (g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]>0)?(g_pSM_ControllerRetransmissionsStats->totalCountReceivedRetransmissions[1]*100/g_pSM_ControllerRetransmissionsStats->totalCountRequestedRetransmissions[1]):0);
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Received:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_RetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDuplicated[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDuplicated[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0);
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDuplicated[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDuplicated[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0);
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Recv Duplicated:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_RetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDiscarded[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDiscarded[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0 );
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDiscarded[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountReceivedRetransmissionsDiscarded[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0 );
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Discarded:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
 
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_RetransmissionsStats )
-      sprintf(szBuff, "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountRecvOriginalAfterRetransmission[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountRecvOriginalAfterRetransmission[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0 );
+      snprintf(szBuff, sizeof(szBuff), "%u/sec (%d%%)", g_pSM_RetransmissionsStats->totalCountRecvOriginalAfterRetransmission[1], (g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]>0)?(g_pSM_RetransmissionsStats->totalCountRecvOriginalAfterRetransmission[1]*100/g_pSM_RetransmissionsStats->totalCountReceivedRetransmissions[1]):0 );
    _osd_stats_draw_line(xPos+dx, rightMargin, y, s_idFontStats, "Original recv after retr.:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   sprintf(szBuff, "N/A");
+   snprintf(szBuff, sizeof(szBuff), "N/A");
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
-      sprintf(szBuff, "%d", (int)(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.extra_info[6]));
+      snprintf(szBuff, sizeof(szBuff), "%d", (int)(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.extra_info[6]));
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "FC msg/sec", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -4197,10 +4197,10 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    }
    if ( iMax <= 0 )
       iMax = 1;
-   sprintf(szBuff, "%d", iMax);
+   snprintf(szBuff, sizeof(szBuff), "%d", iMax);
    g_pRenderEngine->drawText(xPos, y-0.3*height_text_small, height_text_small*0.9, s_idFontStatsSmall, szBuff);
-   //sprintf(szBuff, "%d", g_pSM_RetransmissionsStats->expectedVideoPackets[totalHistoryValues-1]);
-   sprintf(szBuff, "%d", iMax/2);
+   //snprintf(szBuff, sizeof(szBuff), "%d", g_pSM_RetransmissionsStats->expectedVideoPackets[totalHistoryValues-1]);
+   snprintf(szBuff, sizeof(szBuff), "%d", iMax/2);
    g_pRenderEngine->drawText(xPos, y+0.5*hGraph-0.6*height_text_small, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.8, height_text_small*0.9, s_idFontStatsSmall, "0");
 
@@ -4259,17 +4259,17 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    hGraph = hGraphRegular;
 
    y += (height_text-height_text_small);
-   sprintf(szBuff,"%d ms/bar", g_pSM_RetransmissionsStats->refreshInterval);
+   snprintf(szBuff, sizeof(szBuff),"%d ms/bar", g_pSM_RetransmissionsStats->refreshInterval);
    g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    float w = g_pRenderEngine->textWidth(height_text*0.9, s_idFontStats, szBuff);
    w += 0.02*scale;
-   sprintf(szBuff,"%.1f seconds", (((float)totalHistoryValues) * g_pSM_RetransmissionsStats->refreshInterval)/1000.0);
+   snprintf(szBuff, sizeof(szBuff),"%.1f seconds", (((float)totalHistoryValues) * g_pSM_RetransmissionsStats->refreshInterval)/1000.0);
    g_pRenderEngine->drawTextLeft(xPos+widthMax-w, y-height_text_small*0.2, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    w += g_pRenderEngine->textWidth( height_text*0.9, s_idFontStats, szBuff);
 
    y += height_text_small*0.9;
 
-   sprintf(szBuff, "%d", s_iOSDStatsDevMaxGraphValue);
+   snprintf(szBuff, sizeof(szBuff), "%d", s_iOSDStatsDevMaxGraphValue);
    g_pRenderEngine->drawText(xPos, y-0.3*height_text_small, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.8, height_text_small*0.9, s_idFontStatsSmall, "0");
 
@@ -4357,11 +4357,11 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    if ( fPercentMax < 1.0 )
       fPercentMax = 1.0;
    y += (height_text-height_text_small);
-   sprintf(szBuff,"Percentage Retried (avg: %d%%)", average);
+   snprintf(szBuff, sizeof(szBuff),"Percentage Retried (avg: %d%%)", average);
    g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    y += height_text_small*0.9;
 
-   sprintf(szBuff, "%d%%", (int)(fPercentMax*100.0) );
+   snprintf(szBuff, sizeof(szBuff), "%d%%", (int)(fPercentMax*100.0) );
    g_pRenderEngine->drawText(xPos, y-0.2*height_text_small, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.8, height_text_small*0.9, s_idFontStatsSmall, "0%");
 
@@ -4419,7 +4419,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    if ( sumRequested > 0 )
       average = sumReceived*100/sumRequested;
 
-   sprintf(szBuff,"Percentage Received (avg %d%%)", average);
+   snprintf(szBuff, sizeof(szBuff),"Percentage Received (avg %d%%)", average);
    g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    y += height_text_small*0.9;
 
@@ -4483,7 +4483,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    if ( sumReceived > 0 )
       average = sumIgnored*100/sumReceived;
 
-   sprintf(szBuff,"Percentage Discarded (avg %d%%)", average);
+   snprintf(szBuff, sizeof(szBuff),"Percentage Discarded (avg %d%%)", average);
    g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, height_text_small*0.9, s_idFontStatsSmall, szBuff);
    y += height_text_small*0.9;
 
@@ -5399,7 +5399,7 @@ void osd_render_stats_panels()
          osd_render_stats_rc(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], 1.0);
 
       //char szBuff[32];
-      //sprintf(szBuff, "%d", i);
+      //snprintf(szBuff, sizeof(szBuff), "%d", i);
       //g_pRenderEngine->drawText(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], s_idFontStats, szBuff);
    }
 

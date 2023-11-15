@@ -271,7 +271,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
          }
          else
          {
-            sprintf(szBuff, "%d", i);
+            snprintf(szBuff, sizeof(szBuff), "%d", i);
             float w = g_pUIEngine->textWidth(s_uFontIdCustomSize, szBuff);
             g_pUIEngine->drawText(xtext-0.5*w,ytext-0.5*fFontSize, s_uFontIdCustomSize, szBuff);
          }
@@ -479,7 +479,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
           fDist = 0;
        u32 fontIdSmall = g_pUIEngine->getFontIdSmall();
 
-       sprintf(szBuff, "Dist: %d m", (int)fDist);
+       snprintf(szBuff, sizeof(szBuff), "Dist: %d m", (int)fDist);
        float w = g_pUIEngine->textWidth(fontIdSmall, szBuff);
        bool bOldValue = g_pUIEngine->drawBackgroundBoundingBoxes(true);
        g_pUIEngine->drawText(xCenter-0.5*w,yPos+fHeight, fontIdSmall, szBuff);

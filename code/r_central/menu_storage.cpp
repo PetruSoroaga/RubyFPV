@@ -137,9 +137,9 @@ void MenuStorage::Render()
       g_pRenderEngine->drawImage(0, 0, 1,1, m_ScreenshotImageId);
       g_pRenderEngine->setColors(get_Color_MenuText());
       char szBuff[128];
-      sprintf(szBuff, "Screenshot %d of %d", m_ViewScreenShotIndex+1, media_get_screenshots_count() );
+      snprintf(szBuff, sizeof(szBuff), "Screenshot %d of %d", m_ViewScreenShotIndex+1, media_get_screenshots_count() );
       g_pRenderEngine->drawText(0.05, 0.05, MENU_FONT_SIZE_TITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
-      sprintf(szBuff, "Press [+/-] to navigate and [Back] to close");
+      snprintf(szBuff, sizeof(szBuff), "Press [+/-] to navigate and [Back] to close");
       g_pRenderEngine->drawText(0.05, 0.08, MENU_FONT_SIZE_TITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
       return;
    }
@@ -156,17 +156,17 @@ void MenuStorage::Render()
    g_pRenderEngine->setStrokeSize(0);
 
    if ( m_MemFree >= 1024 )
-      sprintf(szBuff, "%d Gb ", (int)m_MemFree/1024);
+      snprintf(szBuff, sizeof(szBuff), "%d Gb ", (int)m_MemFree/1024);
    else
-      sprintf(szBuff, "%d Mb ", (int)m_MemFree);
+      snprintf(szBuff, sizeof(szBuff), "%d Mb ", (int)m_MemFree);
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
    w += g_pRenderEngine->textWidth(MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff);
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "free out of " );
    w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "free out of " );
    if ( m_MemFree+m_MemUsed >= 1024 )
-      sprintf(szBuff, "%d Gb ", (int)(m_MemFree+m_MemUsed)/1024);
+      snprintf(szBuff, sizeof(szBuff), "%d Gb ", (int)(m_MemFree+m_MemUsed)/1024);
    else
-      sprintf(szBuff, "%d Mb ", (int)(m_MemFree+m_MemUsed));
+      snprintf(szBuff, sizeof(szBuff), "%d Mb ", (int)(m_MemFree+m_MemUsed));
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff);
    w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff);
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "total space." );
@@ -181,13 +181,13 @@ void MenuStorage::Render()
       y += 0.8 * menu_getScaleMenus()*MENU_FONT_SIZE_TOOLTIPS*(1+MENU_TEXTLINE_SPACING);
    }
    w = 0;
-   sprintf(szBuff, "%d ", media_get_videos_count());
+   snprintf(szBuff, sizeof(szBuff), "%d ", media_get_videos_count());
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
    w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "videos and " );
    w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "videos and " );
 
-   sprintf(szBuff, "%d ", media_get_screenshots_count());
+   snprintf(szBuff, sizeof(szBuff), "%d ", media_get_screenshots_count());
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
    w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
    g_pRenderEngine->drawText( x+w, y, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, "screenshots stored on persistent media storage." );
@@ -233,11 +233,11 @@ void MenuStorage::Render()
       g_pRenderEngine->drawText( xpi+w, ypi, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
       w = g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff );
       w += 0.024*menu_getScaleMenus();
-      sprintf(szBuff, "%02d:%02d",m_VideoFilesDuration[index]/60, m_VideoFilesDuration[index]%60);
+      snprintf(szBuff, sizeof(szBuff), "%02d:%02d",m_VideoFilesDuration[index]/60, m_VideoFilesDuration[index]%60);
       g_pRenderEngine->drawText( xpi+w, ypi+height_text*0.1, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus()*0.8, g_idFontMenu, szBuff );
       w += g_pRenderEngine->textWidth(MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus()*0.8, g_idFontMenu, szBuff );
       w += 0.01*menu_getScaleMenus();
-      sprintf(szBuff, "%dx%d, %d fps",m_VideoFilesWidth[index], m_VideoFilesHeight[index], m_VideoFilesFPS[index]);
+      snprintf(szBuff, sizeof(szBuff), "%dx%d, %d fps",m_VideoFilesWidth[index], m_VideoFilesHeight[index], m_VideoFilesFPS[index]);
       g_pRenderEngine->drawText( xpi+w, ypi+height_text*0.1, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus()*0.8, g_idFontMenu, szBuff );
       w += g_pRenderEngine->textWidth( MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus()*0.8, g_idFontMenu, szBuff );
       ypi += height_text *(1.4+MENU_ITEM_SPACING);
@@ -259,7 +259,7 @@ void MenuStorage::Render()
    else
       maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
 
-   sprintf(szBuff, "Page %d of %d", m_UIFilesPage+1,1+(m_VideoInfoFilesCount/m_UIFilesPerPage));
+   snprintf(szBuff, sizeof(szBuff), "Page %d of %d", m_UIFilesPage+1,1+(m_VideoInfoFilesCount/m_UIFilesPerPage));
    g_pRenderEngine->drawTextLeft(x+maxWidth-2*MENU_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), y+height_text*0.4, MENU_FONT_SIZE_SUBTITLE*menu_getScaleMenus(), g_idFontMenu, szBuff); 
 
    m_pMenuItems[m_StaticMenuItemsCount-2]->Render(m_RenderXPos + MENU_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), y, m_SelectedIndex == (maxMenuIndex-1), m_fSelectionWidth*0.34);
@@ -278,7 +278,7 @@ void MenuStorage::onMoveUp(bool bIgnoreReversion)
          m_ViewScreenShotIndex = 0;
 
       char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       g_pRenderEngine->freeImage(m_ScreenshotImageId);
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
 
@@ -309,7 +309,7 @@ void MenuStorage::onMoveDown(bool bIgnoreReversion)
          m_ViewScreenShotIndex = media_get_screenshots_count()-1;
 
       char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       g_pRenderEngine->freeImage(m_ScreenshotImageId);
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
 
@@ -357,7 +357,7 @@ void MenuStorage::onReturnFromChild(int returnValue)
    {
       log_line("Confirmed deletion of all media files.");
       char szComm[1024];
-      sprintf(szComm, "rm -rf %s* /dev/null 2>&1", FOLDER_MEDIA);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s* /dev/null 2>&1", FOLDER_MEDIA);
       hw_execute_bash_command(szComm, NULL);   
       onShow();
       return;
@@ -441,7 +441,7 @@ void MenuStorage::onSelectItem()
       m_ViewScreenShotIndex = media_get_screenshots_count()-1;
 
       char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       log_line("Menu: Loading screenshot: %s", szFile );
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
       if ( 0 != m_ScreenshotImageId && MAX_U32 != m_ScreenshotImageId )
@@ -493,7 +493,7 @@ void MenuStorage::onSelectItem()
    if ( index < 0 || index >= m_VideoInfoFilesCount )
       return;
 
-   sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
+   snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
    FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
       return;
@@ -510,7 +510,7 @@ void MenuStorage::onSelectItem()
       pairing_stop();
       m_bWasPairingStarted = true;
    }
-   sprintf(szBuff, "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   snprintf(szBuff, sizeof(szBuff), "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
    hw_execute_bash_command(szBuff,NULL);
    g_bVideoPlaying = true;
    g_uVideoPlayingStartTime = get_current_timestamp_ms();
@@ -595,7 +595,7 @@ void MenuStorage::buildFilesListVideo()
             break;
          }
          strcpy(m_szVideoInfoFiles[m_VideoInfoFilesCount], dir->d_name);
-         sprintf(szBuff, "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[m_VideoInfoFilesCount]);
+         snprintf(szBuff, sizeof(szBuff), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[m_VideoInfoFilesCount]);
          fd = fopen(szBuff, "r");
          if ( NULL == fd )
          {
@@ -644,8 +644,8 @@ void MenuStorage::movePictures(bool bDelete)
 
    buildFilesListPictures();
 
-   sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szCommand, "mkdir -p %s", szBuff );
+   snprintf(szBuff, sizeof(szBuff), "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
+   snprintf(szCommand, sizeof(szCommand), "mkdir -p %s", szBuff );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_PicturesFilesCount; i++ )
@@ -657,21 +657,21 @@ void MenuStorage::movePictures(bool bDelete)
       render_all(get_current_timestamp_ms());
 
       strcpy(szSrcFile, FOLDER_MEDIA);
-      strcat(szSrcFile, m_szPicturesFiles[i]);
+      strlcat(szSrcFile, m_szPicturesFiles[i], sizeof(szSrcFile));
       if ( -1 == access(szSrcFile, R_OK) )
          continue;
 
-      sprintf(szCommand, "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+      snprintf(szCommand, sizeof(szCommand), "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       hw_execute_bash_command(szCommand, NULL);
 
       if ( bDelete )
-         sprintf(szCommand, "mv %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, sizeof(szCommand), "mv %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       else
-         sprintf(szCommand, "cp %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, sizeof(szCommand), "cp %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       hw_execute_bash_command(szCommand, NULL);
    }
 
-   //sprintf(szCommand, "cp /home/pi/ruby/logs/* %s/%s/Ruby/", FOLDER_RUBY, FOLDER_USB_MOUNT);
+   //snprintf(szCommand, sizeof(szCommand), "cp /home/pi/ruby/logs/* %s/%s/Ruby/", FOLDER_RUBY, FOLDER_USB_MOUNT);
    //execute_bash_command(szCommand, NULL);
 }
 
@@ -696,13 +696,13 @@ void MenuStorage::moveVideos(bool bDelete)
 
    buildFilesListVideo();
 
-   sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szCommand, "mkdir -p %s", szBuff );
+   snprintf(szBuff, sizeof(szBuff), "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
+   snprintf(szCommand, sizeof(szCommand), "mkdir -p %s", szBuff );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_VideoInfoFilesCount; i++ )
    {
-      sprintf(szInfo, "Processing video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
+      snprintf(szInfo, sizeof(szInfo), "Processing video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
       m_pPopupProgress->setTitle(szInfo);
 
       g_TimeNow = get_current_timestamp_ms();
@@ -711,7 +711,7 @@ void MenuStorage::moveVideos(bool bDelete)
       ruby_input_loop(true);
       render_all(get_current_timestamp_ms());
 
-      sprintf(szBuff, "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i]);
+      snprintf(szBuff, sizeof(szBuff), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i]);
       fd = fopen(szBuff, "r");
       if ( NULL == fd )
          break;
@@ -726,19 +726,19 @@ void MenuStorage::moveVideos(bool bDelete)
       szOutFile[strlen(szOutFile)-3] = 'p';
       szOutFile[strlen(szOutFile)-2] = '4';
       szOutFile[strlen(szOutFile)-1] = 0;
-      sprintf(szCommand, "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, sizeof(szCommand), "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
 
-      sprintf(szCommand, "./ruby_video_proc %s%s %s/%s/Ruby/%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, sizeof(szCommand), "./ruby_video_proc %s%s %s/%s/Ruby/%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
       log_line("Executing: %s", szCommand);
       hw_execute_bash_command(szCommand, NULL);
       //system(szCommand);
       log_line("Finished processing video %s", m_szVideoInfoFiles[i]);
       hardware_sleep_ms(100);
       if ( bDelete )
-         sprintf(szInfo, "Moving video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
+         snprintf(szInfo, sizeof(szInfo), "Moving video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
       else
-         sprintf(szInfo, "Copying video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
+         snprintf(szInfo, sizeof(szInfo), "Copying video %d of %d. Please wait...", i+1, m_VideoInfoFilesCount);
 
       m_pPopupProgress->setTitle(szInfo);
 
@@ -752,7 +752,7 @@ void MenuStorage::moveVideos(bool bDelete)
 
       if ( bDelete )
       {
-         sprintf(szCommand, "rm -rf %s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i] );
+         snprintf(szCommand, sizeof(szCommand), "rm -rf %s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i] );
          hw_execute_bash_command(szCommand, NULL);
          szCommand[strlen(szCommand)-4] = 'h';
          szCommand[strlen(szCommand)-3] = '2';
@@ -762,7 +762,7 @@ void MenuStorage::moveVideos(bool bDelete)
       }
    }
 
-   //sprintf(szCommand, "cp /home/pi/ruby/logs/* %s/%s/Ruby/", FOLDER_RUBY, FOLDER_USB_MOUNT);
+   //snprintf(szCommand, sizeof(szCommand), "cp /home/pi/ruby/logs/* %s/%s/Ruby/", FOLDER_RUBY, FOLDER_USB_MOUNT);
    //execute_bash_command(szCommand, NULL);
    ruby_signal_alive();
    sync();
@@ -781,7 +781,7 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
    m_pPopupProgress->setCentered();
    popups_add_topmost(m_pPopupProgress);
 
-   sprintf(szCommand, "mkdir -p %s/%s", FOLDER_RUBY, FOLDER_USB_MOUNT); 
+   snprintf(szCommand, sizeof(szCommand), "mkdir -p %s/%s", FOLDER_RUBY, FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
    bool bMountLaunched = false;
@@ -789,34 +789,34 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
 
    for( int i=10; i>0; i-- )
    {
-      sprintf(szBuff, "/dev/sda%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sda%d", i);
       if( access( szBuff, R_OK ) != -1 )
       {
-         sprintf(szCommand, "mount /dev/sda%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
+         snprintf(szCommand, sizeof(szCommand), "mount /dev/sda%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
          bMountLaunched = true;
          break;
       }
 
-      sprintf(szBuff, "/dev/sdb%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdb%d", i);
       if( access( szBuff, R_OK ) != -1 )
       {
-         sprintf(szCommand, "mount /dev/sdb%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
+         snprintf(szCommand, sizeof(szCommand), "mount /dev/sdb%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
          bMountLaunched = true;
          break;
       }
 
-      sprintf(szBuff, "/dev/sdc%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdc%d", i);
       if( access( szBuff, R_OK ) != -1 )
       {
-         sprintf(szCommand, "mount /dev/sdc%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
+         snprintf(szCommand, sizeof(szCommand), "mount /dev/sdc%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
          bMountLaunched = true;
          break;
       }
 
-      sprintf(szBuff, "/dev/sdd%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdd%d", i);
       if( access( szBuff, R_OK ) != -1 )
       {
-         sprintf(szCommand, "mount /dev/sdd%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
+         snprintf(szCommand, sizeof(szCommand), "mount /dev/sdd%d %s/%s 2>/dev/null", i, FOLDER_RUBY, FOLDER_USB_MOUNT);
          bMountLaunched = true;
          break;
       }
@@ -824,28 +824,28 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
    if ( ! bMountLaunched )
    if( access( "/dev/sda", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sda %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sda %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
       bMountLaunched = true;
    }
 
    if ( ! bMountLaunched )
    if( access( "/dev/sdb", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdb %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdb %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
       bMountLaunched = true;
    }
 
    if ( ! bMountLaunched )
    if( access( "/dev/sdc", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdc %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdc %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
       bMountLaunched = true;
    }
 
    if ( ! bMountLaunched )
    if( access( "/dev/sdd", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdd %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdd %s/%s 2>/dev/null", FOLDER_RUBY, FOLDER_USB_MOUNT);
       bMountLaunched = true;
    }
 
@@ -858,7 +858,7 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
 
    ruby_pause_watchdog();
 
-   strcat(szCommand, " &");
+   strlcat(szCommand, " &", sizeof(szCommand));
    hw_execute_bash_command(szCommand, NULL);
 
    u32 timeStart = g_TimeNow;
@@ -875,9 +875,9 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
       render_all(get_current_timestamp_ms());
 
       char szTitle[64];
-      sprintf(szTitle, "Mounting USB memory stick.");
+      snprintf(szTitle, sizeof(szTitle), "Mounting USB memory stick.");
       for( int i=0; i<((g_TimeNow/500)%4); i++ )
-         strcat(szTitle, ".");
+         strlcat(szTitle, ".", sizeof(szTitle));
       m_pPopupProgress->setTitle(szTitle);
 
       if ( g_TimeNow > timeStart + 2000 )

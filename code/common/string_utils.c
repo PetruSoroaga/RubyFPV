@@ -163,51 +163,51 @@ char* str_get_pipe_flags(int iFlags)
    strcpy(s_szBufferPipeFlags, "[");
 
    if ( iFlags & O_RDONLY )
-      strcat(s_szBufferPipeFlags, " O_RDONLY");
+      strlcat(s_szBufferPipeFlags, " O_RDONLY", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_RDONLY");
+      strlcat(s_szBufferPipeFlags, " !O_RDONLY", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_WRONLY )
-      strcat(s_szBufferPipeFlags, " O_WRONLY");
+      strlcat(s_szBufferPipeFlags, " O_WRONLY", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_WRONLY");
+      strlcat(s_szBufferPipeFlags, " !O_WRONLY", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_RDWR )
-      strcat(s_szBufferPipeFlags, " O_RDWR");
+      strlcat(s_szBufferPipeFlags, " O_RDWR", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_RDWR");
+      strlcat(s_szBufferPipeFlags, " !O_RDWR", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_APPEND )
-      strcat(s_szBufferPipeFlags, " O_APPEND");
+      strlcat(s_szBufferPipeFlags, " O_APPEND", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_APPEND");
+      strlcat(s_szBufferPipeFlags, " !O_APPEND", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_ASYNC )
-      strcat(s_szBufferPipeFlags, " O_ASYNC");
+      strlcat(s_szBufferPipeFlags, " O_ASYNC", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_ASYNC");
+      strlcat(s_szBufferPipeFlags, " !O_ASYNC", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_NONBLOCK )
-      strcat(s_szBufferPipeFlags, " O_NONBLOCK");
+      strlcat(s_szBufferPipeFlags, " O_NONBLOCK", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_NONBLOCK");
+      strlcat(s_szBufferPipeFlags, " !O_NONBLOCK", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_DSYNC )
-      strcat(s_szBufferPipeFlags, " O_DSYNC");
+      strlcat(s_szBufferPipeFlags, " O_DSYNC", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_DSYNC");
+      strlcat(s_szBufferPipeFlags, " !O_DSYNC", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_SYNC )
-      strcat(s_szBufferPipeFlags, " O_SYNC");
+      strlcat(s_szBufferPipeFlags, " O_SYNC", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_SYNC");
+      strlcat(s_szBufferPipeFlags, " !O_SYNC", sizeof(s_szBufferPipeFlags));
 
    if ( iFlags & O_EXCL )
-      strcat(s_szBufferPipeFlags, " O_EXCL");
+      strlcat(s_szBufferPipeFlags, " O_EXCL", sizeof(s_szBufferPipeFlags));
    else
-      strcat(s_szBufferPipeFlags, " !O_EXCL");
+      strlcat(s_szBufferPipeFlags, " !O_EXCL", sizeof(s_szBufferPipeFlags));
 
-   strcat(s_szBufferPipeFlags, " ]");
+   strlcat(s_szBufferPipeFlags, " ]", sizeof(s_szBufferPipeFlags));
    return s_szBufferPipeFlags;
 }
 
@@ -295,17 +295,17 @@ char* str_format_frequency(u32 uFrequency)
 
    s_szFrequencyFormat[0] = 0;
    if ( uFrequency < 10000 )
-      sprintf(s_szFrequencyFormat, "%u Mhz", uFrequency);
+      snprintf(s_szFrequencyFormat, sizeof(s_szFrequencyFormat), "%u Mhz", uFrequency);
    else
    {
       if ( (uFrequency%1000) == 0 )
-         sprintf(s_szFrequencyFormat, "%u Mhz", uFrequency/1000);
+         snprintf(s_szFrequencyFormat, sizeof(s_szFrequencyFormat), "%u Mhz", uFrequency/1000);
       else if ( (uFrequency%100) == 0 )
-         sprintf(s_szFrequencyFormat, "%u.%u Mhz", uFrequency/1000, (uFrequency%1000) / 100);
+         snprintf(s_szFrequencyFormat, sizeof(s_szFrequencyFormat), "%u.%u Mhz", uFrequency/1000, (uFrequency%1000) / 100);
       else if ( (uFrequency%10) == 0 )
-         sprintf(s_szFrequencyFormat, "%u.%u Mhz", uFrequency/1000, (uFrequency%1000) / 10);
+         snprintf(s_szFrequencyFormat, sizeof(s_szFrequencyFormat), "%u.%u Mhz", uFrequency/1000, (uFrequency%1000) / 10);
       else
-         sprintf(s_szFrequencyFormat, "%u.%u Mhz", uFrequency/1000, uFrequency%1000);
+         snprintf(s_szFrequencyFormat, sizeof(s_szFrequencyFormat), "%u.%u Mhz", uFrequency/1000, uFrequency%1000);
    }
    return s_szFrequencyFormat;
 }
@@ -317,17 +317,17 @@ char* str_format_frequency_no_sufix(u32 uFrequency)
 
    s_szFrequencyFormatNoSufix[0] = 0;
    if ( uFrequency < 10000 )
-      sprintf(s_szFrequencyFormatNoSufix, "%u", uFrequency);
+      snprintf(s_szFrequencyFormatNoSufix, sizeof(s_szFrequencyFormatNoSufix), "%u", uFrequency);
    else
    {
       if ( (uFrequency%1000) == 0 )
-         sprintf(s_szFrequencyFormatNoSufix, "%u", uFrequency/1000);
+         snprintf(s_szFrequencyFormatNoSufix, sizeof(s_szFrequencyFormatNoSufix), "%u", uFrequency/1000);
       else if ( (uFrequency%100) == 0 )
-         sprintf(s_szFrequencyFormatNoSufix, "%u.%u", uFrequency/1000, (uFrequency%1000) / 100);
+         snprintf(s_szFrequencyFormatNoSufix, sizeof(s_szFrequencyFormatNoSufix), "%u.%u", uFrequency/1000, (uFrequency%1000) / 100);
       else if ( (uFrequency%10) == 0 )
-         sprintf(s_szFrequencyFormatNoSufix, "%u.%u", uFrequency/1000, (uFrequency%1000) / 10);
+         snprintf(s_szFrequencyFormatNoSufix, sizeof(s_szFrequencyFormatNoSufix), "%u.%u", uFrequency/1000, (uFrequency%1000) / 10);
       else
-         sprintf(s_szFrequencyFormatNoSufix, "%u.%u", uFrequency/1000, uFrequency%1000);
+         snprintf(s_szFrequencyFormatNoSufix, sizeof(s_szFrequencyFormatNoSufix), "%u.%u", uFrequency/1000, uFrequency%1000);
    }
    return s_szFrequencyFormatNoSufix;
 }
@@ -680,9 +680,9 @@ char* str_get_radio_stream_name(int iStreamId)
    if ( iStreamId == STREAM_ID_DATA )
       strcpy(s_szStreamName, "Data Stream 1");
    else if ( iStreamId < STREAM_ID_VIDEO_1 )
-      sprintf(s_szStreamName, "Data Stream %d", iStreamId+1);
+      snprintf(s_szStreamName, sizeof(s_szStreamName), "Data Stream %d", iStreamId+1);
    else
-      sprintf(s_szStreamName, "Video Stream %d", iStreamId-STREAM_ID_VIDEO_1+1);
+      snprintf(s_szStreamName, sizeof(s_szStreamName), "Video Stream %d", iStreamId-STREAM_ID_VIDEO_1+1);
 
    return s_szStreamName;
 }
@@ -741,25 +741,25 @@ char* str_get_developer_flags(u32 uDeveloperFlags)
    s_szDeveloperFlagsDesc[0] = 0;
 
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)
-      strcat(s_szDeveloperFlagsDesc, " LIVE_LOG");
+      strlcat(s_szDeveloperFlagsDesc, " LIVE_LOG", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS)
-      strcat(s_szDeveloperFlagsDesc, " LOG_ONLY_ERRORS");
+      strlcat(s_szDeveloperFlagsDesc, " LOG_ONLY_ERRORS", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)
-      strcat(s_szDeveloperFlagsDesc, " RADIO_SILENCE_FAILSAFE");
+      strlcat(s_szDeveloperFlagsDesc, " RADIO_SILENCE_FAILSAFE", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)
-      strcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_STATS");
+      strlcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_STATS", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)
-      strcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_GRAPHS");
+      strlcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_GRAPHS", sizeof(s_szDeveloperFlagsDesc));
    //if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_VIDEO_BITRATE_HISTORY)
-   //   strcat(s_szDeveloperFlagsDesc, " VIDEO_BITRATE_HISTORY");
+   //   strlcat(s_szDeveloperFlagsDesc, " VIDEO_BITRATE_HISTORY", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK)
-      strcat(s_szDeveloperFlagsDesc, " VIDEO_OVERLOAD_CHECK");
+      strlcat(s_szDeveloperFlagsDesc, " VIDEO_OVERLOAD_CHECK", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP)
-      strcat(s_szDeveloperFlagsDesc, " SEND_VEHICLE_TX_GAP");
+      strlcat(s_szDeveloperFlagsDesc, " SEND_VEHICLE_TX_GAP", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_VIDEO_FAULTS)
-      strcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS");
+      strlcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS", sizeof(s_szDeveloperFlagsDesc));
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_RECOVERABLE_VIDEO_FAULTS)
-      strcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS2");
+      strlcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS2", sizeof(s_szDeveloperFlagsDesc));
    
    return s_szDeveloperFlagsDesc;
 }

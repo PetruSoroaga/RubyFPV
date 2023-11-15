@@ -96,9 +96,9 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    RenderBaseTitle(xPos, yPos, bSelected, fWidthSelection);
 
    char szBuff[32];
-   sprintf(szBuff, "%d", m_ValueCurrent);
+   snprintf(szBuff, sizeof(szBuff), "%d", m_ValueCurrent);
    if ( m_HalfStepsEnabled )
-      sprintf(szBuff, "%.2f", m_ValueCurrent/4.0);
+      snprintf(szBuff, sizeof(szBuff), "%.2f", m_ValueCurrent/4.0);
    float valueWidth = 0.03*menu_getScaleMenus();
 
    float height_text = g_pRenderEngine->textHeight(MENU_FONT_SIZE_ITEMS*menu_getScaleMenus(), g_idFontMenu);

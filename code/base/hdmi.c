@@ -300,9 +300,9 @@ int hdmi_set_current_resolution(int width, int height, int refresh)
    hardware_sleep_ms(50);
    hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-   sprintf(szBuff, "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", s_nHDMI_ResolutionGroup[index][indexR]);
+   snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", s_nHDMI_ResolutionGroup[index][indexR]);
    hw_execute_bash_command(szBuff, NULL);
-   sprintf(szBuff, "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", s_nHDMI_ResolutionMode[index][indexR]);
+   snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", s_nHDMI_ResolutionMode[index][indexR]);
    hw_execute_bash_command(szBuff, NULL);
    hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
 

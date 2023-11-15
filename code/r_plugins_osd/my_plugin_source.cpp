@@ -39,7 +39,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
   g_pEngine->drawCircle(xCenter, yCenter, fWidth * 0.5);
 
   char szBuff[64];
-  sprintf(szBuff, "%d", pTelemetryInfo->heading);
+  snprintf(szBuff, sizeof(szBuff), "%d", pTelemetryInfo->heading);
 
   u32 fontId = g_pEngine->getFontIdRegular();
   float height_text = g_pEngine->textHeight(fontId);

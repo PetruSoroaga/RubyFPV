@@ -92,7 +92,7 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
    char szAlarmText2[256];
    char szAlarmText3[256];
 
-   sprintf(szAlarmText, "Received alarm(s) (id(s) %u-%d) from the vehicle", uAlarms, (int)uAlarmsCount);
+   snprintf(szAlarmText, sizeof(szAlarmText), "Received alarm(s) (id(s) %u-%d) from the vehicle", uAlarms, (int)uAlarmsCount);
    szAlarmText2[0] = 0;
    szAlarmText3[0] = 0;
 
@@ -106,13 +106,13 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
 
    if ( uAlarms & ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW )
    {
-       sprintf(szAlarmText, "The Tx radio bitrate on the vehicle is too low (less than %.1f Mbps)", 2.0);  
+       snprintf(szAlarmText, sizeof(szAlarmText), "The Tx radio bitrate on the vehicle is too low (less than %.1f Mbps)", 2.0);  
        strcpy(szAlarmText2, "Try to increase your video bitrate.");     
    }
 
    if ( uAlarms & ALARM_ID_VEHICLE_LOW_STORAGE_SPACE )
    {
-       sprintf(szAlarmText, "Vehicle is running low on free storage space. %u Mb free.", uFlags);  
+       snprintf(szAlarmText, sizeof(szAlarmText), "Vehicle is running low on free storage space. %u Mb free.", uFlags);  
        strcpy(szAlarmText2, "Try to delete your vehicle logs or check your SD card on the vehicle."); 
    }
 
@@ -145,7 +145,7 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
       int kbpsMax = (int)(uFlags >> 16);
       if ( NULL != g_pCurrentModel && (! g_pCurrentModel->osd_params.show_overload_alarm) )
          return;
-      sprintf(szAlarmText, "Video link is overloaded (sending %.1f Mbps, over the safe %.1f Mbps limit for current radio rate).", ((float)kbpsSent)/1000.0, ((float)kbpsMax)/1000.0);
+      snprintf(szAlarmText, sizeof(szAlarmText), "Video link is overloaded (sending %.1f Mbps, over the safe %.1f Mbps limit for current radio rate).", ((float)kbpsSent)/1000.0, ((float)kbpsMax)/1000.0);
       strcpy(szAlarmText2, "Video bitrate was decreased temporarly.");
       strcpy(szAlarmText3, "Lower your video bitrate.");
    }
@@ -159,7 +159,7 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
       int msMax = (int)(uFlags >> 16);
       if ( NULL != g_pCurrentModel && (! g_pCurrentModel->osd_params.show_overload_alarm) )
          return;
-      sprintf(szAlarmText, "Video link transmission is overloaded (transmission took %d ms/sec, max safe limit is %d ms/sec).", ms, msMax);
+      snprintf(szAlarmText, sizeof(szAlarmText), "Video link transmission is overloaded (transmission took %d ms/sec, max safe limit is %d ms/sec).", ms, msMax);
       strcpy(szAlarmText2, "Video bitrate was decreased temporarly.");
       strcpy(szAlarmText3, "Lower your video bitrate or switch frequencies.");
    }
@@ -174,13 +174,13 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
          u32 timeMax = uFlags >> 16;
          if ( timeMax > 0 )
          {
-            sprintf(szAlarmText, "Your vehicle CPU had a spike of %u miliseconds in it's loop processing.", timeMax );
-            sprintf(szAlarmText2, "If this is recurent, increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
+            snprintf(szAlarmText, sizeof(szAlarmText), "Your vehicle CPU had a spike of %u miliseconds in it's loop processing.", timeMax );
+            snprintf(szAlarmText2, sizeof(szAlarmText2), "If this is recurent, increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
          }
          if ( timeAvg > 0 )
          {
-            sprintf(szAlarmText, "Your vehicle CPU had an overload of %u miliseconds in it's loop processing.", timeAvg );
-            sprintf(szAlarmText2, "Increase your CPU overclocking speed or reduce your data processing (video bitrate).");
+            snprintf(szAlarmText, sizeof(szAlarmText), "Your vehicle CPU had an overload of %u miliseconds in it's loop processing.", timeAvg );
+            snprintf(szAlarmText2, sizeof(szAlarmText2), "Increase your CPU overclocking speed or reduce your data processing (video bitrate).");
          }
       }
       else
@@ -191,7 +191,7 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
    {
       if ( g_bUpdateInProgress )
          return;
-      sprintf(szAlarmText, "Vehicle radio interface %d timed out reading a radio packet %d times.", 1+(int)uFlags, (int)uAlarmsCount );
+      snprintf(szAlarmText, sizeof(szAlarmText), "Vehicle radio interface %d timed out reading a radio packet %d times.", 1+(int)uFlags, (int)uAlarmsCount );
    }
 
    if ( g_TimeNow > s_TimeLastVehicleAlarm + 8000 || ((s_uLastVehicleAlarms != uAlarms) && (uAlarms != 0)) )
@@ -201,7 +201,7 @@ void alarms_add_from_vehicle(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
       s_uLastVehicleAlarms = uAlarms;
 
       char szText[512];
-      sprintf(szText, "Alarm from vehicle: %s", szAlarmText);
+      snprintf(szText, sizeof(szText), "Alarm from vehicle: %s", szAlarmText);
       if ( (uAlarms & ALARM_ID_VEHICLE_VIDEO_TX_OVERLOAD) || (uAlarms & ALARM_ID_VEHICLE_VIDEO_DATA_OVERLOAD) )
          strcpy(szText, szAlarmText);
    
@@ -235,7 +235,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
 
    char szAlarmText[256];
    char szAlarmText2[256];
-   sprintf(szAlarmText, "Triggered alarm(s) (id(s) %u-%d) on the controller", uAlarms, (int)uAlarmsCount);
+   snprintf(szAlarmText, sizeof(szAlarmText), "Triggered alarm(s) (id(s) %u-%d) on the controller", uAlarms, (int)uAlarmsCount);
    szAlarmText2[0] = 0;
 
    if ( uAlarms != ALARM_ID_CONTROLLER_IO_ERROR )
@@ -249,7 +249,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
 
    if ( uAlarms & ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE )
    {
-       sprintf(szAlarmText, "Controller is running low on free storage space. %u Mb free.", uFlags);  
+       snprintf(szAlarmText, sizeof(szAlarmText), "Controller is running low on free storage space. %u Mb free.", uFlags);  
        strcpy(szAlarmText2, "Try to delete your controller logs or some media files or check your SD card."); 
    }
 
@@ -276,8 +276,8 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
 
       s_uLastAlarmNoRadioInterfacesForRadioLinkId = uFlags;
       s_uLastTimeAlarmNoRadioInterfacesForRadioLink = g_TimeNow;
-      sprintf(szAlarmText, "No radio interfaces on this controller can handle the vehicle's radio link %d.", uFlags+1);
-      sprintf(szAlarmText2, "Add more radio interfaces to your controller or change radio links settings.");
+      snprintf(szAlarmText, sizeof(szAlarmText), "No radio interfaces on this controller can handle the vehicle's radio link %d.", uFlags+1);
+      snprintf(szAlarmText2, sizeof(szAlarmText2), "Add more radio interfaces to your controller or change radio links settings.");
    }
    
    if ( uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD )
@@ -291,13 +291,13 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
        u32 timeMax = uFlags >> 16;
        if ( timeMax > 0 )
        {
-          sprintf(szAlarmText, "Your controller CPU had a spike of %u miliseconds in it's loop processing.", timeMax );
-          sprintf(szAlarmText2, "If this is recurent, increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
+          snprintf(szAlarmText, sizeof(szAlarmText), "Your controller CPU had a spike of %u miliseconds in it's loop processing.", timeMax );
+          snprintf(szAlarmText2, sizeof(szAlarmText2), "If this is recurent, increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
        }
        if ( timeAvg > 0 )
        {
-          sprintf(szAlarmText, "Your controller CPU had an overload of %u miliseconds in it's loop processing.", timeAvg );
-          sprintf(szAlarmText2, "Increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
+          snprintf(szAlarmText, sizeof(szAlarmText), "Your controller CPU had an overload of %u miliseconds in it's loop processing.", timeAvg );
+          snprintf(szAlarmText2, sizeof(szAlarmText2), "Increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
        }
     }
     else
@@ -308,7 +308,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
    {
       if ( g_bUpdateInProgress )
          return;
-      sprintf(szAlarmText, "Controller radio interface %d timed out reading a radio packet %d times.", 1+(int)uFlags, (int)uAlarmsCount );
+      snprintf(szAlarmText, sizeof(szAlarmText), "Controller radio interface %d timed out reading a radio packet %d times.", 1+(int)uFlags, (int)uAlarmsCount );
    }
 
    if ( uAlarms & ALARM_ID_CONTROLLER_IO_ERROR )
@@ -353,7 +353,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags, u32 uAlarmsCount)
          else
          {
             char szBuff[256];
-            sprintf(szBuff, "Paired with %s", pModel->getLongName() );
+            snprintf(szBuff, sizeof(szBuff), "Paired with %s", pModel->getLongName() );
             warnings_add(szBuff, g_idIconController);
          }
 

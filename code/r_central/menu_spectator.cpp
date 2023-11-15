@@ -49,7 +49,7 @@ void MenuSpectator::onShow()
    {
       Model *p = getModelSpectator(i);
       char szBuff[64];
-      sprintf(szBuff, p->getLongName());
+      strlcpy(szBuff, p->getLongName(), sizeof(szBuff));
       addMenuItem( new MenuItem(szBuff) );
       if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == p->vehicle_id )
          m_ExtraHeight += menu_getScaleMenus()*MENU_FONT_SIZE_TOOLTIPS*(1+MENU_TEXTLINE_SPACING);

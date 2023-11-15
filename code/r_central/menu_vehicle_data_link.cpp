@@ -50,7 +50,7 @@ MenuVehicleDataLink::MenuVehicleDataLink(void)
    for( int i=0; i<hardware_get_serial_baud_rates_count(); i++ )
    {
       char szBuff[32];
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[i]);
+      snprintf(szBuff, sizeof(szBuff), "%d bps", hardware_get_serial_baud_rates()[i]);
       m_pItemsSelect[1]->addSelection(szBuff);
    }
    m_pItemsSelect[1]->setIsEditable();
@@ -101,7 +101,7 @@ void MenuVehicleDataLink::valuesToUI()
    if ( ! bSpeedFound )
    {
       char szBuff[256];
-      sprintf(szBuff, "Info: You are using a custom baud rate (%ld) for the auxiliary data link.", uCurrentSerialPortSpeed);
+      snprintf(szBuff, sizeof(szBuff), "Info: You are using a custom baud rate (%u) for the auxiliary data link.", uCurrentSerialPortSpeed);
       addTopLine(szBuff);
    }
 }

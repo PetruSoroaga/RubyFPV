@@ -364,10 +364,10 @@ void reinit_radio_interfaces()
    char szComm[128];
    log_line("Reinit radio interfaces...");
 
-   sprintf(szComm, "touch %s", FILE_TMP_ALARM_ON);
+   snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_ALARM_ON);
    hw_execute_bash_command_silent(szComm, NULL);
 
-   sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
+   snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
    hw_execute_bash_command_silent(szComm, NULL);
 
    u32 uTimeStart = get_current_timestamp_ms();
@@ -382,7 +382,7 @@ void reinit_radio_interfaces()
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
    vehicle_stop_video_capture(g_pCurrentModel);
@@ -438,7 +438,7 @@ void reinit_radio_interfaces()
       }
 
       log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
-      sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
       hardware_enumerate_radio_interfaces();
@@ -463,7 +463,7 @@ void reinit_radio_interfaces()
    hw_execute_bash_command("ifconfig wlan2 up", NULL);
    hw_execute_bash_command("ifconfig wlan3 up", NULL);
    
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    // Remove radio initialize file flag
    hw_execute_bash_command("rm -rf tmp/ruby/conf_radios", NULL);
@@ -512,10 +512,10 @@ void reinit_radio_interfaces()
    s_bRadioReinitialized = true;
    g_TimeRadioReinitialized = get_current_timestamp_ms();
 
-   sprintf(szComm, "rm -rf %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
    hw_execute_bash_command_silent(szComm, NULL);
 
-   sprintf(szComm, "rm -rf %s", FILE_TMP_REINIT_RADIO_REQUEST);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_REINIT_RADIO_REQUEST);
    hw_execute_bash_command_silent(szComm, NULL); 
 
 
@@ -554,7 +554,7 @@ void populate_model_settings_buffer()
    char szBuff[128];
    hw_execute_bash_command("rm -rf tmp/model.tar 2>/dev/null", NULL);
    hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
-   sprintf(szBuff, "cp -rf tmp/tmp_download_model.mdl tmp/model.mdl 2>/dev/null");
+   snprintf(szBuff, sizeof(szBuff), "cp -rf tmp/tmp_download_model.mdl tmp/model.mdl 2>/dev/null");
    hw_execute_bash_command(szBuff, NULL);
    hw_execute_bash_command("tar -czf tmp/model.tar tmp/model.mdl", NULL);
 
@@ -959,7 +959,7 @@ int periodic_loop()
          }
          log_line("SiK radio configuration completed. Result: %d.", iResult);
          char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+         snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
          hw_execute_bash_command(szBuff, NULL);
          g_bHasSikConfigCommandInProgress = false;
       }

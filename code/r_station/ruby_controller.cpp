@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
       {
          if ( (g_TimeNow > maxTimeForProcess) && (s_pProcessStatsCentral->lastActiveTime < g_TimeNow - maxTimeForProcess) )
          {
-            log_format_time(s_pProcessStatsCentral->lastActiveTime, szTime);
+            log_format_time(s_pProcessStatsCentral->lastActiveTime, szTime, sizeof(szTime));
             log_line_watchdog("Ruby controller watchdog check failed: ruby_central process has stopped !!! Last active time: %s", szTime);
             bMustRestart = true;
          }
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
          s_pProcessStatsCentral = NULL;
 
          char szComm[256];
-         sprintf(szComm, "touch %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
+         snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
          hw_execute_bash_command(szComm, NULL);
    
          hardware_sleep_ms(200);

@@ -70,7 +70,7 @@ MenuControllerTelemetry::MenuControllerTelemetry(void)
    for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
    {
       char szBuff[32];
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+      snprintf(szBuff, sizeof(szBuff), "%d bps", hardware_get_serial_baud_rates()[n]);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    m_pItemsSelect[2]->setIsEditable();

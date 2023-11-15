@@ -59,7 +59,7 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
    else if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_USER ) 
       strcpy(szBuff, "Current video profile: User");
    else
-      sprintf(szBuff, "Current video profile: %s", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+      snprintf(szBuff, sizeof(szBuff), "Current video profile: %s", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
    addTopLine(szBuff);
   
    for( int i=0; i<200; i++ )
@@ -68,13 +68,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSlider[i] = NULL;
    }
 
-   sprintf(szBuff, "Max Retransmission Window");
+   snprintf(szBuff, sizeof(szBuff), "Max Retransmission Window");
    if ( NULL != g_pCurrentModel )
    {
       char szUserProfile[64];
       szUserProfile[0] = 0;
       strcpy(szUserProfile, str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
-      sprintf(szBuff, "Max Retransmission Window (for %s)", szUserProfile);
+      snprintf(szBuff, sizeof(szBuff), "Max Retransmission Window (for %s)", szUserProfile);
    }
    m_pItemsSlider[0] = new MenuItemSlider(szBuff, "Maximum window size (in miliseconds) to send/retry and wait for retransmissions to happen.", 0,1000,10, fSliderWidth);
    m_pItemsSlider[0]->setStep(5);
@@ -136,13 +136,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
          m_pItemsSelect[k*20+11]->addSelection("Auto (Radio-2)");
       for( int i=0; i<getDataRatesCount(); i++ )
       {
-         sprintf(szBuff, "%d Mbps", getDataRates()[i]);
+         snprintf(szBuff, sizeof(szBuff), "%d Mbps", getDataRates()[i]);
          m_pItemsSelect[k*20+11]->addSelection(szBuff);
       }
       if ( NULL != g_pCurrentModel && (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 || g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58) )
       for( int i=0; i<=MAX_MCS_INDEX; i++ )
       {
-         sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
+         snprintf(szBuff, sizeof(szBuff), "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
          m_pItemsSelect[k*20+11]->addSelection(szBuff);
       }
       m_pItemsSelect[k*20+11]->setIsEditable();
@@ -155,13 +155,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
          m_pItemsSelect[k*20+12]->addSelection("Auto (Radio-2)");
       for( int i=0; i<getDataRatesCount(); i++ )
       {
-         sprintf(szBuff, "%d Mbps", getDataRates()[i]);
+         snprintf(szBuff, sizeof(szBuff), "%d Mbps", getDataRates()[i]);
          m_pItemsSelect[k*20+12]->addSelection(szBuff);
       }
       if ( NULL != g_pCurrentModel && (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 || g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58) )
       for( int i=0; i<=MAX_MCS_INDEX; i++ )
       {
-         sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
+         snprintf(szBuff, sizeof(szBuff), "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
          m_pItemsSelect[k*20+12]->addSelection(szBuff);
       }
       m_pItemsSelect[k*20+12]->setIsEditable();
@@ -242,7 +242,7 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSelect[2]->addSelection("HQ");
       for( int i=0; i<iLevels; i++ )
       {
-         sprintf(szBuff, "HQ -%d",i+1);
+         snprintf(szBuff, sizeof(szBuff), "HQ -%d",i+1);
          m_pItemsSelect[2]->addSelection(szBuff);
       }
 
@@ -250,14 +250,14 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSelect[2]->addSelection("MQ");
       for( int i=0; i<iLevels; i++ )
       {
-         sprintf(szBuff, "MQ -%d",i+1);
+         snprintf(szBuff, sizeof(szBuff), "MQ -%d",i+1);
          m_pItemsSelect[2]->addSelection(szBuff);
       }
       iLevels = g_pCurrentModel->get_video_link_profile_max_level_shifts(VIDEO_PROFILE_MQ);
       m_pItemsSelect[2]->addSelection("LQ");
       for( int i=0; i<iLevels; i++ )
       {
-         sprintf(szBuff, "LQ -%d",i+1);
+         snprintf(szBuff, sizeof(szBuff), "LQ -%d",i+1);
          m_pItemsSelect[2]->addSelection(szBuff);
       }
    }

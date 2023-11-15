@@ -49,7 +49,7 @@ MenuVehicleRadioInterface::MenuVehicleRadioInterface(int iRadioInterface)
 
    char szBuff[256];
 
-   sprintf(szBuff, "Vehicle Radio Interface %d Parameters", m_iRadioInterface+1);
+   snprintf(szBuff, sizeof(szBuff), "Vehicle Radio Interface %d Parameters", m_iRadioInterface+1);
    setTitle(szBuff);
    addTopLine("You have a single radio interface on the vehicle side for this radio link. You can't change the radio interface parameters. They are derived automatically from the radio link params.");
 

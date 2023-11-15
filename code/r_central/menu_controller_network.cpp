@@ -49,7 +49,7 @@ MenuControllerNetwork::MenuControllerNetwork(void)
    char szBuff[128];
    char szOutput[1024];
    hw_execute_bash_command_raw("hostname -I", szOutput);
-   sprintf(szBuff, "Current IP: %s", szOutput);
+   snprintf(szBuff, sizeof(szBuff), "Current IP: %s", szOutput);
    addMenuItem(new MenuItemText(szBuff));
 
    m_pItemsSelect[0] = new MenuItemSelect("Enable ETH and DHCP", "Enables the wired network connection.");
@@ -65,7 +65,7 @@ MenuControllerNetwork::MenuControllerNetwork(void)
    m_IndexFixedIP = addMenuItem(m_pItemsSelect[1]);
 
    m_pItemsRange[0] = new MenuItemRange("IP", "Sets the fixed IP to assign to the controller.", 0, 255, 20, 1 );
-   sprintf(szBuff, "%d.%d.%d.", pCS->uFixedIP >> 24, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF );
+   snprintf(szBuff, sizeof(szBuff), "%d.%d.%d.", pCS->uFixedIP >> 24, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF );
    m_pItemsRange[0]->setPrefix(szBuff);
    m_IndexIP = addMenuItem(m_pItemsRange[0]);
 

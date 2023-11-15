@@ -46,7 +46,7 @@ void power_leds(int onoff)
             continue;
          if ( dir->d_name[0] != 'l' )
             continue;
-         snprintf(szBuff, 1023, "/sys/class/leds/%s/brightness", dir->d_name);
+         snprintf(szBuff, sizeof(szBuff), "/sys/class/leds/%s/brightness", dir->d_name);
          FILE* fd = fopen(szBuff, "w");
          if ( NULL != fd )
          {

@@ -403,7 +403,7 @@ void MenuRadioConfig::onClickAutoTx(int iRadioLink)
       else if ( NULL != pCardInfo )
          strcpy(szName, str_get_radio_card_model_string(pCardInfo->cardModel) );
 
-      sprintf(szBuff, "Int. %d, Port %s, %s", i+1, pNIC->szUSBPort, szName);
+      snprintf(szBuff, sizeof(szBuff), "Int. %d, Port %s, %s", i+1, pNIC->szUSBPort, szName);
       m_pItemSelectTxCard->addSelection(szBuff);
    
    }
@@ -904,7 +904,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    {
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 2.4Ghz: %d", pCS->iTXPowerAtheros);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power 2.4Ghz: %d", pCS->iTXPowerAtheros);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig, 0.0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -912,7 +912,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
 
       if ( m_iIndexCurrentItem == dSelectionIndex+1 )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", pCS->iTXPowerRTL);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power 5.8Ghz: %d", pCS->iTXPowerRTL);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig + height_text*1.4, 0.0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex+1 )
@@ -927,9 +927,9 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
       if ( m_bHas58PowerController )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerRTL);
+         snprintf(szBuff, sizeof(szBuff),"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerRTL);
       else
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerAtheros);
+         snprintf(szBuff, sizeof(szBuff),"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerAtheros);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -944,7 +944,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    {
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKController), pCS->iTXPowerSiK);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKController), pCS->iTXPowerSiK);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig + dy, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -968,7 +968,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    {
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 2.4Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power 2.4Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig, 0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -976,7 +976,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
 
       if ( m_iIndexCurrentItem == dSelectionIndex+1 )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power 5.8Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos +hIconBig + height_text*1.4, 0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex+1 )
@@ -991,9 +991,9 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
       if ( m_bHas58PowerVehicle )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+         snprintf(szBuff, sizeof(szBuff),"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
       else
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
+         snprintf(szBuff, sizeof(szBuff),"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig, 0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -1008,7 +1008,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    {
       if ( m_iIndexCurrentItem == dSelectionIndex )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKVehicle), g_pCurrentModel->radioInterfacesParams.txPowerSiK);
+      snprintf(szBuff, sizeof(szBuff),"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKVehicle), g_pCurrentModel->radioInterfacesParams.txPowerSiK);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig + dy, 0, g_idFontMenu, szBuff);
 
       if ( m_iIndexCurrentItem == dSelectionIndex )
@@ -1170,7 +1170,7 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    }
 
    if ( 0 < strlen(szCapab) )
-      strcat(szCapab, ",   ");
+      strlcat(szCapab, ",   ", sizeof(szCapab));
 
    char szTmpRadioLink[256];
    strcpy(szTmpRadioLink, szCapab);
@@ -1178,7 +1178,7 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    if ( ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ) &&
         ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA ) )
    {
-      strcat(szCapab, "Video & Data,");
+      strlcat(szCapab, "Video & Data,", sizeof(szCapab));
       if ( bIsLinkActive )
       {
          m_bTmpHasVideoStreamsEnabled = true;
@@ -1187,13 +1187,13 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    }
    else if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
    {
-      strcat(szCapab, "Video Only,");
+      strlcat(szCapab, "Video Only,", sizeof(szCapab));
       if ( bIsLinkActive )
          m_bTmpHasVideoStreamsEnabled = true;
    }
    else if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
    {
-      strcat(szCapab, "Data Only,");
+      strlcat(szCapab, "Data Only,", sizeof(szCapab));
       bDataOnly = true;
       if ( bIsLinkActive )
          m_bTmpHasDataStreamsEnabled = true;
@@ -1202,11 +1202,11 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
 
    if ( bIsRelayLink )
-       sprintf(szBuff, "RELAY Link %d   %s", iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]));
+       snprintf(szBuff, sizeof(szBuff), "RELAY Link %d   %s", iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]));
    else if ( bIsLinkActive )
-       sprintf(szBuff, "Radio Link %d   %s", iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]));
+       snprintf(szBuff, sizeof(szBuff), "Radio Link %d   %s", iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]));
    else
-      sprintf(szBuff, "Radio Link %d (Not Active)", iRadioLink+1);
+      snprintf(szBuff, sizeof(szBuff), "Radio Link %d (Not Active)", iRadioLink+1);
       
    if ( bShowLinkRed )
    {
@@ -1242,19 +1242,19 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
 
    yPos += fPaddingInnerY;
    str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][0], szTmp);
-   sprintf(szBuff, "%s   %s   Data rate: %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]), szCapab, szTmp);
+   snprintf(szBuff, sizeof(szBuff), "%s   %s   Data rate: %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]), szCapab, szTmp);
    if ( g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][0] != g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][1] )
    {
       str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][1], szTmp);
-      strcat(szBuff, " / ");
-      strcat(szBuff, szTmp); 
+      strlcat(szBuff, " / ", sizeof(szBuff));
+      strlcat(szBuff, szTmp, sizeof(szBuff)); 
    }
 
    int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
    if ( adaptive )
-      strcat(szBuff, " (Auto Adjust)");
+      strlcat(szBuff, " (Auto Adjust)", sizeof(szBuff));
    else
-      strcat(szBuff, " (Fixed)");
+      strlcat(szBuff, " (Fixed)", sizeof(szBuff));
    
    if ( m_iIndexCurrentItem == iStartSelectionIndex )
       bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
@@ -1267,7 +1267,7 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
 
    if ( bDataOnly )
    {
-      sprintf(szBuff, "%s   %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]), szTmpRadioLink);
+      snprintf(szBuff, sizeof(szBuff), "%s   %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]), szTmpRadioLink);
       float fwt = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
       g_pRenderEngine->setColors(cY);
       g_pRenderEngine->drawText(xStart + fPaddingInnerX + fwt, yPos, g_idFontMenu, "Data Only");
@@ -1293,20 +1293,20 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    szTmp[0] = 0;
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
    {
-      strcat(szTmp, " Disabled");
+      strlcat(szTmp, " Disabled", sizeof(szTmp));
       bShowRed = true;
    }
    if ( !(g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
    if ( !(g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
    {
-      strcat(szTmp, " Can't Uplink or Downlink");
+      strlcat(szTmp, " Can't Uplink or Downlink", sizeof(szTmp));
       bShowRed = true;
    }
    
    g_pRenderEngine->drawIcon(xMid + xMidMargin, yPos+height_text*0.5, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
 
    float xiRight = xMid + xMidMargin + hIcon/g_pRenderEngine->getAspectRatio() + fPaddingInnerX;
-   sprintf(szBuff, "Interface %d, Port %s", iRadioLink+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[iRadioLink]);
+   snprintf(szBuff, sizeof(szBuff), "Interface %d, Port %s", iRadioLink+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[iRadioLink]);
    
    if ( m_iIndexCurrentItem == iSelectionIndexVehicleInterface  )
       bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
@@ -1318,7 +1318,7 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
 
    yPos += height_text*1.3;
 
-   sprintf(szBuff, "Type: %s", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioLink]));
+   snprintf(szBuff, sizeof(szBuff), "Type: %s", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioLink]));
    g_pRenderEngine->drawText(xiRight, yPos, g_idFontMenu, szBuff);
    yPos += height_text;
 
@@ -1328,20 +1328,20 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
    if ( !(g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ))
    {
       bShowRed = true;
-      strcat(szTmp, " No streams enabled");
+      strlcat(szTmp, " No streams enabled", sizeof(szTmp));
    }
 
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      strcat(szBuff, "Uplink & Downlink");
+      strlcat(szBuff, "Uplink & Downlink", sizeof(szBuff));
    else if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
-      strcat(szBuff, "Downlink Only");
+      strlcat(szBuff, "Downlink Only", sizeof(szBuff));
    else if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      strcat(szBuff, "Uplink Only");
+      strlcat(szBuff, "Uplink Only", sizeof(szBuff));
    else
    {
       bShowRed = true;
-      strcat(szTmp, " Disabled");
+      strlcat(szTmp, " Disabled", sizeof(szTmp));
    }
    
    g_pRenderEngine->drawText(xiRight, yPos,  g_idFontMenu, szBuff);
@@ -1417,7 +1417,7 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
       yPos += 0.5 * height_text;
       m_fYPosAutoTx[iRadioLink] = yPos;
 
-      sprintf(szBuff, "Preferred Tx Card: Auto");
+      snprintf(szBuff, sizeof(szBuff), "Preferred Tx Card: Auto");
       int iMinPriority = 10000;
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
@@ -1435,9 +1435,9 @@ float MenuRadioConfig::drawRadioLink(float xStart, float xEnd, float yStart, int
          if ( iCardPriority <= 0 || iCardPriority > iMinPriority )
             continue;
          iMinPriority = iCardPriority;
-         sprintf(szBuff, "Preferred Tx Card: Interface %d, Port %s", i+1, pNICInfo2->szUSBPort);
+         snprintf(szBuff, sizeof(szBuff), "Preferred Tx Card: Interface %d, Port %s", i+1, pNICInfo2->szUSBPort);
          if ( ! controllerIsCardInternal(pNICInfo2->szMAC) )
-            strcat(szBuff, " (Ext)");
+            strlcat(szBuff, " (Ext)", sizeof(szBuff));
       }
 
       if ( m_iIndexCurrentItem == iStartSelectionIndex + iCountInterfaces + 1 )
@@ -1670,7 +1670,7 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
    radio_hw_info_t* pNICInfo = hardware_get_radio_info(iRadioInterface);
    if ( NULL == pNICInfo )
    {
-      sprintf(szBuff, "Can't get info about radio interface %d.", iRadioInterface+1);
+      snprintf(szBuff, sizeof(szBuff), "Can't get info about radio interface %d.", iRadioInterface+1);
       g_pRenderEngine->drawTextLeft(xStart, yPos, g_idFontMenu, szBuff);
       return g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
    }
@@ -1678,7 +1678,7 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
    t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNICInfo->szMAC);
    if ( NULL == pNICInfo )
    {
-      sprintf(szBuff, "Can't get info about radio interface %d.", iRadioInterface+1);
+      snprintf(szBuff, sizeof(szBuff), "Can't get info about radio interface %d.", iRadioInterface+1);
       g_pRenderEngine->drawTextLeft(xStart, yPos, g_idFontMenu, szBuff);
       return g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
    }
@@ -1699,9 +1699,9 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
    g_pRenderEngine->drawIcon(xStart - hIcon/g_pRenderEngine->getAspectRatio(), yPos+height_text*0.5, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
       
    float xTextLeft = xStart - hIcon/g_pRenderEngine->getAspectRatio() - fPaddingInnerX;
-   sprintf(szBuff, "Interface %d, Port %s", iRadioInterface+1, pNICInfo->szUSBPort);
+   snprintf(szBuff, sizeof(szBuff), "Interface %d, Port %s", iRadioInterface+1, pNICInfo->szUSBPort);
    if ( ! controllerIsCardInternal(pNICInfo->szMAC) )
-      strcat(szBuff, " (Ext)");
+      strlcat(szBuff, " (Ext)", sizeof(szBuff));
 
    if ( bSelected )
       bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
@@ -1716,9 +1716,9 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
 
    char szBands[128];
    str_get_supported_bands_string(pNICInfo->supportedBands, szBands);
-   sprintf(szBuff, "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+   snprintf(szBuff, sizeof(szBuff), "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
    if ( strlen(str_get_radio_card_model_string(pCardInfo->cardModel)) > 10 )
-      sprintf(szBuff, "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+      snprintf(szBuff, sizeof(szBuff), "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
    g_pRenderEngine->drawTextLeft(xTextLeft, yPos, 0.0, g_idFontMenu, szBuff);
    if ( g_pRenderEngine->textWidth(g_idFontMenu, szBuff) > fMaxWidth )
       fMaxWidth = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
@@ -1736,11 +1736,11 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
 
    if ( (pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_TX) &&
         (pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
-      strcat(szBuff, "Uplink & Downlink");
+      strlcat(szBuff, "Uplink & Downlink", sizeof(szBuff));
    else if ( pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
-      strcat(szBuff, "Uplink Only");
+      strlcat(szBuff, "Uplink Only", sizeof(szBuff));
    else if ( pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      strcat(szBuff, "Downlink Only");
+      strlcat(szBuff, "Downlink Only", sizeof(szBuff));
    else
    {
       bShowRed = true;
@@ -1752,11 +1752,11 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
    if ( controllerGetCardDataRate(pNICInfo->szMAC) != g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][0] )
    {
       if ( 0 != szBuff[0] )
-         strcat(szBuff, ", ");
+         strlcat(szBuff, ", ", sizeof(szBuff));
       char szTmp[64], szTmp2[64];
       str_getDataRateDescription(controllerGetCardDataRate(pNICInfo->szMAC), szTmp2);
-      sprintf(szTmp, "Datarate: %s", szTmp2);
-      strcat(szBuff, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "Datarate: %s", szTmp2);
+      strlcat(szBuff, szTmp, sizeof(szBuff));
    }
 
 

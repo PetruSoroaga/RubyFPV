@@ -58,7 +58,7 @@ void hardware_log_radio_info()
       
       char szBands[128];
       str_get_supported_bands_string(sRadioInfo[i].supportedBands, szBands);
-      strcat( szBuff, szBands);
+      strlcat(szBuff, szBands, sizeof(szBuff));
       log_line(szBuff);
       log_line("");
    }
@@ -234,7 +234,7 @@ void _hardware_assign_usb_from_physical_ports()
 
       log_line("[HardwareRadio] Quering USB device: [%s]...", dir->d_name);
 
-      snprintf(szComm, 1023, "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep DRIVER", dir->d_name);
+      snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep DRIVER", dir->d_name);
       szOutput[0] = 0;
       hw_execute_bash_command_silent(szComm, szOutput);
       if ( 0 == szOutput[0] )
@@ -245,13 +245,13 @@ void _hardware_assign_usb_from_physical_ports()
       for( int i=0; i<s_iHwRadiosCount; i++ )
       {
          szOutput[0] = 0;
-         sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/%s/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, sRadioInfo[i].szName);
+         snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/%s/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, sRadioInfo[i].szName);
          hw_execute_bash_command_silent(szComm, szOutput);
          if ( 0 == szOutput[0] )
             continue;
 
          szOutput[0] = 0;
-         sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/%s/uevent 2>/dev/null | grep INTERFACE", dir->d_name, sRadioInfo[i].szName);
+         snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/%s/uevent 2>/dev/null | grep INTERFACE", dir->d_name, sRadioInfo[i].szName);
          hw_execute_bash_command_silent(szComm, szOutput);
          if ( 0 == szOutput[0] )
             continue;
@@ -286,7 +286,7 @@ void _hardware_assign_usb_from_physical_ports()
          // Find the product id / vendor id
 
          szOutput[0] = 0;
-         sprintf(szComm, "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name);
+         snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name);
          hw_execute_bash_command_silent(szComm, szOutput);
          if ( 0 != szOutput[0] )
          {
@@ -307,7 +307,7 @@ void _hardware_assign_usb_from_physical_ports()
                for( int kk=iPos; kk<iLen; kk++ )
                   szOutput[kk] = tolower(szOutput[kk]);
 
-               strncpy( sRadioInfo[i].szProductId, &(szOutput[iPos]), 12 );
+                strlcpy(sRadioInfo[i].szProductId, &(szOutput[iPos]), sizeof(sRadioInfo[i].szProductId));
                sRadioInfo[i].szProductId[11] = 0;
                _hardware_detect_card_model(i);
                log_line("[HardwareRadio] Found product/vendor id for radio interface %d: [%s], card model: %d: [%s]", i+1, sRadioInfo[i].szProductId, sRadioInfo[i].iCardModel, str_get_radio_card_model_string(sRadioInfo[i].iCardModel) );
@@ -319,7 +319,7 @@ void _hardware_assign_usb_from_physical_ports()
          // Parse the USB port info
 
          char szPort[128];
-         strncpy(szPort, dir->d_name, 127);
+          strlcpy(szPort, dir->d_name, sizeof(szPort));
          szPort[127] = 0;
 
          // Find first : in string
@@ -398,7 +398,7 @@ void _hardware_assign_usb_from_physical_ports()
          sRadioInfo[i].szUSBPort[0] = 'A' + nb;
          sRadioInfo[i].szUSBPort[1] = 0;
          if ( iPosMinus < iPosEnd )
-            strncpy(&(sRadioInfo[i].szUSBPort[1]), &(szPort[iPosMinus]), 5);
+             strlcpy(&(sRadioInfo[i].szUSBPort[1]), &(szPort[iPosMinus]), sizeof(&(sRadioInfo[i].szUSBPort[1])));
          sRadioInfo[i].szUSBPort[5] = 0;
          log_line("[HardwareRadio] Assigned USB port to radio interface %d: [%s]", i+1, sRadioInfo[i].szUSBPort);
       }
@@ -494,13 +494,13 @@ void _hardware_find_usb_radio_interfaces_info()
             while ( (szBuff[i] >= '0' && szBuff[i] <= '9') || szBuff[i] == ':' )
                i++;
             szBuff[i] = 0;
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, szBuff+iStartId, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1 );
+            strlcpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, szBuff+iStartId, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId) );
             s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1] = 0;
             bLookForId = 0;
          }
          else
          {
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, szBuff+i, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1 );
+            strlcpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, szBuff+i, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName) );
             s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1] = 0;
             s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iPortNb = -1;
             log_line("[HardwareRadio] Found USB device: bus %d, device %d: prod id: %s, name: %s",
@@ -577,7 +577,7 @@ int _hardware_enumerate_wifi_radios()
 
    for( int i=iStartIndex; i<s_iHwRadiosCount; i++ )
    {
-      sprintf(szBuff, "cat /sys/class/net/%s/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'", sRadioInfo[i].szName);
+      snprintf(szBuff, sizeof(szBuff), "cat /sys/class/net/%s/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'", sRadioInfo[i].szName);
       hw_execute_bash_command(szBuff, szDriver);
       log_line("Driver for %s: %s", sRadioInfo[i].szName, szDriver);
       sRadioInfo[i].isSupported = 0;
@@ -637,7 +637,7 @@ int _hardware_enumerate_wifi_radios()
          sRadioInfo[i].szProductId[kk] = 0;
 
       // Find the MAC address
-      sprintf(szComm, "iw dev %s info | grep addr", sRadioInfo[i].szName );
+      snprintf(szComm, sizeof(szComm), "iw dev %s info | grep addr", sRadioInfo[i].szName );
       if ( 1 != hw_execute_bash_command_raw(szComm, szBuff) )
       {
          log_softerror_and_alarm("Failed to find MAC address for %s", sRadioInfo[i].szName);
@@ -668,7 +668,7 @@ int _hardware_enumerate_wifi_radios()
       }
 
       // Find physical interface number
-      sprintf(szComm, "iw dev | grep -B 1 %s", sRadioInfo[i].szName );
+      snprintf(szComm, sizeof(szComm), "iw dev | grep -B 1 %s", sRadioInfo[i].szName );
       if ( 1 != hw_execute_bash_command_raw(szComm, szBuff) )
       {
          sRadioInfo[i].phy_index = i;
@@ -688,22 +688,22 @@ int _hardware_enumerate_wifi_radios()
       // Check supported bands
 
       sRadioInfo[i].supportedBands = 0;
-      sprintf(szComm, "iw phy%d info | grep 2377", sRadioInfo[i].phy_index);
+      snprintf(szComm, sizeof(szComm), "iw phy%d info | grep 2377", sRadioInfo[i].phy_index);
       hw_execute_bash_command_raw(szComm, szBuff);
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_23;
 
-      sprintf(szComm, "iw phy%d info | grep 2427", sRadioInfo[i].phy_index);
+      snprintf(szComm, sizeof(szComm), "iw phy%d info | grep 2427", sRadioInfo[i].phy_index);
       hw_execute_bash_command_raw(szComm, szBuff);
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_24;
 
-      sprintf(szComm, "iw phy%d info | grep 2512", sRadioInfo[i].phy_index);
+      snprintf(szComm, sizeof(szComm), "iw phy%d info | grep 2512", sRadioInfo[i].phy_index);
       hw_execute_bash_command_raw(szComm, szBuff);
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_25;
 
-      sprintf(szComm, "iw phy%d info | grep 5745", sRadioInfo[i].phy_index);
+      snprintf(szComm, sizeof(szComm), "iw phy%d info | grep 5745", sRadioInfo[i].phy_index);
       hw_execute_bash_command_raw(szComm, szBuff);
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_58;
@@ -1059,9 +1059,9 @@ int hardware_set_radio_tx_power_atheros(int txPower)
    char szBuff[256];
    szBuff[0] = 0;
    if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf.org tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/ath9k_hw.conf.org tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
    else if ( access( "/etc/modprobe.d/ath9k_hw.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/ath9k_hw.conf tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
    else
       log_softerror_and_alarm("Can't access/find Atheros power config files.");
 
@@ -1100,9 +1100,9 @@ int hardware_set_radio_tx_power_rtl(int txPower)
    char szBuff[256];
    szBuff[0] = 0;
    if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl8812au.conf.org tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/rtl8812au.conf.org tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
    else if ( access( "/etc/modprobe.d/rtl8812au.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl8812au.conf tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/rtl8812au.conf tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
    else
       log_softerror_and_alarm("Can't access/find RTL power config files.");
 
@@ -1111,9 +1111,9 @@ int hardware_set_radio_tx_power_rtl(int txPower)
 
    szBuff[0] = 0;
    if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl88XXau.conf.org tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/rtl88XXau.conf.org tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
    else if ( access( "/etc/modprobe.d/rtl88XXau.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl88XXau.conf tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/rtl88XXau.conf tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
    else
       log_softerror_and_alarm("Can't access/find RTL-XX power config files.");
 
@@ -1125,7 +1125,7 @@ int hardware_set_radio_tx_power_rtl(int txPower)
       txPower = (txPower/10)-2;
       if ( txPower < 0 ) txPower = 0;
       if ( txPower > 5 ) txPower = 5;
-      sprintf(szBuff, "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
+      snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
       hw_execute_bash_command(szBuff, NULL);
    }
 

@@ -51,7 +51,7 @@ void _media_remove_invalid_files()
          if ( strlen(dir->d_name) < 4 )
             continue;
 
-         sprintf(szFile, "%s%s", FOLDER_MEDIA, dir->d_name);
+         snprintf(szFile, sizeof(szFile), "%s%s", FOLDER_MEDIA, dir->d_name);
          long lSize = 0;
          fd = fopen(szFile, "rb");
          if ( NULL != fd )
@@ -76,18 +76,18 @@ void _media_remove_invalid_files()
          pos++;
 
          szFile[pos] = 0;
-         strcat(szFile, "h264");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         strlcat(szFile, "h264", sizeof(szFile));
+         snprintf(szComm, sizeof(szComm), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          szFile[pos] = 0;
-         strcat(szFile, "info");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         strlcat(szFile, "info", sizeof(szFile));
+         snprintf(szComm, sizeof(szComm), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          szFile[pos] = 0;
-         strcat(szFile, "png");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         strlcat(szFile, "png", sizeof(szFile));
+         snprintf(szComm, sizeof(szComm), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          ruby_signal_alive();
@@ -179,7 +179,7 @@ char* media_get_screenshot_filename()
     
    str_sanitize_filename(vehicle_name);
 
-   sprintf(s_szMediaCurrentScreenshotFileName, FILE_FORMAT_SCREENSHOT, vehicle_name, s_iMediaBootCount, g_TimeNow/1000, g_TimeNow%1000 );
+   snprintf(s_szMediaCurrentScreenshotFileName, sizeof(s_szMediaCurrentScreenshotFileName), FILE_FORMAT_SCREENSHOT, vehicle_name, s_iMediaBootCount, g_TimeNow/1000, g_TimeNow%1000 );
    return s_szMediaCurrentScreenshotFileName;
 }
 
@@ -195,7 +195,7 @@ char* media_get_video_filename()
 
    str_sanitize_filename(vehicle_name);
 
-   sprintf(s_szMediaCurrentVideoFileInfo, FILE_FORMAT_VIDEO_INFO, vehicle_name, s_iMediaBootCount, g_TimeNow/1000, g_TimeNow%1000 );
+   snprintf(s_szMediaCurrentVideoFileInfo, sizeof(s_szMediaCurrentVideoFileInfo), FILE_FORMAT_VIDEO_INFO, vehicle_name, s_iMediaBootCount, g_TimeNow/1000, g_TimeNow%1000 );
    return s_szMediaCurrentVideoFileInfo;
 }
 
@@ -212,7 +212,7 @@ bool media_take_screenshot(bool bIncludeOSD)
 
    media_get_screenshot_filename();
    strcpy(szFile, FOLDER_MEDIA);
-   strcat(szFile, s_szMediaCurrentScreenshotFileName);
+   strlcat(szFile, s_szMediaCurrentScreenshotFileName, sizeof(szFile));
 
    ruby_signal_alive();
    hw_launch_process2("./raspi2png", "-p", szFile);

@@ -52,7 +52,7 @@ float osd_render_radio_link_tag_new(float xPos, float yPos, int iRadioLink, bool
    float height_text = osd_getFontHeight();
    float height_text_small = osd_getFontHeightSmall();
 
-   sprintf(szBuff1, "Link %d", iRadioLink+1);
+   snprintf(szBuff1, sizeof(szBuff1), "Link %d", iRadioLink+1);
 
    strcpy(szBuff2, str_format_frequency_no_sufix(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLink]));
    
@@ -156,11 +156,11 @@ float _osd_show_radio_bars_info(float xPos, float yPos, int iMaxRxQuality, int i
    {
       char szBuff[32];
       char szBuff2[32];
-      sprintf(szBuff, "%d%%", iMaxRxQuality);
+      snprintf(szBuff, sizeof(szBuff), "%d%%", iMaxRxQuality);
       if ( iDataRate >= 0 )
-         sprintf(szBuff2, "%d Mb", iDataRate );
+         snprintf(szBuff2, sizeof(szBuff2), "%d Mb", iDataRate );
       else
-         sprintf(szBuff2,"MCS-%d", -iDataRate-1);
+         snprintf(szBuff2, sizeof(szBuff2),"MCS-%d", -iDataRate-1);
       osd_set_colors();
       float fWidthPercentage = g_pRenderEngine->textWidth(0.0, g_idFontOSDSmall, "1999%");
       float fWidthDataRate = g_pRenderEngine->textWidth(0.0, g_idFontOSDSmall, "99 Mb");
@@ -354,18 +354,18 @@ float osd_show_radio_link_new(float xPos, float yPos, int iRadioLink, bool bHori
 
             char szLine1[128];
             bool bShowLine1AsError = false;
-            sprintf(szLine1, "%s: RX/TX", g_pCurrentModel->radioInterfacesParams.interface_szPort[i] );
+            snprintf(szLine1, sizeof(szLine1), "%s: RX/TX", g_pCurrentModel->radioInterfacesParams.interface_szPort[i] );
             int dbm = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uplink_rssi_dbm[i]-200;
             if ( dbm < -110 )
             {
-               strcat(szLine1, " N/A dBm");
+               strlcat(szLine1, " N/A dBm", sizeof(szLine1));
                bShowLine1AsError = true;
             }
             else
             {
                char szTmp[32];
-               sprintf(szTmp, " %d dBm", dbm);
-               strcat(szLine1, szTmp);
+               snprintf(szTmp, sizeof(szTmp), " %d dBm", dbm);
+               strlcat(szLine1, szTmp, sizeof(szLine1));
             }
 
             if ( bShowLine1AsError )
@@ -521,24 +521,24 @@ float osd_show_radio_link_new(float xPos, float yPos, int iRadioLink, bool bHori
             radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
 
             if ( g_pSM_RadioStats->radio_links[iRadioLink].lastTxInterfaceIndex == i )
-               sprintf(szLine1, "%s: RX/TX", pNICInfo->szUSBPort );
+               snprintf(szLine1, sizeof(szLine1), "%s: RX/TX", pNICInfo->szUSBPort );
             else if ( g_pSM_RadioStats->radio_interfaces[i].openedForRead )
-               sprintf(szLine1, "%s: RX", pNICInfo->szUSBPort );
+               snprintf(szLine1, sizeof(szLine1), "%s: RX", pNICInfo->szUSBPort );
             else if ( g_pSM_RadioStats->radio_interfaces[i].openedForWrite )
-               sprintf(szLine1, "%s: --", pNICInfo->szUSBPort );
+               snprintf(szLine1, sizeof(szLine1), "%s: --", pNICInfo->szUSBPort );
             else
-               sprintf(szLine1, "%s: N/A", pNICInfo->szUSBPort );
+               snprintf(szLine1, sizeof(szLine1), "%s: N/A", pNICInfo->szUSBPort );
 
             if ( g_fOSDDbm[i] < -110 )
             {
-               strcat(szLine1, " N/A dBm");
+               strlcat(szLine1, " N/A dBm", sizeof(szLine1));
                bShowLine1AsError = true;
             }
             else
             {
                char szTmp[32];
-               sprintf(szTmp, " %d dBm", (int)g_fOSDDbm[i]);
-               strcat(szLine1, szTmp);
+               snprintf(szTmp, sizeof(szTmp), " %d dBm", (int)g_fOSDDbm[i]);
+               strlcat(szLine1, szTmp, sizeof(szLine1));
             }
 
             if ( bShowLine1AsError )
@@ -584,7 +584,7 @@ float osd_show_radio_link_new(float xPos, float yPos, int iRadioLink, bool bHori
                }
                if ( 0 == szCardName[0] )
                   strcpy(szCardName, "Generic");
-               sprintf(szLine1, "%s%s", (controllerIsCardInternal(pNICInfo->szMAC)?"":"(Ext) "), szCardName );
+               snprintf(szLine1, sizeof(szLine1), "%s%s", (controllerIsCardInternal(pNICInfo->szMAC)?"":"(Ext) "), szCardName );
 
                float fWidthLine1 = g_pRenderEngine->textWidth(0, g_idFontOSDExtraSmall, szLine1);
                if ( bHorizontal )

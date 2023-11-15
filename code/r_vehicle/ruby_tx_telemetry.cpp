@@ -679,12 +679,12 @@ void _send_rc_data_to_FC()
 
    /*
       char szBuff[256];
-      sprintf(szBuff, "fs:%d ", s_pPHDownstreamInfoRC->is_failsafe );
+      snprintf(szBuff, sizeof(szBuff), "fs:%d ", s_pPHDownstreamInfoRC->is_failsafe );
       for( int i=0; i<(int)g_pCurrentModel->rc_params.channelsCount; i++ )
       {
          char szTmp[32];
-         sprintf(szTmp, "%d: %d  ", i+1, s_ch_last_values[i]);
-         strcat(szBuff, szTmp);
+         snprintf(szTmp, sizeof(szTmp), "%d: %d  ", i+1, s_ch_last_values[i]);
+         strlcat(szBuff, szTmp, sizeof(szBuff));
       }
       log_line(szBuff);
    */
@@ -1628,7 +1628,7 @@ void _on_second_lapse_check()
                s_bOnArmEventHandled = true;
 
                char szBuff[64];
-               snprintf(szBuff, 63, "touch %s", FILE_TMP_ARMED);
+               snprintf(szBuff, sizeof(szBuff), "touch %s", FILE_TMP_ARMED);
                hw_execute_bash_command(szBuff, NULL);
 
                g_pCurrentModel->m_Stats.uTotalFlights++;
@@ -1661,7 +1661,7 @@ void _on_second_lapse_check()
          if ( sPHFCT.arm_time != 0 )
          {
             char szBuff[64];
-            snprintf(szBuff, 63, "rm -rf %s", FILE_TMP_ARMED);
+            snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_ARMED);
             hw_execute_bash_command(szBuff, NULL);
          }
          sPHFCT.arm_time = 0;

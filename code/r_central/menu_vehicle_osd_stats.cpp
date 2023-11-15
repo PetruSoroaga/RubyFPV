@@ -39,7 +39,7 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.22;
 
    char szBuff[256];
-   sprintf(szBuff, "OSD Statistics Panels (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   snprintf(szBuff, sizeof(szBuff), "OSD Statistics Panels (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
    setTitle(szBuff);
    
    m_IndexDevStatsVideo = -1;

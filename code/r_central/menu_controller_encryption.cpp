@@ -82,7 +82,7 @@ void MenuControllerEncryption::addItems()
       {
          if ( 0 == countEncr )
             addMenuItem( new MenuItemText("These vehicles currently have encryption enabled:") );
-         sprintf(szBuff, "%s", pModel->getLongName());
+         snprintf(szBuff, sizeof(szBuff), "%s", pModel->getLongName());
          addMenuItem( new MenuItemText(szBuff) );
          countEncr++;
       }
@@ -118,7 +118,7 @@ int MenuControllerEncryption::onBack()
    m_pItemPass->endEdit(false);
 
    char szBuff[MAX_PASS_LENGTH];
-   strncpy(szBuff, m_pItemPass->getCurrentValue(), MAX_PASS_LENGTH-1);
+   strlcpy(szBuff, m_pItemPass->getCurrentValue(), MAX_PASS_LENGTH);
 
    m_pItemPass->setCurrentValue("******");
    m_pItemPass->invalidate();
@@ -141,7 +141,7 @@ int MenuControllerEncryption::onBack()
    pMC->m_yPos = 0.3;
 
    char szInfo[256];
-   sprintf(szInfo, "Your new pass phrase is: %s", szBuff);
+   snprintf(szInfo, sizeof(szInfo), "Your new pass phrase is: %s", szBuff);
    pMC->addTopLine(szInfo);
    add_menu_to_stack(pMC);
 
@@ -203,7 +203,7 @@ void MenuControllerEncryption::onSelectItem()
                if ( pModel->enc_flags != MODEL_ENC_FLAGS_NONE )
                {
                   char szBuff[128];
-                  sprintf(szBuff, "%s", pModel->getLongName());
+                  snprintf(szBuff, sizeof(szBuff), "%s", pModel->getLongName());
                   pMC->addTopLine(szBuff);
                }
             }

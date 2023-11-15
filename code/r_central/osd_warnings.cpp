@@ -98,25 +98,25 @@ void osd_warnings_render()
       szBuff[0] = 0;
       if ( air_flags & 0b1000 )
       {
-         strcat(szBuff, "Vechilce Temperature");
+         strlcat(szBuff, "Vechilce Temperature", sizeof(szBuff));
       }
       if ( (air_flags & 0b0100) || s_bDebugOSDShowAll )
       {
          if ( 0 != szBuff[0] )
-            strcat(szBuff, ", ");
-         strcat(szBuff, "Vechicle CPU Throttled");
+            strlcat(szBuff, ", ", sizeof(szBuff));
+         strlcat(szBuff, "Vechicle CPU Throttled", sizeof(szBuff));
       }
       if ( air_flags & 0b0010 )
       {
          if ( 0 != szBuff[0] )
-            strcat(szBuff, ", ");
-         strcat(szBuff, "Vechicle Frequency Capped");
+            strlcat(szBuff, ", ", sizeof(szBuff));
+         strlcat(szBuff, "Vechicle Frequency Capped", sizeof(szBuff));
       }
       if ( air_flags & 0b0001 )
       {
          if ( 0 != szBuff[0] )
-            strcat(szBuff, ", ");
-         strcat(szBuff, "Vechicle Voltage Too Low");
+            strlcat(szBuff, ", ", sizeof(szBuff));
+         strlcat(szBuff, "Vechicle Voltage Too Low", sizeof(szBuff));
       }
       g_pRenderEngine->drawText(xAlarm, yAlarm, height_text*fTextScale, g_idFontOSDWarnings, szBuff);
 
@@ -192,7 +192,7 @@ void osd_warnings_render()
       
       g_pRenderEngine->drawIcon(xAlarm-sizeIcon/g_pRenderEngine->getAspectRatio(), yAlarm - height_text_big*0.1, sizeIcon/g_pRenderEngine->getAspectRatio(), sizeIcon, g_idIconWarning);
       osd_set_colors();
-      sprintf(szBuff, "Vehicle voltage is low (%.1f V) !", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0 );
+      snprintf(szBuff, sizeof(szBuff), "Vehicle voltage is low (%.1f V) !", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.voltage/1000.0 );
       g_pRenderEngine->drawText(xAlarm+0.01, yAlarm, height_text, g_idFontOSDBig, szBuff);
    }
 
@@ -242,7 +242,7 @@ void osd_warnings_render()
          g_pRenderEngine->drawIcon(xAlarm-sizeIcon/g_pRenderEngine->getAspectRatio(), yAlarm - height_text*0.6 - height_text_big*0.1, sizeIcon/g_pRenderEngine->getAspectRatio(), sizeIcon, g_idIconWarning);
          osd_set_colors();
          g_pRenderEngine->drawText(xAlarm+0.01, yAlarm-height_text, height_text, g_idFontOSDBig, "Vehicle motor is malfunctioning!");
-         sprintf(szBuff, "(Throttle is %d%% and current consumtion is %.1f Amps)",
+         snprintf(szBuff, sizeof(szBuff), "(Throttle is %d%% and current consumtion is %.1f Amps)",
             g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.throttle,
             g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.current/1000.0 );
          g_pRenderEngine->drawText(xAlarm+0.01, yAlarm + height_text*0.2, height_text, g_idFontOSD, szBuff);

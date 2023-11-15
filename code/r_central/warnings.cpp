@@ -175,7 +175,7 @@ void warnings_add(const char* szTitle, u32 iconId, double* pColorIcon, int timeo
 void warnings_add_error_null_model(int code)
 {
    char szBuff[128];
-   sprintf(szBuff, "Fatal error: Invalid model! (code: %x)", code);
+   snprintf(szBuff, sizeof(szBuff), "Fatal error: Invalid model! (code: %x)", code);
    popup_log_add_entry(szBuff);
    Popup* p = new Popup(szBuff, 0.34, 0.68, 5);
    p->setIconId(g_idIconError, get_Color_IconError());
@@ -208,7 +208,7 @@ void warnings_add_too_much_data(int current_kbps, int max_kbps)
       return;
    s_TimeLastWarningTooMuchData = g_TimeNow;
    char szBuff[512];
-   sprintf(szBuff, "You are sending too much data (%d Mbps) over the radio link (max capacity %d Mbps). Lower your video bitrate or increase your radio data rate.", current_kbps/1000, max_kbps/1000);
+   snprintf(szBuff, sizeof(szBuff), "You are sending too much data (%d Mbps) over the radio link (max capacity %d Mbps). Lower your video bitrate or increase your radio data rate.", current_kbps/1000, max_kbps/1000);
    warnings_add(szBuff, g_idIconWarning);
 }
 

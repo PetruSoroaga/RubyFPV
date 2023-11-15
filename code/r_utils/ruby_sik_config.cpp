@@ -37,7 +37,7 @@ void write_result(bool bSucceeded)
 int main(int argc, char *argv[])
 {
    char szBuff[256];
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+   snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
    hw_execute_bash_command(szBuff, NULL);
 
    if ( strcmp(argv[argc-1], "-ver") == 0 )
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
       for( int i=0; i<iMaxParam; i++ )
       {
          char szComm[32];
-         sprintf(szComm, "ATS%d?", i);
+         snprintf(szComm, sizeof(szComm), "ATS%d?", i);
          if ( hardware_radio_sik_send_command(iSerialPort, szComm, bufferResponse, 255) )
          {
             u32 uParam = atoi((char*)bufferResponse);
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 
    if ( 0 == strcmp(szCommand, "-serialspeed") )
    {
-      sprintf(szComm, "ATS%d=%d", 1, iParam1);
+      snprintf(szComm, sizeof(szComm), "ATS%d=%d", 1, iParam1);
 
       if ( hardware_radio_sik_send_command(iSerialPort, szComm, bufferResponse, 255) )
       {

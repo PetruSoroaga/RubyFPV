@@ -71,7 +71,7 @@ void process_custom_commands_file()
             continue;
          }
          char szCommand[1024];
-         sprintf(szCommand, "cp -rf %s %s/%s", szFileIn, szFolder, szFileOut);
+         snprintf(szCommand, sizeof(szCommand), "cp -rf %s %s/%s", szFileIn, szFolder, szFileOut);
          hw_execute_bash_command(szCommand, NULL);
       }
       if ( 0 == strcmp(szComm, "mv") )
@@ -85,7 +85,7 @@ void process_custom_commands_file()
             continue;
          }
          char szCommand[1024];
-         sprintf(szCommand, "mv -f %s %s/%s", szFileIn, szFolder, szFileOut);
+         snprintf(szCommand, sizeof(szCommand), "mv -f %s %s/%s", szFileIn, szFolder, szFileOut);
          hw_execute_bash_command(szCommand, NULL);
       }
       else if ( 0 == strcmp(szComm, "cmd") )
@@ -100,7 +100,7 @@ void process_custom_commands_file()
             continue;
          }        
          char szCommand[1024];
-         sprintf(szCommand, "%s", line);
+         snprintf(szCommand, sizeof(szCommand), "%s", line);
          len = strlen(szCommand)-1;
          while ( len > 0 && (szCommand[len] == 10 || szCommand[len] == 13 || szCommand[len] == '\r' || szCommand[len] == '\t' || szCommand[len] == ' ' ) )
          {
@@ -116,7 +116,7 @@ void process_custom_commands_file()
    log_line("Done executing custom commands from file: %s", FILE_UPDATE_CMD_LIST);
 
    // Do not delete the commands file, can be used to be sent to vehicle as on the fly archive.
-   //sprintf(szComm, "rm -rf %s", FILE_UPDATE_CMD_LIST );
+   //snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_UPDATE_CMD_LIST );
    //hw_execute_bash_command(szComm, NULL);
 }
 
@@ -237,9 +237,9 @@ int main(int argc, char *argv[])
    log_line("Executing update for %s...", bIsController?"station":"vehicle");
 
    if ( bIsController )
-      sprintf(szComm, "find %s/ruby_update*.zip 2>/dev/null", FOLDER_USB_MOUNT);
+      snprintf(szComm, sizeof(szComm), "find %s/ruby_update*.zip 2>/dev/null", FOLDER_USB_MOUNT);
    else
-      sprintf(szComm, "find ruby_update*.zip 2>/dev/null");
+      snprintf(szComm, sizeof(szComm), "find ruby_update*.zip 2>/dev/null");
 
    hw_execute_bash_command(szComm, szFoundFile);
 
@@ -251,21 +251,21 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("mkdir -p updates", NULL);
       hw_execute_bash_command("chmod 777 updates", NULL);
       hw_execute_bash_command("rm -rf updates/*", NULL);
-      sprintf(szComm, "cp -rf %s updates/", szZipFile);
+      snprintf(szComm, sizeof(szComm), "cp -rf %s updates/", szZipFile);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "mkdir -p %s/tmpUpdate", FOLDER_RUBY_TEMP);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s/tmpUpdate", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/tmpUpdate", FOLDER_RUBY_TEMP);
+      snprintf(szComm, sizeof(szComm), "chmod 777 %s/tmpUpdate", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "unzip %s -d %s/tmpUpdate", szZipFile, FOLDER_RUBY_TEMP);
+      snprintf(szComm, sizeof(szComm), "unzip %s -d %s/tmpUpdate", szZipFile, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_LAST_UPDATE);
+      snprintf(szFile, sizeof(szFile), "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_LAST_UPDATE);
       if( access( szFile, R_OK ) != -1 )
       {
          log_line("Found update in zip file: %s", szZipFile);
-         sprintf(szUpdateFromSrcFolder, "%s/tmpUpdate", FOLDER_RUBY_TEMP);
+         snprintf(szUpdateFromSrcFolder, sizeof(szUpdateFromSrcFolder), "%s/tmpUpdate", FOLDER_RUBY_TEMP);
          bFoundZip = true;
       }
       if ( ! bFoundZip )
@@ -295,27 +295,27 @@ int main(int argc, char *argv[])
 
    log_line("Copying update files from zip archive [%s], unpacked in folder [%s] ...", szZipFile, szUpdateFromSrcFolder);
 
-   sprintf(szComm, "cp -rf %s/res/* res/ 2>/dev/null", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/res/* res/ 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_sleep_ms(50);
-   sprintf(szComm, "cp -rf %s/ruby_* .", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/ruby_* .", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(50);
 
 
    g_TimeNow = get_current_timestamp_ms();
 
-   sprintf(szComm, "cp -rf %s/raspi* .", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/raspi* .", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/stop* .  2>/dev/null", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/stop* .  2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/plugins/* plugins/ 2>/dev/null", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/plugins/* plugins/ 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/plugins/osd/* plugins/osd 2>/dev/null", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm), "cp -rf %s/plugins/osd/* plugins/osd 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
    hw_execute_bash_command("chmod 777 ruby*", NULL);
@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("chmod 777 /boot/config.txt", NULL);
    }
 
-   sprintf(szComm, "rm -rf %s/tmpUpdate", FOLDER_RUBY_TEMP);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s/tmpUpdate", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
 
    process_custom_commands_file();

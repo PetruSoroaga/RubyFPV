@@ -178,7 +178,7 @@ void osd_show_ahi_heading(float yTop, float fWidth)
          }
          if ( 0 == szBuff[0] && ((i%10) == 0))
          {
-            sprintf(szBuff, "%d", hdng);
+            snprintf(szBuff, sizeof(szBuff), "%d", hdng);
             float wText = g_pRenderEngine->textWidth( height_text*0.9, g_idFontOSD, const_cast<char*>(szBuff));
             osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
             osd_show_value(xPos-wText*0.5, yBottom-lineHeight*1.3-height_text, szBuff, idFontValues);
@@ -205,7 +205,7 @@ void osd_show_ahi_heading(float yTop, float fWidth)
    osd_ahi_set_color(COLOR_OSD_AHI_LINE_FG, 0.0);
    g_pRenderEngine->drawRoundRect(0.5-s_LineThickness*0.5, yBottom+lineHeight*0.5-0.5*s_LineThickness, s_LineThickness, lineHeight*0.5+2*s_LineThickness, s_LineThickness*0.2 );
 
-   sprintf(szBuff, "%03d", heading);
+   snprintf(szBuff, sizeof(szBuff), "%03d", heading);
    float wText = 1.4*g_pRenderEngine->textWidth( height_text*fScaleText*1.3, g_idFontOSD, const_cast<char*>(szBuff));
    osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
    osd_show_value(0.5-wText*0.5, yBottom+lineHeight*1.6, szBuff, g_idFontOSD);
@@ -253,7 +253,7 @@ void osd_ahi_show_horizont_ladder(float roll, float pitch)
    float space_text = 0.006 * ahi_fScale;
    float ratio = height_ladder / range;
     
-   sprintf(szBuff, "%d", (int)roll);
+   snprintf(szBuff, sizeof(szBuff), "%d", (int)roll);
    float x2 = xCenter-height_text*0.5*0.8;
    if ( roll < 0 )
       x2 -= height_text*0.3*0.8;
@@ -274,7 +274,7 @@ void osd_ahi_show_horizont_ladder(float roll, float pitch)
       float y = yCenter - (angle - pitch) * ratio;
       if (angle == 0)
       {
-        sprintf(szBuff, "0");
+        snprintf(szBuff, sizeof(szBuff), "0");
         osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
         float xl = xCenter - width_ladder / 1.25f - space_text;
         float xr = xCenter + width_ladder / 1.25f + space_text;
@@ -320,7 +320,7 @@ void osd_ahi_show_horizont_ladder(float roll, float pitch)
       osd_rotate_point(xl,y,xCenter, yCenter, roll, &xtl, &ytl);
       osd_rotate_point(xr,y,xCenter, yCenter, roll, &xtr, &ytr);
 
-      sprintf(szBuff, "%d", angle);
+      snprintf(szBuff, sizeof(szBuff), "%d", angle);
 
       osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
       g_pRenderEngine->drawTextLeft(xtl, ytl-0.5*height_text, height_text, g_idFontOSD, const_cast<char*>(szBuff));
@@ -519,7 +519,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
         fSpeed = _osd_convertKm(fSpeed);     
         s_ahi_lastASpeed = s_ahi_lastASpeed * 0.6 + 0.4 * fSpeed;
         fUISpeed = s_ahi_lastASpeed;
-        sprintf(szBuff, "%.1f", s_ahi_lastASpeed);
+        snprintf(szBuff, sizeof(szBuff), "%.1f", s_ahi_lastASpeed);
         if ( 0 == tmp32 )
         {
            strcpy(szBuff, "0");
@@ -539,7 +539,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          fSpeed = _osd_convertMeters(fSpeed);
       s_ahi_lastGSpeed = s_ahi_lastGSpeed * 0.6 + 0.4 * fSpeed;
       fUISpeed = s_ahi_lastGSpeed;
-      sprintf(szBuff, "%.1f", s_ahi_lastGSpeed);
+      snprintf(szBuff, sizeof(szBuff), "%.1f", s_ahi_lastGSpeed);
       if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
       {
          strcpy(szBuff, "0");
@@ -575,13 +575,13 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
       {
          if ( fabs(s_ahi_lastAltitude) < 0.1 )
            s_ahi_lastAltitude = 0.0;
-         sprintf(szBuff, "%.1f", s_ahi_lastAltitude);
+         snprintf(szBuff, sizeof(szBuff), "%.1f", s_ahi_lastAltitude);
       }
       else
-         sprintf(szBuff, "%d", (int)s_ahi_lastAltitude);
+         snprintf(szBuff, sizeof(szBuff), "%d", (int)s_ahi_lastAltitude);
    }
    else
-      sprintf(szBuff, "---");
+      snprintf(szBuff, sizeof(szBuff), "---");
     
    if ( s_ahi_show_altitude )
    {
@@ -638,16 +638,16 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
    
    char szSpeedUnits[32];
    char szAltUnits[32];
-   sprintf(szSpeedUnits, "(km/h)");
+   snprintf(szSpeedUnits, sizeof(szSpeedUnits), "(km/h)");
    if ( p->iUnits == prefUnitsMeters )
-      sprintf(szSpeedUnits, "(m/s)");
-   sprintf(szAltUnits, "(m)");
+      snprintf(szSpeedUnits, sizeof(szSpeedUnits), "(m/s)");
+   snprintf(szAltUnits, sizeof(szAltUnits), "(m)");
    if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
    {
-      sprintf(szSpeedUnits, "(mi/h)");
+      snprintf(szSpeedUnits, sizeof(szSpeedUnits), "(mi/h)");
       if ( p->iUnits == prefUnitsFeets )
-         sprintf(szSpeedUnits, "(ft/s)");
-      sprintf(szAltUnits, "(ft)");
+         snprintf(szSpeedUnits, sizeof(szSpeedUnits), "(ft/s)");
+      snprintf(szAltUnits, sizeof(szAltUnits), "(ft)");
    }
 
    if ( g_pCurrentModel->osd_params.instruments_flags[g_iCurrentOSDVehicleLayout] & INSTRUMENTS_FLAG_SPEED_TO_SIDES )
@@ -711,7 +711,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          else
             g_pRenderEngine->drawLine(ahi_xe-wBar+lenSmall*0.3, y, ahi_xe-wBar+len+lenSmall*0.3, y);
 
-         sprintf(szBuff, "%d", iValue);
+         snprintf(szBuff, sizeof(szBuff), "%d", iValue);
          if ( ( y > yMid + hBar*0.5 + height_text*0.6 ||
               y < yMid - hBar*0.5 - height_text*0.6 ) &&
               y < ahi_ye - height_text*0.6 &&
@@ -759,7 +759,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          else
             g_pRenderEngine->drawLine(ahi_xe-wBar+lenSmall*0.3, y, ahi_xe-wBar+len+lenSmall*0.3, y);
 
-         sprintf(szBuff, "%d", iValue);
+         snprintf(szBuff, sizeof(szBuff), "%d", iValue);
          if ( ( y > yMid + hBar*0.5 + height_text*0.6 ||
               y < yMid - hBar*0.5 - height_text*0.6 ) &&
               y < ahi_ye - height_text*0.6 &&
@@ -831,7 +831,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          else
             g_pRenderEngine->drawLine(ahi_xs+wBar-lenSmall*0.3, y, ahi_xs+wBar-len-lenSmall*0.3, y);
 
-         sprintf(szBuff, "%d", iValue);
+         snprintf(szBuff, sizeof(szBuff), "%d", iValue);
          if ( ( y > yMid + hBar*0.5 + height_text*0.6 ||
               y < yMid - hBar*0.5 - height_text*0.6 ) &&
               y < ahi_ye - height_text*0.6 &&
@@ -878,7 +878,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          else
             g_pRenderEngine->drawLine(ahi_xs+wBar-lenSmall*0.3, y, ahi_xs+wBar-len-lenSmall*0.3, y);
 
-         sprintf(szBuff, "%d", iValue);
+         snprintf(szBuff, sizeof(szBuff), "%d", iValue);
          if ( ( y > yMid + hBar*0.5 + height_text*0.6 ||
               y < yMid - hBar*0.5 - height_text*0.6 ) &&
               y < ahi_ye - height_text*0.6 &&
@@ -967,7 +967,7 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
             fSpeed = _osd_convertMeters(fSpeed);
 
          s_ahi_lastGSpeed = s_ahi_lastGSpeed * 0.6 + 0.4 * fSpeed;
-         sprintf(szBuff, "GS: %.1f", s_ahi_lastGSpeed);
+         snprintf(szBuff, sizeof(szBuff), "GS: %.1f", s_ahi_lastGSpeed);
          if ( 0 == g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.hspeed )
             strcpy(szBuff, "GS: 0");
       }
@@ -1041,7 +1041,7 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
    if ( NULL != g_pCurrentModel && (0 < g_pCurrentModel->iGPSCount) && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry )
      dist = g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.distance/100;
 
-   sprintf(szBuff,"D: %d", dist);
+   snprintf(szBuff, sizeof(szBuff),"D: %d", dist);
    dist = _osd_convertMeters((float)dist);
 
    osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
@@ -1078,9 +1078,9 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
    y += height_text*1.5;
 
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry && link_has_fc_telemetry() )
-      sprintf(szBuff, "%03d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.heading);
+      snprintf(szBuff, sizeof(szBuff), "%03d", g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.heading);
    else
-      sprintf(szBuff, "---");
+      snprintf(szBuff, sizeof(szBuff), "---");
      
    if ( g_pCurrentModel->osd_params.instruments_flags[g_iCurrentOSDVehicleLayout] & INSTRUMENTS_FLAG_SPEED_TO_SIDES )
    {
@@ -1127,9 +1127,9 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
       return;
 
    if ( g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetry && link_has_fc_telemetry() )
-      sprintf(szBuff, "VS: %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
+      snprintf(szBuff, sizeof(szBuff), "VS: %.1f", _osd_convertMeters(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetry.vspeed/100.0f-1000.0));
    else
-      sprintf(szBuff,"VS: 0.0");
+      snprintf(szBuff, sizeof(szBuff),"VS: 0.0");
      
    osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
    if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
@@ -1211,7 +1211,7 @@ void osd_ahi_show_altgraph()
 
    if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
    {
-      sprintf(szBuff, "%.1f", _osd_convertMeters(s_ahi_altitude_speed_history[0]) );
+      snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(s_ahi_altitude_speed_history[0]) );
       osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
       g_pRenderEngine->drawTextLeft(xText, yPos+1.2*height_text, height_text, g_idFontOSD, szBuff);
       g_pRenderEngine->drawTextLeft(xText, yPos+2.4*height_text, height_text*0.8, g_idFontOSD, "ft/s");
@@ -1222,7 +1222,7 @@ void osd_ahi_show_altgraph()
    }
    else
    {
-      sprintf(szBuff, "%.1f", _osd_convertMeters(s_ahi_altitude_speed_history[0]) );
+      snprintf(szBuff, sizeof(szBuff), "%.1f", _osd_convertMeters(s_ahi_altitude_speed_history[0]) );
       osd_ahi_set_color(COLOR_OSD_AHI_TEXT_BORDER, 2.0*s_ShadowThicknessPx);
       g_pRenderEngine->drawTextLeft(xText, yPos+1.2*height_text, height_text, g_idFontOSD, szBuff);
       g_pRenderEngine->drawTextLeft(xText, yPos+2.4*height_text, height_text*0.8, g_idFontOSD, "m/s");

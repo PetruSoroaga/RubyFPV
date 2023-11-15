@@ -34,7 +34,7 @@ MenuUpdateVehiclePopup::MenuUpdateVehiclePopup(int vehicleIndex)
    char szBuff3[32];
    getSystemVersionString(szBuff2, g_pCurrentModel->sw_version);
    getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-   sprintf(szBuff, "Your vehicle %s has Ruby version %s (b.%d) and your controller has Ruby version %s (b.%d). You should update your vehicle.", g_pCurrentModel->getLongName(), szBuff2, g_pCurrentModel->sw_version >> 16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
+   snprintf(szBuff, sizeof(szBuff), "Your vehicle %s has Ruby version %s (b.%d) and your controller has Ruby version %s (b.%d). You should update your vehicle.", g_pCurrentModel->getLongName(), szBuff2, g_pCurrentModel->sw_version >> 16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
 
    addTopLine(szBuff);
    addTopLine("Do you want to update the vehicle?");

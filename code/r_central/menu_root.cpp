@@ -125,9 +125,9 @@ void MenuRoot::RenderVehicleInfo()
    else
    {
       if ( pairing_isReceiving() )
-         sprintf(szLine1, "Connected to %s", g_pCurrentModel->getLongName() );
+         snprintf(szLine1, sizeof(szLine1), "Connected to %s", g_pCurrentModel->getLongName() );
       else
-         sprintf(szLine1, "Looking for %s", g_pCurrentModel->getLongName() );
+         snprintf(szLine1, sizeof(szLine1), "Looking for %s", g_pCurrentModel->getLongName() );
 
       hText1 = g_pRenderEngine->getMessageHeight(szLine1, height_text, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText1;
@@ -148,7 +148,7 @@ void MenuRoot::RenderVehicleInfo()
          g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
          strcpy(szRunType, "flights");
    
-      //sprintf(szLine3, "Total %s: %d", szRunType, g_pCurrentModel->stats_TotalFlights);
+      //snprintf(szLine3, sizeof(szLine3), "Total %s: %d", szRunType, g_pCurrentModel->stats_TotalFlights);
       //hText3 = g_pRenderEngine->getMessageHeight(szLine3, height_text, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       //height += hText3 + lineSpacing;
 
@@ -161,14 +161,14 @@ void MenuRoot::RenderVehicleInfo()
          g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
          g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
          strcpy(szRunType, "flight time");
-      sprintf(szLine4, "Total %s: %dh:%02dm:%02ds", szRunType, hours, min, sec);
+      snprintf(szLine4, sizeof(szLine4), "Total %s: %dh:%02dm:%02ds", szRunType, hours, min, sec);
       hText4 = g_pRenderEngine->getMessageHeight(szLine4, height_text, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText4 + lineSpacing;
 
       if ( pP->iUnits == prefUnitsImperial )
-         sprintf(szLine5, "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+         snprintf(szLine5, sizeof(szLine5), "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
       else
-         sprintf(szLine5, "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+         snprintf(szLine5, sizeof(szLine5), "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
       hText5 = g_pRenderEngine->getMessageHeight(szLine5, height_text, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText5 + lineSpacing;
       }
@@ -255,7 +255,7 @@ void MenuRoot::Render()
    char szBuff2[64];
    getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
 
-   sprintf(szBuff, "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
+   snprintf(szBuff, sizeof(szBuff), "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
 
    y += 0.5 * menu_getScaleMenus()*MENU_FONT_SIZE_TOOLTIPS;
    y += g_pRenderEngine->drawMessageLines(m_xPos+MENU_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), y, szBuff, MENU_FONT_SIZE_TOOLTIPS*menu_getScaleMenus()*0.9, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
@@ -300,7 +300,7 @@ void MenuRoot::createHWInfo(Menu* pm)
 
    log_line("Menu System: create HW info.");
 
-   sprintf(szFileName, "%s/board.txt", FOLDER_CONFIG);
+   snprintf(szFileName, sizeof(szFileName), "%s/board.txt", FOLDER_CONFIG);
    fp = fopen(szFileName,"r");
    if ( NULL != fp )
    {
@@ -308,9 +308,9 @@ void MenuRoot::createHWInfo(Menu* pm)
       fclose(fp);
    }
          
-   sprintf(szBuff, "Board: %s, ", str_get_hardware_board_name(boardType));
+   snprintf(szBuff, sizeof(szBuff), "Board: %s, ", str_get_hardware_board_name(boardType));
    
-   sprintf(szFileName, "%s/wifi.txt", FOLDER_CONFIG);
+   snprintf(szFileName, sizeof(szFileName), "%s/wifi.txt", FOLDER_CONFIG);
    fp = fopen(szFileName,"r");
    if ( NULL != fp )
    {
@@ -319,13 +319,13 @@ void MenuRoot::createHWInfo(Menu* pm)
    }
    if ( wifiType != 0 )
    {
-      strcat(szBuff, "built in WiFi: ");
+      strlcat(szBuff, "built in WiFi: ", sizeof(szBuff));
       char szT[32];
-      sprintf(szT, "%s. ", str_get_hardware_wifi_name(wifiType));
-      strcat(szBuff, szT);
+      snprintf(szT, sizeof(szT), "%s. ", str_get_hardware_wifi_name(wifiType));
+      strlcat(szBuff, szT, sizeof(szBuff));
    }
    else
-      strcat(szBuff, "no built in WiFi. ");
+      strlcat(szBuff, "no built in WiFi. ", sizeof(szBuff));
 
    int temp = 0;
    fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
@@ -333,8 +333,8 @@ void MenuRoot::createHWInfo(Menu* pm)
    fclose(fp);
 
    int speed = hardware_get_cpu_speed();
-   sprintf(szTemp, "CPU: %d Mhz, Temp: %d C", speed, temp/1000); 
-   strcat(szBuff, szTemp);
+   snprintf(szTemp, sizeof(szTemp), "CPU: %d Mhz, Temp: %d C", speed, temp/1000); 
+   strlcat(szBuff, szTemp, sizeof(szBuff));
    pm->addTopLine(szBuff);
 
    u16 flags = hardware_get_flags();
@@ -368,7 +368,7 @@ void MenuRoot::show_MenuInfo()
       if ( 1 == fscanf(fd, "%s", szOutput) )
       {
          strcpy(szBuff, "Ruby base version: ");
-         strcat(szBuff, szOutput);
+         strlcat(szBuff, szOutput, sizeof(szBuff));
       }
       fclose(fd);
    }
@@ -379,8 +379,8 @@ void MenuRoot::show_MenuInfo()
       szOutput[0] = 0;
       if ( 1 == fscanf(fd, "%s", szOutput) )
       {
-         strcat(szBuff, ", last update: ");
-         strcat(szBuff, szOutput);
+         strlcat(szBuff, ", last update: ", sizeof(szBuff));
+         strlcat(szBuff, szOutput, sizeof(szBuff));
       }
       fclose(fd);
    }
@@ -396,7 +396,7 @@ void MenuRoot::show_MenuInfo()
       char szTemp[1024];
       long lb, lu, lf;
       sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
-      sprintf(szBuff, "System storage: %ld Mb free out of %ld Mb total.", lf, lu+lf);
+      snprintf(szBuff, sizeof(szBuff), "System storage: %ld Mb free out of %ld Mb total.", lf, lu+lf);
       pm->addTopLine(szBuff);
    }
    if ( 1 == hw_execute_bash_command_raw("free -m  | grep Mem", szBuff) )
@@ -404,7 +404,7 @@ void MenuRoot::show_MenuInfo()
       char szTemp[1024];
       long lt, lu, lf;
       sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
-      sprintf(szBuff, "System memory: %ld Mb free out of %ld Mb total.", lf, lt);
+      snprintf(szBuff, sizeof(szBuff), "System memory: %ld Mb free out of %ld Mb total.", lf, lt);
       pm->addTopLine(szBuff);
    }
 
