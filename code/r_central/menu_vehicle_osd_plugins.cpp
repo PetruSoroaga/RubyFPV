@@ -44,7 +44,7 @@ MenuVehicleOSDPlugins::MenuVehicleOSDPlugins(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
 
    char szBuff[256];
-   sprintf(szBuff, "Plugins (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   snprintf(szBuff, sizeof(szBuff), "Plugins (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
    setTitle(szBuff);
    
    readPlugins();
@@ -165,7 +165,7 @@ void MenuVehicleOSDPlugins::importFromUSB()
       if ( strlen(dir->d_name) < 4 )
          continue;
 
-      sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
+      snprintf(szFile, sizeof(szFile), "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
       long lSize = 0;
       fd = fopen(szFile, "rb");
       if ( NULL != fd )
@@ -182,7 +182,7 @@ void MenuVehicleOSDPlugins::importFromUSB()
 
       if ( NULL != strstr(dir->d_name, ".png") )
       {
-         sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
+         snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
          hw_execute_bash_command(szComm, NULL);
          continue;
       }
@@ -191,7 +191,7 @@ void MenuVehicleOSDPlugins::importFromUSB()
          continue;
 
       log_line("Found OSD plugin: [%s]", dir->d_name);
-      sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
+      snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
       hw_execute_bash_command(szComm, NULL);
       countImported++;
    }
@@ -206,7 +206,7 @@ void MenuVehicleOSDPlugins::importFromUSB()
       return;
    }
    char szBuff[256];
-   sprintf(szBuff, "Found and imported %d OSD plugins.", countImported);
+   snprintf(szBuff, sizeof(szBuff), "Found and imported %d OSD plugins.", countImported);
    addMessage(szBuff);
    hardware_unmount_usb();
    osd_plugins_load();

@@ -525,15 +525,15 @@ void MenuSearch::Render()
        
    g_pRenderEngine->setColors(get_Color_MenuText());
 
-   sprintf(szBuff, "Searching..");
+   snprintf(szBuff, sizeof(szBuff), "Searching..");
    if ( render_search_step >= 0 )
       for(int k=0; k<(render_search_step%6); k++ )
-         strcat(szBuff,".");
+         strlcat(szBuff, ".", sizeof(szBuff));
 
    g_pRenderEngine->drawMessageLines(m_xPos+MENU_MARGINS*menu_getScaleMenus(), y, szBuff, height_text, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
 
-   sprintf(szBuff,"Scanning on %s", str_format_frequency(m_CurrentSearchFrequency));
+   snprintf(szBuff, sizeof(szBuff),"Scanning on %s", str_format_frequency(m_CurrentSearchFrequency));
    g_pRenderEngine->drawMessageLines(m_xPos+MENU_MARGINS*menu_getScaleMenus(), y, szBuff, height_text, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
 
@@ -634,12 +634,11 @@ void MenuSearch::onSearchStep()
       if ( (g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo) && (g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id != 0) )
       {
          char szTmpBuff[256];
+         int len = 0;
          szTmpBuff[0] = 0;
          for( int i=0; i<g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count; i++ )
          {
-            char szTmp2[64];
-            sprintf(szTmp2, "%s ", str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequencies[i]) );
-            strcat(szTmpBuff, szTmp2);
+            len += snprintf(szTmpBuff+len, sizeof(szTmpBuff)-len, "%s ", str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequencies[i]));
          }
          log_line("MenuSearch: There is a vehicle on current frequency. Vehicle id: %u, has %d radio links: %s.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count, szTmpBuff);
          for( int i=0; i<g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count; i++ )

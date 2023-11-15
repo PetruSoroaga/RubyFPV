@@ -41,7 +41,7 @@ void notification_add_disarmed()
 void notification_add_flight_mode(u32 flightMode)
 {
    char szBuff[128];
-   sprintf(szBuff, "Flight mode changed to: %s", model_getShortFlightMode(flightMode));
+   snprintf(szBuff, sizeof(szBuff), "Flight mode changed to: %s", model_getShortFlightMode(flightMode));
    popups_add(new Popup(true, szBuff, 3));
 }
 
@@ -95,9 +95,9 @@ void notification_add_frequency_changed(int nLinkId, u32 uFreq)
    char szBuff[64];
    szBuff[0] = 0;
    if ( NULL != g_pCurrentModel && 1 == g_pCurrentModel->radioLinksParams.links_count )
-      sprintf(szBuff,"Radio link switched to %s", str_format_frequency(uFreq));
+      snprintf(szBuff, sizeof(szBuff),"Radio link switched to %s", str_format_frequency(uFreq));
    else
-      sprintf(szBuff,"Radio link %d switched to %s", nLinkId+1, str_format_frequency(uFreq));
+      snprintf(szBuff, sizeof(szBuff),"Radio link %d switched to %s", nLinkId+1, str_format_frequency(uFreq));
 
    if ( 0 != szBuff[0] )
       warnings_add(szBuff, g_idIconInfo, get_Color_IconSucces(), 4);

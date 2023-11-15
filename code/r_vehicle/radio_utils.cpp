@@ -274,10 +274,10 @@ void log_current_full_radio_configuration(Model* pModel)
          {
             char szInfo[32];
             if ( 0 != szBuff[0] )
-               sprintf(szInfo, ", %d", k+1);
+               snprintf(szInfo, sizeof(szInfo), ", %d", k+1);
             else
-               sprintf(szInfo, "%d", k+1);
-            strcat(szBuff, szInfo);
+               snprintf(szInfo, sizeof(szInfo), "%d", k+1);
+            strlcat(szBuff, szInfo, sizeof(szBuff));
          }
       }
       if ( pModel->relay_params.isRelayEnabledOnRadioLinkId - 1 == i )
@@ -298,9 +298,9 @@ void log_current_full_radio_configuration(Model* pModel)
       str_getDataRateDescription(pModel->radioLinksParams.uplink_datarates[i][0], szBuff3);
       str_getDataRateDescription(pModel->radioLinksParams.uplink_datarates[i][1], szBuff4);
       if ( pModel->radioLinksParams.bUplinkSameAsDownlink[i] )
-         sprintf(szBuff5, "video: %s, data: %s, same for uplink video: %s, data: %s;", szBuff, szBuff2, szBuff3, szBuff4);
+         snprintf(szBuff5, sizeof(szBuff5), "video: %s, data: %s, same for uplink video: %s, data: %s;", szBuff, szBuff2, szBuff3, szBuff4);
       else
-         sprintf(szBuff5, "video: %s, data: %s, uplink video: %s, data: %s;", szBuff, szBuff2, szBuff3, szBuff4);
+         snprintf(szBuff5, sizeof(szBuff5), "video: %s, data: %s, uplink video: %s, data: %s;", szBuff, szBuff2, szBuff3, szBuff4);
       log_line("* %sRadio Link %d Datarates: %s", szPrefix, i+1, szBuff5);
       log_line("");
    }

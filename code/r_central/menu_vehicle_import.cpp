@@ -75,7 +75,7 @@ void MenuVehicleImport::onShow()
    buildSettingsFileList();
 
    char szId[256];
-   sprintf(szId, "%u", g_pCurrentModel->vehicle_id);
+   snprintf(szId, sizeof(szId), "%u", g_pCurrentModel->vehicle_id);
    bool found = false;
    int selectedIndex = -1;
 
@@ -141,7 +141,7 @@ void MenuVehicleImport::onSelectItem()
 
    Model m;
    char szFile[1024];
-   sprintf(szFile, "%s/%s/%s",FOLDER_RUBY, FOLDER_USB_MOUNT, m_szTempFiles[m_SelectedIndex]);
+   snprintf(szFile, sizeof(szFile), "%s/%s/%s",FOLDER_RUBY, FOLDER_USB_MOUNT, m_szTempFiles[m_SelectedIndex]);
 
    if ( ! m.loadFromFile(szFile, true) )
    {
@@ -213,7 +213,7 @@ void MenuVehicleImport::buildSettingsFileList()
       free(m_szTempFiles[i]);
    m_TempFilesCount = 0;
 
-   sprintf(szFolder, "%s/%s/",FOLDER_RUBY, FOLDER_USB_MOUNT);
+   snprintf(szFolder, sizeof(szFolder), "%s/%s/",FOLDER_RUBY, FOLDER_USB_MOUNT);
    log_line("Searching for model settings files on: %s", szFolder);
    d = opendir(szFolder);
    if (d)

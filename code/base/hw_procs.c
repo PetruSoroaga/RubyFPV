@@ -16,7 +16,7 @@ int hw_process_exists(const char* szProcName)
    if ( NULL == szProcName || 0 == szProcName[0] )
       return 0;
 
-   sprintf(szComm, "pidof %s", szProcName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProcName);
    hw_execute_bash_command_silent(szComm, szPids);
    if ( strlen(szPids) > 2 )
       return 1;
@@ -31,15 +31,15 @@ void hw_stop_process(const char* szProcName)
    if ( NULL == szProcName || 0 == szProcName[0] )
       return;
 
-   sprintf(szComm, "pidof %s", szProcName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProcName);
    hw_execute_bash_command(szComm, szPids);
    if ( strlen(szPids) > 2 )
    {
-      sprintf(szComm, "kill $(pidof %s) 2>/dev/null", szProcName);
+      snprintf(szComm, sizeof(szComm), "kill $(pidof %s) 2>/dev/null", szProcName);
       hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(20);
       int retryCount = 20;
-      sprintf(szComm, "pidof %s", szProcName);
+      snprintf(szComm, sizeof(szComm), "pidof %s", szProcName);
       while ( retryCount > 0 )
       {
          hardware_sleep_ms(15);
@@ -49,7 +49,7 @@ void hw_stop_process(const char* szProcName)
             return;
          retryCount--;
       }
-      sprintf(szComm, "kill -9 $(pidof %s) 2>/dev/null", szProcName);
+      snprintf(szComm, sizeof(szComm), "kill -9 $(pidof %s) 2>/dev/null", szProcName);
       hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(20);
    }
@@ -64,18 +64,18 @@ void hw_kill_process(const char* szProcName)
    if ( NULL == szProcName || 0 == szProcName[0] )
       return;
 
-   sprintf(szComm, "kill -9 $(pidof %s) 2>/dev/null", szProcName);
+   snprintf(szComm, sizeof(szComm), "kill -9 $(pidof %s) 2>/dev/null", szProcName);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(20);
 
-   sprintf(szComm, "pidof %s", szProcName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProcName);
    hw_execute_bash_command(szComm, szPids);
    if ( strlen(szPids) > 2 )
    {
       log_line("Process %s pid is: %s", szProcName, szPids);
 
       int retryCount = 10;
-      sprintf(szComm, "pidof %s", szProcName);
+      snprintf(szComm, sizeof(szComm), "pidof %s", szProcName);
       while ( retryCount > 0 )
       {
          hardware_sleep_ms(10);
@@ -116,9 +116,9 @@ int hw_launch_process4(const char *szFile, const char* szParam1, const char* szP
 
    char szBuff[1024];
    if ( NULL == szParam1 && NULL == szParam2 && NULL == szParam3 && NULL == szParam4 )
-      sprintf(szBuff, "%s &", szFile);
+      snprintf(szBuff, sizeof(szBuff), "%s &", szFile);
    else
-      sprintf(szBuff, "%s %s %s %s %s &", szFile, ((NULL != szParam1)?szParam1:""), ((NULL != szParam2)?szParam2:""), ((NULL != szParam3)?szParam3:""), ((NULL != szParam4)?szParam4:"") );
+      snprintf(szBuff, sizeof(szBuff), "%s %s %s %s %s &", szFile, ((NULL != szParam1)?szParam1:""), ((NULL != szParam2)?szParam2:""), ((NULL != szParam3)?szParam3:""), ((NULL != szParam4)?szParam4:"") );
    hw_execute_bash_command(szBuff, NULL);
    return 0;
 
@@ -206,7 +206,7 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    if ( NULL == szProgName || 0 == szProgName[0] )
       return;
 
-   sprintf(szComm, "pidof %s", szProgName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProgName);
    szPids[0] = 0;
    int count = 0;
    hw_execute_bash_command_silent(szComm, szPids);
@@ -221,16 +221,16 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    if ( strlen(szPids) <= 2 )
       return;
 
-   sprintf(szComm, "renice -n %d -p %s", nice, szPids);
+   snprintf(szComm, sizeof(szComm), "renice -n %d -p %s", nice, szPids);
    hw_execute_bash_command(szComm, NULL);
 
    if ( ionice > 0 )
    {
-      sprintf(szComm, "ionice -c 1 -n %d -p %s", ionice, szPids);
+      snprintf(szComm, sizeof(szComm), "ionice -c 1 -n %d -p %s", ionice, szPids);
       hw_execute_bash_command(szComm, NULL);
    }
    //else
-   //   sprintf(szComm, "ionice -c 2 -n 5 -p %s", szPids);
+   //   snprintf(szComm, sizeof(szComm), "ionice -c 2 -n 5 -p %s", szPids);
 }
 
 void hw_get_proc_priority(const char* szProgName, char* szOutput)
@@ -249,37 +249,37 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
       strcpy(szOutput, szProgName+5);
    else
       strcpy(szOutput, szProgName);
-   strcat(szOutput, ": ");
+   strlcat(szOutput, ": ", sizeof(szOutput));
 
-   sprintf(szComm, "pidof %s", szProgName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProgName);
    hw_execute_bash_command(szComm, szPids);
    if ( strlen(szPids) <= 2 )
    {
-      strcat(szOutput, "Not Running");
+      strlcat(szOutput, "Not Running", sizeof(szOutput));
       return;
    }
-   strcat(szOutput, "Running, ");
-   sprintf(szComm, "cat /proc/%s/stat | awk '{print \"priority \" $18 \", nice \" $19}'", szPids);
+   strlcat(szOutput, "Running, ", sizeof(szOutput));
+   snprintf(szComm, sizeof(szComm), "cat /proc/%s/stat | awk '{print \"priority \" $18 \", nice \" $19}'", szPids);
    hw_execute_bash_command_raw(szComm, szCommOut);
    if ( 0 < strlen(szCommOut) )
       szCommOut[strlen(szCommOut)-1] = 0;
-   strcat(szOutput, "pri.");
-   strcat(szOutput, szCommOut+8);
-   strcat(szOutput, ", io priority: ");
+   strlcat(szOutput, "pri.", sizeof(szOutput));
+   strlcat(szOutput, szCommOut+8, sizeof(szOutput));
+   strlcat(szOutput, ", io priority: ", sizeof(szOutput));
 
-   sprintf(szComm, "ionice -p %s", szPids);
+   snprintf(szComm, sizeof(szComm), "ionice -p %s", szPids);
    hw_execute_bash_command_raw(szComm, szCommOut);
    if ( 0 < strlen(szCommOut) )
       szCommOut[strlen(szCommOut)-1] = 0;
-   strcat(szOutput, szCommOut);
-   strcat(szOutput, ";");
+   strlcat(szOutput, szCommOut, sizeof(szOutput));
+   strlcat(szOutput, ";", sizeof(szOutput));
 }
 
 void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
 {
    char szComm[128];
    char szOutput[256];
-   sprintf(szComm, "pidof %s", szProgName);
+   snprintf(szComm, sizeof(szComm), "pidof %s", szProgName);
    hw_execute_bash_command_silent(szComm, szOutput);
    if ( strlen(szOutput) < 3 )
    {
@@ -294,7 +294,7 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
       return;
    }
 
-   sprintf(szComm, "ls /proc/%d/task", iPID);
+   snprintf(szComm, sizeof(szComm), "ls /proc/%d/task", iPID);
    hw_execute_bash_command_raw_silent(szComm, szOutput);
    
    if ( strlen(szOutput) < 3 )
@@ -329,12 +329,12 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
        // Set affinity
        if ( iCoreStart == iCoreEnd )
        {
-          sprintf(szComm, "taskset -cp %d %d", iCoreStart-1, iTask);
+          snprintf(szComm, sizeof(szComm), "taskset -cp %d %d", iCoreStart-1, iTask);
           hw_execute_bash_command(szComm, NULL);
        }
        else
        {
-          sprintf(szComm, "taskset -cp %d-%d %d", iCoreStart-1, iCoreEnd-1, iTask);
+          snprintf(szComm, sizeof(szComm), "taskset -cp %d-%d %d", iCoreStart-1, iCoreEnd-1, iTask);
           hw_execute_bash_command(szComm, NULL);        
        }
        // Go to next task in string
@@ -397,7 +397,7 @@ int hw_execute_bash_command_raw(const char* command, char* outBuffer)
       {
          szBuff[1023] = 0;
          if ( strlen(szBuff) + strlen(outBuffer) < 1023 )
-            strcat(outBuffer, szBuff);
+            strlcat(outBuffer, szBuff, sizeof(outBuffer));
          lines++;
          szBuff[0] = 0;
       }
@@ -429,7 +429,7 @@ int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer)
       {
          szBuff[1023] = 0;
          if ( strlen(szBuff) + strlen(outBuffer) < 1023 )
-            strcat(outBuffer, szBuff);
+            strlcat(outBuffer, szBuff, sizeof(outBuffer));
          lines++;
          szBuff[0] = 0;
       }
@@ -444,7 +444,7 @@ int hw_execute_bash_command_silent(const char* command, char* outBuffer)
    if ( NULL != outBuffer )
       outBuffer[0] = 0;
    char szCommand[1024];
-   sprintf(szCommand, "%s 2>/dev/null", command);
+   snprintf(szCommand, sizeof(szCommand), "%s 2>/dev/null", command);
    FILE* fp = popen( szCommand, "r" );
    if ( NULL == fp )
       return 0;

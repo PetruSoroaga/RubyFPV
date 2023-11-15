@@ -108,7 +108,7 @@ void _processor_rx_video_forward_open_eth_pipe()
 {
    log_line("Creating ETH pipes for video forward...");
    char szComm[1024];
-   sprintf(szComm, "ionice -c 1 -n 4 nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
+   snprintf(szComm, sizeof(szComm), "ionice -c 1 -n 4 nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("Opening video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
@@ -181,7 +181,7 @@ void _start_recording()
       char szBuff[2048];
       char szTemp[1024];
    
-      sprintf(szComm, "umount %s", TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "umount %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command_silent(szComm, NULL);
 
       hw_execute_bash_command_raw("free -m  | grep Mem", szBuff);
@@ -191,7 +191,7 @@ void _start_recording()
       if ( lf < 50 )
          return;
 
-      sprintf(szComm, "mount -t tmpfs -o size=%dM tmpfs %s ", (int)lf, TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "mount -t tmpfs -o size=%dM tmpfs %s ", (int)lf, TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -235,7 +235,7 @@ void _stop_recording()
    {
       system("sudo mount -o remount,rw /");
       char szTmp[128];
-      sprintf(szTmp, "rm -rf %s", TEMP_VIDEO_FILE_INFO);
+      snprintf(szTmp, sizeof(szTmp), "rm -rf %s", TEMP_VIDEO_FILE_INFO);
       hw_execute_bash_command(szTmp, NULL);
       fd = fopen(TEMP_VIDEO_FILE_INFO, "w");
    }

@@ -54,7 +54,7 @@ MenuVehicleFunctions::MenuVehicleFunctions(void)
    for( int i=0; i<14; i++ )
    {
       char szBuff[64];
-      sprintf(szBuff, "RC Channel %d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "RC Channel %d", i+1);
       m_pItemsSelect[1]->addSelection(szBuff);
    }
    m_pItemsSelect[1]->setIsEditable();
@@ -85,7 +85,7 @@ MenuVehicleFunctions::MenuVehicleFunctions(void)
    for( int i=0; i<14; i++ )
    {
       char szBuff[64];
-      sprintf(szBuff, "RC Channel %d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "RC Channel %d", i+1);
       m_pItemsSelect[4]->addSelection(szBuff);
    }
    m_pItemsSelect[4]->setIsEditable();

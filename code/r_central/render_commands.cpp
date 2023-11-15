@@ -71,9 +71,9 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
    if ( s_ProgressPercent >= 0 )
    {
       char szBuff[32];
-      sprintf(szBuff, "%d%%", s_ProgressPercent);
+      snprintf(szBuff, sizeof(szBuff), "%d%%", s_ProgressPercent);
       if ( ! s_bUploadNewMethod )
-         sprintf(szBuff, "* %d%%", s_ProgressPercent);
+         snprintf(szBuff, sizeof(szBuff), "* %d%%", s_ProgressPercent);
       float height_text = osd_getFontHeightBig();
       g_pRenderEngine->drawText(xPos+fWidth+0.01, yPos+height_text*0.1, height_text, g_idFontOSDBig, szBuff);
    }

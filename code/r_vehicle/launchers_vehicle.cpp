@@ -48,7 +48,7 @@ void vehicle_launch_rx_rc(Model* pModel)
       return;
    }
    char szBuff[256];
-   sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rx_rc &", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
+   snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d nice -n %d ./ruby_rx_rc &", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
    hw_execute_bash_command(szBuff, NULL);
 }
 
@@ -84,9 +84,9 @@ void vehicle_launch_tx_router(Model* pModel)
 
    char szBuff[1024];
    if ( pModel->ioNiceRouter > 0 )
-      sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rt_vehicle &", pModel->ioNiceRouter, pModel->niceRouter );
+      snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d nice -n %d ./ruby_rt_vehicle &", pModel->ioNiceRouter, pModel->niceRouter );
    else
-      sprintf(szBuff, "nice -n %d ./ruby_rt_vehicle &", pModel->niceRouter);
+      snprintf(szBuff, sizeof(szBuff), "nice -n %d ./ruby_rt_vehicle &", pModel->niceRouter);
 
    hw_execute_bash_command(szBuff, NULL);
 }
@@ -118,11 +118,11 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       log_line("Applying VeYe camera commands to I2C bus number %d, dev address: 0x%02X", nBus, I2C_DEVICE_ADDRESS_CAMERA_VEYE);
 
-      sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+      snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
       hw_execute_bash_command_raw(szComm, szOutput);
       log_line("VEYE Camera Dev Id output: %s", szOutput);
 
-      sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+      snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
       hw_execute_bash_command_raw(szComm, szOutput);
       log_line("VEYE Camera HW Ver output: %s", szOutput);
 
@@ -147,33 +147,33 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
 
 
    if ( pModel->ioNiceVideo > 0 )
-      sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
+      snprintf(szPriority, sizeof(szPriority), "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
    else
-      sprintf(szPriority, "nice -n %d", pModel->niceVideo );
+      snprintf(szPriority, sizeof(szPriority), "nice -n %d", pModel->niceVideo );
 
    if ( pModel->isCameraVeye() )
    {
       if ( pModel->camera_params[pModel->iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
       {
          if ( pModel->bDeveloperMode )
-            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            snprintf(szBuff, sizeof(szBuff), "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
          else
-            sprintf(szBuff, "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            snprintf(szBuff, sizeof(szBuff), "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
       }
       else
       {
          if ( pModel->bDeveloperMode )
-            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            snprintf(szBuff, sizeof(szBuff), "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
          else
-            sprintf(szBuff, "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            snprintf(szBuff, sizeof(szBuff), "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
       }
    }
    else
    {
       if ( pModel->bDeveloperMode )
-         sprintf(szBuff, "%s ./%s -dbg %s %s -log -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
+         snprintf(szBuff, sizeof(szBuff), "%s ./%s -dbg %s %s -log -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
       else
-         sprintf(szBuff, "%s ./%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
+         snprintf(szBuff, sizeof(szBuff), "%s ./%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
    }
 
    FILE* fd = fopen(FILE_TMP_CURRENT_VIDEO_PARAMS, "w");
@@ -261,49 +261,49 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
            s_LastAppliedVeyeVideoParams.height != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height ||
            s_LastAppliedVeyeVideoParams.fps != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f  videofmt -p1 %d -p2 %d -p3 %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f  videofmt -p1 %d -p2 %d -p3 %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].dayNightMode != pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x2; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x2; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].brightness != pModel->camera_params[iCameraIndex].profiles[iProfile].brightness )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f aetarget -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (int)(2.5f*(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness)));
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f aetarget -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (int)(2.5f*(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness)));
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].contrast != pModel->camera_params[iCameraIndex].profiles[iProfile].contrast )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f contrast -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->camera_params[iCameraIndex].profiles[iProfile].contrast);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f contrast -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->camera_params[iCameraIndex].profiles[iProfile].contrast);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].saturation != pModel->camera_params[iCameraIndex].profiles[iProfile].saturation )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f satu -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2));
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f satu -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2));
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].shutterspeed != pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          else
          {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          hw_execute_bash_command(szComm, NULL);
 
          char szShutter[24];
-         sprintf(szShutter, "%d", (int)(1000000l/(long)pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed));
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f metime -p1 %s; cd $current_dir", VEYE_COMMANDS_FOLDER307, szShutter);
+         snprintf(szShutter, sizeof(szShutter), "%d", (int)(1000000l/(long)pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed));
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f metime -p1 %s; cd $current_dir", VEYE_COMMANDS_FOLDER307, szShutter);
          }
          hw_execute_bash_command(szComm, NULL);
       }
@@ -311,17 +311,17 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].whitebalance != pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
       {
          if ( 0 == pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].flip_image != pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 3; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 3; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          hw_execute_bash_command(szComm, NULL);
       }
    }
@@ -331,22 +331,22 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       log_line("Applying VeYe camera commands to I2C bus number %d, dev address: 0x%02X", nBus, I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       if ( bApplyAll )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f  videofmt -p1 NTSC -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f  videofmt -p1 NTSC -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].dayNightMode != pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f daynightmode -p1 0xFF -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f daynightmode -p1 0xFF -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f daynightmode -p1 0xFE -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f daynightmode -p1 0xFE -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].brightness != pModel->camera_params[iCameraIndex].profiles[iProfile].brightness )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f brightness -p1 0x%02X -b %d 2>&1; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness), nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f brightness -p1 0x%02X -b %d 2>&1; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness), nBus);
          char szOutput[1024];
          szOutput[0] = 0;
          hw_execute_bash_command_raw(szComm, szOutput);
@@ -355,13 +355,13 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].contrast != pModel->camera_params[iCameraIndex].profiles[iProfile].contrast )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f contrast -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(2.5*pModel->camera_params[iCameraIndex].profiles[iProfile].contrast), nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f contrast -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(2.5*pModel->camera_params[iCameraIndex].profiles[iProfile].contrast), nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].saturation != pModel->camera_params[iCameraIndex].profiles[iProfile].saturation )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f saturation -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2), nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f saturation -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2), nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
@@ -370,14 +370,14 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
          int wdrmode = (int) pModel->camera_params[iCameraIndex].profiles[iProfile].wdr;
          if ( wdrmode < 0 || wdrmode > 3 )
             wdrmode = 0;
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wdrmode -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, wdrmode, nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wdrmode -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, wdrmode, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].shutterspeed != pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mshutter -p1 0x40 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mshutter -p1 0x40 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          else
          {
          char szShutter[24];
@@ -403,7 +403,7 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
          else
             strcpy(szShutter, "0x4A"); // 1/50000
 
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mshutter -p1 %s -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, szShutter, nBus);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mshutter -p1 %s -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, szShutter, nBus);
          }
          hw_execute_bash_command(szComm, NULL);
       }
@@ -411,9 +411,9 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].whitebalance != pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
       {
          if ( 0 == pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wbmode -p1 0x1B -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wbmode -p1 0x1B -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wbmode -p1 0x18 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f wbmode -p1 0x18 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].sharpness != pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness )
@@ -422,9 +422,9 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness <= 110 )
          {
             if ( pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness == 100 )
-               sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x0 -p2 0x0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+               snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x0 -p2 0x0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
             else
-               sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x1 -p2 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness - 100, nBus);
+               snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x1 -p2 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness - 100, nBus);
             hw_execute_bash_command(szComm, NULL);
          }
       }
@@ -433,7 +433,7 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].drc<16 )
          {
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f agc -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].drc, nBus );
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f agc -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].drc, nBus );
             hw_execute_bash_command(szComm, NULL);
          }
       }
@@ -441,9 +441,9 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].flip_image != pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mirrormode -p1 0x03 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mirrormode -p1 0x03 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mirrormode -p1 0x00 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mirrormode -p1 0x00 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
    }
@@ -459,7 +459,7 @@ void vehicle_launch_audio_capture(Model* pModel)
       return;
    char szComm[128];
    char szRate[32];
-   sprintf(szComm, "amixer -c 1 sset Mic %d%%", pModel->audio_params.volume);
+   snprintf(szComm, sizeof(szComm), "amixer -c 1 sset Mic %d%%", pModel->audio_params.volume);
    hw_execute_bash_command(szComm, NULL);
 
    strcpy(szRate, "8000");
@@ -473,7 +473,7 @@ void vehicle_launch_audio_capture(Model* pModel)
       strcpy(szRate, "44100");
 
    strcpy(szRate, "44100");
-   sprintf(szComm, "arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 >> %s &", szRate, FIFO_RUBY_AUDIO1);
+   snprintf(szComm, sizeof(szComm), "arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 >> %s &", szRate, FIFO_RUBY_AUDIO1);
    hw_execute_bash_command(szComm, NULL);
 }
 

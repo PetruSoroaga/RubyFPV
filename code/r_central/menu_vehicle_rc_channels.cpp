@@ -215,17 +215,17 @@ void MenuVehicleRCChannels::Render()
             {
                char szTmp[32];
                if ( 0 == szBuff[0] )
-                  sprintf(szBuff, "B-%d", ((g_pCurrentModel->rc_params.rcChAssignment[i] >> shift) & 0x0F));
+                  snprintf(szBuff, sizeof(szBuff), "B-%d", ((g_pCurrentModel->rc_params.rcChAssignment[i] >> shift) & 0x0F));
                else
                {
-                  sprintf(szTmp, ", B-%d", ((g_pCurrentModel->rc_params.rcChAssignment[i] >> shift) & 0x0F));
-                  strcat(szBuff, szTmp);
+                  snprintf(szTmp, sizeof(szTmp), ", B-%d", ((g_pCurrentModel->rc_params.rcChAssignment[i] >> shift) & 0x0F));
+                  strlcat(szBuff, szTmp, sizeof(szBuff));
                }
             }
             }
          }
          else if ( ((g_pCurrentModel->rc_params.rcChAssignment[i] >> 4 ) & 0x0F) > 0 )
-            sprintf(szBuff, "A-%d", (((g_pCurrentModel->rc_params.rcChAssignment[i]) >>4 ) & 0x0F));
+            snprintf(szBuff, sizeof(szBuff), "A-%d", (((g_pCurrentModel->rc_params.rcChAssignment[i]) >>4 ) & 0x0F));
       }
 
       if ( strlen(szBuff) > 5 )
@@ -254,10 +254,10 @@ void MenuVehicleRCChannels::Render()
       g_pRenderEngine->drawRoundRect(xLive, yLine, rectW, rectH, corner);
    
       g_pRenderEngine->setColors(get_Color_MenuText());
-      sprintf(szBuff, "%d", val);
+      snprintf(szBuff, sizeof(szBuff), "%d", val);
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
       if ( ! (g_pCurrentModel->rc_params.rcChAssignment[i] & RC_CH_ASSIGNMENT_FLAG_ASSIGNED ) )
-         sprintf(szBuff, "Not Assigned");
+         snprintf(szBuff, sizeof(szBuff), "Not Assigned");
 
       g_pRenderEngine->drawText(xLive+0.003*menu_getScaleMenus(), yLine, height_text, g_idFontMenu, szBuff);
       g_pRenderEngine->setColors(get_Color_MenuText());
@@ -439,7 +439,7 @@ void MenuVehicleRCChannels::onAssignButton(int buttonIndex)
    }
 
    char szBuff[64];
-   sprintf(szBuff, "Assigned button %d to channel %d", buttonIndex+1, m_iCurrentChannelToAssign+1);
+   snprintf(szBuff, sizeof(szBuff), "Assigned button %d to channel %d", buttonIndex+1, m_iCurrentChannelToAssign+1);
    m_pPopupAssignment = new Popup(true, szBuff, 3 );
    m_pPopupAssignment->setIconId(g_idIconInfo, get_Color_IconNormal());
    popups_add_topmost(m_pPopupAssignment);
@@ -501,7 +501,7 @@ void MenuVehicleRCChannels::onAssignAxe(int axeIndex)
    }
 
    char szBuff[64];
-   sprintf(szBuff, "Assigned axe %d to channel %d", axeIndex+1, m_iCurrentChannelToAssign+1);
+   snprintf(szBuff, sizeof(szBuff), "Assigned axe %d to channel %d", axeIndex+1, m_iCurrentChannelToAssign+1);
    m_pPopupAssignment = new Popup(true, szBuff, 3 );
    m_pPopupAssignment->setIconId(g_idIconInfo, get_Color_IconNormal());
    popups_add_topmost(m_pPopupAssignment);

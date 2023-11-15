@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
    char name[256];
    if (ioctl(fJ, JSIOCGNAME(sizeof(name)), name) < 0)
-      strncpy(name, "Unknown", sizeof(name));
+      strlcpy(name, "Unknown", sizeof(name));
    log_line("Name: %s", name);
 
    u32 uid = 0;

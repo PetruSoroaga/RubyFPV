@@ -57,7 +57,7 @@ void _hardware_enumerate_serial_ports()
    {
       char szBuff[128];
       char szOutput[1024];
-      sprintf(szBuff, "/dev/ttyUSB%d", i);
+      snprintf(szBuff, sizeof(szBuff), "/dev/ttyUSB%d", i);
       if( access( szBuff, R_OK ) == -1 )
          continue;
       if ( s_iCountHardwareSerialPorts >= MAX_SERIAL_PORTS )
@@ -66,7 +66,7 @@ void _hardware_enumerate_serial_ports()
       sprintf(s_HardwareSerialPortsInfo[s_iCountHardwareSerialPorts].szName, "Serial-USB%d",i);
       strcpy(s_HardwareSerialPortsInfo[s_iCountHardwareSerialPorts].szPortDeviceName, szBuff);
       s_HardwareSerialPortsInfo[s_iCountHardwareSerialPorts].iSupported = 1;
-      sprintf(szBuff, "ls /dev/serial/by-id/ -al | grep ttyUSB%d", i);
+      snprintf(szBuff, sizeof(szBuff), "ls /dev/serial/by-id/ -al | grep ttyUSB%d", i);
       hw_execute_bash_command_raw_silent(szBuff, szOutput);
    
       if ( NULL != strstr(szOutput, "CP2102") )
@@ -359,7 +359,7 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    }
 
    //char szBuff[1024];
-   //sprintf(szBuff, "stty -F %s -icrnl -ocrnl -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon %ld", szDevName, baudRate);
+   //snprintf(szBuff, sizeof(szBuff), "stty -F %s -icrnl -ocrnl -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon %ld", szDevName, baudRate);
    //execute_bash_command(szBuff, NULL);
    
    int fPort = open (szDevName, O_RDWR | O_NOCTTY | O_NDELAY );
@@ -535,7 +535,7 @@ int hardware_serial_send_sik_command(int iSerialPortFD, const char* szCommand)
    char szBuff[256];
    strcpy(szBuff, szCommand);
    if ( 0 != strcmp(szCommand, "+++") )
-      strcat(szBuff, "\r");
+      strlcat(szBuff, "\r", sizeof(szBuff));
    int iLen = strlen(szBuff);
    if ( iLen != write(iSerialPortFD, szBuff, iLen) )
    {

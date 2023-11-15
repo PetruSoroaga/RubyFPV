@@ -334,7 +334,7 @@ void MenuControllerPlugins::importFromUSB()
       if ( strlen(dir->d_name) < 4 )
          continue;
 
-      sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
+      snprintf(szFile, sizeof(szFile), "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
       long lSize = 0;
       fd = fopen(szFile, "rb");
       if ( NULL != fd )
@@ -351,7 +351,7 @@ void MenuControllerPlugins::importFromUSB()
 
       if ( NULL != strstr(dir->d_name, ".png") )
       {
-         sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
+         snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
          hw_execute_bash_command(szComm, NULL);
          continue;
       }
@@ -359,7 +359,7 @@ void MenuControllerPlugins::importFromUSB()
       if ( NULL == strstr(dir->d_name, ".so") )
          continue;
 
-      sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
+      snprintf(szFile, sizeof(szFile), "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
       void* pLibrary = NULL;
       pLibrary = dlopen(szFile, RTLD_LAZY | RTLD_GLOBAL);
       if ( NULL == pLibrary )
@@ -381,7 +381,7 @@ void MenuControllerPlugins::importFromUSB()
       if ( NULL != pFunctionOSDInit && NULL != pFunctionOSDRender && NULL != pFunctionOSDGetName && NULL != pFunctionOSDGetUID )
       {
          dlclose(pLibrary);
-         sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
+         snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
          hw_execute_bash_command(szComm, NULL);
       
          log_line("Found OSD plugin: [%s]", dir->d_name);
@@ -403,7 +403,7 @@ void MenuControllerPlugins::importFromUSB()
       if ( NULL != pFunctionCoreInit && NULL != pFunctionCoreRequestCapab && NULL != pFunctionCoreGetName && NULL != pFunctionCoreGetUID )
       {
          dlclose(pLibrary);
-         sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_CORE_PLUGINS);
+         snprintf(szComm, sizeof(szComm), "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_CORE_PLUGINS);
          hw_execute_bash_command(szComm, NULL);
       
          log_line("Found Core plugin: [%s]", dir->d_name);
@@ -438,13 +438,13 @@ void MenuControllerPlugins::importFromUSB()
    else
    {
       if ( 0 < countImportedOSD && 0 < countImportedCore )
-         sprintf(szBuff, "Found and imported %d plugins (%d OSD plugins, %d core plugins).", countImportedTotal, countImportedOSD, countImportedCore);
+         snprintf(szBuff, sizeof(szBuff), "Found and imported %d plugins (%d OSD plugins, %d core plugins).", countImportedTotal, countImportedOSD, countImportedCore);
       else if ( 0 < countImportedOSD )
-         sprintf(szBuff, "Found and imported %d plugins (%d OSD plugins).", countImportedTotal, countImportedOSD);
+         snprintf(szBuff, sizeof(szBuff), "Found and imported %d plugins (%d OSD plugins).", countImportedTotal, countImportedOSD);
       else if ( 0 < countImportedCore )
-         sprintf(szBuff, "Found and imported %d plugins (%d core plugins).", countImportedTotal, countImportedCore);
+         snprintf(szBuff, sizeof(szBuff), "Found and imported %d plugins (%d core plugins).", countImportedTotal, countImportedCore);
       else
-         sprintf(szBuff, "Found and imported %d plugins.", countImportedTotal);
+         snprintf(szBuff, sizeof(szBuff), "Found and imported %d plugins.", countImportedTotal);
    }
    addMessage(szBuff);
    hardware_unmount_usb();

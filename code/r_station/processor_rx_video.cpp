@@ -218,9 +218,9 @@ void _rx_video_log_line(const char* format, ...)
       return;
 
    char szTime[64];
-   sprintf(szTime,"%d:%02d:%02d.%03d", (int)(g_TimeNow/1000/60/60), (int)(g_TimeNow/1000/60)%60, (int)((g_TimeNow/1000)%60), (int)(g_TimeNow%1000));
+   snprintf(szTime, sizeof(szTime),"%u:%02u:%02u.%03u", (unsigned int)(g_TimeNow/1000/60/60), (unsigned int)(g_TimeNow/1000/60)%60, (unsigned int)((g_TimeNow/1000)%60), (unsigned int)(g_TimeNow%1000));
  
-   fprintf(g_fdLogFile, "%s: ", szTime);  
+   fprintf(g_fdLogFile, "%s: ", szTime);
 
    va_list args;
    va_start(args, format);
@@ -229,28 +229,28 @@ void _rx_video_log_line(const char* format, ...)
 
    /*
    char szBuff[256];
-   sprintf(szBuff, " (last recv: [%u/%d]) stack_ptr: %d ", s_LastReceivedVideoPacketInfo.video_block_index, s_LastReceivedVideoPacketInfo.video_block_packet_index, s_RXBlocksStackTopIndex);
+   snprintf(szBuff, sizeof(szBuff), " (last recv: [%u/%d]) stack_ptr: %d ", s_LastReceivedVideoPacketInfo.video_block_index, s_LastReceivedVideoPacketInfo.video_block_packet_index, s_RXBlocksStackTopIndex);
    for( int i=0; i<=s_RXBlocksStackTopIndex; i++)
    {
       if ( i > 3 )
       {
-         strcat(szBuff,"...");
+         strlcat(szBuff, "...", sizeof(szBuff));
          break;
       }
       if ( i > 0 )
-         strcat(szBuff, ", ");
+         strlcat(szBuff, ", ", sizeof(szBuff));
       char szTmp[32];
-      sprintf(szTmp, "[%u: ", s_pRXBlocksStack[i]->video_block_index);
-      strcat(szBuff, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "[%u: ", s_pRXBlocksStack[i]->video_block_index);
+      strlcat(szBuff, szTmp, sizeof(szBuff));
       for( int k=0; k<s_pRXBlocksStack[i]->data_packets + s_pRXBlocksStack[i]->fec_packets; k++ )
       {
          if ( s_pRXBlocksStack[i]->packetsInfo[k].state == RX_PACKET_STATE_RECEIVED )
-            sprintf(szTmp,"%d", k);
+            snprintf(szTmp, sizeof(szTmp),"%d", k);
          else
-            sprintf(szTmp, "x");
-         strcat(szBuff, szTmp);
+            snprintf(szTmp, sizeof(szTmp), "x");
+         strlcat(szBuff, szTmp, sizeof(szBuff));
       }
-      strcat(szBuff, "]");
+      strlcat(szBuff, "]", sizeof(szBuff));
    }
    fprintf(g_fdLogFile, szBuff);
    */
@@ -262,50 +262,50 @@ void _rx_video_log_line(const char* format, ...)
 void _log_current_buffer(bool bIncludeRetransmissions)
 {
    char szBuff[256];
-   sprintf(szBuff, "DBG: last output video block index: %u, (last recv: [%u/%d]) stack_ptr: %d ", s_LastOutputVideoBlockIndex, s_LastReceivedVideoPacketInfo.video_block_index, s_LastReceivedVideoPacketInfo.video_block_packet_index, s_RXBlocksStackTopIndex);
+   snprintf(szBuff, sizeof(szBuff), "DBG: last output video block index: %u, (last recv: [%u/%d]) stack_ptr: %d ", s_LastOutputVideoBlockIndex, s_LastReceivedVideoPacketInfo.video_block_index, s_LastReceivedVideoPacketInfo.video_block_packet_index, s_RXBlocksStackTopIndex);
    for( int i=0; i<=s_RXBlocksStackTopIndex; i++)
    {
       if ( i > 3 )
       {
-         strcat(szBuff,"...");
+         strlcat(szBuff, "...", sizeof(szBuff));
          break;
       }
       if ( i > 0 )
-         strcat(szBuff, ", ");
+         strlcat(szBuff, ", ", sizeof(szBuff));
       char szTmp[32];
-      sprintf(szTmp, "[%u: ", s_pRXBlocksStack[i]->video_block_index);
-      strcat(szBuff, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "[%u: ", s_pRXBlocksStack[i]->video_block_index);
+      strlcat(szBuff, szTmp, sizeof(szBuff));
       for( int k=0; k<s_pRXBlocksStack[i]->data_packets + s_pRXBlocksStack[i]->fec_packets; k++ )
       {
          if ( s_pRXBlocksStack[i]->packetsInfo[k].state == RX_PACKET_STATE_RECEIVED )
-            sprintf(szTmp,"%d", k);
+            snprintf(szTmp, sizeof(szTmp),"%d", k);
          else
-            sprintf(szTmp, "x");
-         strcat(szBuff, szTmp);
+            snprintf(szTmp, sizeof(szTmp), "x");
+         strlcat(szBuff, szTmp, sizeof(szBuff));
       }
-      strcat(szBuff, "]");
+      strlcat(szBuff, "]", sizeof(szBuff));
    }
    log_line(szBuff);
 
    if ( bIncludeRetransmissions )
    {
       char szTmp[32];
-      sprintf(szBuff, "DBG: first block retransmission requests: block %u = [", s_pRXBlocksStack[0]->video_block_index);
+      snprintf(szBuff, sizeof(szBuff), "DBG: first block retransmission requests: block %u = [", s_pRXBlocksStack[0]->video_block_index);
       for( int k=0; k<s_pRXBlocksStack[0]->data_packets + s_pRXBlocksStack[0]->fec_packets; k++ )
       {
          if ( 0 != k )
-            strcat(szBuff, ", ");
+            strlcat(szBuff, ", ", sizeof(szBuff));
          if ( s_pRXBlocksStack[0]->packetsInfo[k].uTimeFirstRetrySent == 0 ||
               s_pRXBlocksStack[0]->packetsInfo[k].uTimeLastRetrySent == 0 )
-            strcat(szBuff, "(!)");
+            strlcat(szBuff, "(!)", sizeof(szBuff));
 
-         sprintf(szTmp,"%d", s_pRXBlocksStack[0]->packetsInfo[k].uRetrySentCount);
-         strcat(szBuff, szTmp);
+         snprintf(szTmp, sizeof(szTmp),"%d", s_pRXBlocksStack[0]->packetsInfo[k].uRetrySentCount);
+         strlcat(szBuff, szTmp, sizeof(szBuff));
 
          if ( s_pRXBlocksStack[0]->packetsInfo[k].state == RX_PACKET_STATE_RECEIVED )
-            strcat(szBuff, "(r)");
+            strlcat(szBuff, "(r)", sizeof(szBuff));
       }
-      strcat(szBuff, "]");
+      strlcat(szBuff, "]", sizeof(szBuff));
       log_line(szBuff);
    }
 }

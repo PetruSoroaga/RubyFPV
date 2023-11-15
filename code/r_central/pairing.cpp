@@ -95,7 +95,7 @@ bool pairing_start()
    if ( NULL != g_pCurrentModel )
    {
       char szFile[128];
-      snprintf(szFile, 127, LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());      
+      snprintf(szFile, sizeof(szFile), LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());      
       FILE* fd = fopen(szFile, "wb");
       if ( NULL != fd )
          fclose(fd);

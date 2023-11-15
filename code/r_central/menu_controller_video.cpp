@@ -59,7 +59,7 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsSelect[0] = new MenuItemSelect("HDMI output resolution", "Sets the HDMI resolution on the controller display.");
    for( int i=0; i<hdmi_get_resolutions_count(); i++ )
    {
-      sprintf(szBuff, "%d x %d", hdmi_get_resolution_width(i), hdmi_get_resolution_height(i));
+      snprintf(szBuff, sizeof(szBuff), "%d x %d", hdmi_get_resolution_width(i), hdmi_get_resolution_height(i));
       m_pItemsSelect[0]->addSelection(szBuff);
    }
    m_pItemsSelect[0]->setIsEditable();
@@ -123,7 +123,7 @@ MenuControllerVideo::~MenuControllerVideo(void)
         m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
    {
       char szBuff[128];
-      sprintf(szBuff, "touch %s", FILE_TMP_HDMI_CHANGED);
+      snprintf(szBuff, sizeof(szBuff), "touch %s", FILE_TMP_HDMI_CHANGED);
       hw_execute_bash_command_silent(szBuff, NULL);
 
       FILE* fd = fopen(FILE_TMP_HDMI_CHANGED, "w");
@@ -150,7 +150,7 @@ void MenuControllerVideo::valuesToUI()
    m_pItemsSelect[3]->removeAllSelections();
    for( int i=0; i<hdmi_get_current_resolution_refresh_count(); i++ )
    {
-      sprintf(szBuff, "%d Hz", hdmi_get_resolution_refresh_rate(hdmi_get_current_resolution_index(), i));
+      snprintf(szBuff, sizeof(szBuff), "%d Hz", hdmi_get_resolution_refresh_rate(hdmi_get_current_resolution_index(), i));
       m_pItemsSelect[3]->addSelection(szBuff);
    }
    m_pItemsSelect[3]->setSelection(hdmi_get_current_resolution_refresh_index());
@@ -245,7 +245,7 @@ void MenuControllerVideo::onSelectItem()
       hardware_mount_boot();
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
-      sprintf(szBuff, "sed -i 's/config_hdmi_boost=[0-9]*/config_hdmi_boost=%d/g' config.txt", hdmi_boost);
+      snprintf(szBuff, sizeof(szBuff), "sed -i 's/config_hdmi_boost=[0-9]*/config_hdmi_boost=%d/g' config.txt", hdmi_boost);
       hw_execute_bash_command(szBuff, NULL);
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       

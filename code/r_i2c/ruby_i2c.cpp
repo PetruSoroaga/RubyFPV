@@ -534,11 +534,11 @@ void _read_RCIn_OldMethod()
    /*
    char szTmp[256];
    char szOut[256];
-   sprintf(szOut, "Fr %d: ", iFrameNumber);
+   snprintf(szOut, sizeof(szOut), "Fr %d: ", iFrameNumber);
    for( int i=0; i<12; i++ )
    {
-      sprintf(szTmp, "%d ", (int)g_pSMRCIn->uChannels[i] );
-      strcat(szOut, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "%d ", (int)g_pSMRCIn->uChannels[i] );
+      strlcat(szOut, szTmp, sizeof(szOut));
    }
    log_line(szOut);
    */
@@ -862,9 +862,9 @@ void checkReadRotaryEncoderAndButtons()
    for( int i=0; i<8; i++ )
    {
       if ( iValues & (0x01<<(7-i)) )
-         strcat(szBuff,"1");
+         strlcat(szBuff, "1", sizeof(szBuff));
       else
-         strcat(szBuff,"0");
+         strlcat(szBuff, "0", sizeof(szBuff));
    }
    log_line(szBuff);
    */
@@ -953,7 +953,7 @@ int main(int argc, char *argv[])
             close_files();
             load_settings();
             char szBuff[128];
-            sprintf(szBuff, "rm -rf %s 2>/dev/null", FILE_TMP_I2C_UPDATED);
+            snprintf(szBuff, sizeof(szBuff), "rm -rf %s 2>/dev/null", FILE_TMP_I2C_UPDATED);
             hw_execute_bash_command_silent(szBuff, NULL);
          }
       }

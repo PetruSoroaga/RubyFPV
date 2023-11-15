@@ -103,12 +103,12 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
    m_pItemsSelect[5]->addSelection("Auto (Radio Link)");
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      sprintf(szBuff, "%d Mbps", getDataRates()[i]);
+      snprintf(szBuff, sizeof(szBuff), "%d Mbps", getDataRates()[i]);
       m_pItemsSelect[5]->addSelection(szBuff);
    }
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
+      snprintf(szBuff, sizeof(szBuff), "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
       m_pItemsSelect[5]->addSelection(szBuff);
    }
    m_pItemsSelect[5]->setIsEditable();

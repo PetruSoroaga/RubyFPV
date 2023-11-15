@@ -406,7 +406,7 @@ int config_file_get_value(const char* szPropName)
    char* szTmp = NULL;
    int value = 0;
 
-   sprintf(szComm, "grep '#%s!=' /boot/config.txt", szPropName);
+   snprintf(szComm, sizeof(szComm), "grep '#%s!=' /boot/config.txt", szPropName);
    hw_execute_bash_command_silent(szComm, szOut);
    if ( strlen(szOut) > 5 )
    {
@@ -417,7 +417,7 @@ int config_file_get_value(const char* szPropName)
          value = -value;
    }
 
-   sprintf(szComm, "grep '%s=' /boot/config.txt", szPropName);
+   snprintf(szComm, sizeof(szComm), "grep '%s=' /boot/config.txt", szPropName);
    hw_execute_bash_command_silent(szComm, szOut);
    if ( strlen(szOut) > 5 )
    {
@@ -435,7 +435,7 @@ void config_file_add_value(const char* szFile, const char* szPropName, int value
 {
    char szComm[1024];
    char szOutput[1024];
-   sprintf(szComm, "cat %s | grep %s", szFile, szPropName);
+   snprintf(szComm, sizeof(szComm), "cat %s | grep %s", szFile, szPropName);
    hw_execute_bash_command(szComm, szOutput);
    if ( strlen(szOutput) >= strlen(szPropName) )
       return;
@@ -464,18 +464,18 @@ void config_file_set_value(const char* szFile, const char* szPropName, int value
    char szComm[1024];
    if ( value <= 0 )
    {
-      sprintf(szComm, "sed -i 's/#%s!=[-0-9]*/#%s!=%d/g' %s", szPropName, szPropName, value, szFile);
+      snprintf(szComm, sizeof(szComm), "sed -i 's/#%s!=[-0-9]*/#%s!=%d/g' %s", szPropName, szPropName, value, szFile);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "sed -i 's/%s=[-0-9]*/#%s!=%d/g' %s", szPropName, szPropName, value, szFile);
+      snprintf(szComm, sizeof(szComm), "sed -i 's/%s=[-0-9]*/#%s!=%d/g' %s", szPropName, szPropName, value, szFile);
       hw_execute_bash_command(szComm, NULL);
    }
    else
    {
-      sprintf(szComm, "sed -i 's/#%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+      snprintf(szComm, sizeof(szComm), "sed -i 's/#%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "sed -i 's/%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+      snprintf(szComm, sizeof(szComm), "sed -i 's/%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
       hw_execute_bash_command(szComm, NULL);
    }
 }
@@ -483,16 +483,16 @@ void config_file_set_value(const char* szFile, const char* szPropName, int value
 void config_file_force_value(const char* szFile, const char* szPropName, int value)
 {
    char szComm[1024];
-   sprintf(szComm, "sed -i 's/#%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+   snprintf(szComm, sizeof(szComm), "sed -i 's/#%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "sed -i 's/#%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+   snprintf(szComm, sizeof(szComm), "sed -i 's/#%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "sed -i 's/%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+   snprintf(szComm, sizeof(szComm), "sed -i 's/%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "sed -i 's/%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
+   snprintf(szComm, sizeof(szComm), "sed -i 's/%s=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
    hw_execute_bash_command(szComm, NULL);
 }
 

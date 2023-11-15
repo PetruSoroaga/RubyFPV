@@ -287,9 +287,9 @@ void MenuTXInfo::drawPowerLine(const char* szText, float yPos, int value)
       x += m_xTableCellWidth;
    }
 
-   sprintf(szBuff, "%d", value);
+   snprintf(szBuff, sizeof(szBuff), "%d", value);
    if ( value <= 0 )
-      sprintf(szBuff, "N/A");
+      snprintf(szBuff, sizeof(szBuff), "N/A");
    g_pRenderEngine->drawText( xEnd+0.2*height_text, yPos, height_text, g_idFontMenuSmall, szBuff);
 }
 

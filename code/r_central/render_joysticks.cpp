@@ -271,7 +271,7 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
       g_pRenderEngine->setFill(color_line[0], color_line[1], 0, 0);
       g_pRenderEngine->setStroke(color_line[0], color_line[1], color_line[2], 0);
       g_pRenderEngine->setStrokeSize(0);
-      sprintf(szBuff, "%d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "%d", i+1);
       g_pRenderEngine->drawText(x-paddingH*1.2, y-height_text*0.01, height_text*0.99, g_idFontMenu, szBuff);
 
       g_pRenderEngine->setFill(color_line[0], color_line[1], 0, 0);
@@ -335,7 +335,7 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
       g_pRenderEngine->setFill(color_line[0], color_line[1], color_line[2], color_line[3]);
       g_pRenderEngine->setStroke(color_line[0], color_line[1], color_line[2], 0);
       g_pRenderEngine->setStrokeSize(0);
-      sprintf(szBuff, "%d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "%d", i+1);
       if ( i < 9 )
          g_pRenderEngine->drawText(x+0.3*height_text, y+0.3*height_text, height_text*0.9, g_idFontMenu, szBuff);
       else

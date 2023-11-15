@@ -57,7 +57,7 @@ char* _ruby_ipc_get_channel_name(int nChannelType)
 {
    static char s_szRubyIPCChannelType[128];
    s_szRubyIPCChannelType[0] = 0;
-   sprintf(s_szRubyIPCChannelType, "[Unknown Channel Type %d]", nChannelType);
+   snprintf(s_szRubyIPCChannelType, sizeof(s_szRubyIPCChannelType), "[Unknown Channel Type %d]", nChannelType);
 
    if ( nChannelType == IPC_CHANNEL_TYPE_ROUTER_TO_CENTRAL )
       strcpy(s_szRubyIPCChannelType, "[ROUTER-TO-CENTRAL]");
@@ -142,42 +142,42 @@ int ruby_init_ipc_channels()
 {
    char szBuff[256];
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CAMERA1 );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_CAMERA1 );
    hw_execute_bash_command(szBuff, NULL);
       
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO1 );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_AUDIO1 );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH );
    hw_execute_bash_command(szBuff, NULL);
 
    #ifdef RUBY_USE_FIFO_PIPES
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_ROUTER_TO_CENTRAL );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_ROUTER_TO_CENTRAL );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CENTRAL_TO_ROUTER );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_CENTRAL_TO_ROUTER );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_ROUTER_TO_COMMANDS );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_ROUTER_TO_COMMANDS );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_COMMANDS_TO_ROUTER);
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_COMMANDS_TO_ROUTER);
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_ROUTER_TO_TELEMETRY );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_ROUTER_TO_TELEMETRY );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_TELEMETRY_TO_ROUTER );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_TELEMETRY_TO_ROUTER );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_ROUTER_TO_RC );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_ROUTER_TO_RC );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_RC_TO_ROUTER );
+   snprintf(szBuff, sizeof(szBuff), "mkfifo %s", FIFO_RUBY_RC_TO_ROUTER );
    hw_execute_bash_command(szBuff, NULL);
 
    #endif

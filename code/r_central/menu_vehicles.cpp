@@ -66,14 +66,14 @@ void MenuVehicles::onShow()
       log_line("MenuVehicles: Iterating vehicle id: %u", p->vehicle_id);
       char szBuff[256];
       if ( 1 == p->radioLinksParams.links_count )
-         sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency[0]));
+         snprintf(szBuff, sizeof(szBuff), "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency[0]));
       else if ( 2 == p->radioLinksParams.links_count )
       {
          char szFreq1[64];
          char szFreq2[64];
          strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency[0]));
          strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency[1]));
-         sprintf(szBuff, "%s, %s/%s", p->getLongName(), szFreq1, szFreq2);
+         snprintf(szBuff, sizeof(szBuff), "%s, %s/%s", p->getLongName(), szFreq1, szFreq2);
       }
       else
       {
@@ -83,7 +83,7 @@ void MenuVehicles::onShow()
          strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency[0]));
          strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency[1]));
          strcpy(szFreq3, str_format_frequency(p->radioLinksParams.link_frequency[2]));
-         sprintf(szBuff, "%s, %s/%s/%s", p->getLongName(), szFreq1, szFreq2, szFreq3);
+         snprintf(szBuff, sizeof(szBuff), "%s, %s/%s/%s", p->getLongName(), szFreq1, szFreq2, szFreq3);
       }
 
       MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);

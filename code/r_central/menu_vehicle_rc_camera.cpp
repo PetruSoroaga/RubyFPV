@@ -39,7 +39,7 @@ MenuVehicleRCCamera::MenuVehicleRCCamera(void)
    for( int i=0; i<g_pCurrentModel->rc_params.channelsCount; i++ )
    {
       char szBuff[32];
-      snprintf(szBuff, 31, "CH %d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "CH %d", i+1);
       m_pItemsSelect[0]->addSelection(szBuff);
    }
    m_pItemsSelect[0]->setIsEditable();
@@ -50,7 +50,7 @@ MenuVehicleRCCamera::MenuVehicleRCCamera(void)
    for( int i=0; i<g_pCurrentModel->rc_params.channelsCount; i++ )
    {
       char szBuff[32];
-      snprintf(szBuff, 31, "CH %d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "CH %d", i+1);
       m_pItemsSelect[1]->addSelection(szBuff);
    }
    m_pItemsSelect[1]->setIsEditable();
@@ -61,7 +61,7 @@ MenuVehicleRCCamera::MenuVehicleRCCamera(void)
    for( int i=0; i<g_pCurrentModel->rc_params.channelsCount; i++ )
    {
       char szBuff[32];
-      snprintf(szBuff, 31, "CH %d", i+1);
+      snprintf(szBuff, sizeof(szBuff), "CH %d", i+1);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    m_pItemsSelect[2]->setIsEditable();

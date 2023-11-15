@@ -443,7 +443,7 @@ bool onEventReceivedModelSettings(u8* pBuffer, int length, bool bUnsolicited)
       char szBuff3[32];
       getSystemVersionString(szBuff2, g_pCurrentModel->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      sprintf(szBuff, "Your vehicle has Ruby version %s (b%d) and your controller %s (b%d). You should update your vehicle.", szBuff2, g_pCurrentModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
+      snprintf(szBuff, sizeof(szBuff), "Your vehicle has Ruby version %s (b%d) and your controller %s (b%d). You should update your vehicle.", szBuff2, g_pCurrentModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
       warnings_add(szBuff, 0, NULL, 12);
       bool bArmed = false;
       if ( pairing_isReceiving() || pairing_wasReceiving() )

@@ -281,7 +281,7 @@ void MenuVehicleManagement::onSelectItem()
       strcpy(szModelName, g_pCurrentModel->getLongName());
       str_sanitize_filename(szModelName);
 
-      sprintf(szFile, "%s/%s/ruby_model_%s_%u.txt", FOLDER_RUBY, FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->vehicle_id);
+      snprintf(szFile, sizeof(szFile), "%s/%s/ruby_model_%s_%u.txt", FOLDER_RUBY, FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->vehicle_id);
       g_pCurrentModel->saveToFile(szFile, false);
    
       hardware_unmount_usb();
@@ -348,7 +348,7 @@ void MenuVehicleManagement::onSelectItem()
       {
          char szBuff[256];
 
-         sprintf(szBuff, "Your vehicle already has the latest version of the software (version %s). Do you still want to upgrade vehicle?", szBuff2);
+         snprintf(szBuff, sizeof(szBuff), "Your vehicle already has the latest version of the software (version %s). Do you still want to upgrade vehicle?", szBuff2);
          m_iConfirmationId = 4;
          MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, m_iConfirmationId);
          add_menu_to_stack(pMC);
@@ -359,7 +359,7 @@ void MenuVehicleManagement::onSelectItem()
       char szBuff[256];
       char szBuff3[64];
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      sprintf(szBuff, "Your vehicle has software version %s and software version %s is available on the controller. Do you want to upgrade vehicle?", szBuff2, szBuff3);
+      snprintf(szBuff, sizeof(szBuff), "Your vehicle has software version %s and software version %s is available on the controller. Do you want to upgrade vehicle?", szBuff2, szBuff3);
       m_iConfirmationId = 2;
       MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, m_iConfirmationId);
       add_menu_to_stack(pMC);
@@ -370,7 +370,7 @@ void MenuVehicleManagement::onSelectItem()
       if ( checkIsArmed() )
          return;
       char szBuff[256];
-      sprintf(szBuff, "Are you sure you want to reset all parameters for %s?", g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff), "Are you sure you want to reset all parameters for %s?", g_pCurrentModel->getLongName());
       m_iConfirmationId = 20;
       MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, m_iConfirmationId);
       add_menu_to_stack(pMC);
@@ -381,7 +381,7 @@ void MenuVehicleManagement::onSelectItem()
       if ( checkIsArmed() )
          return;
       char szBuff[64];
-      sprintf(szBuff, "Are you sure you want to delete %s?", g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff), "Are you sure you want to delete %s?", g_pCurrentModel->getLongName());
       add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
       m_iConfirmationId = 1;
    }

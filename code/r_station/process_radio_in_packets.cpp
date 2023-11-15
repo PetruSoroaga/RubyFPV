@@ -277,7 +277,7 @@ int _process_received_ruby_message(u8* pPacketBuffer)
       if ( pPHFS->file_id == FILE_ID_VEHICLE_LOG )
       {
          char szFile[128];
-         snprintf(szFile, 127, LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());
+         snprintf(szFile, sizeof(szFile), LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());
          FILE* fd = fopen(szFile, "ab");
          if ( NULL != fd )
          {
@@ -1198,8 +1198,8 @@ int process_received_radio_packets()
          for( int i=0; i<g_Local_RadioStats.countRadioLinks; i++ )
          {
             char szTmp[32];
-            sprintf(szTmp, "link %d: %d ", i+1, g_Local_RadioStats.radio_links[i].lastTxInterfaceIndex+1);
-            strcat(szBuff, szTmp);
+            snprintf(szTmp, sizeof(szTmp), "link %d: %d ", i+1, g_Local_RadioStats.radio_links[i].lastTxInterfaceIndex+1);
+            strlcat(szBuff, szTmp, sizeof(szBuff));
          }
          log_softerror_and_alarm("Current tx interfaces for each radio link: %s", szBuff);
       }

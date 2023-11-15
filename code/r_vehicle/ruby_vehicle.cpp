@@ -180,7 +180,7 @@ int main (int argc, char *argv[])
    log_line("Board type: %d -> %s", g_iBoardType, str_get_hardware_board_name(g_iBoardType));
 
 
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_ALARM_ON);
+   snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_ALARM_ON);
    hw_execute_bash_command_silent(szBuff, NULL);
  
    bool bMustSave = false;
@@ -455,14 +455,14 @@ int main (int argc, char *argv[])
          if ( modelVehicle.hardware_info.serial_bus_supported_and_usage[i] & ((1<<4)<<8) )
          {
             char szPort[32];
-            sprintf(szPort, "/dev/ttyUSB%d", iPortId);
+            snprintf(szPort, sizeof(szPort), "/dev/ttyUSB%d", iPortId);
             hardware_configure_serial(szPort, (long)modelVehicle.hardware_info.serial_bus_speed[i]);
          }
          // Hardware serial
          else
          {
             char szPort[32];
-            sprintf(szPort, "/dev/serial%d", iPortId);
+            snprintf(szPort, sizeof(szPort), "/dev/serial%d", iPortId);
             hardware_configure_serial(szPort, (long)modelVehicle.hardware_info.serial_bus_speed[i]);
          }
       }
@@ -553,9 +553,9 @@ int main (int argc, char *argv[])
             try_open_process_stats();
          if ( NULL == s_pProcessStatsRouter )
             continue;
-         log_format_time(s_pProcessStatsRouter->lastRadioRxTime, szTime);
+         log_format_time(s_pProcessStatsRouter->lastRadioRxTime, szTime, sizeof(szTime));
          log_line("Last radio RX time: %s", szTime);
-         log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime);
+         log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime, sizeof(szTime));
          log_line("Last radio TX time: %s", szTime);
 
          bool bCheckRadioFailSafe = false;
@@ -573,7 +573,7 @@ int main (int argc, char *argv[])
               (s_pProcessStatsRouter->lastRadioRxTime < g_TimeNow-10000) )
          {
             char szComm[64];
-            sprintf(szComm, "touch %s", FILE_TMP_ALARM_ON);
+            snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_ALARM_ON);
             hw_execute_bash_command_silent(szComm, NULL);
 
             log_line("Radio silence failsafe is enabled and radio timeout has triggered. Signal router to reinit radio interfaces.");
@@ -582,7 +582,7 @@ int main (int argc, char *argv[])
                if ( 0 == s_iRadioSilenceFailsafeTimeoutCounts )
                {
                   char szComm[64];
-                  sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
+                  snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
                   hw_execute_bash_command_silent(szComm, NULL);
                   s_iRadioSilenceFailsafeTimeoutCounts++;
                }
@@ -603,7 +603,7 @@ int main (int argc, char *argv[])
             {
             log_line("Radio interfaces have broken up. Signal router to reinitalize everything.");
             char szComm[64];
-            sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
+            snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
             hw_execute_bash_command_silent(szComm, NULL); 
             }
          }
@@ -633,9 +633,9 @@ int main (int argc, char *argv[])
 
          if ( s_failCountProcessRouter >= s_failCountProcessThreshold )
          {
-            log_format_time(s_pProcessStatsRouter->lastActiveTime, szTime);
-            log_format_time(s_pProcessStatsRouter->lastIPCIncomingTime, szTime2);
-            log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3);
+            log_format_time(s_pProcessStatsRouter->lastActiveTime, szTime, sizeof(szTime));
+            log_format_time(s_pProcessStatsRouter->lastIPCIncomingTime, szTime2, sizeof(szTime2));
+            log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3, sizeof(szTime3));
             log_line_watchdog("Router pipeline watchdog check failed: router process has stopped !!! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szTime, szTime2, szTime3);
             bMustRestart = true;
          }
@@ -649,8 +649,8 @@ int main (int argc, char *argv[])
             s_failCountProcessTelemetry = 0;
          if ( s_failCountProcessTelemetry >= s_failCountProcessThreshold )
          {
-            log_format_time(s_pProcessStatsTelemetry->lastActiveTime, szTime);
-            log_format_time(s_pProcessStatsTelemetry->lastIPCOutgoingTime, szTime2);
+            log_format_time(s_pProcessStatsTelemetry->lastActiveTime, szTime, sizeof(szTime));
+            log_format_time(s_pProcessStatsTelemetry->lastIPCOutgoingTime, szTime2, sizeof(szTime2));
             log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process has stopped !!! Last active time: %s, last IPC outgoing time: %s", szTime, szTime2);
             bMustRestart = true;
          }
@@ -664,8 +664,8 @@ int main (int argc, char *argv[])
             s_failCountProcessCommands = 0;
          if ( s_failCountProcessCommands >= 2*s_failCountProcessThreshold )
          {
-            log_format_time(s_pProcessStatsCommands->lastActiveTime, szTime);
-            log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2);
+            log_format_time(s_pProcessStatsCommands->lastActiveTime, szTime, sizeof(szTime));
+            log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2, sizeof(szTime2));
             log_line_watchdog("Commands RX process watchdog check failed: commands rx process has stopped !!! Last active time: %s", szTime);
             bMustRestart = true;
          }
@@ -681,8 +681,8 @@ int main (int argc, char *argv[])
 
          if ( s_failCountProcessRC >= s_failCountProcessThreshold )
          {
-            log_format_time(s_pProcessStatsRC->lastActiveTime, szTime);
-            log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2);
+            log_format_time(s_pProcessStatsRC->lastActiveTime, szTime, sizeof(szTime));
+            log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2, sizeof(szTime2));
             log_line_watchdog("RC RX process watchdog check failed: RC rx process has stopped !!! Last active time: %s, last IPC incoming time: %s", szTime, szTime2);
             bMustRestart = true;
          }

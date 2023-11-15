@@ -130,7 +130,7 @@ void MenuSystemHardware::Render()
       yPos += height_text;
       int percent = m_nSearchI2CDeviceAddress*100/128;
       if ( percent > 100 ) percent = 100;
-      sprintf(szBuff, "Enumerating I2C devices %d%%", percent);   
+      snprintf(szBuff, sizeof(szBuff), "Enumerating I2C devices %d%%", percent);   
       g_pRenderEngine->drawText(xPos, yPos, height_text, g_idFontMenu, szBuff);
       yPos += height_text*1.2;
       g_pRenderEngine->drawText(xPos, yPos, height_text, g_idFontMenu, "Please wait...");
@@ -182,7 +182,7 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    //--------------------------------------
    // Radio interfaces
 
-   sprintf(szBuff, "Radio Interfaces: %d found", g_pCurrentModel->radioInterfacesParams.interfaces_count);
+   snprintf(szBuff, sizeof(szBuff), "Radio Interfaces: %d found", g_pCurrentModel->radioInterfacesParams.interfaces_count);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -191,9 +191,9 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
       char szBands[128];
       str_get_supported_bands_string(g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i], szBands);
        
-      sprintf(szBuff, "%d. Port %s, Type: %s, %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]), szBands);
+      snprintf(szBuff, sizeof(szBuff), "%d. Port %s, Type: %s, %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[i]), szBands);
       if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-         strcat(szBuff, " [RELAY LINK]");
+         strlcat(szBuff, " [RELAY LINK]", sizeof(szBuff));
 
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
@@ -206,7 +206,7 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    // ----------------------
    // Serial ports
 
-   sprintf(szBuff, "Serial Ports: %d found", g_pCurrentModel->hardware_info.serial_bus_count);
+   snprintf(szBuff, sizeof(szBuff), "Serial Ports: %d found", g_pCurrentModel->hardware_info.serial_bus_count);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -227,7 +227,7 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    //--------------------------------------
    // I2C
 
-   sprintf(szBuff, "I2C Devices and Busses:");
+   snprintf(szBuff, sizeof(szBuff), "I2C Devices and Busses:");
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.5 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -242,9 +242,9 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
          count++;
       }
 
-      sprintf(szBuff, "I2C Bus %d:", nBusNumber);
+      snprintf(szBuff, sizeof(szBuff), "I2C Bus %d:", nBusNumber);
       if ( 0 == count )
-         sprintf(szBuff, "I2C Bus %d: No devices on this bus.", nBusNumber);
+         snprintf(szBuff, sizeof(szBuff), "I2C Bus %d: No devices on this bus.", nBusNumber);
 
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += 0.3 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
@@ -258,9 +258,9 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
          szName[0] = 0;
          hardware_get_i2c_device_name(g_pCurrentModel->hardware_info.i2c_devices_address[k], szName);
          if ( hardware_is_known_i2c_device(g_pCurrentModel->hardware_info.i2c_devices_address[k]) )
-            sprintf(szBuff, "Address 0x%02X - %s", g_pCurrentModel->hardware_info.i2c_devices_address[k], szName);
+            snprintf(szBuff, sizeof(szBuff), "Address 0x%02X - %s", g_pCurrentModel->hardware_info.i2c_devices_address[k], szName);
          else
-            sprintf(szBuff, "Address 0x%02X - Unknown", g_pCurrentModel->hardware_info.i2c_devices_address[k]);
+            snprintf(szBuff, sizeof(szBuff), "Address 0x%02X - Unknown", g_pCurrentModel->hardware_info.i2c_devices_address[k]);
          yPos += g_pRenderEngine->drawMessageLines(xPos+2*xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
          count++;
       }
@@ -292,7 +292,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
    // Radio cards
 
 
-   sprintf(szBuff, "Radio Interfaces: %d found", hardware_get_radio_interfaces_count());
+   snprintf(szBuff, sizeof(szBuff), "Radio Interfaces: %d found", hardware_get_radio_interfaces_count());
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -301,7 +301,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioInfo )
       {
-         sprintf(szBuff, "%d. Can't get radio info.", i+1);
+         snprintf(szBuff, sizeof(szBuff), "%d. Can't get radio info.", i+1);
          yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
          yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
          continue;
@@ -310,7 +310,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
       char szBands[128];
       str_get_supported_bands_string(pRadioInfo->supportedBands, szBands);
        
-      sprintf(szBuff, "%d. Port %s, Type: %s, %s", i+1, pRadioInfo->szUSBPort, str_get_radio_card_model_string(pRadioInfo->iCardModel), szBands);
+      snprintf(szBuff, sizeof(szBuff), "%d. Port %s, Type: %s, %s", i+1, pRadioInfo->szUSBPort, str_get_radio_card_model_string(pRadioInfo->iCardModel), szBands);
        
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
@@ -323,7 +323,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
    //-----------------------------------------
    // Serial ports
 
-   sprintf(szBuff, "Serial Ports: %d found", hardware_get_serial_ports_count());
+   snprintf(szBuff, sizeof(szBuff), "Serial Ports: %d found", hardware_get_serial_ports_count());
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.2 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -331,7 +331,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
    {
       hw_serial_port_info_t* pInfo = hardware_get_serial_port_info(i);
       if ( NULL == pInfo )
-         sprintf(szBuff, "%d. Serial Port: Failed to get info.", i+1);
+         snprintf(szBuff, sizeof(szBuff), "%d. Serial Port: Failed to get info.", i+1);
       else
       {
          sprintf( szBuff, "%d. %s, Usage: %s, %d bps", i+1, pInfo->szName, str_get_serial_port_usage(pInfo->iPortUsage), (int)pInfo->lPortSpeed);
@@ -365,9 +365,9 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
          count++;
       }
 
-      sprintf(szBuff, "I2C Bus %d, %s:", pBus->nBusNumber, pBus->szName);
+      snprintf(szBuff, sizeof(szBuff), "I2C Bus %d, %s:", pBus->nBusNumber, pBus->szName);
       if ( 0 == count )
-         sprintf(szBuff, "I2C Bus %d, %s: No devices on this bus.", pBus->nBusNumber, pBus->szName);
+         snprintf(szBuff, sizeof(szBuff), "I2C Bus %d, %s: No devices on this bus.", pBus->nBusNumber, pBus->szName);
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += 0.3 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -380,9 +380,9 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
             continue;
          t_i2c_device_settings* pInfo = hardware_i2c_get_device_settings((u8)k);
          if ( NULL != pInfo )
-            sprintf(szBuff, "Address 0x%02X - %s", k, pInfo->szDeviceName);
+            snprintf(szBuff, sizeof(szBuff), "Address 0x%02X - %s", k, pInfo->szDeviceName);
          else
-            sprintf(szBuff, "Address 0x%02X - Unknown", k);
+            snprintf(szBuff, sizeof(szBuff), "Address 0x%02X - Unknown", k);
          yPos += g_pRenderEngine->drawMessageLines(xPos+2*xPad, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
          count++;
       }
@@ -392,7 +392,7 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
    yPos += 0.6 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
    g_pRenderEngine->drawLine(xPos, yPos, xPos+width - xPad, yPos);
    yPos += 0.7 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
-   sprintf(szBuff, "HID (Joystick) Interfaces: %d", pCI->inputInterfacesCount);
+   snprintf(szBuff, sizeof(szBuff), "HID (Joystick) Interfaces: %d", pCI->inputInterfacesCount);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, height_text, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += 0.5 * menu_getScaleMenus()*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING);
 
@@ -445,8 +445,8 @@ void MenuSystemHardware::onSelectItem()
       int iLen2 = strlen(szBuff2);
       if ( iLen1 > 3000 )
          iLen1 = 3000;
-      strcat(szBuff, "\nTree:\n");
-      strcat(szBuff, szBuff2);
+      strlcat(szBuff, "\nTree:\n", sizeof(szBuff));
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
       iLen1 = strlen(szBuff);
 
 
@@ -485,29 +485,29 @@ void MenuSystemHardware::onSelectItem()
             int iLen = strlen(dir->d_name);
             if ( iLen < 3 )
                continue;
-            snprintf(szFile, 1023, "/sys/bus/usb/devices/%s", dir->d_name);
-            snprintf(szComm, 1023, "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
+            snprintf(szFile, sizeof(szFile), "/sys/bus/usb/devices/%s", dir->d_name);
+            snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
             szOutput[0] = 0;
             hw_execute_bash_command(szComm, szOutput);
-            strcat(szBuff, dir->d_name);
-            strcat(szBuff, " :  ");
-            strcat(szBuff, szOutput);
+            strlcat(szBuff, dir->d_name, sizeof(szBuff));
+            strlcat(szBuff, " :  ", sizeof(szBuff));
+            strlcat(szBuff, szOutput, sizeof(szBuff));
 
             for( int i=0; i<hardware_get_radio_interfaces_count()+1; i++ )
             {
                szOutput[0] = 0;
-               sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, i);
+               snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, i);
                hw_execute_bash_command_silent(szComm, szOutput);
                if ( strlen(szOutput) > 0 )
                {
                   log_line("Accessed %s", szComm);
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep INTERFACE", dir->d_name, i);
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep INTERFACE", dir->d_name, i);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -516,12 +516,12 @@ void MenuSystemHardware::onSelectItem()
                         szBuff[iLen-1] = 0;
                   }
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep IFINDEX", dir->d_name, i);
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep IFINDEX", dir->d_name, i);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -531,12 +531,12 @@ void MenuSystemHardware::onSelectItem()
                   }
 
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name );
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name );
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -558,7 +558,7 @@ void MenuSystemHardware::onSelectItem()
             if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                szBuff[iLen-1] = 0;
 
-            strcat(szBuff, "\n");
+            strlcat(szBuff, "\n", sizeof(szBuff));
          }
          closedir(d);
       }

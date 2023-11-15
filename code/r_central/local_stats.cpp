@@ -128,7 +128,7 @@ bool load_temp_local_stats()
       log_line("Temporary local stats file %s for a different vehicle. Ignoring it.", FILE_TMP_CONTROLLER_LOCAL_STATS);
       fclose(fd);
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
       hw_execute_bash_command(szComm, NULL);               
       return false;
    }
@@ -156,7 +156,7 @@ bool load_temp_local_stats()
       log_line("Loaded temporary local stats from file: %s", FILE_TMP_CONTROLLER_LOCAL_STATS);
 
    char szComm[256];
-   sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
    hw_execute_bash_command(szComm, NULL);  
 
    if ( failed )

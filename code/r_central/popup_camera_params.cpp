@@ -111,9 +111,9 @@ void PopupCameraParams::Render()
       value_max = 100;
       strcpy(szText, "Sharpness");
    }
-   sprintf(szBuff, "%d", value);
-   strcat(szText, ":");
-   //strcat(szText, szBuff);
+   snprintf(szBuff, sizeof(szBuff), "%d", value);
+   strlcat(szText, ":", sizeof(szText));
+   //strlcat(szText, szBuff, sizeof(szText));
 
    g_pRenderEngine->setColors(get_Color_PopupText());   
    g_pRenderEngine->drawText(x+dx, y, height_text*POPUP_TITLE_SCALE, g_idFontMenuSmall, szText);

@@ -368,11 +368,11 @@ void sendCommandReply(u8 responseFlags, int delayMiliSec)
    char szBuff[32];
    szBuff[0] = 0;
    if ( lastRecvCommandResponseFlags & COMMAND_RESPONSE_FLAGS_OK )
-      strcat(szBuff,"[ok]");
+      strlcat(szBuff, "[ok]", sizeof(szBuff));
    if ( lastRecvCommandResponseFlags & COMMAND_RESPONSE_FLAGS_FAILED )
-      strcat(szBuff,"[failed]");
+      strlcat(szBuff, "[failed]", sizeof(szBuff));
    if ( lastRecvCommandResponseFlags & COMMAND_RESPONSE_FLAGS_UNKNOWN_COMMAND )
-      strcat(szBuff,"[unk_comm]");
+      strlcat(szBuff, "[unk_comm]", sizeof(szBuff));
    log_line_commands("Sent response %s to router for vehicle UID: %u, command nb.%d, command retry counter: %d, command type: %s ", szBuff, g_pCurrentModel->vehicle_id, lastRecvCommandNumber, lastRecvCommandResendCounter, commands_get_description(lastRecvCommandType));
    s_CurrentResponseCounter++;
 
@@ -572,7 +572,7 @@ bool _process_file_segment_upload_request( u8* pBuffer, int length)
       }
 
       s_InfoLastFileUploaded.uLastFileId = segmentData.uFileId;
-      strncpy(s_InfoLastFileUploaded.szFileName, segmentData.szFileName, 128);
+       strlcpy(s_InfoLastFileUploaded.szFileName, segmentData.szFileName, sizeof(s_InfoLastFileUploaded.szFileName));
       s_InfoLastFileUploaded.uTotalSegments = segmentData.uTotalSegments;
       s_InfoLastFileUploaded.uFileSize = segmentData.uTotalFileSize;
 
@@ -663,7 +663,7 @@ bool process_command(u8* pBuffer, int length)
       if ( flags == MODEL_ENC_FLAGS_NONE )
       {
          char szComm[256];
-         sprintf(szComm, "rm -rf %s", FILE_ENCRYPTION_PASS);
+         snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_ENCRYPTION_PASS);
          hw_execute_bash_command(szComm, NULL);
          rpp(); 
          sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
@@ -829,8 +829,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "ruby_start: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, "ruby_start: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -839,8 +839,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_vehicle: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_vehicle: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -849,8 +849,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rt_vehicle: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_rt_vehicle: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       hw_execute_bash_command_raw_silent("./ruby_rx_commands -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -859,8 +859,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rx_commands: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_rx_commands: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
       
       hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -869,8 +869,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_tx_telemetry: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_tx_telemetry: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -879,8 +879,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rx_rc: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_rx_rc: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
 
       hw_execute_bash_command_raw_silent("./ruby_capture_raspi -ver", szOutput);
@@ -890,8 +890,8 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_capture_csi: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_capture_csi: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       hw_execute_bash_command_raw_silent("./ruby_capture_veye -ver", szOutput);
       if ( strlen(szOutput)> 0 )
@@ -900,17 +900,17 @@ bool process_command(u8* pBuffer, int length)
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_capture_veye: ");
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, ", ruby_capture_veye: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
 
-      strcat(szBuffer, " #");     
+      strlcat(szBuffer, " #", sizeof(szBuffer));     
 
-      strcat(szBuffer, "USB Devices: #");
+      strlcat(szBuffer, "USB Devices: #", sizeof(szBuffer));
       hw_execute_bash_command_raw("lsusb", szOutput);
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
       /*
-      strcat(szBuffer, " #Loaded Modules: #");
+      strlcat(szBuffer, " #Loaded Modules: #", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -924,7 +924,7 @@ bool process_command(u8* pBuffer, int length)
          if ( szOutput[i] == 13 )
             szOutput[i] = ' ';
       }
-      strcat(szBuffer, szOutput);
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
       */
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -956,8 +956,8 @@ bool process_command(u8* pBuffer, int length)
       int iLen2 = strlen(szBuff2);
       if ( iLen1 > 3000 )
          iLen1 = 3000;
-      strcat(szBuff, "\nTree:\n");
-      strcat(szBuff, szBuff2);
+      strlcat(szBuff, "\nTree:\n", sizeof(szBuff));
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
       iLen1 = strlen(szBuff);
 
       FILE* fd = fopen("tmp/tmp_usb_info.txt", "wb");
@@ -1021,29 +1021,29 @@ bool process_command(u8* pBuffer, int length)
             int iLen = strlen(dir->d_name);
             if ( iLen < 3 )
                continue;
-            snprintf(szFile, 1023, "/sys/bus/usb/devices/%s", dir->d_name);
-            snprintf(szComm, 1023, "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
+            snprintf(szFile, sizeof(szFile), "/sys/bus/usb/devices/%s", dir->d_name);
+            snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
             szOutput[0] = 0;
             hw_execute_bash_command(szComm, szOutput);
-            strcat(szBuff, dir->d_name);
-            strcat(szBuff, " :  ");
-            strcat(szBuff, szOutput);
+            strlcat(szBuff, dir->d_name, sizeof(szBuff));
+            strlcat(szBuff, " :  ", sizeof(szBuff));
+            strlcat(szBuff, szOutput, sizeof(szBuff));
 
             for( int i=0; i<hardware_get_radio_interfaces_count()+1; i++ )
             {
                szOutput[0] = 0;
-               sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, i);
+               snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep DEVTYPE=wlan", dir->d_name, i);
                hw_execute_bash_command_silent(szComm, szOutput);
                if ( strlen(szOutput) > 0 )
                {
                   log_line("Accessed %s", szComm);
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep INTERFACE", dir->d_name, i);
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep INTERFACE", dir->d_name, i);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -1052,12 +1052,12 @@ bool process_command(u8* pBuffer, int length)
                         szBuff[iLen-1] = 0;
                   }
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep IFINDEX", dir->d_name, i);
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep IFINDEX", dir->d_name, i);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -1067,12 +1067,12 @@ bool process_command(u8* pBuffer, int length)
                   }
 
                   szOutput[0] = 0;
-                  sprintf(szComm, "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name);
+                  snprintf(szComm, sizeof(szComm), "cat /sys/bus/usb/devices/%s/uevent 2>/dev/null | grep PRODUCT", dir->d_name);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
+                     strlcat(szBuff, ", ", sizeof(szBuff));
+                     strlcat(szBuff, szOutput, sizeof(szBuff));
                      iLen = strlen(szBuff);
                      if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                         szBuff[iLen-1] = 0;
@@ -1094,7 +1094,7 @@ bool process_command(u8* pBuffer, int length)
             if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
                szBuff[iLen-1] = 0;
 
-            strcat(szBuff, "\n");
+            strlcat(szBuff, "\n", sizeof(szBuff));
          }
          closedir(d);
       }
@@ -1178,9 +1178,9 @@ bool process_command(u8* pBuffer, int length)
          szOutput[0] = 0;
          if ( 1 == fscanf(fd, "%s", szOutput) )
          {
-            strcat(szBuffer, "Ruby base version: ");
-            strcat(szBuffer, szOutput);
-            strcat(szBuffer, "; ");
+            strlcat(szBuffer, "Ruby base version: ", sizeof(szBuffer));
+            strlcat(szBuffer, szOutput, sizeof(szBuffer));
+            strlcat(szBuffer, "; ", sizeof(szBuffer));
          }
          fclose(fd);
       }
@@ -1190,57 +1190,57 @@ bool process_command(u8* pBuffer, int length)
          szOutput[0] = 0;
          if ( 1 == fscanf(fd, "%s", szOutput) )
          {
-            strcat(szBuffer, "last update: ");
-            strcat(szBuffer, szOutput);
-            strcat(szBuffer, "+");
+            strlcat(szBuffer, "last update: ", sizeof(szBuffer));
+            strlcat(szBuffer, szOutput, sizeof(szBuffer));
+            strlcat(szBuffer, "+", sizeof(szBuffer));
          }
          else
          {
-            strcat(szBuffer, "Ruby last update: none");
-            strcat(szBuffer, "+");
+            strlcat(szBuffer, "Ruby last update: none", sizeof(szBuffer));
+            strlcat(szBuffer, "+", sizeof(szBuffer));
          }
          fclose(fd);
       }
       else
       {
-         strcat(szBuffer, "Ruby last update: none");
-         strcat(szBuffer, "+");
+         strlcat(szBuffer, "Ruby last update: none", sizeof(szBuffer));
+         strlcat(szBuffer, "+", sizeof(szBuffer));
       }
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_vehicle", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_rt_vehicle", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_tx_telemetry", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_rx_commands", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_rx_rc", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -1249,30 +1249,30 @@ bool process_command(u8* pBuffer, int length)
          hw_get_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, szOutput);
       else
          hw_get_proc_priority(VIDEO_RECORDER_COMMAND, szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_execute_bash_command_raw("nproc --all", szOutput);
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "CPU Cores: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, ", ");
+      strlcat(szBuffer, "CPU Cores: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, ", ", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       int speed = hardware_get_cpu_speed();
-      sprintf(szOutput, "%d Mhz; ", speed);
-      strcat(szBuffer, szOutput);
+      snprintf(szOutput, sizeof(szOutput), "%d Mhz; ", speed);
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
       speed = hardware_get_gpu_speed();
-      sprintf(szOutput, "GPU: %d Mhz+", speed);
-      strcat(szBuffer, szOutput);
+      snprintf(szOutput, sizeof(szOutput), "GPU: %d Mhz+", speed);
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -1280,9 +1280,9 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command_raw("vcgencmd measure_clock h264", szOutput);
       szOutput[0] = 'F';
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "H264: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, " Hz+");
+      strlcat(szBuffer, "H264: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, " Hz+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -1290,9 +1290,9 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command_raw("vcgencmd measure_clock isp", szOutput);
       szOutput[0] = 'F';
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "ISP: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, " Hz+");
+      strlcat(szBuffer, "ISP: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, " Hz+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -1303,82 +1303,82 @@ bool process_command(u8* pBuffer, int length)
          szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
 
-      strcat(szBuffer, "CPU: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "; ");
+      strlcat(szBuffer, "CPU: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "; ", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_execute_bash_command_raw("vcgencmd measure_volts sdram_c", szOutput);
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "SDRAM C: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, ", ");
+      strlcat(szBuffer, "SDRAM C: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, ", ", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_execute_bash_command_raw("vcgencmd measure_volts sdram_i", szOutput);
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "I: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, ", ");
+      strlcat(szBuffer, "I: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, ", ", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_execute_bash_command_raw("vcgencmd measure_volts sdram_p", szOutput);
       szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "P: ");
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, "P: ", sizeof(szBuffer));
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
-      sprintf(szOutput, "TxPower Atheros: %d; ", hardware_get_radio_tx_power_atheros());
-      strcat(szBuffer, szOutput);
-      sprintf(szOutput, "TxPower RTL: %d +", hardware_get_radio_tx_power_rtl());
-      strcat(szBuffer, szOutput);
+      snprintf(szOutput, sizeof(szOutput), "TxPower Atheros: %d; ", hardware_get_radio_tx_power_atheros());
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
+      snprintf(szOutput, sizeof(szOutput), "TxPower RTL: %d +", hardware_get_radio_tx_power_rtl());
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
 
-      sprintf(szOutput, "Avg/Max loops (ms): rx_commands: %u/%u;", g_pProcessStats->uAverageLoopTimeMs, g_pProcessStats->uMaxLoopTimeMs);
-      strcat(szBuffer, szOutput);
+      snprintf(szOutput, sizeof(szOutput), "Avg/Max loops (ms): rx_commands: %u/%u;", g_pProcessStats->uAverageLoopTimeMs, g_pProcessStats->uMaxLoopTimeMs);
+      strlcat(szBuffer, szOutput, sizeof(szBuffer));
       shared_mem_process_stats* pProcessStats = NULL;
       pProcessStats = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_ROUTER_TX);
       if ( NULL != pProcessStats )
       {
-         sprintf(szOutput, " router: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
-         strcat(szBuffer, szOutput);
+         snprintf(szOutput, sizeof(szOutput), " router: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
+         strlcat(szBuffer, szOutput, sizeof(szBuffer));
          shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, pProcessStats);
       }
       else
       {
-         strcat(szBuff, " router: N/A;");
+         strlcat(szBuff, " router: N/A;", sizeof(szBuff));
       }
 
       pProcessStats = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_TX);
       if ( NULL != pProcessStats )
       {
-         sprintf(szOutput, " tx_telemetry: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
-         strcat(szBuffer, szOutput);
+         snprintf(szOutput, sizeof(szOutput), " tx_telemetry: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
+         strlcat(szBuffer, szOutput, sizeof(szBuffer));
          shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, pProcessStats);
       }
       else
       {
-         strcat(szBuff, " tx_telemetry: N/A;");
+         strlcat(szBuff, " tx_telemetry: N/A;", sizeof(szBuff));
       }
 
       pProcessStats = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_RX);
       if ( NULL != pProcessStats )
       {
-         sprintf(szOutput, " rx_rc: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
-         strcat(szBuffer, szOutput);
+         snprintf(szOutput, sizeof(szOutput), " rx_rc: %u/%u;", pProcessStats->uAverageLoopTimeMs, pProcessStats->uMaxLoopTimeMs);
+         strlcat(szBuffer, szOutput, sizeof(szBuffer));
          shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, pProcessStats);
       }
       else
       {
-         strcat(szBuff, " rx_rc: N/A;");
+         strlcat(szBuff, " rx_rc: N/A;", sizeof(szBuff));
       }
 
-      strcat(szBuffer, "+");
+      strlcat(szBuffer, "+", sizeof(szBuffer));
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
@@ -1662,7 +1662,7 @@ bool process_command(u8* pBuffer, int length)
          if ( ! bHadServiceLog )
          {
             char szC[128];
-            sprintf(szC, "touch %s", LOG_USE_PROCESS);
+            snprintf(szC, sizeof(szC), "touch %s", LOG_USE_PROCESS);
             hw_execute_bash_command(szC,NULL);
          }
       }
@@ -1671,7 +1671,7 @@ bool process_command(u8* pBuffer, int length)
          if ( bHadServiceLog )
          {
             char szC[128];
-            sprintf(szC, "rm -rf %s", LOG_USE_PROCESS);
+            snprintf(szC, sizeof(szC), "rm -rf %s", LOG_USE_PROCESS);
             hw_execute_bash_command(szC,NULL);
          }
       }
@@ -1771,7 +1771,7 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+      snprintf(szBuff, sizeof(szBuff), "touch %s", LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
 
       FILE* fd = fopen("config/reset_info.txt", "wt");
@@ -2535,7 +2535,7 @@ bool process_command(u8* pBuffer, int length)
       {
          hw_execute_bash_command("rm -rf tmp/model.tar 2>/dev/null", NULL);
          hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
-         sprintf(szBuff, "cp -rf %s tmp/model.mdl 2>/dev/null", FILE_CURRENT_VEHICLE_MODEL);
+         snprintf(szBuff, sizeof(szBuff), "cp -rf %s tmp/model.mdl 2>/dev/null", FILE_CURRENT_VEHICLE_MODEL);
          hw_execute_bash_command(szBuff, NULL);
          hw_execute_bash_command("tar -czf tmp/model.tar tmp/model.mdl", NULL);
 
@@ -2665,7 +2665,7 @@ bool process_command(u8* pBuffer, int length)
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
       g_pCurrentModel->radioInterfacesParams.slotTime = pPHC->command_param;
       g_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
-      //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/slottime=[0-9]*/slottime=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
+      //snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/slottime=[0-9]*/slottime=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
       //hw_execute_bash_command(szBuff, NULL);
       return true;
    }
@@ -2675,7 +2675,7 @@ bool process_command(u8* pBuffer, int length)
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
       g_pCurrentModel->radioInterfacesParams.thresh62 = pPHC->command_param;
       g_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
-      //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/thresh62=[0-9]*/thresh62=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
+      //snprintf(szBuff, sizeof(szBuff), "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/thresh62=[0-9]*/thresh62=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
       //hw_execute_bash_command(szBuff, NULL);
       return true;
    }

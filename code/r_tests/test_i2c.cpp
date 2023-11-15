@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 int file;
 int adapter_nr = 1;
 char filename[20];
-snprintf(filename, 19, "/dev/i2c-%d", adapter_nr);
+snprintf(filename, sizeof(filename), "/dev/i2c-%d", adapter_nr);
 file = open(filename, O_RDWR);
 if (file < 0) {
   exit(1);

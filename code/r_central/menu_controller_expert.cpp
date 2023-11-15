@@ -262,51 +262,51 @@ void MenuControllerExpert::addTopInfo()
    szOutput[strlen(szOutput)-1] = 0;
 
    int speed = hardware_get_cpu_speed();
-   sprintf(szOutput2, "%d Mhz", speed);
+   snprintf(szOutput2, sizeof(szOutput2), "%d Mhz", speed);
 
-   sprintf(szBuffer, "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
+   snprintf(szBuffer, sizeof(szBuffer), "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
    addTopLine(szBuffer);
 
    hw_execute_bash_command_raw("vcgencmd measure_clock core", szOutput);
    szOutput[0] = 'F';
    szOutput[strlen(szOutput)-1] = 0;
-   sprintf(szBuffer, "GPU %s Hz", szOutput);
+   snprintf(szBuffer, sizeof(szBuffer), "GPU %s Hz", szOutput);
    addTopLine(szBuffer);
 
    /*
    hw_execute_bash_command_raw("vcgencmd measure_clock h264", szOutput);
    szOutput[0] = 'F';
    szOutput[strlen(szOutput)-1] = 0;
-   sprintf(szBuffer, "H264 %s Hz", szOutput);
+   snprintf(szBuffer, sizeof(szBuffer), "H264 %s Hz", szOutput);
    addTopLine(szBuffer);
 
    hw_execute_bash_command_raw("vcgencmd measure_clock isp", szOutput);
    szOutput[0] = 'F';
    szOutput[strlen(szOutput)-1] = 0;
-   sprintf(szBuffer, "ISP %s Hz", szOutput);
+   snprintf(szBuffer, sizeof(szBuffer), "ISP %s Hz", szOutput);
    addTopLine(szBuffer);
    */
 
    hw_execute_bash_command_raw("vcgencmd measure_volts core", szOutput);
-   sprintf(szBuffer, "CPU Voltage: %s", szOutput);
+   snprintf(szBuffer, sizeof(szBuffer), "CPU Voltage: %s", szOutput);
    addTopLine(szBuffer);
    ruby_signal_alive();
 
    char szTmp[256];
 
    hw_execute_bash_command_raw("vcgencmd measure_volts sdram_c", szOutput);
-   sprintf(szBuffer, "SDRAM C%s", szOutput);
+   snprintf(szBuffer, sizeof(szBuffer), "SDRAM C%s", szOutput);
    szBuffer[strlen(szBuffer)-1] = 0;
    hw_execute_bash_command_raw("vcgencmd measure_volts sdram_i", szOutput);
 
-   sprintf(szTmp, ", I%s", szOutput);
-   strcat(szBuffer, szTmp);
+   snprintf(szTmp, sizeof(szTmp), ", I%s", szOutput);
+   strlcat(szBuffer, szTmp, sizeof(szBuffer));
    szBuffer[strlen(szBuffer)-1] = 0;
    ruby_signal_alive();
 
    hw_execute_bash_command_raw("vcgencmd measure_volts sdram_p", szOutput);
-   sprintf(szTmp, ", P%s", szOutput);
-   strcat(szBuffer, szTmp);
+   snprintf(szTmp, sizeof(szTmp), ", P%s", szOutput);
+   strlcat(szBuffer, szTmp, sizeof(szBuffer));
    addTopLine(szBuffer);
 
    addTopLine(" ");
@@ -369,7 +369,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "renice -n %d -p %s", pcs->iNiceRouter, szPids);
+         snprintf(szBuff, sizeof(szBuff), "renice -n %d -p %s", pcs->iNiceRouter, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -379,11 +379,11 @@ void MenuControllerExpert::onSelectItem()
       pcs->iNiceRXVideo = -m_pItemsSlider[2]->getCurrentValue();
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      snprintf(szBuff, sizeof(szBuff), "pidof %s", VIDEO_PLAYER_PIPE);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -415,9 +415,9 @@ void MenuControllerExpert::onSelectItem()
       if ( strlen(szPids) > 2 )
       {
          if ( pcs->ioNiceRouter > 0 )
-            sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+            snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
          else
-            sprintf(szBuff, "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
       valuesToUI();
@@ -438,14 +438,14 @@ void MenuControllerExpert::onSelectItem()
 
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      snprintf(szBuff, sizeof(szBuff), "pidof %s", VIDEO_PLAYER_PIPE);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
          if ( pcs->ioNiceRXVideo > 0 )
-            sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+            snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          else
-            sprintf(szBuff, "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
       valuesToUI();
@@ -459,7 +459,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+         snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -470,11 +470,11 @@ void MenuControllerExpert::onSelectItem()
       pcs->ioNiceRXVideo = m_pItemsSlider[3]->getCurrentValue();
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      snprintf(szBuff, sizeof(szBuff), "pidof %s", VIDEO_PLAYER_PIPE);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }

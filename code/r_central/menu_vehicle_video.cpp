@@ -48,7 +48,7 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    char szCam[256];
    char szCam2[246];
    str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
-   sprintf(szCam, "Camera: %s", szCam2);
+   snprintf(szCam, sizeof(szCam), "Camera: %s", szCam2);
    addTopLine(szCam);
   
    m_pItemsSelect[0] = new MenuItemSelect("Resolution");
@@ -56,17 +56,17 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    {
       if ( g_pCurrentModel->isCameraVeye307() )
       {
-         sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex720p], g_iOptionsVideoWidth[g_iOptionsVideoIndex720p], g_iOptionsVideoHeight[g_iOptionsVideoIndex720p]);
+         snprintf(szBuff, sizeof(szBuff), "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex720p], g_iOptionsVideoWidth[g_iOptionsVideoIndex720p], g_iOptionsVideoHeight[g_iOptionsVideoIndex720p]);
          m_pItemsSelect[0]->addSelection(szBuff);
       }
-      sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex1080p], g_iOptionsVideoWidth[g_iOptionsVideoIndex1080p], g_iOptionsVideoHeight[g_iOptionsVideoIndex1080p]);
+      snprintf(szBuff, sizeof(szBuff), "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex1080p], g_iOptionsVideoWidth[g_iOptionsVideoIndex1080p], g_iOptionsVideoHeight[g_iOptionsVideoIndex1080p]);
       m_pItemsSelect[0]->addSelection(szBuff);
    }
    else 
    {
       for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
       {
-         sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[i], g_iOptionsVideoWidth[i], g_iOptionsVideoHeight[i]);
+         snprintf(szBuff, sizeof(szBuff), "%s (%d x %d)", g_szOptionsVideoRes[i], g_iOptionsVideoWidth[i], g_iOptionsVideoHeight[i]);
          m_pItemsSelect[0]->addSelection(szBuff);
       }
    }
@@ -160,7 +160,7 @@ void MenuVehicleVideo::valuesToUI()
    }
    if ( ! found )
    {
-      sprintf(szBuff, "Info: You are using a custom resolution (%d x %d) on this %s.", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height, g_pCurrentModel->getVehicleTypeString());
+      snprintf(szBuff, sizeof(szBuff), "Info: You are using a custom resolution (%d x %d) on this %s.", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height, g_pCurrentModel->getVehicleTypeString());
       addTopLine(szBuff);
    }
    
@@ -228,7 +228,7 @@ void MenuVehicleVideo::Render()
 void MenuVehicleVideo::showFPSWarning(int w, int h, int fps)
 {
    char szBuff[128];
-   sprintf(szBuff, "Max FPS for this video mode (%d x %d) for this camera is %d FPS", w,h,fps);
+   snprintf(szBuff, sizeof(szBuff), "Max FPS for this video mode (%d x %d) for this camera is %d FPS", w,h,fps);
    Popup* p = new Popup(true, szBuff, 5 );
    p->setIconId(g_idIconWarning, get_Color_IconWarning());
    popups_add_topmost(p);

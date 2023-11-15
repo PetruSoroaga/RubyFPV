@@ -310,7 +310,7 @@ void _handle_download_file_segment_response()
       s_uLastTimeDownloadProgress = g_TimeNow;
       char szBuff[128];
       if ( s_uCountFileSegmentsToDownload > 0 )
-         sprintf(szBuff, "Downloading %d%%", s_uCountFileSegmentsDownloaded*100 / s_uCountFileSegmentsToDownload );
+         snprintf(szBuff, sizeof(szBuff), "Downloading %d%%", s_uCountFileSegmentsDownloaded*100 / s_uCountFileSegmentsToDownload );
       else
          strcpy(szBuff, "Downloading ...");
       warnings_add(szBuff);
@@ -343,14 +343,14 @@ void _handle_download_file_segment_response()
       char szFolder[256];
       char szBuff[256];
 
-      sprintf(szFolder, FOLDER_MEDIA_VEHICLE_DATA, g_pCurrentModel->vehicle_id);
-      sprintf(szComm, "mkdir -p %s", szFolder);
+      snprintf(szFolder, sizeof(szFolder), FOLDER_MEDIA_VEHICLE_DATA, g_pCurrentModel->vehicle_id);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s", szFolder);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szBuff, "logs_%s_%u_%u.zip", g_pCurrentModel->getShortName(), g_pCurrentModel->m_Stats.uTotalFlights, g_pCurrentModel->m_Stats.uTotalOnTime);
+      snprintf(szBuff, sizeof(szBuff), "logs_%s_%u_%u.zip", g_pCurrentModel->getShortName(), g_pCurrentModel->m_Stats.uTotalFlights, g_pCurrentModel->m_Stats.uTotalOnTime);
       for( int i=0; i<strlen(szBuff); i++ )
          if ( szBuff[i] == ' ' )
             szBuff[i] = '-';
-      sprintf(szComm, "mv -f tmp/vehicle_logs.zip %s/%s", szFolder, szBuff);
+      snprintf(szComm, sizeof(szComm), "mv -f tmp/vehicle_logs.zip %s/%s", szFolder, szBuff);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -542,7 +542,7 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_DEVELOPER_FLAGS:
          g_pCurrentModel->uDeveloperFlags = s_CommandParam;
          saveAsCurrentModel(g_pCurrentModel);  
-         sprintf(szBuff, "Vehicle development flags: %d", s_CommandParam);
+         snprintf(szBuff, sizeof(szBuff), "Vehicle development flags: %d", s_CommandParam);
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC);
          break;
 
@@ -552,7 +552,7 @@ bool handle_last_command_result()
          else
             g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_LIVE_LOG);
          saveAsCurrentModel(g_pCurrentModel);  
-         sprintf(szBuff, "Switched vehicle live log stream to: %d", s_CommandParam);
+         snprintf(szBuff, sizeof(szBuff), "Switched vehicle live log stream to: %d", s_CommandParam);
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC);
          break;
 
@@ -602,41 +602,41 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->board_type), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         snprintf(szBuff, sizeof(szBuff), "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->board_type), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
          
          for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            sprintf(szBuff, "Radio Interface %d: %s, USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szMAC[i], g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]));
+            snprintf(szBuff, sizeof(szBuff), "Radio Interface %d: %s, USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szMAC[i], g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]));
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
-            sprintf(szBuff, ". . . currently at %s, supported bands: ", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[i]));
+            snprintf(szBuff, sizeof(szBuff), ". . . currently at %s, supported bands: ", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[i]));
             if ( g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_23 )
-               strcat(szBuff, "2.3 ");
+               strlcat(szBuff, "2.3 ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_24 )
-               strcat(szBuff, "2.4 ");
+               strlcat(szBuff, "2.4 ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_25 )
-               strcat(szBuff, "2.5 ");
+               strlcat(szBuff, "2.5 ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_58 )
-               strcat(szBuff, "5.8 ");
+               strlcat(szBuff, "5.8 ", sizeof(szBuff));
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
-            sprintf(szBuff, ". . . flags: ");
+            snprintf(szBuff, sizeof(szBuff), ". . . flags: ");
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
-               strcat(szBuff, "TX/RX, ");
+               strlcat(szBuff, "TX/RX, ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
             if ( !( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
-               strcat(szBuff, "TX Only, ");
+               strlcat(szBuff, "TX Only, ", sizeof(szBuff));
             if ( !(g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-               strcat(szBuff, "RX Only, ");
+               strlcat(szBuff, "RX Only, ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
-               strcat(szBuff, "Video, ");
+               strlcat(szBuff, "Video, ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
-               strcat(szBuff, "Data, ");
+               strlcat(szBuff, "Data, ", sizeof(szBuff));
             if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-               strcat(szBuff, "Relay");
+               strlcat(szBuff, "Relay", sizeof(szBuff));
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
          }
 
@@ -668,7 +668,7 @@ bool handle_last_command_result()
          pTmp32 = (u32*)pBuffer;
          if ( length == 2*sizeof(u32) )
          {
-            sprintf(szBuff, "Memory: %d Mb free out of %d Mb total", *(pTmp32+1), *pTmp32);
+            snprintf(szBuff, sizeof(szBuff), "Memory: %d Mb free out of %d Mb total", *(pTmp32+1), *pTmp32);
             s_pMenuVehicleHWInfo->addTopLine(" ");
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
          }
@@ -928,7 +928,7 @@ bool handle_last_command_result()
             tmp = 0;
          g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = tmp;
          saveAsCurrentModel(g_pCurrentModel);  
-         sprintf(szBuff, "Switched camera %d to profile %s", g_pCurrentModel->iCurrentCamera, model_getCameraProfileName(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile));
+         snprintf(szBuff, sizeof(szBuff), "Switched camera %d to profile %s", g_pCurrentModel->iCurrentCamera, model_getCameraProfileName(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile));
          warnings_add(szBuff);
          break;
 
@@ -2016,7 +2016,7 @@ void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName)
    if ( NULL == szFileName || 0 == szFileName[0] )
       return;
 
-   strncpy(g_CurrentUploadingFile.szFileName, szFileName, 127);
+    strlcpy(g_CurrentUploadingFile.szFileName, szFileName, sizeof(g_CurrentUploadingFile.szFileName));
  
    FILE* fd = fopen(szFileName, "rb");
    if ( NULL == fd )
@@ -2092,7 +2092,7 @@ void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName)
    g_CurrentUploadingFile.currentUploadSegment.uTotalFileSize = lSize;
    g_CurrentUploadingFile.currentUploadSegment.uTotalSegments = g_CurrentUploadingFile.uTotalSegments;
    g_CurrentUploadingFile.currentUploadSegment.uSegmentSize = lSegmentSize;
-   strncpy(g_CurrentUploadingFile.currentUploadSegment.szFileName, szFileName, 127);
+    strlcpy(g_CurrentUploadingFile.currentUploadSegment.szFileName, szFileName, sizeof(g_CurrentUploadingFile.currentUploadSegment.szFileName));
 
    g_CurrentUploadingFile.uLastSegmentIndexUploaded = 0xFFFFFFFF;
    g_bHasFileUploadInProgress = true;

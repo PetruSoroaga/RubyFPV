@@ -422,11 +422,11 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
    if ( diffEC > 0 )
    {
       char szTmp[16];
-      sprintf(szTmp, "-%d", diffEC);
-      strcat(szBuff, szTmp);
+      snprintf(szTmp, sizeof(szTmp), "-%d", diffEC);
+      strlcat(szBuff, szTmp, sizeof(szBuff));
    }
    else if ( g_psmvds->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
-      strcat(szBuff, "-");
+      strlcat(szBuff, "-", sizeof(szBuff));
    fWidth = g_pRenderEngine->textWidth(uFontId, szBuff);
 
    if ( bLeft )
@@ -496,10 +496,10 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
 
    char szName1[128];
    char szName2[128];
-   strncpy(szName1, g_pCurrentModel->getLongName(), 127);
+    strlcpy(szName1, g_pCurrentModel->getLongName(), sizeof(szName1));
    szName1[0] = toupper(szName1[0]);
 
-   strncpy(szName2, pModel->getLongName(), 127);
+    strlcpy(szName2, pModel->getLongName(), sizeof(szName2));
    szName2[0] = toupper(szName2[0]);
 
    float fWidthName1 = g_pRenderEngine->textWidth(g_idFontOSDSmall, szName1);
@@ -617,9 +617,9 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    
    if ( g_pCurrentModel->relay_params.uCurrentRelayMode == RELAY_MODE_REMOTE ||
         g_pCurrentModel->relay_params.uCurrentRelayMode == RELAY_MODE_PIP_REMOTE )
-      sprintf(szBuff,"RELAYING: %s", szName);
+      snprintf(szBuff, sizeof(szBuff),"RELAYING: %s", szName);
    else
-      sprintf(szBuff,"RELAY Off: %s", szName);
+      snprintf(szBuff, sizeof(szBuff),"RELAY Off: %s", szName);
 
    fWidth += osd_show_value(xPos, yPos, szBuff, g_idFontOSD);
 */

@@ -243,7 +243,7 @@ void MenuPreferences::onSelectItem()
       pCS->nRotaryEncoderSpeed = m_pItemsSelect[6]->getSelectedIndex();
       save_ControllerSettings();
       char szBuff[128];
-      sprintf(szBuff, "touch %s", FILE_TMP_I2C_UPDATED);
+      snprintf(szBuff, sizeof(szBuff), "touch %s", FILE_TMP_I2C_UPDATED);
       hw_execute_bash_command_silent(szBuff, NULL);
       valuesToUI();
       return;
@@ -262,7 +262,7 @@ void MenuPreferences::onSelectItem()
       pCS->nRotaryEncoderSpeed2 = m_pItemsSelect[8]->getSelectedIndex();
       save_ControllerSettings();
       char szBuff[128];
-      sprintf(szBuff, "touch %s", FILE_TMP_I2C_UPDATED);
+      snprintf(szBuff, sizeof(szBuff), "touch %s", FILE_TMP_I2C_UPDATED);
       hw_execute_bash_command_silent(szBuff, NULL);
       valuesToUI();
       return;

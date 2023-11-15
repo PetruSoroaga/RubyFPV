@@ -75,7 +75,7 @@ MenuControllerJoystick::MenuControllerJoystick(int joystickIndex)
    if ( NULL != m_pJoystick )
    {
       char szBuff[256];
-      sprintf(szBuff, "%s Settings", m_pJoystick->szInterfaceName );
+      snprintf(szBuff, sizeof(szBuff), "%s Settings", m_pJoystick->szInterfaceName );
       setTitle(szBuff);
    }
 
@@ -201,7 +201,7 @@ void MenuControllerJoystick::Render()
    if ( NULL != m_pJoystick )
    {
       char szBuff[256];
-      sprintf(szBuff, "HID ID: %u", m_pJoystick->uId);
+      snprintf(szBuff, sizeof(szBuff), "HID ID: %u", m_pJoystick->uId);
       y += 1.8*g_pRenderEngine->drawMessageLines(m_xPos+MENU_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio(), y, szBuff, height_textT, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
    }
 
@@ -255,12 +255,12 @@ void MenuControllerJoystick::Render()
       char szBuff[128];
       if ( i < MAX_JOYSTICK_AXES )
       {
-         sprintf(szBuff, "Axe %02d: %d", i+1, pJoy->axesValues[i]);
+         snprintf(szBuff, sizeof(szBuff), "Axe %02d: %d", i+1, pJoy->axesValues[i]);
          g_pRenderEngine->drawText(xPos, y, height_text, g_idFontMenu, szBuff);
       }
       //if ( i < MAX_JOYSTICK_BUTTONS )
       //{
-      //   sprintf(szBuff, "Btn %02d: %d", i+1, pJoy->buttonsValues[i]);
+      //   snprintf(szBuff, sizeof(szBuff), "Btn %02d: %d", i+1, pJoy->buttonsValues[i]);
       //   draw_message(szBuff, xPos+toScreenX(0.15)*menu_getScaleMenus(), y-height_text, text_scale, render_getFontMenu());
       //}
       y += height_text*1.1;

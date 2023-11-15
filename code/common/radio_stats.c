@@ -281,56 +281,56 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS)
    strcpy(szBuff, "Streams current packets indexes: ");
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
-      sprintf(szBuff2, "%u, ", pSMRS->radio_streams[i].totalRxPackets);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%u, ", pSMRS->radio_streams[i].totalRxPackets);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
       
    strcpy(szBuff, "Radio Links current packets indexes: ");
    for( int i=0; i<pSMRS->countRadioLinks; i++ )
    {
-      sprintf(szBuff2, "%u, ", pSMRS->radio_links[i].totalRxPackets);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%u, ", pSMRS->radio_links[i].totalRxPackets);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
    strcpy(szBuff, "Radio Interf current packets indexes: ");
    for( int i=0; i<pSMRS->countRadioInterfaces; i++ )
    {
-      sprintf(szBuff2, "%u, ", pSMRS->radio_interfaces[i].totalRxPackets);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%u, ", pSMRS->radio_interfaces[i].totalRxPackets);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
    strcpy(szBuff, "Radio Interf total rx bytes: ");
    for( int i=0; i<pSMRS->countRadioInterfaces; i++ )
    {
-      sprintf(szBuff2, "%u, ", pSMRS->radio_interfaces[i].totalRxBytes);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%u, ", pSMRS->radio_interfaces[i].totalRxBytes);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
    strcpy(szBuff, "Radio Interf total rx bytes/sec: ");
    for( int i=0; i<pSMRS->countRadioInterfaces; i++ )
    {
-      sprintf(szBuff2, "%u, ", pSMRS->radio_interfaces[i].rxBytesPerSec);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%u, ", pSMRS->radio_interfaces[i].rxBytesPerSec);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
    strcpy(szBuff, "Radio Interf current rx quality: ");
    for( int i=0; i<pSMRS->countRadioInterfaces; i++ )
    {
-      sprintf(szBuff2, "%d%%, ", pSMRS->radio_interfaces[i].rxQuality);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%d%%, ", pSMRS->radio_interfaces[i].rxQuality);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
    strcpy(szBuff, "Radio Interf current relative rx quality: ");
    for( int i=0; i<pSMRS->countRadioInterfaces; i++ )
    {
-      sprintf(szBuff2, "%d%%, ", pSMRS->radio_interfaces[i].rxRelativeQuality);
-      strcat(szBuff, szBuff2);
+      snprintf(szBuff2, sizeof(szBuff2), "%d%%, ", pSMRS->radio_interfaces[i].rxRelativeQuality);
+      strlcat(szBuff, szBuff2, sizeof(szBuff));
    }
    log_line(szBuff);
 
@@ -340,21 +340,21 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS)
    {
       if ( 0 < pSMRS->radio_streams[i].rxBytesPerSec || 0 < pSMRS->radio_streams[i].rxPacketsPerSec )
       {
-         sprintf(szBuff2, "stream %d: %u bps / %u pckts/s, ", i, pSMRS->radio_streams[i].rxBytesPerSec*8, pSMRS->radio_streams[i].rxPacketsPerSec);
-         strcat(szBuff, szBuff2);
+         snprintf(szBuff2, sizeof(szBuff2), "stream %d: %u bps / %u pckts/s, ", i, pSMRS->radio_streams[i].rxBytesPerSec*8, pSMRS->radio_streams[i].rxPacketsPerSec);
+         strlcat(szBuff, szBuff2, sizeof(szBuff));
       }
    }
    log_line(szBuff);
 
    for( int iLink=0; iLink<pSMRS->countRadioLinks; iLink++ )
    {
-      sprintf(szBuff, "Radio streams throughput (link %d): ", iLink+1);
+      snprintf(szBuff, sizeof(szBuff), "Radio streams throughput (link %d): ", iLink+1);
       for( int i=0; i<MAX_RADIO_STREAMS; i++ )
       {
          if ( 0 < pSMRS->radio_links[iLink].streamRxBytesPerSec[i] || 0 < pSMRS->radio_links[iLink].streamRxPacketsPerSec[i] )
          {
-            sprintf(szBuff2, "stream %d: %u bps / %u pckts/s, ", i,pSMRS->radio_links[iLink].streamRxBytesPerSec[i]*8, pSMRS->radio_links[iLink].streamRxPacketsPerSec[i]);
-            strcat(szBuff, szBuff2);
+            snprintf(szBuff2, sizeof(szBuff2), "stream %d: %u bps / %u pckts/s, ", i,pSMRS->radio_links[iLink].streamRxBytesPerSec[i]*8, pSMRS->radio_links[iLink].streamRxPacketsPerSec[i]);
+            strlcat(szBuff, szBuff2, sizeof(szBuff));
          }
       }
       log_line(szBuff);    
@@ -643,14 +643,13 @@ int _radio_stats_get_vehicle_runtime_info_index(u32 uVehicleId)
    log_line("[RadioStats] Start receiving data from vehicle id: %u", uVehicleId);    
    
    char szTmp[256];
+   int len = 0;
    szTmp[0] = 0;
    for( int i=0; i<s_iCountHistoryRxVehicles; i++ )
    {
       if ( 0 != szTmp[0] )
-         strcat(szTmp, ", ");
-      char szTmp2[32];
-      sprintf(szTmp2, "%u", s_ListHistoryRxVehicles[i].uVehicleId);
-      strcat(szTmp, szTmp2);
+         len = strlcat(szTmp, ", ", sizeof(szTmp));
+      len += snprintf(szTmp+len, sizeof(szTmp)-len, "%u", s_ListHistoryRxVehicles[i].uVehicleId);
    }
    log_line("Current list of receiving vehicles (%d): [%s]", s_iCountHistoryRxVehicles, szTmp);
 

@@ -60,7 +60,7 @@ MenuVehicleTelemetry::MenuVehicleTelemetry(void)
    m_pItemsSelect[2] = new MenuItemSelect("Vehicle Serial Baudrate", "Sets the baud rate between flight controller and Ruby on the vehicle side. Should match the serial speed that the flight controller generates. Higher is better.");
    for( int i=0; i<hardware_get_serial_baud_rates_count(); i++ )
    {
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[i]);
+      snprintf(szBuff, sizeof(szBuff), "%d bps", hardware_get_serial_baud_rates()[i]);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    m_pItemsSelect[2]->setIsEditable();
@@ -187,7 +187,7 @@ void MenuVehicleTelemetry::valuesToUI()
 
       if ( ! bSpeedFound )
       {
-         sprintf(szBuff, "Info: You are using a custom telemetry baud rate (%ld) on this %s.", uCurrentSerialPortSpeed, g_pCurrentModel->getVehicleTypeString());
+         snprintf(szBuff, sizeof(szBuff), "Info: You are using a custom telemetry baud rate (%u) on this %s.", uCurrentSerialPortSpeed, g_pCurrentModel->getVehicleTypeString());
          addTopLine(szBuff);
       }
    }

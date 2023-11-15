@@ -61,7 +61,7 @@ void MenuVehicleSelector::onShow()
    }
 
    char szBuff[256];
-   sprintf(szBuff, "%s Actions", pModel->getLongName());
+   snprintf(szBuff, sizeof(szBuff), "%s Actions", pModel->getLongName());
    setTitle(szBuff);
    m_IndexSelect = addMenuItem(new MenuItem("Select","Make this vehicle the active one."));
    m_IndexDelete = addMenuItem(new MenuItem("Delete","Deletes this vehicle."));
@@ -126,7 +126,7 @@ void MenuVehicleSelector::onSelectItem()
       if ( checkIsArmed() )
          return;
       char szBuff[64];
-      sprintf(szBuff, "Are you sure you want to delete %s?", g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff), "Are you sure you want to delete %s?", g_pCurrentModel->getLongName());
       add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
       m_iConfirmationId = 1;
       return;

@@ -244,53 +244,53 @@ int init_hardware()
 
    
    char szBuff[64];
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MENU);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_MENU);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MENU);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_MENU);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_BACK);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_BACK);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_BACK);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_BACK);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_PLUS);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_PLUS);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_PLUS);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_PLUS);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MINUS);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_MINUS);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MINUS);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_MINUS);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION1);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTION1);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION1);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTION1);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTION2);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2);
-   hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2_2);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2_2);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTION2);
    hw_execute_bash_command_silent(szBuff, NULL);
 
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION3);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTION2_2);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION3);
-   hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONPLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONPLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONMINUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONMINUS);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTION2_2);
    hw_execute_bash_command_silent(szBuff, NULL);
 
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTION3);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTION3);
+   hw_execute_bash_command_silent(szBuff, NULL);
+
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTIONPLUS);
+   hw_execute_bash_command_silent(szBuff, NULL);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTIONPLUS);
+   hw_execute_bash_command_silent(szBuff, NULL);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_QACTIONMINUS);
+   hw_execute_bash_command_silent(szBuff, NULL);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_QACTIONMINUS);
+   hw_execute_bash_command_silent(szBuff, NULL);
+
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
+   hw_execute_bash_command_silent(szBuff, NULL);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
    hw_execute_bash_command_silent(szBuff, NULL);
 
    GPIOWrite(GPIO_PIN_BUZZER, LOW);
@@ -330,9 +330,9 @@ int init_hardware_only_status_led()
    }
 
    char szBuff[64];
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
+   snprintf(szBuff, sizeof(szBuff), "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
    hw_execute_bash_command_silent(szBuff, NULL);
 
    log_line("HW: GPIO setup successfully.");
@@ -423,7 +423,7 @@ int hardware_getBoardType()
    if ( strcmp(szBuff, "2a01041") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV11;}
    if ( strcmp(szBuff, "2a22042") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV12;}
    
-   strncpy(szBuff, str_get_hardware_board_name(s_iHardwareLastDetectedBoardType), 255);
+    strlcpy(szBuff, str_get_hardware_board_name(s_iHardwareLastDetectedBoardType), sizeof(szBuff));
    if ( szBuff[0] == 0 )
       strcpy(szBuff, "N/A");
    log_line("Current board type: %s", szBuff);
@@ -485,7 +485,7 @@ int hardware_detectBoardType()
    wifi_type = hardware_getWifiType();
 
    char szBuff[1024];
-   strncpy(szBuff, str_get_hardware_board_name(board_type), 1023);
+    strlcpy(szBuff, str_get_hardware_board_name(board_type), sizeof(szBuff));
    if ( szBuff[0] == 0 )
       strcpy(szBuff, "N/A");
 
@@ -550,7 +550,7 @@ void hardware_enum_joystick_interfaces()
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].uId = 0;
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].countAxes = 0;
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].countButtons = 0;
-      sprintf(szDevName, "/dev/input/js%d", i);
+      snprintf(szDevName, sizeof(szDevName), "/dev/input/js%d", i);
       if( access( szDevName, R_OK ) == -1 )
          continue;
    
@@ -558,7 +558,7 @@ void hardware_enum_joystick_interfaces()
 
       char name[256];
       if (ioctl(fd, JSIOCGNAME(sizeof(name)), name) < 0)
-         strncpy(name, "Unknown", sizeof(name));
+          strlcpy(name, "Unknown", sizeof(name));
 
       u32 uid = 0;
       if (ioctl(fd, JSIOCGVERSION, &uid) == -1)
@@ -623,7 +623,7 @@ int hardware_open_joystick(int joystickIndex)
       return 1;
    }
    char szDevName[256];
-   sprintf(szDevName, "/dev/input/js%d", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+   snprintf(szDevName, sizeof(szDevName), "/dev/input/js%d", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    if( access( szDevName, R_OK ) == -1 )
    {
       log_softerror_and_alarm("HW: Failed to access HID interface /dev/input/js%d !", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
@@ -1307,13 +1307,13 @@ int hardware_try_mount_usb()
    char szCommand[128];
    char szOutput[2048];
    s_iUSBMounted = 0;
-   sprintf(szCommand, "mkdir -p %s", FOLDER_USB_MOUNT); 
+   snprintf(szCommand, sizeof(szCommand), "mkdir -p %s", FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=10; i>0; i-- )
    {
-      sprintf(szBuff, "/dev/sda%d", i);
-      sprintf(szCommand, "mount /dev/sda%d %s 2>&1", i, FOLDER_USB_MOUNT);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sda%d", i);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sda%d %s 2>&1", i, FOLDER_USB_MOUNT);
       if( access( szBuff, R_OK ) != -1 )
       {
          hw_execute_bash_command(szCommand, szOutput);
@@ -1321,8 +1321,8 @@ int hardware_try_mount_usb()
          break;
       }
 
-      sprintf(szBuff, "/dev/sdb%d", i);
-      sprintf(szCommand, "mount /dev/sdb%d %s 2>&1", i, FOLDER_USB_MOUNT);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdb%d", i);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdb%d %s 2>&1", i, FOLDER_USB_MOUNT);
       if( access( szBuff, R_OK ) != -1 )
       {
          hw_execute_bash_command(szCommand, szOutput);
@@ -1330,8 +1330,8 @@ int hardware_try_mount_usb()
          break;
       }
 
-      sprintf(szBuff, "/dev/sdc%d", i);
-      sprintf(szCommand, "mount /dev/sdc%d %s 2>&1", i, FOLDER_USB_MOUNT);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdc%d", i);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdc%d %s 2>&1", i, FOLDER_USB_MOUNT);
       if( access( szBuff, R_OK ) != -1 )
       {
          hw_execute_bash_command(szCommand, szOutput);
@@ -1339,8 +1339,8 @@ int hardware_try_mount_usb()
          break;
       }
 
-      sprintf(szBuff, "/dev/sdd%d", i);
-      sprintf(szCommand, "mount /dev/sdd%d %s 2>&1", i, FOLDER_USB_MOUNT);
+      snprintf(szBuff, sizeof(szBuff), "/dev/sdd%d", i);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdd%d %s 2>&1", i, FOLDER_USB_MOUNT);
       if( access( szBuff, R_OK ) != -1 )
       {
          hw_execute_bash_command(szCommand, szOutput);
@@ -1351,7 +1351,7 @@ int hardware_try_mount_usb()
    if ( ! s_iUSBMounted )
    if( access( "/dev/sda", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sda %s 2>&1", FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sda %s 2>&1", FOLDER_USB_MOUNT);
       hw_execute_bash_command(szCommand, szOutput);
       s_iUSBMounted = 1;
    }
@@ -1359,7 +1359,7 @@ int hardware_try_mount_usb()
    if ( ! s_iUSBMounted )
    if( access( "/dev/sdb", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdb %s 2>&1", FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdb %s 2>&1", FOLDER_USB_MOUNT);
       hw_execute_bash_command(szCommand, szOutput);
       s_iUSBMounted = 1;
    }
@@ -1367,7 +1367,7 @@ int hardware_try_mount_usb()
    if ( ! s_iUSBMounted )
    if( access( "/dev/sdc", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdc %s 2>&1", FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdc %s 2>&1", FOLDER_USB_MOUNT);
       hw_execute_bash_command(szCommand, szOutput);
       s_iUSBMounted = 1;
    }
@@ -1375,7 +1375,7 @@ int hardware_try_mount_usb()
    if ( ! s_iUSBMounted )
    if( access( "/dev/sdd", R_OK ) != -1 )
    {
-      sprintf(szCommand, "mount /dev/sdd %s 2>&1", FOLDER_USB_MOUNT);
+      snprintf(szCommand, sizeof(szCommand), "mount /dev/sdd %s 2>&1", FOLDER_USB_MOUNT);
       hw_execute_bash_command(szCommand, szOutput);
       s_iUSBMounted = 1;
    }
@@ -1392,12 +1392,12 @@ void hardware_unmount_usb()
       return;
 
    char szCommand[128];
-   sprintf(szCommand, "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
+   snprintf(szCommand, sizeof(szCommand), "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
    hw_execute_bash_command(szCommand, NULL);
 
    hardware_sleep_ms(200);
 
-   sprintf(szCommand, "rm -rf %s", FOLDER_USB_MOUNT); 
+   snprintf(szCommand, sizeof(szCommand), "rm -rf %s", FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
    s_iUSBMounted = 0;
@@ -1430,7 +1430,7 @@ u32 _hardware_get_camera_type()
          s_bHardwareHasCamera = 1;
          s_uHardwareCameraType = CAMERA_TYPE_VEYE307;
 
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+         snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          hw_execute_bash_command_raw(szComm, szOutput);
          char* szDevId = strstr(szOutput, "device id is");
          //log_line("Output: [%s], dev id: [%s]", szOutput, szDevId);
@@ -1456,9 +1456,9 @@ u32 _hardware_get_camera_type()
          }
          }
          if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE307 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER307);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER);
+            snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER);
          hw_execute_bash_command(szComm, NULL);
 
          break;

@@ -40,14 +40,14 @@ MenuVehicleCamera::MenuVehicleCamera(void)
    char szCam[256];
    char szCam2[256];
    str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
-   sprintf(szCam, "Camera: %s", szCam2);
+   snprintf(szCam, sizeof(szCam), "Camera: %s", szCam2);
 
    char* szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
    if ( 0 != szCamName[0] )
    {
-      strcat(szCam, " (");
-      strcat(szCam, szCamName);
-      strcat(szCam, ")");
+      strlcat(szCam, " (", sizeof(szCam));
+      strlcat(szCam, szCamName, sizeof(szCam));
+      strlcat(szCam, ")", sizeof(szCam));
    }
    addTopLine(szCam);
 
@@ -105,14 +105,14 @@ void MenuVehicleCamera::addItems()
       szCam[0] = 0;
       szCam2[0] = 0;
       str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
-      sprintf(szCam, "%s", szCam2);
+      snprintf(szCam, sizeof(szCam), "%s", szCam2);
 
       szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
       if ( 0 != szCamName[0] )
       {
-         strcat(szCam, " (");
-         strcat(szCam, szCamName);
-         strcat(szCam, ")");
+         strlcat(szCam, " (", sizeof(szCam));
+         strlcat(szCam, szCamName, sizeof(szCam));
+         strlcat(szCam, ")", sizeof(szCam));
       }
       m_pItemsSelect[11]->addSelection(szCam);
    }
@@ -137,7 +137,7 @@ void MenuVehicleCamera::addItems()
    for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
    {
       char szBuff[32];
-      sprintf(szBuff, "Profile %s", model_getCameraProfileName(i));
+      snprintf(szBuff, sizeof(szBuff), "Profile %s", model_getCameraProfileName(i));
       m_pItemsSelect[0]->addSelection(szBuff);
    }
    m_pItemsSelect[0]->setIsEditable();

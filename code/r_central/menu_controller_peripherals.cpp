@@ -102,7 +102,7 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
 
       u32 uUsage = (u32)pInfo->iPortUsage;
       
-      sprintf( szBuff, "%s Usage", pInfo->szName );
+      snprintf(szBuff, sizeof(szBuff), "%s Usage", pInfo->szName );
       m_pItemsSelect[10+i*2] = new MenuItemSelect(szBuff, "Enables this serial port on the controller for a particular use.");
       
       if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
@@ -132,7 +132,7 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
                continue;
             if ( pSettings->uRequestedCapabilities & CORE_PLUGIN_CAPABILITY_HARDWARE_ACCESS_UART )
             {
-               sprintf(szOption, "Core Plugin %s", szName);
+               snprintf(szOption, sizeof(szOption), "Core Plugin %s", szName);
                m_pItemsSelect[10+i*2]->addSelection(szOption);
             }
          }
@@ -140,11 +140,11 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
       }
       m_IndexSerialType[i] = addMenuItem(m_pItemsSelect[10+i*2]);
 
-      sprintf( szBuff, "%s Baudrate", pInfo->szName );
+      snprintf( szBuff, sizeof(szBuff), "%s Baudrate", pInfo->szName );
       m_pItemsSelect[11+i*2] = new MenuItemSelect(szBuff, "Sets the baud rate of this serial port on the controller.");
       for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
       {
-         sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+         snprintf(szBuff, sizeof(szBuff), "%d bps", hardware_get_serial_baud_rates()[n]);
          m_pItemsSelect[11+i*2]->addSelection(szBuff);
       }
       m_pItemsSelect[11+i*2]->setIsEditable();
@@ -268,7 +268,7 @@ void MenuControllerPeripherals::valuesToUI()
       if ( ! bFoundSpeed )
       {
          m_pItemsSelect[11+i*2]->setSelection(0);
-         sprintf(szBuff, "Info: You are using a custom telemetry baud rate (%ld) on serial port %s.", pInfo->lPortSpeed, pInfo->szName);
+         snprintf(szBuff, sizeof(szBuff), "Info: You are using a custom telemetry baud rate (%ld) on serial port %s.", pInfo->lPortSpeed, pInfo->szName);
          addTopLine(szBuff);
       }
    }
@@ -298,7 +298,7 @@ bool MenuControllerPeripherals::periodicLoop()
          {
            m_iConfirmationId = 1;
            char szError[1024];
-           sprintf(szError, "Your USB to Serial adapter on port %s is not compatible. Use brand name adapters or ones with CP2102 chipset. The ones with 340 chipset are not compatible.", pPortInfo->szName);
+           snprintf(szError, sizeof(szError), "Your USB to Serial adapter on port %s is not compatible. Use brand name adapters or ones with CP2102 chipset. The ones with 340 chipset are not compatible.", pPortInfo->szName);
            MenuConfirmation* pMC = new MenuConfirmation("Unsupported USB to Serial Adapter", szError, m_iConfirmationId, true);
            pMC->m_yPos = 0.3;
            add_menu_to_stack(pMC);
@@ -341,7 +341,7 @@ bool MenuControllerPeripherals::periodicLoop()
       char szBuff[128];
       int percent = m_nSearchI2CDeviceAddress*100/128;
       if ( percent > 100 ) percent = 100;
-      sprintf(szBuff, "Enumerating I2C devices %d%%. Please wait...", percent);
+      snprintf(szBuff, sizeof(szBuff), "Enumerating I2C devices %d%%. Please wait...", percent);
       m_pItemWait->setTitle(szBuff);
       invalidate();     
    }
@@ -370,7 +370,7 @@ void MenuControllerPeripherals::addI2CDevices()
       {
          log_line("Pico Extender version: %d.%d (%d)", (pInfo->nVersion)>>4, (pInfo->nVersion) & 0x0F, pInfo->nVersion );
          char szBuff[128];
-         sprintf(szBuff, "%s %d.%d", pInfo->szDeviceName, (pInfo->nVersion)>>4, (pInfo->nVersion) & 0x0F);
+         snprintf(szBuff, sizeof(szBuff), "%s %d.%d", pInfo->szDeviceName, (pInfo->nVersion)>>4, (pInfo->nVersion) & 0x0F);
          m_IndexI2CDevices[countAdded] = addMenuItem( new MenuItem(szBuff, "Configure this I2C device.") );
       }
       else
@@ -515,7 +515,7 @@ void MenuControllerPeripherals::onSelectItem()
             if ( k != i )
             {
                char szBuff[128];
-               sprintf(szBuff, "You have multiple serial ports assigned to %s. This will be an issue.", str_get_serial_port_usage(newUsage));
+               snprintf(szBuff, sizeof(szBuff), "You have multiple serial ports assigned to %s. This will be an issue.", str_get_serial_port_usage(newUsage));
                addMessage(szBuff);
                break;
             }
@@ -602,7 +602,7 @@ void MenuControllerPeripherals::onSelectItem()
          MenuDeviceI2C* pMenu = new MenuDeviceI2C();
          pMenu->setDeviceId(pInfo->nI2CAddress);
          char szBuff[128];
-         sprintf(szBuff, "Configure %s I2C Device", pInfo->szDeviceName);
+         snprintf(szBuff, sizeof(szBuff), "Configure %s I2C Device", pInfo->szDeviceName);
          add_menu_to_stack(pMenu);
          return;
       }

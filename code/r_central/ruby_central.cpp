@@ -173,16 +173,16 @@ u32 load_font(float hFont, const char* szName)
       nSize = 14;
    if ( nSize > 56 )
       nSize = 56;
-   sprintf(szFileName, "res/font_%s_%d.dsc", szName, nSize );
+   snprintf(szFileName, sizeof(szFileName), "res/font_%s_%d.dsc", szName, nSize );
    if ( access( szFileName, R_OK ) == -1 )
    {
       log_softerror_and_alarm("Can't find font: [%s]. Using a default font instead.", szFileName );
-      sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
+      snprintf(szFileName, sizeof(szFileName), "res/font_rawobold_%d.dsc", nSize );
       if ( access( szFileName, R_OK ) == -1 )
       {
          log_softerror_and_alarm("Can't find font: [%s]. Using a default size instead.", szFileName );
          nSize = 56;
-         sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
+         snprintf(szFileName, sizeof(szFileName), "res/font_rawobold_%d.dsc", nSize );
       }
    }
    log_line("Loading font: %s (%s)", szName, szFileName);
@@ -437,7 +437,7 @@ void draw_background()
    g_pRenderEngine->setGlobalAlfa(1.0);
    g_pRenderEngine->setColors(c);
 
-   sprintf(szBuff, "Welcome to %s", SYSTEM_NAME);
+   snprintf(szBuff, sizeof(szBuff), "Welcome to %s", SYSTEM_NAME);
 
    g_pRenderEngine->drawText(0.42, 0.2, 0.02*1.4, g_idFontMenuLarge, szBuff);
    g_pRenderEngine->drawText(0.42, 0.24, 0.02, g_idFontMenuLarge, "Digital FPV System");
@@ -505,7 +505,7 @@ void render_graph_bg()
 
    for( int i=0; i<=10; i++ )
    {
-      sprintf(szBuff, "%d", i*milisec);
+      snprintf(szBuff, sizeof(szBuff), "%d", i*milisec);
       
       float width_text = g_pRenderEngine->textWidth(height_text, g_idFontMenu, szBuff);   
       int x = startX + (endX-startX)*i/10.0;
@@ -524,9 +524,9 @@ void render_graph_bg()
 
    for( int i=0; i<=slices+2; i++ )
    {
-      sprintf(szBuff, "%d", i-2);
+      snprintf(szBuff, sizeof(szBuff), "%d", i-2);
       if ( i < 2 )
-         sprintf(szBuff, "%d", 2-i);
+         snprintf(szBuff, sizeof(szBuff), "%d", 2-i);
       float y = startY + (endY-startY )*i/(slices+2);
       g_pRenderEngine->drawTextLeft(startX-22.0*g_pRenderEngine->getPixelWidth(), y-height_text*0.4, height_text, g_idFontMenu, szBuff);
       g_pRenderEngine->drawLine(startX-10.0*g_pRenderEngine->getPixelWidth(), y, startX, y);
@@ -756,11 +756,11 @@ void render_router_pachets_history()
    height_text = g_pRenderEngine->textHeight(0.0, g_idFontMenu);
 
    char szBuff[128];
-   sprintf(szBuff, "Telemetry: %d/sec", totalCountTelemetry);
+   snprintf(szBuff, sizeof(szBuff), "Telemetry: %d/sec", totalCountTelemetry);
    g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop, height_text, g_idFontMenu, szBuff);
-   sprintf(szBuff, "RC (Out/In): %d/%d/sec", totalCountRC, totalCountRCIn);
+   snprintf(szBuff, sizeof(szBuff), "RC (Out/In): %d/%d/sec", totalCountRC, totalCountRCIn);
    g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*1.3, height_text, g_idFontMenu, szBuff);
-   sprintf(szBuff, "Ping: %d/sec", totalCountPing);
+   snprintf(szBuff, sizeof(szBuff), "Ping: %d/sec", totalCountPing);
    g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*2.6, height_text, g_idFontMenu, szBuff);
 }
 
@@ -783,15 +783,15 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       u32 t = timeNow;
       t = t - g_uVideoPlayingStartTime;
       if ( t/1000 > g_uVideoPlayingLengthSec+1 )
-         sprintf(szBuff, "Finished.");
+         snprintf(szBuff, sizeof(szBuff), "Finished.");
       else if ( (t/500)%2 )
-         sprintf(szBuff, "Playing %02d:%02d", ((t/1000)/60), (t/1000)%60);
+         snprintf(szBuff, sizeof(szBuff), "Playing %02d:%02d", ((t/1000)/60), (t/1000)%60);
       else
-         sprintf(szBuff, "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
+         snprintf(szBuff, sizeof(szBuff), "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
 
       float text_scale = 0.017;
       g_pRenderEngine->drawText(0.03, 0.05, text_scale, g_idFontMenu, szBuff);      
-      sprintf(szBuff, "Press [Menu] or [Back] button to close");
+      snprintf(szBuff, sizeof(szBuff), "Press [Menu] or [Back] button to close");
       text_scale = 0.012;
       g_pRenderEngine->drawText(0.18, 0.042, text_scale, g_idFontMenu, szBuff);      
       g_pRenderEngine->endFrame();
@@ -902,19 +902,19 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       if ( p->iShowCPULoad )
       {
          xPos += 0.02*osd_getScaleOSD();
-         sprintf(szBuff, "UI FPS: %d", s_iRubyFPS);
+         snprintf(szBuff, sizeof(szBuff), "UI FPS: %d", s_iRubyFPS);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
 
          xPos += 0.056*osd_getScaleOSD();
-         sprintf(szBuff, "Menu: %.1f ms/frame", s_iMicroTimeMenuRender/1000.0);
+         snprintf(szBuff, sizeof(szBuff), "Menu: %.1f ms/frame", s_iMicroTimeMenuRender/1000.0);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
 
          xPos += 0.1*osd_getScaleOSD();
-         sprintf(szBuff, "OSD: %.1f ms/frame", s_iMicroTimeOSDRender/1000.0);
+         snprintf(szBuff, sizeof(szBuff), "OSD: %.1f ms/frame", s_iMicroTimeOSDRender/1000.0);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
 
          xPos += 0.1*osd_getScaleOSD();
-         sprintf(szBuff, "OSD: %d ms/sec", (int)(s_iMicroTimeOSDRender*s_iRubyFPS/1000.0));
+         snprintf(szBuff, sizeof(szBuff), "OSD: %d ms/sec", (int)(s_iMicroTimeOSDRender*s_iRubyFPS/1000.0));
          osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
       }
    }
@@ -1012,15 +1012,15 @@ void ruby_start_recording()
 
    char szBuff[1024];
    system("sudo mount -o remount,rw /"); 
-   sprintf(szBuff, "mkdir -p %s",FOLDER_MEDIA);
+   snprintf(szBuff, sizeof(szBuff), "mkdir -p %s",FOLDER_MEDIA);
    hw_execute_bash_command(szBuff, NULL );
-   sprintf(szBuff, "chmod 777 %s",FOLDER_MEDIA);
+   snprintf(szBuff, sizeof(szBuff), "chmod 777 %s",FOLDER_MEDIA);
    hw_execute_bash_command(szBuff, NULL );
 
    hw_execute_bash_command("mkdir -p tmp", NULL );
    hw_execute_bash_command("chmod 777 tmp", NULL );
 
-   sprintf(szBuff, "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
+   snprintf(szBuff, sizeof(szBuff), "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
    hw_execute_bash_command(szBuff, NULL );
 
    if ( access( FOLDER_MEDIA, R_OK ) == -1 )
@@ -1039,13 +1039,13 @@ void ruby_start_recording()
       sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
       if ( lf < 200 )
       {
-         sprintf(szTemp, "You don't have enough free space on the SD card to start recording (%d Mb free). Move your media files to USB memory stick.", (int)lf);
+         snprintf(szTemp, sizeof(szTemp), "You don't have enough free space on the SD card to start recording (%d Mb free). Move your media files to USB memory stick.", (int)lf);
          warnings_add(szTemp, g_idIconCamera, get_Color_IconError(), 6);
          return;
       }
       if ( lf < 1000 )
       {
-         sprintf(szTemp, "You are running low on storage space (%d Mb free). Move your media files to USB memory stick.", (int)lf);
+         snprintf(szTemp, sizeof(szTemp), "You are running low on storage space (%d Mb free). Move your media files to USB memory stick.", (int)lf);
          warnings_add(szTemp, g_idIconCamera, get_Color_IconWarning(), 6);
          log_line("Warning: Free storage space is only %d Mb. Video recording might stop", (int)lf);
       }
@@ -1096,7 +1096,7 @@ bool quickActionCheckVehicle(const char* szText)
    if ( NULL == szText || 0 == szText[0] )
       strcpy(szBuff, "You must be connected to a vehicle to use this Quick Action button function");
    else
-      sprintf(szBuff, "You must be connected to a vehicle to %s", szText);
+      snprintf(szBuff, sizeof(szBuff), "You must be connected to a vehicle to %s", szText);
 
    Popup* p = new Popup(szBuff, 0.1,0.7, 0.54, 4);
    p->setCentered();
@@ -1322,7 +1322,7 @@ void executeQuickActions()
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId <= 0 )
       {
          char szBuff[128];
-         sprintf(szBuff, "Relaying is not enabled on this vehicle (%s)!", g_pCurrentModel->getLongName() );
+         snprintf(szBuff, sizeof(szBuff), "Relaying is not enabled on this vehicle (%s)!", g_pCurrentModel->getLongName() );
          Popup* p = new Popup(szBuff, 0.1,0.8, 0.5, 4);
          p->setIconId(g_idIconError, get_Color_IconError());
          popups_add_topmost(p);
@@ -1457,15 +1457,15 @@ void r_check_processes_filesystem()
    szFilesMissing[0] = 0;
    bool failed = false;
    if( access( "ruby_rt_station", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rt_station"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rt_station", sizeof(szFilesMissing)); }
    if( access( "ruby_rx_telemetry", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rx_telemetry"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rx_telemetry", sizeof(szFilesMissing)); }
    if( access( "ruby_video_proc", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_video_proc"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_video_proc", sizeof(szFilesMissing)); }
    if( access( VIDEO_PLAYER_PIPE, R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
+      { failed = true; strlcat(szFilesMissing, " ", sizeof(szFilesMissing)); strlcat(szFilesMissing, VIDEO_PLAYER_PIPE, sizeof(szFilesMissing)); }
    if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
+      { failed = true; strlcat(szFilesMissing, " ", sizeof(szFilesMissing)); strlcat(szFilesMissing, VIDEO_PLAYER_OFFLINE, sizeof(szFilesMissing)); }
 
    log_line("Checked proccesses. Result: %s", failed?"failed":"all ok");
 
@@ -1549,7 +1549,7 @@ void start_loop()
       if ( access("/sys/class/net/usb0", R_OK ) == -1 )
       {
          char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
+         snprintf(szBuff, sizeof(szBuff), "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
          hw_execute_bash_command(szBuff, NULL);
       }
 
@@ -1891,7 +1891,7 @@ void start_loop()
          log_line("Processing unfinished video file %s, length: %d bytes", TEMP_VIDEO_FILE, fSize);
 
          char szBuff[64];
-         sprintf(szBuff, "nice -n 5 ./ruby_video_proc &");
+         snprintf(szBuff, sizeof(szBuff), "nice -n 5 ./ruby_video_proc &");
          hw_execute_bash_command(szBuff, NULL);
          log_line("Start sequence: Processing unfinished video file...");
          popupStartup.addLine("Processing unfinished video file...");
@@ -2223,14 +2223,14 @@ void main_loop_r_central()
          fclose(fd);
          log_line("Reverting HDMI resolution back to: group: %d, mode: %d", group, mode);
 
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+         snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_TMP_HDMI_CHANGED);
          hw_execute_bash_command(szBuff, NULL);
 
          hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-         sprintf(szBuff, "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", group);
+         snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_group=[0-9]*/hdmi_group=%d/g' config.txt", group);
          hw_execute_bash_command(szBuff, NULL);
-         sprintf(szBuff, "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", mode);
+         snprintf(szBuff, sizeof(szBuff), "sed -i 's/hdmi_mode=[0-9]*/hdmi_mode=%d/g' config.txt", mode);
          hw_execute_bash_command(szBuff, NULL);
          hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       }
@@ -2256,7 +2256,7 @@ void ruby_pause_watchdog()
    {
       log_line("Pause watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
       char szComm[256];
-      sprintf(szComm, "touch %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
+      snprintf(szComm, sizeof(szComm), "touch %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
    }
    else
@@ -2273,7 +2273,7 @@ void ruby_resume_watchdog()
       hardware_sleep_ms(20);
       log_line("Resumed watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
    }
    else
@@ -2326,7 +2326,7 @@ int main(int argc, char *argv[])
       s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
 
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
       hw_execute_bash_command(szComm, NULL);         
 
       g_TimeNow = get_current_timestamp_ms();

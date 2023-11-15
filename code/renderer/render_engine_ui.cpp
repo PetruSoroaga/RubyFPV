@@ -121,16 +121,16 @@ unsigned int RenderEngineUI::loadFontSize(float fSize)
    if ( pP->iOSDFont == 3 )
       strcpy(szFont, "bt_bold");
 
-   sprintf(szFileName, "res/font_%s_%d.dsc", szFont, nSize );
+   snprintf(szFileName, sizeof(szFileName), "res/font_%s_%d.dsc", szFont, nSize );
    if ( access( szFileName, R_OK ) == -1 )
    {
       log_softerror_and_alarm("[RenderEngineOSD] Can't find font: [%s]. Using a default font instead.", szFileName );
-      sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
+      snprintf(szFileName, sizeof(szFileName), "res/font_rawobold_%d.dsc", nSize );
       if ( access( szFileName, R_OK ) == -1 )
       {
          log_softerror_and_alarm("[RenderEngineOSD] Can't find font: [%s]. Using a default size instead.", szFileName );
          nSize = 56;
-         sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
+         snprintf(szFileName, sizeof(szFileName), "res/font_rawobold_%d.dsc", nSize );
       }
    }
    

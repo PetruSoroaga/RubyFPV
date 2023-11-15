@@ -62,7 +62,7 @@ bool launch_set_frequency(Model* pModel, int iRadioIndex, u32 uFrequency, shared
    {
       radio_hw_info_t* pRadioInfo2 = hardware_get_radio_info(iRadioIndex);
       log_line("Setting radio interface %d (%s, %s) to frequency %s (guard interval: %d ms)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver), str_format_frequency(uFrequency), (int)delayMs);
-      sprintf(szInfo, "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver));
+      snprintf(szInfo, sizeof(szInfo), "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver));
       iStartIndex = iRadioIndex;
       iEndIndex = iRadioIndex;
    }
@@ -109,17 +109,17 @@ bool launch_set_frequency(Model* pModel, int iRadioIndex, u32 uFrequency, shared
          {
             if ( (pRadioInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
             {
-               sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
+               snprintf(cmd, sizeof(cmd), "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
                bUsedHT40 = true;
             }
             else
             {
-               sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
+               snprintf(cmd, sizeof(cmd), "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
                bUsedHT40 = true;
             }
          }
          else if ( pRadioInfo->isHighCapacityInterface )
-            sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
+            snprintf(cmd, sizeof(cmd), "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
 
          hw_execute_bash_command_raw(cmd, szOutput);
 
@@ -135,7 +135,7 @@ bool launch_set_frequency(Model* pModel, int iRadioIndex, u32 uFrequency, shared
             log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequency), szOutput);
             hardware_sleep_ms(delayMs);
             szOutput[0] = 0;
-            sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
+            snprintf(cmd, sizeof(cmd), "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
             hw_execute_bash_command_raw(cmd, szOutput);
          }
 
@@ -208,34 +208,34 @@ bool launch_set_datarate_atheros(Model* pModel, int iCard, int dataRate)
       return false;
    }
 
-   sprintf(cmd, "ifconfig %s down", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "ifconfig %s down", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "iw dev %s set type managed", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "iw dev %s set type managed", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s up", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "ifconfig %s up", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
    if ( dataRate > 0 )
-      sprintf(cmd, "iw dev %s set bitrates legacy-2.4 %d", pNICInfo->szName, dataRate );
+      snprintf(cmd, sizeof(cmd), "iw dev %s set bitrates legacy-2.4 %d", pNICInfo->szName, dataRate );
    else
-      sprintf(cmd, "iw dev %s set bitrates ht-mcs-2.4 %d", pNICInfo->szName, -dataRate-1 );
+      snprintf(cmd, sizeof(cmd), "iw dev %s set bitrates ht-mcs-2.4 %d", pNICInfo->szName, -dataRate-1 );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s down", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "ifconfig %s down", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "iw dev %s set monitor none", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "iw dev %s set monitor none", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s up", pNICInfo->szName );
+   snprintf(cmd, sizeof(cmd), "ifconfig %s up", pNICInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 

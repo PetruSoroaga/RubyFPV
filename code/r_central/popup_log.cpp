@@ -56,9 +56,9 @@ void PopupLog::addLine(const char* szLine)
    m_TotalLinesAdded++;
    char szBuff[1024];
    if ( m_bShowLineNumbers )
-      snprintf(szBuff, 1023, "%d. %s", m_TotalLinesAdded, szLine);
+      snprintf(szBuff, sizeof(szBuff), "%d. %s", m_TotalLinesAdded, szLine);
    else
-      snprintf(szBuff, 1023, "%s", szLine);
+      snprintf(szBuff, sizeof(szBuff), "%s", szLine);
 
    if ( m_LinesCount < m_MaxRenderLines )
    {
@@ -163,7 +163,7 @@ void popup_log_add_entry(const char* szLine)
 void popup_log_add_entry(const char* szLine, int param)
 {
    char szBuff[1024];
-   snprintf(szBuff, 1023, szLine, param);
+   snprintf(szBuff, sizeof(szBuff), szLine, param);
    s_PopupLog.setFont(g_idFontOSDSmall);
    s_PopupLog.addLine(szBuff);
    if ( s_PopupShowFlag != 0 )
@@ -173,7 +173,7 @@ void popup_log_add_entry(const char* szLine, int param)
 void popup_log_add_entry(const char* szLine, const char* szParam)
 {
    char szBuff[1024];
-   snprintf(szBuff, 1023, szLine, szParam);
+   snprintf(szBuff, sizeof(szBuff), szLine, szParam);
    s_PopupLog.setFont(g_idFontOSDSmall);
    s_PopupLog.addLine(szBuff);
    if ( s_PopupShowFlag != 0 )

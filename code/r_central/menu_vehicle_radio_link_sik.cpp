@@ -54,7 +54,7 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
     
    char szBuff[256];
 
-   sprintf(szBuff, "Vehicle Radio Link %d Parameters", m_iRadioLink+1);
+   snprintf(szBuff, sizeof(szBuff), "Vehicle Radio Link %d Parameters", m_iRadioLink+1);
    setTitle(szBuff);
 
    char szBands[128];
@@ -86,7 +86,7 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
 
    if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[m_iRadioLink] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
    {
-      sprintf(szBuff,"Relay %s", str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequency));
+      snprintf(szBuff, sizeof(szBuff),"Relay %s", str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequency));
       m_pItemsSelect[6]->addSelection(szBuff);
    }
    else
@@ -126,12 +126,12 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
    m_pItemsSelect[9] = new MenuItemSelect("Radio Data Rate", "Sets the physical radio data rate to use on this radio link. If adaptive radio links is enabled, this can get lowered automatically as needed.");
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      sprintf(szBuff, "%d Mbps", getDataRates()[i]);
+      snprintf(szBuff, sizeof(szBuff), "%d Mbps", getDataRates()[i]);
       m_pItemsSelect[9]->addSelection(szBuff);
    }
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
+      snprintf(szBuff, sizeof(szBuff), "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
       m_pItemsSelect[9]->addSelection(szBuff);
    }
    m_pItemsSelect[9]->setIsEditable();
@@ -589,7 +589,7 @@ void MenuVehicleRadioLinkSiK::onSelectItem()
          }
          if ( ! supportedOnController )
          {
-            sprintf(szBuff, "%s frequency is not supported by your controller.", str_format_frequency(freq));
+            snprintf(szBuff, sizeof(szBuff), "%s frequency is not supported by your controller.", str_format_frequency(freq));
             add_menu_to_stack(new MenuConfirmation("Invalid option",szBuff, 0, true));
             valuesToUI();
             return;
@@ -597,7 +597,7 @@ void MenuVehicleRadioLinkSiK::onSelectItem()
          if ( ! allSupported )
          {
             char szBuff[256];
-            sprintf(szBuff, "Not all radio interfaces on your controller support %s frequency. Some radio links on the controller will not be used.", str_format_frequency(freq));
+            snprintf(szBuff, sizeof(szBuff), "Not all radio interfaces on your controller support %s frequency. Some radio links on the controller will not be used.", str_format_frequency(freq));
             add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 0, true));
          }
 

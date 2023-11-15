@@ -39,7 +39,7 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
    float fSliderWidth = 0.10;
 
    char szBuff[256];
-   sprintf(szBuff, "Instruments/Gauges Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   snprintf(szBuff, sizeof(szBuff), "Instruments/Gauges Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
    setTitle(szBuff);
    
    for( int i=0; i<50; i++ )
@@ -87,7 +87,7 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
       m_IndexPlugins[20+i] = addMenuItem(m_pItemsSelect[20+i]);
 
       char szDesc[128];
-      sprintf(szDesc, "Configure this plugin (%s)", szName);
+      snprintf(szDesc, sizeof(szDesc), "Configure this plugin (%s)", szName);
       MenuItem* pItem = new MenuItem("   Configure", szDesc);
       pItem->showArrow();
       m_IndexPluginsConfigure[20+i] = addMenuItem(pItem);

@@ -30,6 +30,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include <sys/types.h>
 #include <dirent.h>
 #include <string.h>
+#include <bsd/string.h>
 
 #include "../base/base.h"
 #include "../base/config.h"
@@ -71,7 +72,7 @@ void power_leds(int onoff)
             continue;
          if ( dir->d_name[0] != 'l' )
             continue;
-         sprintf(szBuff, "/sys/class/leds/%s/brightness", dir->d_name);
+         snprintf(szBuff, sizeof(szBuff), "/sys/class/leds/%s/brightness", dir->d_name);
          FILE* fd = fopen(szBuff, "w");
          if ( NULL != fd )
          {
@@ -87,31 +88,31 @@ void initLogFiles()
 {
    char szCom[256];
 
-   sprintf(szCom, "mv logs/log_system.txt logs/log_system_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_system.txt logs/log_system_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_SYSTEM, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_errors.txt logs/log_errors_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_errors.txt logs/log_errors_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_ERRORS, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_errors_soft.txt logs/log_errors_soft_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_errors_soft.txt logs/log_errors_soft_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_ERRORS_SOFT, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_commands.txt logs/log_commands_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_commands.txt logs/log_commands_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_COMMANDS, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_watchdog.txt logs/log_watchdog_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_watchdog.txt logs/log_watchdog_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_WATCHDOG, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_video.txt logs/log_video_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_video.txt logs/log_video_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_VIDEO, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
-   sprintf(szCom, "mv logs/log_capture_veye.txt logs/log_capture_veye_%d.txt", s_iBootCount-1 );
+   snprintf(szCom, sizeof(szCom), "mv logs/log_capture_veye.txt logs/log_capture_veye_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_CAPTURE_VEYE, R_OK ) != -1 )
       hw_execute_bash_command_silent(szCom, NULL);
 
@@ -166,43 +167,43 @@ void start_check_processes()
    szFilesMissing[0] = 0;
    bool failed = false;
    if( access( "ruby_controller", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_controller"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_controller", sizeof(szFilesMissing)); }
    if( access( "ruby_rt_station", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rt_station"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rt_station", sizeof(szFilesMissing)); }
    if( access( "ruby_rt_vehicle", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rt_vehicle"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rt_vehicle", sizeof(szFilesMissing)); }
    if( access( "ruby_rx_telemetry", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rx_telemetry"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rx_telemetry", sizeof(szFilesMissing)); }
    if( access( "ruby_tx_telemetry", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_tx_telemetry"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_tx_telemetry", sizeof(szFilesMissing)); }
    if( access( "ruby_rx_commands", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rx_commands"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_rx_commands", sizeof(szFilesMissing)); }
    if( access( "ruby_video_proc", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_video_proc"); }
+      { failed = true; strlcat(szFilesMissing, " ruby_video_proc", sizeof(szFilesMissing)); }
    //if( access( VIDEO_PLAYER_PIPE, R_OK ) == -1 )
-   //   { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
+   //   { failed = true; strlcat(szFilesMissing, " ", sizeof(szFilesMissing)); strlcat(szFilesMissing, VIDEO_PLAYER_PIPE, sizeof(szFilesMissing)); }
    //if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
-   //   { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
+   //   { failed = true; strlcat(szFilesMissing, " ", sizeof(szFilesMissing)); strlcat(szFilesMissing, VIDEO_PLAYER_OFFLINE, sizeof(szFilesMissing)); }
 
    if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) == -1 )
    {
       hw_execute_bash_command("cp -rf /etc/modprobe.d/ath9k_hw.conf /etc/modprobe.d/ath9k_hw.conf.org", NULL);
       if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) == -1 )
-         {failed = true; strcat(szFilesMissing, " Atheros_config");}
+         {failed = true; strlcat(szFilesMissing, " Atheros_config", sizeof(szFilesMissing));}
    }
 
    if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) == -1 )
    {
       hw_execute_bash_command("cp -rf /etc/modprobe.d/rtl8812au.conf /etc/modprobe.d/rtl8812au.conf.org", NULL);
       if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) == -1 )
-         {failed = true; strcat(szFilesMissing, " RTL_config");}
+         {failed = true; strlcat(szFilesMissing, " RTL_config", sizeof(szFilesMissing));}
    }
    
    if ( access( "/etc/modprobe.d/rtl88XXau.conf.org", R_OK ) == -1 )
    {
       hw_execute_bash_command("cp -rf /etc/modprobe.d/rtl88XXau.conf /etc/modprobe.d/rtl88XXau.conf.org", NULL);
       if ( access( "/etc/modprobe.d/rtl88XXau.conf.org", R_OK ) == -1 )
-         {failed = true; strcat(szFilesMissing, " RTL_XX_config");}
+         {failed = true; strlcat(szFilesMissing, " RTL_XX_config", sizeof(szFilesMissing));}
    }
    
    if ( failed )
@@ -324,13 +325,13 @@ void do_first_boot_initialization()
       if ( board_type == BOARD_TYPE_PIZERO || board_type == BOARD_TYPE_PIZEROW )
       {
          log_line("Raspberry Pi Zero detected on the first boot ever of the system. Updating settings for Pi Zero.");
-         //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
+         //snprintf(szBuff, sizeof(szBuff), "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
          //execute_bash_command(szBuff);
       }
       if ( board_type == BOARD_TYPE_PIZERO2 )
       {
          log_line("Raspberry Pi Zero 2 detected on the first boot ever of the system. Updating settings for Pi Zero 2.");
-         //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
+         //snprintf(szBuff, sizeof(szBuff), "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
          //execute_bash_command(szBuff);
       }
 
@@ -400,7 +401,7 @@ void do_first_boot_initialization()
          }
       }
 
-   sprintf(szBuff, "rm -rf %s", FILE_FIRST_BOOT);
+   snprintf(szBuff, sizeof(szBuff), "rm -rf %s", FILE_FIRST_BOOT);
    hw_execute_bash_command_silent(szBuff, NULL);
    hardware_sleep_ms(50);
    //if ( ! s_isVehicle )
@@ -521,11 +522,11 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_silent("chmod 777 tmp/ruby", NULL);
       hw_execute_bash_command_silent("rm -rf tmp/ruby/*", NULL);
       
-      sprintf(szComm, "mkdir -p %s", TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s", TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "chmod 777 %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "umount %s", TEMP_VIDEO_MEM_FOLDER);
+      snprintf(szComm, sizeof(szComm), "umount %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command_silent(szComm, NULL);
 
       hw_execute_bash_command_silent("mkdir -p logs", NULL);
@@ -540,19 +541,19 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_silent("chmod 777 media/*", NULL);
       hw_execute_bash_command_silent("chmod 777 updates/*", NULL);
    
-      sprintf(szComm, "mkdir -p %s", FOLDER_OSD_PLUGINS);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s", FOLDER_OSD_PLUGINS);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s", FOLDER_OSD_PLUGINS);
+      snprintf(szComm, sizeof(szComm), "chmod 777 %s", FOLDER_OSD_PLUGINS);
       hw_execute_bash_command_silent(szComm, NULL);
 
 
-      sprintf(szComm, "mkdir -p %s", FOLDER_CORE_PLUGINS);
+      snprintf(szComm, sizeof(szComm), "mkdir -p %s", FOLDER_CORE_PLUGINS);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s", FOLDER_CORE_PLUGINS);
+      snprintf(szComm, sizeof(szComm), "chmod 777 %s", FOLDER_CORE_PLUGINS);
       hw_execute_bash_command_silent(szComm, NULL);
 
       fd = fopen(LOG_FILE_START, "a+");
-      if ( NULL == fd || fd < 0 )
+      if ( NULL == fd )
          continue;
 
       fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, tty_name);
@@ -560,7 +561,7 @@ int main (int argc, char *argv[])
       fd = NULL;
 
       fd = fopen(FILE_BOOT_COUNT, "w");
-      if ( NULL == fd || fd < 0 )
+      if ( NULL == fd )
          continue;
       fprintf(fd, "%d\n", s_iBootCount);
       fclose(fd);
@@ -572,7 +573,7 @@ int main (int argc, char *argv[])
    fflush(stdout);
 
    fd = fopen(LOG_FILE_START, "a+");
-   if ( NULL != fd && fd >= 0 )
+   if ( NULL != fd )
    {
       fprintf(fd, "Starting run number %d; Starting Ruby on TTY name: %s\n\n", s_iBootCount, tty_name);
       fclose(fd);
@@ -602,12 +603,12 @@ int main (int argc, char *argv[])
    hw_execute_bash_command("./ruby_initdhcp &", NULL);
    
    hw_execute_bash_command_raw("lsusb", szOutput);
-   strcat(szOutput, "\n*END*\n");
+   strlcat(szOutput, "\n*END*\n", sizeof(szOutput));
    log_line("USB Devices:");
    log_line(szOutput);
 
    hw_execute_bash_command_raw("lsmod", szOutput);
-   strcat(szOutput, "\n*END*\n");
+   strlcat(szOutput, "\n*END*\n", sizeof(szOutput));
    log_line("Loaded Modules:");
    log_line(szOutput);      
       
@@ -630,10 +631,10 @@ int main (int argc, char *argv[])
       }
       for( int i=0; i<3; i++ )
       {
-         sprintf(szComm, "ifconfig wlan%d down", i );
+         snprintf(szComm, sizeof(szComm), "ifconfig wlan%d down", i );
          hw_execute_bash_command(szComm, NULL);
          hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
-         sprintf(szComm, "ifconfig wlan%d up", i );
+         snprintf(szComm, sizeof(szComm), "ifconfig wlan%d up", i );
          hw_execute_bash_command(szComm, NULL);
          hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
       }
@@ -666,10 +667,10 @@ int main (int argc, char *argv[])
       {
          for( int i=0; i<4; i++ )
          {   
-            sprintf(szComm, "ifconfig wlan%d down", i );
+            snprintf(szComm, sizeof(szComm), "ifconfig wlan%d down", i );
             hw_execute_bash_command(szComm, NULL);
             hardware_sleep_ms(DEFAULT_DELAY_WIFI_CHANGE);
-            sprintf(szComm, "ifconfig wlan%d up", i );
+            snprintf(szComm, sizeof(szComm), "ifconfig wlan%d up", i );
             hw_execute_bash_command(szComm, NULL);
             hardware_sleep_ms(DEFAULT_DELAY_WIFI_CHANGE);
          }     
@@ -682,7 +683,7 @@ int main (int argc, char *argv[])
          }
          iRetry++;
       }
-      sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+      snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
       hardware_enumerate_radio_interfaces();
@@ -712,7 +713,7 @@ int main (int argc, char *argv[])
       log_line("Network wlan2 info: [%s]", szOutput);
    }
 
-   sprintf(szComm, "rm -rf %s", FILE_SYSTEM_TYPE);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_SYSTEM_TYPE);
    hw_execute_bash_command_silent(szComm, NULL);
 
    init_hardware_only_status_led();
@@ -721,7 +722,7 @@ int main (int argc, char *argv[])
    {
       hw_execute_bash_command("rm -rf config/*", NULL);
       
-      sprintf(szComm, "touch %s", FILE_FIRST_BOOT);
+      snprintf(szComm, sizeof(szComm), "touch %s", FILE_FIRST_BOOT);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -730,7 +731,7 @@ int main (int argc, char *argv[])
    // Initialize I2C bus 0 for different boards types
    {
       log_line("Initialize I2C busses...");
-      sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
+      snprintf(szComm, sizeof(szComm), "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
       hw_execute_bash_command(szComm, NULL);
       if ( board_type == BOARD_TYPE_PI3APLUS || board_type == BOARD_TYPE_PI3B || board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B )
       {
@@ -777,7 +778,7 @@ int main (int argc, char *argv[])
    log_line("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...");
    fflush(stdout);
 
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   snprintf(szComm, sizeof(szComm), "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_enumerate_radio_interfaces_step(0);
@@ -1135,7 +1136,7 @@ int main (int argc, char *argv[])
          {
             u32 uTimeNow = get_current_timestamp_ms();
             char szTime[128];
-            sprintf(szTime,"%d %d:%02d:%02d", s_iBootCount, (int)(uTimeNow/1000/60/60), (int)(uTimeNow/1000/60)%60, (int)((uTimeNow/1000)%60));
+            snprintf(szTime, sizeof(szTime),"%d %d:%02d:%02d", s_iBootCount, (int)(uTimeNow/1000/60/60), (int)(uTimeNow/1000/60)%60, (int)((uTimeNow/1000)%60));
             printf("%s All processes are running fine.\n", szTime);
          }
          fflush(stdout);

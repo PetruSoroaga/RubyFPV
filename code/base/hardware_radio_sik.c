@@ -197,42 +197,42 @@ int _hardware_radio_sik_get_all_params(radio_hw_info_t* pRadioInfo, int iSerialP
       szMAC[0] = 0;
 
       if ( hardware_radio_sik_send_command(iSerialPortFile, "ATI1", bufferResponse, 255) )
-         strcat(szMAC, (char*)bufferResponse);
+         strlcat(szMAC, (char*)bufferResponse, sizeof(szMAC));
       else
-         strcat(szMAC, "X");
-      strcat(szMAC, "-");
+         strlcat(szMAC, "X", sizeof(szMAC));
+      strlcat(szMAC, "-", sizeof(szMAC));
       if ( hardware_radio_sik_send_command(iSerialPortFile, "ATI2", bufferResponse, 255) )
-         strcat(szMAC, (char*)bufferResponse);
+         strlcat(szMAC, (char*)bufferResponse, sizeof(szMAC));
       else
-         strcat(szMAC, "X");
-      strcat(szMAC, "-");
+         strlcat(szMAC, "X", sizeof(szMAC));
+      strlcat(szMAC, "-", sizeof(szMAC));
 
       if ( hardware_radio_sik_send_command(iSerialPortFile, "ATI3", bufferResponse, 255) )
-         strcat(szMAC, (char*)bufferResponse);
+         strlcat(szMAC, (char*)bufferResponse, sizeof(szMAC));
       else
-         strcat(szMAC, "X");
-      strcat(szMAC, "-");
+         strlcat(szMAC, "X", sizeof(szMAC));
+      strlcat(szMAC, "-", sizeof(szMAC));
 
       if ( hardware_radio_sik_send_command(iSerialPortFile, "ATI4", bufferResponse, 255) )
-         strcat(szMAC, (char*)bufferResponse);
+         strlcat(szMAC, (char*)bufferResponse, sizeof(szMAC));
       else
-         strcat(szMAC, "X");
-      strcat(szMAC, "-");
+         strlcat(szMAC, "X", sizeof(szMAC));
+      strlcat(szMAC, "-", sizeof(szMAC));
 
       if ( hardware_radio_sik_send_command(iSerialPortFile, "ATS8?", bufferResponse, 255) )
       {
          u32 uFreq = (u32)atoi((char*)bufferResponse);
          if ( uFreq < 500000 )
-            strcat(szMAC, "433");
+            strlcat(szMAC, "433", sizeof(szMAC));
          else if ( uFreq < 890000 )
-            strcat(szMAC, "868");
+            strlcat(szMAC, "868", sizeof(szMAC));
          else
-            strcat(szMAC, "915");
+            strlcat(szMAC, "915", sizeof(szMAC));
       }
       else
-         strcat(szMAC, "NNN");
+         strlcat(szMAC, "NNN", sizeof(szMAC));
 
-      strncpy(pRadioInfo->szMAC, szMAC, MAX_MAC_LENGTH);
+      strlcpy(pRadioInfo->szMAC, szMAC, MAX_MAC_LENGTH);
       pRadioInfo->szMAC[MAX_MAC_LENGTH-1] = 0;
       log_line("[HardwareRadio] Computed SiK radio MAC: [%s]", pRadioInfo->szMAC);
    }
@@ -249,7 +249,7 @@ int _hardware_radio_sik_get_all_params(radio_hw_info_t* pRadioInfo, int iSerialP
    {
       pRadioInfo->uHardwareParamsList[i] = MAX_U32;
       char szComm[32];
-      sprintf(szComm, "ATS%d?", i);
+      snprintf(szComm, sizeof(szComm), "ATS%d?", i);
       if ( hardware_radio_sik_send_command(iSerialPortFile, szComm, bufferResponse, 255) )
       {
          pRadioInfo->uHardwareParamsList[i] = atoi((char*)bufferResponse);
@@ -347,7 +347,7 @@ int hardware_radio_sik_save_configuration()
        fwrite( (u8*)pRadioInfo, 1, sizeof(radio_hw_info_t), fd );
 
       char szBuff[256];
-      sprintf(szBuff, "* SiK radio %d of %d on [%s], id: [%s]", iCountWrite+1, s_iSiKRadioCount, pRadioInfo->szDriver, pRadioInfo->szMAC);
+      snprintf(szBuff, sizeof(szBuff), "* SiK radio %d of %d on [%s], id: [%s]", iCountWrite+1, s_iSiKRadioCount, pRadioInfo->szDriver, pRadioInfo->szMAC);
       log_line(szBuff);
       iCountWrite++;
    }
@@ -412,7 +412,7 @@ int hardware_radio_sik_load_configuration()
    for( int i=0; i<s_iSiKRadioCount; i++ )
    {
       char szBuff[256];
-      sprintf(szBuff, "* SiK radio %d of %d on [%s], id: [%s]", i+1, s_iSiKRadioCount, s_SiKRadioLastKnownInfo[i].szDriver, s_SiKRadioLastKnownInfo[i].szMAC);
+      snprintf(szBuff, sizeof(szBuff), "* SiK radio %d of %d on [%s], id: [%s]", i+1, s_iSiKRadioCount, s_SiKRadioLastKnownInfo[i].szDriver, s_SiKRadioLastKnownInfo[i].szMAC);
       log_line(szBuff);
    }
    s_iSiKRadioLastKnownCount = s_iSiKRadioCount;
@@ -428,7 +428,7 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
    char szDevName[128];
    strcpy(szDevName, szSerialPort);
    if ( 0 == strstr(szSerialPort, "/dev") )
-      sprintf(szDevName, "/dev/%s", szSerialPort);
+      snprintf(szDevName, sizeof(szDevName), "/dev/%s", szSerialPort);
 
    log_line("[HardwareRadio]: Try to find SiK radio on interface [%s]...", szDevName);
    if ( access( szDevName, R_OK ) == -1 )
@@ -475,19 +475,18 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
          continue;
       }
 
-      strcat(s_radioHWInfoSikTemp.szMAC, "-");
-      strcat(s_radioHWInfoSikTemp.szMAC, szSerialPort + (strlen(szSerialPort)-1));
+      strlcat(s_radioHWInfoSikTemp.szMAC, "-", sizeof(s_radioHWInfoSikTemp.szMAC));
+      strlcat(s_radioHWInfoSikTemp.szMAC, szSerialPort + (strlen(szSerialPort)-1), sizeof(s_radioHWInfoSikTemp.szMAC));
       log_line("[HardwareRadio]: Found SiK Radio on port %s, baud: %d, MAC: [%s]", szDevName, iSpeed, s_radioHWInfoSikTemp.szMAC);
       char szTmp[256];
+      int len = 0;
       szTmp[0] = 0;
       for( int i=0; i<16; i++ )
       {
          if ( 0 != szTmp[0] )
-            strcat(szTmp, ", ");
+            len = strlcat(szTmp, ", ", sizeof(szTmp));
 
-         char szB[32];
-         sprintf(szB, "[%d]=%u", i, s_radioHWInfoSikTemp.uHardwareParamsList[i]);
-         strcat(szTmp, szB);
+         len += snprintf(szTmp+len, sizeof(szTmp)-len, "[%d]=%u", i, s_radioHWInfoSikTemp.uHardwareParamsList[i]);
       }
       log_line("[HardwareRadio]: SiK current parameters: %s", szTmp);
 
@@ -746,15 +745,14 @@ int hardware_radio_sik_get_all_params(radio_hw_info_t* pRadioInfo, shared_mem_pr
    }
 
    char szTmp[256];
+   int len = 0;
    szTmp[0] = 0;
    for( int i=0; i<16; i++ )
    {
       if ( 0 != szTmp[0] )
-         strcat(szTmp, ", ");
+         len = strlcat(szTmp, ", ", sizeof(szTmp));
 
-      char szB[32];
-      sprintf(szB, "[%d]=%u", i, pRadioInfo->uHardwareParamsList[i]);
-      strcat(szTmp, szB);
+      len += snprintf(szTmp+len, sizeof(szTmp)-len, "[%d]=%u", i, pRadioInfo->uHardwareParamsList[i]);
    }
    log_line("[HardwareRadio]: SiK interface [%s] current parameters: %s", pRadioInfo->szDriver, szTmp);
    
@@ -792,7 +790,7 @@ int _hardware_radio_sik_set_parameter( int iSerialPortFile, u32 uParamIndex, u32
    char szComm[32];
    u8 bufferResponse[256];
 
-   sprintf(szComm, "ATS%u=%u", uParamIndex, uParamValue);
+   snprintf(szComm, sizeof(szComm), "ATS%u=%u", uParamIndex, uParamValue);
 
    if ( hardware_radio_sik_send_command(iSerialPortFile, szComm, bufferResponse, 255) )
       return 1;

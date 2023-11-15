@@ -120,7 +120,7 @@ int load_PluginsSettings()
       if ( readline < 0 )
          { s_PluginsSettings.pPlugins[iPlugin]->szName[0] = 0; failed = 1; }
       else if ( readline > 0 )
-         strncpy(s_PluginsSettings.pPlugins[iPlugin]->szName, line, MAX_PLUGIN_NAME_LENGTH-1);
+          strlcpy(s_PluginsSettings.pPlugins[iPlugin]->szName, line, MAX_PLUGIN_NAME_LENGTH);
 
       if ( 10 == s_PluginsSettings.pPlugins[iPlugin]->szName[strlen(s_PluginsSettings.pPlugins[iPlugin]->szName)-1] )
          s_PluginsSettings.pPlugins[iPlugin]->szName[strlen(s_PluginsSettings.pPlugins[iPlugin]->szName)-1] = 0;
@@ -135,7 +135,7 @@ int load_PluginsSettings()
       if ( readline < 0 )
          { s_PluginsSettings.pPlugins[iPlugin]->szUID[0] = 0; failed = 1; }
       else if ( readline > 0 )
-         strncpy(s_PluginsSettings.pPlugins[iPlugin]->szUID, line, MAX_PLUGIN_NAME_LENGTH-1);
+          strlcpy(s_PluginsSettings.pPlugins[iPlugin]->szUID, line, MAX_PLUGIN_NAME_LENGTH);
 
       if ( 10 == s_PluginsSettings.pPlugins[iPlugin]->szUID[strlen(s_PluginsSettings.pPlugins[iPlugin]->szUID)-1] )
          s_PluginsSettings.pPlugins[iPlugin]->szUID[strlen(s_PluginsSettings.pPlugins[iPlugin]->szUID)-1] = 0;
@@ -222,8 +222,8 @@ SinglePluginSettings* pluginsSettingsAddNew(const char* szName, const char* szUI
    if ( NULL == s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount] )
       return NULL;
 
-   strncpy(s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->szName, szName, MAX_PLUGIN_NAME_LENGTH-1);
-   strncpy(s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->szUID, szUID, MAX_PLUGIN_NAME_LENGTH-1);
+    strlcpy(s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->szName, szName, MAX_PLUGIN_NAME_LENGTH);
+    strlcpy(s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->szUID, szUID, MAX_PLUGIN_NAME_LENGTH);
    s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->nEnabled = 1;
    s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->nSettingsCount = 0;
    s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->nModels = 0;

@@ -63,14 +63,14 @@ void MenuVehicleGeneral::addTopDescription()
       g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
       strcpy(szType, "flights");
    
-   sprintf(szBuff, "Total %s: %d", szType, g_pCurrentModel->m_Stats.uTotalFlights);
+   snprintf(szBuff, sizeof(szBuff), "Total %s: %d", szType, g_pCurrentModel->m_Stats.uTotalFlights);
    addTopLine(szBuff);
 
    int sec = (g_pCurrentModel->m_Stats.uTotalOnTime)%60;
    int min = (g_pCurrentModel->m_Stats.uTotalOnTime/60)%60;
    int hours = (g_pCurrentModel->m_Stats.uTotalOnTime/3600);
 
-   sprintf(szBuff, "Total ON time: %dh:%02dm:%02ds", hours, min, sec);
+   snprintf(szBuff, sizeof(szBuff), "Total ON time: %dh:%02dm:%02ds", hours, min, sec);
    addTopLine(szBuff);
 
    sec = (g_pCurrentModel->m_Stats.uTotalFlightTime)%60;
@@ -82,19 +82,19 @@ void MenuVehicleGeneral::addTopDescription()
       g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
       g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
       strcpy(szType, "flight time");
-   sprintf(szBuff, "Total %s: %dh:%02dm:%02ds", szType, hours, min, sec);
+   snprintf(szBuff, sizeof(szBuff), "Total %s: %dh:%02dm:%02ds", szType, hours, min, sec);
    addTopLine(szBuff);
 
    if ( pP->iUnits == prefUnitsImperial )
-      sprintf(szBuff, "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+      snprintf(szBuff, sizeof(szBuff), "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
    else
-      sprintf(szBuff, "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+      snprintf(szBuff, sizeof(szBuff), "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
    addTopLine(szBuff);
 
    char szBuff2[64];
    getSystemVersionString(szBuff2, g_pCurrentModel->sw_version);
 
-   sprintf(szBuff, "SW Version: %s", szBuff2);
+   snprintf(szBuff, sizeof(szBuff), "SW Version: %s", szBuff2);
    addTopLine(szBuff);
    
    addTopLine("");
@@ -192,15 +192,15 @@ void MenuVehicleGeneral::populate()
       strcpy(szTooltip, "Sets the radio link frequency used by the vehicle and the controller to communicate with each other.");
       if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
       {
-         sprintf(szBuff, "Radio Link %d Frequency", iRadioLinkId+1 );
-         sprintf(szTooltip, "Sets the radio link %d frequency used by the vehicle and the controller to communicate with each other.", iRadioLinkId+1);
+         snprintf(szBuff, sizeof(szBuff), "Radio Link %d Frequency", iRadioLinkId+1 );
+         snprintf(szTooltip, sizeof(szTooltip), "Sets the radio link %d frequency used by the vehicle and the controller to communicate with each other.", iRadioLinkId+1);
       }
 
       m_pItemsSelect[20+iRadioLinkId] = new MenuItemSelect(szBuff, szTooltip);
 
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId-1 == iRadioLinkId )
       {
-         sprintf(szBuff, "Relay on %s", str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequency));
+         snprintf(szBuff, sizeof(szBuff), "Relay on %s", str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequency));
          m_pItemsSelect[20+iRadioLinkId]->addSelection(szBuff);
          m_pItemsSelect[20+iRadioLinkId]->setEnabled(false);
       }
@@ -213,7 +213,7 @@ void MenuVehicleGeneral::populate()
                m_pItemsSelect[20+iRadioLinkId]->addSeparator();
                continue;
             }
-            sprintf(szBuff,"%s", str_format_frequency(m_SupportedChannels[iRadioLinkId][ch]));
+            snprintf(szBuff, sizeof(szBuff),"%s", str_format_frequency(m_SupportedChannels[iRadioLinkId][ch]));
             m_pItemsSelect[20+iRadioLinkId]->addSelection(szBuff);
          }
 
@@ -230,7 +230,7 @@ void MenuVehicleGeneral::populate()
 
          if ( 0 == m_SupportedChannelsCount[iRadioLinkId] )
          {
-            sprintf(szBuff,"%s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLinkId]));
+            snprintf(szBuff, sizeof(szBuff),"%s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[iRadioLinkId]));
             m_pItemsSelect[20+iRadioLinkId]->addSelection(szBuff);
             m_pItemsSelect[20+iRadioLinkId]->setSelectedIndex(0);
             m_pItemsSelect[20+iRadioLinkId]->setEnabled(false);
@@ -458,7 +458,7 @@ void MenuVehicleGeneral::onSelectItem()
          if ( ! supportedOnController )
          {
             char szBuff[128];
-            sprintf(szBuff, "%s frequency is not supported by your controller.", str_format_frequency(freq));
+            snprintf(szBuff, sizeof(szBuff), "%s frequency is not supported by your controller.", str_format_frequency(freq));
             add_menu_to_stack(new MenuConfirmation("Invalid option",szBuff, 0, true));
             valuesToUI();
             return;
@@ -466,7 +466,7 @@ void MenuVehicleGeneral::onSelectItem()
          if ( (! allSupported) && (1 == g_pCurrentModel->radioLinksParams.links_count) )
          {
             char szBuff[256];
-            sprintf(szBuff, "Not all radio interfaces on your controller support %s frequency. Some radio links on the controller will not be used.", str_format_frequency(freq));
+            snprintf(szBuff, sizeof(szBuff), "Not all radio interfaces on your controller support %s frequency. Some radio links on the controller will not be used.", str_format_frequency(freq));
             add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 0, true));
          }
       u32 param = freq & 0xFFFFFF;

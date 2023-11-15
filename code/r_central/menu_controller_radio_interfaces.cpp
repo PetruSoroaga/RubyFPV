@@ -99,9 +99,9 @@ MenuControllerRadioInterfaces::MenuControllerRadioInterfaces(void)
       if ( NULL != g_pSM_RadioStats )
          iRadioLinkId = g_pSM_RadioStats->radio_interfaces[n].assignedRadioLinkId;
       if ( iRadioLinkId >= 0 )
-         sprintf(szBuff, "Int. %d: Radio Link %d, Port %s, %s", n+1, iRadioLinkId+1, pNIC->szUSBPort, szName);
+         snprintf(szBuff, sizeof(szBuff), "Int. %d: Radio Link %d, Port %s, %s", n+1, iRadioLinkId+1, pNIC->szUSBPort, szName);
       else
-         sprintf(szBuff, "Int. %d: Port %s, %s", n+1, pNIC->szUSBPort, szName);
+         snprintf(szBuff, sizeof(szBuff), "Int. %d: Port %s, %s", n+1, pNIC->szUSBPort, szName);
       m_IndexStartNics[n] = addMenuItem(new MenuItem(szBuff));
       m_pMenuItems[m_IndexStartNics[n]]->showArrow();
 
@@ -184,9 +184,9 @@ void MenuControllerRadioInterfaces::valuesToUI()
       if ( NULL != g_pSM_RadioStats )
          iRadioLinkId = g_pSM_RadioStats->radio_interfaces[n].assignedRadioLinkId;
       if ( iRadioLinkId >= 0 )
-         sprintf(szBuff, "%d: Link %d, Port %s, %s", n+1, iRadioLinkId+1, pNIC->szUSBPort, szName);
+         snprintf(szBuff, sizeof(szBuff), "%d: Link %d, Port %s, %s", n+1, iRadioLinkId+1, pNIC->szUSBPort, szName);
       else
-         sprintf(szBuff, "%d: Port %s, %s", n+1, pNIC->szUSBPort, szName);
+         snprintf(szBuff, sizeof(szBuff), "%d: Port %s, %s", n+1, pNIC->szUSBPort, szName);
       m_pItemsSelect[1]->addSelection(szBuff);
       if ( m_IndexCurrentTXPreferred == n )
          m_pItemsSelect[1]->setSelection(m_pItemsSelect[1]->getSelectionsCount()-1);
