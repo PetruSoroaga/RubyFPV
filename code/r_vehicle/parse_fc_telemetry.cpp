@@ -295,22 +295,26 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          break;
 
       case MAVLINK_MSG_ID_BATTERY_STATUS:
-         pdpfct->mah = mavlink_msg_battery_status_get_current_consumed(&msgMav);
+      {
+         i32 mah = mavlink_msg_battery_status_get_current_consumed(&msgMav);
+         pdpfct->mah = (mah<0)?0:mah;
          #ifdef DEBUG_MAV
-         log_line("MAV battery status: mah: %d", pdpfct->mah);
-         printf("MAV battery status: mah: %d\n", pdpfct->mah);
+         log_line("MAV battery status: mah: %d, %u", mah, pdpfct->mah);
+         printf("MAV battery status: mah: %d, %u\n", mah, pdpfct->mah);
          #endif
          break;
-
+      }
       case MAVLINK_MSG_ID_SYS_STATUS:
+      {
+         i16 mah = mavlink_msg_sys_status_get_current_battery(&msgMav);
          pdpfct->voltage = mavlink_msg_sys_status_get_voltage_battery(&msgMav);
-         pdpfct->current = mavlink_msg_sys_status_get_current_battery(&msgMav)*10;
+         pdpfct->current = (mah<0)?0:(mah*10U);
          #ifdef DEBUG_MAV
          log_line("MAV Sys Status: volt: %f, amps: %f", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
          printf("MAV Sys Status: volt: %f, amps: %f\n", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
          #endif
          break;
-      
+      }
       case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
          pdpfct->altitude_abs = mavlink_msg_global_position_int_get_alt(&msgMav) / 10.0f + 100000;
          pdpfct->altitude = mavlink_msg_global_position_int_get_relative_alt(&msgMav) / 10.0f + 100000;
