@@ -18,7 +18,7 @@ u32 g_TimeStart = 0;
 u32 g_TimeNowMicros = 0;
 
 u32 g_TimeLastVideoCameraChangeCommand = 0;
-u32 g_TimePendingRadioFlagsChanged = 0;
+u32 g_TimeStartPendingRadioFlagsChange = 0;
 
 // Central
 
@@ -26,3 +26,5 @@ u32 g_RouterIsReadyTimestamp = 0;
 u32 g_TimeLastVideoDataOverloadAlarm = 0;
 u32 g_TimeLastVideoTxOverloadAlarm = 0;
 u32 g_TimeLastSentCurrentActiveOSDLayout = 0;
+
+u32 g_uTimeLastRadioLinkOverloadAlarm = 0;

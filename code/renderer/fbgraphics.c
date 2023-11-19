@@ -833,6 +833,12 @@ void fbg_line(struct _fbg *fbg, int x1, int y1, int x2, int y2, unsigned char r,
     px = x1;
     py = y1;
 
+    if ( x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0 )
+      return;
+    if ( x1 >= fbg->width || x2 >= fbg->width )
+       return;
+    if ( y1 >= fbg->height || y2 >= fbg->height )
+       return;
     char *pix_pointer = (char *)(fbg->back_buffer + (py * fbg->line_length + px * fbg->components));
 
     if ( px >= 0 && py >= 0 )

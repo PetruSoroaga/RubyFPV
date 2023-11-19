@@ -13,6 +13,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/config.h"
 #include "../base/shared_mem.h"
 #include "../base/ruby_ipc.h"
+#include "../base/utils.h"
 #include "../common/string_utils.h"
 
 #include "video_link_stats_overwrites.h"
@@ -21,19 +22,23 @@ Code written by: Petru Soroaga, 2021-2023
 #include "processor_tx_video.h"
 #include "utils_vehicle.h"
 #include "packets_utils.h"
+#include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
 
 
-static bool s_bUseControllerInfo = false;
-static int  s_iTargetShiftLevel = 0;
-static int  s_iTargetProfile = 0;
-static int  s_iMaxLevelShiftForCurrentProfile = 0;
-static float s_fParamsChangeStrength = 0.0; // 0...1
+bool s_bUseControllerInfo = false;
+int  s_iTargetShiftLevel = 0;
+int  s_iTargetProfile = 0;
+int  s_iMaxLevelShiftForCurrentProfile = 0;
+float s_fParamsChangeStrength = 0.0; // 0...1
 
-static u32 s_TimeLastHistorySwitchUpdate = 0;
+u32 s_TimeLastHistorySwitchUpdate = 0;
 
-static int s_iLastTargetVideoFPS = 0;
+int s_iLastTargetVideoFPS = 0;
+
+u32 s_uTimeStartGoodIntervalForProfileShiftUp = 0;
+
 
 // Needs to be sent to other processes when we change the currently selected video profile
 
@@ -42,17 +47,14 @@ void _video_stats_overwrites_signal_changes()
    //log_line("[Video Link Overwrites]: signal others that currently active video profile changed, to reload model");
 
    t_packet_header PH;
-   PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-   PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_UPDATED_VIDEO_LINK_OVERWRITES;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_UPDATED_VIDEO_LINK_OVERWRITES, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.total_headers_length = sizeof(t_packet_header);
    PH.total_length = sizeof(t_packet_header) + sizeof(shared_mem_video_link_overwrites);
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer + sizeof(t_packet_header), (u8*)&(g_SM_VideoLinkStats.overwrites), sizeof(shared_mem_video_link_overwrites));
-   packet_compute_crc(buffer, PH.total_length);
-
+   
    ruby_ipc_channel_send_message(s_fIPCRouterToCommands, buffer, PH.total_length);
    
    if ( NULL != g_pProcessStats )
@@ -65,14 +67,11 @@ void _video_stats_overwrites_signal_changes()
 void _video_stats_overwrites_signal_video_prifle_changed()
 {
    t_packet_header PH;
-   PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-   PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
    PH.vehicle_id_dest = (u32)g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
-   PH.total_headers_length = sizeof(t_packet_header);
    PH.total_length = sizeof(t_packet_header);
 
-   packet_compute_crc((u8*)&PH, PH.total_length);
    if ( 0 != s_fIPCRouterToTelemetry )
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)&PH, PH.total_length);
 
@@ -98,6 +97,8 @@ void video_stats_overwrites_init()
    g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].height = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height;
 
    video_overwrites_init(&(g_SM_VideoLinkStats.overwrites), g_pCurrentModel);
+   onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
+
    video_link_auto_keyframe_init();
    video_link_reset_overflow_quantization_value();
 
@@ -158,135 +159,68 @@ void video_stats_overwrites_init()
    log_line("[Video Link Overwrites]: Init video links stats and overwrites structure: Done. Structure size: %d bytes", sizeof(shared_mem_video_link_stats_and_overwrites));
 }
 
-u32 _get_bitrate_for_current_level_and_profile()
+u32 _get_bitrate_for_current_level_and_profile_including_overwrites()
 {
-   u32 uMaxShiftLevels = (u32) g_pCurrentModel->get_video_link_profile_max_level_shifts(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
-   int currentVideoProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
+   u32 uTargetVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_and_level(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
 
-   u32 uTopVideoBitrate = g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate;
-   u32 uOverwriteDown = g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[currentVideoProfile];
-   if ( uTopVideoBitrate > uOverwriteDown )
-      uTopVideoBitrate -= uOverwriteDown;
+   u32 uOverwriteDown = g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile];
+   if ( uTargetVideoBitrate > uOverwriteDown )
+      uTargetVideoBitrate -= uOverwriteDown;
    else
-      uTopVideoBitrate = 0;
+      uTargetVideoBitrate = 0;
 
-   if ( uTopVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
-      uTopVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
+   if ( uTargetVideoBitrate < 250000 )
+      uTargetVideoBitrate = 250000;
 
-   if ( 0 == uMaxShiftLevels )
-      return uTopVideoBitrate;
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( uTargetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
+      uTargetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
 
-   u32 uTopTotalBitrate = uTopVideoBitrate * (g_pCurrentModel->video_link_profiles[currentVideoProfile].block_packets + g_pCurrentModel->video_link_profiles[currentVideoProfile].block_fecs) / g_pCurrentModel->video_link_profiles[currentVideoProfile].block_packets;
-   u32 uBottomVideoBitrate = uTopTotalBitrate * g_pCurrentModel->video_link_profiles[currentVideoProfile].block_packets / (g_pCurrentModel->video_link_profiles[currentVideoProfile].block_packets + g_pCurrentModel->video_link_profiles[currentVideoProfile].block_fecs + uMaxShiftLevels);
-   
-   uBottomVideoBitrate = uBottomVideoBitrate * 9 / 10;
-   if ( uBottomVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
-      uBottomVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
-
+   // Minimum for MQ profile, for 12 Mb datarate is at least 2Mb, do not go below that
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-   {
-      // If MQ is on 12mb radio rate, lowest video is 2mb
-      if ( g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video == 0 )
-      if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video) >= 12000000 )
-      if ( uBottomVideoBitrate < 2000000 )
-         uBottomVideoBitrate = 2000000;
-
-      // If MQ is on 12mb radio rate, lowest video is 2mb
-      if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video) >= 12000000 )
-      if ( uBottomVideoBitrate < 2000000 )
-         uBottomVideoBitrate = 2000000;
-
-      // Do not go above what the user set as default bitrate for this profile
-      if ( uBottomVideoBitrate > g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate )
-         uBottomVideoBitrate = g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate;
-   }
-
-   // Begin: Compute the max video bitrate of the next video profile top range
-   int radioDataRateNextLevelDown = 0;
-   int videoProfileNextDown = VIDEO_PROFILE_MQ;
-   if ( currentVideoProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
-   {
-      radioDataRateNextLevelDown = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video;
-      if ( radioDataRateNextLevelDown == 0 )
-         radioDataRateNextLevelDown = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video;
-   }
-   if ( currentVideoProfile == VIDEO_PROFILE_MQ )
-   {
-      videoProfileNextDown = VIDEO_PROFILE_LQ;
-      radioDataRateNextLevelDown = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video;    
-      if ( radioDataRateNextLevelDown == 0 )
-         radioDataRateNextLevelDown = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video;
-      if ( radioDataRateNextLevelDown == 0 )
-         radioDataRateNextLevelDown = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video;
-   }
-   u32 radioBitRateNextLevelDown = getRealDataRateFromRadioDataRate(radioDataRateNextLevelDown);
-   u32 uBottomVideoBitrate2 = radioBitRateNextLevelDown / (g_pCurrentModel->video_link_profiles[videoProfileNextDown].block_packets + g_pCurrentModel->video_link_profiles[videoProfileNextDown].block_fecs);
-   uBottomVideoBitrate2 *= g_pCurrentModel->video_link_profiles[videoProfileNextDown].block_packets * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100;
-   if ( uBottomVideoBitrate2 < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
-      uBottomVideoBitrate2 = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
-   
-   // End: Compute the max video bitrate of the next video profile top range
-
-   // Move current profile lowest video bitrate shift down to match the next profile top video bitrate
-
-   if ( uBottomVideoBitrate2 < uBottomVideoBitrate )
-      uBottomVideoBitrate = uBottomVideoBitrate2;
-
-   u32 uVideoBitrateChangePerLevel = (uTopVideoBitrate - uBottomVideoBitrate) / uMaxShiftLevels;
-
-   u32 resultVideoBitrate  = uTopVideoBitrate - uVideoBitrateChangePerLevel * g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel;
-
-   if ( resultVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
-      resultVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
-
-
-   // Set video bitrate so that radio link is at least 30% used (data+ec)
-   /*
-   u32 uMaxTotalBitrate = 0;
-   if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video != 0 )
-      uMaxTotalBitrate = getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video);
-   else
-   {
-      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-         uMaxTotalBitrate = getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video);
-      else
-         uMaxTotalBitrate = getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video);
-   }
-   if ( resultVideoBitrate * ((g_SM_VideoLinkStats.overwrites.currentDataBlocks+g_SM_VideoLinkStats.overwrites.currentECBlocks)/g_SM_VideoLinkStats.overwrites.currentDataBlocks) < uMaxTotalBitrate/3 )
-   {
-      resultVideoBitrate = uMaxTotalBitrate/3 / (((g_SM_VideoLinkStats.overwrites.currentDataBlocks+g_SM_VideoLinkStats.overwrites.currentECBlocks)/g_SM_VideoLinkStats.overwrites.currentDataBlocks));
-   }
-   */
+   if ( g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps == 0 )
+   if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps) >= 12000000 )
+   if ( uTargetVideoBitrate < 2000000 )
+      uTargetVideoBitrate = 2000000;
      
-   return resultVideoBitrate;
+   return uTargetVideoBitrate;
 }
 
 void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int iLevelShift)
 {
+   onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, iVideoProfile);
+   bool bVideoProfileChanged = false;
+
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != iVideoProfile )
+      bVideoProfileChanged = true;
+
    g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile = iVideoProfile;
    g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel = iLevelShift;
-   g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].bitrate_fixed_bps;
+   g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate( g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
       g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 1;
 
-   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate )
+   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate )
    {
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-         g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps;
+         g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps;
    }
-   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate )
+   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate )
    {
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ ||
            g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-         g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
+         g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
    }
+   g_SM_VideoLinkStats.overwrites.currentProfileAndLevelDefaultBitrate = utils_get_max_allowed_video_bitrate_for_profile_and_level(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
 
    g_SM_VideoLinkStats.overwrites.currentDataBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_packets;
    g_SM_VideoLinkStats.overwrites.currentECBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_fecs;
    g_SM_VideoLinkStats.overwrites.currentECBlocks += g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel;
 
-   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
 
    g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].width = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width;
    g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].height = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height;
@@ -294,10 +228,10 @@ void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int i
    // Do not use more video bitrate than the user set originaly in the user profile
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ || g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-   if ( g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate > g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps )
+   if ( g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate > g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps )
    {
-      g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
-      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+      g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
    }
 
    if ( g_SM_VideoLinkStats.overwrites.currentECBlocks > MAX_FECS_PACKETS_IN_BLOCK )
@@ -311,10 +245,28 @@ void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int i
    g_SM_VideoLinkStats.timeLastAdaptiveParamsChangeUp = g_TimeNow;
    g_SM_VideoLinkStats.timeLastProfileChangeUp = g_TimeNow;
    
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   
+   if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
+   
+   // If video profile changed (so did the target video bitrate):
+   // Send default video quantization param to raspivid based on target video bitrate
+   if ( bVideoProfileChanged )
+   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   {
+      g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
+      video_link_quantization_shift(2);
+   }
 
+   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+         
    
    // Prevent video bitrate changes due to overload or underload right after a profile change;
    // (A profile change usually sets a new, different video bitrate, so ignore this delta for a while)
@@ -335,26 +287,29 @@ void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int i
 
 void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
 {
+   onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, s_iTargetProfile);
+
    g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile = s_iTargetProfile;
    g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel = s_iTargetShiftLevel;
-   g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].bitrate_fixed_bps;
+   g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
       g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 1;
 
-   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate )
+   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate )
    {
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-         g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps;
+         g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps;
    }
-   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate )
+   if ( 0 == g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate )
    {
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ ||
            g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-         g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
+         g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
    }
+   g_SM_VideoLinkStats.overwrites.currentProfileAndLevelDefaultBitrate = utils_get_max_allowed_video_bitrate_for_profile_and_level(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
 
-   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
    g_SM_VideoLinkStats.overwrites.currentDataBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_packets;
    g_SM_VideoLinkStats.overwrites.currentECBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_fecs;
 
@@ -365,10 +320,10 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
    // Do not use more video bitrate than the user set originaly in the user profile
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ || g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-   if ( g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate > g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps )
+   if ( g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate > g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps )
    {
-      g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
-      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+      g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].bitrate_fixed_bps;
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
    }
 
    if ( g_SM_VideoLinkStats.overwrites.currentECBlocks > MAX_FECS_PACKETS_IN_BLOCK )
@@ -388,10 +343,19 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
       g_SM_VideoLinkStats.timeLastProfileChangeUp = g_TimeNow;
    }
 
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
 
+   if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
+
+   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+         
    int nTargetFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
    if ( 0 == nTargetFPS )
       nTargetFPS = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
@@ -430,11 +394,19 @@ void _video_stats_overwrites_apply_ec_bitrate_changes(bool bDownDirection)
    g_SM_VideoLinkStats.historySwitches[0] = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
    g_SM_VideoLinkStats.totalSwitches++;
 
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
+   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+         
    // Signal other components (rx_command) to refresh their copy of current video overwrites structure
 
    _video_stats_overwrites_signal_changes();
@@ -466,14 +438,20 @@ void video_stats_overwrites_reset_to_forced_profile()
       return;
    s_iTargetProfile = g_iForcedVideoProfile;
    s_iTargetShiftLevel = 0;
+   s_uTimeStartGoodIntervalForProfileShiftUp = 0;
    _video_stats_overwrites_apply_profile_changes(true);
 }
 
 void _video_stats_overwrites_apply_changes()
 {
+   bool bTriedAnyShift = false;
+
    if ( s_iTargetProfile == g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile )
    if ( s_iTargetShiftLevel > (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel )
    {
+      bTriedAnyShift = true;
+      s_uTimeStartGoodIntervalForProfileShiftUp = 0;
+
       if ( (g_iForcedVideoProfile != -1) && s_iTargetShiftLevel > s_iMaxLevelShiftForCurrentProfile )
          s_iTargetShiftLevel = s_iMaxLevelShiftForCurrentProfile;
 
@@ -513,7 +491,7 @@ void _video_stats_overwrites_apply_changes()
          if ( g_SM_VideoLinkStats.overwrites.currentECBlocks > 3*g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_packets )
             g_SM_VideoLinkStats.overwrites.currentECBlocks = 3*g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_packets;
 
-         g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+         g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
 
          _video_stats_overwrites_apply_ec_bitrate_changes(true);
       }
@@ -523,26 +501,34 @@ void _video_stats_overwrites_apply_changes()
    if ( s_iTargetProfile == g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile )
    if ( s_iTargetShiftLevel < (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel )
    {
+      bTriedAnyShift = true;
+
       if ( (g_iForcedVideoProfile != -1) && s_iTargetShiftLevel < 0 )
          s_iTargetShiftLevel = 0;
 
       if ( s_iTargetShiftLevel < 0 )
       {
-          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
+          if ( 0 == s_uTimeStartGoodIntervalForProfileShiftUp )
+             s_uTimeStartGoodIntervalForProfileShiftUp = g_TimeNow;
+          else if ( g_TimeNow >= s_uTimeStartGoodIntervalForProfileShiftUp + DEFAULT_MINIMUM_OK_INTERVAL_MS_TO_SWITCH_VIDEO_PROFILE_UP )
           {
-             s_iTargetProfile = VIDEO_PROFILE_MQ;
-             s_iTargetShiftLevel = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets - g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs;
-          }
-          else if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-          {
-             s_iTargetProfile = g_SM_VideoLinkStats.overwrites.userVideoLinkProfile;
-             s_iTargetShiftLevel = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].block_packets - g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].block_fecs;
+             if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
+             {
+                s_iTargetProfile = VIDEO_PROFILE_MQ;
+                s_iTargetShiftLevel = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets - g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs;
+             }
+             else if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
+             {
+                s_iTargetProfile = g_SM_VideoLinkStats.overwrites.userVideoLinkProfile;
+                s_iTargetShiftLevel = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].block_packets - g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].block_fecs;
 
-          }
-          else
-          {
-             // Reached top profile, can't go higher
-             s_iTargetShiftLevel = 0;
+             }
+             else
+             {
+                // Reached top profile, can't go higher
+                s_iTargetShiftLevel = 0;
+             }
+             s_uTimeStartGoodIntervalForProfileShiftUp = 0;
           }
       }
 
@@ -564,12 +550,15 @@ void _video_stats_overwrites_apply_changes()
          if ( g_SM_VideoLinkStats.overwrites.currentECBlocks < g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_fecs )
             g_SM_VideoLinkStats.overwrites.currentECBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_fecs;
 
-         g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+         g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
 
          _video_stats_overwrites_apply_ec_bitrate_changes(false);
       }
       return;
    }
+
+   if ( ! bTriedAnyShift )
+      s_uTimeStartGoodIntervalForProfileShiftUp = 0;
 }
 
 void _check_video_link_params_using_vehicle_info(bool bDownDirection)
@@ -818,7 +807,7 @@ void _video_stats_overwrites_check_update_params()
 
    // Init computation data
 
-   s_iMaxLevelShiftForCurrentProfile = g_pCurrentModel->get_video_link_profile_max_level_shifts(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
+   s_iMaxLevelShiftForCurrentProfile = g_pCurrentModel->get_video_profile_total_levels(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
    s_bUseControllerInfo = (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
    
    s_iTargetProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
@@ -919,9 +908,10 @@ void _video_stats_overwrites_check_update_params()
       else if ( bUseControllerDown )
          _check_video_link_params_using_controller_info(true);
 
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
       if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
       if ( g_bHadEverLinkToController )
-      if ( ! g_bHasLinkToController )
+      if ( (! g_bHasLinkToController) || ( g_SM_RadioStats.iMaxRxQuality< 30) )
       {
           if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
           {
@@ -940,6 +930,8 @@ void _video_stats_overwrites_check_update_params()
          _video_stats_overwrites_apply_changes();
          return;
       }
+      else
+         s_uTimeStartGoodIntervalForProfileShiftUp = 0;
    }
 
    // Check for shift up
@@ -957,6 +949,8 @@ void _video_stats_overwrites_check_update_params()
          _video_stats_overwrites_apply_changes();
          return;
       }
+      else
+         s_uTimeStartGoodIntervalForProfileShiftUp = 0;
    }
 }
 
@@ -986,7 +980,7 @@ void video_stats_overwrites_periodic_loop()
       #endif
    }
 
-   video_link_check_adjust_quantization_for_overload();
+   video_link_check_adjust_quantization_for_overload_periodic_loop();
    video_link_auto_keyframe_periodic_loop();
 
    // On link from controller lost, switch to lower profile and keyframe
@@ -1001,50 +995,58 @@ void video_stats_overwrites_periodic_loop()
    if ( g_TimeNow > g_TimeStartRaspiVid + 3000 )
    if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
    if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
-   if ( g_TimeNow > g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs )
+   if ( (g_TimeNow > g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs) ||
+        (g_SM_RadioStats.iMaxRxQuality< 30) )
    if ( g_TimeNow > g_SM_VideoLinkStats.timeLastProfileChangeDown + iThresholdControllerLinkMs*0.7 )
    if ( g_TimeNow > g_SM_VideoLinkStats.timeLastProfileChangeUp + iThresholdControllerLinkMs*0.7 )
    {
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
-      {
-         if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_MQ )
-            log_line("[Video] Switch to lower profile due to controller link lost and adaptive video is on (medium).");
-      }
-      else
-      {   
-         if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_LQ )
-            log_line("[Video] Switch to lower profile due to controller link lost and adaptive video is on (full).");
-      }
-      
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
+      {
+         log_line("[Video] Switch to MQ profile due to controller link lost and adaptive video is on.");
          video_stats_overwrites_switch_to_profile_and_level(VIDEO_PROFILE_MQ,0);
+      }
       else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       {
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
+         {
+            log_line("[Video] Switch to LQ profile due to controller link lost and adaptive video is on (full).");
             video_stats_overwrites_switch_to_profile_and_level(VIDEO_PROFILE_LQ,0);
+         }
       }
    }
    
    if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   {
+      video_link_check_adjust_bitrate_for_overload();
       return;
-
+   }
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
    _video_stats_overwrites_check_update_params();
+   #else
+   video_link_check_adjust_bitrate_for_overload();
    #endif
 }
 
+// Returns true if it increased
 
-bool video_stats_overwrites_lower_current_profile_top_bitrate(u32 uCurrentTotalBitrate)
+bool video_stats_overwrites_increase_videobitrate_overwrite(u32 uCurrentTotalBitrate)
 {
-   u32 uTopVideoBitrate = g_SM_VideoLinkStats.overwrites.currentProfileDefaultVideoBitrate;
-   uTopVideoBitrate -= g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile];
+   int iCurrentVideoProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
+   int iCurrentOverwriteDown = g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile];
+
+   u32 uTopVideoBitrate = g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate;
+   uTopVideoBitrate -= iCurrentOverwriteDown;
    
    // Can't go lower
    if ( uTopVideoBitrate <= g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       return false;
 
-   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-      g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] += 250000;
+   if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].bitrate_fixed_bps > 0 )
+   if ( (u32)iCurrentOverwriteDown >= g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].bitrate_fixed_bps/2 )
+      return false;
+
+   if ( iCurrentVideoProfile == VIDEO_PROFILE_LQ )
+      g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] += 250000;
    else
    {
       u32 uShift = uCurrentTotalBitrate / 10;
@@ -1052,65 +1054,87 @@ bool video_stats_overwrites_lower_current_profile_top_bitrate(u32 uCurrentTotalB
          uShift = 100000;
       if ( uShift > g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/4 )
          uShift = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/4;
-      g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] += uShift;
+      g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] += uShift;
    }
    
-   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+   if ( g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] > (uTopVideoBitrate*2)/3 )
+      g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] = (uTopVideoBitrate*2)/3;
 
+   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
+
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
 
+   if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
+
    send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
    return true;
 }
 
-bool video_stats_overwrites_increase_current_profile_top_bitrate()
+// Returns true if it decreased
+bool video_stats_overwrites_decrease_videobitrate_overwrite()
 {
-   if ( g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] == 0 )
+   int iCurrentVideoProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
+   int iCurrentOverwriteDown = g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile];
+   if ( iCurrentOverwriteDown == 0 )
       return false;
 
-   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
+   if ( iCurrentVideoProfile == VIDEO_PROFILE_LQ )
    {
-      if ( g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] >= 250000 )
-         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] -= 250000;
+      if ( iCurrentOverwriteDown >= 250000 )
+         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] -= 250000;
       else
-         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] = 0;
+         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] = 0;
    }
    else
    {
-      if ( g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] >= 500000 )
-         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] -= 500000;
+      if ( iCurrentOverwriteDown >= 500000 )
+         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] -= 500000;
       else
-         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] = 0;
+         g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[iCurrentVideoProfile] = 0;
    }
 
-   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile();
+   g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
    
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_USER )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != VIDEO_PROFILE_BEST_PERF )
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = g_pCurrentModel->video_params.lowestAllowedAdaptiveVideoBitrate;
 
+   if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
+      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
+
    send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
    return true;
 }
 
-int _video_stats_overwrites_get_lower_datarate_value(int iDataRate, int iLevelsDown )
+int _video_stats_overwrites_get_lower_datarate_value(int iDataRateBPS, int iLevelsDown )
 {
-   if ( iDataRate < 0 )
+   if ( iDataRateBPS < 0 )
    {
       for( int i=0; i<iLevelsDown; i++ )
       {
-         if ( iDataRate < -1 )
-            iDataRate++;
+         if ( iDataRateBPS < -1 )
+            iDataRateBPS++;
       }
 
       // Lowest rate is MCS-0, about 6mbps
-      return iDataRate;
+      return iDataRateBPS;
    }
 
    int iCurrentIndex = -1;
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      if ( getDataRates()[i] == iDataRate )
+      if ( getDataRatesBPS()[i] == iDataRateBPS )
       {
          iCurrentIndex = i;
          break;
@@ -1121,22 +1145,22 @@ int _video_stats_overwrites_get_lower_datarate_value(int iDataRate, int iLevelsD
    for( int i=0; i<iLevelsDown; i++ )
    {
       if ( (iCurrentIndex > 0) )
-      if ( getRealDataRateFromRadioDataRate(getDataRates()[iCurrentIndex]) > 6000000)
+      if ( getRealDataRateFromRadioDataRate(getDataRatesBPS()[iCurrentIndex]) > 6000000)
          iCurrentIndex--;
    }
 
    if ( iCurrentIndex >= 0 )
-      iDataRate = getDataRates()[iCurrentIndex];
-   return iDataRate;
+      iDataRateBPS = getDataRatesBPS()[iCurrentIndex];
+   return iDataRateBPS;
 }
 
 int video_stats_overwrites_get_current_radio_datarate_video(int iRadioLink, int iRadioInterface)
 {
-   int nRateTx = g_pCurrentModel->radioLinksParams.link_datarates[iRadioLink][0];
-   if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarates[iRadioInterface][0] )
-      nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarates[iRadioInterface][0];
+   int nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink];
+   if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
+      nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
 
-   int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video;
+   int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps;
    if ( 0 != nRateUserVideoProfile )
    if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) )
       nRateTx = nRateUserVideoProfile;
@@ -1146,36 +1170,18 @@ int video_stats_overwrites_get_current_radio_datarate_video(int iRadioLink, int 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
       return nRateTx;
 
-   int nRateCurrentVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video;
+   int nRateCurrentVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video_bps;
    if ( (0 != nRateCurrentVideoProfile) && ( getRealDataRateFromRadioDataRate(nRateCurrentVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) ) )
       nRateTx = nRateCurrentVideoProfile;
 
    // Decrease nRateTx for MQ, LQ profiles
 
-   if ( 0 == nRateCurrentVideoProfile )
-   if ( (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ) || (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ) )
-   {
-      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-      {
-         if ( nRateTx > 0 )
-         if ( getRealDataRateFromRadioDataRate(12) < getRealDataRateFromRadioDataRate(nRateTx) )
-            nRateTx = 12;
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
+      nRateTx = utils_get_video_profile_mq_radio_datarate(g_pCurrentModel);
 
-         if ( nRateTx < 0 )
-         if ( getRealDataRateFromRadioDataRate(-2) < getRealDataRateFromRadioDataRate(nRateTx) )
-            nRateTx = -2;
-      }
-      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
-      {
-         if ( nRateTx > 0 )
-         if ( getRealDataRateFromRadioDataRate(6) < getRealDataRateFromRadioDataRate(nRateTx) )
-            nRateTx = 6;
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
+      nRateTx = utils_get_video_profile_lq_radio_datarate(g_pCurrentModel);
 
-         if ( nRateTx < 0 )
-         if ( getRealDataRateFromRadioDataRate(-1) < getRealDataRateFromRadioDataRate(nRateTx) )
-            nRateTx = -1;
-      }  
-   }
    return nRateTx;
 }
 

@@ -49,6 +49,7 @@ u32 revert_word(u32 input);
 
 u32 base_compute_crc32(u8 *buf, int length);
 u8 base_compute_crc8(u8* pBuffer, int iLength);
+int base_check_crc32(u8* pBuffer, int iLength);
 
 void init_boot_timestamp(); // should be called only once per boot
 u32 get_current_timestamp_micros();

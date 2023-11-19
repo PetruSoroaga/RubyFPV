@@ -11,7 +11,7 @@ Code written by: Petru Soroaga, 2021-2023
 
 #include "../base/base.h"
 #include "../base/config.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../radio/radiopackets2.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
@@ -37,20 +37,15 @@ Code written by: Petru Soroaga, 2021-2023
 #include "process_router_messages.h"
 #include "timers.h"
 #include "events.h"
+#include "menu_confirmation.h"
 
 extern bool s_bDebugOSDShowAll;
 
-u32 s_LastTelemetryTimestamp = 0;
-u32 s_TelemetryLostCheckCount = 0;
-
-u32 s_LastThrottled = 0xFFFF;
 u32 s_TimeLastProcessesCheck = 0;
 u32 s_TimeLastVideoProcessingCheck = 0;
 u32 s_TimeLastVideoMemoryFreeCheck = 0;
 u32 s_TimeSecondsCheck = 0;
 u32 s_TimeLastWarningRCHID = 0;
-u32 s_TimeLastAlarmsCheck = 0;
-u32 s_TimeTriggerAlarmOverloadFEC = 0;
 u32 s_TimeLastAlarmRadioLinkBehind = 0;
 u32 s_TimeLastAlarmRouterProcess = 0;
 
@@ -59,51 +54,30 @@ u32 s_LastRouterProcessCheckedAlarmFlags = 0;
 u32 s_CountProcessRouterFailures = 0;
 u32 s_CountProcessTelemetryFailures = 0;
 
-u8 s_LastFCFlags = 0;
-u8 s_LastFCFlightMode = 0;
-
-bool s_bIsThrottled = false;
-bool s_bIsUndervoltage = false;
-bool s_bIsHot = false;
-bool s_bIsFreqCapped = false;
-bool s_bFCTelemetryPresent = false;
 bool s_bLinkWatchIsRCOutputEnabled = false;
 u32 s_TimeLastMessageFromFC = 0;
-char s_szLastMessageFromFC[FC_MESSAGE_MAX_LENGTH];
 
-static bool s_bCheckForFirstPairingFlag = true;
+bool s_bLinkWatchShownSwitchVehicleMenu = false;
 
 void link_watch_init()
 {
-   log_line("link watch init.");
+   log_line("Link watch init.");
 }
 
 void link_watch_reset()
 {
-   s_LastTelemetryTimestamp = 0;
-   s_TelemetryLostCheckCount = 0;
-
    s_TimeSecondsCheck = 0;
-   s_LastThrottled = 0xFFFF;
-   s_LastFCFlags = 0;
-   s_LastFCFlightMode = 0;
    s_TimeLastWarningRCHID = 0;
    s_TimeLastAlarmRadioLinkBehind = 0;
    s_TimeLastAlarmRouterProcess = 0;
 
    s_LastRouterProcessCheckedAlarmFlags = 0;
+   s_CountProcessRouterFailures = 0;
+   s_CountProcessTelemetryFailures = 0;
 
-   s_bIsThrottled = false;
-   s_bIsUndervoltage = false;
-   s_bIsHot = false;
-   s_bIsFreqCapped = false;
-   s_bFCTelemetryPresent = false;
-
-   g_bTelemetryLost = false;
+   s_bLinkWatchShownSwitchVehicleMenu = false;
    g_bVideoLost = false;
-   s_TimeLastMessageFromFC = 0;
-   s_szLastMessageFromFC[0] = 0;
-
+   
    s_TimeLastVideoMemoryFreeCheck = 0;
    link_watch_mark_started_video_processing();
 
@@ -113,6 +87,62 @@ void link_watch_reset()
       g_pPopupLooking = NULL;
       log_line("Removed popup looking for model (3).");
    }
+
+   if ( NULL != g_pPopupLinkLost )
+   {
+      popups_remove(g_pPopupLinkLost);
+      g_pPopupLinkLost = NULL;
+      log_line("Removed popup link lost.");
+   }
+
+   link_reset_reconfiguring_radiolink();
+}
+
+void link_set_is_reconfiguring_radiolink(int iRadioLink, bool bConfirmFlagsChanges, bool bWaitVehicleConfirmation, bool bWaitControllerConfirmation)
+{
+   g_uTimeStartConfiguringRadioLink = g_TimeNow;
+   g_TimeStartPendingRadioFlagsChange = g_TimeNow;
+   g_bConfiguringRadioLink = true;
+   g_iConfiguringRadioLinkIndex = iRadioLink;
+   g_bConfiguringRadioLinkWaitFlagsConfirmation = bConfirmFlagsChanges;
+   g_bConfiguringRadioLinkWaitVehicleReconfiguration = bWaitVehicleConfirmation;
+   g_bConfiguringRadioLinkWaitControllerReconfiguration = bWaitControllerConfirmation;
+}
+
+void link_reset_reconfiguring_radiolink()
+{
+   g_uTimeStartConfiguringRadioLink = 0;
+   g_TimeStartPendingRadioFlagsChange = 0;
+   g_bConfiguringRadioLink = false;
+   g_iConfiguringRadioLinkIndex = -1;
+   g_bConfiguringRadioLinkWaitFlagsConfirmation = false;
+   g_bConfiguringRadioLinkWaitVehicleReconfiguration = false;
+   g_bConfiguringRadioLinkWaitControllerReconfiguration = false;
+}
+
+void link_set_received_change_confirmation(bool bConfirmedFlagsChanges, bool bConfirmedVehicle, bool bConfirmedController)
+{
+   if ( bConfirmedFlagsChanges )
+      g_bConfiguringRadioLinkWaitFlagsConfirmation = false;
+   if ( bConfirmedVehicle )
+      g_bConfiguringRadioLinkWaitVehicleReconfiguration = false;
+   if ( bConfirmedController )
+      g_bConfiguringRadioLinkWaitControllerReconfiguration = false;
+}
+
+bool link_is_reconfiguring_radiolink()
+{
+   return g_bConfiguringRadioLink;
+}
+
+bool link_reconfiguring_is_waiting_for_confirmation()
+{
+   if ( ! g_bConfiguringRadioLink )
+      return false;
+
+   if ( g_bConfiguringRadioLinkWaitFlagsConfirmation || g_bConfiguringRadioLinkWaitVehicleReconfiguration || g_bConfiguringRadioLinkWaitControllerReconfiguration )
+      return true;
+   return false;
 }
 
 void link_watch_mark_started_video_processing()
@@ -120,467 +150,497 @@ void link_watch_mark_started_video_processing()
    s_TimeLastVideoProcessingCheck = g_TimeNow;
 }
 
-
-void link_watch_loop_popup_looking()
+void link_watch_remove_popups()
 {
-   if ( g_bSearching )
-   {
-      if ( NULL != g_pPopupLooking )
-      {
-         popups_remove(g_pPopupLooking);
-         g_pPopupLooking = NULL;
-         log_line("Removed popup looking for model (5).");
-      }
-      if ( NULL != g_pPopupWrongModel )
-      {
-         popups_remove(g_pPopupWrongModel);
-         g_pPopupWrongModel = NULL;
-         log_line("Removed popup wrong model (4).");
-      }
-      return;
-   }
-
-   // We deleted all models?
-   if ( NULL == g_pCurrentModel )
-   {
-      if ( NULL != g_pPopupLooking )
-      {
-         popups_remove(g_pPopupLooking);
-         g_pPopupLooking = NULL;
-         log_line("Removed popup looking for model (6).");
-      }
-      if ( NULL != g_pPopupWrongModel )
-      {
-         popups_remove(g_pPopupWrongModel);
-         g_pPopupWrongModel = NULL;
-         log_line("Removed popup wrong model (5).");
-      }
-      return;
-   }
-
-   // If we just paired, wait a litte;
-   if ( g_TimeNow < pairing_getStartTime() + 1000 )
-      return;
-
-   // Wrong model ?
-   if ( pairing_is_connected_to_wrong_model() )
-   {
-      // First time ever pairing? Then use it as is.
-      if( ! ruby_is_first_pairing_done() )
-      {
-         log_line("First time pairing. Updating the default model with the correct vehicle ID (received vehicle ID: %u, runtimeinfo index: %d).", g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id, g_iCurrentActiveVehicleRuntimeInfoIndex);
-         ruby_set_is_first_pairing_done();
-         g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].uVehicleId = g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id;
-         g_pCurrentModel->vehicle_id = g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id;
-         g_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
-         if ( 0 == getModelsCount() )
-            addNewModel();
-         replaceModel(0, g_pCurrentModel);
-         saveModels();
-         onModelAdded( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id);
-         log_line("First time pairing complete. Updated default model vehicle ID to %u.", g_pCurrentModel->vehicle_id);
-         log_line("Notifying other components that model was updated.");
-         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC);
-         return;
-      }
-      if ( NULL == g_pPopupWrongModel && (! g_bSearching) )
-      {
-         int iReceivedVehicleRuntimeIndex = 0;
-         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-         {
-            if ( 0 == g_VehiclesRuntimeInfo[i].uVehicleId || MAX_U32 == g_VehiclesRuntimeInfo[i].uVehicleId )
-               continue;
-            if ( ! g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-               continue;
-
-            if ( g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.vehicle_id == g_pCurrentModel->vehicle_id )
-               continue;
-            iReceivedVehicleRuntimeIndex = i;
-            break;
-         }
-
-         log_line("Received data from wrong model. Current vehicle ID: %u, received telemetry vehicle ID: %u",
-            g_pCurrentModel->vehicle_id, g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_id);
-         char szBuff[256];
-         char szName[128];
-         szName[0] = 0;
-         //sprintf(szName,"%s ", Model::getVehicleType(g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_type));
-         if ( 0 == g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_name[0] )
-            strcat(szName, "No Name");
-         else
-            strcat(szName, (char*)g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_name);
-         if ( 0 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getShortName());
-         else if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]), g_pCurrentModel->getShortName());
-         else if ( 2 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-         {
-            char szFreq1[64];
-            char szFreq2[64];
-            strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
-            strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getShortName());
-         }
-         else
-         {
-            char szFreq1[64];
-            char szFreq2[64];
-            char szFreq3[64];
-            strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
-            strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-            strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[2]));
-            sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getShortName());
-         }
-         g_pPopupWrongModel = new Popup(szBuff, 0.2, 0.32, 0.5, 0);
-         g_pPopupWrongModel->setCentered();
-         //g_pPopupWrongModel->addLine("Another vehicle is using the same frequency as your vehicle.");
-         g_pPopupWrongModel->setIconId(g_idIconWarning, get_Color_IconWarning());
-         popups_add(g_pPopupWrongModel);
-
-         bool bFoundModel = false;
-         int vehicleIndex = -1;
-         for( int i=0; i<getModelsCount(); i++ )
-         {
-            Model* pModel = getModelAtIndex(i);
-            if ( pModel != NULL )
-            if ( g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].bGotRubyTelemetryInfo )
-            if ( pModel->vehicle_id == g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_id )
-            {
-               bFoundModel = true;
-               vehicleIndex = i;
-               break;
-            }
-         }
-         log_line("Found existing model? %s, index: %d", (bFoundModel?"yes":"no"), vehicleIndex);
-         log_line("There is a different vehicle (UID: %ld) than expected one (UID: %ld) on the current frequency.", g_VehiclesRuntimeInfo[iReceivedVehicleRuntimeIndex].headerRubyTelemetryExtended.vehicle_id, g_pCurrentModel->vehicle_id );
-         if ( bFoundModel && -1 != vehicleIndex )
-            add_menu_to_stack(new MenuSwitchVehicle(vehicleIndex));
-      }
-      return;      
-   }
-
-   // Getting data from the right (expected) vehicle?
-   
-   if ( pairing_isStarted() && pairing_isReceiving() && (NULL != g_pCurrentModel) && g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id == g_pCurrentModel->vehicle_id )
-   {
-      if ( NULL != g_pPopupWrongModel )
-      {
-         popups_remove(g_pPopupWrongModel);
-         g_pPopupWrongModel = NULL;
-         log_line("Removed popup wrong model. We are getting data from the expected model UID: %u", g_pCurrentModel->vehicle_id);
-      }
-
-      if ( NULL != g_pPopupLooking )
-      {
-         popups_remove(g_pPopupLooking);
-         g_pPopupLooking = NULL;
-         log_line("Removed popup looking for vehicle. We are getting data from model UID: %u", g_pCurrentModel->vehicle_id);
-         if ( g_bSyncModelSettingsOnLinkRecover )
-         {
-            g_bSyncModelSettingsOnLinkRecover = false;
-            if ( NULL != g_pCurrentModel )
-               g_pCurrentModel->b_mustSyncFromVehicle = true;
-         }
-      }
-
-      if ( s_bCheckForFirstPairingFlag )
-      {
-         s_bCheckForFirstPairingFlag = false;
-         if ( ! ruby_is_first_pairing_done() )
-         {
-            ruby_set_is_first_pairing_done();
-            log_line("Mark first time pairing as complete.");
-            log_line("Notifying other components that first time pairing is done.");
-            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC);
-         }
-      }
-   }
-
-   // Link lost?
-   if ( ! pairing_isReceiving() )
-   {
-      if ( pairing_wasReceiving() && (NULL != g_pCurrentModel && pairing_getCurrentVehicleID() == g_pCurrentModel->vehicle_id))
-      {
-         if ( NULL == g_pPopupLooking )
-         {
-            g_pPopupLooking = new Popup("Link lost. Trying to reconnect...", 0.28, 0.3, 0.5, 0);
-            g_pPopupLooking->setCentered();
-            g_pPopupLooking->addLine("The radio link with the vehicle is lost. Will reconnect automatically when in range.");
-            g_pPopupLooking->setIconId(g_idIconWarning, get_Color_IconWarning());
-            popups_add(g_pPopupLooking);
-         }
-         return;
-      }
-      if ( NULL == g_pPopupLooking )
-      {
-         char szText[256];
-         u32 idIcon = 0;
-         if( (! ruby_is_first_pairing_done()) || NULL == g_pCurrentModel )
-         {
-            u32 freq = 0;
-            if ( NULL != g_pCurrentModel )
-            {
-               radio_hw_info_t* pNICInfo = hardware_get_radio_info(0);
-               if ( NULL != pNICInfo )
-                  freq = pNICInfo->uCurrentFrequency;
-            }
-            sprintf(szText, "Looking for default vehicle (%s)...", str_format_frequency(freq));
-         }
-         else
-         {
-            idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
-            if ( g_pCurrentModel->radioInterfacesParams.interfaces_count < 2 )
-               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
-            else
-            {
-               if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId <= 0 )
-               {
-                  char szFreq1[64];
-                  char szFreq2[64];
-                  strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
-                  strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-                  sprintf(szText, "Looking for %s (%s, %s/%s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
-               }
-               else
-               {
-                   if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId-1 == 0 )
-                     sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[1]));
-                   else
-                     sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency[0]));
-               }
-            }
-         }
-         g_pPopupLooking = new Popup(szText, 0.2, 0.3, 0.5, 0);
-         g_pPopupLooking->setCentered();
-         g_pPopupLooking->setIconId(idIcon, get_Color_MenuText());
-         g_pPopupLooking->addLine("Power up your vehicle. The connection will be made automatically when the vehicle is in radio range.");
-         g_pPopupLooking->addLine("Or press the [Menu] key to open up the menu and switch vehicles or search for other vehicles.");
-         popups_add(g_pPopupLooking);
-      }
-      return;
-   }
-
-
-   // It's connected now
-
    if ( NULL != g_pPopupLooking )
    {
       popups_remove(g_pPopupLooking);
       g_pPopupLooking = NULL;
-      if ( g_bSyncModelSettingsOnLinkRecover )
-      {
-         g_bSyncModelSettingsOnLinkRecover = false;
-         if ( NULL != g_pCurrentModel )
-            g_pCurrentModel->b_mustSyncFromVehicle = true;
-      }
-      log_line("Removed popup looking for vehicle (2).");
+      log_line("Removed popup looking for model (7).");
    }
-
    if ( NULL != g_pPopupWrongModel )
    {
       popups_remove(g_pPopupWrongModel);
       g_pPopupWrongModel = NULL;
-      log_line("Removed popup wrong model (2).");
+      log_line("Removed popup wrong model (6).");
    }
+
+   if ( NULL != g_pPopupLinkLost )
+   {
+      popups_remove(g_pPopupLinkLost);
+      g_pPopupLinkLost = NULL;
+      log_line("Removed popup link lost.");
+   }
+}
+
+void link_watch_loop_popup_looking()
+{
+   // If we just paired, wait for router ready
+   if ( g_bSearching || (! g_bIsRouterReady) || (NULL == g_pCurrentModel) )
+      return;
+
+   if ( link_has_received_main_vehicle_ruby_telemetry() || link_has_paired_with_main_vehicle() )
+   {
+      if ( NULL != g_pPopupLooking )
+      {
+         popups_remove(g_pPopupLooking);
+         g_pPopupLooking = NULL;
+         log_line("Removed popup looking for model (7).");
+      }
+      return;
+   }
+
+   if ( NULL != g_pPopupLooking )
+      return;
+
+   char szText[256];
+   u32 idIcon = 0;
+
+   if ( ! g_bFirstModelPairingDone )
+   {
+      char szFreq[256];
+      szFreq[0] = 0;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+
+         // If identical frequency, skip it
+         bool bIdentical = false;
+         for( int k=0; k<i; k++ )
+         {
+            radio_hw_info_t* pRadioHWInfo2 = hardware_get_radio_info(k);
+            if ( NULL == pRadioHWInfo2 )
+               continue;
+            if ( pRadioHWInfo2->uCurrentFrequencyKhz == pRadioHWInfo->uCurrentFrequencyKhz )
+               bIdentical = true;
+         }
+
+         if ( bIdentical )
+            continue;
+
+         if ( 0 == szFreq[0] )
+           strcpy(szFreq, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));
+         else
+         {
+            strcat(szFreq, ", ");
+            strcat(szFreq, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));
+         }
+      }
+      sprintf(szText, "Looking for default vehicle on %s frequencies...", szFreq);
+   }
+   else
+   {
+      idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
+      if ( g_pCurrentModel->radioLinksParams.links_count < 2 )
+         sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+      else
+      {
+         if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0 )
+         {
+            char szFreq1[64];
+            char szFreq2[64];
+            strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+            strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
+            sprintf(szText, "Looking for %s (%s, %s / %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
+         }
+         else
+         {
+             if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId == 0 )
+               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
+             else
+               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+         }
+      }
+   }
+
+   g_pPopupLooking = new Popup(szText, 0.2, 0.36, 0.5, 0);
+   if ( ! g_bFirstModelPairingDone )
+      g_pPopupLooking->setCentered();
+   
+   g_pPopupLooking->setIconId(idIcon, get_Color_MenuText());
+
+   if ( (!g_bFirstModelPairingDone) || (NULL == g_pCurrentModel) )
+   {
+      g_pPopupLooking->addLine(" ");
+      g_pPopupLooking->addLine("If you just installed a vehicle, power up your vehicle. The connection will be made automatically when that vehicle is in radio range.");
+      g_pPopupLooking->addLine(" ");
+      g_pPopupLooking->addLine("Or press the [Menu] key to open up the menu and use [Search] menu to search for other vehicles to connect to.");
+   }
+   else
+   {
+      g_pPopupLooking->addLine(" ");
+      g_pPopupLooking->addLine("Power up your vehicle. The connection will be made automatically when the vehicle is in radio range.");
+      g_pPopupLooking->addLine(" ");
+      g_pPopupLooking->addLine("Or press the [Menu] key to open up the menu and switch to another vehicle or search for other vehicles.");
+   }
+   popups_add(g_pPopupLooking);
+}
+
+void link_watch_loop_unexpected_vehicles()
+{
+   // If we just paired, wait for router ready
+    if ( g_bSearching || (!g_bIsRouterReady) || (NULL == g_pCurrentModel) )
+      return;
+
+   // Did not received any info from no unexpected vehicles? Then do nothing.
+   if ( ! g_UnexpectedVehicleRuntimeInfo.bGotRubyTelemetryInfo )
+      return;
+
+   // First time ever pairing was not done, then ignore this.
+
+   if( ! g_bFirstModelPairingDone )
+      return;
+
+   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+   
+   // Received unexpected known vehicle
+
+   if ( NULL != pModelTemp )
+   {
+      if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry < g_TimeNow-5000 )
+      {
+         s_bLinkWatchShownSwitchVehicleMenu = false;
+         if ( menu_has_menu(MENU_ID_SWITCH_VEHICLE) )
+         {
+            Menu* pMenu = menu_get_menu_by_id(MENU_ID_SWITCH_VEHICLE);
+            remove_menu_from_stack(pMenu);
+         }
+         return;
+      }
+
+      if ( s_bLinkWatchShownSwitchVehicleMenu )
+         return;
+      s_bLinkWatchShownSwitchVehicleMenu = true;
+
+      log_line("Received data from unexpected model. Current vehicle ID: %u, received telemetry vehicle ID: %u",
+            g_pCurrentModel->vehicle_id, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      add_menu_to_stack(new MenuSwitchVehicle(pModelTemp->vehicle_id));
+      return;
+   }
+   
+   // Received unexpected unknown vehicle
+
+   // Too old?
+   if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry < g_TimeNow-5000 )
+   {
+      if ( NULL != g_pPopupWrongModel )
+      {
+         popups_remove(g_pPopupWrongModel);
+         g_pPopupWrongModel = NULL;
+         log_line("Removed popup wrong model. We are not getting data anymore from the unexpected model UID: %u", g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      }
+      return;
+   }  
+
+   // Fresh unexpected data
+
+   if ( NULL != g_pPopupWrongModel )
+      return;
+
+   log_line("Received data from unexpected model. Current vehicle ID: %u, received telemetry vehicle ID: %u",
+      g_pCurrentModel->vehicle_id, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+   char szBuff[256];
+   char szName[128];
+   szName[0] = 0;
+
+   if ( 0 == g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
+      strcat(szName, "No Name");
+   else
+      strcat(szName, (char*)g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name);
+   
+   if ( 0 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
+      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getLongName());
+   else if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
+      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]), g_pCurrentModel->getLongName());
+   else if ( 2 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
+   {
+      char szFreq1[64];
+      char szFreq2[64];
+      strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
+      strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
+      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getLongName());
+   }
+   else
+   {
+      char szFreq1[64];
+      char szFreq2[64];
+      char szFreq3[64];
+      strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
+      strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
+      strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[2]));
+      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getLongName());
+   }
+
+   float yPos = 0.36;
+   if ( NULL != g_pPopupLooking )
+      yPos = 0.61;
+   g_pPopupWrongModel = new Popup(szBuff, 0.2, yPos, 0.5, 0);
+   if ( NULL == g_pPopupLooking )
+      g_pPopupWrongModel->setCentered();
+   g_pPopupWrongModel->addLine("Another unpaired vehicle is using the same frequency as your current vehicle. Search and connect (pair) to this new vehicle or power it off as it will impact your radio link quality.");
+   g_pPopupWrongModel->setIconId(g_idIconWarning, get_Color_IconWarning());
+   popups_add(g_pPopupWrongModel);
+}
+
+void link_watch_link_lost()
+{
+   // If we just paired, wait till router ready
+   if ( g_bSearching || (!g_bIsRouterReady) || (NULL == g_pCurrentModel) )
+      return;
+
+   if ( g_bFirstModelPairingDone && ( 0 == g_uActiveControllerModelVID) )
+      return;
+   
+   // If we never received main vehicle telemetry, do nothing
+   if ( ! link_has_received_main_vehicle_ruby_telemetry() )
+      return;
+
+   if ( g_TimeNow < g_VehiclesRuntimeInfo[0].uTimeLastRecvAnyRubyTelemetry + 1000 )
+   {
+      if ( NULL != g_pPopupLinkLost )
+      {
+         popups_remove(g_pPopupLinkLost);
+         g_pPopupLinkLost = NULL;
+         log_line("Removed popup link lost.");
+      }
+      return;
+   }
+
+   // Link is lost
+
+   if ( NULL != g_pPopupLinkLost )
+      return;
+   
+   g_pPopupLinkLost = new Popup("Link lost. Trying to reconnect...", 0.28, 0.3, 0.5, 0);
+   g_pPopupLinkLost->setCentered();
+   g_pPopupLinkLost->addLine("The radio link with the vehicle is lost. Will reconnect automatically when in range.");
+   g_pPopupLinkLost->setIconId(g_idIconWarning, get_Color_IconWarning());
+   popups_add(g_pPopupLinkLost);
 }
 
 void link_watch_loop_throttled()
 {
-   // If we just paired, wait a litte;
-   if ( pairing_getStartTime() > g_TimeNow-500 )
+   // If we just paired, wait till router ready
+   if ( ! g_bIsRouterReady )
       return;
 
-   if ( pairing_is_connected_to_wrong_model() )
+   if ( ! link_has_received_main_vehicle_ruby_telemetry() )
       return;
 
-   u8 flags = g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.throttled;
-
-   if ( s_LastThrottled != flags )
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( flags & 0b1000 )
+      if ( ! g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+         continue;
+      if ( (0 == g_VehiclesRuntimeInfo[i].uVehicleId) || (MAX_U32 == g_VehiclesRuntimeInfo[i].uVehicleId) )
+         continue;
+      if ( NULL == g_VehiclesRuntimeInfo[i].pModel )
+         continue;
+
+      u8 newFlags = g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.throttled;
+      u8 oldFlags = g_VehiclesRuntimeInfo[i].uTmpLastThrottledFlags;
+      if ( oldFlags == newFlags )
+         continue;
+
+      if ( newFlags & 0b1000 )
       {
-         if ( ! s_bIsHot )
-            warnings_add("Vehicle: High temperature!", g_idIconTemperature, get_Color_IconError());
-         s_bIsHot = true;
+         if ( ! (oldFlags & 0b1000) )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: High temperature!", g_idIconTemperature, get_Color_IconError());
       }
       else
       {
-         if ( s_bIsHot )
-            warnings_add("Vehicle: Temperature back to normal", g_idIconTemperature, get_Color_IconSucces());
-         s_bIsHot = false;
+         if ( oldFlags & 0b1000 )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: Temperature back to normal", g_idIconTemperature, get_Color_IconSucces());
       }
 
-      if ( flags & 0b0100 )
+      if ( newFlags & 0b0100 )
       {
-         if ( ! s_bIsThrottled )
-            warnings_add("Vehicle: CPU is throttled", g_idIconCPU, get_Color_IconError());
-         s_bIsThrottled = true;
+         if ( ! (oldFlags & 0b0100) )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: CPU is throttled", g_idIconCPU, get_Color_IconError());
       }
       else
       {
-         if ( s_bIsThrottled )
-            warnings_add("Vehicle: CPU throttling cleared", g_idIconCPU, get_Color_IconSucces());
-         s_bIsThrottled = false;
+         if ( oldFlags & 0b0100 )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: CPU throttling cleared", g_idIconCPU, get_Color_IconSucces());
       }
 
-      if ( flags & 0b0010 )
+      if ( newFlags & 0b0010 )
       {
-         if ( ! s_bIsFreqCapped )
-            warnings_add("Vehicle: CPU frequency capped", g_idIconCPU, get_Color_IconError());
-         s_bIsFreqCapped = true;
+         if ( ! (oldFlags & 0b0010) )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: CPU frequency capped", g_idIconCPU, get_Color_IconError());
       }
       else
       {
-         if ( s_bIsFreqCapped )
-            warnings_add("Vechicle: CPU frequency back to normal", g_idIconCPU, get_Color_IconSucces());
-         s_bIsFreqCapped = false;
+         if ( oldFlags & 0b0010 )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vechicle: CPU frequency back to normal", g_idIconCPU, get_Color_IconSucces());
       }
 
-      if ( flags & 0b0001 )
+      if ( newFlags & 0b0001 )
       {
-         if ( ! s_bIsUndervoltage )
-            warnings_add("Vechicle: Undervoltage detected", g_idIconCPU, get_Color_IconError());
-         s_bIsUndervoltage = true;
+         if ( ! (oldFlags & 0b0001) )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vechicle: Undervoltage detected", g_idIconCPU, get_Color_IconError());
       }
       else
       {
-         if ( s_bIsUndervoltage )
-            warnings_add("Vehicle: Undervoltage cleared", g_idIconCPU, get_Color_IconSucces());
-         s_bIsUndervoltage = false;
+         if ( oldFlags & 0b0001 )
+            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Vehicle: Undervoltage cleared", g_idIconCPU, get_Color_IconSucces());
       }
+
+      g_VehiclesRuntimeInfo[i].uTmpLastThrottledFlags = newFlags;
    }
-
-   s_LastThrottled = flags;
 }
 
 
 void link_watch_loop_telemetry()
 {
-   if ( NULL == g_pSM_RadioStats )
+   if ( ! g_bIsRouterReady )
       return;
 
-   // If we just paired, wait a litte;
-   if ( pairing_getStartTime() > g_TimeNow-3000 )
+   if ( g_iCurrentActiveVehicleRuntimeInfoIndex < 0 )
       return;
 
-   // If we never connected, return;
-   if ( (!pairing_isReceiving()) && (! pairing_wasReceiving()) )
-      return;
+   // Update telemetry packets frequency
 
-   if ( pairing_is_connected_to_wrong_model() )
-      return;
-
-   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( s_LastFCFlightMode != (g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flight_mode & (~FLIGHT_MODE_ARMED)) )
-      {
-         bool bShow = false;
-         if ( 0 != s_LastFCFlightMode )
-            bShow = true;
-         s_LastFCFlightMode = (g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flight_mode & (~FLIGHT_MODE_ARMED));
-         if ( bShow )
-            notification_add_flight_mode(s_LastFCFlightMode);
-      }
-      #ifdef FEATURE_ENABLE_RC
-      if ( ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_RC_FAILSAFE ) ||
-           (g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo && (g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_RC_FAILSAFE) ) )
-      {
-         if ( ! g_bRCFailsafe )
-            notification_add_rc_failsafe();
-         g_bRCFailsafe = true;
-      }
-      else if ( g_bRCFailsafe )
-      {
-         notification_add_rc_failsafe_cleared();
-         g_bRCFailsafe = false;
-      }
-      #endif
+      if ( (g_VehiclesRuntimeInfo[i].uVehicleId == 0) || (g_VehiclesRuntimeInfo[i].uVehicleId == MAX_U32) )
+         continue;
 
-      if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags != s_LastFCFlags )
+      if ( g_TimeNow >= g_VehiclesRuntimeInfo[i].tmp_uTimeLastTelemetryFrequencyComputeTime + 1000 )
       {
-          if ( 0 != s_LastFCFlags )
-          {
-          if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
-          if ( !(s_LastFCFlags & FC_TELE_FLAGS_ARMED) )
-          {
-             onEventArmed();
-          }
-          if ( !(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED) )
-          if ( s_LastFCFlags & FC_TELE_FLAGS_ARMED )
-          {
-             onEventDisarmed();
-          }
-          }
-          s_LastFCFlags = g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags;
-       }
-
-       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
-       {
-          if ( s_bFCTelemetryPresent )
-             warnings_add("Flight controller telemetry missing", g_idIconCPU, get_Color_IconError());
-          s_bFCTelemetryPresent = false;
-       }
-       else
-       {
-          if ( ! s_bFCTelemetryPresent )
-             warnings_add("Flight controller telemetry recovered", g_idIconCPU, get_Color_IconSucces());
-          s_bFCTelemetryPresent = true;
-       }
-
-       if ( (g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_HAS_MESSAGE) && g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].bGotFCTelemetryExtra )
-       if ( pairing_isReceiving() )
-       {
-          if ( 0 != strncmp(s_szLastMessageFromFC, (const char*)(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryExtra.text), FC_MESSAGE_MAX_LENGTH-1) ||
-               g_TimeNow > s_TimeLastMessageFromFC + 5000 )
-          {
-             strcpy(s_szLastMessageFromFC, (const char*)(g_VehiclesRuntimeInfo[g_iCurrentOSDVehicleRuntimeInfoIndex].headerFCTelemetryExtra.text));
-             char szBuff[512];
-             if ( s_szLastMessageFromFC[0] == 'R' && s_szLastMessageFromFC[1] == ':' )
-             {
-                strcpy(szBuff, "Ruby: ");
-                strcat(szBuff, &(s_szLastMessageFromFC[0]));
-             }
-             else
-             {
-                strcpy(szBuff, "Vehicle: ");
-             	  strcat(szBuff, s_szLastMessageFromFC);
-             }
-             warnings_add(szBuff, g_idIconInfo, get_Color_IconNormal(), 8);
-             s_TimeLastMessageFromFC = g_TimeNow;
-          }
-       }
+         g_VehiclesRuntimeInfo[i].tmp_uTimeLastTelemetryFrequencyComputeTime = g_TimeNow;
+         g_VehiclesRuntimeInfo[i].iFrequencyRubyTelemetryFull = g_VehiclesRuntimeInfo[i].tmp_iCountRubyTelemetryPacketsFull;
+         g_VehiclesRuntimeInfo[i].iFrequencyRubyTelemetryShort = g_VehiclesRuntimeInfo[i].tmp_iCountRubyTelemetryPacketsShort;
+         g_VehiclesRuntimeInfo[i].iFrequencyFCTelemetryFull = g_VehiclesRuntimeInfo[i].tmp_iCountFCTelemetryPacketsFull;
+         g_VehiclesRuntimeInfo[i].iFrequencyFCTelemetryShort = g_VehiclesRuntimeInfo[i].tmp_iCountFCTelemetryPacketsShort;
+         g_VehiclesRuntimeInfo[i].tmp_iCountRubyTelemetryPacketsFull = 0;
+         g_VehiclesRuntimeInfo[i].tmp_iCountRubyTelemetryPacketsShort = 0;
+         g_VehiclesRuntimeInfo[i].tmp_iCountFCTelemetryPacketsFull = 0;
+         g_VehiclesRuntimeInfo[i].tmp_iCountFCTelemetryPacketsShort = 0;
+      }
    }
 
-   if ( g_pSM_RadioStats->radio_streams[STREAM_ID_DATA].timeLastRxPacket == 0 || g_TimeNow < TIMEOUT_TELEMETRY_LOST )
+   if ( NULL == g_pCurrentModel )
       return;
 
+   if ( ! link_has_received_main_vehicle_ruby_telemetry() )
+   if ( ! link_has_received_relayed_vehicle_telemetry_info() )
+      return;
 
-   if ( (NULL != g_pProcessStatsTelemetry) && (g_pProcessStatsTelemetry->timeLastReceivedPacket != 0) && (s_LastTelemetryTimestamp == g_pProcessStatsTelemetry->timeLastReceivedPacket) )
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
-      if ( NULL != g_pCurrentModel && g_pCurrentModel->telemetry_params.update_rate > 10 )
-         uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
-      if ( g_TimeNow > uMaxLostTime )
-      if ( s_LastTelemetryTimestamp != 0  && s_LastTelemetryTimestamp < g_TimeNow - uMaxLostTime )
+      if ( (g_VehiclesRuntimeInfo[i].uVehicleId == 0) || (g_VehiclesRuntimeInfo[i].uVehicleId == MAX_U32) )
+         continue;
+      if ( NULL == g_VehiclesRuntimeInfo[i].pModel )
+         continue;
+
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo || g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
       {
-         s_TelemetryLostCheckCount++;
-         if ( s_TelemetryLostCheckCount > 3 )
+         u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
+         if ( (NULL != g_VehiclesRuntimeInfo[i].pModel) && (g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10) )
+            uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
+
+         g_VehiclesRuntimeInfo[i].bLinkLost = false;
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryExtended + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryShort + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvFCTelemetry + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvFCTelemetryFull + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvFCTelemetryShort + uMaxLostTime )
+            g_VehiclesRuntimeInfo[i].bLinkLost = true;
+      
+      }
+      if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
+      {
+         // Flight mode changed?
+
+         if ( g_VehiclesRuntimeInfo[i].uLastFCFlightMode != (g_VehiclesRuntimeInfo[i].headerFCTelemetry.flight_mode & (~FLIGHT_MODE_ARMED)) )
          {
-            if ( ! g_bTelemetryLost )
-               warnings_add("Telemetry Lost!", g_idIconCPU, get_Color_IconError());
-            g_bTelemetryLost = true;
+            bool bShow = false;
+            if ( 0 != g_VehiclesRuntimeInfo[i].uLastFCFlightMode )
+               bShow = true;
+            g_VehiclesRuntimeInfo[i].uLastFCFlightMode = (g_VehiclesRuntimeInfo[i].headerFCTelemetry.flight_mode & (~FLIGHT_MODE_ARMED));
+            if ( bShow )
+               notification_add_flight_mode( g_VehiclesRuntimeInfo[i].uVehicleId, g_VehiclesRuntimeInfo[i].uLastFCFlightMode);
+         }
+
+         // RC failsafe changed ?
+
+         #ifdef FEATURE_ENABLE_RC
+         if ( ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_RC_FAILSAFE ) ||
+              (g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo && (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_RC_FAILSAFE) ) )
+         {
+            if ( ! g_VehiclesRuntimeInfo[i].bRCFailsafeState )
+               notification_add_rc_failsafe(g_VehiclesRuntimeInfo[i].uVehicleId);
+            g_VehiclesRuntimeInfo[i].bRCFailsafeState = true;
+         }
+         else if ( g_VehiclesRuntimeInfo[i].bRCFailsafeState )
+         {
+            notification_add_rc_failsafe_cleared(g_VehiclesRuntimeInfo[i].uVehicleId);
+            g_VehiclesRuntimeInfo[i].bRCFailsafeState = false;
+         }
+         #endif
+
+         // FC telemetry flags changed ?
+         if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags != g_VehiclesRuntimeInfo[i].uLastFCFlags )
+         {
+            if ( 0 != g_VehiclesRuntimeInfo[i].uLastFCFlags )
+            {
+               if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+               if ( !(g_VehiclesRuntimeInfo[i].uLastFCFlags & FC_TELE_FLAGS_ARMED) )
+               {
+                  onEventArmed(g_VehiclesRuntimeInfo[i].uVehicleId);
+               }
+               if ( !(g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED) )
+               if ( g_VehiclesRuntimeInfo[i].uLastFCFlags & FC_TELE_FLAGS_ARMED )
+               {
+                  onEventDisarmed(g_VehiclesRuntimeInfo[i].uVehicleId);
+               }
+            }
+            g_VehiclesRuntimeInfo[i].uLastFCFlags = g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags;
+         }
+
+         // FC source telemetry data present or lost ?
+
+         if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
+         {
+            if ( g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry missing", g_idIconCPU, get_Color_IconError());
+            g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = false;
+         }
+         else
+         {
+            if ( ! g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry recovered", g_idIconCPU, get_Color_IconSucces());
+            g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = true;
          }
       }
-      return;
-   }
 
-   if ( (NULL != g_pProcessStatsTelemetry) && (g_pProcessStatsTelemetry->timeLastReceivedPacket != 0) )
-      s_LastTelemetryTimestamp = g_pProcessStatsTelemetry->timeLastReceivedPacket;
-   s_TelemetryLostCheckCount = 0;
-   if ( g_bTelemetryLost )
-   {
-      g_bTelemetryLost = false;
-      warnings_add("Telemetry Recovered", g_idIconCPU, get_Color_IconSucces());
+      // Check for Ruby telemetry lost or recovered state
+
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+      {
+         u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
+         if ( (NULL != g_VehiclesRuntimeInfo[i].pModel) && (g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10) )
+            uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
+         bool bOk = true;
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryExtended + uMaxLostTime )
+         if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryShort + uMaxLostTime )
+         {
+            bOk = false;
+            if ( ! g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Telemetry from vehicle lost!", g_idIconCPU, get_Color_IconError());
+            g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = true;
+         }
+         if ( bOk )
+         {
+            if ( g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Telemetry from vehicle recovered", g_idIconCPU, get_Color_IconSucces());
+            g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = false;
+         }
+      }
    }
 }
 
@@ -591,18 +651,21 @@ void link_watch_loop_video()
    if ( NULL == g_pProcessStatsRouter )
       return;
 
-   if ( s_LastRouterProcessCheckedAlarmFlags != g_pProcessStatsRouter->alarmFlags ||
-        g_pProcessStatsRouter->alarmTime > s_TimeLastAlarmRouterProcess )
+   if ( s_LastRouterProcessCheckedAlarmFlags != g_ProcessStatsRouter.alarmFlags ||
+        g_ProcessStatsRouter.alarmTime > s_TimeLastAlarmRouterProcess )
    {
-      s_LastRouterProcessCheckedAlarmFlags = g_pProcessStatsRouter->alarmFlags;
-      s_TimeLastAlarmRouterProcess = g_pProcessStatsRouter->alarmTime;
+      s_LastRouterProcessCheckedAlarmFlags = g_ProcessStatsRouter.alarmFlags;
+      s_TimeLastAlarmRouterProcess = g_ProcessStatsRouter.alarmTime;
 
-      if ( g_pProcessStatsRouter->alarmFlags & PROCESS_ALARM_RADIO_STREAM_RESTARTED )
+      if ( g_ProcessStatsRouter.alarmFlags & PROCESS_ALARM_RADIO_STREAM_RESTARTED )
       {
-         warnings_add("Video stream was restarted on vehicle.", g_idIconWarning);
+         if ( (NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel) &&
+              ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->iCameraCount > 0 ) )
+            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Video stream was restarted on vehicle.", g_idIconWarning);
+         else
+            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Radio streams where restarted on vehicle.", g_idIconWarning);
       }
-
-      if ( g_pProcessStatsRouter->alarmFlags & PROCESS_ALARM_RADIO_INTERFACE_BEHIND )
+      if ( g_ProcessStatsRouter.alarmFlags & PROCESS_ALARM_RADIO_INTERFACE_BEHIND )
       if ( g_TimeNow > s_TimeLastAlarmRadioLinkBehind + 2000 )
       {
          ControllerSettings* pCS = get_ControllerSettings();
@@ -610,9 +673,9 @@ void link_watch_loop_video()
          {
             s_TimeLastAlarmRadioLinkBehind = g_TimeNow;
             char szBuff[256];
-            //sprintf(szBuff, "Link %d is behind on stream id %d, received packet index: %u, maximum packet index for this stream is: %u.", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[3], g_pProcessStatsRouter->alarmParam[1] );
-            sprintf(szBuff, "Link %d is behind on stream id %d by %d packets", g_pProcessStatsRouter->alarmParam[2], g_pProcessStatsRouter->alarmParam[0], g_pProcessStatsRouter->alarmParam[1] - g_pProcessStatsRouter->alarmParam[3]);
-            warnings_add(szBuff, g_idIconWarning);
+            //sprintf(szBuff, "Link %d is behind on stream id %d, received packet index: %u, maximum packet index for this stream is: %u.", g_ProcessStatsRouter.alarmParam[2], g_ProcessStatsRouter.alarmParam[0], g_ProcessStatsRouter.alarmParam[3], g_ProcessStatsRouter.alarmParam[1] );
+            sprintf(szBuff, "Link %d is behind on stream id %d by %d packets", g_ProcessStatsRouter.alarmParam[2], g_ProcessStatsRouter.alarmParam[0], g_ProcessStatsRouter.alarmParam[1] - g_ProcessStatsRouter.alarmParam[3]);
+            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, szBuff, g_idIconWarning);
          }
       }
    }
@@ -620,45 +683,20 @@ void link_watch_loop_video()
 
 void link_watch_loop_processes()
 {
-   if ( ! g_bSearching )
+   if ( g_bSearching )
+      return;
+
    if ( g_TimeNow > s_TimeLastProcessesCheck + 1000 )
    {
       s_TimeLastProcessesCheck = g_TimeNow;
       if ( pairing_isStarted() )
       {
-         if ( NULL == g_pProcessStatsTelemetry )
-         {
-            g_pProcessStatsTelemetry = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_RX);
-            if ( NULL == g_pProcessStatsTelemetry )
-               log_softerror_and_alarm("Failed to open shared mem to telemetry rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_TELEMETRY_RX);
-            else
-               log_line("Opened shared mem to telemetry rx process watchdog stats for reading.");
-         }
-         if ( NULL == g_pProcessStatsRouter )
-         {
-            g_pProcessStatsRouter = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_ROUTER_RX);
-            if ( NULL == g_pProcessStatsRouter )
-               log_softerror_and_alarm("Failed to open shared mem to video rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_ROUTER_RX);
-            else
-               log_line("Opened shared mem to video rx process watchdog stats for reading.");
-         }
-
-         if ( NULL != g_pCurrentModel && g_pCurrentModel->rc_params.rc_enabled )
-         if ( NULL == g_pProcessStatsRC )
-         {
-            g_pProcessStatsRC = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_TX);
-            if ( NULL == g_pProcessStatsRC )
-               log_softerror_and_alarm("Failed to open shared mem to RC tx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_RC_TX);
-            else
-               log_line("Opened shared mem to RC tx process watchdog stats for reading.");
-         }
-
-         if ( NULL != g_pProcessStatsRouter && g_pProcessStatsRouter->lastActiveTime < g_TimeNow - 1100 )
+         if ( (NULL != g_pProcessStatsRouter) && (g_ProcessStatsRouter.lastActiveTime < g_TimeNow - 1100) )
             s_CountProcessRouterFailures++;
          else
             s_CountProcessRouterFailures = 0;
 
-         if ( NULL != g_pProcessStatsTelemetry && g_pProcessStatsTelemetry->lastActiveTime < g_TimeNow - 1100 )
+         if ( (NULL != g_pProcessStatsTelemetry) && (g_ProcessStatsTelemetry.lastActiveTime < g_TimeNow - 1100) )
             s_CountProcessTelemetryFailures++;
          else
             s_CountProcessTelemetryFailures = 0;
@@ -670,12 +708,14 @@ void link_watch_loop_processes()
             failureCountMax = 8;
          if ( s_CountProcessRouterFailures > failureCountMax )
          {
-            warnings_add("Controller router process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
+            log_softerror_and_alarm("Router process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rt_station"));
+            warnings_add(0, "Controller router process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
          if ( s_CountProcessTelemetryFailures > failureCountMax )
          {
-            warnings_add("Controller telemetry process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
+            log_softerror_and_alarm("Telemetry process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rx_telemetry"));
+            warnings_add(0, "Controller telemetry process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
 
@@ -701,12 +741,11 @@ void link_watch_loop_processes()
             s_CountProcessTelemetryFailures = 0;
             pairing_stop();
             hardware_sleep_ms(100);
-            pairing_start();
+            pairing_start_normal();
          }
       }
    }
 
-   if ( ! g_bSearching )
    if ( g_TimeNow > s_TimeLastVideoProcessingCheck + 1000 )
    {
       s_TimeLastVideoProcessingCheck = g_TimeNow;
@@ -745,7 +784,7 @@ void link_watch_loop_processes()
          g_bVideoProcessing = false;
          if ( access( TEMP_VIDEO_FILE_PROCESS_ERROR, R_OK ) != -1 )
          {
-            warnings_add("Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
+            warnings_add(0, "Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
 
             char szBuff[256];
             char * line = NULL;
@@ -757,7 +796,7 @@ void link_watch_loop_processes()
             {
               printf("Retrieved line of length %zu:\n", read);
               if ( read > 0 )
-                 warnings_add(line, g_idIconCamera, get_Color_IconNormal());
+                 warnings_add(0, line, g_idIconCamera, get_Color_IconNormal());
             }
             if ( NULL != fd )
                fclose(fd);
@@ -765,7 +804,7 @@ void link_watch_loop_processes()
             hw_execute_bash_command(szBuff, NULL );
          }
          else
-             warnings_add("Video file processing complete.", g_idIconCamera, get_Color_IconNormal());
+             warnings_add(0, "Video file processing complete.", g_idIconCamera, get_Color_IconNormal());
       }
       }
    }
@@ -779,7 +818,9 @@ void link_watch_rc()
       return;
    if ( ! pairing_isStarted() )
       return;
-   if ( pairing_getStartTime() > g_TimeNow-500 )
+
+   // If we just paired, wait till router ready
+   if ( ! g_bIsRouterReady )
       return;
 
    if ( s_TimeLastWarningRCHID != 0 && g_TimeNow < s_TimeLastWarningRCHID+20000 )
@@ -811,7 +852,7 @@ void link_watch_rc()
          if ( pCI->inputInterfacesCount  == 0 )
          {
              s_TimeLastWarningRCHID = g_TimeNow;
-             warnings_add("RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());
+             warnings_add(g_pCurrentModel->vehicle_id, "RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());
              return;
          }
       }
@@ -826,97 +867,204 @@ void link_watch_rc()
       if ( ! bFound )
       {
           s_TimeLastWarningRCHID = g_TimeNow;
-          warnings_add("RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!", g_idIconJoystick, get_Color_IconError());
+          warnings_add(g_pCurrentModel->vehicle_id, "RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!", g_idIconJoystick, get_Color_IconError());
           return;
       }
    }
 }
 
-void link_watch_alarms()
+void _link_watch_send_flags_change_confirmation_command()
 {
-   if ( NULL == g_pCurrentModel || (!g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo) || NULL == g_pSM_RadioStats )
+   if ( g_TimeNow < g_TimeStartPendingRadioFlagsChange+500 )
       return;
 
-   if ( s_TimeLastAlarmsCheck > g_TimeNow - 200 )
-      return;
+   //log_line("Checking for working new radio flags...");
 
-   s_TimeLastAlarmsCheck = g_TimeNow;
-
-   if ( NULL != g_psmvds && ((g_psmvds->fec_time/1000) >= 300) )
+   bool bHasNewPackets = false;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   for( int k=0; k<MAX_RADIO_STREAMS; k++ )
    {
-      if ( 0 == s_TimeTriggerAlarmOverloadFEC )
-         s_TimeTriggerAlarmOverloadFEC = g_TimeNow;
-      else if ( g_TimeNow > s_TimeTriggerAlarmOverloadFEC + 500 )
-      {
-         //log_line("FEC time too big: %d ms/s", g_psmvds->fec_time/1000);
-         if ( g_pCurrentModel->osd_params.show_overload_alarm )
-            warnings_add_vehicle_overloaded();
-         s_TimeTriggerAlarmOverloadFEC = 0;
-      }
+      if ( g_SM_RadioStats.radio_streams[i][0].uVehicleId == g_pCurrentModel->vehicle_id )
+      if ( g_SM_RadioStats.radio_streams[i][k].timeLastRxPacket > g_TimeStartPendingRadioFlagsChange+500 )
+         bHasNewPackets = true;
    }
-   else
-      s_TimeTriggerAlarmOverloadFEC = 0;
 
-   long max_data_kbps = 0;
-   long max_video_kbps = 0;
+   if ( (!bHasNewPackets) && (g_TimeNow >= g_TimeStartPendingRadioFlagsChange + TIMEOUT_RADIO_FRAMES_FLAGS_CHANGE_CONFIRMATION) )
+   {
+      log_softerror_and_alarm("Link Watch: The new radio flags where not confirmed by working downlink from vehicle (timeout)." );
+
+      log_line("Reverting radio links changes to last good ones.");
+      memcpy(&(g_pCurrentModel->radioLinksParams), &g_LastGoodRadioLinksParams, sizeof(type_radio_links_parameters));
+      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+      saveControllerModel(g_pCurrentModel);
+      send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+
+      handle_commands_abandon_command();
+      warnings_remove_configuring_radio_link(false);
+      link_reset_reconfiguring_radiolink();
+
+      MenuConfirmation* pMC = new MenuConfirmation("Unsupported Parameter","Your vehicle radio link does not support this combination of radio params.", -1, true);
+      pMC->m_yPos = 0.3;
+      add_menu_to_stack(pMC);
+      menu_invalidate_all();
+      return;
+   }
+
+   if ( ! bHasNewPackets )
+      return;
+
+   log_line("Link Watch: New radio link flags working on the downlink. Sending confirmation to vehicle");
+
+   handle_commands_send_to_vehicle(COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION, g_iConfiguringRadioLinkIndex, NULL, 0);
+   g_TimeStartPendingRadioFlagsChange = g_TimeNow;
 }
 
 void link_watch_loop()
 {
+   // We deleted all models or are we searching?
+
    if ( NULL == g_pCurrentModel || g_bSearching )
    {
-      g_bTelemetryLost = false;
       g_bVideoLost = false;
-
-      if ( NULL != g_pPopupLooking )
-      {
-         popups_remove(g_pPopupLooking);
-         g_pPopupLooking = NULL;
-         log_line("Removed popup looking for model (7).");
-      }
-      if ( NULL != g_pPopupWrongModel )
-      {
-         popups_remove(g_pPopupWrongModel);
-         g_pPopupWrongModel = NULL;
-         log_line("Removed popup wrong model (6).");
-      }
+      link_watch_remove_popups();
       return;
    }
+
+
    if ( ! pairing_isStarted() )
    {
-      g_bTelemetryLost = false;
       g_bVideoLost = false;
       return;
    }
 
-   link_watch_loop_popup_looking();
    link_watch_loop_telemetry();
+   link_watch_loop_popup_looking();
+   link_watch_loop_unexpected_vehicles();
+   link_watch_link_lost();
    link_watch_loop_throttled();
    link_watch_loop_video();
    link_watch_loop_processes();
    link_watch_rc();
-   link_watch_alarms();
+
+   if ( g_bConfiguringRadioLink )
+   {
+      if ( g_TimeNow > g_uTimeStartConfiguringRadioLink + 20000 )
+      {
+         warnings_add_configuring_radio_link_line("Something went wrong.");
+         warnings_remove_configuring_radio_link(false);
+         link_reset_reconfiguring_radiolink();
+      }
+
+      bool bSendFlagsChangeConfirmationCommand = true;
+      if ( ! g_bConfiguringRadioLinkWaitFlagsConfirmation )
+         bSendFlagsChangeConfirmationCommand = false;
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
+         bSendFlagsChangeConfirmationCommand = false;
+      if ( handle_commands_is_command_in_progress() )
+         bSendFlagsChangeConfirmationCommand = false;
+
+      if ( bSendFlagsChangeConfirmationCommand )
+         _link_watch_send_flags_change_confirmation_command();
+   }
+}
+
+bool link_has_received_videostream(u32 uVehicleId)
+{
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( (uVehicleId == 0) || (g_SM_RadioStats.radio_streams[i][0].uVehicleId == uVehicleId) || (g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId == uVehicleId) )
+      if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].totalRxBytes >= 20000 )
+         return true;
+   }
+
+   return false;
+}
+
+bool link_has_received_vehicle_telemetry_info(u32 uVehicleId)
+{
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+         return true;
+   }
+   return false;
+}
+
+bool link_has_received_main_vehicle_ruby_telemetry()
+{
+   if ( NULL == g_pCurrentModel )
+      return false;
+
+   if ( ! g_VehiclesRuntimeInfo[0].bGotRubyTelemetryInfo )
+      return false;
+ 
+   if ( g_bFirstModelPairingDone )
+   if ( g_VehiclesRuntimeInfo[0].uVehicleId == g_pCurrentModel->vehicle_id )
+      return true;
+
+   if ( ! g_bFirstModelPairingDone )
+   if ( g_VehiclesRuntimeInfo[0].uVehicleId != 0 )
+      return true;
+
+   return false;
+}
+
+bool link_has_received_relayed_vehicle_telemetry_info()
+{
+   for( int i=1; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId != 0 )
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+         return true;
+   }
+   return false;
 }
 
 
-bool link_has_fc_telemetry()
+bool link_has_received_any_telemetry_info()
 {
-   if ( s_bDebugOSDShowAll )
-      return true;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( (g_VehiclesRuntimeInfo[i].uVehicleId != 0) && g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+         return true;
+   return false;
+}
 
-   //log_line("has Fc tele: %d", s_bFCTelemetryPresent);
-   return s_bFCTelemetryPresent;
+bool link_has_paired_with_main_vehicle()
+{
+   if ( NULL == g_pCurrentModel )
+      return false;
+
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( (g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->vehicle_id) && g_VehiclesRuntimeInfo[i].bPairedConfirmed )
+         return true;
+   }
+   return false;
 }
 
 bool link_is_relayed_vehicle_online()
 {
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( g_VehiclesRuntimeInfo[i].uVehicleId != g_pCurrentModel->relay_params.uRelayVehicleId )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId != g_pCurrentModel->relay_params.uRelayedVehicleId )
          continue;
       if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
       if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry > g_TimeNow - 2000 )
          return true;
    }
    return false;
+}
+
+bool link_is_vehicle_online_now(u32 uVehicleId)
+{
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId != uVehicleId )
+         continue;
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+      if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvAnyRubyTelemetry > g_TimeNow - 2000 )
+         return true;
+   }
+   return false; 
 }

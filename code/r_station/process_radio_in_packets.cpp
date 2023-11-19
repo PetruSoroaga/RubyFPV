@@ -14,15 +14,21 @@ Code written by: Petru Soroaga, 2021-2023
 #include "processor_rx_video.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/encr.h"
+#include "../base/models_list.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
 #include "../base/camera_utils.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
+#include "../common/models_connect_frequencies.h"
+#include "../common/relay_utils.h"
 #include "../radio/radiolink.h"
+#include "../radio/radio_duplicate_det.h"
+#include "../radio/radio_tx.h"
+#include "ruby_rt_station.h"
 #include "relay_rx.h"
 #include "links_utils.h"
 #include "shared_vars.h"
@@ -35,13 +41,7 @@ u32 s_uRadioRxReadTimeoutCount = 0;
 
 u32 s_uTotalBadPacketsReceived = 0;
 
-static u32 s_TimeLastLogWrongRxPacket = 0;
-static u32 s_TimeLastLoggedSearchingRubyTelemetry = 0;
-static u32 s_TimeLastReceivedModelSettings = 0;
-static u32 s_LastReceivedAlarmCount = MAX_U32;
-
-static u32 s_TimeLastLogAlarmStreamPacketsVariation = 0;
-
+u32 s_TimeLastLoggedSearchingRubyTelemetry = 0;
 
 u32 s_uParseRadioInNALStartSequence = 0xFFFFFFFF;
 u32 s_uParseRadioInNALCurrentSlices = 0;
@@ -49,6 +49,16 @@ u32 s_uParseRadioInLastNALTag = 0xFFFFFFFF;
 u32 s_uParseRadioInNALTotalParsedBytes = 0;
 u32 s_uLastRadioInVideoFrameTime = 0;
 
+#define MAX_ALARMS_HISTORY 50
+
+u32 s_uLastReceivedAlarmsIndexes[MAX_ALARMS_HISTORY];
+u32 s_uTimeLastReceivedAlarm = 0;
+
+void init_radio_rx_structures()
+{
+   for( int i=0; i<MAX_ALARMS_HISTORY; i++ )
+      s_uLastReceivedAlarmsIndexes[i] = MAX_U32;
+}
 
 void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
 {
@@ -66,7 +76,7 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
       u32 freqNew = freq;
       log_line("Received extra packet info to change frequency on radio link %d, new frequency: %s", nLink+1, str_format_frequency(freqNew));
       bool bChanged = false;
-      if ( g_pCurrentModel->radioLinksParams.link_frequency[nLink] != freqNew )
+      if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink] != freqNew )
          bChanged = true;
 
       if ( ! bChanged )
@@ -74,7 +84,7 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
          log_line("Same frequency as current one. Ignoring info from vehicle.");
          return;
       }
-      u32 freqOld = g_pCurrentModel->radioLinksParams.link_frequency[nLink];
+      u32 freqOld = g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink];
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
@@ -87,38 +97,34 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
          if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
             continue;
 
-         if ( pRadioHWInfo->uCurrentFrequency == freqOld )
+         if ( pRadioHWInfo->uCurrentFrequencyKhz == freqOld )
          {
-            launch_set_frequency(NULL, i, freqNew, g_pProcessStats);
-            g_Local_RadioStats.radio_interfaces[i].uCurrentFrequency = freqNew;
-            radio_stats_set_card_current_frequency(&g_Local_RadioStats, i, freqNew);
+            radio_utils_set_interface_frequency(NULL, i, freqNew, g_pProcessStats);
+            g_SM_RadioStats.radio_interfaces[i].uCurrentFrequencyKhz = freqNew;
+            radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, freqNew);
          }
       }
       hardware_save_radio_info();
 
       if ( NULL != g_pSM_RadioStats )
-         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_Local_RadioStats, sizeof(shared_mem_radio_stats));
+         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
 
-      g_pCurrentModel->radioLinksParams.link_frequency[nLink] = freqNew;         
-      g_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
-      saveModel(g_pCurrentModel);
+      g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink] = freqNew;
+      saveControllerModel(g_pCurrentModel);
       log_line("Notifying all other components of the link frequency change.");
 
       t_packet_header PH;
-      PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-      PH.packet_type = PACKET_TYPE_LOCAL_LINK_FREQUENCY_CHANGED;
+      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, STREAM_ID_DATA);
       PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
       PH.vehicle_id_dest = 0;
-      PH.total_headers_length = sizeof(t_packet_header);
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
-      PH.extra_flags = 0;
+   
       u8 buffer[MAX_PACKET_TOTAL_SIZE];
       memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
       u32* pI = (u32*)((&buffer[0])+sizeof(t_packet_header));
       *pI = (u32)nLink;
       pI++;
       *pI = freqNew;
-      packet_compute_crc(buffer, PH.total_length);
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -129,7 +135,7 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
    }
 }
 
-int _process_received_ruby_message(u8* pPacketBuffer)
+int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 {
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
 
@@ -141,14 +147,27 @@ int _process_received_ruby_message(u8* pPacketBuffer)
          log_softerror_and_alarm("Received current radio configuration: invalid packet size. Ignoring.");
          return 0;
       }
+      if ( NULL == g_pCurrentModel )
+         return 0;
+      if ( g_pCurrentModel->vehicle_id == pPH->vehicle_id_src )
+      {
+         type_radio_interfaces_parameters radioInt;
+         type_radio_links_parameters radioLinks;
+         memcpy(&radioInt, pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters), sizeof(type_radio_interfaces_parameters));
+         memcpy(&radioLinks, pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), sizeof(type_radio_links_parameters));
+      
+         bool bRadioConfigChanged = IsModelRadioConfigChanged(&(g_pCurrentModel->radioLinksParams), &(g_pCurrentModel->radioInterfacesParams),
+                  &radioLinks, &radioInt);
+
+         if ( bRadioConfigChanged )
+            log_line("Received from vehicle the current radio config for current model and radio links count or radio interfaces count has changed on the vehicle side.");
+      }
       memcpy(&(g_pCurrentModel->relay_params), pPacketBuffer + sizeof(t_packet_header), sizeof(type_relay_parameters));
       memcpy(&(g_pCurrentModel->radioInterfacesParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters), sizeof(type_radio_interfaces_parameters));
       memcpy(&(g_pCurrentModel->radioLinksParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), sizeof(type_radio_links_parameters));
-      g_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
-      saveModel(g_pCurrentModel);
-      
+      saveControllerModel(g_pCurrentModel);
+
       pPH->packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-      packet_compute_crc((u8*)pPH, pPH->total_length);
       ruby_ipc_channel_send_message(g_fIPCToCentral, (u8*)pPH, pPH->total_length);
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -161,14 +180,38 @@ int _process_received_ruby_message(u8* pPacketBuffer)
       g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
 
       u32 uResendCount = 0;
-      if ( pPH->total_length >= pPH->total_headers_length + sizeof(u32) )
+      if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) )
          memcpy(&uResendCount, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
 
       log_line("Received pairing confirmation from vehicle (received vehicle resend counter: %u). VID: %u, CID: %u", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
-      g_bRuntimeControllerPairingCompleted = true;
+      
+      int iRuntimeIndex = getVehicleRuntimeIndex(pPH->vehicle_id_src);
+      if ( -1 == iRuntimeIndex )
+      {
+         log_softerror_and_alarm("Received pairing confirmation from unknown VID %u. Currently known runtime vehicles:", pPH->vehicle_id_src);
+         logCurrentVehiclesRuntimeInfo();
+         return 0;
+      }
 
-      send_alarm_to_central(ALARM_ID_CONTROLLER_PAIRING_COMPLETED, pPH->vehicle_id_src, 0);
-         
+      if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[iRuntimeIndex] )
+      {
+         ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+
+         send_alarm_to_central(ALARM_ID_CONTROLLER_PAIRING_COMPLETED, pPH->vehicle_id_src, 0);
+         g_SM_RouterVehiclesRuntimeInfo.iPairingDone[iRuntimeIndex] = 1;
+      }
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_SIK_CONFIG )
+   {
+      if ( -1 != g_fIPCToCentral )
+         ruby_ipc_channel_send_message(g_fIPCToCentral, (u8*)pPH, pPH->total_length);
+      else
+         log_softerror_and_alarm("Received SiK config message but there is not channel to central to notify it.");
+
       return 0;
    }
 
@@ -176,11 +219,8 @@ int _process_received_ruby_message(u8* pPacketBuffer)
    {
       log_line("Received message that vehicle radio interfaces where reinitialized.");
       t_packet_header PH;
-      PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-      PH.packet_type =  PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED;
-      PH.total_headers_length = sizeof(t_packet_header);
+      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED, STREAM_ID_DATA);
       PH.total_length = sizeof(t_packet_header);
-      packet_compute_crc((u8*)&PH, sizeof(t_packet_header));
       ruby_ipc_channel_send_message(g_fIPCToCentral, (u8*)&PH, PH.total_length);
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -189,83 +229,126 @@ int _process_received_ruby_message(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_ALARM )
    {
-      u32 uAlarms = 0;
-      u32 uFlags = 0;
-      u32 uAlarmsCount = 0;
+      u32 uAlarmIndex = 0;
+      u32 uAlarm = 0;
+      u32 uFlags1 = 0;
+      u32 uFlags2 = 0;
       char szBuff[256];
-      memcpy(&uAlarms, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
-      memcpy(&uFlags, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u32));
-      memcpy(&uAlarmsCount, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u32), sizeof(u32));
-      alarms_to_string(uAlarms, szBuff);
-      log_line("Received alarm(s) from vehicle. Alarms: %s, flags: %u, count: %d.", szBuff, uFlags, (int)uAlarmsCount);
-      if ( uAlarms & ALARM_ID_RECEIVED_INVALID_RADIO_PACKET )
+      if ( pPH->total_length == (int)(sizeof(t_packet_header) + 3 * sizeof(u32)) )
+      {
+         memcpy(&uAlarm, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
+         memcpy(&uFlags1, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u32));
+         memcpy(&uFlags2, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u32), sizeof(u32));
+         alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
+         log_line("Received alarm from vehicle (old format). Alarm: %s, alarm index: %u", szBuff, uAlarmIndex);
+      }
+      // New format, version 7.5
+      else if ( pPH->total_length == (int)(sizeof(t_packet_header) + 4 * sizeof(u32)) )
+      {
+         memcpy(&uAlarmIndex, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
+         memcpy(&uAlarm, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u32));
+         memcpy(&uFlags1, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u32), sizeof(u32));
+         memcpy(&uFlags2, pPacketBuffer + sizeof(t_packet_header) + 3*sizeof(u32), sizeof(u32));
+         alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
+         log_line("Received alarm from vehicle. Alarm: %s, alarm index: %u", szBuff, uAlarmIndex);
+      
+         bool bDuplicateAlarm = false;
+         if ( g_TimeNow > s_uTimeLastReceivedAlarm + 5000 )
+             bDuplicateAlarm = false;
+         else
+         {
+            for( int i=0; i<MAX_ALARMS_HISTORY; i++ )
+            {
+               if ( s_uLastReceivedAlarmsIndexes[i] == uAlarmIndex )
+               {
+                  bDuplicateAlarm = true;
+                  break;
+               }
+            }  
+         }
+         if ( bDuplicateAlarm )
+         {
+            log_line("Duplicate alarm. Ignoring it.");
+            return 0;
+         }
+         
+         for( int i=MAX_ALARMS_HISTORY-1; i>0; i-- )
+            s_uLastReceivedAlarmsIndexes[i] = s_uLastReceivedAlarmsIndexes[i-1];
+         s_uLastReceivedAlarmsIndexes[0] = uAlarmIndex;
+      }
+      else
+      {
+         log_softerror_and_alarm("Received invalid alarm from vehicle. Received %d bytes, expected %d bytes", pPH->total_length, (int)sizeof(t_packet_header) + 4 * (int)sizeof(u32));
+         return 0;
+      }
+
+      s_uTimeLastReceivedAlarm = g_TimeNow;
+      
+      if ( uAlarm & ALARM_ID_RECEIVED_INVALID_RADIO_PACKET )
          s_bReceivedInvalidRadioPackets = true;
 
-      if ( uAlarms & ALARM_ID_LINK_TO_CONTROLLER_LOST )
+      if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
       {
          g_bIsVehicleLinkToControllerLost = true;
          log_line("Received alarm that vehicle lost the connection from controller.");
       }
-      if ( uAlarms & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
+      if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
       {
          g_bIsVehicleLinkToControllerLost = false;
          log_line("Received alarm that vehicle recovered the connection from controller.");
       }
-      if ( s_LastReceivedAlarmCount != uAlarmsCount )
-      {
-         s_LastReceivedAlarmCount = uAlarmsCount;
-         pPH->packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-         packet_compute_crc(pPacketBuffer, sizeof(t_packet_header)+3*sizeof(u32));
-         ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
-         if ( NULL != g_pProcessStats )
-            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-      }
+      
+      log_line("Send alarm to central");
+      ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return 0;
    }
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
-   if ( pPH->total_length == sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
+   if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
    {
-      g_uLastReceivedPingResponseTime = g_TimeNow;
       g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
-      u8 pingId = 0;
+      u8 uPingId = 0;
       u32 vehicleTime = 0;
-      u8 radioLinkId = 0;
-      memcpy(&pingId, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
-      memcpy(&vehicleTime, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u32));
-      memcpy(&radioLinkId, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8) + sizeof(u32), sizeof(u8));
+      u8 uOriginalLocalRadioLinkId = 0;
+      u8 uReplyVehicleLocalRadioLinkId = 0;
 
-      if ( pingId == s_uLastPingSentId )
-      if ( pingId != s_uLastPingRecvId )
-      {
-         s_uLastPingRecvId = pingId;
-         u32 uRoundTripMicros = get_current_timestamp_micros() - g_uLastPingSendTimeMicroSec;
+      memcpy(&uPingId, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
+      memcpy(&vehicleTime, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u32));
+      memcpy(&uOriginalLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), sizeof(u8));
+      if ( pPH->total_length > sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
+         memcpy(&uReplyVehicleLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+2*sizeof(u8) + sizeof(u32), sizeof(u8));
          
-         //log_line("Received PING clock response (counter: %u), updated PING roundtrip: %.2f ms", pingId, uRoundTripMicros/1000.0f);
-         radio_stats_set_radio_link_rt_delay(&g_Local_RadioStats, radioLinkId, uRoundTripMicros/1000, g_TimeNow);
-         if ( NULL != g_pProcessStats )
-            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+      int iIndex = getVehicleRuntimeIndex(pPH->vehicle_id_src);
+      if ( iIndex >= 0 )
+      {
+         for( int k=0; k<3; k++ )
+         {
+            if ( uPingId == g_SM_RouterVehiclesRuntimeInfo.uLastPingIdSentToVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId][k] )
+            if ( uPingId != g_SM_RouterVehiclesRuntimeInfo.uLastPingIdReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] )
+            {
+               g_SM_RouterVehiclesRuntimeInfo.uLastPingIdReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = uPingId;
+               g_SM_RouterVehiclesRuntimeInfo.uTimeLastPingReplyReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = g_TimeNow;
+               g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = get_current_timestamp_micros() - g_SM_RouterVehiclesRuntimeInfo.uTimeLastPingSentToVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId][k];
+               radio_stats_set_radio_link_rt_delay(&g_SM_RadioStats, uOriginalLocalRadioLinkId, g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId]/1000, g_TimeNow);
+               if ( NULL != g_pProcessStats )
+                  g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+               break;
+            }
+         }
       }
+      else
+         log_softerror_and_alarm("Received ping reply from unknown VID: %u", pPH->vehicle_id_src);
       return 0;
    }
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_MODEL_SETTINGS )
    {
-      if ( 0 != s_TimeLastReceivedModelSettings )
-      if ( g_TimeNow < s_TimeLastReceivedModelSettings + 5000 )
-      {
-         log_line("Ignoring received duplicate model settings (less than 5 sec since last one received).");
-         return 0;
-      }
-      s_TimeLastReceivedModelSettings = g_TimeNow;
-
       if ( -1 != g_fIPCToCentral )
-      {
-         log_line("Received message with current compressed model settings. Notifying central to handle it.");
          ruby_ipc_channel_send_message(g_fIPCToCentral, (u8*)pPH, pPH->total_length);
-      }
       else
-         log_softerror_and_alarm("Received message with current compressed model settings but there is not channel to central to notify it.");
+         log_softerror_and_alarm("Received message with current compressed model settings (%d bytes) but there is not channel to central to notify it.", pPH->total_length - sizeof(t_packet_header));
 
       return 0;
    }
@@ -289,8 +372,7 @@ int _process_received_ruby_message(u8* pPacketBuffer)
          pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
          pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
          pPH->packet_type = PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT;
-         packet_compute_crc(pPacketBuffer, pPH->total_length);
-
+         
          ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
 
          if ( NULL != g_pProcessStats )
@@ -311,14 +393,14 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
    if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
    {
       // v1 ruby telemetry
-      if ( pPH->total_headers_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v1) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v1) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
       {
          t_packet_header_ruby_telemetry_extended_v1* pPHRTE = (t_packet_header_ruby_telemetry_extended_v1*)(pData + sizeof(t_packet_header));
          u8 vMaj = pPHRTE->version;
          u8 vMin = pPHRTE->version;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
-         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 1000 )
+         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
             char szFreq1[64];
@@ -327,7 +409,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             strcpy(szFreq1, str_format_frequency(pPHRTE->radio_frequencies[0] & 0x7FFF));
             strcpy(szFreq2, str_format_frequency(pPHRTE->radio_frequencies[1] & 0x7FFF));
             strcpy(szFreq3, str_format_frequency(pPHRTE->radio_frequencies[2] & 0x7FFF));
-            log_line("Received a Ruby telemetry packet while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
+            log_line("Received a Ruby telemetry packet (version 1) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
              pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
              szFreq1, szFreq2, szFreq3 );
          }
@@ -337,23 +419,49 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       }
       // v2 ruby telemetry
-      if ( pPH->total_headers_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v2) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v2) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
       {
          t_packet_header_ruby_telemetry_extended_v2* pPHRTE = (t_packet_header_ruby_telemetry_extended_v2*)(pData + sizeof(t_packet_header));
          u8 vMaj = pPHRTE->version;
          u8 vMin = pPHRTE->version;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
-         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 1000 )
+         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
             char szFreq1[64];
             char szFreq2[64];
             char szFreq3[64];
-            strcpy(szFreq1, str_format_frequency(pPHRTE->uRadioFrequencies[0]));
-            strcpy(szFreq2, str_format_frequency(pPHRTE->uRadioFrequencies[1]));
-            strcpy(szFreq3, str_format_frequency(pPHRTE->uRadioFrequencies[2]));
-            log_line("Received a Ruby telemetry packet while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
+            strcpy(szFreq1, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[0]));
+            strcpy(szFreq2, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[1]));
+            strcpy(szFreq3, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[2]));
+            log_line("Received a Ruby telemetry packet (version 2) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
+             pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
+             szFreq1, szFreq2, szFreq3 );
+         }
+         if ( -1 != g_fIPCToCentral )
+            ruby_ipc_channel_send_message(g_fIPCToCentral, pData, length);
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+      }
+      // v3 ruby telemetry
+      else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      {
+         t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pData + sizeof(t_packet_header));
+         u8 vMaj = pPHRTE->version;
+         u8 vMin = pPHRTE->version;
+         vMaj = vMaj >> 4;
+         vMin = vMin & 0x0F;
+         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+         {
+            s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+            char szFreq1[64];
+            char szFreq2[64];
+            char szFreq3[64];
+            strcpy(szFreq1, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[0]));
+            strcpy(szFreq2, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[1]));
+            strcpy(szFreq3, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[2]));
+            log_line("Received a Ruby telemetry packet (version 3) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
              pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
              szFreq1, szFreq2, szFreq3 );
          }
@@ -363,6 +471,20 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       }
    }
+
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
+   if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT )
+   {
+      if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+      {
+         s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+         log_line("Received a Ruby telemetry short packet while searching: vehicle ID: %u", pPH->vehicle_id_src );
+      }
+      if ( -1 != g_fIPCToCentral )
+         ruby_ipc_channel_send_message(g_fIPCToCentral, pData, length);
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+   }   
 }
 
 void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
@@ -370,13 +492,30 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
    if ( NULL == pPacketData )
       return;
 
-   t_packet_header_video_full* pPHVFTemp = (t_packet_header_video_full*) (pPacketData+sizeof(t_packet_header));
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+   Model* pModel = findModelWithId(pPH->vehicle_id_src);
+   if ( NULL == pModel )
+      return;
 
+   int iVideoPacketLength = 0;
+   u8* pTmp = NULL;
+   if ( ((pModel->sw_version)>>16) > 79 ) // 7.7
+   {
+      t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
+      iVideoPacketLength = pPHVFNew->video_packet_length;    
+      pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
+   }
+   else
+   {
+      t_packet_header_video_full_old76* pPHVFOld = (t_packet_header_video_full_old76*) (pPacketData+sizeof(t_packet_header));
+      iVideoPacketLength = pPHVFOld->video_packet_length;
+      pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_old76);
+   }
+ 
    int iFoundNALVideoFrame = 0;
    int iFoundPosition = -1;
-   u8* pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full);
-   int length = pPHVFTemp->video_packet_length;
-   for( int k=0; k<length; k++ )
+   
+   for( int k=0; k<iVideoPacketLength; k++ )
    {
       s_uParseRadioInNALStartSequence = (s_uParseRadioInNALStartSequence<<8) | (*pTmp);
       s_uParseRadioInNALTotalParsedBytes++;
@@ -394,6 +533,12 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
                iFoundNALVideoFrame = s_uParseRadioInLastNALTag;
                g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize += k;
                iFoundPosition = k;
+
+               if ( g_iShowVideoKeyframesAfterRelaySwitch > 0 )
+               {
+                  log_line("[Debug] Received video keyframe after relay switch, from VID: %u", pPH->vehicle_id_src);
+                  g_iShowVideoKeyframesAfterRelaySwitch--;
+               }
             }
          }
       }
@@ -422,47 +567,269 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
           g_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
    
        g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames++;
+       static u32 s_uLastTimeKeyFrameNALUnit = 0;
        if ( iFoundNALVideoFrame == 5 )
        {
-          g_VideoInfoStatsRadioIn.uKeyframeInterval = g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames;
-          g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames = 0; 
+          g_VideoInfoStatsRadioIn.uKeyframeIntervalMs = g_TimeNow - s_uLastTimeKeyFrameNALUnit;
+          s_uLastTimeKeyFrameNALUnit = g_TimeNow;
+          g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames = 0;
        }
 
        s_uLastRadioInVideoFrameTime = g_TimeNow;
-       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = length-iFoundPosition;
+       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = iVideoPacketLength-iFoundPosition;
    }
    else
-      g_VideoInfoStats.uTmpCurrentFrameSize += length;
+      g_VideoInfoStats.uTmpCurrentFrameSize += iVideoPacketLength;
+}
+
+
+void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, t_packet_header *pPH)
+{
+   if ( g_bFirstModelPairingDone || g_bSearching || (NULL == pPH) )
+      return;
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+   u32 uCurrentFrequencyKhz = 0;
+   if ( NULL != pRadioHWInfo )
+   {
+      uCurrentFrequencyKhz = pRadioHWInfo->uCurrentFrequencyKhz;
+      log_line("Received first radio packet (packet index %u) (from VID %u) on radio interface %d, freq: %s, and first pairing was not done. Do first pairing now.",
+       pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->vehicle_id_src, iInterfaceIndex+1, str_format_frequency(uCurrentFrequencyKhz));
+   }
+   else
+      log_line("Received first radio packet (packet index %u) (from VID %u) on radio interface %d and first pairing was not done. Do first pairing now.", pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->vehicle_id_src, iInterfaceIndex+1);
+
+   log_line("Current router local model VID: %u, ptr: %X, models current model: VID: %u, ptr: %X",
+      g_pCurrentModel->vehicle_id, g_pCurrentModel,
+      getCurrentModel()->vehicle_id, getCurrentModel());
+   g_bFirstModelPairingDone = true;
+   g_pCurrentModel->vehicle_id = pPH->vehicle_id_src;
+   g_pCurrentModel->b_mustSyncFromVehicle = true;
+   g_pCurrentModel->is_spectator = false;
+   deleteAllModels();
+   addNewModel();
+   replaceModel(0, g_pCurrentModel);
+   saveControllerModel(g_pCurrentModel);
+   logControllerModels();
+   set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, uCurrentFrequencyKhz);
+   ruby_set_is_first_pairing_done();
+
+   resetVehicleRuntimeInfo(0);
+   g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[0] = pPH->vehicle_id_src;
+   
+   // Notify central
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_FIRST_PAIRING_DONE, STREAM_ID_DATA);
+   PH.vehicle_id_src = 0;
+   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.total_length = sizeof(t_packet_header);
+
+   u8 packet[MAX_PACKET_TOTAL_SIZE];
+   memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+   
+   if ( ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
+      log_line("Sent notification to central that first parining was done.");
+   else
+      log_softerror_and_alarm("Failed to send notification to central that first parining was done.");
+   if ( NULL != g_pProcessStats )
+      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+}
+
+
+// Returns 1 if end of a video block was reached
+// Returns -1 if the packet is not for this vehicle or was not processed
+int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iPacketLength)
+{
+   t_packet_header* pPH = (t_packet_header*)pPacket;
+   u32 uVehicleId = pPH->vehicle_id_src;
+   Model* pModel = findModelWithId(uVehicleId);
+   bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
+   
+   if ( NULL == pModel )
+      return -1;
+
+   // Did we received a new video stream? Add info for it.
+
+   t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacket+sizeof(t_packet_header));
+   u8 uVideoStreamIndexAndType = pPHVFNew->video_stream_and_type;
+   int iRuntimeIndex = -1;
+   int iFirstFreeSlot = -1;
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL == g_pVideoProcessorRxList[i] )
+      {
+         iFirstFreeSlot = i;
+         break;
+      }
+      if ( g_pVideoProcessorRxList[i]->m_uVehicleId == uVehicleId )
+      if ( g_pVideoProcessorRxList[i]->m_uVideoStreamIndex == (uVideoStreamIndexAndType & 0x0F) )
+      {
+         iRuntimeIndex = i;
+         break;
+      }
+   }
+
+   // New video stream
+   if ( -1 == iRuntimeIndex )
+   {
+      if ( -1 == iFirstFreeSlot )
+      {
+         log_softerror_and_alarm("No more free slots to create new video rx processor, for VID: %u, video stream index %d", uVehicleId, (uVideoStreamIndexAndType & 0x0F));
+         return -1;
+      }
+      u32 uVideoBlockIndex = pPHVFNew->video_block_index;
+      if ( (pModel->sw_version >> 16) < 79 )
+      {
+         t_packet_header_video_full_old76* pPHVFOld = (t_packet_header_video_full_old76*) (pPacket+sizeof(t_packet_header));
+         uVideoBlockIndex = pPHVFOld->video_block_index;
+      }
+
+      log_line("Create new video Rx processor for VID %u, video stream %u, at packet index: %u, video block index: %u", uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F), pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
+      g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      g_pVideoProcessorRxList[iFirstFreeSlot]->init();
+      iRuntimeIndex = iFirstFreeSlot;
+   }
+
+   if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
+   {
+      _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
+   }
+
+   int nRet = 0;
+
+   if ( bIsRelayedPacket )
+   {
+      if ( relay_controller_must_display_remote_video(g_pCurrentModel) )
+         nRet = g_pVideoProcessorRxList[iRuntimeIndex]->handleReceivedVideoPacket(iInterfaceIndex, pPacket, pPH->total_length);
+   }
+   else
+   {
+      if ( relay_controller_must_display_main_video(g_pCurrentModel) )
+         nRet = g_pVideoProcessorRxList[iRuntimeIndex]->handleReceivedVideoPacket(iInterfaceIndex, pPacket, pPH->total_length);
+   }
+   return nRet;
 }
 
 // Returns 1 if end of a video block was reached
 // Returns -1 if the packet is not for this vehicle or was not processed
 
-int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int length)
+int process_received_single_radio_packet(int interfaceIndex, u8* pData, int length)
 {
    t_packet_header* pPH = (t_packet_header*)pData;
+     
+   if ( NULL != g_pProcessStats )
+      g_pProcessStats->lastRadioRxTime = g_TimeNow;
+
 
    #ifdef PROFILE_RX
    u32 timeStart = get_current_timestamp_ms();
    #endif
 
+   _check_update_first_pairing_done_if_needed(interfaceIndex, pPH);
+
    // Searching ?
+   
    if ( g_bSearching )
    {
       _process_received_single_packet_while_searching(interfaceIndex, pData, length);
       return 0;
    }
    
+   if ( (0 == pPH->vehicle_id_src) || (MAX_U32 == pPH->vehicle_id_src) )
+      log_softerror_and_alarm("Received invalid radio packet: Invalid source vehicle id: %u (vehicle id dest: %u, packet type: %s)",
+         pPH->vehicle_id_src, pPH->vehicle_id_dest, str_get_packet_type(pPH->packet_type));
+
    u32 uVehicleId = pPH->vehicle_id_src;
    u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
    if ( uStreamId >= MAX_RADIO_STREAMS )
       uStreamId = 0;
 
-   // For data streams, discard packets that are too olded than the newest packet received on that stream for that vehicle
-   u32 uMaxStreamPacketIndex = radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId);
-   if ( (uStreamId < STREAM_ID_VIDEO_1) && (MAX_U32 != uMaxStreamPacketIndex) && (uMaxStreamPacketIndex > 10) )
-   if ( (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) < uMaxStreamPacketIndex-10 )
+   bool bNewVehicleId = true;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
+      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+         break;
+      if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uVehicleId )
+      {
+         bNewVehicleId = false;
+         break;
+      }
+   }
+
+   if ( bNewVehicleId )
+   {
+      log_line("Start receiving radio packets from new VID: %u", pPH->vehicle_id_src);
+      int iCount = 0;
+      int iFirstFree = -1;
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] != 0 )
+            iCount++;
+
+         if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == 0 )
+         if ( -1 == iFirstFree )
+            iFirstFree = i;
+      }
+
+      logCurrentVehiclesRuntimeInfo();
+
+      if ( (iCount >= MAX_CONCURENT_VEHICLES) || (-1 == iFirstFree) )
+         log_softerror_and_alarm("No more room to store the new VID: %u", pPH->vehicle_id_src);
+      else
+      {
+         resetVehicleRuntimeInfo(iFirstFree);
+         g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[iFirstFree] = uVehicleId;
+      }
+   }
+
+   // Detect vehicle restart (stream packets indexes are starting again from zero or low value )
+
+   if ( radio_dup_detection_is_vehicle_restarted(uVehicleId) )
+   {
+      log_line("Vehicle restarted (received stream packet index %u for stream %d, on interface index %d; Max received stream packet index was at %u for stream %d",
+       (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), uStreamId, interfaceIndex+1, radio_dup_detection_get_max_received_packet_index_for_stream(uVehicleId, uStreamId), uStreamId );
+      g_pProcessStats->alarmFlags = PROCESS_ALARM_RADIO_STREAM_RESTARTED;
+      g_pProcessStats->alarmTime = g_TimeNow;
+
+      int iRuntimeIndex = getVehicleRuntimeIndex(uVehicleId);
+      if ( -1 != iRuntimeIndex )
+      {
+         // Reset pairing info so that pairing is done again with this vehicle
+         resetPairingStateForRuntimeInfo(iRuntimeIndex);
+      }
+      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+      {
+         if ( NULL == g_pVideoProcessorRxList[i] )
+            break;
+         if ( g_pVideoProcessorRxList[i]->m_uVehicleId == uVehicleId )
+         {
+            g_pVideoProcessorRxList[i]->resetState();
+            break;
+         }
+      }
+      radio_dup_detection_reset_vehicle_restarted_flag(uVehicleId);
+   }
+   
+   // For data streams, discard packets that are too older than the newest packet received on that stream for that vehicle
+   
+   u32 uMaxStreamPacketIndex = radio_dup_detection_get_max_received_packet_index_for_stream(uVehicleId, uStreamId);
+   
+   if ( (uStreamId < STREAM_ID_VIDEO_1) && (uMaxStreamPacketIndex > 50) )
+   if ( (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) < uMaxStreamPacketIndex-50 )
+   {
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
+      {
+         t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(pData + sizeof(t_packet_header));
+
+         if ( pPHCR->origin_command_type == COMMAND_ID_GET_ALL_PARAMS_ZIP )
+         {
+            log_line("Discarding received command response for get zip model settings, command counter %d, command retry counter %d, on radio interface %d. Discard because this packet index is %u and last received packet index for this data stream (stream %d) is %u",
+                pPHCR->origin_command_counter, pPHCR->origin_command_resend_counter,
+                interfaceIndex+1,
+                (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), uStreamId, uMaxStreamPacketIndex);
+         }
+      }
       return 0;
    }
 
@@ -473,10 +840,10 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
    if ( (NULL != g_pCurrentModel) && (pPH->vehicle_id_src != g_pCurrentModel->vehicle_id) )
    {
       // Relayed packet?
-      if ( (!g_bSearching) && g_bFirstModelPairingDone )
-      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId > 0 )
-      if ( (g_pCurrentModel->relay_params.uRelayVehicleId != 0) && (g_pCurrentModel->relay_params.uRelayVehicleId != MAX_U32) )
-      if ( pPH->vehicle_id_src == g_pCurrentModel->relay_params.uRelayVehicleId )
+      if ( !g_bSearching )
+      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+      if ( (g_pCurrentModel->relay_params.uRelayedVehicleId != 0) && (g_pCurrentModel->relay_params.uRelayedVehicleId != MAX_U32) )
+      if ( pPH->vehicle_id_src == g_pCurrentModel->relay_params.uRelayedVehicleId )
          bIsRelayedPacket = true;
 
       /*
@@ -496,7 +863,7 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
 
       // Discard all packets except telemetry comming from wrong models, if the first pairing was done
 
-      if ( (!bIsRelayedPacket) && g_bFirstModelPairingDone )
+      if ( !bIsRelayedPacket )
       {
          // Ruby telemetry is always sent to central, so that wrong vehicle or relayed vehicles can be detected
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
@@ -514,39 +881,11 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
          if ( dTime1 >= PROFILE_RX_MAX_TIME )
             log_softerror_and_alarm("[Profile-Rx] Processing single radio packet (type: %d len: %d bytes) from different vehicle, from radio interface %d took too long: %d ms.", pPH->packet_type, pPH->total_length, interfaceIndex+1, (int)dTime1);
          #endif
+         
          return 0;
       }
    }
 
-   // Detect vehicle restart (stream packets indexes are starting again from zero or low value )
-
-   if ( MAX_U32 != radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId) )
-   {
-      if (( radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId) > 10 ) && 
-           ((pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) < radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId) - 10) )
-      if ( g_TimeNow > s_TimeLastLogAlarmStreamPacketsVariation + 1000 )
-      {
-         s_TimeLastLogAlarmStreamPacketsVariation = g_TimeNow;
-         log_line("[Profile-Rx] Received stream %d packet index %u, interface %d, is older than max packet for the stream (%u).", (int)uStreamId, (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), interfaceIndex+1, radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId));
-      }
-
-      bool bRestarted = false;
-      if ( ( radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId) > 1000 ) && 
-           ((pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) < radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId) - 1000) )
-         bRestarted = true;
-      
-      if ( bRestarted )
-      {
-         g_pProcessStats->alarmFlags = PROCESS_ALARM_RADIO_STREAM_RESTARTED;
-         g_pProcessStats->alarmTime = g_TimeNow;
-
-         log_line("Vehicle restarted (received stream packet index %u for stream %d, on interface index %d, max received stream packet index was at %u for stream %d", (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), uStreamId, interfaceIndex, radio_stats_get_max_received_packet_index_for_stream(uVehicleId, uStreamId), uStreamId );
-         process_data_rx_video_reset_state();
-         radio_stats_reset_streams_rx_history_for_vehicle(&g_Local_RadioStats, uVehicleId);
-         s_LastReceivedAlarmCount = MAX_U32;
-      }
-   }
-   
    if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceIndex);
@@ -610,9 +949,13 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
    {
       if ( bIsRelayedPacket )
+      {
+         if ( (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
+              (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
+            _process_received_ruby_message(interfaceIndex, pData);
          return 0;
-
-      _process_received_ruby_message(pData);
+      }
+      _process_received_ruby_message(interfaceIndex, pData);
 
       #ifdef PROFILE_RX
       u32 dTimeEnd = get_current_timestamp_ms() - timeStart;
@@ -625,14 +968,26 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
    {
+      if ( pPH->packet_type != PACKET_TYPE_COMMAND_RESPONSE )
+         return 0;
+
+      t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(pData + sizeof(t_packet_header));
+
+      if ( pPHCR->origin_command_type == COMMAND_ID_GET_ALL_PARAMS_ZIP )
+      {
+         log_line("[Router] Received command response for get zip model settings, command counter %d, command retry counter %d, %d extra bytes, packet index: %u, on radio interface %d.",
+            pPHCR->origin_command_counter, pPHCR->origin_command_resend_counter,
+            pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command_response),
+            pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX,
+            interfaceIndex+1);
+      }
+      
       if ( bIsRelayedPacket )
          return 0;
 
       ruby_ipc_channel_send_message(g_fIPCToCentral, pData, length);
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-
-      t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(pData + sizeof(t_packet_header));
       
       if ( pPHCR->origin_command_counter == g_uLastCommandRequestIdSent && g_uLastCommandRequestIdSent != MAX_U32 )
       if ( pPHCR->origin_command_resend_counter == g_uLastCommandRequestIdRetrySent && g_uLastCommandRequestIdRetrySent != MAX_U32 )
@@ -640,16 +995,16 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
          u32 dTime = g_TimeNow - g_uTimeLastCommandRequestSent;
          g_uLastCommandRequestIdSent = MAX_U32;
          g_uLastCommandRequestIdRetrySent = MAX_U32;
-         radio_stats_set_commands_rt_delay(&g_Local_RadioStats, dTime);
+         radio_stats_set_commands_rt_delay(&g_SM_RadioStats, dTime);
       }
 
       if ( pPHCR->origin_command_type == COMMAND_ID_SET_RADIO_LINK_FLAGS )
       if ( pPHCR->command_response_flags & COMMAND_RESPONSE_FLAGS_OK)
       {
-         if ( pPHCR->origin_command_counter != g_uLastCommandCounterToSetRadioFlags )
+         if ( pPHCR->origin_command_counter != g_uLastInterceptedCommandCounterToSetRadioFlags )
          {
-            log_line("Intercepted Ok response to command to set radio data datarate on radio link %u to %u bps (%d datarate).", g_uLastRadioLinkIndexSentRadioCommand, getRealDataRateFromRadioDataRate(g_iLastRadioLinkDataDataRateSentRadioCommand), g_iLastRadioLinkDataDataRateSentRadioCommand);
-            g_uLastCommandCounterToSetRadioFlags = pPHCR->origin_command_counter;
+            log_line("Intercepted command response Ok to command sent to set radio flags and radio data datarate on radio link %u to %u bps (%d datarate).", g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand+1, getRealDataRateFromRadioDataRate(g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand), g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand);
+            g_uLastInterceptedCommandCounterToSetRadioFlags = pPHCR->origin_command_counter;
 
             for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
             {
@@ -658,22 +1013,24 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
                if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
                   continue;
 
-               int nRadioLinkId = g_Local_RadioStats.radio_interfaces[i].assignedRadioLinkId;
+               int nRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId;
                if ( nRadioLinkId < 0 || nRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count )
                   continue;
-               if ( nRadioLinkId != (int)g_uLastRadioLinkIndexSentRadioCommand )
+               if ( nRadioLinkId != (int)g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand )
                   continue;
 
                if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[nRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
                   continue;
 
-               if ( NULL != pRadioHWInfo && ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) )
+               if ( NULL != pRadioHWInfo )
+               if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
+                    ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
                {
-                  int nRateTx = 0;
-                  nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
+                  int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
                   if ( 0 == nRateTx )
-                     nRateTx = g_iLastRadioLinkDataDataRateSentRadioCommand;
-                  launch_set_datarate_atheros(NULL, i, nRateTx);
+                     nRateTx = g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand;
+                  update_atheros_card_datarate(g_pCurrentModel, i, nRateTx, g_pProcessStats);
+                  g_TimeNow = get_current_timestamp_ms();
                }
             }
          }
@@ -691,32 +1048,48 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
    {
       if ( ! bIsRelayedPacket )
+      if ( ! g_bSearching )
+      if ( g_bFirstModelPairingDone )
       if ( -1 != g_fIPCToTelemetry )
+      {
+         #ifdef LOG_RAW_TELEMETRY
+         if ( pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD )
+         {
+            t_packet_header_telemetry_raw* pPHTR = (t_packet_header_telemetry_raw*)(pData + sizeof(t_packet_header));
+            log_line("[Raw_Telem] Received raw telem packet from vehicle, index %u, %d / %d bytes",
+               pPHTR->telem_segment_index, pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_telemetry_raw), pPH->total_length);
+         }
+         #endif
          ruby_ipc_channel_send_message(g_fIPCToTelemetry, pData, length);
-
+      }
       bool bSendToCentral = false;
       bool bSendRelayedTelemetry = false;
 
-      // Ruby telemetry from relayed vehicle is always sent to central to detect the relayed vehicle
+      // Ruby telemetry and FC telemetry from relayed vehicle is always sent to central to detect the relayed vehicle
       if ( bIsRelayedPacket )
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
-      if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
+      if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
+           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY) ||
+           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY_EXTENDED) )
           bSendToCentral = true;
 
       if ( bIsRelayedPacket )
-      if ( g_pCurrentModel->relay_params.uRelayFlags & RELAY_FLAGS_TELEMETRY )
-      if ( (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId > 0) &&
-        (g_pCurrentModel->relay_params.uCurrentRelayMode != RELAY_MODE_NONE) )
+      if ( relay_controller_must_forward_telemetry_from(g_pCurrentModel, pPH->vehicle_id_src) )
          bSendRelayedTelemetry = true;
 
       if ( (! bIsRelayedPacket) || bSendRelayedTelemetry )
-      if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
+      if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
            (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY) ||
            (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY_EXTENDED) ||
            (pPH->packet_type == PACKET_TYPE_FC_RC_CHANNELS) ||
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_TX_HISTORY ) ||
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS ) ||
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY) ||
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS) ||
-           (pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD) )
+           (pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD) ||
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY) )
          bSendToCentral = true;
 
       if ( bSendToCentral )
@@ -780,31 +1153,50 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
    {
+      if ( g_bSearching )
+         return 0;
+
       if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK )
       {
          u32 uLevel = 0;
          memcpy((u8*)&uLevel, pData + sizeof(t_packet_header), sizeof(u32));
-         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+         
+         if ( uLevel == MAX_U32 )
+            return 0;
+
+         bool bMatched = false;
+         int iIndex = getVehicleRuntimeIndex(uVehicleId);
+         if ( -1 != iIndex )
          {
-            if ( g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].uVehicleId != uVehicleId )
-               continue;
-            g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].iLastAcknowledgedLevelShift = (int) uLevel;
-            g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].iLastRequestedLevelShiftRetryCount = 0;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedLevelShift = (int) uLevel;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastAckLevelShift = g_TimeNow;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedLevelShiftRetryCount = 0;
+            bMatched = true;
+            log_line("Received ACK (packet index: %u) from VID %u for setting adaptive video level to %u", pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->vehicle_id_src, uLevel);
          }
+         if ( ! bMatched )
+            log_softerror_and_alarm("Received ACK from unknown vehicle (uid: %u) for setting adaptive video level to %u", uVehicleId, uLevel);
+         //send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_RECEIVED_DEPRECATED_MESSAGE, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK);
          return 0;
       }
 
       if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK )
       {
-         u32 uKeyframe = 0;
-         memcpy((u8*)&uKeyframe, pData + sizeof(t_packet_header), sizeof(u32));
-         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+         u32 uKeyframeMs = 0;
+         memcpy((u8*)&uKeyframeMs, pData + sizeof(t_packet_header), sizeof(u32));
+         bool bMatched = false;
+         int iIndex = getVehicleRuntimeIndex(uVehicleId);
+         if ( -1 != iIndex )
          {
-            if ( g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].uVehicleId != uVehicleId )
-               continue;
-            g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].iLastAcknowledgedKeyFrame = (int) uKeyframe;
-            g_ControllerVehiclesAdaptiveVideoInfo.vehicles[i].iLastRequestedKeyFrameRetryCount = 0;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedKeyFrameMs = (int) uKeyframeMs;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedKeyFrameMsRetryCount = 0;
+            bMatched = true;
+            log_line("Received ACK (packet index: %u) from VID %u for setting keyframe to %u ms", pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->vehicle_id_src, uKeyframeMs);
          }
+         if ( ! bMatched )
+            log_softerror_and_alarm("Received ACK from unknown vehicle (uid: %u) for setting keyframe to %u ms", uVehicleId, uKeyframeMs);
+         
+         //send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_RECEIVED_DEPRECATED_MESSAGE, PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK);
          return 0;
       }
 
@@ -814,28 +1206,7 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
          return 0;
       }
 
-      if ( ! g_bSearching )
-      if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-      if ( NULL != g_pCurrentModel )
-      if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO)
-      {
-         _parse_single_packet_h264_data(pData, bIsRelayedPacket);
-      }
-
-      int nRet = 0;
-
-      // Send video packet to relayed vehicle video rx processor?
-      if ( bIsRelayedPacket )
-      if ( g_pCurrentModel->relay_params.uRelayFlags & RELAY_FLAGS_VIDEO )
-      if ( (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId > 0) &&
-           (g_pCurrentModel->relay_params.uCurrentRelayMode != RELAY_MODE_NONE) )
-         nRet = process_data_rx_video_on_new_packet(interfaceIndex, pData, length);
-
-      // Send video packet to main vehicle video rx processor?
-
-      if ( ! bIsRelayedPacket )
-      if ( g_pCurrentModel->relay_params.uCurrentRelayMode != RELAY_MODE_REMOTE )
-         nRet = process_data_rx_video_on_new_packet(interfaceIndex, pData, length);
+      int nRet = _process_received_video_data_packet(interfaceIndex, pData, pPH->total_length);
 
       #ifdef PROFILE_RX
       u32 dTimeEnd = get_current_timestamp_ms() - timeStart;
@@ -848,7 +1219,7 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_AUDIO )
    {
-      if ( bIsRelayedPacket )
+      if ( bIsRelayedPacket || g_bSearching )
          return 0;
 
       if ( pPH->packet_type != PACKET_TYPE_AUDIO_SEGMENT )
@@ -856,7 +1227,7 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
          //log_line("Received unknown video packet type.");
          return 0;
       }
-      process_audio_packet(pData);
+      process_received_audio_packet(pData);
 
       #ifdef PROFILE_RX
       u32 dTimeEnd = get_current_timestamp_ms() - timeStart;
@@ -875,360 +1246,3 @@ int _process_received_single_radio_packet(int interfaceIndex, u8* pData, int len
 
    return 0;
 } 
-
-// Returns 1 if end of a video block was reached
-
-int _process_received_full_radio_packet(int interfaceIndex)
-{
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastRadioRxTime = g_TimeNow;
-
-   int nReturn = 0;
-   int bufferLength = 0;
-   u8* pBuffer = NULL;
-   int bCRCOk = 0;
-
-   #ifdef PROFILE_RX
-   u32 timeNow = get_current_timestamp_ms();
-   #endif
-
-   pBuffer = radio_process_wlan_data_in(interfaceIndex, &bufferLength);
-
-
-   #ifdef PROFILE_RX
-   u32 dTime1 = get_current_timestamp_ms() - timeNow;
-   if ( dTime1 >= PROFILE_RX_MAX_TIME )
-      log_softerror_and_alarm("[Profile-Rx] Reading received radio packet from radio interface %d took too long: %d ms.", interfaceIndex+1, (int)dTime1);
-   #endif
-
-   if ( pBuffer == NULL ) 
-   {
-      // Can be zero if the read timedout
-      
-      if ( radio_get_last_read_error_code() == RADIO_READ_ERROR_TIMEDOUT )
-      {
-         log_softerror_and_alarm("Rx ppcap read timedout reading a packet. Send alarm to central.");
-         s_uRadioRxReadTimeoutCount++;
-         send_alarm_to_central(ALARM_ID_CONTROLLER_RX_TIMEOUT,(u32)interfaceIndex, s_uRadioRxReadTimeoutCount);
-         return 0;
-      }
-      log_softerror_and_alarm("Rx pcap returned a NULL packet.");
-      return 0;
-   }
-
-   #ifdef PROFILE_RX
-   u8 bufferCopy[MAX_PACKET_TOTAL_SIZE];
-   if ( bufferLength > MAX_PACKET_TOTAL_SIZE )
-   {
-      log_softerror_and_alarm("[RX]: Received packet bigger than max packet size allowed: %d bytes, max %d bytes", bufferLength, MAX_PACKET_TOTAL_SIZE);
-      bufferLength = MAX_PACKET_TOTAL_SIZE;
-   }
-   memcpy(bufferCopy, pBuffer, bufferLength);
-   pBuffer = bufferCopy;
-   #endif
-
-   int iCountPackets = 0;
-   u8* pData = pBuffer;
-   int nLength = bufferLength;
-   while ( nLength > 0 )
-   { 
-      t_packet_header* pPH = (t_packet_header*)pData;
-      iCountPackets++;
-
-      #ifdef PROFILE_RX
-      u32 uTime2 = get_current_timestamp_ms();
-      #endif
-      
-      int packetLength = packet_process_and_check(interfaceIndex, pData, nLength, &bCRCOk);
-
-      u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      if ( uStreamId >= MAX_RADIO_STREAMS )
-         uStreamId = 0;
-
-      #ifdef PROFILE_RX
-      u32 dTime2 = get_current_timestamp_ms() - uTime2;
-      if ( dTime2 >= PROFILE_RX_MAX_TIME )
-         log_softerror_and_alarm("[Profile-Rx] Processing received single radio packet (type: %d, length: %d/%d bytes) from radio interface %d took too long: %d ms.", pPH->packet_type, pPH->total_length, packetLength, interfaceIndex+1, (int)dTime2);
-      #endif
-
-      int nRes = radio_stats_update_on_packet_received(&g_Local_RadioStats, g_TimeNow, interfaceIndex, pData, packetLength, (int)bCRCOk);
-      
-      if ( (nRes != 1) && (!g_bSearching) )
-      {
-         // Duplicate or broken packet
-         #ifdef PROFILE_RX
-         u32 dTime3 = get_current_timestamp_ms() - uTime2;
-         if ( dTime3 >= PROFILE_RX_MAX_TIME )
-            log_softerror_and_alarm("[Profile-Rx] Updating radio stats for single radio packet (type: %d, lenght: %d/%d bytes) from radio interface %d took too long: %d ms.", pPH->packet_type, pPH->total_length, packetLength, interfaceIndex+1, (int)dTime3);
-         #endif
-
-         pData += pPH->total_length;
-         nLength -= pPH->total_length;
-         continue;
-      }
-
-      #ifdef PROFILE_RX
-      u32 dTime3 = get_current_timestamp_ms() - uTime2;
-      if ( dTime3 >= PROFILE_RX_MAX_TIME )
-         log_softerror_and_alarm("[Profile-Rx] Updating radio stats for single radio packet (type: %d, lenght: %d/%d bytes) from radio interface %d took too long: %d ms.", pPH->packet_type, pPH->total_length, packetLength, interfaceIndex+1, (int)dTime3);
-      #endif
-       
-      if ( packetLength <= 0  )
-      {
-         int iRadioError = get_last_processing_error_code();
-         s_uTotalBadPacketsReceived++; 
-         if ( ! g_bSearching )
-         if ( g_TimeNow > s_TimeLastLogWrongRxPacket + 10000 )
-         {
-            s_TimeLastLogWrongRxPacket = g_TimeNow;
-            log_softerror_and_alarm("Received invalid packet, error code: %d (buffer size: %d, packet size: %d, packet offset: %d, encrypted: %d).", iRadioError, bufferLength, pPH->total_length, bufferLength-nLength, (pPH->packet_flags & PACKET_FLAGS_BIT_HAS_ENCRYPTION)?1:0 );
-            if ( iRadioError == RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED )
-            {
-               log_line("Send alarm to central, invalid radio packet, error: %d", iRadioError);
-               send_alarm_to_central(ALARM_ID_RECEIVED_INVALID_RADIO_PACKET, (u32)iRadioError, 1);
-            }
-         } 
-         return 0;
-      }
-
-      if ( ! bCRCOk )
-      {
-         if ( g_TimeNow > s_TimeLastLogWrongRxPacket + 2000 )
-         {
-            s_TimeLastLogWrongRxPacket = g_TimeNow;
-            log_softerror_and_alarm("Received packet broken packet (wrong CRC)");
-         } 
-         return 0;
-      }
-
-      int nResultPacket = _process_received_single_radio_packet(interfaceIndex, pData, pPH->total_length);
-      if ( nResultPacket >= 0 )
-         nReturn = nReturn | nResultPacket;
-      pData += pPH->total_length;
-      nLength -= pPH->total_length; 
-   }
-
-   #ifdef PROFILE_RX
-   u32 dTimeLast = get_current_timestamp_ms() - timeNow;
-   if ( dTimeLast >= PROFILE_RX_MAX_TIME )
-      log_softerror_and_alarm("[Profile-Rx] Reading and processing received radio packet (%d bytes, %d subpackets) from radio interface %d took too long: %d ms.", bufferLength, iCountPackets, interfaceIndex+1, (int)dTimeLast);
-   #endif
-
-   return nReturn;
-}
-
-void _process_received_short_radio_packet(int iInterfaceIndex, u8* pPacket, int iMaxSize)
-{
-   if ( NULL == pPacket )
-      return;
-   t_packet_header_short* pPHS = (t_packet_header_short*)pPacket;
-   
-   if ( pPHS->total_length > iMaxSize )
-      return;
-   
-   if ( pPHS->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )   
-   if ( pPHS->total_length == (u8)(sizeof(t_packet_header_short)+2*sizeof(u8)+sizeof(u32)))
-   {
-      g_uLastReceivedPingResponseTime = g_TimeNow;
-      g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
-      u8 pingId = 0;
-      u32 vehicleTime = 0;
-      u8 radioLinkId = 0;
-      memcpy(&pingId, pPacket + sizeof(t_packet_header_short), sizeof(u8));
-      memcpy(&vehicleTime, pPacket + sizeof(t_packet_header_short)+sizeof(u8), sizeof(u32));
-      memcpy(&radioLinkId, pPacket + sizeof(t_packet_header_short)+sizeof(u8) + sizeof(u32), sizeof(u8));
-      if ( pingId == s_uLastPingSentId )
-      if ( pingId != s_uLastPingRecvId )
-      {
-         s_uLastPingRecvId = pingId;
-         u32 uRoundTripMicros = get_current_timestamp_micros() - g_uLastPingSendTimeMicroSec;
-         radio_stats_set_radio_link_rt_delay(&g_Local_RadioStats, radioLinkId, uRoundTripMicros/1000, g_TimeNow);
-         if ( NULL != g_pProcessStats )
-            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-      }
-   }
-
-   if ( pPHS->packet_type == PACKET_TYPE_EMBEDED_FULL_PACKET )
-   {
-      int bCRCOk = 0;
-      int iPacketLength = 0;
-      if ( pPHS->total_length < sizeof(t_packet_header) + sizeof(t_packet_header_short) )
-      {
-         if ( g_TimeNow > s_TimeLastLogWrongRxPacket + 2000 )
-         {
-            s_TimeLastLogWrongRxPacket = g_TimeNow;
-            log_softerror_and_alarm("Received broken packet (size too small: %d bytes)", pPHS->total_length);
-         }
-      }
-      else
-      {
-         iPacketLength = packet_process_and_check(iInterfaceIndex, pPacket + sizeof(t_packet_header_short), iMaxSize - sizeof(t_packet_header_short), &bCRCOk);
-      
-         if ( ! bCRCOk )
-         {
-            if ( g_TimeNow > s_TimeLastLogWrongRxPacket + 2000 )
-            {
-               s_TimeLastLogWrongRxPacket = g_TimeNow;
-               log_softerror_and_alarm("Received broken packet (wrong CRC)");
-            }
-         }
-         else if ( iPacketLength < (int)sizeof(t_packet_header) )
-         {
-            if ( g_TimeNow > s_TimeLastLogWrongRxPacket + 2000 )
-            {
-               s_TimeLastLogWrongRxPacket = g_TimeNow;
-               log_softerror_and_alarm("Received broken packet (wrong size, %d bytes)", iPacketLength);
-            }
-         }
-         else
-         {
-            t_packet_header* pPH = (t_packet_header*)(pPacket+sizeof(t_packet_header_short));
-            _process_received_single_radio_packet(iInterfaceIndex, pPacket + sizeof(t_packet_header_short), pPH->total_length);
-         }
-      }
-   }
-
-   radio_stats_update_on_short_packet_received(&g_Local_RadioStats, g_TimeNow, iInterfaceIndex, pPacket, (int)pPHS->total_length);
-}
-
-void _process_received_short_radio_data(int iInterfaceIndex)
-{
-   static u8 s_uBuffersShortMessages[MAX_RADIO_INTERFACES][513];
-   static int s_uBufferShortMessagesReadPos[MAX_RADIO_INTERFACES];
-   static bool s_bInitializedBuffersShortMessages = false;
-
-   if ( ! s_bInitializedBuffersShortMessages )
-   {
-      s_bInitializedBuffersShortMessages = true;
-      for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-         s_uBufferShortMessagesReadPos[i] = 0;
-   }
-
-   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
-   if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )
-   {
-      log_softerror_and_alarm("Tried to process a received short radio packet on radio interface (%d) that is not opened for read.", iInterfaceIndex+1);
-      return;
-   }
-   if ( ! hardware_radio_index_is_sik_radio(iInterfaceIndex) )
-   {
-      log_softerror_and_alarm("Tried to process a received short radio packet on radio interface (%d) that is not a SiK radio.", iInterfaceIndex+1);
-      return;
-   }
-
-   int iMaxRead = 512 - s_uBufferShortMessagesReadPos[iInterfaceIndex];
-   int iRead = read(pRadioHWInfo->monitor_interface_read.selectable_fd, &(s_uBuffersShortMessages[iInterfaceIndex][s_uBufferShortMessagesReadPos[iInterfaceIndex]]), iMaxRead);
-   if ( iRead <= 0 )
-   {
-      log_softerror_and_alarm("Failed to read received short radio packet on SiK radio interface (%d).", iInterfaceIndex+1);
-      return;
-   }
-
-   s_uBufferShortMessagesReadPos[iInterfaceIndex] += iRead;
-   int iBufferLength = s_uBufferShortMessagesReadPos[iInterfaceIndex];
-   
-   // Received at least the full header?
-
-   if ( iBufferLength < (int)sizeof(t_packet_header_short) )
-      return;
-
-   int iPacketPos = -1;
-   do
-   {
-      u8* pData = (u8*)&(s_uBuffersShortMessages[iInterfaceIndex][0]);
-      iPacketPos = radio_buffer_is_valid_short_packet(pData, iBufferLength);
-
-      // No valid packet found in the buffer?
-      if ( iPacketPos < 0 )
-      {
-         if ( iBufferLength > 255 )
-         {
-            // Keep the last 255 bytes in the buffer
-            log_line("[RadioRX] Discarded data too old (%d bytes in the buffer), no valid messages in it.", iBufferLength);
-            for( int i=0; i<(iBufferLength-255); i++ )
-               s_uBuffersShortMessages[iInterfaceIndex][i] = s_uBuffersShortMessages[iInterfaceIndex][i+255];
-            s_uBufferShortMessagesReadPos[iInterfaceIndex] -= 255;
-         }
-         return;
-      }
-
-      _process_received_short_radio_packet(iInterfaceIndex, pData + iPacketPos, iBufferLength-iPacketPos);
-   
-      t_packet_header_short* pPHS = (t_packet_header_short*)(pData+iPacketPos);
-
-      int delta = (iPacketPos+(int)(pPHS->total_length));
-      if ( delta > iBufferLength )
-         delta = iBufferLength;
-      for( int i=0; i<iBufferLength - delta; i++ )
-         s_uBuffersShortMessages[iInterfaceIndex][i] = s_uBuffersShortMessages[iInterfaceIndex][i+delta];
-      s_uBufferShortMessagesReadPos[iInterfaceIndex] -= delta;
-      iBufferLength -= delta;
-   } while ( iPacketPos >= 0 );
-   
-}
-
-// Returns 1 if end of a video block was reached
-
-int process_received_radio_packets()
-{
-   int nReturn = 0;
-   for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
-   {
-      u32 timeNow = get_current_timestamp_ms();
-      
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if( (NULL == pRadioHWInfo) || (0 == FD_ISSET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_ReadSetRXRadio)) )
-         continue;
-      if ( hardware_radio_index_is_sik_radio(i) )
-      {
-         _process_received_short_radio_data(i);
-         continue;
-      }
-
-      int nReturnThis = _process_received_full_radio_packet(i);
-      if ( nReturnThis >= 0 )
-         nReturn = nReturn | nReturnThis;
-
-      timeNow = get_current_timestamp_ms() - timeNow;
-      if ( timeNow > 5 )
-      {
-         log_softerror_and_alarm("Processing received radio packet on radio interface %d took too long: %d ms.", i+1, (int)timeNow);
-         char szBuff[256];
-         szBuff[0] = 0;
-         for( int i=0; i<g_Local_RadioStats.countRadioLinks; i++ )
-         {
-            char szTmp[32];
-            sprintf(szTmp, "link %d: %d ", i+1, g_Local_RadioStats.radio_links[i].lastTxInterfaceIndex+1);
-            strcat(szBuff, szTmp);
-         }
-         log_softerror_and_alarm("Current tx interfaces for each radio link: %s", szBuff);
-      }
-   }
-   return nReturn;
-}
-
-
-int try_receive_radio_packets(u32 uMaxMicroSeconds)
-{
-   struct timeval to;
-   to.tv_sec = 0;
-   to.tv_usec = uMaxMicroSeconds;
-
-   int maxfd = -1;
-   FD_ZERO(&s_ReadSetRXRadio);
-   for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( (NULL != pRadioHWInfo) && (pRadioHWInfo->openedForRead) )
-      {
-         FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_ReadSetRXRadio);
-         if ( pRadioHWInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pRadioHWInfo->monitor_interface_read.selectable_fd;
-         //log_line("wait read on radio %d", i+1);
-      }
-   }
-
-   int res = select(maxfd+1, &s_ReadSetRXRadio, NULL, NULL, &to);
-   return res;
-}
-

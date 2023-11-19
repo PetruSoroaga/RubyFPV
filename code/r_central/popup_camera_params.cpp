@@ -10,6 +10,7 @@ Code written by: Petru Soroaga, 2021-2023
 */
 
 #include "../base/base.h"
+#include <math.h>
 #include "popup_camera_params.h"
 #include "../renderer/render_engine.h"
 #include "colors.h"
@@ -40,8 +41,13 @@ PopupCameraParams::~PopupCameraParams()
 
 void PopupCameraParams::onShow()
 {
+   log_line("Popup Camera Params: Show");
+
+   setTimeout(5);
+   
    removeAllLines();
-   if ( NULL == g_pCurrentModel || (!pairing_isStarted()) || (!(pairing_isReceiving() || pairing_wasReceiving())) )
+   if ( (NULL == g_pCurrentModel) || (!pairing_isStarted()) ||
+        ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry < g_TimeNow-2000) ) )
    {
       m_fFixedWidth = 0.3;
       setTitle("Camera Adjustment");
@@ -51,21 +57,40 @@ void PopupCameraParams::onShow()
       m_bCanAdjust = false;
       return;
    }
+   if ( !g_pCurrentModel->hasCamera() )
+   {
+      m_fFixedWidth = 0.3;
+      setTitle("Camera Adjustment");
+      addLine("Can't adjust camera parameters as this vehicle has no camera");
+      Popup::onShow();
+      log_line("Popup Camera Params: Show");
+      m_bCanAdjust = false;
+      return;
+   }
 
+   if ( g_pCurrentModel->isActiveCameraHDMI() )
+   {
+      m_fFixedWidth = 0.3;
+      setTitle("Camera Adjustment");
+      addLine("Can't adjust camera parameters for HDMI cameras.");
+      Popup::onShow();
+      log_line("Popup Camera Params: Show");
+      m_bCanAdjust = false;
+      return;
+   }
    m_fFixedWidth = 0.2;
    m_bCanAdjust = true;
    m_nParamToAdjust = 0;
    Popup::onShow();
    invalidate();
-   log_line("Popup Camera Params: Show");
 }
 
 void PopupCameraParams::Render()
 {
-   float height_text = g_pRenderEngine->textHeight(POPUP_FONT_SIZE*menu_getScaleMenus(), g_idFontMenuSmall);
-   float x = m_RenderXPos+POPUP_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio();
-   float y = m_RenderYPos+0.8*POPUP_MARGINS*menu_getScaleMenus();
-   float dx = m_fIconSize/g_pRenderEngine->getAspectRatio() + 0.01*menu_getScaleMenus();
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
+   float x = m_RenderXPos+POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
+   float y = m_RenderYPos+0.8*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall);
+   float dx = m_fIconSize/g_pRenderEngine->getAspectRatio() + 0.8*g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
 
    if ( m_bCanAdjust )
    {
@@ -75,7 +100,7 @@ void PopupCameraParams::Render()
    }
    Popup::Render();
 
-   if ( (! m_bCanAdjust) || NULL == g_pCurrentModel )
+   if ( (! m_bCanAdjust) || (NULL == g_pCurrentModel) )
       return;
 
    char szBuff[32];
@@ -90,11 +115,15 @@ void PopupCameraParams::Render()
    if ( m_nParamToAdjust == 0 )
    {
       value = pCamProfile->brightness;
+      value_min = 0;
+      value_max = 100;
       strcpy(szText, "Brightness");
    }
    if ( m_nParamToAdjust == 1 )
    {
       value = pCamProfile->contrast;
+      value_min = 0;
+      value_max = 100;
       strcpy(szText, "Contrast");
    }
    if ( m_nParamToAdjust == 2 )
@@ -111,22 +140,29 @@ void PopupCameraParams::Render()
       value_max = 100;
       strcpy(szText, "Sharpness");
    }
+   if ( m_nParamToAdjust == 4 )
+   {
+      value = pCamProfile->awbGainR;
+      value_min = 0;
+      value_max = 100;
+      strcpy(szText, "Hue");
+   }
    sprintf(szBuff, "%d", value);
    strcat(szText, ":");
    //strcat(szText, szBuff);
 
    g_pRenderEngine->setColors(get_Color_PopupText());   
-   g_pRenderEngine->drawText(x+dx, y, height_text*POPUP_TITLE_SCALE, g_idFontMenuSmall, szText);
-   float fw = g_pRenderEngine->textWidth(height_text, g_idFontMenuSmall, szText);
-   g_pRenderEngine->drawText(x+dx+fw + 0.02, y-0.2*height_text, height_text*POPUP_TITLE_SCALE, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(x+dx, y, g_idFontMenuSmall, szText);
+   float fw = g_pRenderEngine->textWidth(g_idFontMenuSmall, szText);
+   g_pRenderEngine->drawText(x+dx+fw + 0.02, y-0.2*height_text, g_idFontMenu, szBuff);
    y += height_text*1.4;
 
-   float padding = MENU_SELECTION_PADDING*menu_getScaleMenus();
-   float paddingH = padding/g_pRenderEngine->getAspectRatio();
+   float padding = Menu::getSelectionPaddingX();
+   float paddingH = Menu::getSelectionPaddingY();
 
    float sliderHeight = 0.4 * height_text;
-   float sliderWidth = m_RenderWidth - m_fIconSize/g_pRenderEngine->getAspectRatio() - 0.005*menu_getScaleMenus() - 2*POPUP_MARGINS*menu_getScaleMenus();
-   float valueWidth = 0.03*menu_getScaleMenus();
+   float sliderWidth = m_RenderWidth - m_fIconSize/g_pRenderEngine->getAspectRatio() - 2*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
+   float valueWidth = 1.1 * g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
    float xPosSlider = x + dx;
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText());
@@ -136,7 +172,7 @@ void PopupCameraParams::Render()
    g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
    g_pRenderEngine->setStrokeSize(1);
 
-   g_pRenderEngine->drawRoundRect(xPosSlider, y+height_text-1.3*sliderHeight, sliderWidth, sliderHeight, 0.002*menu_getScaleMenus());
+   g_pRenderEngine->drawRoundRect(xPosSlider, y+height_text-1.3*sliderHeight, sliderWidth, sliderHeight, 0.002);
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(1);
@@ -158,7 +194,7 @@ void PopupCameraParams::Render()
    float size = sliderHeight*1.8;
    xPosSlider = xPosSlider + (float)(sliderWidth-size)*(value-value_min)/(float)(value_max-value_min);
 
-   g_pRenderEngine->drawRoundRect(xPosSlider, yBottom-size*0.6, size, size, 0.002*menu_getScaleMenus());
+   g_pRenderEngine->drawRoundRect(xPosSlider, yBottom-size*0.6, size, size, 0.002);
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuBorder());
@@ -168,10 +204,9 @@ void PopupCameraParams::Render()
 
 void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bool bFastCCW, bool bSelect, bool bCancel)
 {
-
    if ( bCW || bCCW || bFastCW || bFastCCW || bSelect || bCancel )
    {
-      m_fTimeoutSeconds = (g_TimeNow - m_StartTime)/1000 + 5;
+      setTimeout(5);
    }   
 
    if ( bCancel )
@@ -183,8 +218,16 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
    if ( bSelect )
    {
        m_nParamToAdjust++;
-       if (  m_nParamToAdjust > 3 )
-          m_nParamToAdjust = 0;
+       if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->isActiveCameraVeye307()) )
+       {
+          if (  m_nParamToAdjust > 4 )
+             m_nParamToAdjust = 0;
+       }
+       else
+       {
+          if (  m_nParamToAdjust > 3 )
+             m_nParamToAdjust = 0;
+       }
    }
 
    bool bHasMoved = false;
@@ -196,6 +239,9 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
    if ( ! bHasMoved )
       return;
 
+   if ( ! m_bCanAdjust )
+      return;
+     
    type_camera_parameters cparams;
    memcpy(&cparams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
@@ -264,6 +310,21 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          bToSend = true;
    }
 
+   if ( m_nParamToAdjust == 4 )
+   {
+      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].awbGainR > 0 )
+         cparams.profiles[iProfile].awbGainR -= 1;
+      if ( bFastCCW && cparams.profiles[iProfile].awbGainR > 0 )
+         cparams.profiles[iProfile].awbGainR -= 1;
+
+      if ( (bCW || bFastCW) && cparams.profiles[iProfile].awbGainR < 100 )
+         cparams.profiles[iProfile].awbGainR += 1;
+      if ( bFastCW && cparams.profiles[iProfile].awbGainR < 100 )
+         cparams.profiles[iProfile].awbGainR += 1;
+
+      if ( fabs(cparams.profiles[iProfile].awbGainR - g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].awbGainR) >= 1.0 )
+         bToSend = true;
+   }
 
    if ( bToSend )
    {

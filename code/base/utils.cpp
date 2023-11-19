@@ -13,7 +13,47 @@ Code written by: Petru Soroaga, 2021-2023
 #include <math.h>
 #include "../base/config.h"
 #include "../base/models.h"
+#include "../common/string_utils.h"
 
+bool ruby_is_first_pairing_done()
+{
+   if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) == -1 )
+      return false;
+   return true;
+}
+
+void ruby_set_is_first_pairing_done()
+{
+   FILE* fd = fopen(FILE_FIRST_PAIRING_DONE, "w");
+   if ( NULL == fd )
+   {
+      log_softerror_and_alarm("Failed to create file for marking 'first pairing done' flag.");
+      return;
+   }
+   fprintf(fd, "1");
+   fclose(fd);
+   log_line("Set 'first pairing done' flag to true.");
+}
+
+void reset_sik_state_info(t_sik_radio_state* pState)
+{
+   if ( NULL == pState )
+      return;
+
+   pState->bConfiguringSiKThreadWorking = false;
+   pState->iThreadRetryCounter = 0;
+   pState->bMustReinitSiKInterfaces = false;
+   pState->iMustReconfigureSiKInterfaceIndex = -1;
+   pState->uTimeLastSiKReinitCheck = 0;
+   pState->uTimeIntervalSiKReinitCheck = 500;
+   pState->uSiKInterfaceIndexThatBrokeDown = MAX_U32;
+
+   pState->bConfiguringToolInProgress = false;
+   pState->uTimeStartConfiguring = 0;
+   
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      pState->bInterfacesToReopen[i] = false;
+}
 
 int _compute_controller_rc_value_button(Model* pModel, int nChannel, int prevRCValue, hw_joystick_info_t* pJoystick, t_ControllerInputInterface* pCtrlInterface)
 {
@@ -446,3 +486,231 @@ int get_rc_channel_failsafe_value(Model* pModel, int nChannel, int prevRCValue)
    return 0;
 }
 
+
+u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
+{
+   if ( NULL == pModel )
+      return DEFAULT_VIDEO_BITRATE;
+
+   if ( iProfile < 0 || iProfile >= MAX_VIDEO_LINK_PROFILES )
+      return DEFAULT_VIDEO_BITRATE;
+
+   int iMinRadioDataRate = 0; 
+   u32 uMinRadioDataRateBPS = 0;
+
+   // First get the minimum radio datarate set on radio links that can transport video streams
+
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   {
+      if ( pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+         continue;
+      if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
+         continue;
+      if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) )
+      {
+         log_line("Missing video flag from link %d", i+1);
+         continue;
+      }
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]) < 2000000)
+         continue;
+
+      if ( 0 == uMinRadioDataRateBPS )
+      {
+         uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]);
+         iMinRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
+      }
+      else if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]) < uMinRadioDataRateBPS )
+      {
+         uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]);
+         iMinRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
+      }
+   }
+
+   // If the video profile has a set radio datarate, use it
+
+   if ( 0 != pModel->video_link_profiles[iProfile].radio_datarate_video_bps )
+   {
+      uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[iProfile].radio_datarate_video_bps);
+      iMinRadioDataRate = pModel->video_link_profiles[iProfile].radio_datarate_video_bps;
+   }
+
+   //For MQ, LQ profiles, use a lower radio datarate if one was not set for them
+   else if ( iProfile == VIDEO_PROFILE_MQ )
+   {
+      iMinRadioDataRate = utils_get_video_profile_mq_radio_datarate(pModel);
+      uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(iMinRadioDataRate);
+   }
+   else if ( iProfile == VIDEO_PROFILE_LQ )
+   {
+      iMinRadioDataRate = utils_get_video_profile_lq_radio_datarate(pModel);
+      uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(iMinRadioDataRate);
+   } 
+
+   // If the user did set a radio datarate for the video link, and is lower than current profile data rate, use it
+
+   if ( 0 != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
+   if ( getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps) < uMinRadioDataRateBPS )
+   {
+      uMinRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps);
+      iMinRadioDataRate = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
+   }
+
+   if ( 0 == uMinRadioDataRateBPS )
+      uMinRadioDataRateBPS = DEFAULT_VIDEO_BITRATE;
+   
+   // Compute now max actual video bitrate that is set for profile and that does not go above the radio maxim
+
+   u32 uMaxVideoBitrateBPSForRadioRate = (uMinRadioDataRateBPS * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT) / 100;
+   
+   uMaxVideoBitrateBPSForRadioRate = (uMaxVideoBitrateBPSForRadioRate * pModel->video_link_profiles[iProfile].block_packets) / (pModel->video_link_profiles[iProfile].block_packets + pModel->video_link_profiles[iProfile].block_fecs);
+
+   return uMaxVideoBitrateBPSForRadioRate;
+}
+
+u32 utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(Model* pModel, int iProfile)
+{
+   u32 uMaxVideoBitrateBPSForRadioRate = utils_get_max_allowed_video_bitrate_for_profile(pModel, iProfile);
+
+   if ( 0 != pModel->video_link_profiles[iProfile].bitrate_fixed_bps )
+   if ( pModel->video_link_profiles[iProfile].bitrate_fixed_bps < uMaxVideoBitrateBPSForRadioRate )
+      uMaxVideoBitrateBPSForRadioRate = pModel->video_link_profiles[iProfile].bitrate_fixed_bps;
+   return uMaxVideoBitrateBPSForRadioRate;
+}
+
+u32 utils_get_max_allowed_video_bitrate_for_profile_and_level(Model* pModel, int iProfile, int iLevel)
+{
+   if ( NULL == pModel )
+      return DEFAULT_VIDEO_BITRATE;
+
+   if ( iProfile < 0 || iProfile >= MAX_VIDEO_LINK_PROFILES )
+      return DEFAULT_VIDEO_BITRATE;
+
+   u32 uMaxVideoBitrateForProfile = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(pModel, iProfile);
+
+   int iMaxLevels = pModel->get_video_profile_total_levels(iProfile);
+   if ( iMaxLevels <= 1 )
+      return uMaxVideoBitrateForProfile;
+   if ( iLevel >= iMaxLevels )
+      iLevel = iMaxLevels-1;
+
+   u32 uTotalBitrateUsedForProfile = uMaxVideoBitrateForProfile * (pModel->video_link_profiles[iProfile].block_packets + pModel->video_link_profiles[iProfile].block_fecs) / pModel->video_link_profiles[iProfile].block_packets;
+   
+   u32 uBottomVideoBitrate = uTotalBitrateUsedForProfile / 2; // fec is equal to data packets on the lowest level
+   
+   if ( iProfile != VIDEO_PROFILE_USER )
+   if ( iProfile != VIDEO_PROFILE_BEST_PERF )
+   if ( iProfile != VIDEO_PROFILE_HIGH_QUALITY )
+   if ( uBottomVideoBitrate < pModel->video_params.lowestAllowedAdaptiveVideoBitrate )
+      uBottomVideoBitrate = pModel->video_params.lowestAllowedAdaptiveVideoBitrate;
+
+   // Minimum for MQ profile, for 12 Mb datarate is at least 2Mb, do not go below that
+   if ( iProfile == VIDEO_PROFILE_MQ )
+   if ( pModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps == 0 )
+   if ( getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps) >= 12000000 )
+   if ( uBottomVideoBitrate < 2000000 )
+      uBottomVideoBitrate = 2000000;
+
+   if ( uBottomVideoBitrate < 250000 )
+      uBottomVideoBitrate = 250000;
+
+   u32 uVideoBitrateChangePerLevel = (uMaxVideoBitrateForProfile - uBottomVideoBitrate) / (iMaxLevels-1);
+
+   u32 uFinalVideoBitrate  = uMaxVideoBitrateForProfile - uVideoBitrateChangePerLevel * iLevel;
+   
+   return uFinalVideoBitrate;
+}
+
+int utils_get_video_profile_mq_radio_datarate(Model* pModel)
+{
+   if ( NULL == pModel )
+      return 9000000;
+
+   int iMaxRadioDataRate = 0; 
+   u32 uMaxRadioDataRateBPS = 0;
+
+   // First get the maximum radio datarate set on radio links
+
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   {
+      if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]) < 2000000)
+         continue;
+      if ( 0 == uMaxRadioDataRateBPS )
+         uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]);
+
+      if ( 0 == iMaxRadioDataRate )
+         iMaxRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
+   }
+
+   // If the user selected video profile has a set radio datarate, use it
+
+   if ( 0 != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
+   {
+      uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps);
+      iMaxRadioDataRate = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
+   }
+
+   int iDataRate = pModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps;
+   if ( iDataRate != 0 )
+   {
+      if ( getRealDataRateFromRadioDataRate(iDataRate) > getRealDataRateFromRadioDataRate(iMaxRadioDataRate) )
+         iDataRate = iMaxRadioDataRate;
+      return iDataRate;
+   }
+
+   if ( iMaxRadioDataRate > 0 )
+   {
+      if ( getRealDataRateFromRadioDataRate(iMaxRadioDataRate) > 12000000 )
+         return 12000000;
+      if ( getRealDataRateFromRadioDataRate(iMaxRadioDataRate) > 9000000 )
+         return 9000000;
+      return 6000000;
+   }
+   iDataRate = iMaxRadioDataRate;
+   if ( iDataRate < -1 )
+      iDataRate++;
+   return iDataRate;
+}
+
+int utils_get_video_profile_lq_radio_datarate(Model* pModel)
+{
+   if ( NULL == pModel )
+      return 6000000;
+
+   int iMaxRadioDataRate = 0; 
+   u32 uMaxRadioDataRateBPS = 0;
+
+   // First get the maximum radio datarate set on radio links
+
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   {
+      if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]) < 2000000)
+         continue;
+      if ( 0 == uMaxRadioDataRateBPS )
+         uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]);
+
+      if ( 0 == iMaxRadioDataRate )
+         iMaxRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
+   }
+
+   // If the user selected video profile has a set radio datarate, use it
+
+   if ( 0 != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
+   {
+      uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps);
+      iMaxRadioDataRate = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
+   }
+
+   int iDataRate = pModel->video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps;
+   if ( iDataRate != 0 )
+   {
+      if ( getRealDataRateFromRadioDataRate(iDataRate) > getRealDataRateFromRadioDataRate(iMaxRadioDataRate) )
+         iDataRate = iMaxRadioDataRate;
+      return iDataRate;
+   }
+
+   if ( iMaxRadioDataRate > 0 )
+      return 6000000;
+   return -1;
+}

@@ -38,7 +38,7 @@ typedef struct
    char* szUserDefinedName;
    char szMAC[MAX_MAC_LENGTH];
    u32 capabilities_flags;
-   int datarate;
+   int datarate_bps;
    int iInternal;
 } t_ControllerRadioInterfaceInfo;
 
@@ -79,14 +79,15 @@ int controllerGetTXPreferredIndexForCard(const char* szMAC);
 void controllerSetCardInternal(const char* szMAC, bool bInternal);
 bool controllerIsCardInternal(const char* szMAC);
 
-bool controllerAddedNewRadioInterfaces();
+int controllerAddedNewRadioInterfaces();
 
 u32 controllerGetCardFlags(const char* szMAC);
 void controllerSetCardFlags(const char* szMAC, u32 flags);
 
 int controllerGetCardDataRate(const char* szMAC);
-void controllerSetCardDataRate(const char* szMAC, int dataRate);
+void controllerSetCardDataRate(const char* szMAC, int dataRateBPS);
 
+void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char* szOutput);
 char* controllerGetCardUserDefinedName(const char* szMAC);
 void controllerSetCardUserDefinedName(const char* szMAC, const char* szName);
 

@@ -35,7 +35,7 @@ class RenderEngine
      virtual void clearFontBackgroundBoundingBoxStrikeColor();
      virtual void setBackgroundBoundingBoxPadding(float fPadding);
 
-     virtual u32 loadFont(const char* szFontFile);
+     virtual int loadFont(const char* szFontFile);
      virtual void freeFont(u32 idFont);
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
@@ -52,22 +52,17 @@ class RenderEngine
 
      virtual float getFontHeight(u32 fontId);
      virtual float textHeight(u32 fontId);
-     virtual float textHeight(float fTextHeight, u32 fontId);
      virtual float textWidth(u32 fontId, const char* szText);
-     virtual float textWidth(float fTextHeight, u32 fontId, const char* szText);
-     virtual float textHeightScaled(float fTextHeight, u32 fontId, float fScale);
-     virtual float textWidthScaled(float fTextHeight, u32 fontId, float fScale, const char* szText);
+     virtual float textHeightScaled(u32 fontId, float fScale);
+     virtual float textWidthScaled(u32 fontId, float fScale, const char* szText);
      virtual void drawText(float xPos, float yPos, u32 uFontId, const char* szText);
-     virtual void drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawTextNoOutline(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
+     virtual void drawTextNoOutline(float xPos, float yPos, u32 fontId, const char* szText);
      virtual void drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText);
-     virtual void drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawTextScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText);
-     virtual void drawTextLeftScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText);
+     virtual void drawTextScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
+     virtual void drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
      virtual float getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float drawMessageLines(const char* text, float xPos, float yPos, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
+     virtual float drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId);
+     virtual float drawMessageLines(const char* text, float xPos, float yPos, float line_spacing_percent, float max_width, u32 fontId);
 
      virtual void drawLine(float x1, float y1, float x2, float y2);
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);

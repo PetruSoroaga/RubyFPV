@@ -19,7 +19,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/config.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
@@ -247,6 +247,7 @@ int main(int argc, char *argv[])
    {
       szFoundFile[127] = 0;
       strcpy(szZipFile, szFoundFile);
+      log_line("Found zip archive [%s]", szZipFile);
 
       hw_execute_bash_command("mkdir -p updates", NULL);
       hw_execute_bash_command("chmod 777 updates", NULL);
@@ -261,15 +262,7 @@ int main(int argc, char *argv[])
       sprintf(szComm, "unzip %s -d %s/tmpUpdate", szZipFile, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_LAST_UPDATE);
-      if( access( szFile, R_OK ) != -1 )
-      {
-         log_line("Found update in zip file: %s", szZipFile);
-         sprintf(szUpdateFromSrcFolder, "%s/tmpUpdate", FOLDER_RUBY_TEMP);
-         bFoundZip = true;
-      }
-      if ( ! bFoundZip )
-         log_line("Found zip archive with no update (missing update file: [%s]). Ignoring it.", szFile);
+      bFoundZip = true;
    }
 
    if ( ! bFoundZip )
@@ -280,6 +273,21 @@ int main(int argc, char *argv[])
          log_line("There is no update update archive on the Ruby main folder.");
 
       _write_return_code(-1);
+      return -1;
+   }
+
+   bool bValidZip = false;
+   sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_LAST_UPDATE);
+   if( access( szFile, R_OK ) != -1 )
+   {
+      log_line("Found update info file in zip file: %s", szZipFile);
+      sprintf(szUpdateFromSrcFolder, "%s/tmpUpdate", FOLDER_RUBY_TEMP);
+      bValidZip = true;
+   }
+   if ( ! bValidZip )
+   {
+      log_line("Found zip archive with no valid update info file (missing update file: [%s]). Ignoring it.", szFile);
+      _write_return_code(-10);
       return -1;
    }
 
@@ -372,6 +380,7 @@ int main(int argc, char *argv[])
       if ( bIsController )
          hw_execute_bash_command("cp -rf ruby_update ruby_update_controller", NULL);
       hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
+      hw_execute_bash_command("chmod 777 ruby_update*", NULL);
    }
 
    if ( ! bIsController )

@@ -8,19 +8,15 @@
 #include "../radio/radiopackets_rc.h"
 
 #include "shared_mem_radio.h"
-#include "shared_mem_controller_only.h"
 
 #define SHARED_MEM_RADIO_STATS "/SYSTEM_SHARED_MEM_RUBY_RADIO_STATS"
+#define SHARED_MEM_RADIO_STATS_RX_HIST "/SYSTEM_SHARED_MEM_RUBY_RADIO_STATS_RX_HIST"
 
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO"
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_IN "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_IN"
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_OUT "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_OUT"
 #define SHARED_MEM_VIDEO_LINK_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_LINK_STATS"
 #define SHARED_MEM_VIDEO_LINK_GRAPHS "/SYSTEM_SHARED_MEM_STATION_VIDEO_LINK_GRAPHS"
-#define SHARED_MEM_VIDEO_DECODE_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_DECODE_STATS"
-#define SHARED_MEM_VIDEO_DECODE_STATS_HISTORY "/SYSTEM_SHARED_MEM_STATION_VIDEO_DECODE_STATS_HISTORY"
-#define SHARED_MEM_VIDEO_RETRANSMISSIONS_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_RETRANMISSIONS_STATS"
-#define SHARED_MEM_ROUTER_PACKETS_STATS_HISTORY "/SYSTEM_SHARED_MEM_STATION_ROUTER_PACKETS_STATS_HISTORY"
 #define SHARED_MEM_RC_DOWNLOAD_INFO "R_SHARED_MEM_VEHICLE_RC_DOWNLOAD_INFO"
 #define SHARED_MEM_RC_UPSTREAM_FRAME "R_SHARED_MEM_RC_UPSTREAM_FRAME"
 
@@ -69,29 +65,6 @@ typedef struct
 } __attribute__((packed)) shared_mem_process_stats;
 
 
-typedef struct
-{  
-   u16 rxHistoryPackets[1000]; // one for each milisecond in a second
-   // 3 bits: bit 0..2 - video packets count
-   // 3 bits: bit 3..5 - retransmitted packets
-   // 1 bit:  bit 6..6 - ping reply
-   // 2 bits: bit 7..8 - telemetry packets count
-   // 2 bits: bit 9..10 - rc packets count
-   // 2 bits: bit 11..12 - ruby/other packets count
-   // 3 bits: bit 13..15 - datarate // 1, 2, 6, 9, 11, 12, 18, 24
-
-   u16 txHistoryPackets[1000];
-   // 3 bits: bit 0..2 - retransmissions
-   // 3 bits: bit 3..5 - commands
-   // 2 bits: bit 6..7 - ping
-   // 3 bits: bit 8..10 - rc
-   // 2 bits: bit 11..12 - ruby/other packets count
-   // 3 bits: bit 13..15 - datarate // 1, 2, 6, 9, 11, 12, 18, 24
-
-   u32 lastMilisecond;
-} __attribute__((packed)) shared_mem_router_packets_stats_history;
-
-
 #define MAX_INTERVALS_VIDEO_LINK_SWITCHES 50
 #define MAX_INTERVALS_VIDEO_LINK_STATS 24
 #define VIDEO_LINK_STATS_REFRESH_INTERVAL_MS 80
@@ -103,15 +76,16 @@ typedef struct
 {
    u8 userVideoLinkProfile;
    u8 currentVideoLinkProfile;
-   u32 currentProfileDefaultVideoBitrate;
+   u32 currentProfileMaxVideoBitrate;
+   u32 currentProfileAndLevelDefaultBitrate;
    u32 currentSetVideoBitrate;
    u8  hasEverSwitchedToLQMode;
    u8  currentDataBlocks;
    u8  currentECBlocks;
    u8  currentProfileShiftLevel;
    u8  currentH264QUantization;
-   u16 uCurrentKeyframe;
-   u32 profilesTopVideoBitrateOverwritesDownward[MAX_VIDEO_LINK_PROFILES]; // How much to decrease the top bitrate for each profile
+   u16 uCurrentKeyframeMs;
+   u32 profilesTopVideoBitrateOverwritesDownward[MAX_VIDEO_LINK_PROFILES]; // How much to decrease the target top bitrate for each profile
 
 } __attribute__((packed)) shared_mem_video_link_overwrites;
 
@@ -163,21 +137,44 @@ typedef struct
 } __attribute__((packed)) shared_mem_video_link_graphs;
 
 
-#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 30
+#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 20
 
 typedef struct
 {
-   u32 uComputeInterval;
-   u32 uLastComputeTime;
-   u8 uSlices;
-   u8 uQuantizationOverflowValue;
+   u32 uGraphSliceInterval;
+   u32 uLastGraphSliceTime;
+   u8  uSlices;
+   u8  uQuantizationOverflowValue;
+   u32 uCurrentTargetVideoBitrate;
+
    u8  uHistMaxVideoDataRateMbps[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // in Mbps (mcs is converted to Mbps
    u8  uHistVideoQuantization[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // H264 quantization
    u16 uHistVideoBitrateKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // only video data
    u16 uHistVideoBitrateAvgKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // only video data
    u16 uHistTotalVideoBitrateAvgKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // video data + EC + radio headers
+   u8  uHistoryVideoSwitches[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // bit 0..3 - level, bit 4..7 - profile
 } __attribute__((packed)) shared_mem_dev_video_bitrate_history;
 
+
+#define MAX_FRAMES_SAMPLES 60
+
+typedef struct
+{
+   u32 uTimeLastUpdate;
+   u8 uFramesTimes[MAX_FRAMES_SAMPLES];
+   u8 uFramesTypesAndSizes[MAX_FRAMES_SAMPLES]; // Frame type and size in kbytes (frame type: highest bit: 0 regular, 1 keframe; lower 7 bits: frame size in kbytes)
+   u32 uLastIndex;
+   u32 uAverageFPS;
+   u32 uAverageFrameTime;
+   u32 uAverageFrameSize; // in bits
+   u32 uMaxFrameDeltaTime;
+   u16 uKeyframeIntervalMs;
+   u32 uExtraValue1;
+   u32 uExtraValue2;
+   
+   u32 uTmpCurrentFrameSize;
+   u32 uTmpKeframeDeltaFrames;
+} __attribute__((packed)) shared_mem_video_info_stats;
 
 
 void* open_shared_mem(const char* name, int size, int readOnly);
@@ -194,6 +191,10 @@ void process_stats_mark_active(shared_mem_process_stats* pStats, u32 timeNow);
 shared_mem_radio_stats* shared_mem_radio_stats_open_for_read();
 shared_mem_radio_stats* shared_mem_radio_stats_open_for_write();
 void shared_mem_radio_stats_close(shared_mem_radio_stats* pAddress);
+
+shared_mem_radio_stats_rx_hist* shared_mem_radio_stats_rx_hist_open_for_read();
+shared_mem_radio_stats_rx_hist* shared_mem_radio_stats_rx_hist_open_for_write();
+void shared_mem_radio_stats_rx_hist_close(shared_mem_radio_stats_rx_hist* pAddress);
 
 shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_read();
 shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_write();
@@ -216,20 +217,6 @@ shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_read();
 shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_write();
 void shared_mem_video_link_graphs_close(shared_mem_video_link_graphs* pAddress);
 
-shared_mem_video_decode_stats* shared_mem_video_decode_stats_open(int readOnly);
-void shared_mem_video_decode_stats_close(shared_mem_video_decode_stats* pAddress);
-
-shared_mem_video_decode_stats_history* shared_mem_video_decode_stats_history_open(int readOnly);
-void shared_mem_video_decode_stats_history_close(shared_mem_video_decode_stats_history* pAddress);
-
-shared_mem_controller_retransmissions_stats* shared_mem_controller_video_retransmissions_stats_open_for_read();
-shared_mem_controller_retransmissions_stats* shared_mem_controller_video_retransmissions_stats_open_for_write();
-void shared_mem_controller_video_retransmissions_stats_close(shared_mem_controller_retransmissions_stats* pAddress);
-
-shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_read();
-shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_write();
-void shared_mem_router_packets_stats_history_close(shared_mem_router_packets_stats_history* pAddress);
-
 t_packet_header_rc_info_downstream* shared_mem_rc_downstream_info_open_read();
 t_packet_header_rc_info_downstream* shared_mem_rc_downstream_info_open_write();
 void shared_mem_rc_downstream_info_close(t_packet_header_rc_info_downstream* pRCInfo);
@@ -237,9 +224,6 @@ void shared_mem_rc_downstream_info_close(t_packet_header_rc_info_downstream* pRC
 t_packet_header_rc_full_frame_upstream* shared_mem_rc_upstream_frame_open_read();
 t_packet_header_rc_full_frame_upstream* shared_mem_rc_upstream_frame_open_write();
 void shared_mem_rc_upstream_frame_close(t_packet_header_rc_full_frame_upstream* pRCFrame);
-
-void add_detailed_history_rx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countVideo, int countRetransmited, int countTelemetry, int countRC, int countPing, int countOther, int dataRate);
-void add_detailed_history_tx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countRetransmited, int countComands, int countPing, int countRC, int countOther, int dataRate);
 
 void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats, u32 uTimeNow);
 

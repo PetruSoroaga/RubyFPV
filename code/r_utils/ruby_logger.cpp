@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
    while ( !g_bQuit )
    {
       // This is blocking
-      int len = msgrcv(iLogMsgQueue, &logMessage, sizeof(logMessage), 0, 0);
+      int len = msgrcv(iLogMsgQueue, &logMessage, MAX_SERVICE_LOG_ENTRY_LENGTH, 0, 0);
       if ( len <= 0 )
       {
           log_line("Failed to read log message queue. Exiting...");
@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
           break;
       }
 
+      logMessage.text[len-1] = 0;
       //log_line("Received message type: %d, length: %d bytes", logMessage.type, len);
 
       //if ( logMessage.type == 1 )

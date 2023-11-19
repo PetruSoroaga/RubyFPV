@@ -30,17 +30,11 @@
 
 Popup* ruby_get_startup_popup();
 
-void ruby_input_loop(bool bNoKeys);
+void ruby_processing_loop(bool bNoKeys);
 
 void render_all(u32 timeNow, bool bForceBackground = false, bool bDoInputLoop = false);
 void ruby_start_recording();
 void ruby_stop_recording();
-
-bool ruby_is_first_pairing_done();
-void ruby_set_is_first_pairing_done();
-
-void ruby_reload_osd_fonts();
-void ruby_reload_menu_font();
 
 void ruby_load_models();
 
@@ -48,3 +42,7 @@ void ruby_signal_alive();
 
 void ruby_pause_watchdog();
 void ruby_resume_watchdog();
+
+void synchronize_shared_mems();
+
+void ruby_set_active_model_id(u32 uVehicleId);

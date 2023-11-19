@@ -20,10 +20,18 @@ Code written by: Petru Soroaga, 2021-2023
 
 ControllerInterfacesSettings s_CIS;
 bool s_bAddedNewRadioInterfaces = false;
+int  s_iNewCardRadioInterfaceIndex = -1;
 
-bool controllerAddedNewRadioInterfaces()
+// Returns the index of the card
+int controllerAddedNewRadioInterfaces()
 {
-   return s_bAddedNewRadioInterfaces;
+   if ( s_bAddedNewRadioInterfaces )
+   {
+      if ( s_iNewCardRadioInterfaceIndex >= 0 )
+         return s_iNewCardRadioInterfaceIndex;
+      return MAX_RADIO_INTERFACES;
+   }
+   return -1;
 }
 
 void _controller_interfaces_add_card(const char* szMAC)
@@ -42,12 +50,24 @@ void _controller_interfaces_add_card(const char* szMAC)
    if ( hardware_radio_is_sik_radio(pRadioInfo) )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
 
-   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].datarate = 0;
+   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].datarate_bps = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName = (char*)malloc(2);
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName[0] = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iInternal = false;
    s_CIS.radioInterfacesCount++;
    s_bAddedNewRadioInterfaces = true;
+
+   s_iNewCardRadioInterfaceIndex = -1;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioInfo )
+         continue;
+      if ( 0 != strcmp(pRadioInfo->szMAC, szMAC) )
+         continue;
+      s_iNewCardRadioInterfaceIndex = i;
+      break;
+   }
 }
 
 int _controller_interfaces_get_card_index(const char* szMAC)
@@ -101,9 +121,9 @@ int save_ControllerInterfacesSettings()
       if ( szBuff[0] == '~' && szBuff[1] == 0 )
          szBuff[0] = 0;
       if (  0 == szBuff[0] )
-         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate);
+         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate_bps);
       else
-         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate);
+         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate_bps);
       fprintf(fd, "%d\n", s_CIS.listRadioInterfaces[i].iInternal);
    }
 
@@ -210,7 +230,7 @@ int load_ControllerInterfacesSettings()
       }
 
       s_CIS.listRadioInterfaces[i].capabilities_flags = tmp;
-      s_CIS.listRadioInterfaces[i].datarate = tmp2;
+      s_CIS.listRadioInterfaces[i].datarate_bps = tmp2;
 
       int kSize = (int)strlen(s_CIS.listRadioInterfaces[i].szUserDefinedName);
       for( int k=0; k<kSize; k++ )
@@ -327,6 +347,11 @@ void controllerRadioInterfacesLogInfo()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioInfo )
+      {
+         log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
+         continue;
+      }
       t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioInfo->szMAC);
       szBuff[0] = 0;
       if ( controllerIsCardRXOnly(pRadioInfo->szMAC) )
@@ -335,11 +360,15 @@ void controllerRadioInterfacesLogInfo()
          strcat(szBuff, "[TX ONLY]");
       if ( ! controllerIsCardRXOnly(pRadioInfo->szMAC) )
       if ( ! controllerIsCardTXOnly(pRadioInfo->szMAC) )
-         strcat(szBuff, "[TX/RX]");
+         strcat(szBuff, "[RX/TX]");
+
+      char szBands[128];
+      str_get_supported_bands_string(pRadioInfo->supportedBands, szBands);
+      
       if ( NULL != pCardInfo )
-         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff);
+         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       else
-         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff);
+         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       u32 uFlags = controllerGetCardFlags(pRadioInfo->szMAC);
       int nRate = controllerGetCardDataRate(pRadioInfo->szMAC);
       szBuff[0] = 0;
@@ -562,15 +591,46 @@ int controllerGetCardDataRate(const char* szMAC)
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
       return 0;
-   return s_CIS.listRadioInterfaces[index].datarate;
+   return s_CIS.listRadioInterfaces[index].datarate_bps;
 }
 
-void controllerSetCardDataRate(const char* szMAC, int dataRate)
+void controllerSetCardDataRate(const char* szMAC, int dataRateBPS)
 {
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
       return;
-   s_CIS.listRadioInterfaces[index].datarate = dataRate;
+   s_CIS.listRadioInterfaces[index].datarate_bps = dataRateBPS;
+}
+
+void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char* szOutput)
+{
+   if ( NULL != szOutput )
+      szOutput[0] = 0;
+   if ( (NULL == pRadioHWInfo) || (NULL == szOutput) )
+      return;
+   char* szN = NULL;
+   if ( NULL != pRadioHWInfo )
+      szN = controllerGetCardUserDefinedName(pRadioHWInfo->szMAC);
+   if ( (NULL != szN) && (0 != szN[0]) )
+   {
+      strcpy(szOutput, szN);
+      return;
+   }
+   
+   t_ControllerRadioInterfaceInfo* pCardInfo = NULL;
+   if ( NULL != pRadioHWInfo )
+      pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+   if ( NULL != pCardInfo )
+   {
+      const char* szCardModel = str_get_radio_card_model_string(pCardInfo->cardModel);
+      if ( NULL != szCardModel && 0 != szCardModel[0] )
+      {
+         strcpy(szOutput, szCardModel);
+         return;
+      }
+   }
+         
+   strcpy(szOutput, "Generic");
 }
 
 char* controllerGetCardUserDefinedName(const char* szMAC)
@@ -621,7 +681,7 @@ int _controllerComputeRXTXCardsSingleFrequency(Model* pModel, int* pFrequencies,
          continue;
       }
 
-      *pFrequencies = pModel->radioLinksParams.link_frequency[0];
+      *pFrequencies = pModel->radioLinksParams.link_frequency_khz[0];
       pFrequencies++;
    }
 
@@ -636,7 +696,7 @@ int _controllerComputeRXTXCardsSingleFrequency(Model* pModel, int* pFrequencies,
       if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadio->szMAC) )
          continue;
 
-      if ( 0 == hardware_radioindex_supports_frequency(i, pModel->radioLinksParams.link_frequency[0]) )
+      if ( 0 == hardware_radioindex_supports_frequency(i, pModel->radioLinksParams.link_frequency_khz[0]) )
          continue;
 
       if ( flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
@@ -728,7 +788,7 @@ int _controllerComputeRXTXCardsDualFrequency(Model* pModel, int* pFrequencies, i
       if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadio->szMAC) )
          continue;
 
-      if ( hardware_radio_supports_frequency(pRadio, pModel->radioLinksParams.link_frequency[0]) )
+      if ( hardware_radio_supports_frequency(pRadio, pModel->radioLinksParams.link_frequency_khz[0]) )
       {
          if ( flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
          if ( (flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) || (flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
@@ -743,7 +803,7 @@ int _controllerComputeRXTXCardsDualFrequency(Model* pModel, int* pFrequencies, i
             iCountSupportsTxMain++;
          }
       }
-      if ( hardware_radio_supports_frequency(pRadio, pModel->radioLinksParams.link_frequency[1]) )
+      if ( hardware_radio_supports_frequency(pRadio, pModel->radioLinksParams.link_frequency_khz[1]) )
       {
          if ( flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
          if ( (flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) || (flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
@@ -785,14 +845,14 @@ int _controllerComputeRXTXCardsDualFrequency(Model* pModel, int* pFrequencies, i
       if ( ( 1 == iCountSupportsRxMain && bNicSupportsRxMain[i] ) ||
            ( 1 == iCountSupportsTxMain && bNicSupportsTxMain[i] ) )
       {
-         *pFrequencies = pModel->radioLinksParams.link_frequency[0];
+         *pFrequencies = pModel->radioLinksParams.link_frequency_khz[0];
          pFrequencies++;
          countAllocatedForMain++;
       }
       else if ( ( 1 == iCountSupportsRxSecondary && bNicSupportsRxSecondary[i] ) ||
            ( 1 == iCountSupportsTxSecondary && bNicSupportsTxSecondary[i] ) )
       {
-         *pFrequencies = pModel->radioLinksParams.link_frequency[1];
+         *pFrequencies = pModel->radioLinksParams.link_frequency_khz[1];
          pFrequencies++;
          countAllocatedForSecondary++;
       }
@@ -802,18 +862,18 @@ int _controllerComputeRXTXCardsDualFrequency(Model* pModel, int* pFrequencies, i
          if ( countAllocatedForSecondary == 0 )
          if ( bNicSupportsRxSecondary[i] || bNicSupportsTxSecondary[i] )
          {
-            *pFrequencies = pModel->radioLinksParams.link_frequency[1];
+            *pFrequencies = pModel->radioLinksParams.link_frequency_khz[1];
             pFrequencies++;
             countAllocatedForSecondary++;
             continue;
          }
-         *pFrequencies = pModel->radioLinksParams.link_frequency[0];
+         *pFrequencies = pModel->radioLinksParams.link_frequency_khz[0];
          pFrequencies++;
          countAllocatedForMain++;
       }
       else
       {
-         *pFrequencies = pModel->radioLinksParams.link_frequency[1];
+         *pFrequencies = pModel->radioLinksParams.link_frequency_khz[1];
          pFrequencies++;
          countAllocatedForSecondary++;
       }
@@ -1016,7 +1076,7 @@ int controllerComputeRXTXCards(Model* pModel, int iSearchFreq, int* pFrequencies
 
    // Model with a single radio link
 
-   if ( 1 == pModel->radioInterfacesParams.interfaces_count || 0 == pModel->radioLinksParams.link_frequency[1] )
+   if ( 1 == pModel->radioInterfacesParams.interfaces_count || 0 == pModel->radioLinksParams.link_frequency_khz[1] )
    {
       log_line("ControllerComputeRXTXCards: Detected single radio link vehicle.");         
       return _controllerComputeRXTXCardsSingleFrequency(pModel, pFrequencies, pRXCardIndexes, countCardsRX, pTXCardIndexes, countCardsTX);

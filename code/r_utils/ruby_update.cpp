@@ -18,16 +18,23 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include "../base/models_list.h"
 #include "../base/hw_procs.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/config.h"
+#include "../base/vehicle_settings.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
+#include "../base/utils.h"
 
 
 bool gbQuit = false;
 bool s_isVehicle = false;
 
+int iMajor = 0;
+int iMinor = 0;
+int iBuild = 0;
+   
 void getSystemType()
 {
    if ( hardware_is_vehicle() )
@@ -63,6 +70,213 @@ void validate_camera(Model* pModel)
    }
 }
 
+void do_update_to_78()
+{
+   log_line("Doing update to 7.8");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->iMenusStacked = 1;
+      save_Preferences();
+
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;   
+      pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
+   
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+
+      pModel->osd_params.osd_preferences[i] &= ~(((u32)0x0F)<<16);
+      pModel->osd_params.osd_preferences[i] |= (((u32)2)<<16);
+
+      pModel->osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
+      pModel->osd_params.osd_flags2[i] &= ~OSD_FLAG2_SHOW_COMPACT_VIDEO_DECODE_STATS;         
+      pModel->osd_params.osd_flags[i] &= (~OSD_FLAG_EXTENDED_VIDEO_DECODE_STATS);
+   }
+
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+   pModel->video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
+      
+   // Update MQ and LQ profiles too
+   type_video_link_profile* pProfile = &(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile]);
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+      pModel->video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      if ( i == pModel->video_params.user_selected_video_link_profile )
+         continue;
+      if ( (i != VIDEO_PROFILE_MQ) && (i != VIDEO_PROFILE_LQ) )
+         continue;
+      pModel->video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      pModel->video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+      if ( pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      if ( pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+   }
+
+   for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+   {
+      for( int k=0; k<MODEL_CAMERA_PROFILES-1; k++ )
+      {
+         pModel->camera_params[i].profiles[k].exposure = 3; // sports
+         pModel->camera_params[i].profiles[k].metering = 2; // backlight
+      }
+   }   
+
+   log_line("Updated model VID %u (%s) to v7.8", pModel->vehicle_id, pModel->getLongName());
+}
+
+
+void do_update_to_77()
+{
+   log_line("Doing update to 7.7");
+ 
+   if ( s_isVehicle )
+   {
+      load_VehicleSettings();
+      get_VehicleSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+      save_VehicleSettings();
+
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
+         return;
+
+      // Transform keyframe from frames to miliseconds
+
+      if ( (iMajor < 7) || (iMajor == 7 && iMinor < 7) )
+      {
+         for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+         {
+            pModel->video_link_profiles[i].keyframe_ms = (pModel->video_link_profiles[i].keyframe_ms * 1000) / pModel->video_link_profiles[i].fps;
+         }
+      }
+   }
+   else
+   {
+      unlink(FILE_CONTROLLER_BUTTONS);
+      load_ControllerSettings();
+      get_ControllerSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+      save_ControllerSettings(); 
+   }
+}
+
+
+void do_update_to_76()
+{
+   log_line("Doing update to 7.6");
+ 
+   if ( s_isVehicle )
+   {
+      load_VehicleSettings();
+      save_VehicleSettings();
+
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
+         return;
+
+      pModel->relay_params.isRelayEnabledOnRadioLinkId = -1;
+
+      for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+      {
+          // Remove relay links
+          pModel->radioLinksParams.link_capabilities_flags[i] &= (~RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+          pModel->radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_DATA;
+          pModel->radioLinksParams.uplink_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_DATA;
+      }  
+
+      for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      {
+         // Remove relay interfaces
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] &= (~RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+         // Remove use lowest data rate flag
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] &= (~(((u32)(((u32)0x01)<<8))));
+         pModel->radioLinksParams.link_capabilities_flags[i] &= (~(((u32)(((u32)0x01)<<8))));
+         pModel->radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+         pModel->radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+      }
+
+      bool bHasAtheros = false;
+      for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+      {
+         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+            bHasAtheros = true;
+         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
+            bHasAtheros = true;
+      }
+
+      if ( bHasAtheros )
+      {
+         for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+         {
+            bool bLinkOnAtheros = false;
+            for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
+            {
+               if ( (pModel->radioInterfacesParams.interface_type_and_driver[k] & 0xFF) == RADIO_TYPE_ATHEROS )
+               if ( pModel->radioInterfacesParams.interface_link_id[k] == i )
+                  bLinkOnAtheros = true;
+               if ( (pModel->radioInterfacesParams.interface_type_and_driver[k] & 0xFF) == RADIO_TYPE_RALINK )
+               if ( pModel->radioInterfacesParams.interface_link_id[k] == i )
+                  bLinkOnAtheros = true;
+            }
+            if ( bLinkOnAtheros )
+            {
+               if ( pModel->radioLinksParams.link_datarate_video_bps[i] > DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS )
+                  pModel->radioLinksParams.link_datarate_video_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+               if ( pModel->radioLinksParams.link_datarate_data_bps[i] > DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS )
+                  pModel->radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+            }
+         }
+         for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+         {
+            pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
+            pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
+         }
+
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps = 5000000;
+      }
+   }
+   else
+   {
+      load_ControllerSettings();
+      save_ControllerSettings();
+   }
+}
+
+void do_update_to_75()
+{
+   log_line("Doing update to 7.5");
+ 
+   if ( s_isVehicle )
+   {
+   }
+   else
+   {
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
+      save_ControllerSettings();
+   }
+}
 
 void do_update_to_74()
 {
@@ -70,24 +284,41 @@ void do_update_to_74()
  
    if ( s_isVehicle )
    {
-
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
-
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      
+      
       // Remove h264 extended video profile
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         if ( model.video_link_profiles[i].h264profile == 3 )
-            model.video_link_profiles[i].h264profile = 2;
+         if ( pModel->video_link_profiles[i].h264profile == 3 )
+            pModel->video_link_profiles[i].h264profile = 2;
 
-         model.video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+         pModel->video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
       }
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+
+      pModel->setDefaultVideoBitrate();
+
+      if ( hardware_isCameraVeye() )
+      if ( pModel->isActiveCameraVeye307() )
+      {
+         pModel->camera_params[pModel->iCurrentCamera].profiles[pModel->camera_params[pModel->iCurrentCamera].iCurrentProfile].awbGainR = 50.0;
+      }
+
+      for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+      {
+         pModel->osd_params.osd_flags2[i] &= ~OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+      }
    }
    else
    {
@@ -103,31 +334,30 @@ void do_update_to_73()
    {
       hardware_init_serial_ports();
       
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      for( int i=0; i<model.radioLinksParams.links_count; i++ )
-         model.radioLinksParams.link_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+      for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+         pModel->radioLinksParams.link_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
 
-      for( int i=0; i<model.radioInterfacesParams.interfaces_count; i++ )
-         model.radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+      for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
    
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         model.video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
          // Auto radio datarates for all video profiles
-         model.video_link_profiles[i].radio_datarate_video = 0;
-         model.video_link_profiles[i].radio_datarate_data = 0;
+         pModel->video_link_profiles[i].radio_datarate_video_bps = 0;
+         pModel->video_link_profiles[i].radio_datarate_data_bps = 0;
       }
    
-      model.video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
   
       
-      model.setDefaultVideoBitrate();
+      pModel->setDefaultVideoBitrate();
       
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
    else
    {
@@ -137,10 +367,7 @@ void do_update_to_73()
       pCS->iDevSwitchVideoProfileUsingQAButton = -1;  
       save_ControllerSettings();
 
-      loadModelsSpectator();
-      loadModels();
-
-      for( int i=0; i<getModelsCount(); i++ )
+      for( int i=0; i<getControllerModelsCount(); i++ )
       {
          Model* pModel = getModelAtIndex(i);
          if ( NULL == pModel )
@@ -152,9 +379,9 @@ void do_update_to_73()
             pModel->radioInterfacesParams.interface_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
       }
 
-      for( int i=0; i<getModelsSpectatorCount(); i++ )
+      for( int i=0; i<getControllerModelsSpectatorCount(); i++ )
       {
-         Model* pModel = getModelSpectator(i);
+         Model* pModel = getSpectatorModel(i);
          if ( NULL == pModel )
             continue;
 
@@ -163,17 +390,16 @@ void do_update_to_73()
          for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
             pModel->radioInterfacesParams.interface_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
       }
-      saveModels();
-      saveModelsSpectator();
 
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
-         return;
-      for( int k=0; k<model.radioLinksParams.links_count; k++ )
-         model.radioLinksParams.link_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
-      for( int k=0; k<model.radioInterfacesParams.interfaces_count; k++ )
-         model.radioInterfacesParams.interface_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
+      Model* pModel = getCurrentModel();
+      if ( NULL != pModel )
+      {
+         for( int k=0; k<pModel->radioLinksParams.links_count; k++ )
+            pModel->radioLinksParams.link_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+         for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
+            pModel->radioInterfacesParams.interface_capabilities_flags[k] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+         saveControllerModel(pModel);
+      }
    }
 }
 
@@ -186,27 +412,25 @@ void do_update_to_72()
    {
       hardware_init_serial_ports();
       
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
       //for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-      //   model.osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
+      //   pModel->osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
 
 
-      if ( 0 < model.hardware_info.serial_bus_count )
+      if ( 0 < pModel->hardware_info.serial_bus_count )
       if ( hardware_get_serial_ports_count() > 0 )
       {
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(0);
          if ( NULL != pPortInfo )
          {
-            pPortInfo->lPortSpeed = model.hardware_info.serial_bus_speed[0];
-            pPortInfo->iPortUsage = (int)(model.hardware_info.serial_bus_supported_and_usage[0] & 0xFF);
+            pPortInfo->lPortSpeed = pModel->hardware_info.serial_bus_speed[0];
+            pPortInfo->iPortUsage = (int)(pModel->hardware_info.serial_bus_supported_and_usage[0] & 0xFF);
             hardware_serial_save_configuration();
          }
       }
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
    else
    {
@@ -244,17 +468,15 @@ void do_update_to_71()
  
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
       
-      validate_camera(&model);
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      validate_camera(pModel);
    }
    else
    {
@@ -269,52 +491,51 @@ void do_update_to_70()
  
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
-      model.video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
-      model.video_params.uMaxAutoKeyframeInterval = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
-      model.video_params.uExtraFlags = 0; // Fill in H264 SPS timings
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
+      pModel->video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
+      pModel->video_params.uVideoExtraFlags = 0;
 
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-      model.video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-      model.video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
       
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
       
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         model.video_link_profiles[i].keyframe = DEFAULT_VIDEO_KEYFRAME;
-         model.video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+         pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
       }
-      model.video_link_profiles[VIDEO_PROFILE_MQ].keyframe = DEFAULT_MQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].keyframe = DEFAULT_LQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
 
-      validate_camera(&model);
+      validate_camera(pModel);
 
-      model.populateVehicleSerialPorts();
-      if ( 0 < model.hardware_info.serial_bus_count )
+      pModel->populateVehicleSerialPorts();
+      if ( 0 < pModel->hardware_info.serial_bus_count )
       {
-         model.hardware_info.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-         model.hardware_info.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
-         model.hardware_info.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+         pModel->hardware_info.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
+         pModel->hardware_info.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
+         pModel->hardware_info.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
       }
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
    else
    {
@@ -330,105 +551,98 @@ void do_update_to_69()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
    
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
       {
-         model.osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM; // controller link lost alarm enabled
-         model.osd_params.osd_flags[i] |= OSD_FLAG_SHOW_TIME_LOWER;
-         model.osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_TOP);
-         model.osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_BOTTOM);
-         model.osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_LEFT);
-         model.osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
+         pModel->osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM; // controller link lost alarm enabled
+         pModel->osd_params.osd_flags[i] |= OSD_FLAG_SHOW_TIME_LOWER;
+         pModel->osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_TOP);
+         pModel->osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_BOTTOM);
+         pModel->osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_LEFT);
+         pModel->osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
 
-         model.osd_params.osd_preferences[i] |= ((((u32)2)<<16)<<4); // osd stats background transparency
+         pModel->osd_params.osd_preferences[i] |= ((((u32)2)<<16)<<4); // osd stats background transparency
       }
 
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         model.video_link_profiles[i].width = DEFAULT_VIDEO_WIDTH;
-         model.video_link_profiles[i].height = DEFAULT_VIDEO_HEIGHT;
-         model.video_link_profiles[i].h264profile = 2; // extended
-         model.video_link_profiles[i].h264level = 2;
-         model.video_link_profiles[i].h264refresh = 2;
+         pModel->video_link_profiles[i].width = DEFAULT_VIDEO_WIDTH;
+         pModel->video_link_profiles[i].height = DEFAULT_VIDEO_HEIGHT;
+         pModel->video_link_profiles[i].h264profile = 2; // extended
+         pModel->video_link_profiles[i].h264level = 2;
+         pModel->video_link_profiles[i].h264refresh = 2;
       }
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].keyframe = DEFAULT_LQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    
-      model.video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].keyframe = DEFAULT_MQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].packet_length = DEFAULT_MQ_VIDEO_PACKET_LENGTH;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].packet_length = DEFAULT_MQ_VIDEO_PACKET_LENGTH;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
    
 
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].fps = DEFAULT_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].keyframe = DEFAULT_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].fps = DEFAULT_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
       
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].fps = DEFAULT_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe = DEFAULT_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].fps = DEFAULT_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
       
-      model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      model.video_link_profiles[VIDEO_PROFILE_USER].fps = DEFAULT_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_USER].keyframe = DEFAULT_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-      model.video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-      
-
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags &= (~(u32)0xFF00);
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= (~(u32)0xFF00);
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      model.video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags &= (~(u32)0xFF00);
-      model.video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].fps = DEFAULT_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
       
 
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
-      model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      
 
-      model.video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= (~(u32)0xFF00);
-      model.video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      model.video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= (~(u32)0xFF00);
-      model.video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
-   
-      model.niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-      model.niceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
-      model.ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
-      model.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
-      model.video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
    
-      for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-      {
-         model.radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_USE_LOWEST_DATARATE_FOR_DATA;
-         model.radioLinksParams.link_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_USE_LOWEST_DATARATE_FOR_DATA;
-      }
+      pModel->niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pModel->niceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
+      pModel->ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
+      pModel->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
 
       for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       {
-         model.radioInterfacesParams.interface_datarates[i][0] = 0;
-         model.radioInterfacesParams.interface_datarates[i][1] = 0;
+         pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
+         pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
       }
 
-      model.clock_sync_type = CLOCK_SYNC_TYPE_NONE;
+      pModel->rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
 
-      validate_camera(&model);
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      validate_camera(pModel);
    }
    else
    {
@@ -455,26 +669,24 @@ void do_update_to_68()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       
-      model.video_link_profiles[VIDEO_PROFILE_LQ].keyframe = DEFAULT_LQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
 
-      model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      model.video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      model.video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      model.video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-         model.osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);     
+         pModel->osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
    }
    else
    {
@@ -495,32 +707,31 @@ void do_update_to_67()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
       for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
       {
          for( int k=0; k<MODEL_CAMERA_PROFILES; k++ )
          {
-            model.camera_params[i].profiles[k].exposure = 3; // sports
-            model.camera_params[i].profiles[k].drc = 0; // off
+            pModel->camera_params[i].profiles[k].exposure = 3; // sports
+            pModel->camera_params[i].profiles[k].drc = 0; // off
          }
-         model.camera_params[i].profiles[MODEL_CAMERA_PROFILES-1].exposure = 7; // off for HDMI profile
+         pModel->camera_params[i].profiles[MODEL_CAMERA_PROFILES-1].exposure = 7; // off for HDMI profile
       }   
 
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         model.video_link_profiles[i].keyframe = DEFAULT_VIDEO_KEYFRAME;
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       }
       
-      model.video_link_profiles[VIDEO_PROFILE_MQ].keyframe = DEFAULT_MQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].keyframe = DEFAULT_LQ_VIDEO_KEYFRAME;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);     
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
    }
    else
    {
@@ -535,49 +746,49 @@ void do_update_to_66()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
       {
-         model.osd_params.osd_preferences[i] &= 0xFFFFFF00;
-         model.osd_params.osd_preferences[i] |= ((u32)0x05) | (((u32)2)<<8) | (((u32)3)<<16);
-         model.osd_params.osd_flags2[i] |= OSD_FLAG_EXT_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+         pModel->osd_params.osd_preferences[i] &= 0xFFFFFF00;
+         pModel->osd_params.osd_preferences[i] |= ((u32)0x05) | (((u32)2)<<8) | (((u32)3)<<16);
+         pModel->osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
       }
 
       bool bHasAtheros = false;
-      for( int i=0; i<model.radioInterfacesParams.interfaces_count; i++ )
+      for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( (model.radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+            bHasAtheros = true;
+         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
             bHasAtheros = true;
       }
 
       if ( bHasAtheros )
       {
-         for( int i=0; i<model.radioLinksParams.links_count; i++ )
+         for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
          {
-            if ( model.radioLinksParams.link_datarates[i][0] > 12 )
-               model.radioLinksParams.link_datarates[i][0] = 12;
-            if ( model.radioLinksParams.link_datarates[i][1] > 12 )
-               model.radioLinksParams.link_datarates[i][1] = 12;
+            if ( pModel->radioLinksParams.link_datarate_video_bps[i] > DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS )
+               pModel->radioLinksParams.link_datarate_video_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+            if ( pModel->radioLinksParams.link_datarate_data_bps[i] > DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS )
+               pModel->radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
          }
-         for( int i=0; i<model.radioInterfacesParams.interfaces_count; i++ )
+         for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            model.radioInterfacesParams.interface_datarates[i][0] = 0;
-            model.radioInterfacesParams.interface_datarates[i][1] = 0;
+            pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
+            pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
          }
-         if ( model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
-            model.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
-         if ( model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps > 5000000 )
-            model.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;
-         if ( model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps > 5000000 )
-            model.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = 5000000;
-         if ( model.video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps > 5000000 )
-            model.video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = 5000000;
+         if ( pModel->video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps > 5000000 )
+            pModel->video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps = 5000000;
       }
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);     
    }
    else
    {
@@ -595,32 +806,30 @@ void do_update_to_65()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_PACKET_LENGTH;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         model.video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-         model.video_link_profiles[i].h264profile = 1; // main profile
-         model.video_link_profiles[i].h264level = 1; // 4.1
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+         pModel->video_link_profiles[i].h264profile = 1; // main profile
+         pModel->video_link_profiles[i].h264level = 1; // 4.1
       }
-      model.resetVideoLinkProfiles(VIDEO_PROFILE_MQ);
-      model.resetVideoLinkProfiles(VIDEO_PROFILE_LQ);
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->resetVideoLinkProfiles(VIDEO_PROFILE_MQ);
+      pModel->resetVideoLinkProfiles(VIDEO_PROFILE_LQ);
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
  
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
       {
-         model.osd_params.osd_flags2[i] |= OSD_FLAG_EXT_SHOW_COMPACT_VIDEO_DECODE_STATS;
-         model.osd_params.osd_flags[i] &= (~OSD_FLAG_EXTENDED_VIDEO_DECODE_HISTORY);
+         pModel->osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_COMPACT_VIDEO_DECODE_STATS;
+         pModel->osd_params.osd_flags[i] &= (~OSD_FLAG_EXTENDED_VIDEO_DECODE_STATS);
       }
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
    else
    {
@@ -637,18 +846,16 @@ void do_update_to_64()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-         model.video_link_profiles[i].h264level = 1;
+         pModel->video_link_profiles[i].h264level = 1;
 
       for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
       for( int k=0; k<MODEL_CAMERA_PROFILES; k++ )
-         model.camera_params[i].profiles[k].wdr = 1; // for IMX327
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+         pModel->camera_params[i].profiles[k].wdr = 1; // for IMX327
    }
    else
    {
@@ -663,27 +870,25 @@ void do_update_to_63()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
-      model.resetVideoLinkProfiles();
-      model.video_params.iH264Slices = 1;
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->resetVideoLinkProfiles();
+      pModel->video_params.iH264Slices = 1;
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-         model.video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
 
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
 
-      model.uModelFlags |= MODEL_FLAG_USE_LOGER_SERVICE;
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      pModel->uModelFlags |= MODEL_FLAG_USE_LOGER_SERVICE;
    }
    else
    {
@@ -702,42 +907,40 @@ void do_update_to_62()
 
    if ( s_isVehicle )
    {
-      Model model;
-      if ( ! model.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+      Model* pModel = getCurrentModel();
+      if ( NULL == pModel )
          return;
 
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
       {
-         model.osd_params.osd_preferences[i] &= ~(0xFF0000);
-         model.osd_params.osd_preferences[i] |= ((u32)2)<<16;
+         pModel->osd_params.osd_preferences[i] &= ~(0xFF0000);
+         pModel->osd_params.osd_preferences[i] |= ((u32)2)<<16;
       }
 
       for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-         model.camera_params[k].profiles[i].brightness = 48;
-         model.camera_params[k].profiles[i].contrast = 65;
-         model.camera_params[k].profiles[i].saturation = 80;
-         model.camera_params[k].profiles[i].sharpness = 110; // 100 is zero
+         pModel->camera_params[k].profiles[i].brightness = 48;
+         pModel->camera_params[k].profiles[i].contrast = 65;
+         pModel->camera_params[k].profiles[i].saturation = 80;
+         pModel->camera_params[k].profiles[i].sharpness = 110; // 100 is zero
       }
 
-      model.resetVideoLinkProfiles();
-      model.video_params.iH264Slices = 1;
-      model.video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
+      pModel->resetVideoLinkProfiles();
+      pModel->video_params.iH264Slices = 1;
+      pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-         model.video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+         pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
 
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
 
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-      model.video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
 
-      model.uModelFlags |= MODEL_FLAG_USE_LOGER_SERVICE;
-
-      model.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      pModel->uModelFlags |= MODEL_FLAG_USE_LOGER_SERVICE;
    }
    else
    {
@@ -798,9 +1001,9 @@ int main(int argc, char *argv[])
    else
       log_softerror_and_alarm("Failed to read current version id from file: %s",FILE_CONFIG_CURRENT_VERSION);
  
-   int iMajor = (int)((uCurrentVersion >> 8) & 0xFF);
-   int iMinor = (int)(uCurrentVersion & 0xFF);
-   int iBuild = (int)(uCurrentVersion>>16);
+   iMajor = (int)((uCurrentVersion >> 8) & 0xFF);
+   iMinor = (int)(uCurrentVersion & 0xFF);
+   iBuild = (int)(uCurrentVersion>>16);
    if ( uCurrentVersion == 0 )
    {
       char szVersionPresent[32];
@@ -880,45 +1083,61 @@ int main(int argc, char *argv[])
    hw_execute_bash_command("chown root:root ruby_*", NULL);
    hw_execute_bash_command("cp -rf ruby_update.log /boot/", NULL);
    
-   if ( (iMajor == 6 && iMinor < 2) )
+   loadAllModels();
+
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 2) )
       do_update_to_62();
 
-   if ( (iMajor == 6 && iMinor < 3) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 3) )
       do_update_to_63();
 
-   if ( (iMajor == 6 && iMinor < 4) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 4) )
       do_update_to_64();
 
-   if ( (iMajor == 6 && iMinor < 5) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 5) )
       do_update_to_65();
 
-   if ( (iMajor == 6 && iMinor < 6) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 6) )
       do_update_to_66();
 
-   if ( (iMajor == 6 && iMinor < 7) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor < 7) )
       do_update_to_67();
 
-   if ( (iMajor == 6 && iMinor <= 8) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor <= 8) )
       do_update_to_68();
 
-   if ( (iMajor == 6 && iMinor <= 9) )
+   if ( (iMajor < 6) || (iMajor == 6 && iMinor <= 9) )
       do_update_to_69();
 
    if ( iMajor < 7 )
       do_update_to_70();
 
-   if ( (iMajor == 7 && iMinor <= 1) )
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 1) )
       do_update_to_71();
 
-   if ( (iMajor == 7 && iMinor <= 2) )
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 2) )
       do_update_to_72();
 
-   if ( (iMajor == 7 && iMinor <= 3) )
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 3) )
       do_update_to_73();
 
-   if ( (iMajor == 7 && iMinor <= 4) )
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 4) )
       do_update_to_74();
 
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 5) )
+      do_update_to_75();
+
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 6) )
+      do_update_to_76();
+
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 7) )
+      do_update_to_77();
+
+   if ( (iMajor < 7) || (iMajor == 7 && iMinor <= 8) )
+      do_update_to_78();
+
+   saveCurrentModel();
+   
    log_line("Update finished.");
    hardware_release();
    return (0);

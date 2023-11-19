@@ -25,6 +25,7 @@
 #define FILE_INFO_LAST_UPDATE "ruby_update.log"
 
 #define FILE_FORCE_VEHICLE "/boot/forcevehicle"
+#define FILE_FORCE_VEHICLE_NO_CAMERA "force_no_camera"
 #define FILE_FORCE_ROUTER "/boot/forcerouter"
 #define FILE_FORCE_RESET "/boot/forcereset"
 
@@ -36,13 +37,18 @@
 #define FILE_CONTROLLER_SETTINGS "config/controller_settings.cfg"
 #define FILE_CONTROLLER_INTERFACES "config/controller_interfaces.cfg"
 #define FILE_CONTROLLER_ID "config/controller_id.cfg"
+#define FILE_CONTROLLER_BUTTONS "config/controller_btns.cfg"
+#define FILE_CONTROLLER_OSD_WIDGETS "config/osd_widgets.cfg"
+
 #define FILE_CONFIG_CURRENT_VERSION "config/current_version.inf"
+#define FILE_VEHICLE_SETTINGS "config/vehicle_settings.cfg"
 
 #define FILE_FIRST_BOOT "config/firstboot.txt"
 #define FILE_FIRST_PAIRING_DONE "config/firstpairingdone"
 #define FILE_SYSTEM_TYPE "config/system_type.txt"
 #define FILE_VEHICLE_SPECTATOR "config/models/spect-%d.mdl"
 #define FILE_VEHICLE_CONTROLLER "config/models/ctrl-%d.mdl"
+#define FILE_ACTIVE_CONTROLLER_MODEL "config/active_controller_model.cfg"
 #define FILE_CURRENT_VEHICLE_MODEL "config/current_vehicle.mdl"
 #define FILE_CURRENT_VEHICLE_MODEL_BACKUP "config/current_vehicle.bak"
 #define FILE_CURRENT_VEHICLE_COUNT "config/current_vehicle_count.cfg"
@@ -106,7 +112,7 @@
 #define FILE_TMP_CAMERA_NAME "tmp/cam_name.txt"
 #define FILE_TMP_CURRENT_VIDEO_PARAMS "tmp/current_video_config.txt"
 #define FILE_TMP_SIK_CONFIG_FINISHED "tmp/sik_config_complete.txt"
-
+#define FILE_TMP_AUDIO_RECORDING "tmp/audio.wav"
 
 #define FILE_ID_VEHICLE_LOG 0
 #define FILE_ID_VEHICLE_LOGS_ARCHIVE 1

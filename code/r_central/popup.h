@@ -4,8 +4,8 @@
 #define MAX_POPUPS 20
 #define MAX_POPUP_LINES 30
 
-#define POPUP_MARGINS 0.02
-#define POPUP_ROUND_MARGIN 0.02
+#define POPUP_MARGINS 1.0 // as percentage of current font
+#define POPUP_ROUND_MARGIN 0.03
 #define POPUP_FONT_SIZE 0.021
 #define POPUP_TITLE_SCALE 1.2  // percentage of regular line height
 extern float POPUP_LINE_SPACING;
@@ -29,16 +29,28 @@ class Popup
    int isExpired();
    void resetTimer();
    void setTimeout(float timoutSeconds);
+   float getTimeout();
    void setTitle(const char* szTitle);
    virtual void addLine(const char* szLine);
+   void setLine(int iLine, const char* szLine);
+   char* getLine(int iLine);
+
+   bool hasDisabledAutoRemove();
+   void disableAutoRemove();
+   int getLinesCount();
    void removeLastLine();
    void removeAllLines();
+   void useSmallLines(bool bSmallLines);
    void refresh();
+   bool isRenderBelowMenu();
    void setMaxWidth(float width);
    void setFixedWidth(float width);
+   void setRenderBelowMenu(bool bBelowMenu);
    void setCentered();
+   void setCenteredTexts();
    void setBottomAlign(bool b);
    void setBottomMargin(float dymargin);
+   float getBottomMargin();
    void setCustomPadding(float fPadding);
    void setIconId(u32 idIcon, double* pColor);
    float getRenderHeight();
@@ -48,14 +60,18 @@ class Popup
    float m_yPos;
 
    protected:
+      bool m_bDisableAutoRemove;
       bool m_bInvalidated;
+      bool m_bBelowMenu;
       bool m_bTopmost;
       bool m_bCentered;
+      bool m_bCenterTexts;
       bool m_bBottomAlign;
       bool m_bNoBackground;
+      bool m_bSmallLines;
       u32 m_idFont;
       u32 m_idIcon;
-      double* m_pColorIcon;
+      double m_ColorIcon[4];
       float m_fIconSize;
       float m_fBackgroundAlpha;
       float m_fBottomMargin;
@@ -63,6 +79,8 @@ class Popup
 
       float m_fMaxWidth;
       float m_fFixedWidth;
+      float m_fPaddingX;
+      float m_fPaddingY;
       float m_RenderXPos;
       float m_RenderYPos;
       float m_RenderWidth;
@@ -71,6 +89,7 @@ class Popup
       char* m_szLines[MAX_POPUP_LINES];
       int m_LinesCount;
       float m_fTimeoutSeconds;
+      u32 m_uTimeoutEndTime;
       u32 m_StartTime;
 
       virtual void computeSize();

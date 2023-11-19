@@ -76,6 +76,7 @@ typedef struct
 } t_i2c_device_settings;
 
 
+void hardware_i2c_reset_enumerated_flag();
 void hardware_enumerate_i2c_busses();
 void hardware_recheck_i2c_cameras();
 int hardware_get_i2c_busses_count();

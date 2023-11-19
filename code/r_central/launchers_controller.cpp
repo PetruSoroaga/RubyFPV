@@ -10,12 +10,13 @@ Code written by: Petru Soroaga, 2021-2023
 */
 
 #include "launchers_controller.h"
+#include <pthread.h>
 #include "../base/config.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/commands.h"
 #include "../common/string_utils.h"
 
@@ -26,11 +27,25 @@ char s_szMACControllerTXTelemetry[MAX_MAC_LENGTH];
 char s_szMACControllerTXVideo[MAX_MAC_LENGTH];
 char s_szMACControllerTXCommands[MAX_MAC_LENGTH];
 char s_szMACControllerTXRC[MAX_MAC_LENGTH];
-bool s_bControllerAudioPlayStarted = false;
 
-void controller_launch_router()
+static int s_iCPUCoresCount = 1;
+
+void controller_compute_cpu_info()
 {
-   log_line("Starting controller router");
+   char szOutput[128];
+   hw_execute_bash_command_raw("nproc --all", szOutput);
+   s_iCPUCoresCount = 1;
+   if ( 1 != sscanf(szOutput, "%d", &s_iCPUCoresCount) )
+   {
+      log_softerror_and_alarm("Failed to get CPU cores count. Default to 1 core.");
+      return;    
+   }
+   log_line("Detected CPU with %d cores.", s_iCPUCoresCount);
+}
+
+void controller_launch_router(bool bSearchMode)
+{
+   log_line("Starting controller router (%s)", bSearchMode?"in search mode":"in normal mode");
    if ( hw_process_exists("ruby_rt_station") )
    {
       log_line("Controller router process already running. Do nothing.");
@@ -42,13 +57,22 @@ void controller_launch_router()
 
    if ( NULL == pcs )
       log_line("NNN");
-   if ( g_bSearching )
-      sprintf(szComm, "nice -n %d ./ruby_rt_station -search %d &", pcs->iNiceRouter, g_iSearchFrequency);
-   else if ( pcs->ioNiceRouter > 0 )
-      sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_rt_station &", pcs->ioNiceRouter, pcs->iNiceRouter);
+   if ( bSearchMode )
+   {
+      if ( g_iSearchSiKAirDataRate >= 0 )
+         sprintf(szComm, "nice -n %d ./ruby_rt_station -search %d -sik %d %d %d %d &",
+             pcs->iNiceRouter, g_iSearchFrequency,
+             g_iSearchSiKAirDataRate, g_iSearchSiKECC, g_iSearchSiKLBT, g_iSearchSiKMCSTR);
+      else
+         sprintf(szComm, "nice -n %d ./ruby_rt_station -search %d &", pcs->iNiceRouter, g_iSearchFrequency);
+   }
    else
-      sprintf(szComm, "nice -n %d ./ruby_rt_station &", pcs->iNiceRouter);
-
+   {
+      if ( pcs->ioNiceRouter > 0 )
+         sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_rt_station &", pcs->ioNiceRouter, pcs->iNiceRouter);
+      else
+         sprintf(szComm, "nice -n %d ./ruby_rt_station &", pcs->iNiceRouter);
+   }
    hw_execute_bash_command(szComm, NULL);
 
    hw_set_proc_priority( "ruby_rt_station", pcs->iNiceRouter, pcs->ioNiceRouter, 1);
@@ -144,15 +168,38 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
    {
       bool bDuplicate = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count-1; i++ )
-      for( int k=i+1; k<pModel->radioInterfacesParams.interfaces_count; k++ )
-         if ( (NULL != pVehicleNICFlags) && (!(pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED)) )
-         if ( (NULL != pVehicleNICFlags) && (!(pVehicleNICFlags[k] & RADIO_HW_CAPABILITY_FLAG_DISABLED)) )
-         if ( pVehicleNICFreq[i] == pVehicleNICFreq[k] )
+      {
+         for( int k=i+1; k<pModel->radioInterfacesParams.interfaces_count; k++ )
          {
-            bDuplicate = true;
-            sprintf(s_szControllerCardError, s_szControllerCardErrorFrequency, str_format_frequency(pVehicleNICFreq[i]));
-            return s_szControllerCardError;
+            if ( NULL == pVehicleNICFlags )
+               continue;
+            if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+               continue;
+            if ( pVehicleNICFlags[k] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+               continue;
+
+            u32 uFreq1 = pVehicleNICFreq[i];
+            u32 uFreq2 = pVehicleNICFreq[k];
+
+            if ( uFreq1 == uFreq2 )
+            {
+               bDuplicate = true;
+               sprintf(s_szControllerCardError, s_szControllerCardErrorFrequency, str_format_frequency(uFreq1));
+               return s_szControllerCardError;
+            }
+            
+            if ( pModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+            if ( pModel->relay_params.uRelayedVehicleId != 0 )
+            if ( pModel->relay_params.uRelayedVehicleId != MAX_U32 )
+            if ( pModel->relay_params.uRelayFrequencyKhz != 0 )
+            if ( uFreq1 == pModel->relay_params.uRelayFrequencyKhz )
+            {
+               bDuplicate = true;
+               sprintf(s_szControllerCardError, "You can't set frequency %s, it's used for relaying.", str_format_frequency(uFreq1));
+               return s_szControllerCardError;
+            }        
          }
+      }
    }
    
 
@@ -182,7 +229,7 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
          if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
             continue;
          if ( NULL != pModel )
-         if ( (pModel->sw_version>>16) >= 45 )
+         if ( (pModel->sw_version>>16) >= 79 )
          if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
             continue;
          //if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
@@ -198,55 +245,6 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
    }
 
    return NULL;
-}
-
-void controller_start_audio(Model* pModel)
-{
-   if ( g_bSearching )
-   {
-      log_line("Audio not started, is in search mode.");
-      s_bControllerAudioPlayStarted = false;
-      return;
-   }
-   if ( NULL == pModel || (!pModel->audio_params.enabled) )
-   {
-      log_line("Audio is disabled on current vehicle.");
-      s_bControllerAudioPlayStarted = false;
-      return;
-   }
-   if ( NULL == pModel || (! pModel->audio_params.has_audio_device) )
-   {
-      log_line("No audio capture device on current vehicle.");
-      s_bControllerAudioPlayStarted = false;
-      return;
-   }
-
-   if ( hw_process_exists("aplay") )
-   {
-      log_line("Audio aplay process already running. Do nothing.");
-      return;
-   }
-
-   char szComm[256];
-   char szOutput[4096];
-
-   hw_execute_bash_command_raw("aplay -l 2>&1", szOutput );
-   if ( 0 == szOutput[0] || NULL != strstr(szOutput, "no soundcards") || NULL != strstr(szOutput, "no sound") )
-   {
-      log_softerror_and_alarm("No output audio devices/soundcards on the controller. Audio output is disabled.");
-      s_bControllerAudioPlayStarted = false;
-      return;
-   }
-   sprintf(szComm, "aplay -c 1 --rate 44100 --format S16_LE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
-   hw_execute_bash_command(szComm, NULL);
-   s_bControllerAudioPlayStarted = true;
-}
-
-void controller_stop_audio()
-{
-   if ( s_bControllerAudioPlayStarted )
-      hw_stop_process("aplay");
-   s_bControllerAudioPlayStarted = false;
 }
 
 
@@ -293,9 +291,6 @@ void controller_wait_for_stop_all()
 {
    log_line("Waiting for all pairing processes to stop...");
 
-   if ( ! _controller_wait_for_stop_process("aplay") )
-      log_softerror_and_alarm("Failed to wait for stopping: aplay");
-
    if ( ! _controller_wait_for_stop_process("ruby_rx_telemetry") )
       log_softerror_and_alarm("Failed to wait for stopping: ruby_rx_telemetry");
 
@@ -309,38 +304,41 @@ void controller_wait_for_stop_all()
    hardware_sleep_ms(200);
 }
 
-
-void controller_check_update_processes_affinities()
+static void * _thread_adjust_affinities(void *argument)
 {
-   char szOutput[128];
-
-   hw_execute_bash_command_raw("nproc --all", szOutput);
-   int iCores = 0;
-   if ( 1 != sscanf(szOutput, "%d", &iCores) )
-   {
-      log_softerror_and_alarm("Failed to get CPU cores count. No affinity adjustments for processes to be done.");
-      return;    
-   }
-
-   if ( iCores < 2 || iCores > 32 )
-   {
-      log_line("Single core CPU, no affinity adjustments for processes to be done.");
-      return;
-   }
-   log_line("%d CPU cores, doing affinity adjustments for processes...", iCores);
-
-   if ( iCores > 2 )
+   log_line("Started background thread to adjust processes affinities...");
+   if ( s_iCPUCoresCount > 2 )
    {
       hw_set_proc_affinity("ruby_rt_station", 1,1);
       hw_set_proc_affinity("ruby_central", 2,2);
       hw_set_proc_affinity("ruby_rx_telemetry", 3, 3);
       hw_set_proc_affinity("ruby_tx_rc", 3, 3);
-      hw_set_proc_affinity("ruby_player_p", 3, iCores);
+      hw_set_proc_affinity("ruby_player_p", 3, s_iCPUCoresCount);
 
    }
    else
    {
       hw_set_proc_affinity("ruby_rt_station", 1,1);
       hw_set_proc_affinity("ruby_central", 2,2); 
+   }
+   log_line("Background thread to adjust processes affinities completed.");
+   return NULL;
+}
+
+void controller_check_update_processes_affinities()
+{
+   if ( (s_iCPUCoresCount < 2) || (s_iCPUCoresCount > 32) )
+   {
+      log_line("Single core CPU (%d), no affinity adjustments for processes to be done.", s_iCPUCoresCount);
+      return;
+   }
+   log_line("%d CPU cores, doing affinity adjustments for processes...", s_iCPUCoresCount);
+
+   pthread_t pThreadBg;
+
+   if ( 0 != pthread_create(&pThreadBg, NULL, &_thread_adjust_affinities, NULL) )
+   {
+      log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
+      return;
    }
 }

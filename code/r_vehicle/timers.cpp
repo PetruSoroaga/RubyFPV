@@ -5,7 +5,6 @@
 u32 g_TimeNow = 0;
 u32 g_TimeStart = 0;
 u32 g_TimeLastPeriodicCheck = 0;
-u32 g_TimeLastPipesCheck = 0;
 
 // Vehicle
 
@@ -33,15 +32,20 @@ u32 g_TimeLastReceivedRadioPacketFromController = 0;
 u32 g_TimeLastVideoBlockSent = 0;
 u32 g_TimeLastDebugFPSComputeTime = 0;
 u32 g_TimeLastLiveLogCheck = 0;
-u32 g_TimeLastRadioLinkFlagsChange = 0;
+u32 g_TimeLastSetRadioLinkFlagsStartOperation = 0;
 u32 g_TimeRadioReinitialized = 0;
 u32 g_TimeLastPacketsOutPerSecCalculation = 0;
 
-u32 g_TimeLastVideoCaptureProgramCheck = 0;
+u32 g_TimeToRestartVideoCapture = 0;
+
+u32 g_TimeLastVideoCaptureProgramStartCheck = 0;
+u32 g_TimeLastVideoCaptureProgramRunningCheck = 0;
 u32 g_TimeStartRaspiVid = 0;
-u32 g_TXMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
+u32 g_InterfacesTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
+u32 g_InterfacesVideoTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
 u32 g_TimeLastOverwriteBitrateDownOnTxOverload = 0;
 u32 g_TimeLastOverwriteBitrateUpOnTxOverload = 0;
+u32 g_TimeLastVideoProfileChanged = 0;
 
 u32 g_TimeLastSetRadioFlagsCommandReceived = 0;
 u32 g_TimeLastHistoryTxComputation = 0;
@@ -50,5 +54,5 @@ u32 g_TimeLastVideoPacketIn = 0;
 u32 g_TimeLastNotificationRelayParamsChanged = 0;
 
 u32 g_uTimeLastCommandSowftwareUpload = 0;
-u32 g_uTimeStartSiKConfigCommand = 0;
 
+u32 g_uTimeLastVideoTxOverload = 0;

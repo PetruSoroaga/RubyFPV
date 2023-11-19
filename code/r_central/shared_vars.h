@@ -3,8 +3,10 @@
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopackets_rc.h"
 #include "../base/shared_mem.h"
+#include "../base/shared_mem_controller_only.h"
 #include "../base/shared_mem_i2c.h"
 #include "../base/models.h"
+#include "../base/models_list.h"
 #include "../base/commands.h"
 #include "../base/core_plugins_settings.h"
 #include "../renderer/render_engine.h"
@@ -29,16 +31,7 @@ extern int g_iBootCount;
 
 extern RenderEngine* g_pRenderEngine;
 extern RenderEngineUI* g_pRenderEngineOSDPlugins;
-extern u32 g_idFontOSD;
-extern u32 g_idFontOSDBig;
-extern u32 g_idFontOSDSmall;
-extern u32 g_idFontOSDExtraSmall;
-extern u32 g_idFontOSDWarnings;
-extern u32 g_idFontStats;
-extern u32 g_idFontStatsSmall;
-extern u32 g_idFontMenu;
-extern u32 g_idFontMenuSmall;
-extern u32 g_idFontMenuLarge;
+
 
 
 extern u32 g_uVideoRecordStartTime;
@@ -55,18 +48,20 @@ extern int g_ControllerTemp;
 extern PopupCameraParams* g_pPopupCameraParams;
 extern Popup* g_pPopupLooking;
 extern Popup* g_pPopupWrongModel;
+extern Popup* g_pPopupLinkLost;
 
 extern bool g_bToglleOSDOff;
 extern bool g_bToglleStatsOff;
 extern bool g_bToglleAllOSDOff;
+extern bool g_bFreezeOSD;
 
 extern bool g_bIsRouterPacketsHistoryGraphOn;
 extern bool g_bIsRouterPacketsHistoryGraphPaused;
 
 extern bool g_bMenuPopupUpdateVehicleShown;
-extern int  g_PendingRadioFlagsConfirmationLinkId;
 extern type_radio_links_parameters g_LastGoodRadioLinksParams;
 
+extern bool g_bSwitchingRadioLink;
 
 extern bool g_bHasVideoDataOverloadAlarm;
 extern bool g_bHasVideoTxOverloadAlarm;

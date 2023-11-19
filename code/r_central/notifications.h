@@ -1,12 +1,12 @@
 #pragma once
 #include "../base/base.h"
 
-void notification_add_armed();
-void notification_add_disarmed();
-void notification_add_flight_mode(u32 flightMode);
+void notification_add_armed(u32 uVehicleId);
+void notification_add_disarmed(u32 uVehicleId);
+void notification_add_flight_mode(u32 uVehicleId, u32 flightMode);
 
-void notification_add_rc_failsafe();
-void notification_add_rc_failsafe_cleared();
+void notification_add_rc_failsafe(u32 uVehicleId);
+void notification_add_rc_failsafe_cleared(u32 uVehicleId);
 
 void notification_add_model_deleted();
 

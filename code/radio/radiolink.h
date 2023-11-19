@@ -38,14 +38,17 @@ extern "C" {
 #endif  
 
 void radio_init_link_structures();
+void radio_link_cleanup();
 void radio_enable_crc_gen(int enable);
 void radio_set_debug_flag();
-int radio_set_out_datarate(int rate); // positive: classic, negative: MCS; returns 1 if it was changed
+int radio_set_out_datarate(int rate_bps); // positive: classic in bps, negative: MCS; returns 1 if it was changed
 void radio_set_frames_flags(u32 frameFlags); // frame type, MSC Flags
 u32 radio_get_received_frames_type();
 
-u8 radio_get_next_short_packet_index();
+void radio_reset_packets_default_frequencies(int iRCEnabled);
 int radio_can_send_packet_on_slow_link(int iLinkId, int iPacketType, int iFromController, u32 uTimeNow);
+int radio_get_last_second_sent_bps_for_radio_interface(int iInterfaceIndex, u32 uTimeNow);
+int radio_get_last_500ms_sent_bps_for_radio_interface(int iInterfaceIndex, u32 uTimeNow);
 
 // Tells caller if a radio interface is broken (maybe unplugged)
 int radio_interfaces_broken();
@@ -63,9 +66,10 @@ int radio_get_last_read_error_code();
 int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLength, int* pbCRCOk);
 int get_last_processing_error_code();
 
-int radio_build_packet(u8* pRawPacket, u8* pPacketData, int nInputLength, int portNb, int bEncrypt, int iExtraData, u8* pExtraData);
-int radio_write_packet(int interfaceIndex, u8* pData, int dataLength);
-int radio_write_sik_packet(int interfaceIndex, u8* pData, int dataLength);
+u32 radio_get_next_radio_link_packet_index(int iLocalRadioLinkId);
+int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacketData, int nInputLength, int portNb, int bEncrypt, int iExtraData, u8* pExtraData);
+int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength);
+int radio_write_sik_packet(int interfaceIndex, u8* pData, int dataLength, u32 uTimeNow);
 
 #ifdef __cplusplus
 }  

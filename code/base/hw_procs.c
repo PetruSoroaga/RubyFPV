@@ -10,7 +10,7 @@
 
 int hw_process_exists(const char* szProcName)
 {
-   char szComm[1024];
+   char szComm[128];
    char szPids[1024];
 
    if ( NULL == szProcName || 0 == szProcName[0] )
@@ -21,6 +21,21 @@ int hw_process_exists(const char* szProcName)
    if ( strlen(szPids) > 2 )
       return 1;
    return 0;
+}
+
+char* hw_process_get_pid(const char* szProcName)
+{
+   static char s_szHWProcessPIDs[256];
+
+   s_szHWProcessPIDs[0] = 0;
+
+   if ( NULL == szProcName || 0 == szProcName[0] )
+      return s_szHWProcessPIDs;
+
+   char szComm[128];
+   sprintf(szComm, "pidof %s", szProcName);
+   hw_execute_bash_command_silent(szComm, s_szHWProcessPIDs);
+   return s_szHWProcessPIDs;
 }
 
 void hw_stop_process(const char* szProcName)
@@ -277,6 +292,13 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
 
 void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
 {
+   if ( NULL == szProgName || 0 == szProgName[0] )
+   {
+      log_softerror_and_alarm("Tried to adjus affinity for NULL process");
+      return;
+   }
+   log_line("Adjusting affinity for process [%s]...", szProgName);
+
    char szComm[128];
    char szOutput[256];
    sprintf(szComm, "pidof %s", szProgName);
@@ -294,7 +316,7 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
       return;
    }
 
-   sprintf(szComm, "ls /proc/%d/task", iPID);
+   sprintf(szComm, "ls /proc/%d/task 2>/dev/null", iPID);
    hw_execute_bash_command_raw_silent(szComm, szOutput);
    
    if ( strlen(szOutput) < 3 )
@@ -329,7 +351,7 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
        // Set affinity
        if ( iCoreStart == iCoreEnd )
        {
-          sprintf(szComm, "taskset -cp %d %d", iCoreStart-1, iTask);
+          sprintf(szComm, "taskset -cp %d %d 2>/dev/null", iCoreStart-1, iTask);
           hw_execute_bash_command(szComm, NULL);
        }
        else
@@ -345,6 +367,8 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
           pTmp++;
    }
    while(*pTmp);
+
+   log_line("Done adjusting affinity for process [%s].", szProgName);
 }
 
 

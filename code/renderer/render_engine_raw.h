@@ -56,7 +56,7 @@ class RenderEngineRaw: public RenderEngine
      virtual void setFontColor(u32 fontId, double* color);
      virtual void setFontBackgroundBoundingBoxFillColor(double* color);
 
-     virtual u32 loadFont(const char* szFontFile);
+     virtual int loadFont(const char* szFontFile);
      virtual void freeFont(u32 idFont);
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
@@ -72,20 +72,16 @@ class RenderEngineRaw: public RenderEngine
 
      virtual float getFontHeight(u32 fontId);
      virtual float textHeight(u32 fontId);
-     virtual float textHeight(float fTextHeight, u32 fontId);
-     virtual float textWidth(float fTextHeight, u32 fontId, const char* szText);
-     virtual float textHeightScaled(float fTextHeight, u32 fontId, float fScale);
-     virtual float textWidthScaled(float fTextHeight, u32 fontId, float fScale, const char* szText);
+     virtual float textWidth(u32 fontId, const char* szText);
+     virtual float textHeightScaled(u32 fontId, float fScale);
+     virtual float textWidthScaled(u32 fontId, float fScale, const char* szText);
      virtual void drawText(float xPos, float yPos, u32 fontId, const char* szText);
-     virtual void drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawTextNoOutline(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
+     virtual void drawTextNoOutline(float xPos, float yPos, u32 fontId, const char* szText);
      virtual void drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText);
-     virtual void drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawTextScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText);
-     virtual void drawTextLeftScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText);
+     virtual void drawTextScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
+     virtual void drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
      virtual float getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
+     virtual float drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId);
 
      virtual void drawLine(float x1, float y1, float x2, float y2);
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);
@@ -101,10 +97,12 @@ class RenderEngineRaw: public RenderEngine
    protected:
       int _getFontIndexFromId(u32 fontId);
       RenderEngineRawFont* _getFontFromId(u32 fontId);
+      float _get_space_width(RenderEngineRawFont* pFont);
+      float _get_char_width(RenderEngineRawFont* pFont, int ch);
       void _buildMipImage(struct _fbg_img* pSrc, struct _fbg_img* pDest);
 
-      void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, int x, int y);
-      void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, int x, int y, float fScale);
+      void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
+      void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
 
       struct _fbg* m_pFBG;
 

@@ -5,27 +5,6 @@
 #include "hardware_i2c.h"
 #include "hardware_serial.h"
 
-// Buttons are pull down. 0 logic is taking them down to 0v. 1 logic is taking them to 3.3v
-
-#define GPIO_PIN_MENU 23
-#define GPIO_PIN_BACK 24
-#define GPIO_PIN_PLUS 22
-#define GPIO_PIN_MINUS 27
-
-#define GPIO_PIN_QACTION1 17
-#define GPIO_PIN_QACTION2 4
-#define GPIO_PIN_QACTION2_2 25
-#define GPIO_PIN_QACTION3 18
-#define GPIO_PIN_QACTIONPLUS 16
-#define GPIO_PIN_QACTIONMINUS 20
-
-
-#define GPIO_PIN_DETECT_TYPE 19
-
-#define GPIO_PIN_LED_ERROR 5
-#define GPIO_PIN_RECORDING_LED 21
-#define GPIO_PIN_BUZZER 26
-
 
 #define WIFI_TYPE_NONE 0
 #define WIFI_TYPE_A 1 // per bits
@@ -128,15 +107,21 @@ void hardware_blockCurrentPressedKeys();
 
 int hardware_try_mount_usb();
 void hardware_unmount_usb();
+char* hardware_get_mounted_usb_name();
 
 int hardware_detectSystemType();
 int hardware_is_station();
 int hardware_is_vehicle();
+
+u32 _hardware_detect_camera_type();
 int hardware_hasCamera();
+int hardware_getVeyeCameraDevId();
+int hardware_getVeyeCameraHWVer();
 int hardware_isCameraVeye();
 int hardware_isCameraVeye307();
 int hardware_isCameraHDMI();
 u32 hardware_getCameraType();
+int hardware_getCameraI2CBus();
 
 
 int hardware_sleep_ms(u32 miliSeconds);
@@ -153,6 +138,8 @@ int hardware_has_eth();
 
 int hardware_get_cpu_speed(); // in Mhz
 int hardware_get_gpu_speed(); // in Mhz
+
+int hardware_set_audio_output(int iAudioDevice, int iAudioVolume);
 
 #ifdef __cplusplus
 }  

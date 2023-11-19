@@ -1,0 +1,7 @@
+echo "Mounting file systems..."
+mount -o remount,rw /
+mount -o remount,rw /boot
+echo "Launching..."
+cd /home/pi/ruby
+./ruby_start
+echo "Launch done."

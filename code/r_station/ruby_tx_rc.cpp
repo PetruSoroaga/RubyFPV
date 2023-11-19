@@ -31,11 +31,12 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/shared_mem.h"
 #include "../base/shared_mem_i2c.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/models_list.h"
 #include "../base/hw_procs.h"
 #include "../base/utils.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
+#include "../base/controller_utils.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
 
@@ -52,6 +53,7 @@ bool g_bSearching = false;
 bool g_bQuit = false;
 bool g_bUpdateInProgress = false;
 
+u32 g_uControllerId = 0;
 u32 g_iFPSFramesCount = 0;
 int g_iFPSMaxJoystickEvents = 0;
 int g_iFPSTotalJoystickEvents = 0;
@@ -161,7 +163,7 @@ void try_read_pipes()
    {
       maxMsgToRead--;
       t_packet_header* pPH = (t_packet_header*)&s_BufferRCDownlink[0];
-      if ( ! packet_check_crc(s_BufferRCDownlink, pPH->total_length) )
+      if ( ! radio_packet_check_crc(s_BufferRCDownlink, pPH->total_length) )
       {
          continue;
       }
@@ -172,13 +174,14 @@ void try_read_pipes()
             if ( pPH->vehicle_id_src != PACKET_COMPONENT_RC )
             {
                log_line("Received message to reload model.");
-               if ( NULL == g_pCurrentModel )
-                  g_pCurrentModel = new Model();
-               if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true ) )
+               reloadCurrentModel();
+               u8 uChangeType = (pPH->vehicle_id_src >> 8) & 0xFF;
+               if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
                {
-                  log_line("Failed to load model. RC becomes inactive");
-                  g_pCurrentModel = NULL;
+                  g_pCurrentModel->b_mustSyncFromVehicle = false;
+                  log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
                }
+               
                if ( NULL != g_pCurrentModel )
                {
                   int miliSecInterval = 1000/g_pCurrentModel->rc_params.rc_frames_per_second;
@@ -256,12 +259,8 @@ int main (int argc, char *argv[])
    if ( g_bDebug )
       log_enable_stdout();
   
-   g_pCurrentModel = new Model();
-   if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL) )
-   {
-      log_error_and_alarm("Can't load current model vehicle.");
-      g_pCurrentModel = NULL;
-   }
+   loadAllModels();
+   g_pCurrentModel = getCurrentModel();
 
    if ( NULL != g_pCurrentModel )
       hw_set_priority_current_proc(g_pCurrentModel->niceRC); 
@@ -301,6 +300,8 @@ int main (int argc, char *argv[])
 
    if ( ! g_bSearching )
       controllerInterfacesEnumJoysticks();
+
+   g_uControllerId = controller_utils_getControllerId();
 
    log_line("Started all ok. Running now.");
    log_line("--------------------------------");
@@ -425,19 +426,14 @@ int main (int argc, char *argv[])
       if ( NULL != s_pPHRCFUpstream )
          memcpy(s_pPHRCFUpstream, &g_PHRCFUpstream, sizeof(t_packet_header_rc_full_frame_upstream) );
 
-      gPH.extra_flags = 0;
-      gPH.packet_flags = PACKET_COMPONENT_RC;
-      gPH.packet_type =  PACKET_TYPE_RC_FULL_FRAME;
-      gPH.stream_packet_idx = (STREAM_ID_DATA) << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      gPH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      radio_packet_init(&gPH, PACKET_COMPONENT_RC, PACKET_TYPE_RC_FULL_FRAME, STREAM_ID_DATA);
+      gPH.vehicle_id_src = g_uControllerId;
       gPH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
-      gPH.total_headers_length = sizeof(t_packet_header)+sizeof(t_packet_header_rc_full_frame_upstream);
-      gPH.total_length = gPH.total_headers_length;
+      gPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_rc_full_frame_upstream);
       
       u8 buffer[MAX_PACKET_TOTAL_SIZE];
       memcpy(buffer, &gPH, sizeof(t_packet_header));
       memcpy(buffer+sizeof(t_packet_header), (u8*)&g_PHRCFUpstream, sizeof(t_packet_header_rc_full_frame_upstream));
-      packet_compute_crc(buffer, gPH.total_length);
       ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, gPH.total_length);
       //log_line("sending rc frame index: %d", g_PHRCFUpstream.rc_frame_index);
 

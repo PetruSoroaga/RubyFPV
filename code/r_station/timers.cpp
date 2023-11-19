@@ -6,8 +6,6 @@ u32 g_TimeNow = 0;
 u32 g_TimeStart = 0;
 u32 g_TimeNowMicros = 0;
 u32 g_TimeLastPeriodicCheck = 0;
-u32 g_TimeLastPipesCheck = 0;
-
 
 // RC Tx
 u32 g_TimeLastFPSCalculation = 0;
@@ -15,9 +13,6 @@ u32 g_TimeLastJoystickCheck = 0;
 u32 g_TimeLastRCFrameSent = 0;
 
 // Router
-
-u32 g_uLastPingSendTimeMicroSec = 0;
-u32 g_uLastReceivedPingResponseTime = 0;
 u32 g_uTimeLastReceivedResponseToAMessage = 0;
 u32 g_TimeLastControllerLinkStatsSent = 0;
 

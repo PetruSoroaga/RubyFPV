@@ -12,6 +12,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "colors.h"
 #include "../base/base.h"
 #include "../base/config.h"
+#include "../base/ctrl_preferences.h"
+
 
 double COLOR_DEV[4] = { 170,220,255,0.9 };
 
@@ -54,6 +56,9 @@ double COLOR_OSD_INV_TEXT[4] = { 3,3,3,0.98 };
 double COLOR_OSD_INV_TEXT_OUTLINE[4] = { 55,55,55,0.2 };
 double COLOR_OSD_INV_HIGH_WARNING[4] = {255,0,0,0.9};
 
+double COLOR_OSD_CHANED_VALUE[4] = { 120,180,120, 0.95 };
+double COLOR_OSD_CHANED_VALUE_INV[4] = { 180,250,180, 0.95 };
+
 double* get_Color_Dev()
 {
    return COLOR_DEV;
@@ -94,6 +99,15 @@ double* get_Color_OSDWarning()
       return COLOR_OSD_INV_HIGH_WARNING;
    else
       return COLOR_OSD_HIGH_WARNING;
+}
+
+double* get_Color_OSDChangedValue()
+{
+   Preferences* p = get_Preferences();
+   if ( p->iInvertColorsOSD )
+      return COLOR_OSD_CHANED_VALUE_INV;
+   else
+      return COLOR_OSD_CHANED_VALUE;
 }
 
 double* get_Color_PopupBg()

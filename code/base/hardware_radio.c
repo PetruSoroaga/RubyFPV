@@ -53,8 +53,8 @@ void hardware_log_radio_info()
    log_line("");
    for( int i=0; i<s_iHwRadiosCount; i++ )
    {
-      log_line("* RadioInterface %d: %s MAC:%s phy#%d, supported: %s, USBPort: %s now at %s;", i+1, sRadioInfo[i].szName, sRadioInfo[i].szMAC, sRadioInfo[i].phy_index, sRadioInfo[i].isSupported?"yes":"no", sRadioInfo[i].szUSBPort, str_format_frequency(sRadioInfo[i].uCurrentFrequency));
-      sprintf( szBuff, "   Type: %s, %s, pid/vid: %s driver: %s, bands: ", str_get_radio_card_model_string(sRadioInfo[i].iCardModel), sRadioInfo[i].szDescription, sRadioInfo[i].szProductId, sRadioInfo[i].szDriver);
+      log_line("* RadioInterface %d: %s MAC:%s phy#%d, supported: %s, USBPort: %s now at %s;", i+1, sRadioInfo[i].szName, sRadioInfo[i].szMAC, sRadioInfo[i].phy_index, sRadioInfo[i].isSupported?"yes":"no", sRadioInfo[i].szUSBPort, str_format_frequency(sRadioInfo[i].uCurrentFrequencyKhz));
+      sprintf( szBuff, "   Type: %s, %s, pid/vid: %s driver: %s, ", str_get_radio_card_model_string(sRadioInfo[i].iCardModel), sRadioInfo[i].szDescription, sRadioInfo[i].szProductId, sRadioInfo[i].szDriver);
       
       char szBands[128];
       str_get_supported_bands_string(sRadioInfo[i].supportedBands, szBands);
@@ -152,6 +152,16 @@ int hardware_load_radio_info()
          sRadioInfo[i].monitor_interface_read.nPort = 0;
          sRadioInfo[i].monitor_interface_write.ppcap = NULL;
          sRadioInfo[i].monitor_interface_write.selectable_fd = -1;
+
+         if ( (sRadioInfo[i].supportedBands & RADIO_HW_SUPPORTED_BAND_433) ||
+              (sRadioInfo[i].supportedBands & RADIO_HW_SUPPORTED_BAND_868) ||
+              (sRadioInfo[i].supportedBands & RADIO_HW_SUPPORTED_BAND_915) )
+         if ( sRadioInfo[i].isHighCapacityInterface )
+         {
+            log_line("Hardware: Removed invalid high capacity flag from radio interface %d (%s, %s)",
+               i+1, sRadioInfo[i].szName, sRadioInfo[i].szDriver);
+            sRadioInfo[i].isHighCapacityInterface = 0;
+         }
       }
 
       log_line("Loaded radio HW info file.");
@@ -193,12 +203,17 @@ void _hardware_detect_card_model(int iIndex)
    if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/8812" ) )
        sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACH;
 
+   if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/8811" ) )
+       sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACS;
+
    if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "2604/12" ) )
        sRadioInfo[iIndex].iCardModel = CARD_MODEL_TENDA_U12;
 
    if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "2357/120" ) )
        sRadioInfo[iIndex].iCardModel = CARD_MODEL_ARCHER_T2UPLUS;
 
+   if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/8813" ) )
+       sRadioInfo[iIndex].iCardModel = CARD_MODEL_RTL8814AU;
 }
 
 void _hardware_assign_usb_from_physical_ports()
@@ -550,10 +565,12 @@ int _hardware_enumerate_wifi_radios()
       sRadioInfo[s_iHwRadiosCount].isEnabled = 1;
       sRadioInfo[s_iHwRadiosCount].isTxCapable = 1;
       sRadioInfo[s_iHwRadiosCount].isHighCapacityInterface = 1;
-      sRadioInfo[s_iHwRadiosCount].uCurrentFrequency = 0;
+      sRadioInfo[s_iHwRadiosCount].iCurrentDataRate = 0;
+      sRadioInfo[s_iHwRadiosCount].uCurrentFrequencyKhz = 0;
       sRadioInfo[s_iHwRadiosCount].lastFrequencySetFailed = 0;
-      sRadioInfo[s_iHwRadiosCount].failedFrequency = 0;
+      sRadioInfo[s_iHwRadiosCount].uFailedFrequencyKhz = 0;
       sRadioInfo[s_iHwRadiosCount].phy_index = 0;
+      sRadioInfo[s_iHwRadiosCount].uExtraFlags = 0;
       sRadioInfo[s_iHwRadiosCount].supportedBands = 0;
       sRadioInfo[s_iHwRadiosCount].szDescription[0] = 0;
       sRadioInfo[s_iHwRadiosCount].szProductId[0] = 0;
@@ -739,6 +756,7 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
          if ( hardware_load_radio_info() )
          {
             s_HardwareRadiosEnumeratedOnce = 1;
+            hardware_radio_sik_load_configuration();
             return 1;
          }
       }
@@ -847,6 +865,16 @@ const char* hardware_get_radio_description(int iRadioIndex)
    return sRadioInfo[iRadioIndex].szDescription;
 }
 
+int hardware_radio_has_low_capacity_links()
+{
+   if ( ! s_HardwareRadiosEnumeratedOnce )
+      hardware_enumerate_radio_interfaces();
+   for( int i=0; i<s_iHwRadiosCount; i++ )
+      if ( ! sRadioInfo[i].isHighCapacityInterface )
+         return 1;
+   return 0;
+}
+
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
 {
@@ -863,13 +891,13 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
    return 0;
 }
 
-int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freq)
+int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freqKhz)
 {
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
    if ( iRadioIndex < 0 || iRadioIndex >= s_iHwRadiosCount )
       return 0;
-   int band = getBand(freq);
+   int band = getBand(freqKhz);
    
    if ( band & sRadioInfo[iRadioIndex].supportedBands )
       return 1;
@@ -877,15 +905,15 @@ int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freq)
    return 0;
 }
 
-int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freq)
+int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freqKhz)
 {
-   if ( -1 == freq || 0 == freq )
+   if ( 0 == freqKhz )
       return 0;
    if ( NULL == pRadioInfo )
       return 0;
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
-   int band = getBand(freq);
+   int band = getBand(freqKhz);
    
    if ( band & pRadioInfo->supportedBands )
       return 1;
@@ -1068,6 +1096,16 @@ int hardware_set_radio_tx_power_atheros(int txPower)
    if ( 0 != szBuff[0] )
       hw_execute_bash_command(szBuff, NULL);
 
+   // Change power for RALINK cards too. They are 2.4Ghz only cards 
+   if ( access( "/etc/modprobe.d/rt2800usb.conf", R_OK ) != -1 )
+   {
+      txPower = (txPower/10)-2;
+      if ( txPower < 0 ) txPower = 0;
+      if ( txPower > 5 ) txPower = 5;
+      sprintf(szBuff, "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
+      hw_execute_bash_command(szBuff, NULL);
+   }
+
    int val = hardware_get_radio_tx_power_atheros();
    log_line("Atheros TX Power changed to: %d", val);
    return val;
@@ -1119,15 +1157,6 @@ int hardware_set_radio_tx_power_rtl(int txPower)
 
    if ( 0 != szBuff[0] )
       hw_execute_bash_command(szBuff, NULL);
-
-   if ( access( "/etc/modprobe.d/rt2800usb.conf", R_OK ) != -1 )
-   {
-      txPower = (txPower/10)-2;
-      if ( txPower < 0 ) txPower = 0;
-      if ( txPower > 5 ) txPower = 5;
-      sprintf(szBuff, "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
-      hw_execute_bash_command(szBuff, NULL);
-   }
 
    int val = hardware_get_radio_tx_power_rtl();
    log_line("RTL TX Power changed to: %d", val);

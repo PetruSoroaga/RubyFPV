@@ -39,7 +39,7 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
 
    if ( bCentered )
    {
-      xPos -= fWidth*0.5;
+      xPos = (1.0 - fWidth)*0.5;
       yPos -= fHeight*0.5;
    }
    s_fBarHighPosX += fWidth * (g_TimeNow-s_lastTimeRenderAnimCommands)/1000.0;
@@ -75,7 +75,25 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
       if ( ! s_bUploadNewMethod )
          sprintf(szBuff, "* %d%%", s_ProgressPercent);
       float height_text = osd_getFontHeightBig();
-      g_pRenderEngine->drawText(xPos+fWidth+0.01, yPos+height_text*0.1, height_text, g_idFontOSDBig, szBuff);
+      g_pRenderEngine->drawText(xPos+fWidth+0.01, yPos+height_text*0.1, g_idFontOSDBig, szBuff);
+   }
+
+   if ( s_ProgressPercent == 0 )
+   {
+      float height_text = g_pRenderEngine->textHeight(g_idFontOSD);
+      char szText[256];
+      strcpy(szText, "Generating update archive to upload. Please wait.");
+      float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szText);
+      
+      static int sl_iCountUploadTextDotsCount = 0;
+      sl_iCountUploadTextDotsCount++;
+
+      for( int i=0; i<((sl_iCountUploadTextDotsCount/10) % 3); i++ )
+         strcat(szText, ".");
+      if ( bCentered )
+         g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szText);
+      else
+         g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szText);
    }
 }
 

@@ -180,18 +180,18 @@ RenderEngineRawFont* RenderEngineRaw::_getFontFromId(u32 fontId)
    return m_pFonts[index];
 }
 
-u32 RenderEngineRaw::loadFont(const char* szFontFile)
+int RenderEngineRaw::loadFont(const char* szFontFile)
 {
    if ( m_iCountFonts >= MAX_RAW_FONTS )
-      return 0;
+      return -1;
 
    if ( access( szFontFile, R_OK ) == -1 )
-      return 0;
+      return -2;
 
    char szFile[256];
    FILE* fd = fopen(szFontFile, "r");
    if ( NULL == fd )
-      return 0;
+      return -3;
 
    m_pFonts[m_iCountFonts] = (RenderEngineRawFont*) malloc(sizeof(RenderEngineRawFont));
 
@@ -204,16 +204,16 @@ u32 RenderEngineRaw::loadFont(const char* szFontFile)
    m_pFonts[m_iCountFonts]->pImage = fbg_loadPNG(m_pFBG, szFile);
    if ( NULL == m_pFonts[m_iCountFonts]->pImage )
    {
-      log_softerror_and_alarm("Failed to load font: %s", szFile);
+      log_softerror_and_alarm("Failed to load font: %s (can't load font image)", szFile);
       fclose(fd);
-      return 0;
+      return -4;
    }
    if ( 2 != fscanf(fd, "%d %d", &(m_pFonts[m_iCountFonts]->lineHeight), &(m_pFonts[m_iCountFonts]->baseLine) ) )
-      return 0;
+      return -5;
    if ( 1 != fscanf(fd, "%d", &(m_pFonts[m_iCountFonts]->charCount) ) )
-      return 0;
+      return -5;
    if ( m_pFonts[m_iCountFonts]->charCount < 0 || m_pFonts[m_iCountFonts]->charCount >= MAX_FONT_CHARS )
-      return 0;
+      return -5;
    log_line("Loaded font: size: %d/%d, count: %d", m_pFonts[m_iCountFonts]->lineHeight, m_pFonts[m_iCountFonts]->baseLine, m_pFonts[m_iCountFonts]->charCount);
    for( int i=0; i<m_pFonts[m_iCountFonts]->charCount; i++ )
    {
@@ -270,21 +270,24 @@ u32 RenderEngineRaw::loadFont(const char* szFontFile)
    m_pFonts[m_iCountFonts]->charIdFirst = m_pFonts[m_iCountFonts]->chars[0].charId;
    m_pFonts[m_iCountFonts]->charIdLast = m_pFonts[m_iCountFonts]->chars[m_pFonts[m_iCountFonts]->charCount-1].charId;
    m_pFonts[m_iCountFonts]->dxLetters = 0.0;
-   log_line("Loaded font %s (%d of max %d): chars: %d to %d, count %d, kering %d, id: %u",
+   log_line("Loaded font %s (%d of max %d): chars: %d to %d, count %d, kering %d, id: %u; %d currently loaded fonts",
        szFile, m_iCountFonts, MAX_RAW_FONTS,
-       m_pFonts[m_iCountFonts]->charIdFirst, m_pFonts[m_iCountFonts]->charIdLast, m_pFonts[m_iCountFonts]->charCount, m_pFonts[m_iCountFonts]->keringsCount, m_CurrentFontId+1);
+       m_pFonts[m_iCountFonts]->charIdFirst, m_pFonts[m_iCountFonts]->charIdLast, m_pFonts[m_iCountFonts]->charCount, m_pFonts[m_iCountFonts]->keringsCount, m_CurrentFontId+1, m_iCountFonts+1);
 
    m_CurrentFontId++;
    m_FontIds[m_iCountFonts] = m_CurrentFontId;
    m_iCountFonts++;
-   return m_CurrentFontId;
+   return (int)m_CurrentFontId;
 }
 
 void RenderEngineRaw::freeFont(u32 idFont)
 {
    int indexFont = _getFontIndexFromId(idFont);
    if ( -1 == indexFont )
+   {
+      log_softerror_and_alarm("Tried to delete invalid font id %u, not in the list (%d fonts)", idFont, m_iCountFonts);
       return;
+   }
 
    fbg_freeImage(m_pFonts[indexFont]->pImage);
    free(m_pFonts[indexFont]);
@@ -295,6 +298,7 @@ void RenderEngineRaw::freeFont(u32 idFont)
       m_FontIds[i] = m_FontIds[i+1];
    }
    m_iCountFonts--;
+   log_line("Unloaded font id %u, remaining fonts: %d", idFont, m_iCountFonts);
 }
 
 
@@ -580,12 +584,38 @@ void RenderEngineRaw::drawIcon(float xPos, float yPos, float fWidth, float fHeig
       fbg_imageDrawAlpha(m_pFBG, m_pIcons[indexIcon], x,y, fWidth*m_iRenderWidth, fHeight*m_iRenderHeight, 0,0, m_pIcons[indexIcon]->width, m_pIcons[indexIcon]->height);
 }
 
+float RenderEngineRaw::_get_space_width(RenderEngineRawFont* pFont)
+{
+   if ( NULL == pFont )
+      return 0.0;
+
+   return pFont->lineHeight*0.25*m_fPixelHeight + pFont->lineHeight * pFont->dxLetters * m_fPixelWidth;
+}
+   
+float RenderEngineRaw::_get_char_width(RenderEngineRawFont* pFont, int ch)
+{
+   if ( NULL == pFont )
+      return 0.0;
+
+   if ( ch == ' ' )
+      return _get_space_width(pFont);
+   
+   float fWidth = 0.0;
+
+   if ( (ch >= pFont->charIdFirst) && (ch <= pFont->charIdLast) )
+   {
+      fWidth = pFont->chars[ch-pFont->charIdFirst].xAdvance * m_fPixelWidth;
+      fWidth += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+   }
+   return fWidth;
+}
+   
 float RenderEngineRaw::getFontHeight(u32 fontId)
 {
    RenderEngineRawFont* pFont = _getFontFromId(fontId);
    if ( NULL == pFont )
       return 0.05;
-   return ((float)pFont->lineHeight)/(float)getScreenHeight();
+   return pFont->lineHeight * m_fPixelHeight;
 }
 
 float RenderEngineRaw::textHeight(u32 fontId)
@@ -594,38 +624,27 @@ float RenderEngineRaw::textHeight(u32 fontId)
    if ( NULL == pFont )
       return 0.05;
 
-   return pFont->lineHeight*m_fPixelHeight;
+   return pFont->lineHeight * m_fPixelHeight;
 }
 
-float RenderEngineRaw::textHeight(float fTextHeight, u32 fontId)
-{
-   RenderEngineRawFont* pFont = _getFontFromId(fontId);
-   if ( NULL == pFont )
-      return 0.05;
-
-   return pFont->lineHeight*m_fPixelHeight;
-}
-
-float RenderEngineRaw::textWidth(float fTextHeight, u32 fontId, const char* szText)
+float RenderEngineRaw::textWidth(u32 fontId, const char* szText)
 {
    if ( NULL == szText )
       return 0.0;
 
-   fTextHeight = textHeight(fTextHeight, fontId);
-
-   return textWidthScaled(fTextHeight, fontId, 1.0, szText);
+   return textWidthScaled(fontId, 1.0, szText);
 }
 
-float RenderEngineRaw::textHeightScaled(float fTextHeight, u32 fontId, float fScale)
+float RenderEngineRaw::textHeightScaled(u32 fontId, float fScale)
 {
    RenderEngineRawFont* pFont = _getFontFromId(fontId);
    if ( NULL == pFont )
       return 0.0;
 
-   return pFont->lineHeight*m_fPixelHeight*fScale;
+   return pFont->lineHeight * m_fPixelHeight * fScale;
 }
 
-float RenderEngineRaw::textWidthScaled(float fTextHeight, u32 fontId, float fScale, const char* szText)
+float RenderEngineRaw::textWidthScaled(u32 fontId, float fScale, const char* szText)
 {
    if ( NULL == szText )
       return 0.0;
@@ -634,41 +653,33 @@ float RenderEngineRaw::textWidthScaled(float fTextHeight, u32 fontId, float fSca
    if ( NULL == pFont )
       return 0.0;
 
+   float space_width = _get_space_width(pFont);
    float fWidth = 0.0;
    char* p = (char*)szText;
 
    while ( (*p) != 0 )
    {
-      if ( (*p) >= pFont->charIdFirst && (*p) <= pFont->charIdLast )
-      {
-         fWidth += pFont->chars[(*p)-pFont->charIdFirst].xAdvance * m_fPixelWidth * fScale;
-         fWidth += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
-      }
+      fWidth += _get_char_width(pFont, (*p));
       p++;
    }
 
-   return fWidth;
+   return fWidth * fScale;
 }
 
 void RenderEngineRaw::drawText(float xPos, float yPos, u32 fontId, const char* szText)
 {
-   drawTextScaled(xPos, yPos, 0.0, fontId, 1.0, szText);
+   drawTextScaled(xPos, yPos, fontId, 1.0, szText);
 }
 
-void RenderEngineRaw::drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
-{
-   drawTextScaled(xPos, yPos, fTextHeight, fontId, 1.0, szText);
-}
-
-void RenderEngineRaw::drawTextNoOutline(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
+void RenderEngineRaw::drawTextNoOutline(float xPos, float yPos, u32 fontId, const char* szText)
 {
    bool bTmp = m_bDisableTextOutline;
    m_bDisableTextOutline = true;
-   drawTextScaled(xPos, yPos, fTextHeight, fontId, 1.0, szText);
+   drawTextScaled(xPos, yPos, fontId, 1.0, szText);
    m_bDisableTextOutline = bTmp;
 }
 
-void RenderEngineRaw::drawTextScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText)
+void RenderEngineRaw::drawTextScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText)
 {
    if ( NULL == szText )
       return;
@@ -682,35 +693,26 @@ void RenderEngineRaw::drawTextScaled(float xPos, float yPos, float fTextHeight, 
    m_pFBG->mix_color.b = m_ColorFill[2];
    m_pFBG->mix_color.a = m_ColorFill[3];
 
-   int x = xPos*m_iRenderWidth;
-   int y = yPos*m_iRenderHeight;
-
-   if ( y < 0 )
+   if ( yPos < 0 )
       return;
 
    //y += fScale*(pFont->lineHeight-pFont->baseLine )/3;
 
-   if ( y + fScale*pFont->lineHeight >= m_iRenderHeight )
+   if ( yPos + fScale * pFont->lineHeight * m_fPixelHeight >= 1.0 )
       return;
 
    if ( fabs(fScale-1.0) > m_fPixelWidth )
-       _drawSimpleTextScaled(pFont, szText, x, y, fScale);
+       _drawSimpleTextScaled(pFont, szText, xPos, yPos, fScale);
    else
-       _drawSimpleText(pFont, szText, x, y);
+       _drawSimpleText(pFont, szText, xPos, yPos);
 }
 
 void RenderEngineRaw::drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText)
 {
-   drawTextLeftScaled(xPos, yPos, 0.0, fontId, 1.0, szText);
+   drawTextLeftScaled(xPos, yPos, fontId, 1.0, szText);
 }
 
-void RenderEngineRaw::drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
-{
-   drawTextLeftScaled(xPos, yPos, fTextHeight, fontId, 1.0, szText);
-}
-
-void RenderEngineRaw::drawTextLeftScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText)
-
+void RenderEngineRaw::drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText)
 {
    if ( NULL == szText )
       return;
@@ -724,46 +726,37 @@ void RenderEngineRaw::drawTextLeftScaled(float xPos, float yPos, float fTextHeig
    m_pFBG->mix_color.b = m_ColorFill[2];
    m_pFBG->mix_color.a = m_ColorFill[3];
 
-   int x = xPos*m_iRenderWidth;
-   int y = yPos*m_iRenderHeight;
-
-   if ( y < 0 )
+   if ( yPos < 0 )
       return;
 
    //y += fScale*(pFont->lineHeight-pFont->baseLine )/3;
 
-   if ( y + fScale*pFont->lineHeight >= m_iRenderHeight )
+   if ( yPos + fScale*pFont->lineHeight * m_fPixelHeight >= 1.0 )
       return;
 
+   float space_width = _get_space_width(pFont);
+
    char* p = (char*)szText;
-   int wText = 0;
+   float wText = 0.0;
 
    while ( (*p) != 0 )
    {
-      if ( (*p) >= pFont->charIdFirst && (*p) <= pFont->charIdLast )
-      {
-         wText += pFont->chars[(*p)-pFont->charIdFirst].xAdvance*fScale;
-         wText += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
-      }
+      wText += _get_char_width(pFont, (*p));
       p++;
    }
 
    if ( fabs(fScale-1.0) > m_fPixelWidth )
-      _drawSimpleTextScaled(pFont, szText, x-wText, y, fScale);
+      _drawSimpleTextScaled(pFont, szText, xPos-wText, yPos, fScale);
    else
-      _drawSimpleText(pFont, szText, x-wText, y);
+      _drawSimpleText(pFont, szText, xPos-wText, yPos);
 }
 
 float RenderEngineRaw::getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
-   return getMessageHeight(text, textHeight(fontId), line_spacing_percent, max_width, fontId);
-}
-
-float RenderEngineRaw::getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
-{
    if ( NULL == text || 0 == text[0] )
       return 0.0;
 
+   float fTextHeight = textHeight(fontId);
    RenderEngineRawFont* pFont = _getFontFromId(fontId);
    if ( NULL == pFont )
       return 0.05;
@@ -773,10 +766,10 @@ float RenderEngineRaw::getMessageHeight(const char* text, float fTextHeight, flo
 
    float fScale = 1.0;
    if ( ! m_bEnableFontScaling )
-      fTextHeight = textHeight(fTextHeight, fontId);
+      fTextHeight = textHeight(fontId);
    else
    {
-      float ff = textHeight(fTextHeight, fontId);
+      float ff = textHeight(fontId);
       if ( ff > 0.0001 )
          fScale = fTextHeight / ff;
       else
@@ -789,51 +782,62 @@ float RenderEngineRaw::getMessageHeight(const char* text, float fTextHeight, flo
    const char* szTokens = " ";
    char* szContext = szText;
    char* szWord = NULL;
-   char* szPrevWord = NULL;
-   float wWord = 0;
    float line_width = 0;
-   float space_width = pFont->lineHeight*0.25*fScale + pFont->lineHeight * pFont->dxLetters * m_fPixelWidth;
    int countWords = 0;
    int countLineWords = 0;
+   int countLines = 0;
+
+   float space_width = _get_space_width(pFont);
 
    while ( (szWord = strtok_r(szContext, szTokens, &szContext)) )
    {
       countWords++;
       countLineWords++;
-      wWord = 0.0;
+      float fWidthWord = 0.0;
       while ( *szWord )
       {
-         if ( (*szWord) >= pFont->charIdFirst && (*szWord) <= pFont->charIdLast )
-         {
-            wWord += pFont->chars[(*szWord)-pFont->charIdFirst].xAdvance*fScale;
-            wWord += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
-         }
+         fWidthWord += _get_char_width(pFont, *szWord);
          szWord++;
       }
 
-      if ( (line_width+wWord)/(float)m_iRenderWidth > max_width-0.0001 || ( NULL != szPrevWord && '\n' == szPrevWord[strlen(szPrevWord)-1]) )
+      if ( (line_width+fWidthWord) <= max_width+0.0001 )
       {
-         if ( NULL != szPrevWord && '\n' == szPrevWord[strlen(szPrevWord)-1])
-            szPrevWord = NULL;
-         height += fTextHeight*(1.0+line_spacing_percent);
-         line_width = wWord;
-         countLineWords = 1;
+         line_width += fWidthWord;
+         if ( countLineWords > 1 )
+            line_width += space_width;
       }
       else
       {
-         line_width += wWord;
-         if ( countLineWords > 1 )
-            line_width += space_width;
-         szPrevWord = szWord;
+         height += fTextHeight;
+         if ( 0 != countLines )
+            height += fTextHeight*line_spacing_percent;
+         countLines++;
+         line_width = fWidthWord;
+         countLineWords = 1;
+      }
+
+      if ( (0 != szWord[0]) && (szWord[strlen(szWord)-1] == '\n') )
+      {
+         height += fTextHeight;
+         if ( 0 != countLines )
+            height += fTextHeight*line_spacing_percent;
+         countLines++;
+         
+         line_width = 0.0;
+         countLineWords = 0;
       }
    }
-   if ( countWords > 0 )
+   if ( (countLineWords > 0) && (line_width > 0.0001) )
+   {
       height += fTextHeight;
-
+      if ( 0 != countLines )
+         height += fTextHeight*line_spacing_percent;
+      countLines++;
+   }
    return height;
 }
 
-float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
+float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
    if ( NULL == text || 0 == text[0] )
       return 0.0;
@@ -845,12 +849,14 @@ float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text
    if ( 0 == strlen(text) )
       return 0.0;
 
+   float fTextHeight = textHeight(fontId);
+   
    float fScale = 1.0;
    if ( ! m_bEnableFontScaling )
-      fTextHeight = textHeight(fTextHeight, fontId);
+      fTextHeight = textHeight(fontId);
    else
    {
-      float ff = textHeight(fTextHeight, fontId);
+      float ff = textHeight(fontId);
       if ( ff > 0.0001 )
          fScale = fTextHeight / ff;
       else
@@ -861,6 +867,7 @@ float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text
    m_pFBG->mix_color.g = m_ColorFill[1];
    m_pFBG->mix_color.b = m_ColorFill[2];
    m_pFBG->mix_color.a = m_ColorFill[3];
+
    if ( m_bHighlightFirstWord )
    {
       m_pFBG->mix_color.r = 200;
@@ -868,15 +875,12 @@ float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text
       m_pFBG->mix_color.b = 0;
    }
 
-   int x = xPos*m_iRenderWidth;
-   int y = yPos*m_iRenderHeight;
-
-   if ( y < 0 )
+   if ( yPos < 0 )
       return 0.0;
 
    //y += fScale*(pFont->lineHeight-pFont->baseLine )/3;
 
-   if ( y + pFont->lineHeight*fScale >= m_iRenderHeight )
+   if ( yPos + pFont->lineHeight*fScale * m_fPixelHeight >= 1.0 )
       return 0.0;
 
    float height = 0.0;
@@ -885,63 +889,82 @@ float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text
    const char* szTokens = " ";
    char* szContext = szText;
    char* szWord = NULL;
-   char* szPrevWord = NULL;
-   float wWord = 0;
    float line_width = 0;
-   float space_width = pFont->lineHeight*0.25*fScale + pFont->lineHeight * pFont->dxLetters * m_fPixelWidth;
+   float space_width = _get_space_width(pFont);
    int countWords = 0;
    int countLineWords = 0;
+   int countLines = 0;
+
+   float xTmp = xPos;
+   float yTmp = yPos;
 
    while ( (szWord = strtok_r(szContext, szTokens, &szContext)) )
    {
       countWords++;
       countLineWords++;
-      wWord = 0.0;
       char* pTmpWord = szWord;
+      float fWidthWord = 0.0;
       while ( *szWord )
       {
-         if ( (*szWord) >= pFont->charIdFirst && (*szWord) <= pFont->charIdLast )
-         {
-            wWord += pFont->chars[(*szWord)-pFont->charIdFirst].xAdvance*fScale;
-            wWord += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
-         }
+         fWidthWord += _get_char_width(pFont, *szWord);
          szWord++;
       }
 
-      if ( (line_width+wWord)/(float)m_iRenderWidth > max_width+0.0001 || ( NULL != szPrevWord && '\n' == szPrevWord[strlen(szPrevWord)-1]) )
-      {
-         height += fTextHeight*(1.0+line_spacing_percent);
-         y += pFont->lineHeight*(1.0+line_spacing_percent);
-         x = xPos*m_iRenderWidth;
-         line_width = wWord;
-         countLineWords = 1;
-         if ( y + pFont->lineHeight*fScale >= m_iRenderHeight )
-            return height;
-
-         if ( m_bEnableFontScaling )
-            _drawSimpleTextScaled(pFont, szText, x, y, 0.7);
-         else
-            _drawSimpleText(pFont, pTmpWord, x, y);
-         x += wWord;
-
-         if ( NULL != szPrevWord && '\n' == szPrevWord[strlen(szPrevWord)-1])
-            szPrevWord = NULL;
-      }
-      else
+      if ( (line_width+fWidthWord) <= max_width+0.0001 )
       {
          if ( countLineWords > 1 )
          {
             line_width += space_width;
-            x += space_width;
+            xTmp += space_width;
          }
          if ( m_bEnableFontScaling )
-            _drawSimpleTextScaled(pFont, szText, x, y, 0.7);
+            _drawSimpleTextScaled(pFont, szText, xTmp, yTmp, 0.7);
          else
-            _drawSimpleText(pFont, pTmpWord, x, y);
-         line_width += wWord;
-         x += wWord;
-         szPrevWord = szWord;
+            _drawSimpleText(pFont, pTmpWord, xTmp, yTmp);
+         line_width += fWidthWord;
+         xTmp += fWidthWord;
       }
+      else
+      {
+         height += fTextHeight;
+         yTmp += fTextHeight;
+         if ( 0 != countLines )
+         {
+            height += fTextHeight*line_spacing_percent;
+            yTmp += fTextHeight*line_spacing_percent;
+         }
+         countLines++;
+         
+         xTmp = xPos;
+         line_width = fWidthWord;
+         countLineWords = 1;
+         if ( yTmp + pFont->lineHeight*fScale * m_fPixelHeight >= 1.0 )
+            return height;
+
+         if ( m_bEnableFontScaling )
+            _drawSimpleTextScaled(pFont, szText, xTmp, yTmp, 0.7);
+         else
+            _drawSimpleText(pFont, pTmpWord, xTmp, yTmp);
+         xTmp += fWidthWord;
+      }
+      if ( (0 != szWord[0]) && (szWord[strlen(szWord)-1] == '\n') )
+      {
+         height += fTextHeight;
+         yTmp += fTextHeight;
+         if ( 0 != countLines )
+         {
+            height += fTextHeight*line_spacing_percent;
+            yTmp += fTextHeight*line_spacing_percent;
+         }
+         countLines++;
+         
+         xTmp = xPos;
+         line_width = 0;
+         countLineWords = 0;
+         if ( yTmp + pFont->lineHeight*fScale * m_fPixelHeight >= 1.0 )
+            return height;
+      }
+
       if ( 1 == countWords && m_bHighlightFirstWord )
       {
          m_pFBG->mix_color.r = m_ColorFill[0];
@@ -949,77 +972,83 @@ float RenderEngineRaw::drawMessageLines(float xPos, float yPos, const char* text
          m_pFBG->mix_color.b = m_ColorFill[2];
       }
    }
-   if ( countWords > 0 )
+   if ( countLineWords > 0 )
+   {
       height += fTextHeight;
-
+      if ( 0 != countLines )
+         height += fTextHeight*line_spacing_percent;
+      countLines++;
+   }
    return height;
 }
 
-void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* szText, int x, int y)
+void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos)
 {
    if ( NULL == pFont || NULL == szText || 0 == szText[0] )
       return;
 
-   if ( y < 0 )
+   if ( yPos < 0 )
       return;
-   if ( y + pFont->lineHeight >= m_iRenderHeight )
+   if ( yPos + pFont->lineHeight * m_fPixelHeight >= 1.0 )
       return;
 
-   int xBoundingStart = 5000;
-   int yBoundingStart = 5000;
-   int xBoundingEnd = 0;
-   int yBoundingEnd = 0;
+   float xBoundingStart = 5000;
+   float yBoundingStart = 5000;
+   float xBoundingEnd = 0;
+   float yBoundingEnd = 0;
 
    int tmp = m_pFBG->disableFontOutline;
    m_pFBG->disableFontOutline = m_bDisableTextOutline?1:0;
 
+   float space_width = _get_space_width(pFont);
+   
    if ( m_bDrawBackgroundBoundingBoxes )
    {
       const char* pText = szText;
-      int xOrg = x;
+      float xTmp = xPos;
       while ( *pText )
       {
-         if ( *pText < pFont->charIdFirst || *pText > pFont->charIdLast )
+         float fWidthCh = _get_char_width(pFont, *pText);
+         if ( (fWidthCh < 0.0001) || ( (*pText) < pFont->charIdFirst || (*pText) > pFont->charIdLast ) )
          {
             pText++;
             continue;
          }
-         if ( x < 0 )
+         
+         if ( xTmp < 0 )
          {
-            x += pFont->chars[(*pText)-pFont->charIdFirst].xAdvance;
-            x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+            xTmp += fWidthCh;
+            pText++;
+            continue;
+         }
 
-            pText++;
-            continue;
-         }
-         if ( x + pFont->chars[(*pText)-pFont->charIdFirst].xAdvance + pFont->dxLetters * pFont->lineHeight*m_fPixelWidth >= m_iRenderWidth )
+         if ( xTmp + fWidthCh >= 1.0 )
             break;
 
          int wImg = pFont->chars[(*pText)-pFont->charIdFirst].width;
          int hImg = pFont->chars[(*pText)-pFont->charIdFirst].height;
 
-         if ( x < xBoundingStart )
-            xBoundingStart = x;
-         if ( x + wImg > xBoundingEnd )
-            xBoundingEnd = x + wImg;
-         if ( y < yBoundingStart )
-            yBoundingStart = y;
-         if ( y + hImg > yBoundingEnd )
-            yBoundingEnd = y + hImg;
+         if ( xTmp < xBoundingStart )
+            xBoundingStart = xTmp;
+         if ( xTmp + wImg * m_fPixelWidth > xBoundingEnd )
+            xBoundingEnd = xTmp + wImg * m_fPixelWidth;
+         if ( yPos < yBoundingStart )
+            yBoundingStart = yPos;
+         if ( yPos + hImg * m_fPixelHeight > yBoundingEnd )
+            yBoundingEnd = yPos + hImg * m_fPixelHeight;
       
-         x += pFont->chars[(*pText)-pFont->charIdFirst].xAdvance;
-         x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+         xTmp += fWidthCh;
          pText++;
       }
-      x = xOrg;
+
       if ( (xBoundingStart < xBoundingEnd) && (yBoundingStart < yBoundingEnd) )
       {
-         xBoundingStart -= 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance;
-         xBoundingEnd += 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance;
-         yBoundingStart += 3;
-         yBoundingEnd -= 2;
-         yBoundingStart += pFont->lineHeight*0.03;
-         yBoundingEnd -= pFont->lineHeight*0.01;
+         xBoundingStart -= 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance * m_fPixelWidth;
+         xBoundingEnd += 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance * m_fPixelWidth;
+         yBoundingStart += 1 * m_fPixelHeight;
+         yBoundingEnd -= 2 * m_fPixelHeight;
+         yBoundingStart += pFont->lineHeight*0.03 * m_fPixelHeight;
+         yBoundingEnd -= pFont->lineHeight*0.01 * m_fPixelHeight;
 
          u8 tmp_ColorFill[4];
          u8 tmp_ColorStroke[4];
@@ -1038,7 +1067,7 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
             m_ColorStroke[3] = m_ColorTextBackgroundBoundingBoxStrike[3]*255;
             m_fStrokeSize = 1.0;
          }
-         drawRoundRect(xBoundingStart/(float)m_iRenderWidth - m_fBoundingBoxPadding/getAspectRatio(), yBoundingStart/(float)m_iRenderHeight - m_fBoundingBoxPadding, (xBoundingEnd - xBoundingStart)/(float)m_iRenderWidth + 2.0*m_fBoundingBoxPadding/getAspectRatio(), (yBoundingEnd - yBoundingStart)/(float)m_iRenderHeight + 2.0*m_fBoundingBoxPadding, 5.0 );
+         drawRoundRect(xBoundingStart - m_fBoundingBoxPadding/getAspectRatio(), yBoundingStart - m_fBoundingBoxPadding, (xBoundingEnd - xBoundingStart) + 2.0*m_fBoundingBoxPadding/getAspectRatio(), (yBoundingEnd - yBoundingStart) + 2.0*m_fBoundingBoxPadding, 5.0 );
 
          memcpy(m_ColorFill, tmp_ColorFill, 4*sizeof(u8));
          memcpy(m_ColorStroke, tmp_ColorStroke, 4*sizeof(u8));
@@ -1046,79 +1075,80 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
       }
    }
 
+   float xTmp = xPos;
    while ( *szText )
    {
-      if ( *szText < pFont->charIdFirst || *szText > pFont->charIdLast )
+      float fWidthCh = _get_char_width(pFont, *szText);
+      if ( (fWidthCh < 0.0001) || ( (*szText) < pFont->charIdFirst || (*szText) > pFont->charIdLast ) )
       {
          szText++;
          continue;
       }
-      if ( x < 0 )
+      if ( xTmp < 0 )
       {
-         x += pFont->chars[(*szText)-pFont->charIdFirst].xAdvance;
-         x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
-
+         xTmp += fWidthCh;
          szText++;
          continue;
       }
-      if ( x + pFont->chars[(*szText)-pFont->charIdFirst].xAdvance + pFont->dxLetters * pFont->lineHeight*m_fPixelWidth >= m_iRenderWidth )
+      if ( xTmp + fWidthCh >= 1.0 )
          break;
-
+      
       int xImg = pFont->chars[(*szText)-pFont->charIdFirst].imgXOffset;
       int yImg = pFont->chars[(*szText)-pFont->charIdFirst].imgYOffset;
       int wImg = pFont->chars[(*szText)-pFont->charIdFirst].width;
       int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
       unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
 
-      fbg_imageClipAColor(m_pFBG, pFont->pImage, x, y, xImg, yImg, wImg, hImg);
+      if ( (*szText) != ' ' )
+         fbg_imageClipAColor(m_pFBG, pFont->pImage, xTmp*m_iRenderWidth, yPos*m_iRenderHeight, xImg, yImg, wImg, hImg);
 
-      if ( x < xBoundingStart )
-         xBoundingStart = x;
-      if ( x + wImg > xBoundingEnd )
-         xBoundingEnd = x + wImg;
-      if ( y < yBoundingStart )
-         yBoundingStart = y;
-      if ( y + hImg > yBoundingEnd )
-         yBoundingEnd = y + hImg;
+      if ( xTmp < xBoundingStart )
+         xBoundingStart = xTmp;
+      if ( xTmp + wImg * m_fPixelWidth > xBoundingEnd )
+         xBoundingEnd = xTmp + wImg * m_fPixelWidth;
+      if ( yPos < yBoundingStart )
+         yBoundingStart = yPos;
+      if ( yPos + hImg * m_fPixelHeight > yBoundingEnd )
+         yBoundingEnd = yPos + hImg * m_fPixelHeight;
       
-      x += pFont->chars[(*szText)-pFont->charIdFirst].xAdvance;
-      x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+      xTmp += fWidthCh;
+ 
       szText++;
    }
 
    m_pFBG->disableFontOutline = tmp;
 }
 
-void RenderEngineRaw::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, int x, int y, float fScale)
+void RenderEngineRaw::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale)
 {
    if ( NULL == pFont || NULL == szText || 0 == szText[0] )
       return;
 
-   if ( y < 0 )
+   if ( yPos < 0 )
       return;
-   if ( y + pFont->lineHeight*fScale >= m_iRenderHeight )
+   if ( yPos + pFont->lineHeight * fScale * m_fPixelHeight >= 1.0 )
       return;
 
-   int xBoundingStart = 5000;
-   int yBoundingStart = 5000;
-   int xBoundingEnd = 0;
-   int yBoundingEnd = 0;
+   float xBoundingStart = 5000;
+   float yBoundingStart = 5000;
+   float xBoundingEnd = 0;
+   float yBoundingEnd = 0;
 
    while ( *szText )
    {
-      if ( *szText < pFont->charIdFirst || *szText > pFont->charIdLast )
+      float fWidthCh = _get_char_width(pFont, *szText);
+      if ( (fWidthCh < 0.0001) || ( (*szText) < pFont->charIdFirst || (*szText) > pFont->charIdLast ) )
       {
          szText++;
          continue;
       }
-      if ( x < 0 )
+      if ( xPos < 0 )
       {
-         x += pFont->chars[(*szText)-pFont->charIdFirst].xAdvance*fScale;
-         x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+         xPos += fWidthCh;
          szText++;
          continue;
       }
-      if ( x + pFont->chars[(*szText)-pFont->charIdFirst].xAdvance*fScale + pFont->dxLetters * pFont->lineHeight*m_fPixelWidth >= m_iRenderWidth )
+      if ( xPos + fWidthCh * fScale >= 1.0 )
          break;
 
       int xImg = pFont->chars[(*szText)-pFont->charIdFirst].imgXOffset;
@@ -1127,19 +1157,18 @@ void RenderEngineRaw::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const ch
       int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
       unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
 
-      fbg_imageDrawAlpha(m_pFBG, pFont->pImage, x,y, wImg*fScale, hImg*fScale, xImg, yImg, wImg, hImg);
+      fbg_imageDrawAlpha(m_pFBG, pFont->pImage, xPos * m_iRenderWidth, yPos * m_iRenderHeight, wImg*fScale, hImg*fScale, xImg, yImg, wImg, hImg);
 
-      if ( x < xBoundingStart )
-         xBoundingStart = x;
-      if ( x + wImg*fScale > xBoundingEnd )
-         xBoundingEnd = x + wImg*fScale;
-      if ( y < yBoundingStart )
-         yBoundingStart = y;
-      if ( y + hImg*fScale > yBoundingEnd )
-         yBoundingEnd = y + hImg*fScale;
+      if ( xPos < xBoundingStart )
+         xBoundingStart = xPos;
+      if ( xPos + wImg*fScale * m_fPixelWidth > xBoundingEnd )
+         xBoundingEnd = xPos + wImg*fScale * m_fPixelWidth;
+      if ( yPos < yBoundingStart )
+         yBoundingStart = yPos;
+      if ( yPos + hImg*fScale * m_fPixelHeight > yBoundingEnd )
+         yBoundingEnd = yPos + hImg*fScale * m_fPixelHeight;
 
-      x += pFont->chars[(*szText)-pFont->charIdFirst].xAdvance*fScale;
-      x += pFont->dxLetters * pFont->lineHeight*m_fPixelWidth;
+      xPos += fWidthCh;
       szText++;
    }
 }
@@ -1147,13 +1176,13 @@ void RenderEngineRaw::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const ch
 
 void RenderEngineRaw::drawLine(float x1, float y1, float x2, float y2)
 {
-   if ( x1 < 0 && x2 < 0 )
+   if ( x1 < 0 || x2 < 0 )
       return;
-   if ( y1 < 0 && y2 < 0 )
+   if ( y1 < 0 || y2 < 0 )
       return;
-   if ( x1 > 1.0 && x2 > 1.0 )
+   if ( x1 >= 1.0 || x2 >= 1.0 )
       return;
-   if ( y1 > 1.0 && y2 > 1.0 )
+   if ( y1 >= 1.0 || y2 >= 1.0 )
       return;
 
    if ( x1 > 1.0 - m_fPixelWidth )

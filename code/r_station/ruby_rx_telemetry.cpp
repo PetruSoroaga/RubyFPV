@@ -17,6 +17,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/commands.h"
 #include "../base/config.h"
 #include "../base/models.h"
+#include "../base/models_list.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/controller_utils.h"
@@ -151,6 +152,11 @@ void process_data_telemetry_raw_download(u8* pBuffer, int length)
    t_packet_header* pPH = (t_packet_header*)pBuffer;
    t_packet_header_telemetry_raw* pPHTR = (t_packet_header_telemetry_raw*)(pBuffer + sizeof(t_packet_header));
 
+   #ifdef LOG_RAW_TELEMETRY
+   log_line("[Raw_Telem] Received from router raw telemetry packet, index %u, %d / %d bytes",
+       pPHTR->telem_segment_index, pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_telemetry_raw), pPH->total_length);
+   #endif
+
    if ( s_uRawTelemetryLastReceivedDownloadedSegmentIndex != MAX_U32 &&
         s_uRawTelemetryLastReceivedDownloadedSegmentIndex > 10 &&
         pPHTR->telem_segment_index < s_uRawTelemetryLastReceivedDownloadedSegmentIndex-10 )
@@ -202,27 +208,23 @@ void process_data_telemetry_raw_download(u8* pBuffer, int length)
       return;
 
    if ( g_bOutputTelemetryToSerial && (-1 != g_iSerialPortTelemetry) )
-   if ( len != write(g_iSerialPortTelemetry, pTelemetryData, len) )
-      log_softerror_and_alarm("Failed to write to serial port for telemetry output on controller.");
+   {
+      int iWrite = write(g_iSerialPortTelemetry, pTelemetryData, len);
+      if ( len != iWrite )
+         log_softerror_and_alarm("Failed to write to serial port for telemetry output on controller.");
+
+      #ifdef LOG_RAW_TELEMETRY
+      log_line("[Raw_Telem] Sent %d of %d bytes of raw telemetry to serial port.", iWrite, len);
+      #endif
+   }
 
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER )
    {
       // Send the raw telemetry to central too, for OSD plugins consumption
       pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
       pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
-      packet_compute_crc(pBuffer, length);
       ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
    }
-
-   /*
-   log_buffer(buffer, length);
-   log_line("Writing telemetry data to controller serial port. Lenght: %d", len);
-     
-   char szBuff[2000];
-   memcpy(szBuff, (&buffer[0])+sizeof(data_packet_header), len);
-   szBuff[len] = 0;
-   log_line("Recv data: %s", szBuff);
-   */
 }
 
 void _process_data_rc_telemetry(u8* pBuffer, int length)
@@ -254,10 +256,9 @@ void _process_packet_vehicle_tx_history(u8* pBuffer, int length)
       return;
    }
 
-   pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
-   pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
-   packet_compute_crc(pBuffer, length);
-   ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
+   //pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
+   //pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
+   //ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
 }
 
 void _process_packet_vehicle_rx_stats(u8* pBuffer, int length)
@@ -270,10 +271,9 @@ void _process_packet_vehicle_rx_stats(u8* pBuffer, int length)
       // Different version maybe (different size)
       return;
    }
-   pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
-   pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
-   packet_compute_crc(pBuffer, length);
-   ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
+   //pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
+   //pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
+   //ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
 }
 
 
@@ -299,12 +299,10 @@ void upload_telemetry_packet()
    t_packet_header PH;
    t_packet_header_telemetry_raw PHTR;
 
-   PH.packet_flags = PACKET_COMPONENT_TELEMETRY;
-   PH.packet_type =  PACKET_TYPE_TELEMETRY_RAW_UPLOAD;
-   PH.stream_packet_idx = (STREAM_ID_DATA) << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_TELEMETRY_RAW_UPLOAD, STREAM_ID_DATA);
+
    PH.vehicle_id_src = g_uControllerId;
    PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
-   PH.total_headers_length = sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw);
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw) + telemetryBufferToVehicleCount;
       
    PHTR.telem_segment_index = s_uRawTelemetryUploadSegmentIndex;
@@ -317,9 +315,11 @@ void upload_telemetry_packet()
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer+sizeof(t_packet_header), (u8*)&PHTR, sizeof(t_packet_header_telemetry_raw));
    memcpy(buffer+sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw), telemetryBufferToVehicle, telemetryBufferToVehicleCount);
-   packet_compute_crc(buffer, PH.total_length);
    ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
  
+   #ifdef LOG_RAW_TELEMETRY
+   log_line("[Raw_Telem] Sent raw telemetry packet to router, index %u, %d / %d bytes", PHTR.telem_segment_index, telemetryBufferToVehicleCount, PH.total_length);
+   #endif
    telemetryBufferToVehicleLastSendTime = g_TimeNow;
    telemetryBufferToVehicleCount = 0;
    s_uRawTelemetryUploadSegmentIndex++;
@@ -345,19 +345,15 @@ void upload_datalink_packet()
 
    t_packet_header PH;
 
-   PH.packet_flags = PACKET_COMPONENT_TELEMETRY;
-   PH.packet_type =  PACKET_TYPE_AUX_DATA_LINK_UPLOAD;
-   PH.stream_packet_idx = (STREAM_ID_DATA) << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_AUX_DATA_LINK_UPLOAD, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
    PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
-   PH.total_headers_length = sizeof(t_packet_header);
-   PH.total_length = sizeof(t_packet_header)+sizeof(u32) + dataLinkBufferToVehicleCount;
+   PH.total_length = sizeof(t_packet_header) + sizeof(u32) + dataLinkBufferToVehicleCount;
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer+sizeof(t_packet_header), (u8*)&s_uDataLinkUploadSegmentIndex, sizeof(u32));
    memcpy(buffer+sizeof(t_packet_header)+sizeof(u32), dataLinkBufferToVehicle, dataLinkBufferToVehicleCount);
-   packet_compute_crc(buffer, PH.total_length);
    ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
    dataLinkBufferToVehicleLastSendTime = g_TimeNow;
    dataLinkBufferToVehicleCount = 0;
@@ -389,13 +385,6 @@ void try_read_serial_telemetry()
       return;
 
    s_uRawTelemetryUploadTotalReadFromSerial += length;
-   //log_line("Serial total read: %d, read %d bytes.", s_uRawTelemetryUploadTotalReadFromSerial, length);
-   /*
-      char szBuff[2000];
-      memcpy(szBuff, &bufferIn[0], length);
-      szBuff[length] = 0;
-      log_line("Sending data: %s", szBuff);
-   */
    u8* pData = &bufferIn[0];
    while ( length > 0 )
    {
@@ -492,11 +481,13 @@ void try_read_messages_from_router()
             if ( pPH->vehicle_id_src != PACKET_COMPONENT_TELEMETRY )
             {
                log_line("Received local event to reload model");
-               if ( NULL == g_pCurrentModel )
-                  g_pCurrentModel = new Model();
-               if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
-                  g_pCurrentModel->resetToDefaults(true);
-
+               reloadCurrentModel();
+               u8 uChangeType = (pPH->vehicle_id_src >> 8) & 0xFF;
+               if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
+               {
+                  g_pCurrentModel->b_mustSyncFromVehicle = false;
+                  log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
+               }
                s_LastReceivedStreamPacketIndexFromRouter = MAX_U32;
                s_uDataLinkLastReceivedDownloadedSegmentIndex = MAX_U32;
                s_uRawTelemetryLastReceivedDownloadedSegmentIndex = MAX_U32;
@@ -527,7 +518,7 @@ void try_read_messages_from_router()
          continue;
       }
 
-      if ( ! packet_check_crc(s_BufferTelemetryDownlink, pPH->total_length) )
+      if ( ! radio_packet_check_crc(s_BufferTelemetryDownlink, pPH->total_length) )
       {
          if ( maxMessagesToRead <= 0 )
             break;
@@ -679,11 +670,14 @@ void init_serial_ports()
 
    if ( -1 != g_iSerialPortTelemetry )
    if ( -1 != g_iSerialPortIndexTelemetryOutput )
-     g_bOutputTelemetryToSerial = true;
+      g_bOutputTelemetryToSerial = true;
 
    if ( -1 != g_iSerialPortTelemetry )
    if ( -1 != g_iSerialPortIndexTelemetryInput )
       g_bInputTelemetryFromSerial = true;
+
+   log_line("Reading telemetry from serial port? %s", g_bInputTelemetryFromSerial?"yes":"no");
+   log_line("Writing telemetry to serial port? %s", g_bOutputTelemetryToSerial?"yes":"no");
 }
 
 void checkTelemetrySettingsOnControllerChanged()
@@ -898,10 +892,8 @@ int main(int argc, char *argv[])
    g_uControllerId = controller_utils_getControllerId();
    log_line("Controller UID: %u", g_uControllerId);
  
-   log_line("Loading current model...");
-   g_pCurrentModel = new Model();
-   if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL) )
-      g_pCurrentModel = NULL;
+   loadAllModels();
+   g_pCurrentModel = getCurrentModel();
 
    if ( NULL != g_pCurrentModel )
       hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry); 

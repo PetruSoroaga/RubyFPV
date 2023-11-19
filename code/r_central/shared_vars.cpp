@@ -18,18 +18,6 @@ int g_iBootCount = 0;
 
 RenderEngine* g_pRenderEngine = NULL;
 RenderEngineUI* g_pRenderEngineOSDPlugins = NULL;
-u32 g_idFontOSD = 0;
-u32 g_idFontOSDBig = 0;
-u32 g_idFontOSDSmall = 0;
-u32 g_idFontOSDExtraSmall = 0;
-
-u32 g_idFontOSDWarnings = 0;
-u32 g_idFontStats = 0;
-u32 g_idFontStatsSmall = 0;
-u32 g_idFontMenu = 0;
-u32 g_idFontMenuSmall = 0;
-u32 g_idFontMenuLarge = 0;
-
 
 u32 g_uVideoRecordStartTime = 0;
 bool g_bVideoRecordingStarted = false;
@@ -45,17 +33,20 @@ int g_ControllerTemp = 0;
 bool g_bToglleOSDOff = false;
 bool g_bToglleStatsOff = false;
 bool g_bToglleAllOSDOff = false;
+bool g_bFreezeOSD = false;
 
 bool g_bIsRouterPacketsHistoryGraphOn = false;
 bool g_bIsRouterPacketsHistoryGraphPaused = false;
 
 bool g_bMenuPopupUpdateVehicleShown = false;
-int  g_PendingRadioFlagsConfirmationLinkId = -1;
 type_radio_links_parameters g_LastGoodRadioLinksParams;
+
+bool g_bSwitchingRadioLink = false;
 
 PopupCameraParams* g_pPopupCameraParams = NULL;
 Popup* g_pPopupLooking = NULL;
 Popup* g_pPopupWrongModel = NULL;
+Popup* g_pPopupLinkLost = NULL;
 
 bool g_bHasVideoDataOverloadAlarm = false;
 bool g_bHasVideoTxOverloadAlarm = false;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../base/hardware.h"
-
+#include "../base/ctrl_preferences.h"
 #define CONTROLLER_SETTINGS_STAMP_ID "vV.6"
 
 #ifdef __cplusplus
@@ -63,6 +63,18 @@ typedef struct
    int iShowControllerAdaptiveInfoStats;
    int iShowVideoStreamInfoCompact;
 
+   int iSearchSiKAirRate;
+   int iSearchSiKECC;
+   int iSearchSiKLBT;
+   int iSearchSiKMCSTR;
+
+   int iAudioOutputDevice;
+   int iAudioOutputVolume;
+
+   int iDevRxLoopTimeout;
+   u32 uShowBigRxHistoryInterface;
+
+   int iSiKPacketSize;
 } ControllerSettings;
 
 int save_ControllerSettings();
@@ -70,7 +82,7 @@ int load_ControllerSettings();
 void reset_ControllerSettings();
 ControllerSettings* get_ControllerSettings();
 
-u32 compute_ping_frequency(u32 uModelFlags, u32 uClockSyncType, u32 uCurrentVideoFlags);
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags);
 
 #ifdef __cplusplus
 }  

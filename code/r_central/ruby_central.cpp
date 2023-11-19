@@ -44,23 +44,26 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/ctrl_interfaces.h"
 #include "../base/controller_utils.h"
 #include "../base/plugins_settings.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
 #include "../base/core_plugins_settings.h"
 #include "../renderer/render_engine.h"
 #include "../common/string_utils.h"
+#include "../common/relay_utils.h"
 
 #include "colors.h"
 #include "osd.h"
 #include "osd_common.h"
 #include "osd_plugins.h"
 #include "menu.h"
+#include "fonts.h"
 #include "popup.h"
 #include "shared_vars.h"
 #include "pairing.h"
 #include "link_watch.h"
 #include "warnings.h"
+#include "keyboard.h"
 #include "media.h"
 #include "render_commands.h"
 #include "handle_commands.h"
@@ -115,22 +118,15 @@ Popup popupStartup("System starting. Please wait.", 0.05, 0.16, 0);
 MenuConfirmationHDMI* s_pMenuConfirmHDMI = NULL;
 MenuConfirmationImport* s_pMenuConfirmationImport = NULL;
 
-// Exported to end user
-extern u32 s_uRenderEngineUIFontIdSmall;
-extern u32 s_uRenderEngineUIFontIdRegular;
-extern u32 s_uRenderEngineUIFontIdBig;
-
 Popup* ruby_get_startup_popup()
 {
+   popupStartup.useSmallLines(false);
    return &popupStartup;
 }
 
 void load_resources()
 {
-   Preferences* p = get_Preferences();
-
-   ruby_reload_menu_font();
-   ruby_reload_osd_fonts();
+   loadAllFonts(true);
 
    if ( render_engine_is_raw() )
    {
@@ -162,259 +158,7 @@ void load_resources()
    osd_load_resources();
 }
 
-u32 load_font(float hFont, const char* szName)
-{
-   char szFileName[256];
-   szFileName[0] = 0;
-   
-   int nSize = hFont/2;
-   nSize *= 2;
-   if ( nSize < 14 )
-      nSize = 14;
-   if ( nSize > 56 )
-      nSize = 56;
-   sprintf(szFileName, "res/font_%s_%d.dsc", szName, nSize );
-   if ( access( szFileName, R_OK ) == -1 )
-   {
-      log_softerror_and_alarm("Can't find font: [%s]. Using a default font instead.", szFileName );
-      sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
-      if ( access( szFileName, R_OK ) == -1 )
-      {
-         log_softerror_and_alarm("Can't find font: [%s]. Using a default size instead.", szFileName );
-         nSize = 56;
-         sprintf(szFileName, "res/font_rawobold_%d.dsc", nSize );
-      }
-   }
-   log_line("Loading font: %s (%s)", szName, szFileName);
-   return g_pRenderEngine->loadFont(szFileName);
-}
-
-void ruby_reload_menu_font()
-{
-   Preferences* p = get_Preferences();
-
-   u32 tmpFont1 = g_idFontMenu;
-   u32 tmpFont2 = g_idFontMenuLarge;
-   u32 tmpFont3 = g_idFontMenuSmall;
-
-   //g_pRenderEngine->freeFont(g_idFontMenu);
-   //g_pRenderEngine->freeFont(g_idFontMenuSmall);
-   //g_pRenderEngine->freeFont(g_idFontMenuLarge);
-
-   float hScreen = hdmi_get_current_resolution_height();   
-   log_line("(Re)Loading Menu fonts for screen height: %d px", (int)hScreen);
-
-   hScreen *= menu_getScaleMenus();
-
-   float hFont = hScreen*(16.0/720.0);
-   g_idFontMenu = load_font(hFont, "raw_bold");
-   if ( 0 == g_idFontMenu )
-   {
-      g_idFontMenu = tmpFont1;
-      log_softerror_and_alarm("Failed to load main menu font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmpFont1);
-
-   float hFontLarge = hFont*1.3;
-   g_idFontMenuLarge = load_font(hFontLarge, "raw_bold");
-   if ( 0 == g_idFontMenuLarge )
-   {
-      g_idFontMenuLarge = tmpFont2;
-      log_softerror_and_alarm("Failed to load main menu font large. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmpFont2);
-
-   float hFontSmall = hFont*0.9;
-   g_idFontMenuSmall = load_font(hFontSmall, "raw_bold");
-   if ( 0 == g_idFontMenuSmall )
-   {
-      g_idFontMenuSmall = tmpFont3;
-      log_softerror_and_alarm("Failed to load main menu font small. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmpFont3);
-
-   for( int i=0; i<popups_get_count(); i++ )
-   {
-      Popup* p = popups_get_at(i);
-      if ( p && ( p->getFontId() == tmpFont1) )
-         p->setFont(g_idFontMenu);
-      if ( p && ( p->getFontId() == tmpFont2 ) )
-         p->setFont(g_idFontMenuLarge);
-      if ( p && ( p->getFontId() == tmpFont3 ) )
-         p->setFont(g_idFontMenuSmall);
-   }
-
-   for( int i=0; i<popups_get_topmost_count(); i++ )
-   {
-      Popup* p = popups_get_topmost_at(i);
-      if ( p && ( p->getFontId() == tmpFont1) )
-         p->setFont(g_idFontMenu);
-      if ( p && ( p->getFontId() == tmpFont2 ) )
-         p->setFont(g_idFontMenuLarge);
-      if ( p && ( p->getFontId() == tmpFont3 ) )
-         p->setFont(g_idFontMenuSmall);
-   }
-
-   log_line("(Re)Loaded Menu fonts for screen height: %d px. Complete.", (int)hScreen);
-}
-
-void ruby_reload_osd_fonts()
-{
-   Preferences* p = get_Preferences();
-
-   u32 tmp[7];
-
-   tmp[0] = g_idFontOSD;
-   tmp[1] = g_idFontOSDBig;
-   tmp[2] = g_idFontOSDSmall;
-   tmp[3] = g_idFontOSDWarnings;
-   tmp[4] = g_idFontStats;
-   tmp[5] = g_idFontStatsSmall;
-   tmp[6] = g_idFontOSDExtraSmall;
-
-   //g_pRenderEngine->freeFont(g_idFontOSD);
-   //g_pRenderEngine->freeFont(g_idFontOSDBig);
-   //g_pRenderEngine->freeFont(g_idFontOSDSmall);
-   //g_pRenderEngine->freeFont(g_idFontOSDWarnings);
-   //g_pRenderEngine->freeFont(g_idFontStats);
-   //g_pRenderEngine->freeFont(g_idFontStatsSmall);
-
-   float hScreen = hdmi_get_current_resolution_height();
-   log_line("(Re)Loading OSD fonts for screen height: %d px", (int)hScreen);
-
-   char szFont[32];
-   strcpy(szFont, "raw_bold");
-   if ( p->iOSDFont == 0 )
-      strcpy(szFont, "raw_bold");
-   if ( p->iOSDFont == 1 )
-      strcpy(szFont, "rawobold");
-   if ( p->iOSDFont == 2 )
-      strcpy(szFont, "ariobold");
-   if ( p->iOSDFont == 3 )
-      strcpy(szFont, "bt_bold");
-
-
-   float hFont = hScreen*(16.0/720)*1.4;
-   g_idFontOSDWarnings = load_font(hFont, szFont);
-   if ( 0 == g_idFontOSDWarnings )
-   {
-      g_idFontOSDWarnings = tmp[3];
-      log_softerror_and_alarm("Failed to load OSDWarnings font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[3]);
-
-   hFont = hScreen*(16.0/720)*osd_getScaleOSD();
-   g_idFontOSD = load_font(hFont, szFont);
-   if ( 0 == g_idFontOSD )
-   {
-      g_idFontOSD = tmp[0];
-      log_softerror_and_alarm("Failed to load OSD font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[0]);
-
-   float hFontBig = hFont*1.4;
-   g_idFontOSDBig = load_font(hFontBig, szFont);
-   if ( 0 == g_idFontOSDBig )
-   {
-      g_idFontOSDBig = tmp[1];
-      log_softerror_and_alarm("Failed to load OSDBig font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[1]);
-
-   float hFontSmall = hFont*0.74;
-   g_idFontOSDSmall = load_font(hFontSmall, szFont);
-   if ( 0 == g_idFontOSDSmall )
-   {
-      g_idFontOSDSmall = tmp[2];
-      log_softerror_and_alarm("Failed to load OSDSmall font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[2]);
-
-   float hFontExtraSmall = hFont*0.6;
-   g_idFontOSDExtraSmall = load_font(hFontExtraSmall, szFont);
-   if ( 0 == g_idFontOSDExtraSmall )
-   {
-      g_idFontOSDExtraSmall = tmp[6];
-      log_softerror_and_alarm("Failed to load OSDExtraSmall font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[6]);
-
-   hFont = hScreen*(16.0/720)*osd_getScaleOSDStats();
-   g_idFontStats = load_font(hFont, szFont);
-   if ( 0 == g_idFontStats )
-   {
-      g_idFontStats = tmp[4];
-      log_softerror_and_alarm("Failed to load OSDStats font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[4]);
-
-   hFontSmall = hFont*0.74;
-   g_idFontStatsSmall = load_font(hFontSmall, szFont);
-   if ( 0 == g_idFontStatsSmall )
-   {
-      g_idFontStatsSmall = tmp[5];
-      log_softerror_and_alarm("Failed to load OSDStatsSmall font. Restoring old one.");
-   }
-   else
-      g_pRenderEngine->freeFont(tmp[5]);
-
-
-   s_uRenderEngineUIFontIdRegular = g_idFontOSD;
-   s_uRenderEngineUIFontIdSmall = g_idFontOSDSmall;
-   s_uRenderEngineUIFontIdBig = g_idFontOSDBig;
-
-   for( int i=0; i<popups_get_count(); i++ )
-   {
-      Popup* p = popups_get_at(i);
-      if ( p && ( p->getFontId() == tmp[0]) )
-         p->setFont(g_idFontOSD);
-      if ( p && ( p->getFontId() == tmp[1] ) )
-         p->setFont(g_idFontOSDBig);
-      if ( p && ( p->getFontId() == tmp[2] ) )
-         p->setFont(g_idFontOSDSmall);
-      if ( p && ( p->getFontId() == tmp[3] ) )
-         p->setFont(g_idFontOSDWarnings);
-      if ( p && ( p->getFontId() == tmp[4] ) )
-         p->setFont(g_idFontStats);
-      if ( p && ( p->getFontId() == tmp[5] ) )
-         p->setFont(g_idFontStatsSmall);
-      if ( p && ( p->getFontId() == tmp[6] ) )
-         p->setFont(g_idFontOSDExtraSmall);
-   }
-
-   for( int i=0; i<popups_get_topmost_count(); i++ )
-   {
-      Popup* p = popups_get_topmost_at(i);
-      if ( p && ( p->getFontId() == tmp[0] ) )
-         p->setFont(g_idFontOSD);
-      if ( p && ( p->getFontId() == tmp[1] ) )
-         p->setFont(g_idFontOSDBig);
-      if ( p && ( p->getFontId() == tmp[2] ) )
-         p->setFont(g_idFontOSDSmall);
-      if ( p && ( p->getFontId() == tmp[3] ) )
-         p->setFont(g_idFontOSDWarnings);
-      if ( p && ( p->getFontId() == tmp[4] ) )
-         p->setFont(g_idFontStats);
-      if ( p && ( p->getFontId() == tmp[5] ) )
-         p->setFont(g_idFontStatsSmall);
-      if ( p && ( p->getFontId() == tmp[6] ) )
-         p->setFont(g_idFontOSDExtraSmall);
-   }
-
-   log_line("(Re)Loaded OSD fonts for screen height: %d px. Complete.", (int)hScreen);   
-}
-
-
-void draw_background()
+void _draw_background()
 {
    if ( isMenuOn() )
       g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImageMenu);
@@ -424,14 +168,18 @@ void draw_background()
    double cc[4] = { 80,30,40,0.88 };
 
    g_pRenderEngine->setColors(cc);
-   float width_text = g_pRenderEngine->textWidth(0.02, g_idFontMenu, SYSTEM_NAME);
+   float width_text = g_pRenderEngine->textWidth(g_idFontMenu, SYSTEM_NAME);
    char szBuff[256];
    getSystemVersionString(szBuff, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-   g_pRenderEngine->drawText(0.91, 0.92, 0.02, g_idFontMenu, SYSTEM_NAME);
-   g_pRenderEngine->drawText(0.915+width_text, 0.92, 0.02, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(0.91, 0.92, g_idFontMenu, SYSTEM_NAME);
+   g_pRenderEngine->drawText(0.915+width_text, 0.92, g_idFontMenu, szBuff);
 
-   if ( NULL != g_pCurrentModel )
-      return;
+   bool bNoModel = false;
+
+   if ( (NULL == g_pCurrentModel) ||
+        (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount()) ) ||
+        (g_bFirstModelPairingDone && (0 == g_uActiveControllerModelVID) ) )
+      bNoModel = true;
 
    double c[4] = {0,0,0,1};
    g_pRenderEngine->setGlobalAlfa(1.0);
@@ -439,23 +187,23 @@ void draw_background()
 
    sprintf(szBuff, "Welcome to %s", SYSTEM_NAME);
 
-   g_pRenderEngine->drawText(0.42, 0.2, 0.02*1.4, g_idFontMenuLarge, szBuff);
-   g_pRenderEngine->drawText(0.42, 0.24, 0.02, g_idFontMenuLarge, "Digital FPV System");
+   g_pRenderEngine->drawText(0.42, 0.2, g_idFontMenuLarge, szBuff);
+   g_pRenderEngine->drawText(0.42, 0.24, g_idFontMenuLarge, "Digital FPV System");
 
    if ( s_StartSequence == START_SEQ_COMPLETED )
-   if ( NULL == g_pCurrentModel )
+   if ( bNoModel )
    {
-      if ( 0 == getModelsCount() )
+      if ( 0 == getControllerModelsCount() )
       {
-         g_pRenderEngine->drawText(0.32, 0.3, 0.02*1.2, g_idFontMenu, "Info: No vehicle defined!");
-         g_pRenderEngine->drawText(0.32, 0.34, 0.02, g_idFontMenu, "You have no vehicles linked to this controller.");
-         g_pRenderEngine->drawText(0.32, 0.37, 0.02, g_idFontMenu, "Please press [Menu] and then select [Search] to search for a vehicle to connect to.");
+         g_pRenderEngine->drawText(0.32, 0.3, g_idFontMenuLarge, "Info: No vehicle defined!");
+         g_pRenderEngine->drawText(0.32, 0.34, g_idFontMenuLarge, "You have no vehicles linked to this controller.");
+         g_pRenderEngine->drawText(0.32, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'Search' to search for a vehicle to connect to.");
       }
-      else
+      else if ( ! g_bSearching )
       {
-         g_pRenderEngine->drawText(0.32, 0.3, 0.02*1.2, g_idFontMenu, "Info: No vehicle selected!");
-         g_pRenderEngine->drawText(0.32, 0.34, 0.02, g_idFontMenu, "You have no vehicle selected as active.");
-         g_pRenderEngine->drawText(0.32, 0.37, 0.02, g_idFontMenu, "Please press [Menu] and then select [My Vehicles] to select the vehicle to connect to.");
+         g_pRenderEngine->drawText(0.32, 0.3, g_idFontMenuLarge, "Info: No vehicle selected!");
+         g_pRenderEngine->drawText(0.32, 0.34, g_idFontMenuLarge, "You have no vehicle selected as active.");
+         g_pRenderEngine->drawText(0.32, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'My Vehicles' to select the vehicle to connect to.");
       }
    }
 }
@@ -486,7 +234,7 @@ void render_graph_bg()
    char szBuff[256];
 
    g_pRenderEngine->setColors(cc);
-   float height_text = g_pRenderEngine->textHeight(0.0, g_idFontMenu);
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
    g_pRenderEngine->setFill(255,255,255,1);
    g_pRenderEngine->setStroke(255,255,255,1);
@@ -495,7 +243,7 @@ void render_graph_bg()
    g_pRenderEngine->drawLine(startX-2.0*g_pRenderEngine->getPixelWidth(), endY-16.0*g_pRenderEngine->getPixelHeight(), endX, endY-16.0*g_pRenderEngine->getPixelHeight());
    g_pRenderEngine->drawLine(startX-2.0*g_pRenderEngine->getPixelWidth(), endY-16.0*g_pRenderEngine->getPixelHeight(), startX-2.0*g_pRenderEngine->getPixelWidth(), startY);
 
-   g_pRenderEngine->drawText(startX+(endX-startX)/2.0-50.0/g_pRenderEngine->getScreenWidth(), endY-height_text*4.2-24.0/g_pRenderEngine->getScreenHeight(), height_text, g_idFontMenu, "ms");
+   g_pRenderEngine->drawText(startX+(endX-startX)/2.0-50.0/g_pRenderEngine->getScreenWidth(), endY-height_text*4.2-24.0/g_pRenderEngine->getScreenHeight(), g_idFontMenu, "ms");
 
    int milisec = 100;
    if ( s_PacketsScopeGraphZoomLevel == 1 )
@@ -507,9 +255,9 @@ void render_graph_bg()
    {
       sprintf(szBuff, "%d", i*milisec);
       
-      float width_text = g_pRenderEngine->textWidth(height_text, g_idFontMenu, szBuff);   
+      float width_text = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);   
       int x = startX + (endX-startX)*i/10.0;
-      g_pRenderEngine->drawText(x-width_text*0.5, endY-24.0*g_pRenderEngine->getPixelHeight() - height_text*2.6, height_text, g_idFontMenu, szBuff);
+      g_pRenderEngine->drawText(x-width_text*0.5, endY-24.0*g_pRenderEngine->getPixelHeight() - height_text*2.6, g_idFontMenu, szBuff);
       g_pRenderEngine->drawLine(x, endY-16.0*g_pRenderEngine->getPixelHeight(), x, endY-32.0*g_pRenderEngine->getPixelHeight());
       if ( i != 10 )
          g_pRenderEngine->drawLine(x+(endX-startX)/20.0,endY-16.0*g_pRenderEngine->getPixelWidth(), x+(endX-startX)/20.0, endY-26.0*g_pRenderEngine->getPixelWidth());
@@ -528,7 +276,7 @@ void render_graph_bg()
       if ( i < 2 )
          sprintf(szBuff, "%d", 2-i);
       float y = startY + (endY-startY )*i/(slices+2);
-      g_pRenderEngine->drawTextLeft(startX-22.0*g_pRenderEngine->getPixelWidth(), y-height_text*0.4, height_text, g_idFontMenu, szBuff);
+      g_pRenderEngine->drawTextLeft(startX-22.0*g_pRenderEngine->getPixelWidth(), y-height_text*0.4, g_idFontMenu, szBuff);
       g_pRenderEngine->drawLine(startX-10.0*g_pRenderEngine->getPixelWidth(), y, startX, y);
    }
 }
@@ -585,7 +333,7 @@ void render_router_pachets_history()
 
    int sliceStart = 0;
 
-   int* pRates = getDataRates();
+   int* pRates = getDataRatesBPS();
 
    double colorVideo[4] = {180,180,180,0.4};
    double colorRetr1[4] = {0,0,255,0.8};
@@ -594,7 +342,7 @@ void render_router_pachets_history()
    double colorTelem[4] = {250,255,0,0.7};
    double colorRC[4] = {240,0,160,0.9};
 
-   float height_text = g_pRenderEngine->textHeight(0.0, g_idFontMenu);
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
    float yLeg = marginBottom+paddingBottom+contentHeight;
    float xLeg = marginX+paddingLeft + 150.0/g_pRenderEngine->getScreenWidth();
@@ -603,17 +351,17 @@ void render_router_pachets_history()
    g_pRenderEngine->setStrokeSize(0.2);
    g_pRenderEngine->setFill(colorPing[0], colorPing[1], colorPing[2], colorPing[3]);
    g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, height_text, g_idFontMenu, "ping");
+   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "ping");
    xLeg += 70.0/g_pRenderEngine->getScreenWidth();
 
    g_pRenderEngine->setFill(colorTelem[0], colorTelem[1], colorTelem[2], colorTelem[3]);
    g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, height_text, g_idFontMenu, "telem");
+   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "telem");
    xLeg += 70.0/g_pRenderEngine->getScreenWidth();
 
    g_pRenderEngine->setFill(colorRC[0], colorRC[1], colorRC[2], colorRC[3]);
    g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, height_text, g_idFontMenu, "rc");
+   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "rc");
    xLeg += 70.0/g_pRenderEngine->getScreenWidth();
 
    for( int band=0; band<bands; band++ )
@@ -706,7 +454,7 @@ void render_router_pachets_history()
          g_pRenderEngine->setFill(colorRetr1[0], colorRetr1[1], colorRetr1[2], colorRetr1[3]);
          g_pRenderEngine->setStroke(colorRetr1[0], colorRetr1[1], colorRetr1[2], 0.4);
          g_pRenderEngine->setStrokeSize(0.2);
-         if ( NULL != g_pCurrentModel && cRate > 0 && pRates[cRate] != g_pCurrentModel->radioInterfacesParams.interface_datarates[0][0] )
+         if ( NULL != g_pCurrentModel && cRate > 0 && pRates[cRate] != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[0] )
          {
             g_pRenderEngine->setFill(colorRetr2[0], colorRetr2[1], colorRetr2[2], colorRetr2[3]);
             g_pRenderEngine->setStroke(colorRetr2[0], colorRetr2[1], colorRetr2[2], 0.4);
@@ -753,81 +501,156 @@ void render_router_pachets_history()
    g_pRenderEngine->setFill(255,255,255,1);
    g_pRenderEngine->setStroke(255,255,255,1);
    g_pRenderEngine->setStrokeSize(0.2);
-   height_text = g_pRenderEngine->textHeight(0.0, g_idFontMenu);
+   height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
    char szBuff[128];
    sprintf(szBuff, "Telemetry: %d/sec", totalCountTelemetry);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop, height_text, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop, g_idFontMenu, szBuff);
    sprintf(szBuff, "RC (Out/In): %d/%d/sec", totalCountRC, totalCountRCIn);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*1.3, height_text, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*1.3, g_idFontMenu, szBuff);
    sprintf(szBuff, "Ping: %d/sec", totalCountPing);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*2.6, height_text, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*2.6, g_idFontMenu, szBuff);
 }
 
-
-void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
+void _render_video_player(u32 timeNow)
 {
-   ControllerSettings* pCS = get_ControllerSettings();
-
-   if ( pCS->iFreezeOSD && s_bFreezeOSD )
-      return;
+   char szBuff[1024];
 
    g_pRenderEngine->startFrame();
 
-   if ( g_bVideoPlaying )
-   {
-      char szBuff[1024];
-      g_pRenderEngine->setFill(255,255,255,1);
-      g_pRenderEngine->setStroke(0,0,0,1);
-      g_pRenderEngine->setStrokeSize(1);
-      u32 t = timeNow;
-      t = t - g_uVideoPlayingStartTime;
-      if ( t/1000 > g_uVideoPlayingLengthSec+1 )
-         sprintf(szBuff, "Finished.");
-      else if ( (t/500)%2 )
-         sprintf(szBuff, "Playing %02d:%02d", ((t/1000)/60), (t/1000)%60);
-      else
-         sprintf(szBuff, "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
+   g_pRenderEngine->setFill(255,255,255,1);
+   g_pRenderEngine->setStroke(0,0,0,1);
+   g_pRenderEngine->setStrokeSize(1);
+   u32 t = timeNow;
+   t = t - g_uVideoPlayingStartTime;
+   if ( t/1000 > g_uVideoPlayingLengthSec+1 )
+      sprintf(szBuff, "Finished.");
+   else if ( (t/500)%2 )
+      sprintf(szBuff, "Playing %02d:%02d", ((t/1000)/60), (t/1000)%60);
+   else
+      sprintf(szBuff, "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
 
-      float text_scale = 0.017;
-      g_pRenderEngine->drawText(0.03, 0.05, text_scale, g_idFontMenu, szBuff);      
-      sprintf(szBuff, "Press [Menu] or [Back] button to close");
-      text_scale = 0.012;
-      g_pRenderEngine->drawText(0.18, 0.042, text_scale, g_idFontMenu, szBuff);      
-      g_pRenderEngine->endFrame();
-      return;
+   float text_scale = 0.017;
+   g_pRenderEngine->drawText(0.03, 0.05, g_idFontMenu, szBuff);      
+   sprintf(szBuff, "Press [Menu] or [Back] button to close");
+   text_scale = 0.012;
+   g_pRenderEngine->drawText(0.18, 0.042, g_idFontMenu, szBuff);  
+       
+   g_pRenderEngine->endFrame();
+}
+
+void _render_video_background()
+{
+   u32 uVehicleIdFullVideo = 0;
+   bool bVehicleHasCamera = true;
+   bool bDisplayingRelayedVideo = false;
+
+   u32 uSwVersion = 0;
+   if ( NULL != g_pCurrentModel )
+   {
+      uVehicleIdFullVideo = g_pCurrentModel->vehicle_id;
+      uSwVersion = g_pCurrentModel->sw_version;
+      Model* pModel = relay_controller_get_relayed_vehicle_model(g_pCurrentModel);
+      if ( NULL != pModel )
+      if ( relay_controller_must_display_remote_video(pModel) )
+      {
+         uVehicleIdFullVideo = pModel->vehicle_id;
+         bDisplayingRelayedVideo = true;
+         uSwVersion = pModel->sw_version;
+      }
    }
 
+   if ( 0 != uVehicleIdFullVideo )
+   {
+      bVehicleHasCamera = true;
+      t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleIdFullVideo);
+      if ( NULL != pRuntimeInfo )
+      if ( pRuntimeInfo->bGotRubyTelemetryInfo )
+      if ( (uSwVersion >> 16) > 79 ) // v 7.7
+      if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
+         bVehicleHasCamera = false;
+
+      Model* pModel = findModelWithId(uVehicleIdFullVideo);
+      if ( NULL != pModel )
+      if ( pModel->iCameraCount <= 0 )
+         bVehicleHasCamera = false;
+      if ( pModel->b_mustSyncFromVehicle )
+      //if ( (uSwVersion >> 16) < 79 ) // v 7.7
+         bVehicleHasCamera = true;
+      if ( bVehicleHasCamera && link_has_received_videostream(uVehicleIdFullVideo) )
+         return;
+   }
+
+   g_pRenderEngine->setGlobalAlfa(1.0);
+
+   double c1[4] = {0,0,0,1};
+   g_pRenderEngine->setColors(c1);
+   g_pRenderEngine->drawRect(0, 0, 1,1 );
+
+   double c[4] = {255,255,255,1};
+   g_pRenderEngine->setColors(c);
+
+   char szText[256];
+
+   strcpy(szText, "Waiting for video feed");
+   if ( bDisplayingRelayedVideo )
+      strcpy(szText, "Waiting for video feed from relayed vehicle");
+
+   if ( g_bFirstModelPairingDone )
+   if ( ! bVehicleHasCamera )
+   {
+      strcpy(szText, "This vehicle has no cameras or video streams");
+      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+      if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
+      {
+         Model* pModel = findModelWithId(uVehicleIdFullVideo);
+         if ( NULL != pModel )
+            sprintf(szText, "%s has no cameras or video streams", pModel->getLongName());
+      }
+   }
+
+   if ( bVehicleHasCamera )
+   {
+      static u32 sl_uLastTimeLogWaitVideo = 0;
+      if ( g_TimeNow > sl_uLastTimeLogWaitVideo + 4000 )
+         log_line("Waiting for video feed from VID %u", uVehicleIdFullVideo);
+   }
+   float width_text = g_pRenderEngine->textWidth(g_idFontOSDBig, szText);
+   g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
+   g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
+}
+
+void _render_background_and_paddings(bool bForceBackground)
+{
    bool showBg = true;
 
    if ( ! g_bSearching )
-   if ( ! pairing_is_connected_to_wrong_model() )
    if ( g_bIsRouterReady )
-   if ( pairing_hasReceivedVideoStreamData() )
+   if ( link_has_received_main_vehicle_ruby_telemetry() )
+   if ( link_has_received_videostream(0) )
       showBg = false;
 
    if ( g_bSearching && (!g_bSearchFoundVehicle) )
+   {
+      showBg = true;
+      bForceBackground = true;
+   }
+
+   if ( ! pairing_isStarted() )
       showBg = true;
 
-   Preferences* p = get_Preferences();
+   if ( ! g_bFirstModelPairingDone )
+      bForceBackground = true;
 
-   if ( showBg || bForceBackground )
+   if ( NULL != g_pPopupLooking )
+      bForceBackground = true;
+
+   if ( showBg || bForceBackground || (! link_has_received_videostream(0)) )
    {
-      if ( (! bForceBackground) && pairing_isStarted() && pairing_wasReceiving() )
-      {
-         g_pRenderEngine->setGlobalAlfa(1.0);
-
-         double c1[4] = {0,0,0,1};
-         g_pRenderEngine->setColors(c1);
-         g_pRenderEngine->drawRect(0, 0, 1,1 );
-
-         double c[4] = {255,255,255,1};
-         g_pRenderEngine->setColors(c);
-
-         g_pRenderEngine->drawText(0.44, 0.4, 0.02, g_idFontOSDBig, "No Video");
-      }
+      if ( bForceBackground || (! pairing_isStarted()) )
+         _draw_background();
       else
-         draw_background();
+         _render_video_background();
    }
 
    float fScreenAspect = (float)(g_pRenderEngine->getScreenWidth())/(float)(g_pRenderEngine->getScreenHeight());
@@ -862,13 +685,34 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
          }
       }
    }
+}
 
+void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
+{
+   ControllerSettings* pCS = get_ControllerSettings();
+   Preferences* p = get_Preferences();
+
+   if ( pCS->iFreezeOSD && s_bFreezeOSD )
+      return;
+
+   if ( g_bVideoPlaying )
+   {
+      _render_video_player(timeNow);
+      return;
+   }
+
+   g_pRenderEngine->startFrame();
+   
+   _render_background_and_paddings(bForceBackground);
+   
    if ( (!g_bSearching) || g_bSearchFoundVehicle )
    if ( ! bForceBackground )
    if ( s_StartSequence == START_SEQ_COMPLETED || s_StartSequence == START_SEQ_FAILED )
    {
+      if ( pairing_isStarted() )
       if ( g_bIsRouterReady )
-      if ( pairing_isStarted() && (pairing_isReceiving() || pairing_wasReceiving()) )
+      if ( g_TimeNow >= g_RouterIsReadyTimestamp + 250 )
+      if ( NULL == g_pPopupLooking )
       {
          u32 t = get_current_timestamp_micros();
          osd_render_all();
@@ -889,8 +733,8 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       char szBuff[64];
       float yPos = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.014*osd_getScaleOSD();
       float xPos = osd_getMarginX() + 0.01*osd_getScaleOSD();
-      if ( NULL != g_pCurrentModel && g_iCurrentOSDVehicleLayout >= 0 && g_iCurrentOSDVehicleLayout < MODEL_MAX_OSD_PROFILES )
-      if ( g_pCurrentModel->osd_params.osd_flags2[g_iCurrentOSDVehicleLayout] & OSD_FLAG_EXT_LAYOUT_LEFT_RIGHT )
+      if ( NULL != g_pCurrentModel && osd_get_current_layout_index() >= 0 && osd_get_current_layout_index() < MODEL_MAX_OSD_PROFILES )
+      if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
       {
          xPos = osd_getMarginX() + osd_getVerticalBarWidth() + 0.01*osd_getScaleOSD();
          yPos = osd_getMarginY() + 0.01*osd_getScaleOSD();
@@ -903,33 +747,30 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       {
          xPos += 0.02*osd_getScaleOSD();
          sprintf(szBuff, "UI FPS: %d", s_iRubyFPS);
-         osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
+         osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
          xPos += 0.056*osd_getScaleOSD();
          sprintf(szBuff, "Menu: %.1f ms/frame", s_iMicroTimeMenuRender/1000.0);
-         osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
+         osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
          xPos += 0.1*osd_getScaleOSD();
          sprintf(szBuff, "OSD: %.1f ms/frame", s_iMicroTimeOSDRender/1000.0);
-         osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
+         osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
          xPos += 0.1*osd_getScaleOSD();
          sprintf(szBuff, "OSD: %d ms/sec", (int)(s_iMicroTimeOSDRender*s_iRubyFPS/1000.0));
-         osd_show_value(xPos, yPos, szBuff, g_idFontOSD );
+         osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
       }
    }
 
    u32 t = get_current_timestamp_micros();
    popups_render();
-
    menu_render();
-
-
    popups_render_topmost();
 
    t = get_current_timestamp_micros() - t;
-   if ( t < 100000 )
-      s_iMicroTimeMenuRender = s_iMicroTimeMenuRender*0.8 + t*0.2;
+   if ( t < 300000 )
+      s_iMicroTimeMenuRender = (s_iMicroTimeMenuRender*8 + t*2)/10;
   
    if ( handle_commands_is_command_in_progress() )
       render_commands();
@@ -1040,13 +881,13 @@ void ruby_start_recording()
       if ( lf < 200 )
       {
          sprintf(szTemp, "You don't have enough free space on the SD card to start recording (%d Mb free). Move your media files to USB memory stick.", (int)lf);
-         warnings_add(szTemp, g_idIconCamera, get_Color_IconError(), 6);
+         warnings_add(0, szTemp, g_idIconCamera, get_Color_IconError(), 6);
          return;
       }
       if ( lf < 1000 )
       {
          sprintf(szTemp, "You are running low on storage space (%d Mb free). Move your media files to USB memory stick.", (int)lf);
-         warnings_add(szTemp, g_idIconCamera, get_Color_IconWarning(), 6);
+         warnings_add(0, szTemp, g_idIconCamera, get_Color_IconWarning(), 6);
          log_line("Warning: Free storage space is only %d Mb. Video recording might stop", (int)lf);
       }
    }
@@ -1061,7 +902,23 @@ void ruby_start_recording()
    if ( p->iRecordingLedAction == 2 )
       hardware_recording_led_set_blinking();
    g_bVideoRecordingStarted = true;
+   
    notification_add_recording_start();
+
+   if ( NULL == g_pCurrentModel )
+      return;
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
+   PH.vehicle_id_src = g_uControllerId;
+   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.total_length = sizeof(t_packet_header) + 8 * sizeof(u8);
+
+   u8 buffer[MAX_PACKET_TOTAL_SIZE];
+   memset(buffer, 0, MAX_PACKET_TOTAL_SIZE);
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = 1; // Start audio recording
+   send_packet_to_router(buffer, PH.total_length);
 }
 
 void ruby_stop_recording()
@@ -1080,13 +937,30 @@ void ruby_stop_recording()
    notification_add_recording_end();
    g_bVideoProcessing = true;
    link_watch_mark_started_video_processing();
-   warnings_add("Processing video file...", g_idIconCamera, get_Color_IconNormal());
+   warnings_add(0, "Processing video file...", g_idIconCamera, get_Color_IconNormal());
+
+   if ( NULL == g_pCurrentModel )
+      return;
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
+   PH.vehicle_id_src = g_uControllerId;
+   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.total_length = sizeof(t_packet_header) + 8 * sizeof(u8);
+
+   u8 buffer[MAX_PACKET_TOTAL_SIZE];
+   memset(buffer, 0, MAX_PACKET_TOTAL_SIZE);
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = 2; // Stop audio recording
+   send_packet_to_router(buffer, PH.total_length);
 }
 
 bool quickActionCheckVehicle(const char* szText)
 {
    bool bHasVehicle = false;
-   if ( pairing_isStarted() && pairing_isReceiving() && (! pairing_is_connected_to_wrong_model()) )
+   if ( pairing_isStarted() && (NULL != g_pCurrentModel) )
+   if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+   if ( link_has_received_main_vehicle_ruby_telemetry() )
       bHasVehicle = true;
 
    if ( bHasVehicle )
@@ -1116,20 +990,34 @@ void executeQuickActions()
       return;
    if ( g_bIsReinit )
       return;
+   if ( NULL == g_pCurrentModel )
+      return;
 
-   if ( isKeyQA1Pressed() )
+   if ( pCS->iQAButtonRelaySwitching > 0 )
+   {
+      if ( pCS->iQAButtonRelaySwitching == 1 )
+         p->iActionQuickButton1 = quickActionRelaySwitch;
+      if ( pCS->iQAButtonRelaySwitching == 2 )
+         p->iActionQuickButton2 = quickActionRelaySwitch;
+      if ( pCS->iQAButtonRelaySwitching == 3 )
+         p->iActionQuickButton3 = quickActionRelaySwitch;
+   }
+
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1  )
       log_line("Pressed button QA1");
-   if ( isKeyQA2Pressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2  )
       log_line("Pressed button QA2");
-   if ( isKeyQA3Pressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3  )
       log_line("Pressed button QA3");
 
+   log_line("Current assigned QA actions: button1: %d, button2: %d, button3: %d",
+    p->iActionQuickButton1,p->iActionQuickButton2,p->iActionQuickButton3);
    if ( NULL != g_pCurrentModel )
    if ( pairing_isStarted() )
    if ( pCS->iDevSwitchVideoProfileUsingQAButton >= 0 && pCS->iDevSwitchVideoProfileUsingQAButton < 3 )
-   if ( (isKeyQA1Pressed() && (pCS->iDevSwitchVideoProfileUsingQAButton==0)) ||
-        (isKeyQA2Pressed() && (pCS->iDevSwitchVideoProfileUsingQAButton==1)) ||
-        (isKeyQA3Pressed() && (pCS->iDevSwitchVideoProfileUsingQAButton==2)) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && (pCS->iDevSwitchVideoProfileUsingQAButton==0)) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && (pCS->iDevSwitchVideoProfileUsingQAButton==1)) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && (pCS->iDevSwitchVideoProfileUsingQAButton==2)) )
    {
       s_uLastQuickActionSwitchVideoProfile++;
       if ( s_uLastQuickActionSwitchVideoProfile > 2 )
@@ -1138,93 +1026,100 @@ void executeQuickActions()
       if ( 0 == s_uLastQuickActionSwitchVideoProfile )
       {
          handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO, 0, NULL, 0);
-         warnings_add("Dev: Switch to Auto Video Link Quality.");
+         warnings_add(0, "Dev: Switch to Auto Video Link Quality.");
       }
       if ( 1 == s_uLastQuickActionSwitchVideoProfile )
       {
          handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED, 0, NULL, 0);
-         warnings_add("Dev: Switch to Med Video Link Quality.");
+         warnings_add(0, "Dev: Switch to Med Video Link Quality.");
       }
       if ( 2 == s_uLastQuickActionSwitchVideoProfile )
       {
          handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW, 0, NULL, 0);
-         warnings_add("Dev: Switch to Low Video Link Quality.");
+         warnings_add(0, "Dev: Switch to Low Video Link Quality.");
       }
       return;
    }
 
    if ( NULL != g_pCurrentModel )
-   if ( (isKeyQA1Pressed() && quickActionCycleOSD == p->iActionQuickButton1) || 
-        (isKeyQA2Pressed() && quickActionCycleOSD == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionCycleOSD == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionCycleOSD == p->iActionQuickButton1) || 
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionCycleOSD == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionCycleOSD == p->iActionQuickButton3) )
    {
       //if ( ! quickActionCheckVehicle("cycle the OSD screens") )
       //   return;
 
       g_bHasVideoDecodeStatsSnapshot = false;
 
-      if ( NULL == g_pCurrentModel )
+      Model* pModel = osd_get_current_layout_source_model();
+      if ( NULL == pModel )
          return;
+      log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->vehicle_id, pModel->getShortName(), pModel->osd_params.layout);
 
-      int curentLayout = g_pCurrentModel->osd_params.layout;
+      int curentLayout = pModel->osd_params.layout;
       int k=0; 
       while ( k < 10 )
       {
          k++;
-         g_pCurrentModel->osd_params.layout++;
-         if ( g_pCurrentModel->osd_params.layout >= osdLayoutLast )
-            g_pCurrentModel->osd_params.layout = osdLayout1;
-         if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG_EXT_LAYOUT_ENABLED )
+         pModel->osd_params.layout++;
+         if ( pModel->osd_params.layout >= osdLayoutLast )
+            pModel->osd_params.layout = osdLayout1;
+         if ( pModel->osd_params.osd_flags2[pModel->osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED )
             break; 
       }
 
-      if ( curentLayout == g_pCurrentModel->osd_params.layout )
+      if ( curentLayout == pModel->osd_params.layout )
       {
-         Popup* p = new Popup("You have a single OSD screen enabled. Enable more to be able to switch them.", 0.1,0.7, 0.54, 4);
+         char szBuff[128];
+         sprintf(szBuff, "You have a single OSD screen enabled on %s. Enable more to be able to switch them.", pModel->getLongName());
+         Popup* p = new Popup(szBuff, 0.1,0.7, 0.54, 4);
          p->setCentered();
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
          popups_add_topmost(p);
          return;
       }
 
-      u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout] & 0xFF;
+      osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
+
+      u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
       osd_setScaleOSD((int)scale);
-      scale = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout]>>16) & 0x0F;
+      scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
       osd_setScaleOSDStats((int)scale);
+      osd_apply_preferences();
+      applyFontScaleChanges();
 
-      if ( render_engine_is_raw() )
-         ruby_reload_osd_fonts();
-
-      saveAsCurrentModel(g_pCurrentModel);
+      saveControllerModel(pModel);
       save_Preferences();
 
-      if ( g_pCurrentModel->osd_params.layout == 0 )
-         warnings_add("OSD Screen changed to Screen 1");
-      if ( g_pCurrentModel->osd_params.layout == 1 )
-         warnings_add("OSD Screen changed to Screen 2");
-      if ( g_pCurrentModel->osd_params.layout == 2 )
-         warnings_add("OSD Screen changed to Screen 3");
-      if ( g_pCurrentModel->osd_params.layout == 3 )
-         warnings_add("OSD Screen changed to Screen Lean");
-      if ( g_pCurrentModel->osd_params.layout == 4 )
-         warnings_add("OSD Screen changed to Screen Lean Extended");
+      if ( pModel->osd_params.layout == 0 )
+         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 1");
+      if ( pModel->osd_params.layout == 1 )
+         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 2");
+      if ( pModel->osd_params.layout == 2 )
+         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 3");
+      if ( pModel->osd_params.layout == 3 )
+         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean");
+      if ( pModel->osd_params.layout == 4 )
+         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean Extended");
 
-      if ( g_pCurrentModel->is_spectator )
+      if ( pModel->is_spectator )
          return;
 
       //osd_parameters_t params;
       //memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
       handle_commands_abandon_command();
       //handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t));
-      handle_commands_send_single_oneway_command(1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.layout, NULL, 0);
+      handle_commands_send_single_oneway_command_to_vehicle(pModel->vehicle_id, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.layout, NULL, 0, 0);
       g_iMustSendCurrentActiveOSDLayoutCounter = 10; // send it 10 times, every 200 ms
       g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
+
+      send_model_changed_message_to_router(MODEL_CHANGED_OSD_PARAMS, 0);
       return;
    }
 
-   if ( (isKeyQA1Pressed() && quickActionOSDSize == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionOSDSize == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionOSDSize == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionOSDSize == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionOSDSize == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionOSDSize == p->iActionQuickButton3) )
    {
       if ( ! quickActionCheckVehicle("change OSD size") )
          return;
@@ -1232,13 +1127,13 @@ void executeQuickActions()
       if ( p->iScaleOSD > 3 )
          p->iScaleOSD = -1;
       save_Preferences();
-      apply_Preferences();
+      osd_apply_preferences();
       return;
    }
 
-   if ( (isKeyQA1Pressed() && quickActionTakePicture == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionTakePicture == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionTakePicture == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionTakePicture == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionTakePicture == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionTakePicture == p->iActionQuickButton3) )
    {
       if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
          return;
@@ -1247,9 +1142,9 @@ void executeQuickActions()
       return;
    }
          
-   if ( (isKeyQA1Pressed() && quickActionToggleOSD == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionToggleOSD == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionToggleOSD == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleOSD == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleOSD == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleOSD == p->iActionQuickButton3) )
    {
 
       if ( ! quickActionCheckVehicle("toggle the OSD") )
@@ -1258,9 +1153,9 @@ void executeQuickActions()
       return;
    }
 
-   if ( (isKeyQA1Pressed() && quickActionToggleStats == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionToggleStats == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionToggleStats == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleStats == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleStats == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleStats == p->iActionQuickButton3) )
    {
       if ( ! quickActionCheckVehicle("toggle the statistics") )
          return;
@@ -1268,9 +1163,19 @@ void executeQuickActions()
       return;
    }
          
-   if ( (isKeyQA1Pressed() && quickActionToggleAllOff == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionToggleAllOff == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionToggleAllOff == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleAllOff == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleAllOff == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleAllOff == p->iActionQuickButton3) )
+   {
+      if ( ! quickActionCheckVehicle("toggle all info on/off") )
+         return;
+      g_bToglleAllOSDOff = ! g_bToglleAllOSDOff;
+      return;
+   }
+
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleAllOff == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleAllOff == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleAllOff == p->iActionQuickButton3) )
    {
       if ( ! quickActionCheckVehicle("toggle all info on/off") )
          return;
@@ -1279,28 +1184,17 @@ void executeQuickActions()
    }
 
    if ( NULL != g_pCurrentModel )
-   if ( (isKeyQA1Pressed() && quickActionCameraProfileSwitch == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionCameraProfileSwitch == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionCameraProfileSwitch == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionOSDFreeze == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionOSDFreeze == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionOSDFreeze == p->iActionQuickButton3) )
    {
-      if ( ! quickActionCheckVehicle("switch camera profile") )
-         return;
-      if ( NULL == g_pCurrentModel || g_pCurrentModel->is_spectator )
-         return;
-
-      int tmp = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
-      g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile++;
-      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile >= MODEL_CAMERA_PROFILES )
-         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = 0;
-      handle_commands_abandon_command();
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_CAMERA_PROFILE, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile, NULL, 0) )
-         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = tmp;
+      g_bFreezeOSD = ! g_bFreezeOSD;
       return;
    }
 
-   if ( (isKeyQA1Pressed() && quickActionRelaySwitch == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionRelaySwitch == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionRelaySwitch == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionRelaySwitch == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRelaySwitch == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRelaySwitch == p->iActionQuickButton3) )
    {
       if ( ! quickActionCheckVehicle("relay switch") )
          return;
@@ -1311,7 +1205,7 @@ void executeQuickActions()
       
       s_uTimeLastQuickActionPress = get_current_timestamp_ms();
 
-      if ( NULL == g_pCurrentModel || ( ! pairing_isReceiving() ) )
+      if ( NULL == g_pCurrentModel || ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) ) )
       {
          Popup* p =new Popup("You must be connected to a vehicle to switch relaying!", 0.1,0.8, 0.54, 4);
          p->setIconId(g_idIconError, get_Color_IconError());
@@ -1319,7 +1213,7 @@ void executeQuickActions()
          return;
       }
 
-      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId <= 0 )
+      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0 )
       {
          char szBuff[128];
          sprintf(szBuff, "Relaying is not enabled on this vehicle (%s)!", g_pCurrentModel->getLongName() );
@@ -1329,7 +1223,8 @@ void executeQuickActions()
          return;
       }
 
-      if ( g_pCurrentModel->relay_params.uCurrentRelayMode == RELAY_MODE_NONE )
+      // Switching to remote video stream?
+      if ( ! (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_REMOTE) )
       if ( ! link_is_relayed_vehicle_online() )
       {
          Popup* p = new Popup("Relayed vehicle is not online. Can't switch to relay it.", 0.1,0.8, 0.54, 4);
@@ -1338,27 +1233,69 @@ void executeQuickActions()
          p->setBottomMargin(0.2);
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
          popups_add_topmost(p);
-         //return;
+         return;
       }
       
-      type_relay_parameters params;
-      memcpy((u8*)&params, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
+      type_relay_parameters newParams;
+      memcpy((u8*)&newParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
+      u32 uOldRelayMode = newParams.uCurrentRelayMode;
 
-      if ( params.uCurrentRelayMode == RELAY_MODE_NONE )
-         params.uCurrentRelayMode = RELAY_MODE_REMOTE;
+      // Switch to relayed vehicle
+      if ( newParams.uCurrentRelayMode & RELAY_MODE_MAIN )
+      {
+         newParams.uCurrentRelayMode &= ~RELAY_MODE_MAIN;
+         newParams.uCurrentRelayMode |= RELAY_MODE_REMOTE;
+
+         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+         {
+            if ( g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->relay_params.uRelayedVehicleId )
+            {
+               osd_set_current_data_source_vehicle_index(i);
+               break;
+            }
+         }
+      }
+      // Switch to main vehicle
       else
-         params.uCurrentRelayMode = RELAY_MODE_NONE;
+      {
+         newParams.uCurrentRelayMode &= ~RELAY_MODE_REMOTE;
+         newParams.uCurrentRelayMode |= RELAY_MODE_MAIN;
 
-      log_line("Pressed QA button to switch relay mode to mode: %d", params.uCurrentRelayMode);
+         osd_set_current_data_source_vehicle_index(0);
+      }
+
+      if ( g_pCurrentModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_SWITCH_OSD )
+      {
+         Model * pModel = g_pCurrentModel;
+         if ( newParams.uCurrentRelayMode & RELAY_MODE_REMOTE )
+            pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+           
+         if ( NULL != pModel )
+         {
+            osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
+            u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
+            osd_setScaleOSD((int)scale);
+            scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
+            osd_setScaleOSDStats((int)scale);
+            if ( render_engine_is_raw() )
+               applyFontScaleChanges();
+         }
+      }
+
+      newParams.uCurrentRelayMode |= RELAY_MODE_IS_RELAY_NODE;
+
+      log_line("Pressed QA button to switch relay mode from %d to %d (%s to %s)",
+         uOldRelayMode, newParams.uCurrentRelayMode,
+         str_format_relay_mode(uOldRelayMode), str_format_relay_mode(newParams.uCurrentRelayMode));
 
       handle_commands_abandon_command();
-      handle_commands_send_to_vehicle(COMMAND_ID_SET_RELAY_PARAMETERS, 0, (u8*)&params, sizeof(type_relay_parameters));
+      handle_commands_send_to_vehicle(COMMAND_ID_SET_RELAY_PARAMETERS, 0, (u8*)&newParams, sizeof(type_relay_parameters));
       return;
    }
 
-   if ( (isKeyQA1Pressed() && quickActionVideoRecord == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionVideoRecord == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionVideoRecord == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionVideoRecord == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionVideoRecord == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionVideoRecord == p->iActionQuickButton3) )
    {
       if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
          return;
@@ -1377,7 +1314,7 @@ void executeQuickActions()
       }
       else
       {
-         if ( ! pairing_isReceiving() )
+         if ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
          {
             Popup* p = new Popup("You must be connected to a vehicle to start video recording.", 0.1,0.8, 0.54, 5);
             p->setIconId(g_idIconError, get_Color_IconError());
@@ -1391,9 +1328,9 @@ void executeQuickActions()
 
    #ifdef FEATURE_ENABLE_RC
    if ( NULL != g_pCurrentModel )
-   if ( (isKeyQA1Pressed() && quickActionRCEnable == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionRCEnable == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionRCEnable == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionRCEnable == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRCEnable == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRCEnable == p->iActionQuickButton3) )
    {
       if ( ! quickActionCheckVehicle("enable/disable the RC link output") )
          return;
@@ -1411,45 +1348,25 @@ void executeQuickActions()
    }
    #endif
 
-   if ( (isKeyQA1Pressed() && quickActionRotaryFunction == p->iActionQuickButton1) ||
-        (isKeyQA2Pressed() && quickActionRotaryFunction == p->iActionQuickButton2) ||
-        (isKeyQA3Pressed() && quickActionRotaryFunction == p->iActionQuickButton3) )
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionRotaryFunction == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRotaryFunction == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRotaryFunction == p->iActionQuickButton3) )
    {
       pCS->nRotaryEncoderFunction++;
       if ( pCS->nRotaryEncoderFunction > 2 )
          pCS->nRotaryEncoderFunction = 1;
       save_ControllerSettings();
       if ( 0 == pCS->nRotaryEncoderFunction )
-         warnings_add("Rotary Encoder function changed to: None");
+         warnings_add(0, "Rotary Encoder function changed to: None");
       if ( 1 == pCS->nRotaryEncoderFunction )
-         warnings_add("Rotary Encoder function changed to: Menu Navigation");
+         warnings_add(0, "Rotary Encoder function changed to: Menu Navigation");
       if ( 2 == pCS->nRotaryEncoderFunction )
-         warnings_add("Rotary Encoder function changed to: Camera Adjustment");
+         warnings_add(0, "Rotary Encoder function changed to: Camera Adjustment");
 
       return;
    }
 }
 
-bool ruby_is_first_pairing_done()
-{
-   if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) == -1 )
-      return false;
-   return true;
-}
-
-void ruby_set_is_first_pairing_done()
-{
-   FILE* fd = fopen(FILE_FIRST_PAIRING_DONE, "w");
-   if ( NULL == fd )
-   {
-      log_softerror_and_alarm("Failed to create file for marking 'first pairing done' flag.");
-      return;
-   }
-   fprintf(fd, "1");
-   fclose(fd);
-   g_bFirstModelPairingDone = true;
-   log_line("Set 'first pairing done' flag.");
-}
 
 void r_check_processes_filesystem()
 {
@@ -1482,42 +1399,56 @@ void r_check_processes_filesystem()
 
 void ruby_load_models()
 {
-   g_pCurrentModel = NULL;
-
    log_line("Loading models...");
-   loadModels();
-   log_line("Loading models complete. Loading spectator models...");
-   loadModelsSpectator();
-   log_line("Loaded spectator models complete.");
+   loadAllModels();
+   g_pCurrentModel = getCurrentModel();
+   log_line("Loaded models complete.");
+   
+   if ( access( FILE_ACTIVE_CONTROLLER_MODEL, R_OK ) == -1 )
+   {
+      if ( g_bFirstModelPairingDone )
+      if ( (0 != getControllerModelsCount()) || ( 0 != getControllerModelsSpectatorCount()) )
+      if ( NULL != g_pCurrentModel )
+          g_uActiveControllerModelVID = g_pCurrentModel->vehicle_id;
 
+      if ( ! controllerHasModelWithId(g_uActiveControllerModelVID) )
+         g_uActiveControllerModelVID = 0;
 
-   if( access( FILE_CURRENT_VEHICLE_MODEL, R_OK ) == -1 )
-   if( access( FILE_CURRENT_VEHICLE_MODEL_BACKUP, R_OK ) == -1 )
-   {
-      log_softerror_and_alarm("Failed to load the current vehicle model. No current vehicle file.");
-      return;
+      // Recreate active model file
+      ruby_set_active_model_id(g_uActiveControllerModelVID);
    }
-   log_line("Loading current model...");
-   g_pCurrentModel = new Model();
-   if ( !g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+
+   FILE* fd = fopen(FILE_ACTIVE_CONTROLLER_MODEL, "rb");
+   if ( NULL != fd )
    {
-      log_softerror_and_alarm("Failed to load the current vehicle model. Invalid file.");
-      g_pCurrentModel = NULL;
+      fscanf(fd, "%u", &g_uActiveControllerModelVID);
+      fclose(fd);
    }
-   if ( NULL != g_pCurrentModel )
+
+   if ( ! controllerHasModelWithId(g_uActiveControllerModelVID) )
+      ruby_set_active_model_id(0);
+ 
+   if ( g_bFirstModelPairingDone )
    {
-      log_line("Current model is in %s mode", g_pCurrentModel->is_spectator?"spectator":"controller");
-      char szFreq1[64];
-      char szFreq2[64];
-      char szFreq3[64];
-      strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[0]));
-      strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[1]));
-      strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency[2]));
-      
-      log_line("Current model radio links: %d, 1st radio link frequency: %s, 2nd radio link: %s, 3rd radio link: %s",
-         g_pCurrentModel->radioLinksParams.links_count, 
-         szFreq1, szFreq2, szFreq3);
+      if ( (0 == getControllerModelsCount()) && ( 0 == getControllerModelsSpectatorCount()) )
+      {
+         log_line("No controller or spectator models and first pairing was done. No active model to use.");
+         ruby_set_active_model_id(0);
+         return;
+      }
    }
+
+   log_line("Current model is in %s mode", g_pCurrentModel->is_spectator?"spectator":"controller");
+   char szFreq1[64];
+   char szFreq2[64];
+   char szFreq3[64];
+   strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+   strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
+   strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[2]));
+   
+   log_line("Current model radio links: %d, 1st radio link frequency: %s, 2nd radio link: %s, 3rd radio link: %s",
+      g_pCurrentModel->radioLinksParams.links_count, 
+      szFreq1, szFreq2, szFreq3);
 }
 
 
@@ -1541,7 +1472,7 @@ void start_loop()
    {
       if ( ! load_Preferences() )
          save_Preferences();
-      apply_Preferences();
+      osd_apply_preferences();
 
       load_PluginsSettings();
       load_CorePluginsSettings();
@@ -1648,7 +1579,7 @@ void start_loop()
            p->setIconId(g_idIconError, get_Color_IconError());
            p->addLine("Go to [Menu]->[Controller]->[Radio Interfaces] and enable at least one radio interface.");
            popups_add_topmost(p);
-           radio_set_out_datarate(DEFAULT_RADIO_DATARATE);
+           radio_set_out_datarate(DEFAULT_RADIO_DATARATE_DATA);
            log_line("Finished executing start up sequence step: %d", s_StartSequence);
            s_StartSequence = START_SEQ_PRE_SYNC_DATA;
            return;
@@ -1674,10 +1605,19 @@ void start_loop()
             popups_add_topmost(p);
         }
 
-        if ( controllerAddedNewRadioInterfaces() )
+        int iNewCardIndex = controllerAddedNewRadioInterfaces();
+        if ( iNewCardIndex >= 0 )
         {
            save_ControllerInterfacesSettings();
-           add_menu_to_stack(new MenuInfoBooster());
+           if ( g_bFirstModelPairingDone )
+           {
+              MenuInfoBooster* pMenu = new MenuInfoBooster();
+              if ( NULL != pMenu )
+              {
+                 pMenu->m_iRadioCardIndex = iNewCardIndex;
+                 add_menu_to_stack(pMenu);
+              }
+           }
         }
 
         // Check & update radio cards models
@@ -1699,7 +1639,7 @@ void start_loop()
         if ( bChanged )
           save_ControllerInterfacesSettings();
      }
-     radio_set_out_datarate(DEFAULT_RADIO_DATARATE);
+     radio_set_out_datarate(DEFAULT_RADIO_DATARATE_DATA);
      log_line("Finished executing start up sequence step: %d", s_StartSequence);
      s_StartSequence = START_SEQ_PRE_SYNC_DATA;
      return;
@@ -1778,7 +1718,6 @@ void start_loop()
    if ( s_StartSequence == START_SEQ_PRE_LOAD_DATA )
    {
       log_line("Start sequence: PRE_LOAD_DATA");
-      log_line("Loading models...");
       popupStartup.addLine("Loading models...");
       log_line("Finished executing start up sequence step: %d", s_StartSequence);
       s_StartSequence = START_SEQ_LOAD_DATA;
@@ -1798,7 +1737,7 @@ void start_loop()
       FILE* fdTemp = fopen("tmp/testwrite.txt", "wb");
       if ( NULL == fdTemp )
       {
-         alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 1);
+         alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
          bWriteFailed = true;
       }
       else
@@ -1808,7 +1747,7 @@ void start_loop()
          fdTemp = fopen("tmp/testwrite.txt", "rb");
          if ( NULL == fdTemp )
          {
-            alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 1);
+            alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
             bWriteFailed = true;
          }
          else
@@ -1816,12 +1755,12 @@ void start_loop()
             char szTmp[256];
             if ( 1 != fscanf(fdTemp, "%s", szTmp) )
             {
-               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 1);
+               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
                bWriteFailed = true;
             }
             else if ( 0 != strcmp(szTmp, "test1234") )
             {
-               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 1);
+               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
                bWriteFailed = true;
             }
             fclose(fdTemp);
@@ -1836,20 +1775,21 @@ void start_loop()
          
       ruby_load_models();
       
-      if ( NULL == g_pCurrentModel )
+      if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
+           (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount)) )
       {
-         if ( 0 == getModelsCount() )
+         if ( 0 == getControllerModelsCount() )
          {
             popupNoModel.setTitle("Info");
             popupNoModel.addLine("You have no vehicles linked to this controller.");
-            popupNoModel.addLine("Please press [Menu] and then select [Search] to search for a vehicle to connect to.");
+            popupNoModel.addLine("Press [Menu] key and then select 'Search' to search for a vehicle to connect to.");
             popupNoModel.setIconId(g_idIconInfo,get_Color_IconWarning());
          }
          else
          {
             popupNoModel.setTitle("Info");
             popupNoModel.addLine("You have no vehicle selected as active.");
-            popupNoModel.addLine("Please press [Menu] and then select [My Vehicles] to select the vehicle to connect to.");
+            popupNoModel.addLine("Press [Menu] key and then select 'My Vehicles' to select the vehicle to connect to.");
             popupNoModel.setIconId(g_idIconInfo,get_Color_IconWarning());
          }
 
@@ -1860,7 +1800,7 @@ void start_loop()
          return;
       }
       if ( ! load_temp_local_stats() )
-         local_stats_on_disarm();
+         local_stats_reset_all();
 
       log_line("Configuring radio...");
       popupStartup.addLine("Configuring radio...");
@@ -1900,7 +1840,7 @@ void start_loop()
          g_bVideoRecordingStarted = false;
          g_bVideoProcessing = true;
          link_watch_mark_started_video_processing();
-         warnings_add("Processing video file...", g_idIconCamera, get_Color_IconNormal());
+         warnings_add(0, "Processing video file...", g_idIconCamera, get_Color_IconNormal());
 
          log_line("Finished executing start up sequence step: %d", s_StartSequence);
          s_StartSequence = START_SEQ_PROCESS_VIDEO;
@@ -1951,10 +1891,20 @@ void start_loop()
    if ( s_StartSequence == START_SEQ_START_PROCESSES )
    {
       log_line("Start sequence: START_SEQ_START_PROCESSES");
+      ControllerSettings* pCS = get_ControllerSettings();
+      hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
+
       link_watch_init();
       osd_plugins_load();
       r_check_processes_filesystem();
-      if ( NULL == g_pCurrentModel )
+
+      log_line("Current local model: %X, first pairing done: %d, controller models: %d, spectator models: %d",
+         g_pCurrentModel, (int)g_bFirstModelPairingDone, getControllerModelsCount(), getControllerModelsSpectatorCount());
+      log_line("Current active controller vehicle id: %u", g_uActiveControllerModelVID);
+
+      if ( (NULL == g_pCurrentModel) ||
+           (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) ||
+           (g_bFirstModelPairingDone && (0 == g_uActiveControllerModelVID) ) )
       {
          s_StartSequence = START_SEQ_COMPLETED;
          log_line("Start sequence: COMPLETED.");
@@ -1963,12 +1913,12 @@ void start_loop()
          popupStartup.addLine("Start sequence done.");
          popupStartup.setTimeout(4);
          popupStartup.resetTimer();
-         log_line("Error on finished executing start up sequence step: %d", s_StartSequence);
+         s_TimeCentralInitializationComplete = g_TimeNow;
          return;
       }
       onMainVehicleChanged();
       if ( 0 < hardware_get_radio_interfaces_count() )
-         pairing_start();
+         pairing_start_normal();
 
       g_pProcessStatsTelemetry = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_RX);
       if ( NULL == g_pProcessStatsTelemetry )
@@ -1995,9 +1945,8 @@ void start_loop()
       {
          s_StartSequence = START_SEQ_COMPLETED;
          g_bIsRouterPacketsHistoryGraphOn = true;
-         t_packet_header PH; 
-         PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-         PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_START;
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_START, STREAM_ID_DATA);
          handle_commands_send_ruby_message(&PH, NULL, 0);
          hardware_sleep_ms(500);
          g_pDebugSMRPST = shared_mem_router_packets_stats_history_open_read();
@@ -2051,6 +2000,7 @@ void start_loop()
          }
       }
       ruby_resume_watchdog();
+
       log_line("Finished executing start up sequence step: %d", s_StartSequence);
       return;
    }
@@ -2059,23 +2009,25 @@ void start_loop()
 void packets_scope_input_loop()
 {
    hardware_sleep_ms(20);
-   t_packet_header PH;
 
-   if ( isKeyPlusPressed() )
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, 0, STREAM_ID_DATA);
+
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_PLUS )
    {
       s_PacketsScopeGraphZoomLevel++;
       if ( s_PacketsScopeGraphZoomLevel > 2 )
          s_PacketsScopeGraphZoomLevel = 0;
    }
 
-   if ( isKeyMinusPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS )
    {
       s_PacketsScopeGraphZoomLevel--;
       if ( s_PacketsScopeGraphZoomLevel > 2 )
          s_PacketsScopeGraphZoomLevel = 2;
    }
 
-   if ( isKeyMenuPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )
    {
       g_bIsRouterPacketsHistoryGraphPaused = ! g_bIsRouterPacketsHistoryGraphPaused;
 
@@ -2093,7 +2045,7 @@ void packets_scope_input_loop()
          }
    }
 
-   if ( isKeyBackPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
    {
          PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
          PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_STOP;
@@ -2103,14 +2055,125 @@ void packets_scope_input_loop()
    }
 }
 
-void ruby_input_loop(bool bNoKeys)
+void synchronize_shared_mems()
+{
+   if ( ! pairing_isStarted() )
+      return;
+
+   static u32 s_uTimeLastSyncSharedMems = 0;
+
+   if ( g_TimeNow < s_uTimeLastSyncSharedMems + 100 )
+      return;
+
+   s_uTimeLastSyncSharedMems = g_TimeNow;
+
+
+   if ( (NULL != g_pCurrentModel) && (!g_bSearching) )
+   {
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+      if ( NULL == g_pProcessStatsRC )
+      {
+         g_pProcessStatsRC = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_TX);
+         if ( NULL == g_pProcessStatsRC )
+            log_softerror_and_alarm("Failed to open shared mem to RC tx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_RC_TX);
+         else
+            log_line("Opened shared mem to RC tx process watchdog stats for reading.");
+      }
+
+      if ( NULL == g_pProcessStatsTelemetry )
+      {
+         g_pProcessStatsTelemetry = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_RX);
+         if ( NULL == g_pProcessStatsTelemetry )
+            log_softerror_and_alarm("Failed to open shared mem to telemetry rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_TELEMETRY_RX);
+         else
+            log_line("Opened shared mem to telemetry rx process watchdog stats for reading.");
+      }
+
+      if ( NULL == g_pProcessStatsRouter )
+      {
+         g_pProcessStatsRouter = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_ROUTER_RX);
+         if ( NULL == g_pProcessStatsRouter )
+            log_softerror_and_alarm("Failed to open shared mem to video rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_ROUTER_RX);
+         else
+            log_line("Opened shared mem to video rx process watchdog stats for reading.");
+      }
+
+      if ( NULL == g_pSM_HistoryRxStats )
+      {
+         g_pSM_HistoryRxStats = shared_mem_radio_stats_rx_hist_open_for_read();
+         if ( NULL == g_pSM_HistoryRxStats )
+            log_softerror_and_alarm("Failed to open history radio rx stats shared memory for read.");
+      }
+
+      if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
+      {
+         g_pSM_RadioStatsInterfaceRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();
+         if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
+            log_softerror_and_alarm("Failed to open controller radio interfaces rx graphs shared memory for read.");
+      }
+   }
+
+   if ( g_bFreezeOSD )
+      return;
+
+   if ( NULL != g_pProcessStatsRouter )
+      memcpy((u8*)&g_ProcessStatsRouter, g_pProcessStatsRouter, sizeof(shared_mem_process_stats));
+   if ( NULL != g_pProcessStatsTelemetry )
+      memcpy((u8*)&g_ProcessStatsTelemetry, g_pProcessStatsTelemetry, sizeof(shared_mem_process_stats));
+   if ( NULL != g_pProcessStatsRC )
+      memcpy((u8*)&g_ProcessStatsRC, g_pProcessStatsRC, sizeof(shared_mem_process_stats));
+
+   if ( NULL != g_pSM_DownstreamInfoRC )
+      memcpy((u8*)&g_SM_DownstreamInfoRC, g_pSM_DownstreamInfoRC, sizeof(t_packet_header_rc_info_downstream));
+
+   if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
+      memcpy((u8*)&g_SM_RouterVehiclesRuntimeInfo, g_pSM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
+   if ( NULL != g_pSM_RadioStats )
+      memcpy((u8*)&g_SM_RadioStats, g_pSM_RadioStats, sizeof(shared_mem_radio_stats));
+
+   if ( NULL != g_pSM_RadioStatsInterfaceRxGraph )
+      memcpy((u8*)&g_SM_RadioStatsInterfaceRxGraph, g_pSM_RadioStatsInterfaceRxGraph, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
+   
+   if ( NULL != g_pSM_HistoryRxStats )
+      memcpy((u8*)&g_SM_HistoryRxStats, g_pSM_HistoryRxStats, sizeof(shared_mem_radio_stats_rx_hist));
+   if ( NULL != g_pSM_AudioDecodeStats )
+      memcpy((u8*)&g_SM_AudioDecodeStats, g_pSM_AudioDecodeStats, sizeof(shared_mem_audio_decode_stats));
+   if ( NULL != g_pSM_VideoInfoStats )
+      memcpy((u8*)&g_SM_VideoInfoStats, g_pSM_VideoInfoStats, sizeof(shared_mem_video_info_stats));
+   if ( NULL != g_pSM_VideoInfoStatsRadioIn )
+      memcpy((u8*)&g_SM_VideoInfoStatsRadioIn, g_pSM_VideoInfoStatsRadioIn, sizeof(shared_mem_video_info_stats));
+   if ( NULL != g_pSM_VideoDecodeStats )
+      memcpy((u8*)&g_SM_VideoDecodeStats, g_pSM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
+   if ( NULL != g_pSM_VDS_history )
+      memcpy((u8*)&g_SM_VDS_history, g_pSM_VDS_history, sizeof(shared_mem_video_stream_stats_history_rx_processors));
+   if ( NULL != g_pSM_ControllerRetransmissionsStats )
+      memcpy((u8*)&g_SM_ControllerRetransmissionsStats, g_pSM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
+   if ( NULL != g_pSM_VideoLinkStats )
+      memcpy((u8*)&g_SM_VideoLinkStats, g_pSM_VideoLinkStats, sizeof(shared_mem_video_link_stats_and_overwrites));
+   if ( NULL != g_pSM_VideoLinkGraphs )
+      memcpy((u8*)&g_SM_VideoLinkGraphs, g_pSM_VideoLinkGraphs, sizeof(shared_mem_video_link_graphs));
+   if ( NULL != g_pSM_RCIn )
+      memcpy((u8*)&g_SM_RCIn, g_pSM_RCIn, sizeof(t_shared_mem_i2c_controller_rc_in));
+   if ( NULL != g_pSMVoltage )
+      memcpy((u8*)&g_SMVoltage, g_pSMVoltage, sizeof(t_shared_mem_i2c_current));
+
+}
+
+void ruby_processing_loop(bool bNoKeys)
 {
    ControllerSettings* pCS = get_ControllerSettings();
 
-   hardware_loop();
+   hardware_sleep_ms(20);
+   try_read_messages_from_router(7);
+   keyboard_consume_input_events();
+   u32 uSumEvent = keyboard_get_triggered_input_events();
 
-   if ( 0 != hardware_get_radio_interfaces_count() )
-      handle_commands_loop();
+   if ( uSumEvent & 0xFF0000 )
+      warnings_add_input_device_unknown_key((int)((uSumEvent >> 16) & 0xFF));
+   handle_commands_loop();
+
+   pairing_loop();
+   synchronize_shared_mems();
 
    if ( g_bIsRouterPacketsHistoryGraphOn )
       packets_scope_input_loop();
@@ -2118,7 +2181,7 @@ void ruby_input_loop(bool bNoKeys)
    {
        if ( pCS->iFreezeOSD )
        if ( pCS->iDeveloperMode )
-       if ( isKeyBackPressed() )
+       if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
        if ( ! isMenuOn() )
        if ( g_TimeNow > s_uTimeFreezeOSD + 200 )
        {
@@ -2132,17 +2195,15 @@ void ruby_input_loop(bool bNoKeys)
          if ( ! bNoKeys )
          {
             menu_loop();
-            if ( isKeyQA1Pressed() || isKeyQA2Pressed() || isKeyQA3Pressed() )
+            if ( keyboard_get_triggered_input_events() & (INPUT_EVENT_PRESS_QA1 | INPUT_EVENT_PRESS_QA2 | INPUT_EVENT_PRESS_QA3) )
                executeQuickActions();
          }
       }
    }
 
-   if ( 0 == hardware_get_radio_interfaces_count() )
-      return;
-
    if ( g_iMustSendCurrentActiveOSDLayoutCounter > 0 )
    if ( g_TimeNow >= g_TimeLastSentCurrentActiveOSDLayout+200 )
+   if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)  )
    {
       g_iMustSendCurrentActiveOSDLayoutCounter--;
       g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
@@ -2150,12 +2211,12 @@ void ruby_input_loop(bool bNoKeys)
       handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.layout, NULL, 0);
    }
 
-   pairing_loop();
    if ( g_bIsRouterReady )
    {
-      link_watch_loop();
       local_stats_update_loop();
       forward_streams_loop();
+      link_watch_loop();
+      warnings_periodic_loop();
    }
 }
 
@@ -2165,9 +2226,7 @@ void main_loop_r_central()
 
    hardware_sleep_ms(2);
    
-   try_read_messages_from_router(7);
-
-   ruby_input_loop(false);
+   ruby_processing_loop(false);
 
    if ( s_StartSequence != START_SEQ_COMPLETED && s_StartSequence != START_SEQ_FAILED )
    {
@@ -2357,8 +2416,6 @@ int main(int argc, char *argv[])
    init_hardware();
    hardware_init_serial_ports();
    hdmi_init_modes();
-   radio_init_link_structures();
-   radio_enable_crc_gen(1);
 
    ruby_clear_all_ipc_channels();
 
@@ -2369,6 +2426,8 @@ int main(int argc, char *argv[])
       log_line("Opened shared mem for ruby_centrall process watchdog for writing.");
  
    ruby_pause_watchdog();
+
+   controller_compute_cpu_info();
 
    if ( ! load_Preferences() )
       save_Preferences();
@@ -2390,18 +2449,20 @@ int main(int argc, char *argv[])
    if ( p->nLogLevel != 0 )
       log_only_errors();
 
-   apply_Preferences();
-
    g_pRenderEngine = render_init_engine();
 
    load_resources();
-
+   osd_apply_preferences();
    menu_init();
+   hardware_swap_buttons(p->iSwapUpDownButtons);
+
    log_line("Started.");
 
    popupStartup.setFont(g_idFontMenu);
    popupNoModel.setFont(g_idFontMenu);
    popups_add(&popupStartup);
+
+   alarms_reset();
 
    if ( g_bIsReinit )
    {
@@ -2426,9 +2487,13 @@ int main(int argc, char *argv[])
    if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) != -1 )
       g_bFirstModelPairingDone = true;
  
+   keyboard_init();
+
    s_StartSequence = START_SEQ_PRE_LOAD_CONFIG;
    log_line("Started main loop.");
    g_TimeStart = get_current_timestamp_ms();
+
+   log_line("Start main loop.");
 
    while (!quit) 
    {
@@ -2451,6 +2516,8 @@ int main(int argc, char *argv[])
       }
    }
    
+   keyboard_uninit();
+   
    if ( ! g_bIsReinit )
       pairing_stop();
    controller_stop_i2c();
@@ -2470,4 +2537,24 @@ int main(int argc, char *argv[])
  
    hardware_release();
    return 0;
+}
+
+
+void ruby_set_active_model_id(u32 uVehicleId)
+{
+   g_uActiveControllerModelVID = uVehicleId;
+   Model* pModel = findModelWithId(uVehicleId);
+   if ( NULL == pModel )
+      log_line("Ruby: Set active model vehicle id to %u (no model found on controller for this VID)", g_uActiveControllerModelVID );
+   else
+      log_line("Ruby: Set active model vehicle id to %u, %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
+
+   FILE* fd = fopen(FILE_ACTIVE_CONTROLLER_MODEL, "wb");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%u\n", g_uActiveControllerModelVID);
+      fclose(fd);
+   }
+   else
+      log_softerror_and_alarm("Ruby: Failed to save active model vehicle id");
 }

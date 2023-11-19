@@ -4,8 +4,10 @@
 #include "../base/config.h"
 #include "../base/commands.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/encr.h"
+#include "../common/radio_stats.h"
+#include "../common/string_utils.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -15,14 +17,20 @@ bool quit = false;
 bool bSummary = false;
 bool bOnlyErrors = false;
    
-int totalLost = 0;
-u32 streamsLastPacketIndex[MAX_RADIO_STREAMS];
-int streamsTotalLost[MAX_RADIO_STREAMS];
-u32 lastVideoBlock = 0;
-u32 uTotalPackets = 0;
-u32 uTotalPacketsTypes[256];
+fd_set g_Readset;
+
+u32 g_uStreamsLastPacketIndex[MAX_RADIO_STREAMS];
+u32 g_uStreamsTotalLostPackets[MAX_RADIO_STREAMS];
+u32 g_uLastVideoBlock = 0;
+u32 g_uTotalLostPackets = 0;
+u32 g_uTotalRecvPackets = 0;
+u32 g_uTotalRecvPacketsTypes[256];
+u32 g_uTotalRecvPacketsOnStreams[256];
 u32 uSummaryLastUpdateTime = 0;
-int iStreamId = -1;
+int g_iOnlyStreamId = -1;
+
+u32 g_TimeNow = 0;
+shared_mem_radio_stats g_SM_RadioStats;
 
 void handle_sigint(int sig) 
 { 
@@ -30,139 +38,185 @@ void handle_sigint(int sig)
    quit = true;
 } 
 
+void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
+{
+   int bCRCOk = 0;   
+   int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, iBufferLength, &bCRCOk); 
+   
+   bool bVideoData = false;
+   t_packet_header* pPH = (t_packet_header*)pBuffer;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+      bVideoData = true;
+
+   int nRes = radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
+       
+   u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
+   u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+
+   u32 gap = 0;
+   if ( g_uStreamsLastPacketIndex[uStreamId] != MAX_U32 )
+         gap = packetIndex - g_uStreamsLastPacketIndex[uStreamId];
+   if ( gap > 1 )
+   {
+      g_uTotalLostPackets += gap-1;
+      g_uStreamsTotalLostPackets[uStreamId] += gap-1;
+   }
+
+   g_uStreamsLastPacketIndex[uStreamId] = packetIndex;
+   
+   if ( get_current_timestamp_ms() < uSummaryLastUpdateTime + 1000 )
+      return;
+
+   uSummaryLastUpdateTime = get_current_timestamp_ms();
+   printf("Total recv pckts: %u/sec; ", g_uTotalRecvPackets );
+   for( int i=0; i<MAX_RADIO_STREAMS; i++ )
+   {
+      if ( g_uTotalRecvPacketsOnStreams[i] > 0 )
+         printf(" %u/sec on stream %d, ", g_uTotalRecvPacketsOnStreams[i], i);
+      g_uTotalRecvPacketsTypes[i] = 0;
+      g_uTotalRecvPacketsOnStreams[i] = 0;
+   }
+
+   printf("\nTotal lost pckts: %d/sec", g_uTotalLostPackets);
+   for( int i=0; i<MAX_RADIO_STREAMS; i++ )
+   {
+      if ( g_uStreamsTotalLostPackets[i] > 0 )
+         printf(", %u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
+      g_uStreamsTotalLostPackets[i] = 0;
+   }
+   printf("\n");
+   if ( g_uTotalRecvPackets + g_uTotalLostPackets > 0 )
+      printf(" Lost: %.1f %% / sec\n", (100.0*(float)g_uTotalLostPackets)/((float)(g_uTotalLostPackets + g_uTotalRecvPackets)));
+   g_uTotalRecvPackets = 0;
+   g_uTotalLostPackets = 0;
+
+   int iTotalRecv = 0;
+   int iTotalLostBad = 0;
+   int iSlices = 0;
+   u32 uMs = 0;
+   for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
+   {
+      iTotalRecv += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsCount[k];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCount[k];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsBadCount[k];
+      iSlices++;
+      uMs += g_SM_RadioStats.graphRefreshIntervalMs;
+      if ( uMs >= 1000 )
+         break;
+   }
+   char szBuff[256];
+   if ( iTotalRecv + iTotalLostBad > 0 )
+      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d, Lost: %.1f %%\n", iSlices, iTotalRecv, iTotalLostBad, 100.0*(float)iTotalLostBad/(float)(iTotalRecv+iTotalLostBad));
+   else
+      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d \n", iSlices, iTotalRecv, iTotalLostBad);
+   printf(szBuff);
+   printf("\n\n");
+   fflush(stdout);
+}
+
+int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
+{
+   int iResult = 0;
+   radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
+   int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
+   int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nRate;
+
+   bool bVideoData = false;
+   t_packet_header* pPH = (t_packet_header*)pBuffer;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+      bVideoData = true;
+   int bCRCOk = 0;   
+   int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, iBufferLength, &bCRCOk);
+   int nRes = radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
+
+   t_packet_header_video_full_77* pPHVF = NULL;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
+      pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));
+   
+   u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
+   u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   
+   u32 gap = 0;
+   if ( g_uStreamsLastPacketIndex[uStreamId] != MAX_U32 )
+      gap = packetIndex - g_uStreamsLastPacketIndex[uStreamId];
+   if ( gap > 1 )
+   {
+      g_uTotalLostPackets += gap-1;
+      g_uStreamsTotalLostPackets[uStreamId] += gap-1;
+      printf("\nMissing %u packets on stream %d, received index: %u, last index: %u\n",
+         gap-1, uStreamId, packetIndex, g_uStreamsLastPacketIndex[uStreamId] );
+      fflush(stdout);
+      iResult = gap-1;
+   }
+
+   u32 videogap = 0;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
+   if ( pPHVF->video_block_index > g_uLastVideoBlock )
+   {
+      videogap = pPHVF->video_block_index - g_uLastVideoBlock;
+      if ( videogap > 1 )
+      {
+         printf("\nMissing video packets: %u [%u to %u], video gap: %d [%u jump to %u]\n", gap-1, g_uStreamsLastPacketIndex[uStreamId], packetIndex, videogap-1, g_uLastVideoBlock, pPHVF->video_block_index );
+         fflush(stdout);
+      }
+   }
+
+   g_uStreamsLastPacketIndex[uStreamId] = packetIndex;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
+      g_uLastVideoBlock = pPHVF->video_block_index;
+
+   return iResult;
+}
+
 void process_packet(int iInterfaceIndex )
 {
    //printf("x");
    fflush(stdout);
-
-   radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
          
-   int length = 0;
-   u8* pBuffer = NULL;
-   int bCRCOk = 0;
-   int okPacket = 0;
-   pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &length); 
+   int nLength = 0;
+   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength); 
    if ( NULL == pBuffer )
    {
-      printf("NULL receive buffer. Ignoring...");
+      printf("NULL receive buffer. Ignoring...\n");
+      fflush(stdout);
       return;
    }
 
-   int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
-   int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nRate;
-
-   u8* pData = pBuffer;
-   int nLength = length;
    while ( nLength > 0 )
    { 
-      t_packet_header* pPH = (t_packet_header*)pData;
-      t_packet_header_video_full* pPHVF = NULL;
-      if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-         pPHVF = (t_packet_header_video_full*) (pData+sizeof(t_packet_header));
+      int iMissingPackets = 0;
+      if ( bSummary )
+         process_packet_summary(iInterfaceIndex, pBuffer, nLength);
+      if ( bOnlyErrors )
+         iMissingPackets = process_packet_errors(iInterfaceIndex, pBuffer, nLength);
 
-      uTotalPackets++;
-      uTotalPacketsTypes[pPH->packet_type]++;
-
-      int expectedLength = pPH->total_length-pPH->total_headers_length;
-      u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
+      t_packet_header* pPH = (t_packet_header*)pBuffer;
       u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      u32 gap = 0;
-      if ( -1 != iStreamId )
-      if ( uStreamId != iStreamId )
+
+      g_uTotalRecvPackets++;
+      g_uTotalRecvPacketsTypes[pPH->packet_type]++;
+      g_uTotalRecvPacketsOnStreams[uStreamId]++;
+
+      if ( iMissingPackets > 0 )
+      {
+         printf("Missing %d packets. Buffer: %d bytes, packet: %d bytes, type: %s ", iMissingPackets, nLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
+         bool bHasFlags = false;
+         if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY )
+            { bHasFlags = true; printf("[Sent on Low Link Only] "); }
+         if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_HIGH_CAPACITY_LINK_ONLY )
+            { bHasFlags = true; printf("[Sent on High Link Only] "); }
+         if ( ! bHasFlags )
+            printf("[No Link Affinity]");
+         printf("\n");
+         fflush(stdout);
+      }
+      if ( -1 != g_iOnlyStreamId )
+      if ( uStreamId != g_iOnlyStreamId )
       {
          printf("x");
          fflush(stdout);
-         pData += pPH->total_length;
-         nLength -= pPH->total_length;
-         continue;
       }
-
-      if ( ! bSummary )
-         printf("\nReceived %d bytes, stream id: %d, packet index: %u", nLength, uStreamId, packetIndex);
-
-      if ( streamsLastPacketIndex[uStreamId] != MAX_U32 )
-         gap = packetIndex - streamsLastPacketIndex[uStreamId];
-      if ( gap != 1 )
-      {
-         totalLost++;
-         streamsTotalLost[uStreamId]++;
-         if ( ! bSummary )
-           printf("\n   Missing packets: %d [%u to %u]", gap-1, streamsLastPacketIndex[uStreamId], packetIndex );
-      }
-
-      u32 videogap = 0;
-      if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-      if ( pPHVF->video_block_index > lastVideoBlock )
-      {
-         videogap = pPHVF->video_block_index - lastVideoBlock;
-         if ( videogap > 1 )
-         if ( ! bSummary )
-            printf("\n   Missing packets: %d [%u to %u], video gap: %d [%u jump to %u]", gap-1, streamsLastPacketIndex[uStreamId], packetIndex, videogap-1, lastVideoBlock, pPHVF->video_block_index );
-      }
-
-      streamsLastPacketIndex[uStreamId] = packetIndex;
-      if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-         lastVideoBlock = pPHVF->video_block_index;
-
-      if ( bSummary )
-      if ( get_current_timestamp_ms() >= uSummaryLastUpdateTime + 1000 )
-      {
-         uSummaryLastUpdateTime = get_current_timestamp_ms();
-         printf("Total recv pckts: %u; ", uTotalPackets );
-         for( int i=0; i<MAX_RADIO_STREAMS; i++ )
-         {
-            if ( uTotalPacketsTypes[i] > 0 )
-               printf(" %u of type %d, ", uTotalPacketsTypes[i], i);
-            uTotalPacketsTypes[i] = 0;
-         }
-         uTotalPackets = 0;
-         printf(" Total lost: %d", totalLost);
-         for( int i=0; i<MAX_RADIO_STREAMS; i++ )
-         {
-            if ( streamsTotalLost[i] > 0 )
-               printf(", %u lost on stream %d", streamsTotalLost[i], i);
-            uTotalPacketsTypes[i] = 0;
-         }
-         
-         printf("\n");
-      }
-
-      if ( bOnlyErrors || bSummary )
-      {
-         pData += pPH->total_length;
-         nLength -= pPH->total_length;
- 
-         continue;
-      }
-
-      char szPrefix[5];
-      szPrefix[0] = 0;
-      if ( nLength < 1000 )
-         strcpy(szPrefix, " ");
-      if ( nLength < 100 )
-         strcpy(szPrefix, "  ");
-
-      char szPrefix2[5];
-      szPrefix2[0] = 0;
-      if ( expectedLength < 1000 )
-         strcpy(szPrefix2, " ");
-      if ( expectedLength < 100 )
-         strcpy(szPrefix2, "  ");
-      if ( expectedLength < 10 )
-         strcpy(szPrefix2, "   ");
-
-      printf("\n   dbm: %d, dbm noise: %d, rate: %d, %s%d bytes, payload %s%d bytes, packet index: %u,  ", lastDBM, pNICInfo->monitor_interface_read.radioInfo.nDbmNoise, lastDataRate, szPrefix, nLength, szPrefix2, expectedLength, packetIndex);
-
-      okPacket = packet_process_and_check(iInterfaceIndex, pData, nLength, &bCRCOk);
-
-      printf("checks ok: %d, crc ok: %d,\t ", okPacket,  bCRCOk);
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-         printf("short CRC, %d bytes   ", pPH->total_headers_length-sizeof(u32) );
-      else
-         printf("full CRC, %d bytes\t", pPH->total_length-sizeof(u32) );
-      printf("Component: %d, Type: %d, can TX: %d\n", pPH->packet_flags & PACKET_FLAGS_MASK_MODULE, pPH->packet_type, (pPH->packet_flags&PACKET_FLAGS_BIT_CAN_START_TX)?1:0);
-
-      pData += pPH->total_length;
+      pBuffer += pPH->total_length;
       nLength -= pPH->total_length;
    }
 }
@@ -170,13 +224,12 @@ void process_packet(int iInterfaceIndex )
 int try_read_packets(int iInterfaceIndex)
 {
    long miliSec = 500;
-   fd_set readset;
    struct timeval to;
    to.tv_sec = 0;
    to.tv_usec = miliSec*1000;
             
    int maxfd = -1;
-   FD_ZERO(&readset);
+   FD_ZERO(&g_Readset);
    for(int i=0; i<hardware_get_radio_interfaces_count(); ++i)
    {
       if ( i != iInterfaceIndex )
@@ -184,13 +237,13 @@ int try_read_packets(int iInterfaceIndex)
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( pNICInfo->openedForRead )
       {
-         FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &readset);
+         FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &g_Readset);
          if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
             maxfd = pNICInfo->monitor_interface_read.selectable_fd;
       } 
    }
 
-   int nResult = select(maxfd+1, &readset, NULL, NULL, &to);
+   int nResult = select(maxfd+1, &g_Readset, NULL, NULL, &to);
    return nResult;
 }
 
@@ -215,7 +268,7 @@ int main(int argc, char *argv[])
    else if ( strcmp(argv[argc-1], "-summary") == 0 )
       bSummary = true;
    else if ( argc >= 5 )
-      iStreamId = atoi(argv[argc-1]);
+      g_iOnlyStreamId = atoi(argv[argc-1]);
 
    log_init("RX_TEST_PORT");
    log_enable_stdout();
@@ -226,7 +279,7 @@ int main(int argc, char *argv[])
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( 0 == strcmp(szCard, pNICInfo->szName ) )
       {
-         //launch_set_frequency(i, freq, NULL);
+         //radio_utils_set_interface_frequency(i, freq, NULL);
        iInterfaceIndex = i;
        break;
       }
@@ -242,7 +295,7 @@ int main(int argc, char *argv[])
       return 0;
    }
 
-   launch_set_frequency(NULL, iInterfaceIndex, iFreq, NULL);
+   radio_utils_set_interface_frequency(NULL, iInterfaceIndex, iFreq, NULL);
 
    printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq, port);
 
@@ -261,49 +314,48 @@ int main(int argc, char *argv[])
    
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
-      streamsLastPacketIndex[i] = MAX_U32;
-      streamsTotalLost[i] = 0;
+      g_uStreamsLastPacketIndex[i] = MAX_U32;
+      g_uStreamsTotalLostPackets[i] = 0;
    }
 
+   g_uTotalRecvPackets = 0;
    for( int i=0; i<256; i++ )
-      uTotalPacketsTypes[i] = 0;
+   {
+      g_uTotalRecvPacketsTypes[i] = 0;
+      g_uTotalRecvPacketsOnStreams[i] = 0;
+   }
 
-   if ( -1 == iStreamId )
+   radio_stats_reset(&g_SM_RadioStats, 100);
+
+   g_SM_RadioStats.radio_interfaces[0].assignedLocalRadioLinkId = 0;
+   g_SM_RadioStats.countLocalRadioInterfaces = 1;
+   g_SM_RadioStats.countLocalRadioLinks = 1;
+
+   if ( -1 == g_iOnlyStreamId )
       printf("\nLooking for any stream\n");
    else
-      printf("\nLooking only for stream id %d\n", iStreamId);
+      printf("\nLooking only for stream id %d\n", g_iOnlyStreamId);
 
-   if ( ! bSummary )
-      printf("\nWaiting for data ...");
-
+   printf("\n\n\nStarted.\nWaiting for data...\n\n\n");
+   fflush(stdout);
+   
    while (!quit)
    {
-   
-      //fflush(stdout);
-      
-      //hardware_sleep_ms(2);
+      g_TimeNow = get_current_timestamp_ms();
+      radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow);
 
-      int iRepeatCount = 100;
-      while ( iRepeatCount > 0 )
-      {
-         iRepeatCount--;
+      int nResult = try_read_packets(iInterfaceIndex);
 
-         int nResult = try_read_packets(iInterfaceIndex);
-
-         if( nResult <= 0 )
-         {
-            if ( ! bSummary )
-            if ( nResult == 0 )
-               printf(".");
-            else
-               printf("x");
-            iRepeatCount = 0;
-            continue;
-         }
-
+      if( nResult > 0 )
          process_packet(iInterfaceIndex);
+     
+      if ( (! bSummary) && (! bOnlyErrors) )
+      {
+         if ( nResult == 0 )
+            printf(".");
+         else
+            printf("x");
       }
-
    }
    //fclose(fd);
    radio_close_interface_for_write(iInterfaceIndex);

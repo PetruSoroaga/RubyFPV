@@ -8,12 +8,13 @@ void onMainVehicleChanged();
 void onEventReboot();
 void onEventBeforePairing();
 void onEventPaired();
+void onEventBeforePairingStop();
 void onEventPairingStopped();
 void onEventPairingStartReceivingData();
 
-void onEventArmed();
-void onEventDisarmed();
+void onEventArmed(u32 uVehicleId);
+void onEventDisarmed(u32 uVehicleId);
 
-bool onEventReceivedModelSettings(u8* pBuffer, int length, bool bUnsolicited);
+bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited);
 
 void onEventRelayModeChanged();

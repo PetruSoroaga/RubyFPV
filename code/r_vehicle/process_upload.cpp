@@ -99,6 +99,10 @@ void process_sw_upload_init()
 
 void _process_upload_apply()
 {
+   if ( NULL != s_pFileSoftware )
+       fclose(s_pFileSoftware);
+   s_pFileSoftware = NULL;
+
    vehicle_stop_video_capture(g_pCurrentModel);
 
    if ( 0 == s_iUpdateType )
@@ -132,10 +136,35 @@ void _process_upload_apply()
    {
       char szComm[512];
 
-      log_line("Apply update using controller mirrored files...");
-      sprintf(szComm, "tar -zxf %s", s_szUpdateArchiveFile);
+      log_line("Save received update archive for backup...");
+      hw_execute_bash_command("rm -rf last_update_received.tar 2>&1", NULL);
+      sprintf(szComm, "cp -rf %s last_update_received.tar", s_szUpdateArchiveFile);
       hw_execute_bash_command(szComm, NULL);
+      hw_execute_bash_command("chmod 777 last_update_received.tar 2>&1", NULL);
+      log_line("Apply update using controller mirrored files...");
+      char szOutput[4069];
+      hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
+      log_line("ruby_vehicle: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_rx_commands -ver", szOutput);
+      log_line("ruby_rx_commands: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_rt_vehicle -ver", szOutput);
+      log_line("ruby_rt_vehicle: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_tx_telemetry -ver", szOutput);
+      log_line("ruby_tx_telemetry: [%s]", szOutput);
+      
+      sprintf(szComm, "tar -zxf %s 2>&1", s_szUpdateArchiveFile);
+      hw_execute_bash_command_raw(szComm, NULL);
+      hardware_sleep_ms(1000);
       hw_execute_bash_command("chmod 777 ruby*", NULL);
+
+      hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
+      log_line("ruby_vehicle: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_rx_commands -ver", szOutput);
+      log_line("ruby_rx_commands: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_rt_vehicle -ver", szOutput);
+      log_line("ruby_rt_vehicle: [%s]", szOutput);
+      hw_execute_bash_command_raw("./ruby_tx_telemetry -ver", szOutput);
+      log_line("ruby_tx_telemetry: [%s]", szOutput);
 
       if ( access( "ruby_capture_raspi", R_OK ) != -1 )
          hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);
@@ -156,14 +185,42 @@ void _process_upload_apply()
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = g_TimeNow;
 
-      log_line("Done updating. Cleaning up and reboot");
-      _sw_update_close_remove_temp_files();
-
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = g_TimeNow;
 
-      if( access( "ruby_update_vehicle", R_OK ) != -1 )
+      hw_execute_bash_command_raw("ls -al ruby_update*", szOutput);
+      log_line("Update files: [%s]", szOutput);
+
+      if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+         log_line("ruby_update_vehicle is present.");
+      else
+      {
+         log_line("ruby_update_vehicle is NOT present.");
+         hw_execute_bash_command_raw("cp -rf ruby_update ruby_update_vehicle", NULL);
+         hw_execute_bash_command_raw("chmod 777 ruby_update*", NULL);
+         hardware_sleep_ms(100);
+         if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+            log_line("ruby_update_vehicle is present now.");
+         else
+            log_line("ruby_update_vehicle is NOT present yet.");
+      }
+      if ( access( "ruby_update", R_OK ) != -1 )
+         log_line("ruby_update is present.");
+      else
+         log_line("ruby_update is NOT present.");
+        
+      if ( access( "ruby_update_worker", R_OK ) != -1 )
+         log_line("ruby_update_worker is present.");
+      else
+         log_line("ruby_update_worker is NOT present.");
+        
+
+      if ( access( "ruby_update_vehicle", R_OK ) != -1 )
          hw_execute_bash_command("./ruby_update_vehicle -pre", NULL);
+
+      log_line("Done updating. Cleaning up and reboot");
+      _sw_update_close_remove_temp_files();
+
    }
 
    if ( NULL != g_pProcessStats )

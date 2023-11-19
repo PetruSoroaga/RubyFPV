@@ -26,48 +26,108 @@ extern bool g_bHasFileUploadInProgress;
 typedef struct 
 {
    u32 uVehicleId;
-
+   Model* pModel;
+   
    // Ruby telemetry
 
    bool bGotRubyTelemetryInfo;
+   bool bGotRubyTelemetryInfoShort;
    bool bGotRubyTelemetryExtraInfo;
    bool bGotRubyTelemetryExtraInfoRetransmissions;
-   u32 uTimeLastRecvRubyTelemetry;
+   bool bGotStatsVehicleRxCards;
 
-   t_packet_header_ruby_telemetry_extended_v2 headerRubyTelemetryExtended;
+   int  iFrequencyRubyTelemetryFull;
+   int  iFrequencyRubyTelemetryShort;
+   u32  uTimeLastRecvRubyTelemetry;
+   u32  uTimeLastRecvRubyTelemetryExtended;
+   u32  uTimeLastRecvRubyTelemetryShort;
+   u32  uTimeLastRecvAnyRubyTelemetry;
+   u32  uTimeLastRecvVehicleRxStats;
+   bool bRubyTelemetryLost;
+
+   t_packet_header_ruby_telemetry_extended_v3 headerRubyTelemetryExtended;
    t_packet_header_ruby_telemetry_extended_extra_info headerRubyTelemetryExtraInfo;
    t_packet_header_ruby_telemetry_extended_extra_info_retransmissions headerRubyTelemetryExtraInfoRetransmissions;
+
+   shared_mem_radio_stats_radio_interface SMVehicleRxStats[MAX_RADIO_INTERFACES];
 
    // FC telemetry
 
    bool bGotFCTelemetry;
+   bool bGotFCTelemetryShort;
    bool bGotFCTelemetryExtra;
-   u32 uTimeLastRecvFCTelemetry;
+   bool bFCTelemetrySourcePresent;
+   int  iFrequencyFCTelemetryFull;
+   int  iFrequencyFCTelemetryShort;
+   u32  uTimeLastRecvFCTelemetry;
+   u32  uTimeLastRecvFCTelemetryFull;
+   u32  uTimeLastRecvFCTelemetryShort;
+   u8   uLastFCFlightMode;
+   u8   uLastFCFlags;
 
    t_packet_header_fc_telemetry headerFCTelemetry;
    t_packet_header_fc_extra     headerFCTelemetryExtra;
    t_packet_header_fc_rc_channels headerFCTelemetryRCChannels;
+
+   char szLastMessageFromFC[FC_MESSAGE_MAX_LENGTH];
+   u32 uTimeLastMessageFromFC;
+   
+   // Other info
+
+   bool bLinkLost;
+   bool bRCFailsafeState;
+   bool bWarningBatteryVoltage;
+   int iComputedBatteryCellCount;
+   bool bNotificationPairingRequestSent;
+   bool bPairedConfirmed;
+
+   bool bIsArmed;
+   bool bHomeSet;
+   double fHomeLat, fHomeLon;
+   double fHomeLastLat, fHomeLastLon;
+
+   // Temporary info
+
+   u8 pSegmentsModelSettingsDownload[20][256];
+   u8 uSegmentsModelSettingsSize[20];
+   u32 uSegmentsModelSettingsIds[20];
+   u8 uSegmentsModelSettingsCount;
+   bool bWaitingForModelSettings;
+   u32 uTimeLastReceivedModelSettings;
+   u8  uTmpLastThrottledFlags;
+   
+   int tmp_iCountRubyTelemetryPacketsFull;
+   int tmp_iCountRubyTelemetryPacketsShort;
+   int tmp_iCountFCTelemetryPacketsFull;
+   int tmp_iCountFCTelemetryPacketsShort;
+   u32 tmp_uTimeLastTelemetryFrequencyComputeTime;
+
 } t_structure_vehicle_info;
 
 extern int s_StartSequence;
 extern Model* g_pCurrentModel;
+extern u32 g_uActiveControllerModelVID;
 
 // First vehicle is always the main vehicle, the next ones are relayed vehicles
 extern t_structure_vehicle_info g_SearchVehicleRuntimeInfo;
+extern t_structure_vehicle_info g_UnexpectedVehicleRuntimeInfo;
 extern t_structure_vehicle_info g_VehiclesRuntimeInfo[MAX_CONCURENT_VEHICLES];
 extern int g_iCurrentActiveVehicleRuntimeInfoIndex;
 
 extern bool g_bSearching;
 extern bool g_bSearchFoundVehicle;
 extern int g_iSearchFrequency;
+extern int g_iSearchSiKAirDataRate;
+extern int g_iSearchSiKECC;
+extern int g_iSearchSiKLBT;
+extern int g_iSearchSiKMCSTR;
+
 extern bool g_bIsReinit;
 extern bool g_bIsRouterReady;
 
 extern bool g_bFirstModelPairingDone;
 extern bool g_bIsFirstConnectionToCurrentVehicle;
-extern bool g_bTelemetryLost;
 extern bool g_bVideoLost;
-extern bool g_bRCFailsafe;
 
 extern bool g_bUpdateInProgress;
 extern int g_nFailedOTAUpdates;
@@ -80,7 +140,6 @@ extern int g_nTotalControllerCPUSpikes;
 
 extern bool g_bGotStatsVideoBitrate;
 extern bool g_bGotStatsVehicleTx;
-extern bool g_bGotStatsVehicleRxCards;
 
 extern bool g_bHasVideoDecodeStatsSnapshot;
 
@@ -88,5 +147,20 @@ extern int g_iDeltaVideoInfoBetweenVehicleController;
 
 extern u32 g_uLastControllerAlarmIOFlags;
 
+extern bool g_bChangedOSDStatsFontSize;
+
+extern u32  g_uTimeStartConfiguringRadioLink;
+extern bool g_bReconfiguringRadioLinks;
+extern bool g_bConfiguringRadioLink;
+extern int  g_iConfiguringRadioLinkIndex;
+extern bool g_bConfiguringRadioLinkWaitFlagsConfirmation;
+extern bool g_bConfiguringRadioLinkWaitVehicleReconfiguration;
+extern bool g_bConfiguringRadioLinkWaitControllerReconfiguration;
+
 void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo);
 void shared_vars_state_reset_all_vehicles_runtime_info();
+void reset_model_settings_download_buffers(u32 uVehicleId);
+t_structure_vehicle_info* get_vehicle_runtime_info_for_vehicle_id(u32 uVehicleId);
+t_packet_header_ruby_telemetry_extended_v3* get_received_relayed_vehicle_telemetry_info();
+void log_current_runtime_vehicles_info();
+

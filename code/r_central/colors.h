@@ -6,6 +6,7 @@ double* get_Color_OSDBackground();
 double* get_Color_OSDText();
 double* get_Color_OSDTextOutline();
 double* get_Color_OSDWarning();
+double* get_Color_OSDChangedValue();
 
 double* get_Color_PopupBg();
 double* get_Color_PopupBorder();

@@ -13,7 +13,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/config.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/models.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
@@ -26,6 +26,7 @@ bool configure_radios_succeeded = false;
 int init_Radios()
 {
    char szBuff[1024];
+   char szOutput[2048];
    configure_radios_succeeded = false;
 
    log_line("=================================================================");
@@ -59,7 +60,11 @@ int init_Radios()
       log_line("Configuring radios: we are vehicle.");
       reset_ControllerInterfacesSettings();
    }
-   system("iw reg set DE");
+   //system("iw reg set DE");
+   //hw_execute_bash_command("iw reg set DE", NULL);
+
+   system("iw reg set BO");
+   hw_execute_bash_command("iw reg set BO", NULL);
 
    if ( 0 == hardware_get_radio_interfaces_count() )
    {
@@ -93,8 +98,11 @@ int init_Radios()
          continue;
       }
 
-      sprintf(szBuff, "ifconfig %s mtu 2304", pRadioHWInfo->szName );
-      hw_execute_bash_command(szBuff, NULL);
+      pRadioHWInfo->iCurrentDataRate = 0;
+      sprintf(szBuff, "ifconfig %s mtu 2304 2>&1", pRadioHWInfo->szName );
+      hw_execute_bash_command(szBuff, szOutput);
+      if ( 0 != szOutput[0] )
+         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
       hardware_sleep_ms(delayMs);
 
       if ( ((pRadioHWInfo->typeAndDriver) & 0xFF) == RADIO_TYPE_ATHEROS )
@@ -109,72 +117,106 @@ int init_Radios()
          sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         int dataRate = DEFAULT_RADIO_DATARATE;
+         int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
          if ( isStation )
-            dataRate = controllerGetCardDataRate(pRadioHWInfo->szMAC);
+            dataRateMb = controllerGetCardDataRate(pRadioHWInfo->szMAC);
          else if ( NULL != g_pModelVehicle )
          {
             if ( g_pModelVehicle->radioInterfacesParams.interface_link_id[i] >= 0 )
             if ( g_pModelVehicle->radioInterfacesParams.interface_link_id[i] < g_pModelVehicle->radioLinksParams.links_count )
-               dataRate = g_pModelVehicle->radioLinksParams.link_datarates[g_pModelVehicle->radioInterfacesParams.interface_link_id[i]][0];
+            {
+
+               dataRateMb = g_pModelVehicle->radioLinksParams.link_datarate_video_bps[g_pModelVehicle->radioInterfacesParams.interface_link_id[i]];
+               if ( dataRateMb > 0 )
+                  dataRateMb /= 1000 * 1000;
+            }
          }
-         if ( dataRate == 0 )
-            dataRate = DEFAULT_RADIO_DATARATE;
-         if ( dataRate > 0 )
-            sprintf(szBuff, "iw dev %s set bitrates legacy-2.4 %d", pRadioHWInfo->szName, dataRate );
+         if ( dataRateMb == 0 )
+            dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO;
+         if ( dataRateMb > 0 )
+            sprintf(szBuff, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, dataRateMb );
          else
-            sprintf(szBuff, "iw dev %s set bitrates ht-mcs-2.4 %d", pRadioHWInfo->szName, -dataRate-1 );
+            sprintf(szBuff, "iw dev %s set bitrates ht-mcs-2.4 %d lgi-2.4", pRadioHWInfo->szName, -dataRateMb-1 );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
+         sprintf(szBuff, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
          hardware_sleep_ms(delayMs);
+         
          sprintf(szBuff, "iw dev %s set monitor none", pRadioHWInfo->szName);
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
+
+         sprintf(szBuff, "iwconfig %s txpower 27", pRadioHWInfo->szName);
+         hw_execute_bash_command(szBuff, NULL);
+         hardware_sleep_ms(delayMs);
+         
          sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
          //printf(szBuff, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
          //execute_bash_command(szBuff, NULL);
          //hardware_sleep_ms(delayMs);
+
+         pRadioHWInfo->iCurrentDataRate = dataRateMb;
       }
       //if ( ((pRadioHWInfo->type) & 0xFF) == RADIO_TYPE_RALINK )
       else
       {
-         sprintf(szBuff, "ifconfig %s down", pRadioHWInfo->szName );
-         hw_execute_bash_command(szBuff, NULL);
+         sprintf(szBuff, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
          hardware_sleep_ms(delayMs);
 
-         sprintf(szBuff, "iw dev %s set monitor none", pRadioHWInfo->szName);
+         sprintf(szBuff, "iw dev %s set monitor none 2>&1", pRadioHWInfo->szName);
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
+         hardware_sleep_ms(delayMs);
+
+         sprintf(szBuff, "iwconfig %s txpower 27", pRadioHWInfo->szName);
          hw_execute_bash_command(szBuff, NULL);
          hardware_sleep_ms(delayMs);
-         sprintf(szBuff, "ifconfig %s up", pRadioHWInfo->szName );
-         hw_execute_bash_command(szBuff, NULL);
+         
+         sprintf(szBuff, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
          hardware_sleep_ms(delayMs);
+
+         //sprintf(szBuff, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, 18 );
+         //hw_execute_bash_command(szBuff, NULL);
+         //hardware_sleep_ms(delayMs);
       }
 
       if ( hardware_radioindex_supports_frequency(i, DEFAULT_FREQUENCY58) )
       {
-         sprintf(szBuff, "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY58);
-         pRadioHWInfo->uCurrentFrequency = DEFAULT_FREQUENCY58;
-         hw_execute_bash_command(szBuff, NULL);
+         sprintf(szBuff, "iw dev %s set freq %d 2>&1", pRadioHWInfo->szName, DEFAULT_FREQUENCY58/1000);
+         pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY58;
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
          pRadioHWInfo->lastFrequencySetFailed = 0;
-         pRadioHWInfo->failedFrequency = 0;
+         pRadioHWInfo->uFailedFrequencyKhz = 0;
       }
       else if ( hardware_radioindex_supports_frequency(i, DEFAULT_FREQUENCY) )
       {
-         sprintf(szBuff, "iw dev %s set freq %d", pRadioHWInfo->szName, DEFAULT_FREQUENCY);
-         pRadioHWInfo->uCurrentFrequency = DEFAULT_FREQUENCY;
-         hw_execute_bash_command(szBuff, NULL);
+         sprintf(szBuff, "iw dev %s set freq %d 2>&1", pRadioHWInfo->szName, DEFAULT_FREQUENCY/1000);
+         pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY;
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+            log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
          pRadioHWInfo->lastFrequencySetFailed = 0;
-         pRadioHWInfo->failedFrequency = 0;
+         pRadioHWInfo->uFailedFrequencyKhz = 0;
       }
       else
       {
-         pRadioHWInfo->uCurrentFrequency = 0;
+         pRadioHWInfo->uCurrentFrequencyKhz = 0;
          pRadioHWInfo->lastFrequencySetFailed = 1;
-         pRadioHWInfo->failedFrequency = DEFAULT_FREQUENCY;
+         pRadioHWInfo->uFailedFrequencyKhz = DEFAULT_FREQUENCY;
       }
       //if ( isStation && controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       //{
@@ -183,10 +225,17 @@ int init_Radios()
       //}
       hardware_sleep_ms(2*delayMs);
 
-      char szOutput[2048];
-      sprintf(szBuff, "ifconfig | grep %s", pRadioHWInfo->szName);
-      hw_execute_bash_command(szBuff, szOutput);
-      log_line("Radio interface %s state: [%s]", pRadioHWInfo->szName, szOutput);
+      for( int k=0; k<3; k++ )
+      {
+         sprintf(szBuff, "ifconfig | grep %s", pRadioHWInfo->szName);
+         hw_execute_bash_command(szBuff, szOutput);
+         if ( 0 != szOutput[0] )
+         {
+            log_line("Radio interface %s state: [%s]", pRadioHWInfo->szName, szOutput);
+            break;
+         }
+         hardware_sleep_ms(50);
+      }
    }
 
    FILE* fd = fopen("tmp/ruby/conf_radios", "w");
@@ -200,7 +249,7 @@ int init_Radios()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      log_line("   * Radio interface %d: %s on port %s, %s %s %s: %s", i+1, str_get_radio_card_model_string(pRadioHWInfo->iCardModel), pRadioHWInfo->szUSBPort, pRadioHWInfo->szName, pRadioHWInfo->szMAC, pRadioHWInfo->szDescription, str_format_frequency(pRadioHWInfo->uCurrentFrequency));
+      log_line("   * Radio interface %d: %s on port %s, %s %s %s: %s", i+1, str_get_radio_card_model_string(pRadioHWInfo->iCardModel), pRadioHWInfo->szUSBPort, pRadioHWInfo->szName, pRadioHWInfo->szMAC, pRadioHWInfo->szDescription, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));
    }
    log_line("=================================================================");
    configure_radios_succeeded = true;

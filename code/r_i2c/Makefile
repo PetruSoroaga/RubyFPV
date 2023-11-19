@@ -23,6 +23,9 @@ hardware_i2c.o: ../base/hardware_i2c.c
 ctrl_settings.o: ../base/ctrl_settings.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
 
+ctrl_preferences.o: ../base/ctrl_preferences.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
 ctrl_interfaces.o: ../base/ctrl_interfaces.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
@@ -62,11 +65,20 @@ utils.o: ../base/utils.cpp
 models.o: ../base/models.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
-launchers.o: ../base/launchers.cpp
+models_list.o: ../base/models_list.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
+
+radio_utils.o: ../base/radio_utils.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)
 
+radio_stats.o: ../common/radio_stats.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+ 
 string_utils.o: ../common/string_utils.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
+
+relay_utils.o: ../common/relay_utils.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
 radiotap.o: ../radio/radiotap.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -77,10 +89,22 @@ radiolink.o: ../radio/radiolink.c
 radiopackets2.o: ../radio/radiopackets2.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
 
+radiopackets_short.o: ../radio/radiopackets_short.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
+radio_rx.o: ../radio/radio_rx.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_tx.o: ../radio/radio_tx.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_duplicate_det.o: ../radio/radio_duplicate_det.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
 %.o: %.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
-ruby_i2c: ruby_i2c.o base.o config.o hardware.o gpio.o launchers.o shared_mem.o models.o hw_procs.o utils.o radiotap.o radiolink.o radiopackets2.o shared_mem_i2c.o ctrl_interfaces.o ctrl_settings.o encr.o hardware_i2c.o alarms.o string_utils.o hardware_radio.o ruby_ipc.o hardware_serial.o hardware_radio_sik.o
+ruby_i2c: ruby_i2c.o base.o config.o hardware.o gpio.o radio_utils.o shared_mem.o models.o models_list.o hw_procs.o utils.o radiotap.o radiolink.o radiopackets2.o shared_mem_i2c.o ctrl_interfaces.o ctrl_settings.o encr.o hardware_i2c.o alarms.o string_utils.o hardware_radio.o ruby_ipc.o hardware_serial.o hardware_radio_sik.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o radio_stats.o radiopackets_short.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f ruby_i2c $(RELEASE_DIR)
 	$(info Copy ruby_i2c done)

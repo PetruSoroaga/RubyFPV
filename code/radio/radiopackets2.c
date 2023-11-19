@@ -13,14 +13,35 @@ Code written by: Petru Soroaga, 2021-2023
 #include "radiopackets2.h"
 #include "radiolink.h"
 
-void packet_compute_crc(u8* pBuffer, int length)
+void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 uStreamId)
+{
+   if ( NULL == pPH )
+      return;
+   
+   if ( uStreamId >= MAX_RADIO_STREAMS )
+      uStreamId = MAX_RADIO_STREAMS-1;
+   pPH->crc = 0;
+   pPH->vehicle_id_src = 0;
+   pPH->vehicle_id_dest = 0;
+   pPH->radio_link_packet_index = 0;
+   pPH->stream_packet_idx = uStreamId << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   pPH->packet_flags = component;
+   pPH->packet_type = packet_type;
+
+   if ( SYSTEM_SW_VERSION_MINOR < 10 )
+      pPH->packet_flags_extended = 0xFF & ((SYSTEM_SW_VERSION_MAJOR << 4) | SYSTEM_SW_VERSION_MINOR);
+   else
+      pPH->packet_flags_extended = 0xFF & ((SYSTEM_SW_VERSION_MAJOR << 4) | (SYSTEM_SW_VERSION_MINOR/10));
+}
+
+void radio_packet_compute_crc(u8* pBuffer, int length)
 {
    u32 crc = base_compute_crc32(pBuffer + sizeof(u32), length-sizeof(u32)); 
    u32* p = (u32*)pBuffer;
    *p = crc;
 }
 
-int packet_check_crc(u8* pBuffer, int length)
+int radio_packet_check_crc(u8* pBuffer, int length)
 {
    u32 crc = base_compute_crc32(pBuffer + sizeof(u32), length-sizeof(u32)); 
    u32* p = (u32*)pBuffer;
@@ -30,142 +51,119 @@ int packet_check_crc(u8* pBuffer, int length)
 }
 
 
-void radio_populate_ruby_telemetry_v2_from_ruby_telemetry_v1(t_packet_header_ruby_telemetry_extended_v2* pV2, t_packet_header_ruby_telemetry_extended_v1* pV1)
+void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v1* pV1)
 {
-   if ( NULL == pV1 || NULL == pV2 )
+   if ( NULL == pV1 || NULL == pV3 )
       return;
 
-   pV2->flags = pV1->flags;
-   pV2->version = pV1->version;
-   pV2->vehicle_id = pV1->vehicle_id;
-   pV2->vehicle_type = pV1->vehicle_type;
-   memcpy(pV2->vehicle_name, pV1->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
-   pV2->radio_links_count = pV1->radio_links_count;
+   pV3->flags = pV1->flags;
+   pV3->version = pV1->version;
+   pV3->vehicle_id = pV1->vehicle_id;
+   pV3->vehicle_type = pV1->vehicle_type;
+   memcpy(pV3->vehicle_name, pV1->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+   pV3->radio_links_count = pV1->radio_links_count;
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-      pV2->uRadioFrequencies[i] = pV1->radio_frequencies[i] & 0x7FFF;
+      pV3->uRadioFrequenciesKhz[i] = 1000 * (u32)(pV1->radio_frequencies[i] & 0x7FFF);
    
-   pV2->uRelayLinks = 0;
+   pV3->uRelayLinks = 0;
    
-   pV2->downlink_tx_video_bitrate = pV1->downlink_tx_video_bitrate;
-   pV2->downlink_tx_video_all_bitrate = pV1->downlink_tx_video_all_bitrate;
-   pV2->downlink_tx_data_bitrate = pV1->downlink_tx_data_bitrate;
+   pV3->downlink_tx_video_bitrate_bps = pV1->downlink_tx_video_bitrate;
+   pV3->downlink_tx_video_all_bitrate_bps = pV1->downlink_tx_video_all_bitrate;
+   pV3->downlink_tx_data_bitrate_bps = pV1->downlink_tx_data_bitrate;
 
-   pV2->downlink_tx_video_packets_per_sec = pV1->downlink_tx_video_packets_per_sec;
-   pV2->downlink_tx_data_packets_per_sec = pV1->downlink_tx_data_packets_per_sec;
-   pV2->downlink_tx_compacted_packets_per_sec = pV1->downlink_tx_compacted_packets_per_sec;
+   pV3->downlink_tx_video_packets_per_sec = pV1->downlink_tx_video_packets_per_sec;
+   pV3->downlink_tx_data_packets_per_sec = pV1->downlink_tx_data_packets_per_sec;
+   pV3->downlink_tx_compacted_packets_per_sec = pV1->downlink_tx_compacted_packets_per_sec;
 
-   pV2->temperature = pV1->temperature;
-   pV2->cpu_load = pV1->cpu_load;
-   pV2->cpu_mhz = pV1->cpu_mhz;
-   pV2->throttled = pV1->throttled;
+   pV3->temperature = pV1->temperature;
+   pV3->cpu_load = pV1->cpu_load;
+   pV3->cpu_mhz = pV1->cpu_mhz;
+   pV3->throttled = pV1->throttled;
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
-      pV2->downlink_datarates[i][0] = pV1->downlink_datarates[i][0]; 
-      pV2->downlink_datarates[i][1] = pV1->downlink_datarates[i][1]; 
-      pV2->uplink_datarate[i] = pV1->uplink_datarate[i];
-      pV2->uplink_rssi_dbm[i] = pV1->uplink_rssi_dbm[i];
-      pV2->uplink_link_quality[i] = pV1->uplink_link_quality[i];
+      if ( pV1->downlink_datarates[i][0] < 128 )
+         pV3->downlink_datarate_bps[i][0] = 1000 * 1000 * pV1->downlink_datarates[i][0];
+      else
+         pV3->downlink_datarate_bps[i][0] = (127-pV1->downlink_datarates[i][0]);
+      
+      if ( pV1->downlink_datarates[i][1] < 128 )
+         pV3->downlink_datarate_bps[i][1] = 1000 * 1000 * pV1->downlink_datarates[i][1];
+      else
+         pV3->downlink_datarate_bps[i][1] = (127-pV1->downlink_datarates[i][1]);
+      
+      pV3->uplink_datarate_bps[i] = 1000 * 1000 * pV1->uplink_datarate[i];
+
+      pV3->uplink_rssi_dbm[i] = pV1->uplink_rssi_dbm[i];
+      pV3->uplink_link_quality[i] = pV1->uplink_link_quality[i];
    }
 
-   pV2->uplink_rc_rssi = pV1->uplink_rc_rssi;
-   pV2->uplink_mavlink_rc_rssi = pV1->uplink_mavlink_rc_rssi;
-   pV2->uplink_mavlink_rx_rssi = pV1->uplink_mavlink_rx_rssi;
+   pV3->uplink_rc_rssi = pV1->uplink_rc_rssi;
+   pV3->uplink_mavlink_rc_rssi = pV1->uplink_mavlink_rc_rssi;
+   pV3->uplink_mavlink_rx_rssi = pV1->uplink_mavlink_rx_rssi;
 
-   pV2->txTimePerSec = pV1->txTimePerSec;
-   pV2->extraFlags = pV1->extraFlags;
-   pV2->extraSize = pV1->extraSize;
+   pV3->txTimePerSec = pV1->txTimePerSec;
+   pV3->extraFlags = pV1->extraFlags;
+   pV3->extraSize = pV1->extraSize;
 }
 
-int radio_convert_short_packet_to_regular_packet(t_packet_header_short* pPHS, u8* pOutPacket, int iMaxLength)
+void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v2* pV2)
 {
-   if ( (NULL == pPHS) || (NULL == pOutPacket) || (iMaxLength < sizeof(t_packet_header)) )
-      return 0;
+   if ( NULL == pV3 || NULL == pV2 )
+      return;
 
-   return 0;
-}
-
-int radio_convert_regular_packet_to_short_packet(t_packet_header* pPH, u8* pOutPacket, int iMaxLength)
-{
-   if ( (NULL == pPH) || (NULL == pOutPacket) || (iMaxLength < sizeof(t_packet_header_short)) )
-      return 0;
-
-   return 0;
-}
-
-int radio_buffer_embed_short_packet_to_packet(t_packet_header_short* pPHS, u8* pOutPacket, int iMaxLength)
-{
-   if ( (NULL == pPHS) || (NULL == pOutPacket) || (iMaxLength < sizeof(t_packet_header)) )
-      return 0;
-
-   return 0;
-}
-
-int radio_buffer_embed_packet_to_short_packet(t_packet_header* pPH, u8* pOutPacket, int iMaxLength)
-{
-   if ( (NULL == pPH) || (NULL == pOutPacket) || (iMaxLength < sizeof(t_packet_header_short)) )
-      return 0;
-
-   if ( pPH->total_length >= 255-sizeof(t_packet_header_short) )
-      return 0;
-
-   if ( pPH->total_length + sizeof(t_packet_header_short) > iMaxLength )
-      return 0;
-
-   int iMustEmbed = 0;
-   
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
-      iMustEmbed = 1;
-
-   if ( ! iMustEmbed )
-      return 0;
-
-   t_packet_header_short* pPHS = (t_packet_header_short*)pOutPacket;
-   pPHS->packet_type = PACKET_TYPE_EMBEDED_FULL_PACKET;
-   pPHS->packet_index = radio_get_next_short_packet_index();
-   pPHS->stream_packet_idx = pPH->stream_packet_idx;
-   pPHS->vehicle_id_src = pPH->vehicle_id_dest;
-   pPHS->vehicle_id_dest = pPH->vehicle_id_src;
-   pPHS->total_length = sizeof(t_packet_header_short) + pPH->total_length;
-    
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-      pPH->crc = base_compute_crc32(((u8*)pPH) + sizeof(u32), pPH->total_headers_length-sizeof(u32));
-   else
-      pPH->crc = base_compute_crc32(((u8*)pPH) + sizeof(u32), pPH->total_length-sizeof(u32));
-
-   memcpy(pOutPacket + sizeof(t_packet_header_short), (u8*)pPH, pPH->total_length);
-
-   return pPH->total_length + sizeof(t_packet_header_short);
-}
-
-int radio_buffer_is_valid_short_packet(u8* pBuffer, int iLength)
-{
-   if ( (NULL == pBuffer) || (iLength < sizeof(t_packet_header_short)) )
-      return -1;
-
-   u8* pStart = pBuffer;
-
-   for( int i=0; i<=iLength-sizeof(t_packet_header_short); i++ )
+   pV3->flags = pV2->flags;
+   pV3->version = pV2->version;
+   pV3->vehicle_id = pV2->vehicle_id;
+   pV3->vehicle_type = pV2->vehicle_type;
+   memcpy(pV3->vehicle_name, pV2->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+   pV3->radio_links_count = pV2->radio_links_count;
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
-      int len = (int)(*(pStart+2*sizeof(u8)+2*sizeof(u32)));
-      if ( len < sizeof(t_packet_header_short) )
-      {
-         pStart++;
-         continue;
-      }
-      if ( i+len > iLength )
-      {
-         pStart++;
-         continue;
-      }
-      u32 crc = base_compute_crc32(pStart+sizeof(u32), len-sizeof(u32));
-      t_packet_header_short* pPHS = (t_packet_header_short*)pStart;
-      if ( crc != pPHS->crc )
-      {
-         pStart++;
-         continue;
-      }
-      return i;
+      pV3->uRadioFrequenciesKhz[i] = pV2->uRadioFrequenciesKhz[i];
+      if ( pV3->uRadioFrequenciesKhz[i] < 10000 )
+         pV3->uRadioFrequenciesKhz[i] *= 1000;
    }
-   return -1;
+
+   pV3->uRelayLinks = 0;
+   
+   pV3->downlink_tx_video_bitrate_bps = pV2->downlink_tx_video_bitrate;
+   pV3->downlink_tx_video_all_bitrate_bps = pV2->downlink_tx_video_all_bitrate;
+   pV3->downlink_tx_data_bitrate_bps = pV2->downlink_tx_data_bitrate;
+
+   pV3->downlink_tx_video_packets_per_sec = pV2->downlink_tx_video_packets_per_sec;
+   pV3->downlink_tx_data_packets_per_sec = pV2->downlink_tx_data_packets_per_sec;
+   pV3->downlink_tx_compacted_packets_per_sec = pV2->downlink_tx_compacted_packets_per_sec;
+
+   pV3->temperature = pV2->temperature;
+   pV3->cpu_load = pV2->cpu_load;
+   pV3->cpu_mhz = pV2->cpu_mhz;
+   pV3->throttled = pV2->throttled;
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+      if ( pV2->downlink_datarates[i][0] < 128 )
+         pV3->downlink_datarate_bps[i][0] = 1000 * 1000 * pV2->downlink_datarates[i][0];
+      else
+         pV3->downlink_datarate_bps[i][0] = (127-pV2->downlink_datarates[i][0]);
+      
+      if ( pV2->downlink_datarates[i][1] < 128 )
+         pV3->downlink_datarate_bps[i][1] = 1000 * 1000 * pV2->downlink_datarates[i][1];
+      else
+         pV3->downlink_datarate_bps[i][1] = (127-pV2->downlink_datarates[i][1]);
+      
+      pV3->uplink_datarate_bps[i] = 1000 * 1000 * pV2->uplink_datarate[i];
+
+      pV3->uplink_rssi_dbm[i] = pV2->uplink_rssi_dbm[i];
+      pV3->uplink_link_quality[i] = pV2->uplink_link_quality[i];
+   }
+
+   pV3->uplink_rc_rssi = pV2->uplink_rc_rssi;
+   pV3->uplink_mavlink_rc_rssi = pV2->uplink_mavlink_rc_rssi;
+   pV3->uplink_mavlink_rx_rssi = pV2->uplink_mavlink_rx_rssi;
+
+   pV3->txTimePerSec = pV2->txTimePerSec;
+   pV3->extraFlags = pV2->extraFlags;
+   pV3->extraSize = pV2->extraSize;
 }
+

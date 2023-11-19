@@ -13,7 +13,7 @@
 #define RADIO_TYPE_SIK 5
 
 #define RADIO_HW_DRIVER_ATHEROS 0       // ath9k_htc
-#define RADIO_HW_DRIVER_RALINK 1        // rt2800usb
+#define RADIO_HW_DRIVER_RALINK 1        // rt2800usb, only 2.4Ghz band
 #define RADIO_HW_DRIVER_MEDIATEK 3      // mt7601u
 #define RADIO_HW_DRIVER_REALTEK_RTL88XXAU 4       // rtl88xxau
 #define RADIO_HW_DRIVER_REALTEK_RTL8812AU 5       // rtl8812au
@@ -34,6 +34,8 @@
 #define CARD_MODEL_RTL8812AU_LOW_POWER 10
 #define CARD_MODEL_ZIPRAY 11
 #define CARD_MODEL_ARCHER_T2UPLUS 12
+#define CARD_MODEL_RTL8814AU      13
+#define CARD_MODEL_ALFA_AWUS036ACS  14
 
 #define CARD_MODEL_SIK_RADIO 100
 
@@ -46,14 +48,16 @@
 #define RADIO_HW_SUPPORTED_BAND_868 32
 #define RADIO_HW_SUPPORTED_BAND_915 64
 
+// Used for radio links and radio interfaces
 #define RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ((u32)(((u32)0x01)))
 #define RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA  ((u32)(((u32)0x01)<<2))
 #define RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY  ((u32)(((u32)0x01)<<4))
 #define RADIO_HW_CAPABILITY_FLAG_CAN_RX ((u32)(((u32)0x01)<<5))
 #define RADIO_HW_CAPABILITY_FLAG_CAN_TX ((u32)(((u32)0x01)<<6))
 #define RADIO_HW_CAPABILITY_FLAG_DISABLED ((u32)(((u32)0x01)<<7))
-#define RADIO_HW_CAPABILITY_FLAG_USE_LOWEST_DATARATE_FOR_DATA ((u32)(((u32)0x01)<<8))
-#define RADIO_HW_CAPABILITY_HIGH_CAPACITY ((u32)(((u32)0x01)<<9))
+#define RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY ((u32)(((u32)0x01)<<9))
+
+#define RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD ((u32)(((u32)0x01)))
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,6 +82,7 @@ typedef struct
    int n80211HeaderLength;
    int nRadioType;
    int nPort;
+   int iErrorCount;
    radiotap_rx_info_t radioInfo;
 } monitor_interface_t;
 
@@ -91,9 +96,11 @@ typedef struct
    u8 supportedBands;  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
    int isHighCapacityInterface;
    int isTxCapable;
-   u32 uCurrentFrequency; // < 10000 = Mhz; > 10000 = Khz
+   int iCurrentDataRate;
+   u32 uCurrentFrequencyKhz;
    int lastFrequencySetFailed;
-   u32 failedFrequency;
+   u32 uFailedFrequencyKhz;
+   u32 uExtraFlags;
    char szName[32];
    char szDescription[64];
    char szDriver[32];
@@ -144,14 +151,15 @@ radio_hw_info_t* hardware_get_radio_info_array();
 int hardware_add_radio_interface_info(radio_hw_info_t* pRadioInfo);
 int hardware_get_radio_index_by_name(const char* szName);
 int hardware_get_radio_index_from_mac(const char* szMAC);
+int hardware_radio_has_low_capacity_links();
 
 const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
 
-int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freq);
-int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freq);
+int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freqKhz);
+int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freqKhz);
 
 int hardware_get_radio_count_opened_for_read();
 radio_hw_info_t* hardware_get_radio_info(int iRadioIndex);

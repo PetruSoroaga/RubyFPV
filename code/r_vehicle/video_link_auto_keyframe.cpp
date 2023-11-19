@@ -13,6 +13,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/config.h"
 #include "../base/models.h"
 #include "../common/string_utils.h"
+#include "../common/relay_utils.h"
 
 #include "processor_tx_video.h"
 #include "utils_vehicle.h"
@@ -22,26 +23,29 @@ Code written by: Petru Soroaga, 2021-2023
 
 #include "video_link_auto_keyframe.h"
 
-static int s_iControllerRequestedKeyFrameInterval = -1;
-static u32 s_uLastTimeControllerRequestedKeyFrameInterval = 0;
+int s_iRequestedKeyFrameIntervalMsFromController = -1;
+u32 s_uLastTimeControllerRequestedAKeyFrameIntervalMs = 0;
 
-static int s_iLastRXQualityMinimumKeyFrame = -1;
-static int s_iLastRXQualityMaximumKeyFrame = -1;
+int s_iLastRXQualityMinimumForKeyFrame = -1;
+int s_iLastRXQualityMaximumForKeyFrame = -1;
 
-static u32 s_uLastTimeKeyFrameMovedDown = 0;
-static u32 s_uLastTimeKeyFrameMovedUp = 0;
+u32 s_uLastTimeKeyFrameMovedDown = 0;
+u32 s_uLastTimeKeyFrameMovedUp = 0;
 
-
-void video_link_auto_keyframe_set_controller_requested_value(int iKeyframe)
+void video_link_auto_keyframe_set_controller_requested_value(int iVideoStreamIndex, int iKeyframeMs)
 {
-   s_iControllerRequestedKeyFrameInterval = iKeyframe;
-   s_uLastTimeControllerRequestedKeyFrameInterval = g_TimeNow;
+   log_line("[Video] Set requested keyframe interval from controller to %d ms. Previous was %d ms", iKeyframeMs, s_iRequestedKeyFrameIntervalMsFromController);
+
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastRequestedKeyframeFromController(iKeyframeMs);
+   s_iRequestedKeyFrameIntervalMsFromController = iKeyframeMs;
+   s_uLastTimeControllerRequestedAKeyFrameIntervalMs = g_TimeNow;
 }
 
 void video_link_auto_keyframe_init()
 {
-   s_iControllerRequestedKeyFrameInterval = -1;
-   s_uLastTimeControllerRequestedKeyFrameInterval = 0;
+   s_iRequestedKeyFrameIntervalMsFromController = -1;
+   s_uLastTimeControllerRequestedAKeyFrameIntervalMs = 0;
 
    log_line("Video auto keyframe module init complete.");
 }
@@ -55,16 +59,35 @@ void video_link_auto_keyframe_periodic_loop()
         (g_TimeNow < g_TimeStartRaspiVid + 3000) )
       return;
    
-   int iCurrentFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
+   static u32 s_uTimeLastVideoAutoKeyFrameCheck = 0;
+   if ( g_TimeNow < s_uTimeLastVideoAutoKeyFrameCheck+10 )
+      return;
 
+   s_uTimeLastVideoAutoKeyFrameCheck = g_TimeNow;
+
+   // Is relaying a vehicle and no own video is needed now?
+   // Then go to a fast keyframe interval so that relay video switching happens fast
+
+   if ( ! relay_vehicle_must_forward_own_video(g_pCurrentModel) )
+   {
+      s_iRequestedKeyFrameIntervalMsFromController = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
+  
+      if ( g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs != DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING)
+      {
+         log_line("[KeyFrame] Set default relay keframe level (%u ms) due to relaying other vehicle (VID %u)", DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING, g_pCurrentModel->relay_params.uRelayedVehicleId);
+         process_data_tx_video_set_current_keyframe_interval(DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING, "relaying remote vehicle video");
+      }
+      return;
+   }
+   
    // Fixed keyframe interval, set by user? Then do nothing, just make sure it's the current one
 
    if ( (NULL != g_pCurrentModel) && g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0 && g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES )
-   if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe > 0 )
+   if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms > 0 )
    {
-      if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe == g_SM_VideoLinkStats.overwrites.uCurrentKeyframe )
+      if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms == g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs )
          return;
-      process_data_tx_video_set_current_keyframe_interval( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe );
+      process_data_tx_video_set_current_keyframe_interval( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms, "fixed kf set by user" );
       return;
    }
 
@@ -87,23 +110,6 @@ void video_link_auto_keyframe_periodic_loop()
             iHighestRXQuality = g_SM_RadioStats.radio_interfaces[i].rxQuality;
       }
    }
-    
-   int iDefaultKeyframeInterval = iCurrentFPS * 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL / 1000;
-        
-   // Is relaying other vehicle? Go to default level
-
-   if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId > 0 )
-   if ( g_pCurrentModel->relay_params.uRelayVehicleId > 0 )
-   if ( g_pCurrentModel->relay_params.uRelayFlags & RELAY_FLAGS_VIDEO )
-   if ( g_pCurrentModel->relay_params.uCurrentRelayMode == RELAY_MODE_REMOTE )
-   if ( iDefaultKeyframeInterval != g_SM_VideoLinkStats.overwrites.uCurrentKeyframe )
-   {
-      log_line("[KeyFrame] Set default level due to relaying other vehicle.");
-      s_iControllerRequestedKeyFrameInterval = iDefaultKeyframeInterval;
-      process_data_tx_video_set_current_keyframe_interval(iDefaultKeyframeInterval);
-      return;
-   }
-
 
    // Have recent link from controller ok? Then do nothing.
 
@@ -114,11 +120,11 @@ void video_link_auto_keyframe_periodic_loop()
    if ( iHighestRXQuality >= 20 )
    {
 
-      if ( -1 != s_iControllerRequestedKeyFrameInterval )
-      if ( s_iControllerRequestedKeyFrameInterval != g_SM_VideoLinkStats.overwrites.uCurrentKeyframe )
+      if ( -1 != s_iRequestedKeyFrameIntervalMsFromController )
+      if ( s_iRequestedKeyFrameIntervalMsFromController != g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs )
       {
-         log_line("[KeyFrame]: Current keyframe (%d) different from one requested by controller (%d).Switching to it.", g_SM_VideoLinkStats.overwrites.uCurrentKeyframe, s_iControllerRequestedKeyFrameInterval);
-         process_data_tx_video_set_current_keyframe_interval(s_iControllerRequestedKeyFrameInterval);
+         log_line("[KeyFrame]: Current keyframe (%d ms) different from one requested by controller (%d ms). Switching to it.", g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs, s_iRequestedKeyFrameIntervalMsFromController);
+         process_data_tx_video_set_current_keyframe_interval(s_iRequestedKeyFrameIntervalMsFromController, "requested by controller");
       }
 
       return;
@@ -126,7 +132,7 @@ void video_link_auto_keyframe_periodic_loop()
 
    // Adaptive: need to go to lowest level?
 
-   int iNewKeyframeInterval = -1;
+   int iNewKeyframeIntervalMs = -1;
 
    bool bGoToLowestLevel = false;
 
@@ -137,51 +143,51 @@ void video_link_auto_keyframe_periodic_loop()
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
       bGoToLowestLevel = true;
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
-   if ( g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel > g_pCurrentModel->get_video_link_profile_max_level_shifts(VIDEO_PROFILE_MQ)-2 )
+   if ( g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel >= g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ) )
       bGoToLowestLevel = true;
 
    if ( bGoToLowestLevel )
    {
-      iNewKeyframeInterval = iCurrentFPS * 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL / 1000;
-      process_data_tx_video_set_current_keyframe_interval(iNewKeyframeInterval);
+      iNewKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+      process_data_tx_video_set_current_keyframe_interval(iNewKeyframeIntervalMs, "adaptive go lowest");
       return;
    }
 
    // Adaptive keyframe interval
 
    if ( iHighestRXQuality < 20 )
-       iNewKeyframeInterval = iCurrentFPS * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL/1000;
+       iNewKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
    
    // RX Quality going down ?
 
-   //if ( iHighestRXQuality < s_iLastRXQualityMaximumKeyFrame )
+   //if ( iHighestRXQuality < s_iLastRXQualityMaximumForKeyFrame )
    {
       if ( iHighestRXQuality < 70 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 300 )
       {
-         iNewKeyframeInterval = g_SM_VideoLinkStats.overwrites.uCurrentKeyframe/2;
-         if ( iNewKeyframeInterval < iCurrentFPS * 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL/1000 )
-            iNewKeyframeInterval = iCurrentFPS * 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL/1000;
+         iNewKeyframeIntervalMs = g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs/2;
+         if ( iNewKeyframeIntervalMs < 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+            iNewKeyframeIntervalMs = 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
          s_uLastTimeKeyFrameMovedDown = g_TimeNow;
       }
 
       if ( iHighestRXQuality < 50 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 300 )
       {
-         iNewKeyframeInterval = iCurrentFPS * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL/1000;
+         iNewKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
          s_uLastTimeKeyFrameMovedDown = g_TimeNow;
       }
    }
 
    // RX Quality going up ?
 
-   //if ( iHighestRXQuality > s_iLastRXQualityMaximumKeyFrame )
+   //if ( iHighestRXQuality > s_iLastRXQualityMaximumForKeyFrame )
    {
       if ( iHighestRXQuality > 70 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 400 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedUp + 400 )
       {
-         iNewKeyframeInterval = g_SM_VideoLinkStats.overwrites.uCurrentKeyframe*2;
+         iNewKeyframeIntervalMs = g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs*2;
          s_uLastTimeKeyFrameMovedUp = g_TimeNow;
       }
 
@@ -189,18 +195,18 @@ void video_link_auto_keyframe_periodic_loop()
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 200 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedUp + 200 )
       {
-         iNewKeyframeInterval = g_SM_VideoLinkStats.overwrites.uCurrentKeyframe*4;
+         iNewKeyframeIntervalMs = g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs*4;
          s_uLastTimeKeyFrameMovedUp = g_TimeNow;
       }
    }
 
-   s_iLastRXQualityMinimumKeyFrame = iLowestRXQuality;
-   s_iLastRXQualityMaximumKeyFrame = iHighestRXQuality;
+   s_iLastRXQualityMinimumForKeyFrame = iLowestRXQuality;
+   s_iLastRXQualityMaximumForKeyFrame = iHighestRXQuality;
 
 
    // Apply the new value, if it changed
-   if ( iNewKeyframeInterval != -1 )
+   if ( iNewKeyframeIntervalMs != -1 )
    {
-      process_data_tx_video_set_current_keyframe_interval(iNewKeyframeInterval);
+      process_data_tx_video_set_current_keyframe_interval(iNewKeyframeIntervalMs, "adaptive");
    }
 }

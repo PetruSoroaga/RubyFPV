@@ -31,6 +31,7 @@ PopupLog::PopupLog()
    m_TotalLinesAdded = 0;
    m_bShowLineNumbers = true;
    m_bBottomAlign = true;
+   setRenderBelowMenu(true);
 }
 
 PopupLog::~PopupLog()
@@ -79,25 +80,25 @@ void PopupLog::addLine(const char* szLine)
 
 void PopupLog::computeSize()
 {
-   float height_text = g_pRenderEngine->textHeight(POPUP_FONT_SIZE*menu_getScaleMenus(), g_idFontMenu);
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
-   m_RenderWidth = (m_fMaxWidth-2*POPUP_MARGINS*menu_getScaleMenus());
+   m_RenderWidth = (m_fMaxWidth-2*Menu::getSelectionPaddingX());
    m_RenderHeight = 0;
    
    if ( 0 != m_szTitle[0] )
    {
-      m_RenderHeight = g_pRenderEngine->getMessageHeight(m_szTitle, height_text, POPUP_LINE_SPACING, m_RenderWidth, g_idFontMenu);
+      m_RenderHeight = g_pRenderEngine->getMessageHeight(m_szTitle, POPUP_LINE_SPACING, m_RenderWidth, g_idFontMenu);
       m_RenderHeight += height_text * POPUP_LINE_SPACING*1.5;
    }
 
    for ( int i=0; i<m_LinesCount; i++ )
    {
-      m_RenderHeight += g_pRenderEngine->getMessageHeight(m_szLines[i], height_text, POPUP_LINE_SPACING, m_RenderWidth, g_idFontMenu);
+      m_RenderHeight += g_pRenderEngine->getMessageHeight(m_szLines[i], POPUP_LINE_SPACING, m_RenderWidth, g_idFontMenu);
       m_RenderHeight += height_text*POPUP_LINE_SPACING;
    }
 
-   m_RenderWidth += 2*POPUP_MARGINS*menu_getScaleMenus();
-   m_RenderHeight += 1.7*POPUP_MARGINS*menu_getScaleMenus();
+   m_RenderWidth += 2*Menu::getSelectionPaddingX();
+   m_RenderHeight += 1.7*Menu::getSelectionPaddingY();
 
    m_xPos = (1.0-m_RenderWidth)/2.0;
 
@@ -119,7 +120,7 @@ void PopupLog::Render()
    if ((g_TimeNow-m_StartTime) > m_fTimeoutSeconds*1000.0)
       return;
 
-   float height_text = g_pRenderEngine->textHeight(POPUP_FONT_SIZE*menu_getScaleMenus(), g_idFontMenu);
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
    float alfaOrg = g_pRenderEngine->setGlobalAlfa(0.84);
    
@@ -130,11 +131,11 @@ void PopupLog::Render()
    
    g_pRenderEngine->setColors(get_Color_PopupText());
    
-   float y = m_yPos+POPUP_MARGINS*menu_getScaleMenus();
+   float y = m_yPos+Menu::getSelectionPaddingY();
    if ( 0 != m_szTitle[0] )
    {
-      float x = m_xPos+POPUP_MARGINS*menu_getScaleMenus();
-      y += POPUP_TITLE_SCALE * g_pRenderEngine->drawMessageLines(x,y, m_szTitle, height_text, POPUP_LINE_SPACING, m_RenderWidth-2*POPUP_MARGINS*menu_getScaleMenus(), g_idFontMenu);
+      float x = m_xPos+Menu::getSelectionPaddingX();
+      y += POPUP_TITLE_SCALE * g_pRenderEngine->drawMessageLines(x,y, m_szTitle, POPUP_LINE_SPACING, m_RenderWidth-2*Menu::getSelectionPaddingX(), g_idFontMenu);
       y += height_text * POPUP_LINE_SPACING * 1.5;
    }
    else
@@ -143,7 +144,7 @@ void PopupLog::Render()
    g_pRenderEngine->highlightFirstWordOfLine(true);
    for (int i = 0; i<m_LinesCount; i++)
    {
-      y += g_pRenderEngine->drawMessageLines(m_xPos+POPUP_MARGINS*menu_getScaleMenus(), y, m_szLines[i], height_text, POPUP_LINE_SPACING, m_RenderWidth-2*POPUP_MARGINS*menu_getScaleMenus(), g_idFontMenu);
+      y += g_pRenderEngine->drawMessageLines(m_xPos+Menu::getSelectionPaddingX(), y, m_szLines[i], POPUP_LINE_SPACING, m_RenderWidth-2*Menu::getSelectionPaddingX(), g_idFontMenu);
       y += height_text*POPUP_LINE_SPACING;
    }
    g_pRenderEngine->highlightFirstWordOfLine(false);
@@ -157,7 +158,7 @@ void popup_log_add_entry(const char* szLine)
    s_PopupLog.setFont(g_idFontOSDSmall);
    s_PopupLog.addLine(szLine);
    if ( s_PopupShowFlag != 0 )
-      popups_add_topmost(&s_PopupLog);
+      popups_add(&s_PopupLog);
 }
 
 void popup_log_add_entry(const char* szLine, int param)
@@ -167,7 +168,7 @@ void popup_log_add_entry(const char* szLine, int param)
    s_PopupLog.setFont(g_idFontOSDSmall);
    s_PopupLog.addLine(szBuff);
    if ( s_PopupShowFlag != 0 )
-      popups_add_topmost(&s_PopupLog);
+      popups_add(&s_PopupLog);
 }
 
 void popup_log_add_entry(const char* szLine, const char* szParam)
@@ -177,7 +178,7 @@ void popup_log_add_entry(const char* szLine, const char* szParam)
    s_PopupLog.setFont(g_idFontOSDSmall);
    s_PopupLog.addLine(szBuff);
    if ( s_PopupShowFlag != 0 )
-      popups_add_topmost(&s_PopupLog);
+      popups_add(&s_PopupLog);
 }
 
 void popup_log_set_show_flag(int flag)
@@ -190,7 +191,7 @@ void popup_log_set_show_flag(int flag)
    // Off
    if ( 0 == s_PopupShowFlag )
    {
-      s_PopupLog.setTimeout(0);
+      s_PopupLog.setTimeout(1.0);
       popups_remove(&s_PopupLog);
    }
 
@@ -202,8 +203,13 @@ void popup_log_set_show_flag(int flag)
    if ( 2 == s_PopupShowFlag )
    {
       s_PopupLog.setTimeout(5000);
-      popups_add_topmost(&s_PopupLog);
+      popups_add(&s_PopupLog);
    }
+}
+
+void popup_log_vehicle_remove()
+{
+  s_PopupVehicleLog.setTimeout(1.0);
 }
 
 void popup_log_add_vehicle_entry(const char* szLine)
@@ -217,6 +223,6 @@ void popup_log_add_vehicle_entry(const char* szLine)
    s_PopupVehicleLog.setTimeout(10);
 
    s_PopupVehicleLog.addLine(szLine);
-   popups_add_topmost(&s_PopupVehicleLog);
+   popups_add(&s_PopupVehicleLog);
 }
 

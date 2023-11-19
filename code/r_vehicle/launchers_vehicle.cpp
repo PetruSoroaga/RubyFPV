@@ -14,7 +14,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/hardware.h"
 #include "../base/hardware_i2c.h"
 #include "../base/hw_procs.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
+#include <math.h>
 
 #include "shared_vars.h"
 #include "timers.h"
@@ -24,6 +25,11 @@ bool s_bIsFirstCameraParamsUpdate = true;
 static type_camera_parameters s_LastAppliedVeyeCameraParams;
 static type_video_link_profile s_LastAppliedVeyeVideoParams;
 
+static bool s_bAudioCaptureIsStarted = false;
+static pthread_t s_pThreadAudioCapture;
+static pthread_t s_pThreadBgAffinities;
+static bool s_bThreadBgAffinitiesStarted = false;
+static int s_iCPUCoresCount = -1;
 
 void vehicle_launch_tx_telemetry(Model* pModel)
 {
@@ -110,7 +116,7 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       memset((u8*)&s_LastAppliedVeyeVideoParams, 0, sizeof(video_parameters_t));
    }
 
-   if ( pModel->isCameraVeye() )
+   if ( pModel->isActiveCameraVeye() )
    {
       char szComm[1024];
       char szOutput[1024];
@@ -130,10 +136,10 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       hardware_sleep_ms(200);
    }
 
-   if ( pModel->isCameraHDMI() )
+   if ( pModel->isActiveCameraHDMI() )
       hardware_sleep_ms(200);
 
-   log_line("Computing video capture parameters for camera type: %d ...", pModel->getCameraType());
+   log_line("Computing video capture parameters for active camera type: %d ...", pModel->getActiveCameraType());
 
    char szBuff[1024];
    char szCameraFlags[256];
@@ -151,7 +157,7 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
    else
       sprintf(szPriority, "nice -n %d", pModel->niceVideo );
 
-   if ( pModel->isCameraVeye() )
+   if ( pModel->isActiveCameraVeye() )
    {
       if ( pModel->camera_params[pModel->iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
       {
@@ -186,12 +192,12 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       fclose(fd);
    }
 
-   log_line("Executing video pipeline: [%s]", szBuff);
+   //log_line("Executing video pipeline: [%s]", szBuff);
    bool bResult = hw_execute_bash_command(szBuff, NULL);
 
-   if ( pModel->isCameraVeye() )
+   if ( pModel->isActiveCameraVeye() )
    {
-      if ( pModel->isCameraVeye307() )
+      if ( pModel->isActiveCameraVeye307() )
          hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE307, pModel->niceVideo, pModel->ioNiceVideo, 1 );
       else
          hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, pModel->niceVideo, pModel->ioNiceVideo, 1 );
@@ -214,7 +220,7 @@ void vehicle_stop_video_capture(Model* pModel)
 {
    g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 0;
 
-   if ( pModel->isCameraVeye() )
+   if ( pModel->isActiveCameraVeye() )
    {
       hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE);
       hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE307);
@@ -226,13 +232,12 @@ void vehicle_stop_video_capture(Model* pModel)
    g_TimeStartRaspiVid = 0;
    g_bDidSentRaspividBitrateRefresh = true;
    log_line("Stopped video capture process.");
-   hardware_sleep_ms(20);
 }
 
 
 void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
 {
-   if ( ! pModel->isCameraVeye() )
+   if ( ! pModel->isActiveCameraVeye() )
       return;
 
    char szComm[1024];
@@ -255,55 +260,68 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       bApplyAll = true;
    }
 
-   if ( pModel->isCameraVeye307() )
+   if ( pModel->isActiveCameraVeye307() )
    {
+      int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
+      
       if ( s_LastAppliedVeyeVideoParams.width != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width ||
            s_LastAppliedVeyeVideoParams.height != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height ||
            s_LastAppliedVeyeVideoParams.fps != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f  videofmt -p1 %d -p2 %d -p3 %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps);
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f  videofmt -p1 %d -p2 %d -p3 %d -b %d; cd $current_dir",
+          VEYE_COMMANDS_FOLDER307, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height, pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].dayNightMode != pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].dayNightMode == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x1 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x2; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f daynightmode -p1 0x2 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].brightness != pModel->camera_params[iCameraIndex].profiles[iProfile].brightness )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f aetarget -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (int)(2.5f*(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness)));
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f aetarget -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, (int)(2.5f*(pModel->camera_params[iCameraIndex].profiles[iProfile].brightness)), nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].contrast != pModel->camera_params[iCameraIndex].profiles[iProfile].contrast )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f contrast -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->camera_params[iCameraIndex].profiles[iProfile].contrast);
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f contrast -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, pModel->camera_params[iCameraIndex].profiles[iProfile].contrast, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].saturation != pModel->camera_params[iCameraIndex].profiles[iProfile].saturation )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f satu -p1 0x%02X; cd $current_dir", VEYE_COMMANDS_FOLDER307, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2));
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f satu -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, (pModel->camera_params[iCameraIndex].profiles[iProfile].saturation/2), nBus);
          hw_execute_bash_command(szComm, NULL);
+      }
+
+      if ( bApplyAll || (fabs(s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].awbGainR - pModel->camera_params[iCameraIndex].profiles[iProfile].awbGainR) > 0.1) )
+      {
+         int hue = pModel->camera_params[iCameraIndex].profiles[iProfile].awbGainR;
+         if ( (hue > 1) && (hue < 100) )
+         {
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f hue -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, hue, nBus);
+            hw_execute_bash_command(szComm, NULL);
+         }
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].shutterspeed != pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed == 0 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          else
          {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
-         hw_execute_bash_command(szComm, NULL);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f expmode -p1 1 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
+            hw_execute_bash_command(szComm, NULL);
 
-         char szShutter[24];
-         sprintf(szShutter, "%d", (int)(1000000l/(long)pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed));
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f metime -p1 %s; cd $current_dir", VEYE_COMMANDS_FOLDER307, szShutter);
+            char szShutter[24];
+            sprintf(szShutter, "%d", (int)(1000000l/(long)pModel->camera_params[iCameraIndex].profiles[iProfile].shutterspeed));
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f metime -p1 %s -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, szShutter, nBus);
          }
          hw_execute_bash_command(szComm, NULL);
       }
@@ -311,17 +329,17 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].whitebalance != pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
       {
          if ( 0 == pModel->camera_params[iCameraIndex].profiles[iProfile].whitebalance )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 1; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 1 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f awbmode -p1 0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
       }
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].flip_image != pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
       {
          if ( pModel->camera_params[iCameraIndex].profiles[iProfile].flip_image )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 3; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 3 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 0; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
    }
@@ -453,14 +471,25 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
 }
 
 
-void vehicle_launch_audio_capture(Model* pModel)
+static void * _thread_audio_capture(void *argument)
 {
-   if ( NULL == pModel || (! pModel->audio_params.has_audio_device) || (! pModel->audio_params.enabled) )
-      return;
-   char szComm[128];
+   s_bAudioCaptureIsStarted = true;
+
+   Model* pModel = (Model*) argument;
+   if ( NULL == pModel )
+   {
+      s_bAudioCaptureIsStarted = false;
+      return NULL;
+   }
+
+   char szCommFlag[256];
+   char szCommCapture[256];
    char szRate[32];
-   sprintf(szComm, "amixer -c 1 sset Mic %d%%", pModel->audio_params.volume);
-   hw_execute_bash_command(szComm, NULL);
+   char szPriority[64];
+   int iIntervalSec = 5;
+
+   sprintf(szCommCapture, "amixer -c 1 sset Mic %d%%", pModel->audio_params.volume);
+   hw_execute_bash_command(szCommCapture, NULL);
 
    strcpy(szRate, "8000");
    if ( 0 == pModel->audio_params.quality )
@@ -473,12 +502,70 @@ void vehicle_launch_audio_capture(Model* pModel)
       strcpy(szRate, "44100");
 
    strcpy(szRate, "44100");
-   sprintf(szComm, "arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 >> %s &", szRate, FIFO_RUBY_AUDIO1);
-   hw_execute_bash_command(szComm, NULL);
+
+   szPriority[0] = 0;
+   if ( pModel->ioNiceVideo > 0 )
+      sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
+   else
+      sprintf(szPriority, "nice -n %d", pModel->niceVideo );
+
+   sprintf(szCommCapture, "%s arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 -d %d -q >> %s",
+      szPriority, szRate, iIntervalSec, FIFO_RUBY_AUDIO1);
+
+   sprintf(szCommFlag, "echo '0123456789' > %s", FIFO_RUBY_AUDIO1);
+
+   hw_stop_process("arecord");
+
+   while ( s_bAudioCaptureIsStarted && ( ! g_bQuit) )
+   {
+      if ( g_bReinitializeRadioInProgress )
+      {
+         hardware_sleep_ms(50);
+         continue;         
+      }
+
+      u32 uTimeCheck = get_current_timestamp_ms();
+
+      hw_execute_bash_command(szCommCapture, NULL);
+      
+      u32 uTimeNow = get_current_timestamp_ms();
+      if ( uTimeNow < uTimeCheck + (u32)iIntervalSec * 500 )
+      {
+         log_softerror_and_alarm("[AudioCaptureThread] Audio capture segment finished too soon (took %u ms, expected %d ms)",
+             uTimeNow - uTimeCheck, iIntervalSec*1000);
+         hardware_sleep_ms(iIntervalSec*500);
+      }
+
+      hw_execute_bash_command(szCommFlag, NULL);
+   }
+   s_bAudioCaptureIsStarted = false;
+   return NULL;
+}
+
+void vehicle_launch_audio_capture(Model* pModel)
+{
+   if ( s_bAudioCaptureIsStarted )
+      return;
+
+   if ( NULL == pModel || (! pModel->audio_params.has_audio_device) || (! pModel->audio_params.enabled) )
+      return;
+
+   if ( 0 != pthread_create(&s_pThreadAudioCapture, NULL, &_thread_audio_capture, g_pCurrentModel) )
+   {
+      log_softerror_and_alarm("Failed to create thread for audio capture.");
+      s_bAudioCaptureIsStarted = false;
+      return;
+   }
+   s_bAudioCaptureIsStarted = true;
+   log_line("Created thread for audio capture.");
 }
 
 void vehicle_stop_audio_capture(Model* pModel)
 {
+   if ( ! s_bAudioCaptureIsStarted )
+      return;
+   s_bAudioCaptureIsStarted = false;
+
    if ( NULL == pModel || (! pModel->audio_params.has_audio_device) )
       return;
 
@@ -486,34 +573,73 @@ void vehicle_stop_audio_capture(Model* pModel)
    hw_stop_process("arecord");
 }
 
-void vehicle_check_update_processes_affinities()
+static void * _thread_adjust_affinities_vehicle(void *argument)
 {
-   char szOutput[128];
-
-   hw_execute_bash_command_raw("nproc --all", szOutput);
-   int iCores = 0;
-   if ( 1 != sscanf(szOutput, "%d", &iCores) )
+   s_bThreadBgAffinitiesStarted = true;
+   log_line("Started background thread to adjust processes affinities...");
+   
+   if ( s_iCPUCoresCount < 1 )
    {
-      log_softerror_and_alarm("Failed to get CPU cores count. No affinity adjustments for processes to be done.");
-      return;    
+      s_iCPUCoresCount = 1;
+      char szOutput[128];
+      hw_execute_bash_command_raw("nproc --all", szOutput);
+      if ( 1 != sscanf(szOutput, "%d", &s_iCPUCoresCount) )
+      {
+         log_softerror_and_alarm("Failed to get CPU cores count. No affinity adjustments for processes to be done.");
+         s_bThreadBgAffinitiesStarted = false;
+         s_iCPUCoresCount = 1;
+         return NULL;    
+      }
    }
 
-   if ( iCores < 2 || iCores > 32 )
+   if ( s_iCPUCoresCount < 2 || s_iCPUCoresCount > 32 )
    {
-      log_line("Single core CPU, no affinity adjustments for processes to be done.");
-      return;
+      log_line("Single core CPU (%d), no affinity adjustments for processes to be done.", s_iCPUCoresCount);
+      s_bThreadBgAffinitiesStarted = false;
+      return NULL;
    }
-   log_line("%d CPU cores, doing affinity adjustments for processes...", iCores);
-   if ( iCores > 2 )
+
+   log_line("%d CPU cores, doing affinity adjustments for processes...", s_iCPUCoresCount);
+   if ( s_iCPUCoresCount > 2 )
    {
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
       hw_set_proc_affinity("ruby_tx_telemetry", 2,2);
       hw_set_proc_affinity("ruby_rx_rc", 2,2);
-      hw_set_proc_affinity("ruby_capture_raspi", 3, iCores);
+      hw_set_proc_affinity("ruby_capture_raspi", 3, s_iCPUCoresCount);
    }
    else
    {
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
-      hw_set_proc_affinity("ruby_capture_raspi", 2, iCores);
+      hw_set_proc_affinity("ruby_capture_raspi", 2, s_iCPUCoresCount);
    }
+   log_line("Background thread to adjust processes affinities completed.");
+   s_bThreadBgAffinitiesStarted = false;
+   return NULL;
+}
+
+void vehicle_check_update_processes_affinities(bool bUseThread)
+{
+   log_line("Adjust processes affinities. Use thread: %s", (bUseThread?"Yes":"No"));
+
+   if ( ! bUseThread )
+   {
+      _thread_adjust_affinities_vehicle(NULL);
+      log_line("Adjusted processes affinities");
+      return;
+   }
+   
+   if ( s_bThreadBgAffinitiesStarted )
+   {
+      log_line("A background thread to adjust processes affinities is already running. Do nothing.");
+      return;
+   }
+   s_bThreadBgAffinitiesStarted = true;
+   if ( 0 != pthread_create(&s_pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, NULL) )
+   {
+      log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
+      s_bThreadBgAffinitiesStarted = false;
+      return;
+   }
+
+   log_line("Created thread for adjusting processes affinities");
 }

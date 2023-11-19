@@ -18,7 +18,6 @@ int s_fIPCRouterToRC = -1;
 int s_fIPCRouterFromRC = -1;
 
 int s_fInputVideoStream = -1;
-int s_fInputAudioStream = -1;
 
 bool g_bVideoPaused = false;
 int s_InputBufferVideoBytesRead = 0;
@@ -29,13 +28,22 @@ u16 s_countTXCompactedPacketsOutTemp = 0;
 
 // Router
 
+u32 g_uRouterState = 0;
+
 ProcessorTxVideo* g_pProcessorTxVideo = NULL;
+ProcessorTxAudio* g_pProcessorTxAudio = NULL;
 shared_mem_radio_stats g_SM_RadioStats;
+shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
+shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 type_uplink_rx_info_stats g_UplinkInfoRxStats[MAX_RADIO_INTERFACES];
 
+t_sik_radio_state g_SiKRadiosState;
+
+bool g_bReinitializeRadioInProgress = false;
 bool g_bReceivedPairingRequest = false;
 bool g_bHasLinkToController = false;
 bool g_bHadEverLinkToController = false;
+bool g_bHasSentVehicleSettingsAtLeastOnce = false;
 
 u32  g_uControllerId = 0;
 int s_iPendingFrequencyChangeLinkId = -1;
@@ -45,6 +53,7 @@ bool g_bDidSentRaspividBitrateRefresh = false;
 
 int g_iFramesSinceLastH264KeyFrame = 0;
 u32 g_uTotalRadioTxTimePerSec = 0;
+u32 g_uTotalVideoRadioTxTimePerSec = 0;
 
 t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 t_packet_header_vehicle_tx_history g_PHVehicleTxStats;
@@ -59,9 +68,11 @@ shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioOut = NULL;
 shared_mem_video_info_stats* g_pSM_VideoInfoStats = NULL;
 
 int g_iForcedVideoProfile = -1;
+int g_iShowVideoKeyframesAfterRelaySwitch = 0;
 
-
-bool g_bHasSikConfigCommandInProgress = false;
+int g_iGetSiKConfigAsyncResult = 0;
+int g_iGetSiKConfigAsyncRadioInterfaceIndex = -1;
+u8 g_uGetSiKConfigAsyncVehicleLinkIndex = 0;
 
 // TX Telemetry
 int s_MAVLinkRCChannels[16];

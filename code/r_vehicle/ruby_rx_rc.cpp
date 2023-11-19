@@ -16,6 +16,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../radio/radiopackets2.h"
 #include "../base/config.h"
 #include "../base/models.h"
+#include "../base/models_list.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
 
@@ -250,11 +251,11 @@ int main(int argc, char *argv[])
          g_pProcessStats->lastActiveTime = g_TimeNow;
 
       int maxMsgToRead = 5;
-      while ( (maxMsgToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPC_FromRouter, 20000, s_PipeTmpBufferRCFromRouter, &s_PipeTmpBufferRCFromRouterPos, s_BufferRCFromRouter) )
+      while ( (maxMsgToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPC_FromRouter, 9000, s_PipeTmpBufferRCFromRouter, &s_PipeTmpBufferRCFromRouterPos, s_BufferRCFromRouter) )
       {
          maxMsgToRead--;
          t_packet_header* pPH = (t_packet_header*)&s_BufferRCFromRouter[0];
-         if ( ! packet_check_crc(s_BufferRCFromRouter, pPH->total_length) )
+         if ( ! radio_packet_check_crc(s_BufferRCFromRouter, pPH->total_length) )
             continue;
  
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
@@ -262,6 +263,9 @@ int main(int argc, char *argv[])
          {
             log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
             sModelVehicle.controller_id = pPH->vehicle_id_src;
+            if ( sModelVehicle.relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+            if ( sModelVehicle.relay_params.uRelayedVehicleId != 0 )
+               sModelVehicle.relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
          }
 
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )

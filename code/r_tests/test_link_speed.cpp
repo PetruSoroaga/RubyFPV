@@ -4,7 +4,7 @@
 #include "../base/config.h"
 #include "../base/commands.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -86,14 +86,15 @@ int main(int argc, char *argv[])
          PH.packet_type =  PACKET_TYPE_RUBY_PING_CLOCK;
          PH.vehicle_id_src = 0;
          PH.vehicle_id_dest = 0;
-         PH.total_headers_length = sizeof(t_packet_header);
-         PH.total_length = sizeof(t_packet_header) + sizeof(u32);
+         PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
          PH.tx_time = 0;
          int nLinkId = STREAM_ID_DATA;
          PH.packet_index = (((u32)nLinkId)<<24) | uPingId;
+         u8 uLink = 0;
          u8 packet[MAX_PACKET_TOTAL_SIZE];
+         memset(packet, 0, MAX_PACKET_TOTAL_SIZE);
          memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-         memcpy(packet+sizeof(t_packet_header), &uPingId, sizeof(u32));
+         memcpy(packet+sizeof(t_packet_header), &uPingId, sizeof(u8));
          radio_set_out_datarate(DEFAULT_RADIO_DATARATE);
          static u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
          int totalLength = radio_build_packet(rawPacket, packet, PH.total_length, UPLINK, 0);
@@ -178,9 +179,9 @@ int main(int argc, char *argv[])
                PH.packet_type =  PACKET_TYPE_RUBY_PING_CLOCK_REPLY;
                PH.vehicle_id_src = 0;
                PH.vehicle_id_dest = 0;
-               PH.total_headers_length = sizeof(t_packet_header);
                PH.total_length = sizeof(t_packet_header) + sizeof(u32) + sizeof(u32);
                u8 packet[MAX_PACKET_TOTAL_SIZE];
+               memset(packet, 0, MAX_PACKET_TOTAL_SIZE);
                memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
                memcpy(packet+sizeof(t_packet_header), &pingId, sizeof(u32));
                memcpy(packet+sizeof(t_packet_header)+sizeof(u32), &timeNow, sizeof(u32));

@@ -17,7 +17,7 @@ class RenderEngineOVG: public RenderEngine
      virtual void setStroke(float r, float g, float b, float a);
      virtual void setStrokeWidth(float fWidth);
 
-     virtual u32 loadFont(const char* szFontFile);
+     virtual int loadFont(const char* szFontFile);
      virtual void freeFont(u32 idFont);
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
@@ -34,12 +34,12 @@ class RenderEngineOVG: public RenderEngine
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId);
 
-     virtual float textWidth(float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
-     virtual void drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText);
+     virtual float textWidth(u32 fontId, const char* szText);
+     virtual void drawText(float xPos, float yPos, u32 fontId, const char* szText);
+     virtual void drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText);
 
-     virtual float getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId);
+     virtual float getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId);
+     virtual float drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId);
 
      virtual void drawLine(float x1, float y1, float x2, float y2);
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);

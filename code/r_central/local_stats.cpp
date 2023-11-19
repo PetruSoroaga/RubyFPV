@@ -16,89 +16,105 @@ Code written by: Petru Soroaga, 2021-2023
 #include "shared_vars.h"
 #include "pairing.h"
 #include "timers.h"
+#include "link_watch.h"
 
-u32 g_stats_uVehicleId = 0;
-
-bool g_stats_bHomeSet = false;
-double g_stats_fHomeLat = 0.0;
-double g_stats_fHomeLon = 0.0;
-double g_stats_fLastPosLat = 0.0;
-double g_stats_fLastPosLon = 0.0;
-
-bool s_stats_isArmed = false;
 u32 s_stats_u32LastTimeSecondsCheck = 0;
 
-void local_stats_reset_home_set()
+void local_stats_reset_vehicle_index(int iVehicleIndex)
 {
-   g_stats_bHomeSet = false;
-   g_stats_fHomeLat = 0.0;
-   g_stats_fHomeLon = 0.0;
-}
-
-void local_stats_reset(u32 uVehicleId)
-{
-   if ( uVehicleId == g_stats_uVehicleId )
+   if ( (iVehicleIndex < 0) || (iVehicleIndex >= MAX_CONCURENT_VEHICLES) )
       return;
 
-   local_stats_reset_home_set();
+   g_VehiclesRuntimeInfo[iVehicleIndex].bIsArmed = false;
+   g_VehiclesRuntimeInfo[iVehicleIndex].bHomeSet = false;
+   g_VehiclesRuntimeInfo[iVehicleIndex].fHomeLat = 0.0;
+   g_VehiclesRuntimeInfo[iVehicleIndex].fHomeLon = 0.0;
+   g_VehiclesRuntimeInfo[iVehicleIndex].fHomeLastLat = 0.0;
+   g_VehiclesRuntimeInfo[iVehicleIndex].fHomeLastLon = 0.0;
+   Model* pModel = findModelWithId(g_VehiclesRuntimeInfo[iVehicleIndex].uVehicleId);
+   if ( NULL == pModel )
+      return;
+   
+   pModel->m_Stats.uCurrentOnTime = 0;
+   pModel->m_Stats.uCurrentFlightTime = 0; // seconds
+   pModel->m_Stats.uCurrentFlightDistance = 0; // in 1/100 meters (cm)
+   pModel->m_Stats.uCurrentFlightTotalCurrent = 0; // 0.1 miliAmps (1/10000 amps);
 
-   g_stats_uVehicleId = uVehicleId;
+   pModel->m_Stats.uCurrentMaxAltitude = 0; // meters
+   pModel->m_Stats.uCurrentMaxDistance = 0; // meters
+   pModel->m_Stats.uCurrentMaxCurrent = 0; // miliAmps (1/1000 amps)
+   pModel->m_Stats.uCurrentMinVoltage = 100000; // miliVolts (1/1000 volts)
+}
 
+void local_stats_reset_all()
+{
+   log_line("Reseted all local stats for all vehicles.");
+   
    s_stats_u32LastTimeSecondsCheck = g_TimeNow;
 
-   s_stats_isArmed = false;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      local_stats_reset_vehicle_index(i);
+}
 
-   if ( NULL != g_pCurrentModel )
+void local_stats_on_arm(u32 uVehicleId)
+{
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      g_pCurrentModel->m_Stats.uCurrentOnTime = 0;
-      g_pCurrentModel->m_Stats.uCurrentFlightTime = 0; // seconds
-      g_pCurrentModel->m_Stats.uCurrentFlightDistance = 0; // in 1/100 meters (cm)
-      g_pCurrentModel->m_Stats.uCurrentFlightTotalCurrent = 0; // 0.1 miliAmps (1/10000 amps);
-
-      g_pCurrentModel->m_Stats.uCurrentMaxAltitude = 0; // meters
-      g_pCurrentModel->m_Stats.uCurrentMaxDistance = 0; // meters
-      g_pCurrentModel->m_Stats.uCurrentMaxCurrent = 0; // miliAmps (1/1000 amps)
-      g_pCurrentModel->m_Stats.uCurrentMinVoltage = 100000; // miliVolts (1/1000 volts)
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+      {
+         local_stats_reset_vehicle_index(i);
+         g_VehiclesRuntimeInfo[i].bIsArmed = true;
+         break;
+      }
    }
 }
 
-void local_stats_on_arm()
+void local_stats_on_disarm(u32 uVehicleId)
 {
-   if ( s_stats_isArmed )
-      return;
-   u32 vid = g_stats_uVehicleId;
-   local_stats_reset(0);
-   local_stats_reset(vid);
-   s_stats_isArmed = true;
-}
-
-void local_stats_on_disarm()
-{
-   if ( s_stats_isArmed )
-      g_pCurrentModel->m_Stats.uTotalFlights++;
-   s_stats_isArmed = false;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+      {
+         if ( g_VehiclesRuntimeInfo[i].bIsArmed )
+         if ( NULL != g_VehiclesRuntimeInfo[i].pModel )
+            g_VehiclesRuntimeInfo[i].pModel->m_Stats.uTotalFlights++;
+         g_VehiclesRuntimeInfo[i].bIsArmed = false;
+         break;
+      }
+   }
 }
 
 void local_stats_update_loop()
 {   
-   if ( (NULL == g_pCurrentModel) || ( ! pairing_isStarted()) || (! g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry) || (0 == g_stats_uVehicleId))
+   if ( (NULL == g_pCurrentModel) || (! pairing_isStarted()) )
       return;
 
-   if ( (! pairing_isReceiving()) && (! pairing_wasReceiving()) )
+   if ( ! g_bIsRouterReady )
+      return;
+   if ( ! link_has_received_main_vehicle_ruby_telemetry() )
       return;
 
-   if ( pairing_is_connected_to_wrong_model() )
-      return;
 
-   g_pCurrentModel->updateStatsMaxCurrentVoltage(&(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry));
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if (! g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
+         continue;
+      if ( (0 == g_VehiclesRuntimeInfo[i].uVehicleId) || (MAX_U32 == g_VehiclesRuntimeInfo[i].uVehicleId) )
+         continue;
+      if ( NULL == g_VehiclesRuntimeInfo[i].pModel )
+         continue;
 
-   // Every second
+      if ( g_VehiclesRuntimeInfo[i].bIsArmed )
+         g_VehiclesRuntimeInfo[i].pModel->updateStatsMaxCurrentVoltage(&(g_VehiclesRuntimeInfo[i].headerFCTelemetry));
 
-   if ( g_TimeNow < s_stats_u32LastTimeSecondsCheck + 1000 )
-      return;
-   s_stats_u32LastTimeSecondsCheck = g_TimeNow;
+      // Every second
 
-   g_pCurrentModel->updateStatsEverySecond(&(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry));
+      if ( g_TimeNow >= s_stats_u32LastTimeSecondsCheck + 1000 )
+         g_VehiclesRuntimeInfo[i].pModel->updateStatsEverySecond(&(g_VehiclesRuntimeInfo[i].headerFCTelemetry));
+   }
+   
+   if ( g_TimeNow >= s_stats_u32LastTimeSecondsCheck + 1000 )
+      s_stats_u32LastTimeSecondsCheck = g_TimeNow;
 }
 
 bool load_temp_local_stats()
@@ -114,38 +130,51 @@ bool load_temp_local_stats()
    if ( NULL == fd )
    {
       log_softerror_and_alarm("Failed to load temporary local stats from file: %s (missing file)",FILE_TMP_CONTROLLER_LOCAL_STATS);
+      char szComm[256];
+      sprintf(szComm, "rm -rf %s 2>&1", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+      hw_execute_bash_command(szComm, NULL);  
       return false;
    }
 
    int failed = 0;
    int tmp1, tmp2;
-   u32 vehicle_id = 0;
+   u32 uVehicleId = 0;
+   u32 u1, u2, u3, u4;
 
-   if ( (!failed) && (2 != fscanf(fd, "%u %d", &vehicle_id, &tmp1)) )
-      failed = 1;
-   if ( NULL == g_pCurrentModel || vehicle_id != g_pCurrentModel->vehicle_id )
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      log_line("Temporary local stats file %s for a different vehicle. Ignoring it.", FILE_TMP_CONTROLLER_LOCAL_STATS);
-      fclose(fd);
-      char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
-      hw_execute_bash_command(szComm, NULL);               
-      return false;
-   }
-   else
-   {
-      g_stats_uVehicleId = vehicle_id;
-      if ( (!failed) && (4 != fscanf(fd, "%d %d %u %u", &tmp1, &tmp2, &(g_pCurrentModel->m_Stats.uCurrentOnTime), &(g_pCurrentModel->m_Stats.uCurrentFlightTime))) )
+      if ( (!failed) && (3 != fscanf(fd, "%u %d %d", &uVehicleId, &tmp1, &tmp2)) )
          failed = 1;
-      g_stats_bHomeSet = (bool)tmp1;
-      s_stats_isArmed = (bool)tmp2;
-      if ( (!failed) && (4 != fscanf(fd, "%f %f %f %f", &g_stats_fHomeLat, &g_stats_fHomeLon, &g_stats_fLastPosLat, &g_stats_fLastPosLon)) )
-         failed = 1;
-      if ( (!failed) && (4 != fscanf(fd, "%u %u %u %u", &(g_pCurrentModel->m_Stats.uCurrentMaxDistance), &(g_pCurrentModel->m_Stats.uCurrentMaxAltitude), &(g_pCurrentModel->m_Stats.uCurrentMaxCurrent), &(g_pCurrentModel->m_Stats.uCurrentMinVoltage))) )
+      if ( !failed )
+      {
+         g_VehiclesRuntimeInfo[i].bIsArmed = tmp1;
+         g_VehiclesRuntimeInfo[i].bHomeSet = tmp2;
+      }
+
+      if ( (!failed) && (4 != fscanf(fd, "%f %f %f %f", &g_VehiclesRuntimeInfo[i].fHomeLat, &g_VehiclesRuntimeInfo[i].fHomeLon, &g_VehiclesRuntimeInfo[i].fHomeLastLat, &g_VehiclesRuntimeInfo[i].fHomeLastLon)) )
          failed = 1;
 
+      Model* pModel = findModelWithId(uVehicleId);
+      if ( NULL == pModel )
+      {
+         if ( (!failed) && (2 != fscanf(fd, "%u %u", &u1, &u2)) )
+            failed = 1;
+         if ( (!failed) && (4 != fscanf(fd, "%u %u %u %u", &u1, &u2, &u3, &u4)) )
+            failed = 1;
+      }
+      else
+      {
+         if ( (!failed) && (2 != fscanf(fd, "%u %u", &(pModel->m_Stats.uCurrentOnTime), &(pModel->m_Stats.uCurrentFlightTime))) )
+            failed = 1;
+         if ( (!failed) && (4 != fscanf(fd, "%u %u %u %u", &(pModel->m_Stats.uCurrentMaxDistance), &(pModel->m_Stats.uCurrentMaxAltitude), &(pModel->m_Stats.uCurrentMaxCurrent), &(pModel->m_Stats.uCurrentMinVoltage))) )
+            failed = 1;
+      }
+      
       if ( failed )
-         local_stats_reset(0);
+      {
+         local_stats_reset_all();
+         break;
+      }
    }
 
    fclose(fd);
@@ -156,7 +185,7 @@ bool load_temp_local_stats()
       log_line("Loaded temporary local stats from file: %s", FILE_TMP_CONTROLLER_LOCAL_STATS);
 
    char szComm[256];
-   sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+   sprintf(szComm, "rm -rf %s 2>&1", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
    hw_execute_bash_command(szComm, NULL);  
 
    if ( failed )
@@ -169,7 +198,8 @@ void save_temp_local_stats()
    if ( NULL == g_pCurrentModel )
       return;
 
-   saveAsCurrentModel(g_pCurrentModel);
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      saveControllerModel(g_VehiclesRuntimeInfo[i].pModel);
 
    FILE* fd = fopen(FILE_TMP_CONTROLLER_LOCAL_STATS, "w");
    if ( NULL == fd )
@@ -178,10 +208,23 @@ void save_temp_local_stats()
       return;
    }
 
-   fprintf(fd, "%u %d\n", g_stats_uVehicleId, (int)0);
-   fprintf(fd, "%d %d %u %u\n", (int)g_stats_bHomeSet, (int)s_stats_isArmed, g_pCurrentModel->m_Stats.uCurrentOnTime, g_pCurrentModel->m_Stats.uCurrentFlightTime);
-   fprintf(fd, "%f %f %f %f\n", g_stats_fHomeLat, g_stats_fHomeLon, g_stats_fLastPosLat, g_stats_fLastPosLon);
-   fprintf(fd, "%u %u %u %u\n", g_pCurrentModel->m_Stats.uCurrentMaxDistance, g_pCurrentModel->m_Stats.uCurrentMaxAltitude, g_pCurrentModel->m_Stats.uCurrentMaxCurrent, g_pCurrentModel->m_Stats.uCurrentMinVoltage);
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      Model* pModel = g_VehiclesRuntimeInfo[i].pModel;
+      
+      fprintf(fd, "%u %d %d\n", g_VehiclesRuntimeInfo[i].uVehicleId, (int)g_VehiclesRuntimeInfo[i].bIsArmed, (int)g_VehiclesRuntimeInfo[i].bHomeSet);
+      fprintf(fd, "%f %f %f %f\n", g_VehiclesRuntimeInfo[i].fHomeLat, g_VehiclesRuntimeInfo[i].fHomeLon, g_VehiclesRuntimeInfo[i].fHomeLastLat, g_VehiclesRuntimeInfo[i].fHomeLastLon);
+      if ( NULL == pModel )
+      {
+         fprintf(fd, "%u %u\n", 0, 0);
+         fprintf(fd, "%u %u %u %u\n", 0, 0, 0, 0);
+      }
+      else
+      {
+         fprintf(fd, "%u %u\n", pModel->m_Stats.uCurrentOnTime, pModel->m_Stats.uCurrentFlightTime);
+         fprintf(fd, "%u %u %u %u\n", pModel->m_Stats.uCurrentMaxDistance, pModel->m_Stats.uCurrentMaxAltitude, pModel->m_Stats.uCurrentMaxCurrent, pModel->m_Stats.uCurrentMinVoltage);
+      }
+   }
    fclose(fd);
    log_line("Saved temp local stats for reboot or watchdog.");
 }

@@ -10,6 +10,8 @@ int hw_launch_process2(const char *szFile, const char* szParam1, const char* szP
 int hw_launch_process3(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3);
 int hw_launch_process4(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3, const char* szParam4);
 int hw_process_exists(const char* szProcName);
+char* hw_process_get_pid(const char* szProcName);
+
 void hw_stop_process(const char* szProcName);
 void hw_kill_process(const char* szProcName);
 

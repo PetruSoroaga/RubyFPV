@@ -12,6 +12,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hdmi.h"
+#include "../base/ctrl_preferences.h"
 #include "render_engine.h"
 #include "../public/render_engine_ui.h"
 #include "../r_central/colors.h"
@@ -300,14 +301,14 @@ float RenderEngineUI::textHeight(unsigned int fontId)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->textHeight(0.0, fontId);
+   return s_pRenderEngineUI->textHeight(fontId);
 }
 
 float RenderEngineUI::textWidth(unsigned int fontId, const char* szText)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->textWidth(0.0, fontId, szText);
+   return s_pRenderEngineUI->textWidth(fontId, szText);
 }
 
 void RenderEngineUI::drawText(float xPos, float yPos, unsigned int fontId, const char* szText)
@@ -321,21 +322,21 @@ void RenderEngineUI::drawTextLeft(float xPos, float yPos, unsigned int fontId, c
 {
    if ( NULL == s_pRenderEngineUI )
       return;
-   s_pRenderEngineUI->drawTextLeft(xPos, yPos, 0.0, fontId, szText);
+   s_pRenderEngineUI->drawTextLeft(xPos, yPos, fontId, szText);
 }
 
 float RenderEngineUI::getMessageHeight(const char* text, float line_spacing_percent, float max_width, unsigned int fontId)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->getMessageHeight(text, 0.0, line_spacing_percent, max_width, fontId);
+   return s_pRenderEngineUI->getMessageHeight(text, line_spacing_percent, max_width, fontId);
 }
 
 float RenderEngineUI::drawMessageLines(const char* text, float xPos, float yPos, float line_spacing_percent, float max_width, unsigned int fontId)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->drawMessageLines(text, xPos, yPos, 0.0, line_spacing_percent, max_width, fontId);
+   return s_pRenderEngineUI->drawMessageLines(text, xPos, yPos, line_spacing_percent, max_width, fontId);
 }
 
 void RenderEngineUI::drawLine(float x1, float y1, float x2, float y2)

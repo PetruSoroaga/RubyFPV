@@ -3,5 +3,6 @@
 #include "../base/base.h"
 
 void init_processing_audio();
+void uninit_processing_audio();
 
-void process_audio_packet(u8* pPacketBuffer);
+void process_received_audio_packet(u8* pPacketBuffer);

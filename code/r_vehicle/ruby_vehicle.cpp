@@ -32,18 +32,18 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/shared_mem.h"
 #include "../base/encr.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/utils.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
-#include "launchers_vehicle.h"
-#include "radio_utils.h"
 #include "../radio/radiolink.h"
+#include "launchers_vehicle.h"
 #include "shared_vars.h"
 #include "timers.h"
 #include "utils_vehicle.h"
+#include "hw_config_check.h"
 
 
 Model modelVehicle;
@@ -60,6 +60,208 @@ u32 s_failCountProcessCommands = 0;
 u32 s_failCountProcessRC = 0;
 
 int s_iRadioSilenceFailsafeTimeoutCounts = 0;
+
+void _set_default_sik_params_for_vehicle(Model* pModel)
+{
+   if ( NULL == pModel )
+   {
+      log_softerror_and_alarm("Can't set default SiK radio params for NULL model.");
+      return;
+   }
+   log_line("Setting default SiK radio params for all SiK interfaces for current model...");
+   int iCountSiKInterfaces = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( hardware_radio_index_is_sik_radio(i) )
+      {
+         iCountSiKInterfaces++;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+         {
+            log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
+            continue;
+         }
+         int iLinkIndex = pModel->radioInterfacesParams.interface_link_id[i];
+         if ( (iLinkIndex >= 0) && (iLinkIndex < pModel->radioLinksParams.links_count) )
+         {
+            u32 uFreq = pModel->radioLinksParams.link_frequency_khz[iLinkIndex];
+            hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
+               uFreq, pModel->radioInterfacesParams.txPowerSiK,
+               pModel->radioLinksParams.link_datarate_data_bps[iLinkIndex],
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_ECC)?1:0),
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_LBT)?1:0),
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_MCSTR)?1:0),
+               NULL);
+         }
+      }
+   }
+   log_line("Setting default SiK radio params for all SiK interfaces (%d SiK interfaces) for current model. Done.", iCountSiKInterfaces);
+}
+
+bool _check_radio_config_relay(Model* pModel)
+{
+   if ( NULL == pModel )
+      return false;
+   bool bMustSave = false;
+
+   if ( pModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+   {
+      log_line("Start sequence: Relaying was active. Switch to relaying the main vehicle on start up.");
+      pModel->relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
+      bMustSave = true;
+   }
+
+   if ( pModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+   {
+      bool bInvalidConfig = false;
+      int iInvalidLinkConfig = -1;
+      for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+      {
+         if ( pModel->radioLinksParams.link_frequency_khz[i] == pModel->relay_params.uRelayFrequencyKhz )
+         if ( i != pModel->relay_params.isRelayEnabledOnRadioLinkId )
+         {
+            iInvalidLinkConfig = i;
+            bInvalidConfig = true;
+            break;
+         }
+      }
+      if ( bInvalidConfig )
+      {
+         log_softerror_and_alarm("Start sequence: Invalid relaying configuration: relay link frequency %s is the same as frequency for regular radio link %d. Reset and disabling relaying.", str_format_frequency(pModel->relay_params.uRelayFrequencyKhz), iInvalidLinkConfig+1 );
+         pModel->resetRelayParamsToDefaults(&(pModel->relay_params));
+         bMustSave = true;
+      }
+      if ( (1 == hardware_get_radio_interfaces_count()) || (1 == pModel->radioLinksParams.links_count) )
+      {
+         log_softerror_and_alarm("Start sequence: Invalid relaying configuration: Only one radio interface or radio link present. Reset and disabling relaying." );
+         pModel->resetRelayParamsToDefaults(&(pModel->relay_params));
+         bMustSave = true;
+      }
+   }
+   
+   // Double check and remove the RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY flag from links and interfaces that are not relay links
+   
+   if ( pModel->validate_relay_links_flags() )
+      bMustSave = true;
+
+   return bMustSave;
+}
+
+bool _check_radio_config(Model* pModel)
+{
+   if ( NULL == pModel )
+      return false;
+
+   bool bMustSave = false;
+
+   log_line("===================================================");
+   log_line("Checking vehicle radio hardware configuration...");
+
+   log_line("[HW Radio Check] Full radio configuration before doing any changes:");
+   log_full_current_radio_configuration(pModel);
+   if ( check_update_hardware_nics_vehicle(pModel) )
+   {
+      log_line("[HW Radio Check] Hardware radio interfaces configuration check complete and configuration was changed. This is the new hardware radio interfaces and radio links configuration:");
+      log_full_current_radio_configuration(pModel);
+      _set_default_sik_params_for_vehicle(pModel);
+      bMustSave = true;
+   }
+   else
+      log_line("[HW Radio Check] No radio hardware configuration change detected. No change.");
+
+   if ( pModel->check_update_radio_links() )
+   {
+      _set_default_sik_params_for_vehicle(pModel);
+      bMustSave = true;
+   }
+
+   // Check & update radio card models and high capacity flags
+
+   log_line("Start sequence: Checking radio interfaces cards models. %d hardware radio cards, %d model radio cards...", hardware_get_radio_interfaces_count(), pModel->radioInterfacesParams.interfaces_count);
+   for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+      log_line("Start sequence: Vehicle model radio interface %d: MAC: %s, model: [%s]", i+1, pModel->radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(pModel->radioInterfacesParams.interface_card_model[i]));
+   
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioInfo )
+      {
+         log_softerror_and_alarm("Start sequence: Failed to get hardware radio card info for card %d.", i+1);
+         continue;
+      }
+      log_line("Start sequence: Hardware radio interface %d: %s, model: [%s]", i+1, pRadioInfo->szMAC, str_get_radio_card_model_string(pRadioInfo->iCardModel));
+   }
+   
+   for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+       radio_hw_info_t* pRadioInfo = hardware_get_radio_info_from_mac(pModel->radioInterfacesParams.interface_szMAC[i]);
+       if ( NULL == pRadioInfo )
+       {
+          log_softerror_and_alarm("Start sequence: Failed to get radio card info for card %d with MAC: [%s].", i+1, pModel->radioInterfacesParams.interface_szMAC[i]);
+          continue;
+       }
+
+       if ( pRadioInfo->isHighCapacityInterface )
+          pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+       else
+          pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
+
+       // If user defined, do not change it
+       if ( pModel->radioInterfacesParams.interface_card_model[i] < 0 )
+       {
+          log_line("Start sequence: Radio interface %d model was set by user to [%s]. Do not change it (to [%s]).", i+1, str_get_radio_card_model_string(-pModel->radioInterfacesParams.interface_card_model[i]), str_get_radio_card_model_string(pRadioInfo->iCardModel) );
+          continue;
+       }
+       char szModel[128];
+       strcpy(szModel, str_get_radio_card_model_string(pRadioInfo->iCardModel));
+       log_line("Start sequence: Hardware radio interface %d type: [%s]. Current model radio interface %d type: [%s].", i+1, szModel, i+1, str_get_radio_card_model_string(pModel->radioInterfacesParams.interface_card_model[i]));
+       if ( modelVehicle.radioInterfacesParams.interface_card_model[i] != pRadioInfo->iCardModel )
+       {
+          log_line("Start sequence: Updating model radio type.");
+          pModel->radioInterfacesParams.interface_card_model[i] = pRadioInfo->iCardModel;
+          bMustSave = true;
+       }
+   }
+
+   // Check for radio links on same frequency
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   for( int k=i+1; k<pModel->radioLinksParams.links_count; k++ )
+   {
+      if ( pModel->radioLinksParams.link_frequency_khz[i] != pModel->radioLinksParams.link_frequency_khz[k] )
+         continue;
+
+      log_softerror_and_alarm("Vehicle radio link %d and %d has same frequency: %s. Changing one of them.",
+         i+1, k+1, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[i]));
+
+      if ( getBand(pModel->radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_58 )
+      {
+         if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY58 )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY58;
+         else if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY58_2 )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY58_2;
+         if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY58_3 )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY58_3;
+      }
+      else
+      {
+         if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY;
+         else if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY_2 )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY_2;
+         if ( pModel->radioLinksParams.link_frequency_khz[k] != DEFAULT_FREQUENCY_3 )
+            pModel->radioLinksParams.link_frequency_khz[k] = DEFAULT_FREQUENCY_3;
+      }
+
+      bMustSave = true;
+   }
+
+   bMustSave |= _check_radio_config_relay(pModel);
+
+   log_line("Checking vehicle radio hardware configuration complete. Was updated and must save? %s", bMustSave?"yes":"no");
+   log_line("========================================================================");
+
+   return bMustSave;
+}
 
 void try_open_process_stats()
 {
@@ -164,9 +366,6 @@ int main (int argc, char *argv[])
       return -1;
    }
    
-   radio_init_link_structures();
-   radio_enable_crc_gen(1);
-
    ruby_clear_all_ipc_channels();
 
    g_iBoardType = 0;
@@ -177,7 +376,7 @@ int main (int argc, char *argv[])
       fscanf(fd, "%d %s", &g_iBoardType, szBoardId);
       fclose(fd);
    }
-   log_line("Board type: %d -> %s", g_iBoardType, str_get_hardware_board_name(g_iBoardType));
+   log_line("Start sequence: Board type: %d -> %s", g_iBoardType, str_get_hardware_board_name(g_iBoardType));
 
 
    sprintf(szBuff, "rm -rf %s", FILE_TMP_ALARM_ON);
@@ -192,17 +391,17 @@ int main (int argc, char *argv[])
       bMustSave = true;
    }
 
-   log_line("Loaded model. Developer flags: live log: %s, enable radio silence failsafe: %s, log only errors: %s, radio config guard interval: %d ms",
+   log_line("Start sequence: Loaded model. Developer flags: live log: %s, enable radio silence failsafe: %s, log only errors: %s, radio config guard interval: %d ms",
          (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?"yes":"no",
          (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?"yes":"no",
          (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS)?"yes":"no",
           (int)((modelVehicle.uDeveloperFlags >> 8) & 0xFF) );
-   log_line("Model has vehicle developer video link stats flag on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no");
-   log_line("Model has vehicle developer video link stats graphs on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
+   log_line("Start sequence: Model has vehicle developer video link stats flag on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no");
+   log_line("Start sequence: Model has vehicle developer video link stats graphs on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
 
    if ( access( FILE_VEHICLE_REBOOT_CACHE, R_OK ) == -1 )
    {
-      log_line("No cached telemetry info, reset current vehicle stats.");
+      log_line("Start sequence: No cached telemetry info, reset current vehicle stats.");
       modelVehicle.m_Stats.uCurrentOnTime = 0;
       modelVehicle.m_Stats.uCurrentFlightTime = 0;
       modelVehicle.m_Stats.uCurrentFlightDistance = 0;
@@ -228,7 +427,7 @@ int main (int argc, char *argv[])
         dptr.slot_time != modelVehicle.radioInterfacesParams.slotTime ||
         dptr.thresh62 != modelVehicle.radioInterfacesParams.thresh62 )
    {
-      log_line("2.4/5.8 Radio interfaces power parameters have changed (tx power: %d,%d,%d slot time: %d, thresh62: %d). Updating model.", dptr.tx_power, dptr.tx_powerAtheros, dptr.tx_powerRTL, dptr.slot_time, dptr.thresh62);
+      log_line("Start sequence: 2.4/5.8 Radio interfaces power parameters have changed (tx power: %d,%d,%d slot time: %d, thresh62: %d). Updating model.", dptr.tx_power, dptr.tx_powerAtheros, dptr.tx_powerRTL, dptr.slot_time, dptr.thresh62);
       modelVehicle.radioInterfacesParams.txPower = dptr.tx_power;
       modelVehicle.radioInterfacesParams.txPowerAtheros = dptr.tx_powerAtheros;
       modelVehicle.radioInterfacesParams.txPowerRTL = dptr.tx_powerRTL;
@@ -248,7 +447,7 @@ int main (int argc, char *argv[])
 
    // Check the file system for write access
    
-   log_line("Checking the file system for write access...");
+   log_line("Start sequence: Checking the file system for write access...");
 
    hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
    FILE* fdTemp = fopen("tmp/testwrite.txt", "wb");
@@ -274,9 +473,9 @@ int main (int argc, char *argv[])
    }
 
    if ( modelVehicle.alarms & ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR )
-      log_line("Checking the file system for write access: Failed.");
+      log_line("Start sequence: Checking the file system for write access: Failed.");
    else
-      log_line("Checking the file system for write access: Succeeded.");
+      log_line("Start sequence: Checking the file system for write access: Succeeded.");
 
    // Detect serial UARTs
 
@@ -289,10 +488,10 @@ int main (int argc, char *argv[])
    if ( hardware_has_unsupported_serial_ports() )
       modelVehicle.alarms |= ALARM_ID_UNSUPORTED_USB_SERIAL;
    
-   log_line("Rechecking model serial ports for changes based on current hardware serial ports...");
+   log_line("Start sequence: Rechecking model serial ports for changes based on current hardware serial ports...");
    if ( modelVehicle.populateVehicleSerialPorts() )
       bMustSave = true;
-   log_line("Done rechecking serial ports for changes.");
+   log_line("Start sequence: Done rechecking serial ports for changes.");
 
    if ( alarmsOriginal != modelVehicle.alarms )
       bMustSave = true;
@@ -301,7 +500,7 @@ int main (int argc, char *argv[])
 
    // Detect audio cards
 
-   log_line("Detecting audio devices...");
+   log_line("Start sequence: Detecting audio devices...");
    bool bHadAudioDevice = modelVehicle.audio_params.has_audio_device;
 
    hw_execute_bash_command_raw( "arecord -l 2>&1 | grep card | grep USB", szBuff );
@@ -313,7 +512,7 @@ int main (int argc, char *argv[])
       modelVehicle.audio_params.enabled = false;
    }
 
-   log_line("Finished detecting audio device. %s", modelVehicle.audio_params.has_audio_device?"Audio capture device found.":"No audio capture devices found.");
+   log_line("Start sequence: Finished detecting audio device. %s", modelVehicle.audio_params.has_audio_device?"Audio capture device found.":"No audio capture devices found.");
 
    if ( bHadAudioDevice != modelVehicle.audio_params.has_audio_device )
       bMustSave = true;
@@ -354,86 +553,14 @@ int main (int argc, char *argv[])
 
    modelVehicle.setAWBMode();
 
-   // Check & update radio card models
+   bMustSave |= _check_radio_config(&modelVehicle);
 
-   log_line("Checking radio interfaces cards models. %d hardware radio cards, %d model radio cards...", hardware_get_radio_interfaces_count(), modelVehicle.radioInterfacesParams.interfaces_count);
-   for( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
-      log_line("Vehicle model radio interface %d: MAC: %s, model: [%s]", i+1, modelVehicle.radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(modelVehicle.radioInterfacesParams.interface_card_model[i]));
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioInfo )
-      {
-         log_softerror_and_alarm("Failed to get hardware radio card info for card %d.", i+1);
-         continue;
-      }
-      log_line("Hardware radio interface %d: %s, model: [%s]", i+1, pRadioInfo->szMAC, str_get_radio_card_model_string(pRadioInfo->iCardModel));
-   }
-   
-   for( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
-   {
-       radio_hw_info_t* pRadioInfo = hardware_get_radio_info_from_mac(modelVehicle.radioInterfacesParams.interface_szMAC[i]);
-       if ( NULL == pRadioInfo )
-       {
-          log_softerror_and_alarm("Failed to get radio card info for card %d with MAC: [%s].", i+1, modelVehicle.radioInterfacesParams.interface_szMAC[i]);
-          continue;
-       }
-       // If user defined, do not change it
-       if ( modelVehicle.radioInterfacesParams.interface_card_model[i] < 0 )
-       {
-          log_line("Radio interface %d model was set by user to [%s]. Do not change it (to [%s]).", i+1, str_get_radio_card_model_string(-modelVehicle.radioInterfacesParams.interface_card_model[i]), str_get_radio_card_model_string(pRadioInfo->iCardModel) );
-          continue;
-       }
-       char szModel[128];
-       strcpy(szModel, str_get_radio_card_model_string(pRadioInfo->iCardModel));
-       log_line("Hardware radio interface %d type: [%s]. Current model radio interface %d type: [%s].", i+1, szModel, i+1, str_get_radio_card_model_string(modelVehicle.radioInterfacesParams.interface_card_model[i]));
-       if ( modelVehicle.radioInterfacesParams.interface_card_model[i] != pRadioInfo->iCardModel )
-       {
-          log_line("Updating model radio type.");
-          modelVehicle.radioInterfacesParams.interface_card_model[i] = pRadioInfo->iCardModel;
-          bMustSave = true;
-       }
-   }
+   log_line("Start sequence: Setting all the radio cards params (%s)...", (modelVehicle.relay_params.isRelayEnabledOnRadioLinkId >= 0)?"relaying enabled":"no relay links");
 
-   log_current_full_radio_configuration(&modelVehicle);
-
-   log_line("Setting all the radio cards params (%s)...", (modelVehicle.relay_params.isRelayEnabledOnRadioLinkId > 0)?"relaying enabled":"no relay links");
-
-   
-   if ( modelVehicle.relay_params.uCurrentRelayMode != RELAY_MODE_NONE )
-   {
-      log_line("Relaying was active. Disable it on start up.");
-      modelVehicle.relay_params.uCurrentRelayMode = RELAY_MODE_NONE;
-      bMustSave = true;
-   }
-
-   if ( modelVehicle.relay_params.isRelayEnabledOnRadioLinkId > 0 )
-   {
-      bool bConflict = false;
-      int iConflictLink = -1;
-      for( int i=0; i<modelVehicle.radioLinksParams.links_count; i++ )
-         if ( modelVehicle.radioLinksParams.link_frequency[i] == modelVehicle.relay_params.uRelayFrequency )
-         if ( i != modelVehicle.relay_params.isRelayEnabledOnRadioLinkId-1 )
-         {
-            iConflictLink = i;
-            bConflict = true;
-            break;
-         }
-      if ( bConflict )
-      {
-         log_softerror_and_alarm("Invalid relaying configuration: relay link frequency %s is the same as frequency for regular radio link %d. Reset and disabling relaying.", str_format_frequency(modelVehicle.relay_params.uRelayFrequency), iConflictLink+1 );
-         modelVehicle.relay_params.isRelayEnabledOnRadioLinkId = 0;
-         modelVehicle.relay_params.uRelayFrequency = 0;
-         modelVehicle.relay_params.uRelayVehicleId = 0;
-         bMustSave = true;
-      }
-   }
-   
-
-   if ( configure_radio_interfaces_for_current_model(&modelVehicle) )
+   if ( configure_radio_interfaces_for_current_model(&modelVehicle, NULL) )
       bMustSave = true;
    bMustSave = true;
-   log_line("Configured all the radio cards params.");
+   log_line("Start sequence: Configured all the radio cards params.");
 
    log_current_full_radio_configuration(&modelVehicle);
 
@@ -441,7 +568,7 @@ int main (int argc, char *argv[])
 
    if ( bMustSave )
    {
-      log_line("Updating local model file.");
+      log_line("Start sequence: Updating local model file.");
       modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
 
@@ -469,27 +596,24 @@ int main (int argc, char *argv[])
    }
    hw_launch_process("./ruby_alive");
    
-   hardware_sleep_ms(20);
+   hardware_sleep_ms(100);
    vehicle_launch_tx_telemetry(&modelVehicle);
    
-   hardware_sleep_ms(20);
+   hardware_sleep_ms(100);
    vehicle_launch_rx_commands(&modelVehicle);
 
-   hardware_sleep_ms(20);
+   hardware_sleep_ms(100);
    vehicle_launch_rx_rc(&modelVehicle);
 
-   if ( modelVehicle.audio_params.has_audio_device )
-      vehicle_launch_audio_capture(&modelVehicle);
-   if ( modelVehicle.hasCamera() )
-      vehicle_launch_video_capture(&modelVehicle, NULL);
+   hardware_sleep_ms(100);
 
    vehicle_launch_tx_router(&modelVehicle);
 
-   log_line("Done launching router/video pipeline");
+   log_line("Start sequence: Done launching router/video pipeline");
 
    /*
    if ( modelVehicle.hasCamera() )
-   if ( ! modelVehicle.isCameraHDMI() )
+   if ( ! modelVehicle.isActiveCameraHDMI() )
    {
       for( int i=0; i<7; i++ )
          hardware_sleep_ms(900);
@@ -506,10 +630,10 @@ int main (int argc, char *argv[])
 
    // Wait for all the processes to start (takes time for I2C detection)
    for( int i=0; i<10; i++ )
-      hardware_sleep_ms(800);
+      hardware_sleep_ms(500);
 
-   vehicle_check_update_processes_affinities();
-
+   log_line("Switch to watchdog state after a delay from start.");
+   
    if ( noWatchDog )
       log_line_watchdog("Watchdog is disabled");
    else
@@ -526,6 +650,9 @@ int main (int argc, char *argv[])
    char szTime3[64];
    int counter = 0;
    bool bMustRestart = false;
+   int iRestartCount = 0;
+   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
+   u32 uTimeLoopLog = g_TimeStart;
 
    while ( ! g_bQuit )
    {
@@ -533,6 +660,17 @@ int main (int argc, char *argv[])
       counter++;
       g_TimeNow = get_current_timestamp_ms();
 
+      if ( g_TimeNow > uTimeLoopLog + 10000 )
+      {
+         uTimeLoopLog = g_TimeNow;
+         log_line("Main loop alive. Total restarts count: %d", iRestartCount);
+      }
+      if ( 0 != uTimeToAdjustAffinities )
+      if ( g_TimeNow > uTimeToAdjustAffinities )
+      {
+         uTimeToAdjustAffinities = 0;
+         vehicle_check_update_processes_affinities(true);
+      }
       if ( access( FILE_TMP_UPDATE_IN_PROGRESS, R_OK ) != -1 )
       {
          while (! g_bQuit )
@@ -548,15 +686,15 @@ int main (int argc, char *argv[])
       {
          g_TimeLastCheckRadioSilenceFailsafe = g_TimeNow;
 
-         log_line("Vehicle is alive.");
+         log_line("Vehicle is alive. Total restarts count: %d", iRestartCount);
          if ( NULL == s_pProcessStatsRouter || NULL == s_pProcessStatsTelemetry || NULL == s_pProcessStatsCommands || NULL == s_pProcessStatsRC )
             try_open_process_stats();
          if ( NULL == s_pProcessStatsRouter )
             continue;
          log_format_time(s_pProcessStatsRouter->lastRadioRxTime, szTime);
-         log_line("Last radio RX time: %s", szTime);
+         log_line("Router last radio RX time: %s, %u ms ago", szTime, g_TimeLastCheckRadioSilenceFailsafe - s_pProcessStatsRouter->lastRadioRxTime);
          log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime);
-         log_line("Last radio TX time: %s", szTime);
+         log_line("Router last radio TX time: %s, %u ms ago", szTime, g_TimeLastCheckRadioSilenceFailsafe - s_pProcessStatsRouter->lastRadioTxTime);
 
          bool bCheckRadioFailSafe = false;
          //if ( modelVehicle.bDeveloperMode )
@@ -595,21 +733,6 @@ int main (int argc, char *argv[])
             else
                log_line("Will not signal router, a radio reinit is in progress already.");
          }
-
-         /*
-         if( access( FILE_TMP_REINIT_RADIO_IN_PROGRESS, R_OK ) == -1 )
-         {
-            if ( ! radio_utils_check_radio() )
-            {
-            log_line("Radio interfaces have broken up. Signal router to reinitalize everything.");
-            char szComm[64];
-            sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
-            hw_execute_bash_command_silent(szComm, NULL); 
-            }
-         }
-         else
-            log_line("Radio reinit is in progress. Skip checking for radio interfaces health.");
-         */
       }
       if ( noWatchDog )
          continue;
@@ -636,7 +759,11 @@ int main (int argc, char *argv[])
             log_format_time(s_pProcessStatsRouter->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRouter->lastIPCIncomingTime, szTime2);
             log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3);
-            log_line_watchdog("Router pipeline watchdog check failed: router process has stopped !!! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szTime, szTime2, szTime3);
+            char* szPIDs = hw_process_get_pid("ruby_rt_station");
+            if ( strlen(szPIDs) > 3 )
+               log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
+            else
+               log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
             bMustRestart = true;
          }
       }
@@ -651,7 +778,11 @@ int main (int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsTelemetry->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsTelemetry->lastIPCOutgoingTime, szTime2);
-            log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process has stopped !!! Last active time: %s, last IPC outgoing time: %s", szTime, szTime2);
+            char* szPIDs = hw_process_get_pid("ruby_tx_telemetry");
+            if ( strlen(szPIDs) > 3 )
+               log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has blocked! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
+            else
+               log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has crashed! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
             bMustRestart = true;
          }
       }
@@ -666,7 +797,11 @@ int main (int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsCommands->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2);
-            log_line_watchdog("Commands RX process watchdog check failed: commands rx process has stopped !!! Last active time: %s", szTime);
+            char* szPIDs = hw_process_get_pid("ruby_rx_commands");
+            if ( strlen(szPIDs) > 3 )
+               log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
+            else
+               log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has crashed! Last active time: %s", szPIDs, szTime);
             bMustRestart = true;
          }
       }
@@ -683,7 +818,11 @@ int main (int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsRC->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2);
-            log_line_watchdog("RC RX process watchdog check failed: RC rx process has stopped !!! Last active time: %s, last IPC incoming time: %s", szTime, szTime2);
+            char* szPIDs = hw_process_get_pid("ruby_rx_rc");
+            if ( strlen(szPIDs) > 3 )
+               log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
+            else
+               log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
             bMustRestart = true;
          }
       }
@@ -691,10 +830,9 @@ int main (int argc, char *argv[])
       if ( bMustRestart )
       {
          log_line("Restarting processes...");
-
+         iRestartCount++;
          vehicle_stop_tx_router();
-         vehicle_stop_audio_capture(&modelVehicle);
-
+         
          if ( modelVehicle.hasCamera() )
             vehicle_stop_video_capture(&modelVehicle);
          hw_stop_process("ruby_rx_commands");
@@ -710,15 +848,14 @@ int main (int argc, char *argv[])
          vehicle_launch_rx_rc(&modelVehicle);
          hardware_sleep_ms(20);
 
-         if ( modelVehicle.audio_params.has_audio_device )
-            vehicle_launch_audio_capture(&modelVehicle);
-         if ( modelVehicle.hasCamera() )
-            vehicle_launch_video_capture(&modelVehicle, NULL);
+         //if ( modelVehicle.hasCamera() )
+         //   vehicle_launch_video_capture(&modelVehicle, NULL);
+         
          vehicle_launch_tx_router(&modelVehicle);
 
          log_line("Restarting processes. Done.");
 
-         vehicle_check_update_processes_affinities();
+         uTimeToAdjustAffinities = get_current_timestamp_ms() + 1000;
          s_failCountProcessRouter = 0;
          s_failCountProcessTelemetry = 0;
          s_failCountProcessCommands = 0;

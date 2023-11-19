@@ -51,7 +51,7 @@ void core_plugin_util_log_line(const char* szLine)
    else
       strcat(msg.text, szLine);
 
-   msgsnd(s_logServiceMessageQueueCorePlugin, &msg, sizeof(msg), 0);  
+   msgsnd(s_logServiceMessageQueueCorePlugin, &msg, strlen(msg.text)+1, 0);
 }
 
 #ifdef __cplusplus

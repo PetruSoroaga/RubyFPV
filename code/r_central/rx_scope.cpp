@@ -17,6 +17,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../renderer/render_engine.h"
 #include "pairing.h"
 #include "shared_vars.h"
+#include "keyboard.h"
 
 typedef struct
 {
@@ -119,7 +120,7 @@ void rx_scope_stop()
    s_bRXScopeStarted = false;
    
    if ( s_bRXScopeWasPairingStarted )
-      pairing_start();
+      pairing_start_normal();
 }
 
 bool rx_scope_is_started()
@@ -402,7 +403,7 @@ void rx_scope_read_data()
 
    pPH = (t_packet_header*)rxBuffer;
 
-   if ( ! packet_check_crc(rxBuffer, rxLength) )
+   if ( ! radio_packet_check_crc(rxBuffer, rxLength) )
       return;
 
    //log_line("Received a packet type: %d", pdph->packetType);
@@ -435,13 +436,14 @@ void rx_scope_loop()
    if ( ! s_bRXScopeStarted )
       return;
 
+   keyboard_consume_input_events();
+
    s_RXScopeTimeNowMicroSeconds = get_current_timestamp_micros();
    s_RXScopeTimeNowMiliSeconds = get_current_timestamp_ms();
 
    if ( s_RXScopeLastTimeHardwareLoop < s_RXScopeTimeNowMiliSeconds - 20 )
    {
       s_RXScopeLastTimeHardwareLoop = s_RXScopeTimeNowMiliSeconds;
-      hardware_loop();
    }
 
    if ( ! s_RXScopePaused )
@@ -471,19 +473,19 @@ void rx_scope_loop()
       s_RXScopeRenderFramesCount++;
    }
 
-   if ( isKeyBackPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
       rx_scope_stop();
 
    if ( s_RXScopeLastTimeZoomChange > s_RXScopeTimeNowMiliSeconds - 100 )
       return;
 
-   if ( isKeyMenuPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )
    {
       s_RXScopePaused = ! s_RXScopePaused;
       s_RXScopeLastTimeZoomChange = s_RXScopeTimeNowMiliSeconds;
    }
 
-   if ( isKeyPlusPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_PLUS )
    {
       s_RXScopePage++;
       if ( s_RXScopePage > 3 )
@@ -495,7 +497,7 @@ void rx_scope_loop()
       if ( s_RXScopeZoom > 3 )
          s_RXScopeZoom = 0;
    }
-   if ( isKeyMinusPressed() )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS )
    {
       s_RXScopePage--;
       if ( s_RXScopePage < 0 )

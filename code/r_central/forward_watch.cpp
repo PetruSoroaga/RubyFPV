@@ -155,13 +155,13 @@ void forward_streams_loop()
       {
          if ( access("/sys/class/net/usb0", R_OK ) != -1 )
          {
-            warnings_add("USB tethering device detected. Configuring, please wait...");
+            warnings_add(0, "USB tethering device detected. Configuring, please wait...");
             render_all(g_TimeNow);
             hardware_sleep_ms(50);
             render_all(g_TimeNow);
             _forward_on_usb_device_detected();
             if ( pCS->iVideoForwardUSBType != 0 )
-               warnings_add("Started Video Forward to USB.");
+               warnings_add(0, "Started Video Forward to USB.");
             s_bForwardHasUSBDevice = true;
          }
       }
@@ -169,12 +169,12 @@ void forward_streams_loop()
       {
          if ( access("/sys/class/net/usb0", R_OK ) == -1 )
          {
-            warnings_add("USB tethering device unplugged. Please wait...");
+            warnings_add(0, "USB tethering device unplugged. Please wait...");
             render_all(g_TimeNow);
             hardware_sleep_ms(50);
             render_all(g_TimeNow);
             if ( pCS->iVideoForwardUSBType != 0 )
-               warnings_add("Stopped Video Forward to USB.");
+               warnings_add(0, "Stopped Video Forward to USB.");
             log_line("USB tethering device unplugged.");
             _forward_on_usb_device_unplugged();
             char szBuff[256];

@@ -1,6 +1,16 @@
 #pragma once
 
-#define MAX_VIDEO_BITRATE_HISTORY_VALUES 40
+#define MAX_VIDEO_BITRATE_HISTORY_VALUES 30
+// About 1.5 seconds of history at an update rate of 20 times/sec (50 ms)
+
+typedef struct
+{
+   u32 uTimeStampTaken;
+   u32 uTotalBitrateBPS;
+   u32 uVideoBitrateBPS;
+}
+type_processor_tx_video_bitrate_sample;
+
 
 class ProcessorTxVideo
 {
@@ -15,12 +25,18 @@ class ProcessorTxVideo
 
       u32 getCurrentVideoBitrate();
       u32 getCurrentVideoBitrateAverage();
-      u32 getCurrentVideoBitrateAverage500Ms();
-      u32 getCurrentVideoBitrateAverage1Sec();
+      u32 getCurrentVideoBitrateAverageLastMs(u32 uMilisec);
       u32 getCurrentTotalVideoBitrate();
       u32 getCurrentTotalVideoBitrateAverage();
-      u32 getCurrentTotalVideoBitrateAverage1Sec();
-      u32 getCurrentTotalVideoBitrateAverage500Ms();
+      u32 getCurrentTotalVideoBitrateAverageLastMs(u32 uMilisec);
+      
+      void setLastRequestedKeyframeFromController(int iKeyframeIntervalMs);
+      void setLastRequestedAdaptiveVideoLevelFromController(int iLevel);
+      void setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue);
+
+      int getLastRequestedKeyframeFromController();
+      int getLastRequestedAdaptiveVideoLevelFromController();
+      u32 getLastSetCaptureVideoBitrate();
 
       static int m_siInstancesCount;
 
@@ -29,12 +45,16 @@ class ProcessorTxVideo
       int m_iInstanceIndex;
       int m_iVideoStreamIndex;
       int m_iCameraIndex;
+      int m_iLastRequestedKeyframeIntervalFromController;
+      int m_iLastRequestedAdaptiveVideoLevelFromController;
+      u32 m_uLastSetCaptureVideoBitrate;
 
-      u32 m_uTimeIntervalVideoBitrateCompute;
-      u32 m_uHistoryVideoBitrateValues[MAX_VIDEO_BITRATE_HISTORY_VALUES];
-      u32 m_uHistoryTotalVideoBitrateValues[MAX_VIDEO_BITRATE_HISTORY_VALUES];
-      u32 m_uHistoryVideoBitrateIndex;
-      u32 m_uTimeLastHistoryVideoBitrateUpdate;
+      u32 m_uIntervalMSComputeVideoBitrateSample;
+      u32 m_uTimeLastVideoBitrateSampleTaken;
+
+      type_processor_tx_video_bitrate_sample m_BitrateHistorySamples[MAX_VIDEO_BITRATE_HISTORY_VALUES];
+      int m_iVideoBitrateSampleIndex;
+
       u32 m_uVideoBitrateAverageSum;
       u32 m_uTotalVideoBitrateAverageSum;
       u32 m_uVideoBitrateAverage;
@@ -65,7 +85,7 @@ void process_data_tx_video_signal_model_changed();
 void process_data_tx_video_pause_tx();
 void process_data_tx_video_resume_tx();
 
-void process_data_tx_video_set_current_keyframe_interval(int iKeyframe);
+void process_data_tx_video_set_current_keyframe_interval(int iKeyframeMs, const char* szReason);
 
 void process_data_tx_video_reset_retransmissions_history_info();
 

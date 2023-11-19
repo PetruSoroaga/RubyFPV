@@ -30,6 +30,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../common/string_utils.h"
 
 
+static int s_iButtonsWhereInited = 0;
+
 static int s_ihwSwapButtons = 0;
 int sLastReadMenu = 0;
 int sLastReadBack = 0;
@@ -93,117 +95,35 @@ int s_bHarwareHasDetectedSystemType = 0;
 int s_iHardwareSystemIsVehicle = 0;
 int s_bHardwareHasCamera = 0;
 u32 s_uHardwareCameraType = 0;
+int s_iHardwareCameraI2CBus = -1;
+int s_iHardwareCameraDevId = -1;
+int s_iHardwareCameraHWVer = -1;
 
 int s_iHardwareJoystickCount = 0;
 hw_joystick_info_t s_HardwareJoystickInfo[MAX_JOYSTICK_INTERFACES];
 
 int s_iUSBMounted = 0;
+char s_szUSBMountName[64];
 
 
 int init_hardware()
 {
    initSequenceTimeStart = get_current_timestamp_ms();
+
+   s_szUSBMountName[0] = 0;
+
    int failed = 0;
-   if (-1 == GPIOExport(GPIO_PIN_MENU) || -1 == GPIOExport(GPIO_PIN_BACK))
-   {
-      log_line("Failed to get GPIO access to pin Menu/Back.");
-      failed = 1;
-   }
-   if (-1 == GPIOExport(GPIO_PIN_PLUS) || -1 == GPIOExport(GPIO_PIN_MINUS))
-   {
-      log_line("Failed to get GPIO access to pin Plus/Minus.");
-      failed = 1;
-   }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION1))
-   {
-      log_line("Failed to get GPIO access to pin QA1.");
-      failed = 1;
-   }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION2))
-   {
-      log_line("Failed to get GPIO access to pin QA2.");
-      failed = 1;
-   }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION2_2))
-   {
-      log_line("Failed to get GPIO access to pin QA2_2.");
-      failed = 1;
-   }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION3))
-   {
-      log_line("Failed to get GPIO access to pin QA3.");
-      failed = 1;
-   }
 
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONPLUS))
+   if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) != -1 )
    {
-      log_line("Failed to get GPIO access to pin QAPLUS.");
-      failed = 1;
+      int failedButtons = GPIOInitButtons();
+      if ( failedButtons )
+      {
+         log_softerror_and_alarm("[Hardware] Failed to set GPIOs for buttons.");
+         failed = 1;
+      }
+      s_iButtonsWhereInited = 1;
    }
-
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONMINUS))
-   {
-      log_line("Failed to get GPIO access to pin QAMINUS.");
-      failed = 1;
-   }
-
-   if (-1 == GPIODirection(GPIO_PIN_MENU, IN) || -1 == GPIODirection(GPIO_PIN_BACK, IN))
-   {
-      log_line("Failed set GPIO configuration for pin Menu/Back.");
-      failed = 1;
-   }
-   if (-1 == GPIODirection(GPIO_PIN_PLUS, IN) || -1 == GPIODirection(GPIO_PIN_MINUS, IN))
-   {
-      log_line("Failed set GPIO configuration for pin Plus/Minus.");
-      failed = 1;
-   }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION1, IN))
-   {
-      log_line("Failed set GPIO configuration for pin QA1.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTION1, LOW) )
-      log_line("Failed to pull down pin QA1");
-
-   if (-1 == GPIODirection(GPIO_PIN_QACTION2, OUT))
-   {
-      log_line("Failed set GPIO configuration for pin QA2.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTION2, LOW) )
-      log_line("Failed to pull down pin QA2");
-   
-   if (-1 == GPIODirection(GPIO_PIN_QACTION2_2, IN))
-   {
-      log_line("Failed set GPIO configuration for pin QA2_2.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTION2_2, LOW) )
-      log_line("Failed to pull down pin QA2_2");
-
-   if (-1 == GPIODirection(GPIO_PIN_QACTION3, IN))
-   {
-      log_line("Failed set GPIO configuration for pin QA3.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTION3, LOW) )
-      log_line("Failed to pull down pin QA3");
-
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONPLUS, IN))
-   {
-      log_line("Failed set GPIO configuration for pin QAPLUS.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTIONPLUS, LOW) )
-      log_line("Failed to pull down pin QAPLUS");
-
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONMINUS, IN))
-   {
-      log_line("Failed set GPIO configuration for pin QAMINUS.");
-      failed = 1;
-   }
-   if ( 0 != GPIOWrite(GPIO_PIN_QACTIONMINUS, LOW) )
-      log_line("Failed to pull down pin QAMINUS");
 
    if (-1 == GPIOExport(GPIO_PIN_BUZZER))
    {
@@ -217,15 +137,27 @@ int init_hardware()
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE))
+   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_VEHICLE))
    {
-      log_line("Failed to get GPIO access to pin Type.");
+      log_line("Failed to get GPIO access to pin Type V.");
       failed = 1;
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE, IN))
+   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_VEHICLE, IN))
    {
-      log_line("Failed set GPIO configuration for pin Type.");
+      log_line("Failed set GPIO configuration for pin Type V.");
+      failed = 1;
+   }
+
+   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_CONTROLLER))
+   {
+      log_line("Failed to get GPIO access to pin Type C.");
+      failed = 1;
+   }
+
+   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_CONTROLLER, IN))
+   {
+      log_line("Failed set GPIO configuration for pin Type C.");
       failed = 1;
    }
 
@@ -242,69 +174,33 @@ int init_hardware()
       failed = 1;
    }
 
-   
    char szBuff[64];
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MENU);
+   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_VEHICLE);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MENU);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_BACK);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_BACK);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_PLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_PLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MINUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MINUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION1);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION1);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2);
+   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_VEHICLE);
    hw_execute_bash_command_silent(szBuff, NULL);
 
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2_2);
+   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_CONTROLLER);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2_2);
-   hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION3);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION3);
-   hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONPLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONPLUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONMINUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONMINUS);
-   hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
+   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_CONTROLLER);
    hw_execute_bash_command_silent(szBuff, NULL);
 
    GPIOWrite(GPIO_PIN_BUZZER, LOW);
    GPIOWrite(GPIO_PIN_LED_ERROR, LOW);
    GPIOWrite(GPIO_PIN_RECORDING_LED, LOW);
+
    log_line("HW: GPIO setup successfully.");
 
-   sInitialReadQA1 = GPIORead(GPIO_PIN_QACTION1);
-   sInitialReadQA2 = GPIORead(GPIO_PIN_QACTION2);
-   sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
-   sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
-   sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
-   sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
-   log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
+   if ( s_iButtonsWhereInited )
+   {
+      sInitialReadQA1 = GPIORead(GPIO_PIN_QACTION1);
+      sInitialReadQA2 = GPIORead(GPIO_PIN_QACTION2);
+      sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
+      sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
+      sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
+      sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
+      log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
+   }
 
    s_iHardwareJoystickCount = 0;
    s_hwWasSetup = 1;
@@ -317,22 +213,39 @@ int init_hardware()
 int init_hardware_only_status_led()
 {
    initSequenceTimeStart = get_current_timestamp_ms();
-   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE))
+   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_VEHICLE))
    {
       log_line("Failed to get GPIO access to Ruby type PIN.");
       return(0);
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE, IN))
+   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_VEHICLE, IN))
    {
       log_line("Failed set GPIO configuration for Ruby type PIN.");
       return(0);
    }
 
+   if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_CONTROLLER))
+   {
+      log_line("Failed to get GPIO access to Ruby type C PIN.");
+      return(0);
+   }
+
+   if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_CONTROLLER, IN))
+   {
+      log_line("Failed set GPIO configuration for Ruby type C PIN.");
+      return(0);
+   }
+
    char szBuff[64];
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE);
+   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_VEHICLE);
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE);
+   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_VEHICLE);
+   hw_execute_bash_command_silent(szBuff, NULL);
+
+   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_CONTROLLER);
+   hw_execute_bash_command_silent(szBuff, NULL);
+   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_CONTROLLER);
    hw_execute_bash_command_silent(szBuff, NULL);
 
    log_line("HW: GPIO setup successfully.");
@@ -358,7 +271,8 @@ void hardware_release()
    GPIOUnexport(GPIO_PIN_BUZZER);
    GPIOUnexport(GPIO_PIN_LED_ERROR);
    GPIOUnexport(GPIO_PIN_RECORDING_LED);
-   GPIOUnexport(GPIO_PIN_DETECT_TYPE);
+   GPIOUnexport(GPIO_PIN_DETECT_TYPE_VEHICLE);
+   GPIOUnexport(GPIO_PIN_DETECT_TYPE_CONTROLLER);
    log_line("Hardware released!");
 }
 
@@ -746,10 +660,91 @@ u16 hardware_get_flags()
    return retValue;
 }
 
-void keyboard_loop()
+void gpio_read_buttons_loop()
 {
    if ( ! s_hwWasSetup )
       return;
+
+   int iForceMenuPressed = 0;
+   int iForceBackPressed = 0;
+   int iForceQA1Pressed = 0;
+
+   if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
+   {
+      sKeyMenuPressed = 0;
+      keyMenuDownStartTime = 0;
+      sKeyBackPressed = 0;
+      keyBackDownStartTime = 0;
+      sKeyPlusPressed = 0;
+      keyPlusDownStartTime = 0;
+      sKeyMinusPressed = 0;
+      keyMinusDownStartTime = 0;
+      sKeyQA1Pressed = 0;
+      keyQA1DownStartTime = 0;
+      sKeyQA2Pressed = 0;
+      keyQA2DownStartTime = 0;
+      sKeyQA22Pressed = 0;
+      keyQA22DownStartTime = 0;
+      sKeyQA3Pressed = 0;
+      keyQA3DownStartTime = 0;
+      sKeyQAPlusPressed = 0;
+      keyQAPlusDownStartTime = 0;
+      sKeyQAMinusPressed = 0;
+      keyQAMinusDownStartTime = 0;
+
+      sLastReadMenu = 0;
+      sLastReadBack = 0;
+      sLastReadPlus = 0;
+      sLastReadMinus = 0;
+      sLastReadQA1 = 0;
+      sLastReadQA2 = 0;
+      sLastReadQA22 = 0;
+      sLastReadQA3 = 0;
+      sLastReadQAPlus = 0;
+      sLastReadQAMinus = 0;
+      return;
+   }
+   
+   if ( (0 == s_iButtonsWhereInited) && s_hwWasSetup )
+   {
+      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "rb");
+      int i1,i2,i3;
+      i3 = 0;
+      if ( NULL != fp )
+      {
+         if ( 3 == fscanf(fp, "%d %d %d", &i1, &i2, &i3) )
+         {
+            if ( i3 == GPIO_PIN_MENU )
+               iForceMenuPressed = 1;
+            else if ( i3 == GPIO_PIN_BACK )
+               iForceBackPressed = 1;
+            else if ( i3 == GPIO_PIN_QACTION1 )
+               iForceQA1Pressed = 1;
+            else
+              log_softerror_and_alarm("[Hardware] File [%s] has invalid first state of first button pressed. Button pin: %d", FILE_CONTROLLER_BUTTONS, i3);
+            log_line("[Hardware] Detection done: %s, pull direction: %s, first state of first button pressed detected. Button pin: %d",
+               (i1==1)?"yes":"no",
+               (i2==1)?"pullup":"pulldown",
+                i3);
+         }
+         else
+            log_softerror_and_alarm("[Hardware] Can't read file [%s] to read first state of first button pressed.", FILE_CONTROLLER_BUTTONS);
+         fclose(fp);
+      }
+      else
+         log_softerror_and_alarm("[Hardware] Can't access file [%s] to read first state of first button pressed.", FILE_CONTROLLER_BUTTONS);
+
+      GPIOInitButtons();
+      s_iButtonsWhereInited = 1;
+
+      sInitialReadQA1 = GPIORead(GPIO_PIN_QACTION1);
+      sInitialReadQA2 = GPIORead(GPIO_PIN_QACTION2);
+      sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
+      sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
+      sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
+      sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
+      log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
+   }
 
    // Check inputs
    int rMenu = GPIORead(GPIO_PIN_MENU);
@@ -765,12 +760,22 @@ void keyboard_loop()
 
    u32 time_now = get_current_timestamp_ms();
 
-   if ( ! rMenu )
+   // If too many buttons are detected as "pressed", something is wrong
+   if ( GPIOGetButtonsPullDirection() != rMenu )
+   if ( GPIOGetButtonsPullDirection() != rBack )
+   if ( GPIOGetButtonsPullDirection() != rPlus )
+   if ( GPIOGetButtonsPullDirection() != rMinus )
+   {
+      GPIOButtonsResetDetectionFlag();
+      return;
+   }
+
+   if ( GPIOGetButtonsPullDirection() == rMenu )
    {
       sKeyMenuPressed = 0;
       keyMenuDownStartTime = 0;
    }
-   if ( rMenu && (!sLastReadMenu) )
+   else if ( rMenu != sLastReadMenu )
    {
       sKeyMenuPressed = 1;
       keyMenuDownStartTime = time_now;
@@ -778,18 +783,18 @@ void keyboard_loop()
    else
       sKeyMenuPressed = 0;
 
-   if ( rMenu && (0 != keyMenuDownStartTime) && (time_now > (keyMenuDownStartTime+s_long_key_press_delta)) )
+   if ( ( GPIOGetButtonsPullDirection() != rMenu) && (0 != keyMenuDownStartTime) && (time_now > (keyMenuDownStartTime+s_long_key_press_delta)) )
    {
       sKeyMenuPressed = 1;
       keyMenuDownStartTime += s_long_press_repeat_time;
    }
-
-   if ( ! rBack )
+   
+   if ( GPIOGetButtonsPullDirection() == rBack )
    {
       sKeyBackPressed = 0;
       keyBackDownStartTime = 0;
    }
-   if ( rBack && (!sLastReadBack) )
+   else if ( rBack != sLastReadBack )
    {
       sKeyBackPressed = 1;
       keyBackDownStartTime = time_now;
@@ -797,18 +802,18 @@ void keyboard_loop()
    else
       sKeyBackPressed = 0;
 
-   if ( rBack && 0 != keyBackDownStartTime && time_now > (keyBackDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rBack) && 0 != keyBackDownStartTime && time_now > (keyBackDownStartTime+s_long_key_press_delta) )
    {
       sKeyBackPressed = 1;
       keyBackDownStartTime += s_long_press_repeat_time;
    }
     
-   if ( ! rPlus )
+   if ( GPIOGetButtonsPullDirection() == rPlus )
    {
       sKeyPlusPressed = 0;
       keyPlusDownStartTime = 0;
    }
-   if ( rPlus && (!sLastReadPlus) )
+   else if ( rPlus != sLastReadPlus )
    {
       sKeyPlusPressed = 1;
       keyPlusDownStartTime = time_now;
@@ -816,18 +821,18 @@ void keyboard_loop()
    else
       sKeyPlusPressed = 0;
 
-   if ( rPlus && 0 != keyPlusDownStartTime && time_now > (keyPlusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rPlus) && 0 != keyPlusDownStartTime && time_now > (keyPlusDownStartTime+s_long_key_press_delta) )
    {
       sKeyPlusPressed = 1;
       keyPlusDownStartTime += s_long_press_repeat_time;
    }
    
-   if ( ! rMinus )
+   if ( GPIOGetButtonsPullDirection() == rMinus )
    {
       sKeyMinusPressed = 0;
       keyMinusDownStartTime = 0;
    }
-   if ( rMinus && (!sLastReadMinus) )
+   else if ( rMinus != sLastReadMinus )
    {
       sKeyMinusPressed = 1;
       keyMinusDownStartTime = time_now;
@@ -835,18 +840,18 @@ void keyboard_loop()
    else
       sKeyMinusPressed = 0;
 
-   if ( rMinus && 0 != keyMinusDownStartTime && time_now > (keyMinusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rMinus) && 0 != keyMinusDownStartTime && time_now > (keyMinusDownStartTime+s_long_key_press_delta) )
    {
       sKeyMinusPressed = 1;
       keyMinusDownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQA1 )
+   if ( GPIOGetButtonsPullDirection() == rQA1 )
    {
       sKeyQA1Pressed = 0;
       keyQA1DownStartTime = 0;
    }
-   if ( rQA1 && (!sLastReadQA1) )
+   else if ( rQA1 !=sLastReadQA1 )
    {
       sKeyQA1Pressed = 1;
       keyQA1DownStartTime = time_now;
@@ -854,18 +859,18 @@ void keyboard_loop()
    else
       sKeyQA1Pressed = 0;
 
-   if ( rQA1 && 0 != keyQA1DownStartTime && time_now > (keyQA1DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA1) && 0 != keyQA1DownStartTime && time_now > (keyQA1DownStartTime+s_long_key_press_delta) )
    {
       sKeyQA1Pressed = 1;
       keyQA1DownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQA2 )
+   if ( GPIOGetButtonsPullDirection() == rQA2 )
    {
       sKeyQA2Pressed = 0;
       keyQA2DownStartTime = 0;
    }
-   if ( rQA2 && (!sLastReadQA2) )
+   else if ( rQA2 != sLastReadQA2 )
    {
       sKeyQA2Pressed = 1;
       keyQA2DownStartTime = time_now;
@@ -873,18 +878,18 @@ void keyboard_loop()
    else
       sKeyQA2Pressed = 0;
 
-   if ( rQA2 && 0 != keyQA2DownStartTime && time_now > (keyQA2DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA2) && 0 != keyQA2DownStartTime && time_now > (keyQA2DownStartTime+s_long_key_press_delta) )
    {
       sKeyQA2Pressed = 1;
       keyQA2DownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQA22 )
+   if ( GPIOGetButtonsPullDirection() == rQA22 )
    {
       sKeyQA22Pressed = 0;
       keyQA22DownStartTime = 0;
    }
-   if ( rQA22 && (!sLastReadQA22) )
+   else if ( rQA22 != sLastReadQA22 )
    {
       sKeyQA22Pressed = 1;
       keyQA22DownStartTime = time_now;
@@ -892,18 +897,18 @@ void keyboard_loop()
    else
       sKeyQA22Pressed = 0;
 
-   if ( rQA22 && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA22) && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta) )
    {
       sKeyQA22Pressed = 1;
       keyQA22DownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQA3 )
+   if ( GPIOGetButtonsPullDirection() == rQA3 )
    {
       sKeyQA3Pressed = 0;
       keyQA3DownStartTime = 0;
    }
-   if ( rQA3 && (!sLastReadQA3) )
+   else if ( rQA3 != sLastReadQA3 )
    {
       sKeyQA3Pressed = 1;
       keyQA3DownStartTime = time_now;
@@ -911,18 +916,18 @@ void keyboard_loop()
    else
       sKeyQA3Pressed = 0;
 
-   if ( rQA3 && 0 != keyQA3DownStartTime && time_now > (keyQA3DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA3) && 0 != keyQA3DownStartTime && time_now > (keyQA3DownStartTime+s_long_key_press_delta) )
    {
       sKeyQA3Pressed = 1;
       keyQA3DownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQAPlus )
+   if ( GPIOGetButtonsPullDirection() == rQAPlus )
    {
       sKeyQAPlusPressed = 0;
       keyQAPlusDownStartTime = 0;
    }
-   if ( rQAPlus && (!sLastReadQAPlus) )
+   else if ( rQAPlus != sLastReadQAPlus )
    {
       sKeyQAPlusPressed = 1;
       keyQAPlusDownStartTime = time_now;
@@ -930,18 +935,18 @@ void keyboard_loop()
    else
       sKeyQAPlusPressed = 0;
 
-   if ( rQAPlus && 0 != keyQAPlusDownStartTime && time_now > (keyQAPlusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQAPlus) && 0 != keyQAPlusDownStartTime && time_now > (keyQAPlusDownStartTime+s_long_key_press_delta) )
    {
       sKeyQAPlusPressed = 1;
       keyQAPlusDownStartTime += s_long_press_repeat_time;
    }
 
-   if ( ! rQAMinus )
+   if ( GPIOGetButtonsPullDirection() == rQAMinus )
    {
       sKeyQAMinusPressed = 0;
       keyQAMinusDownStartTime = 0;
    }
-   if ( rQAMinus && (!sLastReadQAMinus) )
+   else if ( rQAMinus != sLastReadQAMinus )
    {
       sKeyQAMinusPressed = 1;
       keyQAMinusDownStartTime = time_now;
@@ -949,7 +954,7 @@ void keyboard_loop()
    else
       sKeyQAMinusPressed = 0;
 
-   if ( rQAMinus && 0 != keyQAMinusDownStartTime && time_now > (keyQAMinusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQAMinus) && 0 != keyQAMinusDownStartTime && time_now > (keyQAMinusDownStartTime+s_long_key_press_delta) )
    {
       sKeyQAMinusPressed = 1;
       keyQAMinusDownStartTime += s_long_press_repeat_time;
@@ -970,25 +975,25 @@ void keyboard_loop()
       sKeyQAMinusPressed = 0;
       sKeyQAMinusPressed = 0;
 
-      if ( !rMenu && sLastReadMenu )
+      if ( (GPIOGetButtonsPullDirection() == rMenu) && (GPIOGetButtonsPullDirection() != sLastReadMenu) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rBack && sLastReadBack )
+      if ( (GPIOGetButtonsPullDirection() == rBack) && (GPIOGetButtonsPullDirection() != sLastReadBack) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rPlus && sLastReadPlus )
+      if ( (GPIOGetButtonsPullDirection() == rPlus) && (GPIOGetButtonsPullDirection() != sLastReadPlus) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rMinus && sLastReadMinus )
+      if ( (GPIOGetButtonsPullDirection() == rMinus) && (GPIOGetButtonsPullDirection() != sLastReadMinus) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQA1 && sLastReadQA1 )
+      if ( (GPIOGetButtonsPullDirection() == rQA1) && (GPIOGetButtonsPullDirection() != sLastReadQA1) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQA2 && sLastReadQA2 )
+      if ( (GPIOGetButtonsPullDirection() == rQA2) && (GPIOGetButtonsPullDirection() != sLastReadQA2) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQA22 && sLastReadQA22 )
+      if ( (GPIOGetButtonsPullDirection() == rQA22) && (GPIOGetButtonsPullDirection() != sLastReadQA22) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQA3 && sLastReadQA3 )
+      if ( (GPIOGetButtonsPullDirection() == rQA3) && (GPIOGetButtonsPullDirection() != sLastReadQA3) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQAMinus && sLastReadQAMinus )
+      if ( (GPIOGetButtonsPullDirection() == rQAMinus) && (GPIOGetButtonsPullDirection() != sLastReadQAMinus) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( !rQAPlus && sLastReadQAPlus )
+      if ( (GPIOGetButtonsPullDirection() == rQAPlus) && (GPIOGetButtonsPullDirection() != sLastReadQAPlus) )
          s_bBlockCurrentPressedKeys = 0;
    }
    sLastReadMenu = rMenu;
@@ -1001,6 +1006,25 @@ void keyboard_loop()
    sLastReadQA3 = rQA3;
    sLastReadQAPlus = rQAPlus;
    sLastReadQAMinus = rQAMinus;
+
+   if ( iForceMenuPressed )
+   {
+      sKeyMenuPressed = 1;
+      keyMenuDownStartTime = time_now;
+      log_line("[Hardware] Set menu button as pressed after initial detection.");
+   }
+   if ( iForceBackPressed )
+   {
+      sKeyBackPressed = 1;
+      keyBackDownStartTime = time_now;
+      log_line("[Hardware] Set back button as pressed after initial detection.");
+   }
+   if ( iForceQA1Pressed )
+   {
+      sKeyQA1Pressed = 1;
+      keyQA1DownStartTime = time_now;
+      log_line("[Hardware] Set QA1 button as pressed after initial detection.");
+   }
 }
 
 void hardware_loop()
@@ -1008,7 +1032,7 @@ void hardware_loop()
    if ( ! s_hwWasSetup )
       return;
 
-   keyboard_loop();
+   gpio_read_buttons_loop();
 
    u32 t = get_current_timestamp_ms();
 
@@ -1310,79 +1334,107 @@ int hardware_try_mount_usb()
    sprintf(szCommand, "mkdir -p %s", FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
-   for( int i=10; i>0; i-- )
+   hw_execute_bash_command_raw("lsblk -l -n -o NAME | grep s 2>&1", szOutput);
+   if ( 0 == szOutput[0] )
    {
-      sprintf(szBuff, "/dev/sda%d", i);
-      sprintf(szCommand, "mount /dev/sda%d %s 2>&1", i, FOLDER_USB_MOUNT);
-      if( access( szBuff, R_OK ) != -1 )
-      {
-         hw_execute_bash_command(szCommand, szOutput);
-         s_iUSBMounted = 1;
-         break;
-      }
-
-      sprintf(szBuff, "/dev/sdb%d", i);
-      sprintf(szCommand, "mount /dev/sdb%d %s 2>&1", i, FOLDER_USB_MOUNT);
-      if( access( szBuff, R_OK ) != -1 )
-      {
-         hw_execute_bash_command(szCommand, szOutput);
-         s_iUSBMounted = 1;
-         break;
-      }
-
-      sprintf(szBuff, "/dev/sdc%d", i);
-      sprintf(szCommand, "mount /dev/sdc%d %s 2>&1", i, FOLDER_USB_MOUNT);
-      if( access( szBuff, R_OK ) != -1 )
-      {
-         hw_execute_bash_command(szCommand, szOutput);
-         s_iUSBMounted = 1;
-         break;
-      }
-
-      sprintf(szBuff, "/dev/sdd%d", i);
-      sprintf(szCommand, "mount /dev/sdd%d %s 2>&1", i, FOLDER_USB_MOUNT);
-      if( access( szBuff, R_OK ) != -1 )
-      {
-         hw_execute_bash_command(szCommand, szOutput);
-         s_iUSBMounted = 1;
-         break;
-      }
+      log_softerror_and_alarm("[Hardware] USB memory stick could NOT be mounted! Failed to iterate block devices.");
+      return 0;
    }
-   if ( ! s_iUSBMounted )
-   if( access( "/dev/sda", R_OK ) != -1 )
+   log_line("[Hardware] Block devices found: [%s]", szOutput);
+   char* szToken = strtok(szOutput, " \n\r");
+   if ( NULL == szToken )
    {
-      sprintf(szCommand, "mount /dev/sda %s 2>&1", FOLDER_USB_MOUNT);
+      log_softerror_and_alarm("[Hardware] USB memory stick could NOT be mounted! Failed to iterate block devices result.");
+      return 0;    
+   }
+
+   int iFoundUSBDevice = 0;
+   while ( NULL != szToken )
+   {
+       int iValid = 0;
+       if ( NULL != strstr(szToken, "sda") )
+          iValid = 1;
+       if ( NULL != strstr(szToken, "sdb") )
+          iValid = 1;
+       if ( NULL != strstr(szToken, "sdc") )
+          iValid = 1;
+       if ( NULL != strstr(szToken, "sdd") )
+          iValid = 1;
+
+       if ( strlen(szToken) < 4 )
+          iValid = 0;
+
+       if ( ! isdigit(szToken[strlen(szToken)-1]) )
+          iValid = 0;
+
+       if ( 0 == iValid )
+       {
+          log_line("[Hardware] Device [%s] is not valid USB device, skipping it.", szToken);
+          szToken = strtok(NULL, " \n\r");
+          continue;
+       }
+
+       if ( iValid )
+       {
+          iFoundUSBDevice = 1;
+          break;
+       }
+       szToken = strtok(NULL, " \n\r");
+   }
+
+   if ( 0 == iFoundUSBDevice )
+   {
+      log_softerror_and_alarm("[Hardware] USB memory stick could NOT be mounted! No USB block devices found.");
+      return 0;    
+   }
+
+   log_line("[Hardware] Found USB block device: [%s], Mounting it...", szToken );
+
+   szOutput[0] = 0;
+   sprintf(szBuff, "/dev/%s", szToken);
+   sprintf(szCommand, "mount /dev/%s %s 2>&1", szToken, FOLDER_USB_MOUNT);
+   if( access( szBuff, R_OK ) != -1 )
+   {
       hw_execute_bash_command(szCommand, szOutput);
       s_iUSBMounted = 1;
    }
-
-   if ( ! s_iUSBMounted )
-   if( access( "/dev/sdb", R_OK ) != -1 )
+   else
    {
-      sprintf(szCommand, "mount /dev/sdb %s 2>&1", FOLDER_USB_MOUNT);
-      hw_execute_bash_command(szCommand, szOutput);
-      s_iUSBMounted = 1;
-   }
-
-   if ( ! s_iUSBMounted )
-   if( access( "/dev/sdc", R_OK ) != -1 )
-   {
-      sprintf(szCommand, "mount /dev/sdc %s 2>&1", FOLDER_USB_MOUNT);
-      hw_execute_bash_command(szCommand, szOutput);
-      s_iUSBMounted = 1;
-   }
-
-   if ( ! s_iUSBMounted )
-   if( access( "/dev/sdd", R_OK ) != -1 )
-   {
-      sprintf(szCommand, "mount /dev/sdd %s 2>&1", FOLDER_USB_MOUNT);
-      hw_execute_bash_command(szCommand, szOutput);
-      s_iUSBMounted = 1;
+      log_softerror_and_alarm("[Hardware] Can't access USB device block [/dev/%s]. USB not mounted.", szToken);
+      return 0;
    }
 
    log_line("[Hardware] USB mount result: [%s]", szOutput);
    if ( 0 == s_iUSBMounted )
       log_line("[Hardware] USB memory stick could NOT be mounted!");
+
+
+   strcpy(s_szUSBMountName, "UnknownUSB");
+   szOutput[0] = 0;
+   sprintf(szCommand, "ls -Al /dev/disk/by-label | grep %s", szToken);
+   hw_execute_bash_command(szCommand, szOutput);
+
+   if ( 0 != szOutput[0] )
+   {
+      char* szToken = strstr(szOutput, "->");
+      if ( NULL != szToken )
+      {
+         char* p = szToken;
+         p--;
+         *p = 0;
+         int iCount = 0;
+         while ((p != szOutput) && (iCount <= 48) )
+         {
+            if ( *p == ' ' )
+               break;
+            p--;
+            iCount++;
+         }
+         if ( 0 < strlen(p) )
+            strncpy(s_szUSBMountName, p, 48);
+      }
+   }
+
    return s_iUSBMounted;
 }
 
@@ -1401,10 +1453,80 @@ void hardware_unmount_usb()
    hw_execute_bash_command(szCommand, NULL);
 
    s_iUSBMounted = 0;
-   log_line("[Hardware] USB memory stick has been unmounted!");
+   log_line("[Hardware] USB memory stick [%s] has been unmounted!", s_szUSBMountName );
+   s_szUSBMountName[0] = 0;
 }
 
-u32 _hardware_get_camera_type()
+char* hardware_get_mounted_usb_name()
+{
+   static char* s_szUSBNotMountedLabel = "Not Mounted";
+   if ( 0 == s_iUSBMounted )
+      return s_szUSBNotMountedLabel;
+   return s_szUSBMountName;
+}
+
+// parses a string of format: "device id is 0xAB" or "device id is 0x A"
+int _hardware_get_camera_device_id_from_string(char* szDeviceId)
+{
+   if ( (NULL == szDeviceId) || (0 == szDeviceId[0]) )
+      return -1;
+   log_line("[Hardware] Parsing string to find camera device id: [%s]", szDeviceId);
+
+   char* szDevId = strstr(szDeviceId, "device id is");
+   if ( NULL == szDevId )
+      return -1;
+   if ( strlen(szDevId) < strlen("device id is")+3 )
+      return -1;
+         
+   int index = strlen(szDevId)-1;
+   while ( (index >0) && (szDevId[index] == 10 || szDevId[index] == 13) )
+      index--;
+   szDevId[index+1] = 0;
+   while ( (index>0) && ( isdigit(szDevId[index]) || (toupper(szDevId[index]) >= 'A' && toupper(szDevId[index]) <= 'F') ) )
+      index--;
+   index++;
+
+   if ( szDevId[index] == 0 )
+      return -1;
+
+   szDevId += index;
+   int iDevId = (int)strtol(szDevId, NULL, 16);
+   log_line("[Hardware] Found camera device id: [%s], as int: %d", szDevId, iDevId );
+   return iDevId;
+}
+
+
+// parses a string of format: "hardware version is 0xAB" or "hardware version is 0x A"
+int _hardware_get_camera_hardware_version_from_string(char* szHardwareId)
+{
+   if ( (NULL == szHardwareId) || (0 == szHardwareId[0]) )
+      return -1;
+   log_line("[Hardware] Parsing string to find camera hardware version: [%s]", szHardwareId);
+
+   char* szHWId = strstr(szHardwareId, "hardware version is");
+   if ( NULL == szHWId )
+      return -1;
+   if ( strlen(szHWId) < strlen("hardware version is")+3 )
+      return -1;
+         
+   int index = strlen(szHWId)-1;
+   while ( (index >0) && (szHWId[index] == 10 || szHWId[index] == 13) )
+      index--;
+   szHWId[index+1] = 0;
+   while ( (index>0) && ( isdigit(szHWId[index]) || (toupper(szHWId[index]) >= 'A' && toupper(szHWId[index]) <= 'F') ) )
+      index--;
+   index++;
+
+   if ( szHWId[index] == 0 )
+      return -1;
+
+   szHWId += index;
+   int iHWId = (int)strtol(szHWId, NULL, 16);
+   log_line("[Hardware] Found camera hardware version: [%s], as int: %d", szHWId, iHWId );
+   return iHWId;
+}
+
+u32 _hardware_detect_camera_type()
 {
    char szBuff[1024];
    char szComm[1024];
@@ -1412,13 +1534,29 @@ u32 _hardware_get_camera_type()
 
    s_bHardwareHasCamera = 0;
    s_uHardwareCameraType = CAMERA_TYPE_NONE;
+   s_iHardwareCameraI2CBus = -1;
 
    int retryCount = 3;
+ 
+   sprintf(szBuff, "/boot/%s", FILE_FORCE_VEHICLE_NO_CAMERA);
+   
+   if ( access(FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
+   {
+      log_line("File %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      retryCount = 0;
+   }
+   if ( access(szBuff, R_OK ) != -1 )
+   {
+      log_line("/boot file %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      retryCount = 0;
+   }
+
    while ( retryCount > 0 )
    {
       if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_CAMERA_HDMI) )
       {
-         log_line("Hardware: HDMI Camera detected.");
+         s_iHardwareCameraI2CBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_HDMI);
+         log_line("Hardware: HDMI Camera detected on i2c bus %d.", s_iHardwareCameraI2CBus);
          s_bHardwareHasCamera = 1;
          s_uHardwareCameraType = CAMERA_TYPE_HDMI;
          break;
@@ -1426,38 +1564,55 @@ u32 _hardware_get_camera_type()
       
       if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_CAMERA_VEYE) )
       {
-         log_line("Hardware: Veye Camera detected.");
+         s_iHardwareCameraI2CBus =  hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
+         log_line("Hardware: Veye Camera detected on i2c bus %d.", s_iHardwareCameraI2CBus);
          s_bHardwareHasCamera = 1;
          s_uHardwareCameraType = CAMERA_TYPE_VEYE307;
 
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, s_iHardwareCameraI2CBus);
          hw_execute_bash_command_raw(szComm, szOutput);
-         char* szDevId = strstr(szOutput, "device id is");
-         //log_line("Output: [%s], dev id: [%s]", szOutput, szDevId);
-         if ( szDevId != NULL && strlen(szDevId) >= strlen("device id is")+3 )
+         int iDevId = _hardware_get_camera_device_id_from_string(szOutput);
+         if ( (iDevId <= 0) || (iDevId >= 255) )
          {
-         int index = strlen(szDevId)-1;
-         while ( szDevId[index] == 10 || szDevId[index] == 13 )
-            index--;
-         szDevId[index+1] = 0;
-         while ( isdigit(szDevId[index]) || (toupper(szDevId[index]) >= 'A' && toupper(szDevId[index]) <= 'F') )
-            index--;
-         index++;
-         if ( szDevId[index] != 0 )
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, s_iHardwareCameraI2CBus);
+            hw_execute_bash_command_raw(szComm, szOutput);
+            iDevId = _hardware_get_camera_device_id_from_string(szOutput);
+         }
+  
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, s_iHardwareCameraI2CBus);
+         hw_execute_bash_command_raw(szComm, szOutput);
+         int iHWId = _hardware_get_camera_hardware_version_from_string(szOutput);
+         if ( (iHWId <= 0) || (iHWId >= 255) )
          {
-            szDevId += index;
-            log_line("Found veye camera device id: %s", szDevId);
-            if ( strcmp(szDevId, "6") == 0 )
+            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, s_iHardwareCameraI2CBus);
+            hw_execute_bash_command_raw(szComm, szOutput);
+            iHWId = _hardware_get_camera_hardware_version_from_string(szOutput);
+         }
+  
+         if ( (iDevId > 0) && (iDevId < 255) )
+         {
+            s_iHardwareCameraDevId = iDevId;
+            s_iHardwareCameraHWVer = iHWId;
+            log_line("Found veye camera device id: %d", iDevId);
+            if ( 6 == iDevId )
+            {
                s_uHardwareCameraType = CAMERA_TYPE_VEYE327;
-            else if ( strcmp(szDevId, "33") == 0 )
+               log_line("Veye camera type: 327, hardware version: %d", iHWId);
+            }
+            else if ( (iDevId == 33) || (iDevId == 34) || (iDevId == 51) || (iDevId == 52) )
+            {
                s_uHardwareCameraType = CAMERA_TYPE_VEYE307;
+               log_line("Veye camera type: 307, hardware version: %d", iHWId);
+            }
             else
+            {
                s_uHardwareCameraType = CAMERA_TYPE_VEYE327;
+               log_line("Veye camera type: N/A (dev id: %d). Default to 327, hardware version: %d", iDevId, iHWId);
+            }
          }
-         }
-         if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE307 )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER307);
-         else
+         //if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE307 )
+         //   sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER307);
+         //else
             sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER);
          hw_execute_bash_command(szComm, NULL);
 
@@ -1474,6 +1629,7 @@ u32 _hardware_get_camera_type()
          {
             log_line("Hardware: CSI Camera detected.");
             s_bHardwareHasCamera = 1;
+            s_iHardwareCameraI2CBus = -1;
             s_uHardwareCameraType = CAMERA_TYPE_CSI;
             break;
          }
@@ -1505,7 +1661,7 @@ int hardware_detectSystemType()
 
    s_iHardwareSystemIsVehicle = 0;
 
-   int val = GPIORead(GPIO_PIN_DETECT_TYPE);
+   int val = GPIORead(GPIO_PIN_DETECT_TYPE_VEHICLE);
    if ( val == 1 )
    {
       log_line("Hardware: Detected GPIO signal to start as vehicle or relay.");
@@ -1515,14 +1671,29 @@ int hardware_detectSystemType()
    {
       log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
       s_iHardwareSystemIsVehicle = 1;
-   }
+   }   
 
-   _hardware_get_camera_type();
+   _hardware_detect_camera_type();
+
+   char szBuff[256];
+   sprintf(szBuff, "/boot/%s", FILE_FORCE_VEHICLE_NO_CAMERA);
+   if( (access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1) || (access( szBuff, R_OK ) != -1) )
+   {
+      log_line("Hardware: Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      s_iHardwareSystemIsVehicle = 1;
+   }   
 
    if ( s_bHardwareHasCamera && (s_uHardwareCameraType != CAMERA_TYPE_NONE) )
    {
       log_line("Hardware: Has Camera.");
       s_iHardwareSystemIsVehicle = 1;
+   }
+
+   val = GPIORead(GPIO_PIN_DETECT_TYPE_CONTROLLER);
+   if ( val == 1 )
+   {
+      log_line("Hardware: Detected GPIO signal to start as controller.");
+      s_iHardwareSystemIsVehicle = 0;
    }
 
    if ( s_iHardwareSystemIsVehicle )
@@ -1538,11 +1709,11 @@ int hardware_detectSystemType()
    FILE* fd = fopen(FILE_SYSTEM_TYPE, "w");
    if ( NULL != fd )
    {
-      fprintf(fd, "%d %d %u\n", s_iHardwareSystemIsVehicle, s_bHardwareHasCamera, s_uHardwareCameraType);
+      fprintf(fd, "%d %d %u %d %d %d\n", s_iHardwareSystemIsVehicle, s_bHardwareHasCamera, s_uHardwareCameraType, s_iHardwareCameraI2CBus, s_iHardwareCameraDevId, s_iHardwareCameraHWVer);
       fclose(fd);
    }
 
-   log_line("Hardware: Detected system Type: %s, has camera: %s, camera type: %u", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType);
+   log_line("Hardware: Detected system Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
 
    s_bHarwareHasDetectedSystemType = 1;
    return s_iHardwareSystemIsVehicle;
@@ -1557,7 +1728,7 @@ void _hardware_load_system_type()
    FILE* fd = fopen(FILE_SYSTEM_TYPE, "r");
    if ( NULL != fd )
    {
-      if ( 3 != fscanf(fd, "%d %d %u", &s_iHardwareSystemIsVehicle, &s_bHardwareHasCamera, &s_uHardwareCameraType) )
+      if ( 6 != fscanf(fd, "%d %d %u %d %d %d", &s_iHardwareSystemIsVehicle, &s_bHardwareHasCamera, &s_uHardwareCameraType, &s_iHardwareCameraI2CBus, &s_iHardwareCameraDevId, &s_iHardwareCameraHWVer) )
       {
          log_line("Hardware: Failed to load system type config, invalid config file.");
          hardware_detectSystemType();
@@ -1565,7 +1736,7 @@ void _hardware_load_system_type()
       else
       {
          s_bHarwareHasDetectedSystemType = 1;
-         log_line("Hardware: Loaded system Type: %s, has camera: %s, camera type: %u", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType);
+         log_line("Hardware: Loaded system Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
       }
       fclose(fd);
    }
@@ -1574,7 +1745,7 @@ void _hardware_load_system_type()
       log_line("Hardware: Failed to load system type config.");
       hardware_detectSystemType();
    }
-   log_line("Hardware: System Type: %s, has camera: %s, camera type: %u", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType);
+   log_line("Hardware: System Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
 }
 
 int hardware_is_station()
@@ -1603,6 +1774,23 @@ u32 hardware_getCameraType()
    if ( ! s_bHarwareHasDetectedSystemType )
       _hardware_load_system_type();
    return s_uHardwareCameraType;      
+}
+
+int hardware_getCameraI2CBus()
+{
+   if ( ! s_bHarwareHasDetectedSystemType )
+      _hardware_load_system_type();
+   return s_iHardwareCameraI2CBus;
+}
+
+int hardware_getVeyeCameraDevId()
+{
+   return s_iHardwareCameraDevId;
+}
+
+int hardware_getVeyeCameraHWVer()
+{
+   return s_iHardwareCameraHWVer;
 }
 
 int hardware_isCameraVeye()
@@ -1782,4 +1970,17 @@ int hardware_get_gpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
+}
+
+int hardware_set_audio_output(int iAudioDevice, int iAudioVolume)
+{
+   char szComm[256];
+   sprintf(szComm, "sudo amixer cset numid=1 %d%%", iAudioVolume);
+   hw_execute_bash_command(szComm, NULL);
+
+   if ( 1 == iAudioDevice )
+      hw_execute_bash_command("sudo amixer cset numid=3 2", NULL);
+   if ( 2 == iAudioDevice )
+      hw_execute_bash_command("sudo amixer cset numid=3 0", NULL);
+   return 1;
 }

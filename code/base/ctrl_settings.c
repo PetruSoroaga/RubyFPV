@@ -76,6 +76,19 @@ void reset_ControllerSettings()
    s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton = -1;
    s_CtrlSettings.iShowControllerAdaptiveInfoStats = 0;
    s_CtrlSettings.iShowVideoStreamInfoCompact = 0;
+
+   s_CtrlSettings.iSearchSiKAirRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
+   s_CtrlSettings.iSearchSiKECC = 0;
+   s_CtrlSettings.iSearchSiKLBT = 0;
+   s_CtrlSettings.iSearchSiKMCSTR = 0;
+
+   s_CtrlSettings.iAudioOutputDevice = 1;
+   s_CtrlSettings.iAudioOutputVolume = 100;
+
+   s_CtrlSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+   s_CtrlSettings.uShowBigRxHistoryInterface = 0;
+   s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
+
    log_line("Reseted controller settings.");
 }
 
@@ -120,6 +133,11 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton, s_CtrlSettings.iShowControllerAdaptiveInfoStats);
    fprintf(fd, "%d\n", s_CtrlSettings.iShowVideoStreamInfoCompact);
    fprintf(fd, "%d\n", s_CtrlSettings.iTXPowerSiK);
+
+   fprintf(fd, "%d %d %d %d\n", s_CtrlSettings.iSearchSiKAirRate, s_CtrlSettings.iSearchSiKECC, s_CtrlSettings.iSearchSiKLBT, s_CtrlSettings.iSearchSiKMCSTR);
+   fprintf(fd, "%d %d\n", s_CtrlSettings.iAudioOutputDevice, s_CtrlSettings.iAudioOutputVolume);
+   fprintf(fd, "%d %u\n", s_CtrlSettings.iDevRxLoopTimeout, s_CtrlSettings.uShowBigRxHistoryInterface);
+   fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", FILE_CONTROLLER_SETTINGS);
@@ -215,7 +233,6 @@ int load_ControllerSettings()
       s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
       failed = 10;
    }
-
    
    if ( (!failed) && (2 != fscanf(fd, "%d %u", &s_CtrlSettings.nUseFixedIP, &s_CtrlSettings.uFixedIP)) )
    {
@@ -282,6 +299,31 @@ int load_ControllerSettings()
    if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iTXPowerSiK)) )
       s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
 
+   if ( (!failed) && ( 4 != fscanf(fd, "%d %d %d %d", &s_CtrlSettings.iSearchSiKAirRate, &s_CtrlSettings.iSearchSiKECC, &s_CtrlSettings.iSearchSiKLBT, &s_CtrlSettings.iSearchSiKMCSTR)) )
+   {
+      s_CtrlSettings.iSearchSiKAirRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
+      s_CtrlSettings.iSearchSiKECC = 0;
+      s_CtrlSettings.iSearchSiKLBT = 0;
+      s_CtrlSettings.iSearchSiKMCSTR = 0;
+   }
+
+   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iAudioOutputDevice, &s_CtrlSettings.iAudioOutputVolume)) )
+   {
+      s_CtrlSettings.iAudioOutputDevice = 1;
+      s_CtrlSettings.iAudioOutputVolume = 100;
+      failed = 15;
+   }
+
+   if ( (!failed) && (2 != fscanf(fd, "%d %u", &s_CtrlSettings.iDevRxLoopTimeout, &s_CtrlSettings.uShowBigRxHistoryInterface)) )
+   {
+      s_CtrlSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+      s_CtrlSettings.uShowBigRxHistoryInterface = 0;
+      failed = 16;
+   }
+
+   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iSiKPacketSize)) )
+      { s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE; }
+
    fclose(fd);
 
    // Validate settings
@@ -317,6 +359,8 @@ int load_ControllerSettings()
    if ( s_CtrlSettings.nPingClockSyncFrequency < 1 || s_CtrlSettings.nPingClockSyncFrequency > 50 )
       s_CtrlSettings.nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
 
+   if ( (s_CtrlSettings.iSiKPacketSize < 10) || (s_CtrlSettings.iSiKPacketSize > 250 ) )
+      s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
    if ( failed )
    {
       log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", FILE_CONTROLLER_SETTINGS, failed);
@@ -335,30 +379,26 @@ ControllerSettings* get_ControllerSettings()
    return &s_CtrlSettings;
 }
 
-u32 compute_ping_frequency(u32 uModelFlags, u32 uClockSyncType, u32 uCurrentVideoFlags)
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags)
 {
-
-   u32 ping_freq_ms = 1000/DEFAULT_PING_FREQUENCY;
+   u32 ping_interval_ms = 1000/DEFAULT_PING_FREQUENCY;
    if ( s_CtrlSettings.nPingClockSyncFrequency != 0 )
-      ping_freq_ms = 1000/s_CtrlSettings.nPingClockSyncFrequency;
+      ping_interval_ms = 1000/s_CtrlSettings.nPingClockSyncFrequency;
 
    if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
-      ping_freq_ms /= 2;
-
-   //if ( uClockSyncType == CLOCK_SYNC_TYPE_NONE )
-   //   ping_freq_ms *= 4;
+      ping_interval_ms /= 2;
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
    if ( uCurrentVideoFlags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
    if ( uCurrentVideoFlags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    {
-      if ( ping_freq_ms > 100 )
+      if ( ping_interval_ms > 100 )
       {
-         ping_freq_ms = 100;
+         ping_interval_ms = 100;
          if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
-            ping_freq_ms = 70;
+            ping_interval_ms = 70;
       }
    }
    #endif
-   return ping_freq_ms;
+   return ping_interval_ms;
 }

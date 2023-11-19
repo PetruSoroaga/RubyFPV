@@ -173,13 +173,18 @@ int hardware_init_serial_ports()
             s_HardwareSerialPortsInfo[i].iPortUsage = loadedSerialPortsInfo[k].iPortUsage;
             
             if ( iUpdated )
-             iCountUpdated++;
+               iCountUpdated++;
+
+            if ( iUpdated )
+               log_line("[Hardware] Serial port %d [%s] settings have been restored and updated.", i+1, s_HardwareSerialPortsInfo[i].szName);
+            else
+               log_line("[Hardware] Serial port %d [%s] settings have been restored.", i+1, s_HardwareSerialPortsInfo[i].szName);
             break;
          }
    }
    s_iHardwareSerialPortsWasInitialized = 1;
 
-   log_line("[Hardware] %d serial ports have been restored from stored configuration. %d where updated.", iCountMatched, iCountUpdated);
+   log_line("[Hardware] Restored serial ports settings: %d serial ports have been restored from stored configuration. %d where updated.", iCountMatched, iCountUpdated);
    
    int bSave = 0;
    if ( (s_iCountHardwareSerialPorts != iCountLoadedSerialPorts) ||
@@ -218,7 +223,6 @@ void hardware_reload_serial_ports()
    {
       log_softerror_and_alarm("[Hardware] Failed to reload serial ports from config file.");
       return;
-
    }
    
    int iFailed = 0;
@@ -293,7 +297,7 @@ void hardware_serial_save_configuration()
       fprintf(fd, "%d %ld %d\n", s_HardwareSerialPortsInfo[i].iSupported, s_HardwareSerialPortsInfo[i].lPortSpeed, s_HardwareSerialPortsInfo[i].iPortUsage );
    }
    fclose(fd);
-   log_line("[Harware] Saved serial ports configuration to file [%s]. %d serial ports:", FILE_CONFIG_HW_SERIAL_PORTS, s_iCountHardwareSerialPorts);
+   log_line("[Hardware] Saved serial ports configuration to file [%s]. %d serial ports:", FILE_CONFIG_HW_SERIAL_PORTS, s_iCountHardwareSerialPorts);
    for( int i=0; i<s_iCountHardwareSerialPorts; i++ )
       log_line("[Hardware] Saved Serial port %d: [%s] [%s], speed: %ld bps, usage: %d (%s), supported: %d", i+1,
          s_HardwareSerialPortsInfo[i].szName,
@@ -541,7 +545,7 @@ int hardware_serial_send_sik_command(int iSerialPortFD, const char* szCommand)
    {
       return 0;
    }
-   return 1;
+   return iLen;
 }
 
 // Returns the number of bytes read

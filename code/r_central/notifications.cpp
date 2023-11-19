@@ -20,45 +20,94 @@ Code written by: Petru Soroaga, 2021-2023
 #include "warnings.h"
 #include "shared_vars.h"
 
-static bool s_bIsRCFailsafeNotifTriggered = false;
+static bool s_bIsRCFailsafeNotificationTriggered[MAX_CONCURENT_VEHICLES];
 
 static Popup* s_pPopupNotificationPairing = NULL;
 
-void notification_add_armed()
+void notification_add_armed(u32 uVehicleId)
 {
-   Popup* p = new Popup(true, "ARMED", 3);
+   int iRuntimeInfoIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+         iRuntimeInfoIndex = i;
+
+   char szBuff[64];
+   strcpy(szBuff, "ARMED");
+   if ( (iRuntimeInfoIndex != -1) && (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
+   if ( NULL != g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel )
+      sprintf(szBuff, "%s ARMED", g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->getShortName());
+
+   Popup* p = new Popup(true, szBuff, 3);
    p->setFont(g_idFontOSD);
    popups_add(p);
 }
 
-void notification_add_disarmed()
+void notification_add_disarmed(u32 uVehicleId)
 {
-   Popup* p = new Popup(true, "DISARMED", 3);
+   int iRuntimeInfoIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+         iRuntimeInfoIndex = i;
+
+   char szBuff[64];
+   strcpy(szBuff, "DISARMED");
+   if ( (iRuntimeInfoIndex != -1) && (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
+   if ( NULL != g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel )
+      sprintf(szBuff, "%s DISARMED", g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->getShortName());
+
+   Popup* p = new Popup(true, szBuff, 3);
    p->setFont(g_idFontOSD);
    popups_add(p);
 }
 
-void notification_add_flight_mode(u32 flightMode)
+void notification_add_flight_mode(u32 uVehicleId, u32 flightMode)
 {
    char szBuff[128];
+
+   int iRuntimeInfoIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+         iRuntimeInfoIndex = i;
+
    sprintf(szBuff, "Flight mode changed to: %s", model_getShortFlightMode(flightMode));
+   if ( (iRuntimeInfoIndex != -1) && (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
+   if ( NULL != g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel )
+      sprintf(szBuff, "%s: Flight mode changed to: %s", g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->getShortName(), model_getShortFlightMode(flightMode));
    popups_add(new Popup(true, szBuff, 3));
 }
 
-void notification_add_rc_failsafe()
+void notification_add_rc_failsafe(u32 uVehicleId)
 {
-   if ( s_bIsRCFailsafeNotifTriggered )
+   int iRuntimeInfoIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+         iRuntimeInfoIndex = i;
+
+   if ( -1 == iRuntimeInfoIndex )
       return;
-   s_bIsRCFailsafeNotifTriggered = true;
-   warnings_add("RC FAILSAFE triggered.", g_idIconJoystick, get_Color_IconError(), 6);
+
+   if ( s_bIsRCFailsafeNotificationTriggered[iRuntimeInfoIndex] )
+      return;
+   s_bIsRCFailsafeNotificationTriggered[iRuntimeInfoIndex] = true;
+
+   warnings_add(uVehicleId, "RC FAILSAFE triggered", g_idIconJoystick, get_Color_IconError(), 6);
 }
 
-void notification_add_rc_failsafe_cleared()
+void notification_add_rc_failsafe_cleared(u32 uVehicleId)
 {
-   if ( ! s_bIsRCFailsafeNotifTriggered )
+   int iRuntimeInfoIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+         iRuntimeInfoIndex = i;
+
+   if ( -1 == iRuntimeInfoIndex )
       return;
-   s_bIsRCFailsafeNotifTriggered = false;
-   warnings_add("RC FAILSAFE cleared.", g_idIconJoystick, get_Color_IconSucces(), 6);
+
+   if ( ! s_bIsRCFailsafeNotificationTriggered[iRuntimeInfoIndex] )
+      return;
+   s_bIsRCFailsafeNotificationTriggered[iRuntimeInfoIndex] = false;
+
+   warnings_add(uVehicleId, "RC FAILSAFE cleared.", g_idIconJoystick, get_Color_IconSucces(), 6);
 }
 
 void notification_add_model_deleted()
@@ -82,12 +131,12 @@ void notification_add_recording_end()
 
 void notification_add_rc_output_enabled()
 {
-   warnings_add("RC Output to FC is Enabled!", g_idIconJoystick, get_Color_IconSucces(), 4);
+   warnings_add(0, "RC Output to FC is Enabled!", g_idIconJoystick, get_Color_IconSucces(), 4);
 }
 
 void notification_add_rc_output_disabled()
 {
-   warnings_add("RC Output to FC is Disabled!", g_idIconJoystick, get_Color_IconWarning(), 4);
+   warnings_add(0, "RC Output to FC is Disabled!", g_idIconJoystick, get_Color_IconWarning(), 4);
 }
 
 void notification_add_frequency_changed(int nLinkId, u32 uFreq)
@@ -100,15 +149,36 @@ void notification_add_frequency_changed(int nLinkId, u32 uFreq)
       sprintf(szBuff,"Radio link %d switched to %s", nLinkId+1, str_format_frequency(uFreq));
 
    if ( 0 != szBuff[0] )
-      warnings_add(szBuff, g_idIconInfo, get_Color_IconSucces(), 4);
+      warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, szBuff, g_idIconInfo, get_Color_IconSucces(), 4);
 }
 
 void notification_add_start_pairing()
 {
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      s_bIsRCFailsafeNotificationTriggered[i] = false;
+
    if ( NULL != s_pPopupNotificationPairing )
       notification_remove_start_pairing();
 
-   s_pPopupNotificationPairing = new Popup(true, "Configuring radio interfaces and activating model...", 10);
+   char szMessage[256];
+   strcpy(szMessage, "Configuring radio interfaces and activating model...");
+   if ( (NULL != g_pCurrentModel) && (!g_bSearching) )
+   {
+      strcpy(szMessage, "Configuring radio interfaces (radio links: ");
+      int iCount = 0;
+      for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
+      {
+         if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+            continue;
+         if ( iCount != 0 )
+            strcat(szMessage, ", ");
+         strcat(szMessage, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[i]) );
+         iCount++;
+      }
+      strcat(szMessage, ") and activating model...");
+   }
+   s_pPopupNotificationPairing = new Popup(true, szMessage, 10);
+   s_pPopupNotificationPairing->setBottomAlign(true);
    popups_add_topmost(s_pPopupNotificationPairing);
 }
 

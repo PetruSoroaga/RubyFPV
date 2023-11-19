@@ -8,18 +8,22 @@
 #define COMMAND_ID_SET_VEHICLE_NAME 3
 
 #define COMMAND_ID_SET_TX_POWERS 4
-// 8 bytes: u8 global, u8 atheros, u8 RTL, u8 maxGlobal, u8 maxAtheros, u8 maxRTL, u8 radio card intex, u8 power, if 0 -> not set
+// 8 bytes: 0...5: u8 global, u8 atheros, u8 RTL, u8 maxGlobal, u8 maxAtheros, u8 maxRTL,
+//          6: u8 radio card index, 
+//          7: u8 power, if 0 -> not set
+// First 8 bytes can be 0xFF or 0x00 for no changes in those params
+// Byte 9,10,11 (if present, optional): 0x81 then tx power Sik, then 0x81
 
 #define COMMAND_ID_SET_RADIO_LINK_FREQUENCY 5
-// lower 3 bytes: frequency (new format), 4-th byte: link index, most significat bit set to 1 to signal new format for this parameter
+// lower 3 bytes: frequency (new format, in khz), 4-th byte: link index, most significat bit set to 1 to signal new format for this parameter
 
 #define COMMAND_ID_SET_RADIO_LINK_CAPABILITIES 6
-// low byte: link index, next 3 bytes: flags (tx/rx/relay - video/data)
+// low byte: link index, next 3 bytes: link_capabilities_flags (only lowest 3 bytes of it) (tx/rx/relay - video/data)
 
 #define COMMAND_ID_SET_RADIO_LINK_FLAGS 7
 // u32 - link index
-// u32 - link radio flags (use MCS, MCS flags, STBC, adaptive rates, etc)
-// int - datarate video  -1..-n MCS or 0..x classic
+// u32 - link radio flags (use MCS, MCS flags, STBC, adaptive rates, SIK flags, etc)
+// int - datarate video  -1..-n MCS or 0..x classic, in bps
 // int - datarate data 
 
 #define COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION 8
@@ -45,8 +49,13 @@
 #define COMMAND_ID_SET_IONICE_VALUES 17
 #define COMMAND_ID_SET_ENABLE_DHCP 18
 
+#define COMMAND_ID_SET_RADIO_LINK_DATARATES 19 // added in v7.6
+// param: radio link index
+// data: type_radio_links_parameters structure
+
 #define COMMAND_ID_REBOOT 20
 #define COMMAND_ID_RESET_ALL_TO_DEFAULTS 21
+#define COMMAND_ID_FACTORY_RESET 22
 
 #define COMMAND_ID_SET_GPS_INFO 23
 // param: gps present on vehicle: on/off
@@ -71,6 +80,9 @@ typedef struct
 #define COMMAND_ID_SET_SERIAL_PORTS_INFO 28
 // contains a model_hardware_info_t structure
 
+#define COMMAND_ID_SET_SIK_PACKET_SIZE 29
+// parameter is the sik packet size
+
 #define COMMAND_ID_SET_CAMERA_PARAMETERS 30
 // Has a camera profile index and a camera_parameters_t struct as input
 // Has no particular response structure
@@ -83,6 +95,8 @@ typedef struct
 
 #define COMMAND_ID_FORCE_CAMERA_TYPE 33
 // param: camera type to set for current camera
+
+#define COMMAND_ID_ROTATE_RADIO_LINKS 34
 
 #define COMMAND_ID_SET_FUNCTIONS_TRIGGERS_PARAMS 35    // version 5.6
 // A model type_functions_parameters structure parameters
@@ -105,6 +119,8 @@ typedef struct
 // param: 0 - auto, value: quantization
 
 #define COMMAND_ID_SWAP_RADIO_INTERFACES 46
+#define COMMAND_ID_GET_SIK_CONFIG 47
+// param: local radio interface index
 
 #define COMMAND_ID_SET_ALARMS_PARAMS 50
 // an type_alarms_parameters structure as input
@@ -120,7 +136,7 @@ typedef struct
 
 #define COMMAND_ID_SET_AUDIO_PARAMS 73  // (added v.4.4) an audio_parameters_t struct
 
-#define COMMAND_ID_SET_CLOCK_SYNC_TYPE 80 // param is clock sync type enum (0..2)
+#define COMMAND_ID_SET_RXTX_SYNC_TYPE 80 // param is rxtx sync type enum (0..2)
 
 #define COMMAND_ID_RESET_CPU_SPEED 81 // (added v5.0)
 
@@ -136,11 +152,24 @@ typedef struct
 //    bit 3: enable developer vehicle video link stats
 //    bit 4: enable developer vehicle video link graphs
 //    bit 5: request sending of full mavlink/ltm telemetry packets
+//    bit 6: send back response in small segments (150 bytes each, for low rate radio links)
 
 //  byte 1:
 //    MAVLink sys id of the controller
 //  byte 2:
 //    wifi guard delay (0..100)
+//  byte 3:
+//    bit 0..3: radio interfaces graph refresh interval: 1...6, same translation to miliseconds as for nGraphRadioRefreshInterval: 10,20,50,100,200,500 ms
+//
+// Response has one of two types:
+//   * the zip model settings, if single packet mode was set (more than 150 bytes)
+//   * segments of the zip model settings, if multiple small segments response was requested (smaller than 150 bytes)
+//     each segment has:
+//               1 byte: file unique id
+//               1 byte: segment number
+//               1 byte: total segments
+//               1 byte: segment size
+//               N bytes - segment data (150 bytes)
 
 
 #define COMMAND_ID_GET_CURRENT_VIDEO_CONFIG 101
@@ -168,6 +197,8 @@ typedef struct
 
 #define COMMAND_ID_SET_DEVELOPER_FLAGS 205
 // u32 param - developer flags
+// extra params (optional):
+// u32 - radio rx loop timeout interval
 
 #define COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS 206
 

@@ -4,7 +4,7 @@
 #include "../base/config.h"
 #include "../base/commands.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -13,7 +13,7 @@ bool quit = false;
 
 #define MAX_BLOCKS_BUFFER 128
 
-t_packet_header_video_full s_BufferVideoPackets[MAX_BLOCKS_BUFFER][MAX_TOTAL_PACKETS_IN_BLOCK];
+t_packet_header_video_full_77 s_BufferVideoPackets[MAX_BLOCKS_BUFFER][MAX_TOTAL_PACKETS_IN_BLOCK];
 u32 s_BufferBlockIndexes[MAX_BLOCKS_BUFFER];
 
 int s_iCurrentEncodingRecvPackets = 0;
@@ -23,7 +23,7 @@ int s_iCurrentEncodingBlockPackets = 0;
 int s_iCurrentEncodingBlockFECs = 0;
 int s_iCurrentEncodingBlockRetrans = 0;
 
-void check_encoding_change(t_packet_header_video_full* pdpv)
+void check_encoding_change(t_packet_header_video_full_77* pdpv)
 {
    bool schemeChanged = false;
    if ( s_iCurrentEncodingScheme != pdpv->encoding_scheme )
@@ -49,7 +49,7 @@ void check_encoding_change(t_packet_header_video_full* pdpv)
    {
       s_BufferBlockIndexes[i] = MAX_U32;
       for( int j=0; j<MAX_TOTAL_PACKETS_IN_BLOCK; j++ )
-          memset(&(s_BufferVideoPackets[i][j]), 0, sizeof(t_packet_header_video_full));
+          memset(&(s_BufferVideoPackets[i][j]), 0, sizeof(t_packet_header_video_full_77));
    }
    log_line("---Encoding scheme changed to:");
    log_line("    Blocks: packets/fecs/retr: %d/%d/%d", s_iCurrentEncodingBlockPackets, s_iCurrentEncodingBlockFECs, s_iCurrentEncodingBlockRetrans);
@@ -59,9 +59,9 @@ void check_encoding_change(t_packet_header_video_full* pdpv)
 void parse_video_packet(u8* pBuffer, int payloadLength)
 {
    t_packet_header* pdph = NULL;
-   t_packet_header_video_full* pdpv = NULL;
+   t_packet_header_video_full_77* pdpv = NULL;
    pdph = (t_packet_header*)pBuffer;
-   pdpv = (t_packet_header_video_full*)(pBuffer + sizeof(t_packet_header));
+   pdpv = (t_packet_header_video_full_77*)(pBuffer + sizeof(t_packet_header));
 
    printf(" Recv block %d, packet %d\n", pdpv->video_block_index, pdpv->video_block_packet_index);
    
@@ -91,10 +91,10 @@ void parse_video_packet(u8* pBuffer, int payloadLength)
       index = 0;
       s_BufferBlockIndexes[index] = MAX_U32;
       for( int j=0; j<MAX_TOTAL_PACKETS_IN_BLOCK; j++ )
-          memset(&(s_BufferVideoPackets[index][j]), 0, sizeof(t_packet_header_video_full));
+          memset(&(s_BufferVideoPackets[index][j]), 0, sizeof(t_packet_header_video_full_77));
    }
 
-   memcpy(&(s_BufferVideoPackets[index][pdpv->video_block_packet_index]), pdpv, sizeof(t_packet_header_video_full));
+   memcpy(&(s_BufferVideoPackets[index][pdpv->video_block_packet_index]), pdpv, sizeof(t_packet_header_video_full_77));
    s_BufferBlockIndexes[index] = pdpv->video_block_index;
 
    // received a full block?
@@ -108,7 +108,7 @@ void parse_video_packet(u8* pBuffer, int payloadLength)
       log_line("Out block index: %d", pdpv->video_block_index);
       s_BufferBlockIndexes[index] = MAX_U32;
       for( int j=0; j<MAX_TOTAL_PACKETS_IN_BLOCK; j++ )
-          memset(&(s_BufferVideoPackets[index][j]), 0, sizeof(t_packet_header_video_full));
+          memset(&(s_BufferVideoPackets[index][j]), 0, sizeof(t_packet_header_video_full_77));
    }
 
 }
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
    
    if ( freq != -1 )
    {
-      launch_set_frequency(-1, freq, NULL);
+      radio_utils_set_interface_frequency(-1, freq, NULL);
       hardware_sleep_ms(100);
    }
 

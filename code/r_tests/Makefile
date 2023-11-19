@@ -5,7 +5,7 @@ CFLAGS := $(CFLAGS)
 RELEASE_DIR = ../../
 
 
-all: test_port_rx test_udp_server test_udp_client test_serial_link
+all: test_port_rx test_udp_server test_udp_client test_serial_link test_audio test_keyboard
 
 base.o: ../base/base.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -13,7 +13,7 @@ base.o: ../base/base.c
 alarms.o: ../base/alarms.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
 
-launchers.o: ../base/launchers.cpp
+radio_utils.o: ../base/radio_utils.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 config.o: ../base/config.c
@@ -43,6 +43,9 @@ hardware_i2c.o: ../base/hardware_i2c.c
 string_utils.o: ../common/string_utils.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
+ctrl_preferences.o: ../base/ctrl_preferences.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+ 
 render_engine.o: ../renderer/render_engine.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)
 
@@ -64,10 +67,16 @@ shared_mem.o: ../base/shared_mem.c
 utils.o: ../base/utils.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
+relay_utils.o: ../common/relay_utils.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
+
 radio_stats.o: ../common/radio_stats.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
 
 models.o: ../base/models.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
+
+models_list.o: ../base/models_list.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
 commands.o: ../base/commands.cpp
@@ -85,56 +94,72 @@ radiotap.o: ../radio/radiotap.c
 radiopackets2.o: ../radio/radiopackets2.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
+radiopackets_short.o: ../radio/radiopackets_short.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
 radiolink.o: ../radio/radiolink.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-test_ruby_vehicle_ping: test_ruby_vehicle_ping.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o hardware_serial.o
+radio_rx.o: ../radio/radio_rx.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
+radio_tx.o: ../radio/radio_tx.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_duplicate_det.o: ../radio/radio_duplicate_det.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+test_audio: test_audio.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
+	g++ -o $@ $^ $(LDFLAGS)  
+	cp -f test_audio $(RELEASE_DIR) 
+
+test_ruby_vehicle_ping: test_ruby_vehicle_ping.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o hardware_serial.o
 	g++ -o $@ $^ $(LDFLAGS)  
 
-test_link_speed: test_link_speed.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o encr.o  hardware_serial.o
+test_link_speed: test_link_speed.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o  hardware_serial.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_link_speed $(RELEASE_DIR) 
 
-test_port_rx: test_port_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o
+test_port_rx: test_port_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_port_rx $(RELEASE_DIR) 
 
-test_port_tx: test_port_tx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o hardware_serial.o
+test_port_tx: test_port_tx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o hardware_serial.o radio_rx.o radio_tx.o radio_duplicate_det.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_port_tx $(RELEASE_DIR) 
 
-test_video_rx: test_video_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o hardware_serial.o
+test_video_rx: test_video_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o hardware_serial.o radio_rx.o radio_tx.o radio_duplicate_det.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_video_rx $(RELEASE_DIR) 
 
-test_log: test_log.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_log: test_log.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 
-test_camera: test_camera.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_camera: test_camera.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_camera $(RELEASE_DIR) 
 
-test_joystick: test_joystick.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o
+test_joystick: test_joystick.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_joystick $(RELEASE_DIR) 
 
-test_i2c: test_i2c.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_i2c: test_i2c.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_i2c $(RELEASE_DIR) 
 
-test_socket_in: test_socket_in.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_socket_in: test_socket_in.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_socket_in $(RELEASE_DIR) 
 
-test_socket_out: test_socket_out.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_socket_out: test_socket_out.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_socket_out $(RELEASE_DIR) 
 
-test_serial_read: test_serial_read.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o
+test_serial_read: test_serial_read.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o radio_rx.o radio_tx.o radio_duplicate_det.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_serial_read $(RELEASE_DIR) 
 
-test_ui: test_ui.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o render_engine.o render_engine_ovg.o render_engine_raw.o fontsystem.o
+test_ui: test_ui.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o render_engine.o render_engine_ovg.o render_engine_raw.o fontsystem.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_ui $(RELEASE_DIR) 
 
@@ -146,7 +171,7 @@ test_udp_server: test_udp_server.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_udp_server $(RELEASE_DIR) 
 
-test_fec: test_fec.o base.o fec.o config.o hardware.o gpio.o launchers.o shared_mem.o models.o radiotap.o radiolink.o hw_procs.o radiopackets2.o utils.o encr.o
+test_fec: test_fec.o base.o fec.o config.o hardware.o gpio.o radio_utils.o shared_mem.o models.o models_list.o radiotap.o radiolink.o hw_procs.o radiopackets2.o utils.o encr.o
 	g++ -o $@ $^ $(LDFLAGS)   
 	cp -f test_fec $(RELEASE_DIR) 
 
@@ -154,9 +179,13 @@ test_wiringpi_spi: test_wiringpi_spi.o
 	g++ -o $@ $^ $(LDFLAGS)   
 	cp -f test_wiringpi_spi $(RELEASE_DIR) 
 
-test_serial_link: test_serial_link.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o gpio.o commands.o launchers.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o
+test_keyboard: test_keyboard.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
+	g++ -o $@ $^ $(LDFLAGS)   
+	cp -f test_keyboard $(RELEASE_DIR) 
+
+test_serial_link: test_serial_link.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o  utils.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_serial_link $(RELEASE_DIR) 
 
 clean:
-	rm -f test_wiringpi_spi test_serial_link test_link_speed test_udp_client test_udp_server test_ruby_vehicle_ping test_port_rx test_port_tx test_log test_camera test_video_rx test_joystick test_i2c test_socket_in test_socket_out test_serial_read test_ui test_fec *.o
+	rm -f test_keyboard test_audio test_wiringpi_spi test_serial_link test_link_speed test_udp_client test_udp_server test_ruby_vehicle_ping test_port_rx test_port_tx test_log test_camera test_video_rx test_joystick test_i2c test_socket_in test_socket_out test_serial_read test_ui test_fec *.o

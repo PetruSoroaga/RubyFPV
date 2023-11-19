@@ -36,20 +36,30 @@ Code written by: Petru Soroaga, 2021-2023
 
 
 #define PROFILE_IPC 1
-#define PROFILE_IPC_MAX_TIME 5
+#define PROFILE_IPC_MAX_TIME 20
 
 #define MAX_CHANNELS 32
 
+int s_iRubyIPCChannelsUniqueIds[MAX_CHANNELS];
 int s_iRubyIPCChannelsFd[MAX_CHANNELS];
 int s_iRubyIPCChannelsType[MAX_CHANNELS];
+u8  s_uRubyIPCChannelsMsgId[MAX_CHANNELS];
 key_t s_uRubyIPCChannelsKeys[MAX_CHANNELS];
 
+static int s_iRubyIPCChannelsUniqueIdCounter = 1;
+
 int s_iRubyIPCChannelsCount = 0;
+
+static int s_iRubyIPCCountReadErrors = 0;
 
 typedef struct
 {
     long type;
     char data[ICP_CHANNEL_MAX_MSG_SIZE];
+    // byte 0...3: CRC
+    // byte 4: message type
+    // byte 5..6: message data length
+    // data
 } type_ipc_message_buffer;
 
 
@@ -116,6 +126,18 @@ char* _ruby_ipc_get_pipe_name(int nChannelType )
       strcpy(s_szRubyPipeName, FIFO_RUBY_COMMANDS_TO_ROUTER);
 
    return s_szRubyPipeName;
+}
+
+
+void _ruby_ipc_log_channels()
+{
+   log_line("[IPC] Currently opened channels: %d:", s_iRubyIPCChannelsCount);
+   for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
+   {
+      log_line("[IPC] Channel %d: unique id: %d, fd: %d, type: %s, key %u",
+         i+1, s_iRubyIPCChannelsUniqueIds[i], s_iRubyIPCChannelsFd[i],
+         _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[i]), (u32)s_uRubyIPCChannelsKeys[i]);
+   }
 }
 
 
@@ -192,7 +214,12 @@ void ruby_clear_all_ipc_channels()
    #ifdef RUBY_USES_MSGQUEUES
 
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
-      msgctl(s_iRubyIPCChannelsFd[i],IPC_RMID,NULL);
+   {
+      int iRes = msgctl(s_iRubyIPCChannelsFd[i],IPC_RMID,NULL);
+      if ( iRes < 0 )
+         log_softerror_and_alarm("[IPC] Failed to remove msgque [%s], error code: %d, error: %s",
+          _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[i]), errno, strerror(errno));
+   }
    s_iRubyIPCChannelsCount = 0;
 
    #endif
@@ -205,16 +232,17 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
       if ( s_iRubyIPCChannelsType[i] == nChannelType )
       if ( s_iRubyIPCChannelsFd[i] > 0 )
-         return s_iRubyIPCChannelsFd[i];
+      if ( s_iRubyIPCChannelsUniqueIds[i] > 0 )
+         return s_iRubyIPCChannelsUniqueIds[i];
 
-   log_line("[IPC] Opening IPC channel %s write endpoint...", _ruby_ipc_get_channel_name(nChannelType));
    if ( s_iRubyIPCChannelsCount >= MAX_CHANNELS )
    {
-      log_error_and_alarm("[IPC] Can't open more IPC channels. List full.");
+      log_error_and_alarm("[IPC] Can't open %s channel. No more IPC channels. List full.", _ruby_ipc_get_channel_name(nChannelType));
       return 0;
    }
 
    s_iRubyIPCChannelsType[s_iRubyIPCChannelsCount] = nChannelType;
+   s_uRubyIPCChannelsMsgId[s_iRubyIPCChannelsCount] = 0;
 
    #ifdef RUBY_USE_FIFO_PIPES
 
@@ -228,13 +256,13 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
    s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] = open(szPipeName, O_WRONLY | (RUBY_PIPES_EXTRA_FLAGS & (~O_NONBLOCK)));
    if ( s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] < 0 )
    {
-      log_error_and_alarm("[IPC] Failed to open IPC channel %s write endpoint.", _ruby_ipc_get_channel_name(nChannelType));
+      log_error_and_alarm("[IPC] Failed to open IPC channel %s pipe write endpoint.", _ruby_ipc_get_channel_name(nChannelType));
       return 0;
    }
 
    if ( RUBY_PIPES_EXTRA_FLAGS & O_NONBLOCK )
    if ( 0 != fcntl(s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount], F_SETFL, O_NONBLOCK) )
-      log_softerror_and_alarm("[IPC] Failed to set nonblock flag on PIC channel %s write endpoint.", _ruby_ipc_get_channel_name(nChannelType));
+      log_softerror_and_alarm("[IPC] Failed to set nonblock flag on PIC channel %s pipe write endpoint.", _ruby_ipc_get_channel_name(nChannelType));
 
    log_line("[IPC] FIFO write endpoint pipe flags: %s", str_get_pipe_flags(fcntl(s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount], F_GETFL)));
    
@@ -243,15 +271,25 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
    #ifdef RUBY_USES_MSGQUEUES
 
    key_t key;
-
    key = ftok("ruby_logger", nChannelType);
-   s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] = msgget(key, 0222 | IPC_CREAT);
-   if ( s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] < 0 )
+
+   if ( key < 0 )
    {
-      log_softerror_and_alarm("[IPC] Failed to create IPC message queue write endpoint for channel: ", _ruby_ipc_get_channel_name(nChannelType));
-      return -1;
+      log_softerror_and_alarm("[IPC] Failed to generate message queue key for channel %s. Error: %d, %s",
+         _ruby_ipc_get_channel_name(nChannelType),
+         errno, strerror(errno));
+      return 0;
    }
    s_uRubyIPCChannelsKeys[s_iRubyIPCChannelsCount] = key;
+   s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] = msgget(key, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+   if ( s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] < 0 )
+   {
+      log_softerror_and_alarm("[IPC] Failed to create IPC message queue write endpoint for channel %s, error %d, %s",
+         _ruby_ipc_get_channel_name(nChannelType), errno, strerror(errno));
+      log_line("%d %d %d", ENOENT, EACCES, ENOTDIR);
+      return -1;
+   }
 
    //struct msqid_ds msg_stats;
    //if ( 0 != msgctl(s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount], IPC_STAT, &msg_stats) )
@@ -267,11 +305,16 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
 
    #endif
 
+   s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount] = s_iRubyIPCChannelsUniqueIdCounter;
+   s_iRubyIPCChannelsUniqueIdCounter++;
+
    s_iRubyIPCChannelsCount++;
    
-   log_line("[IPC] Opened IPC channel %s write endpoint: success, id: %d. (%d channels currently opened).", _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
+   log_line("[IPC] Opened IPC channel %s write endpoint: success, fd: %d, id: %d. (%d channels currently opened).",
+      _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
    _check_ruby_ipc_consistency();
-   return s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1];
+   _ruby_ipc_log_channels();
+   return s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1];
 }
 
 int ruby_open_ipc_channel_read_endpoint(int nChannelType)
@@ -279,16 +322,17 @@ int ruby_open_ipc_channel_read_endpoint(int nChannelType)
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
       if ( s_iRubyIPCChannelsType[i] == nChannelType )
       if ( s_iRubyIPCChannelsFd[i] > 0 )
-         return s_iRubyIPCChannelsFd[i];
+      if ( s_iRubyIPCChannelsUniqueIds[i] > 0 )
+         return s_iRubyIPCChannelsUniqueIds[i];
 
-   log_line("[IPC] Opening IPC channel %s read endpoint...", _ruby_ipc_get_channel_name(nChannelType));
    if ( s_iRubyIPCChannelsCount >= MAX_CHANNELS )
    {
-      log_error_and_alarm("[IPC] Can't open more IPC channels. List full.");
+      log_error_and_alarm("[IPC] Can't open %s channel. No more IPC channels. List full.", _ruby_ipc_get_channel_name(nChannelType));
       return 0;
    }
 
    s_iRubyIPCChannelsType[s_iRubyIPCChannelsCount] = nChannelType;
+   s_uRubyIPCChannelsMsgId[s_iRubyIPCChannelsCount] = 0;
 
    #ifdef RUBY_USE_FIFO_PIPES
 
@@ -314,15 +358,25 @@ int ruby_open_ipc_channel_read_endpoint(int nChannelType)
    #ifdef RUBY_USES_MSGQUEUES
 
    key_t key;
-
    key = ftok("ruby_logger", nChannelType);
-   s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] = msgget(key, 0444 | IPC_CREAT);
+
+   if ( key < 0 )
+   {
+      log_softerror_and_alarm("[IPC] Failed to generate message queue key for channel %s. Error: %d, %s",
+         _ruby_ipc_get_channel_name(nChannelType),
+         errno, strerror(errno));
+      log_line("%d %d %d", ENOENT, EACCES, ENOTDIR);
+      return 0;
+   }
+
+   s_uRubyIPCChannelsKeys[s_iRubyIPCChannelsCount] = key;
+   s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] = msgget(key, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
    if ( s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount] < 0 )
    {
-      log_softerror_and_alarm("[IPC] Failed to create IPC message queue read endpoint for channel: ", _ruby_ipc_get_channel_name(nChannelType));
+      log_softerror_and_alarm("[IPC] Failed to create IPC message queue read endpoint for channel %s, error %d, %s",
+         _ruby_ipc_get_channel_name(nChannelType), errno, strerror(errno));
       return -1;
    }
-   s_uRubyIPCChannelsKeys[s_iRubyIPCChannelsCount] = key;
 
    //struct msqid_ds msg_stats;
    //if ( 0 != msgctl(s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount], IPC_STAT, &msg_stats) )
@@ -337,91 +391,130 @@ int ruby_open_ipc_channel_read_endpoint(int nChannelType)
    //   log_line("[IPC] IPC channels pools max: %u bytes, max msg size: %u bytes, max msg queue total size: %u bytes", (u32)msg_info.msgpool, (u32)msg_info.msgmax, (u32)msg_info.msgmnb);
    #endif
 
+   s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount] = s_iRubyIPCChannelsUniqueIdCounter;
+   s_iRubyIPCChannelsUniqueIdCounter++;
+
    s_iRubyIPCChannelsCount++;
    
-   log_line("[IPC] Opened IPC channel %s read endpoint: success, id: %d. (%d channels currently opened).", _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
+   log_line("[IPC] Opened IPC channel %s read endpoint: success, fd: %d, id: %d. (%d channels currently opened).",
+      _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
    _check_ruby_ipc_consistency();
-   return s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1];
+   _ruby_ipc_log_channels();
+   return s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1];
 }
 
-int ruby_close_ipc_channel(int iChannelFd)
+int ruby_close_ipc_channel(int iChannelUniqueId)
 {
-   if ( iChannelFd < 0 )
+   int fdToClose = 0;
+   int iChannelIndex = -1;
+   for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
+   {
+      if ( s_iRubyIPCChannelsUniqueIds[i] == iChannelUniqueId )
+      {
+         fdToClose = s_iRubyIPCChannelsFd[i];
+         iChannelIndex = i;
+         break;
+      }
+   }
+
+   if ( (iChannelUniqueId < 0) || (fdToClose < 0) || (-1 == iChannelIndex) )
    {
       log_softerror_and_alarm("[IPC] Tried to close invalid IPC channel.");
       return 0;
    }
 
+   if ( fdToClose == 0 )
+      log_softerror_and_alarm("[IPC] Warning: closing invalid fd 0 for unique channel %d, channel index %d, (%s)",
+       iChannelUniqueId, iChannelIndex, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iChannelIndex]));
+
    #ifdef RUBY_USE_FIFO_PIPES
-   close(iChannelFd);
+   if ( fdToClose >= 0 )
+      close(fdToClose);
    #endif
 
    #ifdef RUBY_USES_MSGQUEUES
-   msgctl(iChannelFd,IPC_RMID,NULL);
+   if ( fdToClose >= 0 )
+      msgctl(fdToClose,IPC_RMID,NULL);
    #endif
 
-   int iFound = 0;
 
-   for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
+   log_line("[IPC] Closed IPC channel %s, channel index %d, unique id %d, fd %d",
+       _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iChannelIndex]),
+       iChannelIndex, iChannelUniqueId, fdToClose);
+   for( int k=iChannelIndex; k<s_iRubyIPCChannelsCount-1; k++ )
    {
-      if ( s_iRubyIPCChannelsFd[i] == iChannelFd )
-      {
-         iFound = 1;
-         log_line("[IPC] Closed IPC channel %s", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[i]));
-         for( int k=i; k<s_iRubyIPCChannelsCount-1; k++ )
-         {
-            s_iRubyIPCChannelsFd[k] = s_iRubyIPCChannelsFd[k+1];
-            s_iRubyIPCChannelsType[k] = s_iRubyIPCChannelsType[k+1];
-         }
-         s_iRubyIPCChannelsCount--;
-         break;
-      }
+      s_iRubyIPCChannelsFd[k] = s_iRubyIPCChannelsFd[k+1];
+      s_uRubyIPCChannelsKeys[k] = s_uRubyIPCChannelsKeys[k+1];
+      s_iRubyIPCChannelsType[k] = s_iRubyIPCChannelsType[k+1];
+      s_iRubyIPCChannelsUniqueIds[k] = s_iRubyIPCChannelsUniqueIds[k+1];
+      s_uRubyIPCChannelsMsgId[k] = s_uRubyIPCChannelsMsgId[k+1];
+
    }
-   if ( ! iFound )
-      log_softerror_and_alarm("[IPC] Closed unknown IPC channel.");
+   s_iRubyIPCChannelsCount--;
+  
+   _ruby_ipc_log_channels();
    return 1;
 }
 
-int ruby_ipc_channel_send_message(int iChannelFd, u8* pMessage, int iLength)
+int ruby_ipc_channel_send_message(int iChannelUniqueId, u8* pMessage, int iLength)
 {
-   if ( iChannelFd < 0 || s_iRubyIPCChannelsCount == 0 )
+   if ( iChannelUniqueId < 0 || s_iRubyIPCChannelsCount == 0 )
    {
-      log_softerror_and_alarm("[IPC] Tried to write a message to an invalid channel (%d)", iChannelFd );
+      log_softerror_and_alarm("[IPC] Tried to write a message to an invalid channel (unique id %d)", iChannelUniqueId );
       return 0;
    }
 
-   int iFound = -1;
-
+   int iFoundIndex = -1;
+   int iChannelFd = 0;
+   //int iChannelType = 0;
+   //u8 uChannelMsgId = 0;
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
-      if ( s_iRubyIPCChannelsFd[i] == iChannelFd )
+   {
+      if ( s_iRubyIPCChannelsUniqueIds[i] == iChannelUniqueId )
       {
-         iFound = i;
+         iChannelFd = s_iRubyIPCChannelsFd[i];
+         //iChannelType = s_iRubyIPCChannelsType[i];
+         //uChannelMsgId = s_uRubyIPCChannelsMsgId[i];
+         iFoundIndex = i;
          break;
       }
+   }
 
-   if ( iFound == -1 )
+   if ( iFoundIndex == -1 )
    {
-      log_softerror_and_alarm("[IPC] Tried to write a message to an invalid channel (%d) not in the list (%d channels active now).", iChannelFd, s_iRubyIPCChannelsCount);
+      log_softerror_and_alarm("[IPC] Tried to write a message to an invalid channel (unique id %d) not in the list (%d channels active now).", iChannelUniqueId, s_iRubyIPCChannelsCount);
+      return 0;
+   }
+
+   if ( iChannelFd < 0 )
+   {
+      log_softerror_and_alarm("[IPC] Tried to write a message to an invalid channel fd %d (unique id %d)", iChannelFd, iChannelUniqueId);
       return 0;
    }
 
    if ( NULL == pMessage || 0 == iLength )
    {
-      log_softerror_and_alarm("[IPC] Tried to write an invalid message (null or 0) on channel %s", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+      log_softerror_and_alarm("[IPC] Tried to write an invalid message (null or 0) on channel %s, channel unique id %d", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iChannelUniqueId );
       return 0;
    }
 
    if ( iLength >= ICP_CHANNEL_MAX_MSG_SIZE-6 )
    {
-      log_softerror_and_alarm("[IPC] Tried to write a message too big (%d bytes) on channel %s", iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+      log_softerror_and_alarm("[IPC] Tried to write a message too big (%d bytes) on channel %s, channel unique id %d", iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iChannelUniqueId );
       return 0;
    }
+
+   u32 crc = base_compute_crc32(pMessage + sizeof(u32), iLength-sizeof(u32)); 
+   u32* pTmp = (u32*)pMessage;
+   *pTmp = crc;
 
    int res = 0;
    
    #ifdef PROFILE_IPC
    u32 uTimeStart = get_current_timestamp_ms();
    #endif
+
+   s_uRubyIPCChannelsMsgId[iFoundIndex]++;
 
    #ifdef RUBY_USE_FIFO_PIPES
    res = write(iChannelFd, pMessage, iLength);
@@ -432,35 +525,90 @@ int ruby_ipc_channel_send_message(int iChannelFd, u8* pMessage, int iLength)
    type_ipc_message_buffer msg;
 
    msg.type = 1;
-   msg.data[4] = ((u32)iLength) & 0xFF; 
-   msg.data[5] = (((u32)iLength)>>8) & 0xFF;
-   memcpy((u8*)&(msg.data[6]), pMessage, iLength); 
-   u32 uCRC = base_compute_crc32((u8*)&(msg.data[4]), iLength+2);
+   msg.data[4] = s_uRubyIPCChannelsMsgId[iFoundIndex];
+   msg.data[5] = ((u32)iLength) & 0xFF; 
+   msg.data[6] = (((u32)iLength)>>8) & 0xFF;
+   memcpy((u8*)&(msg.data[7]), pMessage, iLength); 
+   u32 uCRC = base_compute_crc32((u8*)&(msg.data[4]), iLength+3);
    memcpy((u8*)&(msg.data[0]), (u8*)&uCRC, sizeof(u32));
-   if ( 0 == msgsnd(iChannelFd, &msg, sizeof(msg), IPC_NOWAIT) )
+
+   int iRetryCounter = 2;
+   int iRetriedToRecreate = 0;
+
+   do
    {
-      res = iLength;
-      //log_line("[IPC] Send IPC message on channel %s: %d bytes, crc: %u", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), iLength, uCRC);
-   }
-   else
-   {
+      if ( 0 == msgsnd(iChannelFd, &msg, iLength + 7, IPC_NOWAIT) )
+      {
+         if ( iRetriedToRecreate )
+            log_line("[IPC] Succeded to send message after recreation of the channel.");
+         //log_line("[IPC] Sent message ok to %s, id: %d, %d bytes, CRC: %u", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), msg.data[4], iLength, uCRC);
+         res = iLength;
+         iRetryCounter = 0;
+         break;
+         //log_line("[IPC] Send IPC message on channel %s: %d bytes, crc: %u", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iLength, uCRC);
+      }
+   
       res = 0;
+      int iRetryWriteOnly = 0;
+
       if ( errno == EAGAIN )
-         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EAGAIN", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+      {
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EAGAIN", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]) );
+         iRetryWriteOnly = 1;
+      }
       if ( errno == EACCES )
-         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EACCESS", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EACCESS", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]) );
       if ( errno == EIDRM )
-         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EIDRM", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EIDRM", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]) );
       if ( errno == EINVAL )
-         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EINVAL", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %s, error code: EINVAL", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]) );
 
 
       struct msqid_ds msg_stats;
-      if ( 0 != msgctl(s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount], IPC_STAT, &msg_stats) )
-         log_softerror_and_alarm("[IPC] Failed to get statistics on ICP message queue %s", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+      if ( 0 != msgctl(iChannelFd, IPC_STAT, &msg_stats) )
+         log_softerror_and_alarm("[IPC] Failed to get statistics on ICP message queue %s, fd %d, unique id %d",
+           _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iChannelFd, iChannelUniqueId );
       else
-         log_line("[IPC] Channel %s info: %u pending messages, %u used bytes, max bytes in the IPC channel: %u bytes", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), (u32)msg_stats.msg_qnum, (u32)msg_stats.msg_cbytes, (u32)msg_stats.msg_qbytes);
-   }
+      {
+         log_line("[IPC] Channel %s (fd %d, unique id %d) info: %u pending messages, %u used bytes, max bytes in the IPC channel: %u bytes",
+            _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]),
+            iChannelFd, iChannelUniqueId,
+            (u32)msg_stats.msg_qnum, (u32)msg_stats.msg_cbytes, (u32)msg_stats.msg_qbytes);
+
+         if ( msg_stats.msg_cbytes > (msg_stats.msg_qbytes * 80)/100 )
+            iRetryWriteOnly = 1;
+      }
+
+      if ( iRetryWriteOnly )
+         log_line("[IPC] Retry write operation only (%d)...", iRetryCounter);
+      else
+         break;
+      /*else if ( 0 == iRetriedToRecreate )
+      {
+         t_packet_header* pPH = (t_packet_header*)pMessage;
+         log_softerror_and_alarm("[IPC] Failed to write a message (id: %d, %d bytes) on channel %s, ch unique id %d. Only %d bytes written (Message component: %d, msg type: %d, msg length:%d).",
+            msg.data[4], iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iChannelUniqueId, res, (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->packet_type, pPH->total_length);
+         log_line("[IPC] Try to recreate channel, unique id: %d, fd %d", iChannelUniqueId, iChannelFd);
+         ruby_close_ipc_channel(iChannelUniqueId);
+         ruby_open_ipc_channel_write_endpoint(iChannelType);
+         iFoundIndex = s_iRubyIPCChannelsCount-1;
+         s_iRubyIPCChannelsUniqueIds[iFoundIndex] = iChannelUniqueId;
+         s_uRubyIPCChannelsMsgId[iFoundIndex] = uChannelMsgId-1;
+         iChannelFd = s_iRubyIPCChannelsFd[iFoundIndex];
+         log_line("[IPC] Recreated channel, unique id: %d, fd %d, type: %s",
+             s_iRubyIPCChannelsUniqueIds[iFoundIndex],
+             s_iRubyIPCChannelsFd[iFoundIndex],
+             _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]));
+
+         iRetriedToRecreate = 1;
+      }
+      else
+         log_line("[IPC] Retry write operation (%d)...", iRetryCounter);
+      */
+      iRetryCounter--;
+      hardware_sleep_ms(20);
+
+   } while (iRetryCounter > 0);
    #endif
 
    #ifdef PROFILE_IPC
@@ -468,51 +616,53 @@ int ruby_ipc_channel_send_message(int iChannelFd, u8* pMessage, int iLength)
    if ( uTimeTotal > PROFILE_IPC_MAX_TIME )
    {
       t_packet_header* pPH = (t_packet_header*)pMessage;
-      log_softerror_and_alarm("[IPC] Write message (%d bytes) on channel %s took too long (%u ms) (Message component: %d, msg type: %d, msg length:%d).", iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), uTimeTotal, (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->packet_type, pPH->total_length);
+      log_softerror_and_alarm("[IPC] Write message (id: %d, %d bytes) on channel %s took too long (%u ms) (Message component: %d, msg type: %d, msg length:%d).", msg.data[4], iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), uTimeTotal, (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->packet_type, pPH->total_length);
    }
    #endif
-
-   if ( res != iLength )
-   {
-      t_packet_header* pPH = (t_packet_header*)pMessage;
-      log_softerror_and_alarm("[IPC] Failed to write a message (%d bytes) on channel %s. Only %d bytes written (Message component: %d, msg type: %d, msg length:%d).", iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), res, (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->packet_type, pPH->total_length);
-      return 0;
-   }
 
    return res;
 }
 
 
-u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer)
+u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer)
 {
-   if ( iChannelFd < 0 || s_iRubyIPCChannelsCount == 0 )
+   if ( iChannelUniqueId < 0 || s_iRubyIPCChannelsCount == 0 )
    {
-      log_softerror_and_alarm("[IPC] Tried to read a message from an invalid channel (%d)", iChannelFd );
+      log_softerror_and_alarm("[IPC] Tried to read a message from an invalid channel (unique id %d)", iChannelUniqueId );
       return NULL;
    }
 
-   int iFound = -1;
-
+   int iFoundIndex = -1;
+   int iChannelFd = 0;
+   int iChannelType = 0;
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
-      if ( s_iRubyIPCChannelsFd[i] == iChannelFd )
+   {
+      if ( s_iRubyIPCChannelsUniqueIds[i] == iChannelUniqueId )
       {
-         iFound = i;
+         iChannelFd = s_iRubyIPCChannelsFd[i];
+         iChannelType = s_iRubyIPCChannelsType[i];
+         iFoundIndex = i;
          break;
       }
+   }
 
-   if ( iFound == -1 )
+   if ( iFoundIndex == -1 )
    {
-      log_softerror_and_alarm("[IPC] Tried to read a message from an invalid channel (%d) not in the list (%d channels active now).", iChannelFd, s_iRubyIPCChannelsCount);
+      log_softerror_and_alarm("[IPC] Tried to read a message from an invalid channel (unique id %d) not in the list (%d channels active now).", iChannelUniqueId, s_iRubyIPCChannelsCount);
       return NULL;
    }
 
    if ( NULL == pTempBuffer || NULL == pTempBufferPos || NULL == pOutputBuffer )
    {
-      log_softerror_and_alarm("[IPC] Tried to read a message into a NULL buffer on channel %s", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+      log_softerror_and_alarm("[IPC] Tried to read a message into a NULL buffer on channel %s", _ruby_ipc_get_channel_name(iChannelType) );
       return NULL;
    }
 
+   if ( timeoutMicrosec > 10000 )
+      log_softerror_and_alarm("[IPC] Called reading pipe with a timeout too big (%d milisec).", timeoutMicrosec/1000);
+   
    u8* pReturn = NULL;
+   int lenReadIPCMsgQueue = 0;
 
    #ifdef PROFILE_IPC
    u32 uTimeStart = get_current_timestamp_ms();
@@ -530,8 +680,9 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
 
    if ( ((*pTempBufferPos) >= (int)sizeof(t_packet_header)) && (*pTempBufferPos) >= pPH->total_length )
    {
-      if ( ! packet_check_crc( pTempBuffer, pPH->total_length ) )
+      if ( ! base_check_crc32( pTempBuffer, pPH->total_length ) )
       {
+         log_softerror_and_alarm("[IPC] Invalid read buffers for channel [%s]. Reseting read buffer to 0.", _ruby_ipc_get_channel_name(iChannelType));
          // invalid data. just reset buffers.
          *pTempBufferPos = 0;
       }
@@ -565,7 +716,7 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
          int count = read(iChannelFd, pTempBuffer+(*pTempBufferPos), MAX_PACKET_TOTAL_SIZE-(*pTempBufferPos));
          if ( count < 0 )
          {
-             log_error_and_alarm("[IPC] Failed to read FIFO pipe %s. Broken pipe.", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]) );
+             log_error_and_alarm("[IPC] Failed to read FIFO pipe %s. Broken pipe.", _ruby_ipc_get_channel_name(iChannelType) );
          }
          else
          {
@@ -573,8 +724,9 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
 
             if ( ((*pTempBufferPos) >= (int)sizeof(t_packet_header)) && (*pTempBufferPos) >= pPH->total_length )
             {
-               if ( ! packet_check_crc( pTempBuffer, pPH->total_length ) )
+               if ( ! base_check_crc32( pTempBuffer, pPH->total_length ) )
                {
+                  log_softerror_and_alarm("[IPC] Invalid read buffers for channel [%s]. Reseting read buffer to 0.", _ruby_ipc_get_channel_name(iChannelType));
                   // invalid data. just reset buffers.
                   *pTempBufferPos = 0;
                }
@@ -601,24 +753,24 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
    
    u32 uTimeStartReadIpc = get_current_timestamp_ms();
 
-   int lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, sizeof(ipcMessage), 0, IPC_NOWAIT);
-   if ( lenReadIPCMsgQueue > 0 )
+   lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, ICP_CHANNEL_MAX_MSG_SIZE, 0, IPC_NOWAIT);
+   if ( lenReadIPCMsgQueue > 6 )
    {
-      int iMsgLen = ipcMessage.data[4] + 256*(int)ipcMessage.data[5];
+      int iMsgLen = ipcMessage.data[5] + 256*(int)ipcMessage.data[6];
       if ( iMsgLen <= 0 || iMsgLen >= ICP_CHANNEL_MAX_MSG_SIZE - 6 )
-         log_softerror_and_alarm("[IPC] Received invalid message on channel %s, length: %d", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), iMsgLen );
+         log_softerror_and_alarm("[IPC] Received invalid message on channel %s, id: %d, length: %d", _ruby_ipc_get_channel_name(iChannelType), ipcMessage.data[4], iMsgLen );
       else
       {
-         u32 uCRC = base_compute_crc32((u8*)&(ipcMessage.data[4]), iMsgLen+2);
+         u32 uCRC = base_compute_crc32((u8*)&(ipcMessage.data[4]), iMsgLen+3);
          u32 uTmp = 0;
          memcpy((u8*)&uTmp, (u8*)&(ipcMessage.data[0]), sizeof(u32));
          if ( uCRC != uTmp )
-            log_softerror_and_alarm("[IPC] Received invalid CRC on channel %s on message, CRC: %u, msg length: %d", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), uCRC, iMsgLen );
+            log_softerror_and_alarm("[IPC] Received invalid CRC on channel %s on message id: %d, CRC computed/received: %u / %u, msg length: %d", _ruby_ipc_get_channel_name(iChannelType), ipcMessage.data[4], uCRC, uTmp, iMsgLen );
          else
          {
-            memcpy(pOutputBuffer, (u8*)&(ipcMessage.data[6]), iMsgLen);
+            memcpy(pOutputBuffer, (u8*)&(ipcMessage.data[7]), iMsgLen);
             pReturn = pOutputBuffer;
-            //log_line("[IPC] Received message ok on channel %s, length: %d, CRC: %u", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), iMsgLen, uCRC );
+            //log_line("[IPC] Received message ok on channel %s, id: %d, length: %d", _ruby_ipc_get_channel_name(iChannelType), ipcMessage.data[4], iMsgLen );
          }
       }
    }
@@ -629,8 +781,14 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
    u32 uTimeTotal = get_current_timestamp_ms() - uTimeStart;
    if ( (uTimeTotal > PROFILE_IPC_MAX_TIME + timeoutMicrosec/1000) || uTimeTotal >= 50 )
    {
-      log_softerror_and_alarm("[IPC] Read message on channel %s took too long (%u ms).", _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFound]), uTimeTotal );
+      s_iRubyIPCCountReadErrors++;
+      if ( lenReadIPCMsgQueue >= 0 )
+         log_softerror_and_alarm("[IPC] Read message (%d bytes) from channel %s took too long (%u ms). Error count: %d", lenReadIPCMsgQueue, _ruby_ipc_get_channel_name(iChannelType), uTimeTotal, s_iRubyIPCCountReadErrors );
+      else
+         log_softerror_and_alarm("[IPC] Try read message from channel %s took too long (%u ms). No message read. Error count: %d", _ruby_ipc_get_channel_name(iChannelType), uTimeTotal, s_iRubyIPCCountReadErrors );
    }
+   else
+      s_iRubyIPCCountReadErrors = 0;
    #endif
 
    #ifdef RUBY_USES_MSGQUEUES
@@ -638,10 +796,15 @@ u8* ruby_ipc_try_read_message(int iChannelFd, int timeoutMicrosec, u8* pTempBuff
    if ( timeoutMicrosec >= 1000 )
    {
       u32 uTimeDiffReadIPC = get_current_timestamp_ms() - uTimeStartReadIpc;
-      if ( (u32)timeoutMicrosec > uTimeDiffReadIPC*1000 + 200 )
-         hardware_sleep_micros((u32)timeoutMicrosec - uTimeDiffReadIPC*1000);
+      if ( (u32)timeoutMicrosec > uTimeDiffReadIPC*1000 + 1000 )
+         hardware_sleep_micros((u32)timeoutMicrosec - uTimeDiffReadIPC*1000 - 500);
    }
    #endif
 
    return pReturn;
+}
+
+int ruby_ipc_get_read_continous_error_count()
+{
+   return s_iRubyIPCCountReadErrors;
 }

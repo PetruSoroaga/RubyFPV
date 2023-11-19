@@ -2,8 +2,9 @@
 #include "../base/base.h"
 #include "../base/models.h"
 
+void controller_compute_cpu_info();
 
-void controller_launch_router();
+void controller_launch_router(bool bSearchMode);
 void controller_stop_router();
 
 void controller_launch_video_player();
@@ -14,9 +15,6 @@ void controller_stop_rx_telemetry();
 
 void controller_launch_tx_rc();
 void controller_stop_tx_rc();
-
-void controller_start_audio(Model* pModel);
-void controller_stop_audio();
 
 void controller_start_i2c();
 void controller_stop_i2c();

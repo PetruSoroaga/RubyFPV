@@ -20,6 +20,12 @@ encr.o: ../base/encr.c
 ctrl_settings.o: ../base/ctrl_settings.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
+ctrl_preferences.o: ../base/ctrl_preferences.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+ctrl_interfaces.o: ../base/ctrl_interfaces.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
+
 gpio.o: ../base/gpio.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
@@ -56,7 +62,10 @@ commands.o: ../base/commands.cpp
 models.o: ../base/models.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
-launchers.o: ../base/launchers.cpp
+models_list.o: ../base/models_list.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
+
+radio_utils.o: ../base/radio_utils.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 fec.o: fec.c
@@ -67,6 +76,9 @@ utils.o: ../base/utils.cpp
 
 controller_utils.o: ../base/controller_utils.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS) 
+
+relay_utils.o: ../common/relay_utils.cpp
+	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
 
 %.o: %.cpp
 	g++ $(CFLAGS) -c -o $@ $< $(CPPFLAGS)  
@@ -80,7 +92,22 @@ radiolink.o: ../radio/radiolink.c
 radiopackets2.o: ../radio/radiopackets2.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-ruby_start: ruby_start.o shared_mem.o base.o config.o hardware.o hw_procs.o models.o gpio.o launchers.o radiotap.o radiolink.o radiopackets2.o ctrl_settings.o utils.o encr.o hardware_i2c.o alarms.o hw_config_check.o string_utils.o hardware_radio.o controller_utils.o ruby_ipc.o hardware_serial.o hardware_radio_sik.o
+radiopackets_short.o: ../radio/radiopackets_short.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
+radio_rx.o: ../radio/radio_rx.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_tx.o: ../radio/radio_tx.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_duplicate_det.o: ../radio/radio_duplicate_det.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+radio_stats.o: ../common/radio_stats.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+ruby_start: ruby_start.o shared_mem.o base.o config.o hardware.o hw_procs.o models.o models_list.o gpio.o radio_utils.o radiotap.o radiolink.o radiopackets2.o radiopackets_short.o ctrl_settings.o utils.o encr.o hardware_i2c.o alarms.o string_utils.o hardware_radio.o controller_utils.o ruby_ipc.o hardware_serial.o hardware_radio_sik.o radio_rx.o radio_tx.o radio_duplicate_det.o radio_stats.o ctrl_preferences.o ctrl_interfaces.o relay_utils.o
 	g++ -o $@ $^ $(LDFLAGS)
 	cp -f ruby_start $(RELEASE_DIR)
 	$(info Copy ruby_start done)

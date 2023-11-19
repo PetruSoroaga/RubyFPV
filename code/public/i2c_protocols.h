@@ -163,7 +163,7 @@ typedef unsigned char u8;
 // Ask the slave device if they have any pending camera params changes (or wants to change something);
 // Master sends: 1 byte: command id;
 // Slave responds: 1 byte:
-// bit 0: 0 - no change; 1 - wants to do some changes
+// bit 0: 0 - no change; 1 - some changes are pending
 
 #define I2C_COMMAND_ID_CAMERA_CTRL_GET_PARAMS  0x51
 // Ask the slave device for the new camera params;

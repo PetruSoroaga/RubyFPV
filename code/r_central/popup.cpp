@@ -88,6 +88,7 @@ void popups_add_topmost(Popup* p)
       p->onShow();
       sPopupsTopmost[countPopupsTopmost] = p;
       countPopupsTopmost++;
+      log_line("Added topmost popup: [%s]", p->getTitle());
    }
 }
 
@@ -127,6 +128,7 @@ void popups_remove(Popup* p)
 
    if ( i < countPopupsTopmost && sPopupsTopmost[i] == p )
    {
+      log_line("Removed topmost popup: [%s]", p->getTitle());
       for( ; i<countPopupsTopmost-1; i++ )
          sPopupsTopmost[i] = sPopupsTopmost[i+1];
       countPopupsTopmost--;
@@ -135,35 +137,31 @@ void popups_remove(Popup* p)
 
 void popups_remove_all(Popup* pExceptionPopup)
 {
-   int iIndexException = -1;
+   int iCountExceptions = 0;
    for( int i=0; i<countPopups; i++ )
-      if ( (NULL != sPopups[i]) && (sPopups[i] == pExceptionPopup) )
-      {
-         iIndexException = i;
-         break;
-      }
-
-   countPopups = 0;
-   if ( iIndexException != -1 )
    {
-      countPopups = 1;
-      sPopups[0] = sPopups[iIndexException];
+      if ( NULL != sPopups[i] )
+      if ( (sPopups[i] == pExceptionPopup) || sPopups[i]->hasDisabledAutoRemove() )
+      {
+         sPopups[iCountExceptions] = sPopups[i];
+         iCountExceptions++;
+      }
    }
 
-   iIndexException = -1;
+   countPopups = iCountExceptions;
+
+   iCountExceptions = 0;
    for( int i=0; i<countPopupsTopmost; i++ )
-      if ( (NULL != sPopupsTopmost[i]) && (sPopupsTopmost[i] == pExceptionPopup) )
-      {
-         iIndexException = i;
-         break;
-      }
-
-   countPopupsTopmost = 0;
-   if ( iIndexException != -1 )
    {
-      countPopupsTopmost = 1;
-      sPopupsTopmost[0] = sPopupsTopmost[iIndexException];
+      if ( NULL != sPopupsTopmost[i] )
+      if ( (sPopupsTopmost[i] == pExceptionPopup) || sPopupsTopmost[i]->hasDisabledAutoRemove() )
+      {
+         sPopupsTopmost[iCountExceptions] = sPopupsTopmost[i];
+         iCountExceptions++;
+      }
    }
+
+   countPopupsTopmost = iCountExceptions;
 }
 
 void popups_render()
@@ -250,6 +248,7 @@ void popups_invalidate_all()
 
 Popup::Popup(const char* title, float x, float y, float timeoutSec)
 {
+   m_bDisableAutoRemove = false;
    m_LinesCount = 0;
    m_szTitle[0] = 0;
    if ( NULL != title )
@@ -260,30 +259,41 @@ Popup::Popup(const char* title, float x, float y, float timeoutSec)
       m_szTitle[pos] = 0;
       pos--;
    }
+   for( int i=0; i<MAX_POPUPS; i++ )
+      m_szLines[i] = NULL;
 
    m_xPos = x;
    m_yPos = y;
    m_fTimeoutSeconds = timeoutSec;
+   m_uTimeoutEndTime = 0;
+   if ( timeoutSec > 0.001 )
+      m_uTimeoutEndTime = g_TimeNow + 1000 * timeoutSec;
    m_bInvalidated = true;
    m_fMaxWidth = 0.8;
    m_fFixedWidth = 0.0;
    m_fBottomMargin = 0.0;
    m_RenderWidth = 0;
    m_RenderHeight = 0;
+   m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenuLarge;
+   m_idFont = g_idFontMenu;
    m_idIcon = 0;
-   m_pColorIcon = NULL;
+   m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = m_ColorIcon[3] = 0.0;
    m_fIconSize = 0;
    m_bCentered = false;
+   m_bCenterTexts = false;
    m_bBottomAlign = false;
+   m_bSmallLines = false;
    m_bNoBackground = false;
    m_fBackgroundAlpha = 1.0;
    m_fPadding = 0.0;
+   m_fPaddingX = 0.0;
+   m_fPaddingY = 0.0;
 }
 
 Popup::Popup(const char* title, float x, float y, float maxWidth, float timeoutSec)
 {
+   m_bDisableAutoRemove = false;
    m_LinesCount = 0;
    m_szTitle[0] = 0;
    if ( NULL != title )
@@ -294,51 +304,73 @@ Popup::Popup(const char* title, float x, float y, float maxWidth, float timeoutS
       m_szTitle[pos] = 0;
       pos--;
    }
+   for( int i=0; i<MAX_POPUPS; i++ )
+      m_szLines[i] = NULL;
 
    m_xPos = x;
    m_yPos = y;
    m_fTimeoutSeconds = timeoutSec;
+   m_uTimeoutEndTime = 0;
+   if ( timeoutSec > 0.001 )
+      m_uTimeoutEndTime = g_TimeNow + 1000 * timeoutSec;
    m_bInvalidated = true;
    m_fMaxWidth = maxWidth;
    m_fFixedWidth = 0.0;
    m_fBottomMargin = 0.0;
    m_RenderWidth = 0;
    m_RenderHeight = 0;
+   m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenuLarge;
+   m_idFont = g_idFontMenu;
    m_idIcon = 0;
-   m_pColorIcon = NULL;
+   m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = m_ColorIcon[3] = 0.0;
    m_bCentered = false;
+   m_bCenterTexts = false;
    m_bBottomAlign = false;
+   m_bSmallLines = false;
    m_bNoBackground = false;
    m_fBackgroundAlpha = 1.0;
    m_fPadding = 0.0;
+   m_fPaddingX = 0.0;
+   m_fPaddingY = 0.0;
 }
 
 
 Popup::Popup(bool bCentered, const char* title, float timeoutSec)
 {
+   m_bDisableAutoRemove = false;
    m_LinesCount = 0;
    m_szTitle[0] = 0;
    if ( NULL != title )
       strcpy(m_szTitle, title);
+   for( int i=0; i<MAX_POPUPS; i++ )
+      m_szLines[i] = NULL;
+
    m_xPos = 0;
    m_yPos = 0;
    m_fTimeoutSeconds = timeoutSec;
+   m_uTimeoutEndTime = 0;
+   if ( timeoutSec > 0.001 )
+      m_uTimeoutEndTime = g_TimeNow + 1000 * timeoutSec;
    m_bInvalidated = true;
    m_fMaxWidth = 0.8;
    m_fFixedWidth = 0.0;
    m_fBottomMargin = 0.0;
    m_RenderWidth = 0;
    m_RenderHeight = 0;
+   m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenuLarge;
+   m_idFont = g_idFontMenu;
    m_idIcon = 0;
-   m_pColorIcon = NULL;
+   m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = m_ColorIcon[3] = 0.0;
    m_bCentered = bCentered;
+   m_bCenterTexts = false;
    m_bNoBackground = false;
+   m_bSmallLines = false;
    m_fBackgroundAlpha = 1.0;
    m_fPadding = 0.0;
+   m_fPaddingX = 0.0;
+   m_fPaddingY = 0.0;
 
    if ( m_bCentered )
       m_bBottomAlign = false;
@@ -359,11 +391,23 @@ void Popup::setFont(u32 idFont)
 {
    m_idFont = idFont;
    m_bInvalidated = true;
+   setCustomPadding(m_fPadding);
 }
 
 u32 Popup::getFontId()
 {
    return m_idFont;
+}
+
+void Popup::setCenteredTexts()
+{
+   m_bCenterTexts = true;
+   m_bInvalidated = true;
+}
+
+bool Popup::isRenderBelowMenu()
+{
+   return m_bBelowMenu;
 }
 
 void Popup::setMaxWidth(float width)
@@ -393,6 +437,18 @@ void Popup::setBottomAlign(bool b)
 void Popup::setBottomMargin(float dymargin)
 {
    m_fBottomMargin = dymargin;
+   m_bInvalidated = true;
+}
+
+float Popup::getBottomMargin()
+{
+   return m_fBottomMargin;
+}
+
+void Popup::useSmallLines(bool bSmallLines)
+{
+   m_bSmallLines = bSmallLines;
+   m_bInvalidated = true;
 }
 
 void Popup::setNoBackground()
@@ -409,12 +465,22 @@ void Popup::setBackgroundAlpha(float fAlpha)
 void Popup::setCustomPadding(float fPadding)
 {
    m_fPadding = fPadding;
+   
+   m_fPaddingX = POPUP_MARGINS*g_pRenderEngine->textHeight(m_idFont)/g_pRenderEngine->getAspectRatio();
+   m_fPaddingY = POPUP_MARGINS*g_pRenderEngine->textHeight(m_idFont);
+
+   if ( m_fPadding > 0.0001 )
+   {
+      m_fPaddingX = g_pRenderEngine->textHeight(m_idFont) * m_fPadding/g_pRenderEngine->getAspectRatio();
+      m_fPaddingY = g_pRenderEngine->textHeight(m_idFont) * m_fPadding;
+   }
+   m_bInvalidated = true;
 }
 
 int Popup::isExpired()
 {
-   if ( m_fTimeoutSeconds > 0.001)
-   if ((g_TimeNow-m_StartTime) > m_fTimeoutSeconds*1000.0)
+   if ( (m_fTimeoutSeconds > 0.001) && (m_uTimeoutEndTime !=0) )
+   if (g_TimeNow > m_uTimeoutEndTime)
       return 1;
    return 0;
 }
@@ -428,13 +494,30 @@ void Popup::resetTimer()
 void Popup::setTimeout(float timeoutSeconds)
 {
    m_fTimeoutSeconds = timeoutSeconds;
+   m_uTimeoutEndTime = 0;
+   if ( m_fTimeoutSeconds > 0.001 )
+   {
+      m_uTimeoutEndTime = g_TimeNow + 1000 * m_fTimeoutSeconds;
+      log_line("Popup (%s) set timeout to %d ms from now", m_szTitle, m_uTimeoutEndTime-g_TimeNow);
+   }
    m_bInvalidated = true;
 }
+
+float Popup::getTimeout()
+{
+   return m_fTimeoutSeconds;
+}
+
 
 void Popup::setIconId(u32 idIcon, double* pColor)
 {
    m_idIcon = idIcon;
-   m_pColorIcon = pColor;
+   if ( NULL != pColor )
+      memcpy((u8*)&m_ColorIcon, pColor, 4*sizeof(double));
+   else
+   {
+      m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = m_ColorIcon[3] = 0.0;
+   }
    m_bInvalidated = true;
 }
 
@@ -446,6 +529,11 @@ void Popup::invalidate()
 void Popup::refresh()
 {
    m_bInvalidated = true;
+}
+
+void Popup::setRenderBelowMenu(bool bBelowMenu)
+{
+   m_bBelowMenu = bBelowMenu;
 }
 
 void Popup::setCentered()
@@ -484,11 +572,49 @@ void Popup::addLine(const char* szLine)
    m_bInvalidated = true;
 }
 
+bool Popup::hasDisabledAutoRemove()
+{
+   return m_bDisableAutoRemove;
+}
+
+void Popup::disableAutoRemove()
+{
+   m_bDisableAutoRemove = true;
+}
+
+
+void Popup::setLine(int iLine, const char* szLine)
+{
+   if ( (iLine<0) || (iLine >= m_LinesCount) )
+      return;
+   if ( NULL == szLine )
+      return;
+   if ( NULL != m_szLines[iLine] )
+      free(m_szLines[iLine]);  
+
+   m_szLines[iLine] = (char*)malloc(strlen(szLine)+1);
+   strcpy(m_szLines[iLine], szLine);
+}
+
+char* Popup::getLine(int iLine)
+{
+   if ( (iLine < 0 ) || (iLine >= m_LinesCount) )
+      return NULL;
+   return m_szLines[iLine];
+}
+
+int Popup::getLinesCount()
+{
+   return m_LinesCount;
+}
+
+
 void Popup::removeLastLine()
 {
    if ( m_LinesCount > 0 )
    {
       free ( m_szLines[m_LinesCount-1] );
+      m_szLines[m_LinesCount-1] = NULL;
       m_LinesCount--;
    }
    m_bInvalidated = true;
@@ -497,7 +623,10 @@ void Popup::removeLastLine()
 void Popup::removeAllLines()
 {
    for( int i=0; i<m_LinesCount; i++ )
+   {
       free ( m_szLines[i] );
+      m_szLines[i] = NULL;
+   }
    m_LinesCount = 0;
    m_bInvalidated = true;
 }
@@ -505,15 +634,13 @@ void Popup::removeAllLines()
 float Popup::getRenderHeight()
 {
    if ( m_bInvalidated )
-   {
       computeSize();
-      m_bInvalidated = false;
-   }
    return m_RenderHeight;
 }
 
 void Popup::onShow()
 {
+   setCustomPadding(m_fPadding);
    resetTimer();
    m_bInvalidated = true;
 }
@@ -521,18 +648,6 @@ void Popup::onShow()
 void Popup::computeSize()
 {
    float height_text = g_pRenderEngine->textHeight(m_idFont);
-
-   float fPaddingX = POPUP_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio();
-   float fPaddingY = POPUP_MARGINS*menu_getScaleMenus();
-
-   if ( m_fPadding > 0.0001 )
-   {
-      fPaddingX = height_text * m_fPadding/g_pRenderEngine->getAspectRatio();
-      fPaddingY = height_text * m_fPadding;
-   }
-
-   m_RenderWidth = 2.0 * fPaddingX;
-   m_RenderHeight = 2.0 * fPaddingY;
 
    if ( m_fMaxWidth > 0.8 )
       m_fMaxWidth = 0.8;
@@ -542,10 +657,7 @@ void Popup::computeSize()
    float fMaxTextWidth = 0.0;
       
    if ( m_fFixedWidth > 0.01 )
-   {
-      m_RenderWidth = m_fFixedWidth;
-      fMaxTextWidth = m_fFixedWidth - 2.0 * fPaddingX;
-   }
+      fMaxTextWidth = m_fFixedWidth - 2.0 * m_fPaddingX;
    else
    {
       if ( 0 != m_szTitle[0] )
@@ -554,18 +666,21 @@ void Popup::computeSize()
       for (int i = 0; i<m_LinesCount; i++)
       {
          float fTextWidth = g_pRenderEngine->textWidth(m_idFont, (const char*)(m_szLines[i]));
+         if ( m_bSmallLines )
+            fTextWidth = g_pRenderEngine->textWidth(g_idFontMenuSmall, (const char*)(m_szLines[i]));
          if ( fTextWidth > fMaxTextWidth )
             fMaxTextWidth = fTextWidth;
       }
 
-      if ( fMaxTextWidth > m_fMaxWidth-2.0*fPaddingX )
-         fMaxTextWidth = m_fMaxWidth-2.0*fPaddingX;
-
-      m_RenderWidth = fMaxTextWidth + 2.0 * fPaddingX;
+      if ( fMaxTextWidth > m_fMaxWidth - 2.0 * m_fPaddingX )
+         fMaxTextWidth = m_fMaxWidth - 2.0 * m_fPaddingX;
    }
+   m_RenderWidth = fMaxTextWidth + 2.0 * m_fPaddingX;
 
    // Compute height
 
+   m_RenderHeight = 2.0 * m_fPaddingY;
+   
    if ( 0 != m_szTitle[0] )
    {
       float fHeight = g_pRenderEngine->getMessageHeight(m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
@@ -577,12 +692,34 @@ void Popup::computeSize()
       m_RenderHeight += height_text*POPUP_LINE_SPACING;
       
       float fHeight = g_pRenderEngine->getMessageHeight((const char*)(m_szLines[i]), POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      if ( m_bSmallLines )
+         fHeight = g_pRenderEngine->getMessageHeight((const char*)(m_szLines[i]), POPUP_LINE_SPACING, fMaxTextWidth, g_idFontMenuSmall);
       m_RenderHeight += fHeight;
+   }
+
+
+   m_fIconSize = 0.0;
+   float fDeltaWidthIcon = 0.0;
+   if ( 0 != m_idIcon )
+   {
+      m_fIconSize = height_text*1.4;
+      if ( m_RenderHeight-2.0*m_fPaddingY > 2.0*height_text )
+         m_fIconSize = height_text*2.2;
+      if ( m_RenderHeight-2.0*m_fPaddingY > 3.6*height_text )
+         m_fIconSize = height_text*3.2;
+      if ( m_RenderHeight-2.0*m_fPaddingY >= 4.6*height_text )
+         m_fIconSize = height_text*3.8;
+
+      if ( m_fIconSize < height_text*1.8 )
+      if ( m_idIcon == g_idIconController )
+         m_fIconSize = height_text*2.0;
+
+      fDeltaWidthIcon = m_fIconSize/g_pRenderEngine->getAspectRatio();
    }
 
    if ( m_bCentered )
    {
-      m_RenderXPos = (1.0-m_RenderWidth)/2.0;
+      m_RenderXPos = (1.0-m_RenderWidth)/2.0 - fDeltaWidthIcon;
       m_RenderYPos = (1.0-m_RenderHeight)/2.0;
    }
    else
@@ -593,7 +730,8 @@ void Popup::computeSize()
 
    if ( m_bBottomAlign )
    {
-      m_RenderYPos = 0.84 - m_RenderHeight;
+      //m_RenderYPos = 0.84 - m_RenderHeight;
+      m_RenderYPos = 1.0 - osd_getMarginY() - osd_getBarHeight() - osd_getSecondBarHeight() - m_RenderHeight;
    }
    m_RenderYPos -= m_fBottomMargin;
 
@@ -604,21 +742,26 @@ void Popup::computeSize()
 void Popup::Render()
 {
    if ( m_bInvalidated )
-   {
       computeSize();
-      m_bInvalidated = false;
-   }
-   if ( m_fTimeoutSeconds > 0.001 )
-   if ((g_TimeNow-m_StartTime) > m_fTimeoutSeconds*1000.0)
+
+   if ( (m_fTimeoutSeconds > 0.001) && (m_uTimeoutEndTime != 0) )
+   if ( g_TimeNow > m_uTimeoutEndTime )
       return;
+
+   float height_text = g_pRenderEngine->textHeight(m_idFont);
+   float height_text_small = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    float alfaOrg = g_pRenderEngine->getGlobalAlfa();
    float alfa = alfaOrg;
 
-   if ( m_fTimeoutSeconds > 1.0 )
-   if ( (g_TimeNow-m_StartTime) > (m_fTimeoutSeconds-1.0)*1000.0+400 )
-      alfa = alfaOrg - alfaOrg *((g_TimeNow-m_StartTime)-((m_fTimeoutSeconds-1.0)*1000.0+400))/600.0;
-   
+   float fFadeInterval = 1500;
+   if ( (m_fTimeoutSeconds > 1.0) && (m_uTimeoutEndTime != 0) )
+   if ( g_TimeNow > m_uTimeoutEndTime - fFadeInterval )
+   {
+      float fDelta = g_TimeNow - (m_uTimeoutEndTime-fFadeInterval);
+      fDelta = fDelta/fFadeInterval;
+      alfa = alfaOrg - alfaOrg * fDelta;
+   }
    if ( alfa < 0 ) alfa = 0;
    if ( alfa > alfaOrg ) alfa = alfaOrg;
 
@@ -637,65 +780,88 @@ void Popup::Render()
       g_pRenderEngine->setColors(get_Color_PopupBg());
       g_pRenderEngine->setStroke(get_Color_PopupBorder());
    }
-
-   float height_text = g_pRenderEngine->textHeight(m_idFont);
-   float fPaddingX = POPUP_MARGINS*menu_getScaleMenus()/g_pRenderEngine->getAspectRatio();
-   float fPaddingY = POPUP_MARGINS*menu_getScaleMenus();
-
-   if ( m_fPadding > 0.0001 )
-   {
-      fPaddingX = height_text * m_fPadding/g_pRenderEngine->getAspectRatio();
-      fPaddingY = height_text * m_fPadding;
-   }
-
+   
    m_fIconSize = 0.0;
-   float fdWIcon = 0.0;
+   float fDeltaWidthIcon = 0.0;
    if ( 0 != m_idIcon )
    {
       m_fIconSize = height_text*1.4;
-      if ( m_RenderHeight-2.0*fPaddingY > 2.0*height_text )
+      if ( m_RenderHeight-2.0*m_fPaddingY > 2.0*height_text )
          m_fIconSize = height_text*2.2;
-      if ( m_RenderHeight-2.0*fPaddingY > 3.6*height_text )
+      if ( m_RenderHeight-2.0*m_fPaddingY > 3.6*height_text )
          m_fIconSize = height_text*3.2;
-      if ( m_RenderHeight-2.0*fPaddingY >= 4.6*height_text )
+      if ( m_RenderHeight-2.0*m_fPaddingY >= 4.6*height_text )
          m_fIconSize = height_text*3.8;
 
       if ( m_fIconSize < height_text*1.8 )
       if ( m_idIcon == g_idIconController )
          m_fIconSize = height_text*2.0;
 
-      fdWIcon = m_fIconSize/g_pRenderEngine->getAspectRatio() + fPaddingX;
+      fDeltaWidthIcon = m_fIconSize/g_pRenderEngine->getAspectRatio() + m_fPaddingX;
    }
    if ( ! m_bNoBackground )
-      g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth+fdWIcon, m_RenderHeight, POPUP_ROUND_MARGIN);
+      g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth + fDeltaWidthIcon, m_RenderHeight, POPUP_ROUND_MARGIN);
 
-   float x = m_RenderXPos+fPaddingX;
-   float y = m_RenderYPos+fPaddingY;
+   float xTextStart = m_RenderXPos+m_fPaddingX;
+   float yTextStart = m_RenderYPos+m_fPaddingY;
    
    if ( 0 != m_idIcon )
    {
-      if ( NULL != m_pColorIcon )
-         g_pRenderEngine->setColors(m_pColorIcon);
+      if ( m_ColorIcon[3] > 0.0001 )
+         g_pRenderEngine->setColors(&m_ColorIcon[0]);
       float yIcon = m_RenderYPos + 0.5*(m_RenderHeight - m_fIconSize);
-      g_pRenderEngine->drawIcon(x, yIcon, m_fIconSize/g_pRenderEngine->getAspectRatio(), m_fIconSize, m_idIcon);  
-      x += m_fIconSize/g_pRenderEngine->getAspectRatio() + fPaddingX;
+      g_pRenderEngine->drawIcon(xTextStart, yIcon, m_fIconSize/g_pRenderEngine->getAspectRatio(), m_fIconSize, m_idIcon);  
+      xTextStart += fDeltaWidthIcon;
    }
    
    g_pRenderEngine->setColors(get_Color_PopupText());
    
-   float fMaxTextWidth = m_RenderWidth - 2.0*fPaddingX + 0.001;
+   float fMaxTextWidth = m_RenderWidth - 2.0*m_fPaddingX;
    
    if ( 0 != m_szTitle[0] )
    {
-      float fHeightText = g_pRenderEngine->drawMessageLines(x, y, m_szTitle, height_text, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
-      y += fHeightText;
+      float fHeightText = 0.0;
+      if ( m_bCenterTexts )
+      {
+         float fTextWidth = g_pRenderEngine->textWidth(m_idFont, m_szTitle);
+         if ( fTextWidth > m_RenderWidth - 2.0 * m_fPaddingX )
+            fTextWidth = m_RenderWidth - 2.0 * m_fPaddingX;
+         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      }
+      else
+         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      yTextStart += fHeightText;
    }
    
    for (int i = 0; i<m_LinesCount; i++)
    {
-      y += height_text*POPUP_LINE_SPACING;
-      float fHeightText = g_pRenderEngine->drawMessageLines(x, y, m_szLines[i], height_text, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
-      y += fHeightText;
+      yTextStart += height_text*POPUP_LINE_SPACING;
+      float fHeightText = 0.0;
+      if ( m_bSmallLines )
+      {
+         if ( m_bCenterTexts )
+         {
+            float fTextWidth = g_pRenderEngine->textWidth(g_idFontMenuSmall, (const char*)(m_szLines[i]));
+            if ( fTextWidth > m_RenderWidth - 2.0 * m_fPaddingX )
+               fTextWidth = m_RenderWidth - 2.0 * m_fPaddingX;
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth - fTextWidth), yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, g_idFontMenuSmall);
+         }
+         else
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, g_idFontMenuSmall);
+      }
+      else
+      {
+         if ( m_bCenterTexts )
+         {
+            float fTextWidth = g_pRenderEngine->textWidth(m_idFont, (const char*)(m_szLines[i]));
+            if ( fTextWidth > m_RenderWidth - 2.0 * m_fPaddingX )
+               fTextWidth = m_RenderWidth - 2.0 * m_fPaddingX;
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+         }
+         else
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      }
+      yTextStart += fHeightText;
    }
 
    g_pRenderEngine->setGlobalAlfa(alfaOrg);

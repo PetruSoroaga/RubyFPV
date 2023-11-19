@@ -36,7 +36,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/ctrl_settings.h"
 #include "../base/shared_mem.h"
 #include "../base/models.h"
-#include "../base/launchers.h"
+#include "../base/models_list.h"
+#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../radio/radiolink.h"
@@ -116,6 +117,15 @@ void initLogFiles()
       hw_execute_bash_command_silent(szCom, NULL);
 
 
+   if ( s_iBootCount >= 40 )
+   {
+      for( int i=0; i<=5; i++ )
+      {
+         sprintf(szCom, "rm -rf logs/logs*%d.txt 2>&1", s_iBootCount-35-i);
+         hw_execute_bash_command_silent(szCom, NULL);
+      }
+   }
+
    hw_execute_bash_command_silent("touch logs/log_system.txt", NULL);
    hw_execute_bash_command_silent("touch logs/log_errors.txt", NULL);   
    hw_execute_bash_command_silent("touch logs/log_errors_soft.txt", NULL);
@@ -160,7 +170,7 @@ void detectSystemType()
 }
 
 
-void start_check_processes()
+void _check_files()
 {
    char szFilesMissing[1024];
    szFilesMissing[0] = 0;
@@ -211,6 +221,44 @@ void start_check_processes()
       printf("Ruby: Checked files consistency: ok.\n");
 }
 
+
+void _set_default_sik_params_for_vehicle(Model* pModel)
+{
+   if ( NULL == pModel )
+   {
+      log_softerror_and_alarm("Can't set default SiK radio params for NULL model.");
+      return;
+   }
+   log_line("Setting default SiK radio params for all SiK interfaces for current model...");
+   int iCountSiKInterfaces = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( hardware_radio_index_is_sik_radio(i) )
+      {
+         iCountSiKInterfaces++;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+         {
+            log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
+            continue;
+         }
+         int iLinkIndex = pModel->radioInterfacesParams.interface_link_id[i];
+         if ( (iLinkIndex >= 0) && (iLinkIndex < pModel->radioLinksParams.links_count) )
+         {
+            u32 uFreq = pModel->radioLinksParams.link_frequency_khz[iLinkIndex];
+            hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
+               uFreq, pModel->radioInterfacesParams.txPowerSiK,
+               pModel->radioLinksParams.link_datarate_data_bps[iLinkIndex],
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_ECC)?1:0),
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_LBT)?1:0),
+               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_MCSTR)?1:0),
+               NULL);
+         }
+      }
+   }
+   log_line("Setting default SiK radio params for all SiK interfaces (%d SiK interfaces) for current model. Done.", iCountSiKInterfaces);
+}
+
 void _create_default_model()
 {
    log_line("Creating a default model.");
@@ -237,9 +285,9 @@ void _create_default_model()
 
       config_file_set_value("config.txt", "arm_freq", m.iFreqARM);
       config_file_set_value("config.txt", "arm_freq_min", m.iFreqARM);
-      // Do not change hdmi, we might need it for debug
-      config_file_force_value("config.txt", "hdmi_force_hotplug", 0);
-      config_file_force_value("config.txt", "ignore_lcd", 1);
+      // Enable hdmi, we might need it for debug
+      config_file_force_value("config.txt", "hdmi_force_hotplug", 1);
+      config_file_force_value("config.txt", "ignore_lcd", 0);
       //config_file_force_value("config.txt", "hdmi_safe", 1);
         
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
@@ -250,6 +298,8 @@ void _create_default_model()
          radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
          if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
             bHasAtheros = true;
+         if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK )
+            bHasAtheros = true;
       }
 
       m.setDefaultVideoBitrate();
@@ -258,13 +308,13 @@ void _create_default_model()
       {
          for( int i=0; i<m.radioLinksParams.links_count; i++ )
          {
-            m.radioLinksParams.link_datarates[i][0] = 12;
-            m.radioLinksParams.link_datarates[i][1] = 12;
+            m.radioLinksParams.link_datarate_video_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+            m.radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
          }
          for( int i=0; i<m.radioInterfacesParams.interfaces_count; i++ )
          {
-            m.radioInterfacesParams.interface_datarates[i][0] = 0;
-            m.radioInterfacesParams.interface_datarates[i][1] = 0;
+            m.radioInterfacesParams.interface_datarate_video_bps[i] = 0;
+            m.radioInterfacesParams.interface_datarate_data_bps[i] = 0;
          }
          m.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
          m.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;
@@ -273,6 +323,7 @@ void _create_default_model()
       }
 
       m.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      _set_default_sik_params_for_vehicle(&m);
    }
    else
    {
@@ -283,19 +334,19 @@ void _create_default_model()
          m.radioInterfacesParams.interface_supported_bands[0] = RADIO_HW_SUPPORTED_BAND_24;
          strcpy(m.radioInterfacesParams.interface_szMAC[0], "YYYYYY");
          strcpy(m.radioInterfacesParams.interface_szPort[0], "Y");
-         m.radioInterfacesParams.interface_current_frequency[0] = DEFAULT_FREQUENCY;
+         m.radioInterfacesParams.interface_current_frequency_khz[0] = DEFAULT_FREQUENCY;
          m.radioInterfacesParams.interface_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
          m.radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
 
          m.radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-         m.radioLinksParams.link_datarates[0][0] = DEFAULT_RADIO_DATARATE;
-         m.radioLinksParams.link_datarates[0][1] = DEFAULT_RADIO_DATARATE;
+         m.radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
+         m.radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
 
       m.populateRadioInterfacesInfoFromHardware();
 
       m.b_mustSyncFromVehicle = true;
       m.is_spectator = false;
-      m.saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
+      m.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
 }
 
@@ -304,6 +355,8 @@ void do_first_boot_initialization()
    log_line("-------------------------------------------------------");
    log_line("First Boot detected. Doing first boot initialization...");
 
+   //if ( access( "/boot/ssh", R_OK ) == -1 )
+   //   hw_execute_bash_command("touch /boot/ssh", NULL);
 
    if ( s_isVehicle )
    {
@@ -321,18 +374,18 @@ void do_first_boot_initialization()
    hardware_sleep_ms(200);
    hardware_mount_boot();
 
-      if ( board_type == BOARD_TYPE_PIZERO || board_type == BOARD_TYPE_PIZEROW )
-      {
-         log_line("Raspberry Pi Zero detected on the first boot ever of the system. Updating settings for Pi Zero.");
-         //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
-         //execute_bash_command(szBuff);
-      }
-      if ( board_type == BOARD_TYPE_PIZERO2 )
-      {
-         log_line("Raspberry Pi Zero 2 detected on the first boot ever of the system. Updating settings for Pi Zero 2.");
-         //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
-         //execute_bash_command(szBuff);
-      }
+   if ( board_type == BOARD_TYPE_PIZERO || board_type == BOARD_TYPE_PIZEROW )
+   {
+      log_line("Raspberry Pi Zero detected on the first boot ever of the system. Updating settings for Pi Zero.");
+      //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
+      //execute_bash_command(szBuff);
+   }
+   if ( board_type == BOARD_TYPE_PIZERO2 )
+   {
+      log_line("Raspberry Pi Zero 2 detected on the first boot ever of the system. Updating settings for Pi Zero 2.");
+      //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
+      //execute_bash_command(szBuff);
+   }
 
    _create_default_model();
 
@@ -352,9 +405,9 @@ void do_first_boot_initialization()
          {
             fscanf(fd, "%u %u %d %d %d %s",
                &m.vehicle_id, &m.controller_id,
-               &m.radioLinksParams.link_frequency[0],
-               &m.radioLinksParams.link_frequency[1],
-               &m.radioLinksParams.link_frequency[2],
+               &m.radioLinksParams.link_frequency_khz[0],
+               &m.radioLinksParams.link_frequency_khz[1],
+               &m.radioLinksParams.link_frequency_khz[2],
                szBuff);
             fclose(fd);
          
@@ -410,7 +463,6 @@ void do_first_boot_initialization()
    log_line("---------------------------------------------------------");
 }
 
-
 void handle_sigint(int sig) 
 { 
    log_line("Caught signal to stop: %d\n", sig);
@@ -458,7 +510,7 @@ int main (int argc, char *argv[])
    s_pSemaphoreStarted = sem_open("RUBY_STARTED_SEMAPHORE", O_CREAT | O_EXCL, S_IWUSR | S_IRUSR, 0);
    if ( s_pSemaphoreStarted == SEM_FAILED && (!g_bDebug) )
    {
-      printf("\nRuby (v %d.%d) is starting...\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
+      printf("\nRuby (v %d.%d b.%d) is starting...\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
       fflush(stdout);
       sleep(8);
       return -1;
@@ -496,7 +548,7 @@ int main (int argc, char *argv[])
 
    log_line("Found good console, starting Ruby...");
 
-   printf("\nRuby Start (v %d.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, s_iBootCount);
+   printf("\nRuby Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
    fflush(stdout);
    bool readWriteOk = false;
    int readWriteRetryCount = 0;
@@ -583,9 +635,9 @@ int main (int argc, char *argv[])
 
    log_line("Files are ok, checking processes and init log files...");
 
-   start_check_processes();
+   _check_files();
 
-   log_line("Ruby Start on verison %d.%d", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
+   log_line("Ruby Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    fflush(stdout);
 
    
@@ -719,10 +771,11 @@ int main (int argc, char *argv[])
 
    if ( access( FILE_FORCE_RESET, R_OK ) != -1 )
    {
+      unlink(FILE_FORCE_RESET);
       hw_execute_bash_command("rm -rf config/*", NULL);
-      
       sprintf(szComm, "touch %s", FILE_FIRST_BOOT);
       hw_execute_bash_command(szComm, NULL);
+      hw_execute_bash_command("sudo reboot -f", NULL);
    }
 
    board_type = hardware_detectBoardType();
@@ -748,16 +801,23 @@ int main (int argc, char *argv[])
       }
    }
 
+   log_line("Ruby: Finding external I2C devices add-ons...");
    printf("Ruby: Finding external I2C devices add-ons...\n");
    fflush(stdout);
+   hardware_i2c_reset_enumerated_flag();
    hardware_enumerate_i2c_busses();
    int iKnown = hardware_get_i2c_found_count_known_devices();
    int iConfigurable = hardware_get_i2c_found_count_configurable_devices();
    if ( 0 == iKnown && 0 == iConfigurable )
+   {
+      log_line("Ruby: Done finding external I2C devices add-ons. None known found." );
       printf("Ruby: Done finding external I2C devices add-ons. None known found.\n" );
+   }
    else
+   {
+      log_line("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.", iKnown, iConfigurable );
       printf("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.\n", iKnown, iConfigurable );
-
+   }
    fflush(stdout);
    detectSystemType();
 
@@ -774,6 +834,7 @@ int main (int argc, char *argv[])
    hardware_init_serial_ports();
 
    printf("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...\n");
+   printf("\n");
    log_line("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...");
    fflush(stdout);
 
@@ -787,13 +848,15 @@ int main (int argc, char *argv[])
    if ( 0 == hardware_get_radio_interfaces_count() )
    {
       printf("Ruby: No 2.4/5.8 Ghz radio interfaces found!\n");
+      printf("\n");
       log_line("Ruby: No 2.4/5.8 Ghz radio interfaces found!");
       fflush(stdout);
    }
    else
    {
-      printf("Ruby: %d 2.4/5.8 Ghz radio interfaces found!\n", hardware_get_radio_interfaces_count());
-      log_line("Ruby: %d 2.4/5.8 Ghz radio interfaces found!", hardware_get_radio_interfaces_count());
+      printf("Ruby: %d radio interfaces found on 2.4/5.8 Ghz bands\n", hardware_get_radio_interfaces_count());
+      printf("\n");
+      log_line("Ruby: %d radio interfaces found on 2.4/5.8 Ghz bands", hardware_get_radio_interfaces_count());
       fflush(stdout);    
    }
    printf("Ruby: Finding SiK radio interfaces...\n");
@@ -839,6 +902,35 @@ int main (int argc, char *argv[])
       hardware_serial_save_configuration();
    }
 
+#ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
+   log_line("Feature to concatenate small radio packets is: On.");
+#else
+   log_line("Feature to concatenate small radio packets is: Off.");
+#endif
+
+#ifdef FEATURE_LOCAL_AUDIO_RECORDING
+   log_line("Feature local audio recording is: On.");
+#else
+   log_line("Feature local audio recording is: Off.");
+#endif
+
+#ifdef FEATURE_MSP_OSD
+   log_line("Feature MSP OSD is: On.");
+#else
+   log_line("Feature MSP OSD is: Off.");
+#endif
+
+#ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
+   log_line("Feature radio RxTx thread syncronization is: On.");
+#else
+   log_line("Feature radio RxTx thread syncronization is: Off.");
+#endif
+
+#ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+   log_line("Feature  On.");
+#else
+   log_line("Feature vehicle computes adaptive video is Off.");
+#endif
 
    if ( s_isVehicle )
    {
@@ -877,6 +969,24 @@ int main (int argc, char *argv[])
    if ( access( FILE_CURRENT_VEHICLE_MODEL, R_OK) == -1 )
       _create_default_model();
    
+   hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
+   log_line("ruby_vehicle: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_rx_commands -ver", szOutput);
+   log_line("ruby_rx_commands: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_rt_vehicle -ver", szOutput);
+   log_line("ruby_rt_vehicle: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_tx_telemetry -ver", szOutput);
+   log_line("ruby_tx_telemetry: [%s]", szOutput);
+
+   hw_execute_bash_command_raw("./ruby_rt_station -ver", szOutput);
+   log_line("ruby_rt_station: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_rx_telemetry -ver", szOutput);
+   log_line("ruby_rx_telemetry: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_central -ver", szOutput);
+   log_line("ruby_central: [%s]", szOutput);
+   hw_execute_bash_command_raw("./ruby_start -ver", szOutput);
+   log_line("ruby_start: [%s]", szOutput);
+
    if ( s_isVehicle )
    {
       if ( ! modelVehicle.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
@@ -885,25 +995,25 @@ int main (int argc, char *argv[])
          modelVehicle.is_spectator = false;
          modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
       }
-      log_line("[HW Radio Check] Full radio configuration before doing any changes:");
-      log_full_current_radio_configuration(&modelVehicle);
-      if ( check_update_hardware_nics_vehicle(&modelVehicle) )
-      {
-         log_line("[HW Radio Check] Hardware radio interfaces configuration check complete and configuration was changed. This is the new hardware radio interfaces and radio links configuration:");
-         log_full_current_radio_configuration(&modelVehicle);
-         modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
-      }
-      else
-         log_line("[HW Radio Check] No radio hardware configuration change detected. No change.");
+      
+      char szOutput[4096];
+      hw_execute_bash_command_raw("ls -al ruby_update*", szOutput);
+      log_line("Update files: [%s]", szOutput);
 
-      if ( check_update_radio_links(&modelVehicle) )
-      {
-         log_line("[HW Radio Check] Radio links checks was completed and additional changes where made. This is the new hardware radio interfaces and radio links configuration:");
-         log_full_current_radio_configuration(&modelVehicle);
-         modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
-      }
+      if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+         log_line("ruby_update_vehicle is present.");
       else
-         log_line("[HW Radio Check] No additional radio links updates.");
+         log_line("ruby_update_vehicle is NOT present.");
+
+      if ( access( "ruby_update", R_OK ) != -1 )
+         log_line("ruby_update is present.");
+      else
+         log_line("ruby_update is NOT present.");
+        
+      if ( access( "ruby_update_worker", R_OK ) != -1 )
+         log_line("ruby_update_worker is present.");
+      else
+         log_line("ruby_update_worker is NOT present.");
 
       if( access( "ruby_update_vehicle", R_OK ) != -1 )
       {
@@ -925,6 +1035,11 @@ int main (int argc, char *argv[])
    }
    else
    {
+      if ( access( "ruby_update_controller", R_OK ) != -1 )
+         log_line("ruby_update_controller is present.");
+      else
+         log_line("ruby_update_controller is NOT present.");
+
       if( access( "ruby_update_controller", R_OK ) != -1 )
       {
          printf("Ruby: Executing post update changes...\n");
@@ -954,7 +1069,8 @@ int main (int argc, char *argv[])
       log_line("Ruby: First install initialization complete. Rebooting now...");
       fflush(stdout);
       hardware_sleep_ms(500);
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      if ( ! g_bDebug )
+         hw_execute_bash_command("sudo reboot -f", NULL);
       return 0;
    }
  
@@ -1010,13 +1126,13 @@ int main (int argc, char *argv[])
       log_line("Starting vehicle...");
       fflush(stdout);
       if ( modelVehicle.radioLinksParams.links_count == 1 )
-         printf("Ruby: Current frequency: %s\n", str_format_frequency(modelVehicle.radioLinksParams.link_frequency[0]));
+         printf("Ruby: Current frequency: %s\n", str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[0]));
       else if ( modelVehicle.radioLinksParams.links_count == 2 )
       {
          char szFreq1[64];
          char szFreq2[64];
-         strcpy(szFreq1, str_format_frequency(modelVehicle.radioLinksParams.link_frequency[0]));
-         strcpy(szFreq2, str_format_frequency(modelVehicle.radioLinksParams.link_frequency[1]));
+         strcpy(szFreq1, str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[1]));
          printf("Ruby: Current frequencies: %s/%s\n", szFreq1, szFreq2);
       }
       else
@@ -1024,9 +1140,9 @@ int main (int argc, char *argv[])
          char szFreq1[64];
          char szFreq2[64];
          char szFreq3[64];
-         strcpy(szFreq1, str_format_frequency(modelVehicle.radioLinksParams.link_frequency[0]));
-         strcpy(szFreq2, str_format_frequency(modelVehicle.radioLinksParams.link_frequency[1]));
-         strcpy(szFreq3, str_format_frequency(modelVehicle.radioLinksParams.link_frequency[2]));
+         strcpy(szFreq1, str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[1]));
+         strcpy(szFreq3, str_format_frequency(modelVehicle.radioLinksParams.link_frequency_khz[2]));
          printf("Ruby: Current frequencies: %s/%s/%s\n", szFreq1, szFreq2, szFreq3);
       }
       printf("Ruby: Detected radio interfaces: %d\n", hardware_get_radio_interfaces_count());
@@ -1049,19 +1165,92 @@ int main (int argc, char *argv[])
    }
    else
    {
-      printf("Ruby: Starting controller...\n");
-      log_line("Starting controller...");
-      fflush(stdout);
-
+      
       u32 uControllerId = controller_utils_getControllerId();
       log_line("Controller UID: %u", uControllerId);
 
       hw_execute_bash_command_silent("con2fbmap 1 0", NULL);
       //execute_bash_command_silent("printf \"\\033c\"", NULL);
       //hw_launch_process("./ruby_controller");
+
+      if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
+         hw_execute_bash_command("./ruby_gpio_detect&", NULL);
+
+      if ( hardware_radio_has_sik_radios() )
+      {
+         printf("Ruby: Configuring SiK radios...\n");
+         log_line("Configuring SiK radios...");
+         fflush(stdout);
+
+         load_ControllerSettings();
+
+         if ( ! modelVehicle.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+         {
+            modelVehicle.resetToDefaults(true);
+            modelVehicle.is_spectator = false;
+            modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+         }
+         log_line("Setting default SiK radio params for all SiK radio interfaces on controller...");
+
+         int iSiKRadioLinkIndex = -1;
+         for( int i=0; i<modelVehicle.radioLinksParams.links_count; i++ )
+         {
+            if ( modelVehicle.radioLinkIsSiKRadio(i) )
+            {
+               iSiKRadioLinkIndex = i;
+               break;
+            }
+         }
+
+         u32 uFreq = DEFAULT_FREQUENCY_433;
+         u32 uTxPower = DEFAULT_RADIO_SIK_TX_POWER;
+         u32 uDataRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
+         u32 uECC = 0;
+         u32 uLBT = 0;
+         u32 uMCSTR = 0;
+         if ( iSiKRadioLinkIndex == -1 )
+            log_line("No SiK radio link on current vehicle. Configuring SiK radio interfaces on controller with default parameters.");
+         else
+         {
+            log_line("Current model radio link %d is a SiK radio link. Use it to configure controller.", iSiKRadioLinkIndex+1);
+            uFreq = modelVehicle.radioLinksParams.link_frequency_khz[iSiKRadioLinkIndex];
+            uTxPower = modelVehicle.radioInterfacesParams.txPowerSiK,
+            uDataRate = modelVehicle.radioLinksParams.link_datarate_data_bps[iSiKRadioLinkIndex],
+            uECC = (modelVehicle.radioLinksParams.link_radio_flags[iSiKRadioLinkIndex] & RADIO_FLAGS_SIK_ECC)?1:0;
+            uLBT = (modelVehicle.radioLinksParams.link_radio_flags[iSiKRadioLinkIndex] & RADIO_FLAGS_SIK_LBT)?1:0;
+            uMCSTR = (modelVehicle.radioLinksParams.link_radio_flags[iSiKRadioLinkIndex] & RADIO_FLAGS_SIK_MCSTR)?1:0;
+         }
+
+         for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+         {
+            if ( hardware_radio_index_is_sik_radio(i) )
+            {
+               radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+               if ( NULL == pRadioHWInfo )
+               {
+                  log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
+                  continue;
+               }
+               hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
+                  uFreq, uTxPower, uDataRate,
+                  uECC, uLBT, uMCSTR,
+                  NULL);
+            }
+         }
+         log_line("Setting default SiK radio params for all SiK interfaces on controller. Done.");
+
+         printf("Ruby: Configured SiK radios.\n");
+         log_line("Configured SiK radios.");
+         fflush(stdout);
+      }
+
+      printf("Ruby: Starting controller...\n");
+      log_line("Starting controller...");
+      fflush(stdout);
+
       hw_execute_bash_command("./ruby_controller&", NULL);
    }
-    
+   
    for( int i=0; i<15; i++ )
       hardware_sleep_ms(500);
    
@@ -1163,6 +1352,7 @@ int main (int argc, char *argv[])
       hw_execute_bash_command("cp -rf logs/log_system.txt /boot/last_ruby_boot.txt", NULL);
       
       log_line("Copy boot log to /boot partition. Done.");
+      system("clear");
    }
 
    if ( NULL != s_pSemaphoreStarted )

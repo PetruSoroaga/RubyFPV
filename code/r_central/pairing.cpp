@@ -12,11 +12,12 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/ctrl_interfaces.h"
-#include "../base/launchers.h"
+#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
 #include "../common/radio_stats.h"
+#include "../common/string_utils.h"
 #include <semaphore.h>
 
 #include "pairing.h"
@@ -38,54 +39,24 @@ Code written by: Petru Soroaga, 2021-2023
 
 extern bool s_bDebugOSDShowAll;
 
-static bool s_isRXStarted = false;
-static bool s_bPairingReceivedAnything = false;
-static bool s_isVideoReceiving = false;
-static u32 s_PairingStartTime = 0;
-static u32 s_PairingFirstVideoPacketTime = 0;
-static bool s_PairingHasReceivedVideoData = false;
+bool s_isRXStarted = false;
+bool s_isVideoReceiving = false;
 
-sem_t* pSemaphoreRestartVideoPlayer = NULL;
-
-static u32 s_uTimeToSetAffinities = 0;
+u32 s_uTimeToSetAffinities = 0;
 
 void _pairing_open_shared_mem();
 void _pairing_close_shared_mem();
 
-u32 pairing_getStartTime()
+bool _pairing_start()
 {
-   return s_PairingStartTime;
-}
-
-bool pairing_start()
-{
-   log_line("-----------------------------");
-   if ( g_bSearching )
-      log_line("Starting pairing processes in search mode...");
-   else
-      log_line("Starting pairing processes for current model...");
-
-   if ( ! g_bSearching )
-      onEventBeforePairing();
-
-   s_bPairingReceivedAnything = false;
-
-   if ( (NULL == g_pCurrentModel) && (!g_bSearching) )
-   {
-      log_line("No current model and no searching. Do nothing (no pairing).");
-      log_line("------------------------------------------");
-      return true;
-   }
    if ( 0 == hardware_get_radio_interfaces_count() )
    {
-      log_line("No radio interfaces detect on the system. Do nothing (no pairing).");
+      log_softerror_and_alarm("No radio interfaces detect on the system. Do nothing (no pairing).");
       log_line("------------------------------------------");
-      return true;
+      return false;
    }
 
-   controller_start_audio(g_pCurrentModel);
-   controller_launch_router();
-   controller_launch_video_player();
+   controller_launch_router(g_bSearching);
 
    controller_launch_rx_telemetry();
    controller_launch_tx_rc();
@@ -100,18 +71,11 @@ bool pairing_start()
       if ( NULL != fd )
          fclose(fd);
    }
-
-   pSemaphoreRestartVideoPlayer = sem_open(SEMAPHORE_RESTART_VIDEO_PLAYER, O_CREAT, S_IWUSR | S_IRUSR, 0);
-   if ( NULL == pSemaphoreRestartVideoPlayer )
-      log_error_and_alarm("Failed to open semaphore for writing: %s", SEMAPHORE_RESTART_VIDEO_PLAYER);
  
    s_isRXStarted = true;
    s_isVideoReceiving = false;
-   s_PairingStartTime = g_TimeNow;
-   s_PairingFirstVideoPacketTime = 0;
-   s_PairingHasReceivedVideoData = false;
-   g_TimePendingRadioFlagsChanged = 0;
-   g_PendingRadioFlagsConfirmationLinkId = -1;
+   
+   link_reset_reconfiguring_radiolink();
 
    if ( NULL != g_pCurrentModel && (! g_pCurrentModel->is_spectator) )
       g_pCurrentModel->b_mustSyncFromVehicle = true;
@@ -127,43 +91,98 @@ bool pairing_start()
 
    g_bMenuPopupUpdateVehicleShown = false;
 
-   if ( ! g_bSearching )
+   s_uTimeToSetAffinities = g_TimeNow + 8000;
+   
+   log_line("-----------------------------------------");
+   log_line("Started pairing processes successfully.");
+   log_line("-----------------------------------------");
+   return true;
+}
+
+bool pairing_start_normal()
+{
+   log_line("-----------------------------------------------");
+   log_line("Starting pairing processes for current model...");
+
+   g_bSearching = false;
+   g_iSearchFrequency = 0;
+   g_iSearchSiKAirDataRate = -1;
+   g_iSearchSiKECC = -1;
+   g_iSearchSiKLBT = -1;
+   g_iSearchSiKMCSTR = -1;
+
+   onEventBeforePairing();
+
+   if ( NULL == g_pCurrentModel )
+   {
+      log_line("No current model. Do nothing (no pairing).");
+      log_line("----------------------------------------------");
+      return true;
+   }
+
+   bool bRes = _pairing_start();
+
+   if ( bRes )
       onEventPaired();
 
-   s_uTimeToSetAffinities = g_TimeNow + 4000;
-   
-   log_line("Started pairing processes successfully.");
-   log_line("---------------------------------------");
-   return true;
+   return bRes;
+}
+
+bool pairing_start_search_mode(int iFreqKhz)
+{
+   log_line("-----------------------------------------------");
+   log_line("Starting pairing processes in search mode (%s)...", str_format_frequency(iFreqKhz));
+
+   g_bSearching = true;
+   g_iSearchFrequency = iFreqKhz;
+   g_iSearchSiKAirDataRate = -1;
+   g_iSearchSiKECC = -1;
+   g_iSearchSiKLBT = -1;
+   g_iSearchSiKMCSTR = -1;
+
+   return _pairing_start();
+}
+
+bool pairing_start_search_sik_mode(int iFreqKhz, int iAirDataRate, int iECC, int iLBT, int iMCSTR)
+{
+   log_line("----------------------------------------------------");
+   log_line("Starting pairing processes in SiK search mode (%s)...", str_format_frequency(iFreqKhz));
+
+   g_bSearching = true;
+   g_iSearchFrequency = iFreqKhz;
+   g_iSearchSiKAirDataRate = iAirDataRate;
+   g_iSearchSiKECC = iECC;
+   g_iSearchSiKLBT = iLBT;
+   g_iSearchSiKMCSTR = iMCSTR;
+
+   return _pairing_start();
 }
 
 bool pairing_stop()
 {
    if ( ! s_isRXStarted )
       return true;
-   log_line("-----------------------------");
+   log_line("----------------------------------");
    log_line("Stopping pairing processes...");
+
+   onEventBeforePairingStop();
 
    forward_streams_on_pairing_stop();
    hardware_recording_led_set_off();
 
-   s_PairingStartTime = 0;
    s_uTimeToSetAffinities = 0;
-   if ( NULL != pSemaphoreRestartVideoPlayer )
-      sem_close(pSemaphoreRestartVideoPlayer);
-   pSemaphoreRestartVideoPlayer = NULL;
 
    _pairing_close_shared_mem();
 
    ruby_stop_recording();
 
-   handle_commands_start_on_pairing();
+   handle_commands_stop_on_pairing();
 
-   controller_stop_audio();
-   controller_stop_rx_telemetry();
    controller_stop_tx_rc();
-   controller_stop_video_player();
+
    controller_stop_router();
+
+   controller_stop_rx_telemetry();
 
    controller_wait_for_stop_all();
 
@@ -180,13 +199,16 @@ bool pairing_stop()
    g_bIsRouterReady = false;
    g_RouterIsReadyTimestamp = 0;
 
+   log_line("------------------------------------------");
    log_line("Stopped pairing processes successfully.");
-   log_line("---------------------------------------");
+   log_line("------------------------------------------");
    return true;
 }
 
 void pairing_on_router_ready()
 {
+   log_line("Pairing: received event that router is ready. Radio interfaces configuration (refreshed) when router is ready:");
+   hardware_load_radio_info();
    log_line("Pairing: received event that router is ready. Open shared mem objects...");
    _pairing_open_shared_mem();
    log_line("Pairing: received event that router is ready. Open shared mem objects complete.");
@@ -220,6 +242,18 @@ void _pairing_open_shared_mem()
       iAnyNewOpen++;
    }
    if ( NULL == g_pSM_RadioStats )
+      iAnyFailed++;
+
+    ruby_signal_alive();
+   for( int i=0; i<20; i++ )
+   {
+      if ( NULL != g_pSM_RadioStatsInterfaceRxGraph )
+         break;
+      g_pSM_RadioStatsInterfaceRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();
+      hardware_sleep_ms(5);
+      iAnyNewOpen++;
+   }
+   if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -273,13 +307,13 @@ void _pairing_open_shared_mem()
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
-      if ( NULL != g_psmvds )
+      if ( NULL != g_pSM_VideoDecodeStats )
          break;
-      g_psmvds = shared_mem_video_decode_stats_open(true);
+      g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open(true);
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
-   if ( NULL == g_psmvds )
+   if ( NULL == g_pSM_VideoDecodeStats )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -298,13 +332,13 @@ void _pairing_open_shared_mem()
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
-      if ( NULL != g_psmvds_history )
+      if ( NULL != g_pSM_VDS_history )
          break;
-      g_psmvds_history = shared_mem_video_decode_stats_history_open(true);
+      g_pSM_VDS_history = shared_mem_video_stream_stats_history_rx_processors_open(true);
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
-   if ( NULL == g_psmvds_history )
+   if ( NULL == g_pSM_VDS_history )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -313,26 +347,26 @@ void _pairing_open_shared_mem()
    {
       for( int i=0; i<20; i++ )
       {
-         if ( NULL != g_pPHDownstreamInfoRC )
+         if ( NULL != g_pSM_DownstreamInfoRC )
             break;
-         g_pPHDownstreamInfoRC = shared_mem_rc_downstream_info_open_read();
-         hardware_sleep_ms(30);
+         g_pSM_DownstreamInfoRC = shared_mem_rc_downstream_info_open_read();
+         hardware_sleep_ms(10);
          iAnyNewOpen++;
       }
-      if ( NULL == g_pPHDownstreamInfoRC )
+      if ( NULL == g_pSM_DownstreamInfoRC )
          iAnyFailed++;
    }
 
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
-      if ( NULL != g_pSM_ControllerVehiclesAdaptiveVideoInfo )
+      if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
          break;
-      g_pSM_ControllerVehiclesAdaptiveVideoInfo = shared_mem_controller_vehicles_adaptive_video_info_open_for_read();
+      g_pSM_RouterVehiclesRuntimeInfo = shared_mem_router_vehicles_runtime_info_open_for_read();
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
-   if ( NULL == g_pSM_ControllerVehiclesAdaptiveVideoInfo )
+   if ( NULL == g_pSM_RouterVehiclesRuntimeInfo )
       iAnyFailed++;
 
    if ( 0 == iAnyNewOpen )
@@ -342,15 +376,27 @@ void _pairing_open_shared_mem()
 
    if ( 0 != iAnyFailed )
       log_softerror_and_alarm("Failed to open %d shared memory objects.", iAnyFailed);
+
+   synchronize_shared_mems();
 }
 
 void _pairing_close_shared_mem()
 {
-   shared_mem_controller_vehicles_adaptive_video_info_close(g_pSM_ControllerVehiclesAdaptiveVideoInfo);
-   g_pSM_ControllerVehiclesAdaptiveVideoInfo = NULL;
+   shared_mem_router_vehicles_runtime_info_close(g_pSM_RouterVehiclesRuntimeInfo);
+   g_pSM_RouterVehiclesRuntimeInfo = NULL;
+
+   shared_mem_controller_audio_decode_stats_close(g_pSM_AudioDecodeStats);
+   g_pSM_AudioDecodeStats = NULL;
+
+
+   shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
+   g_pSM_HistoryRxStats = NULL;
 
    shared_mem_radio_stats_close(g_pSM_RadioStats);
    g_pSM_RadioStats = NULL;
+
+   shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfaceRxGraph);
+   g_pSM_RadioStatsInterfaceRxGraph = NULL;
 
    shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
    g_pSM_VideoLinkStats = NULL;
@@ -364,17 +410,17 @@ void _pairing_close_shared_mem()
    shared_mem_video_link_graphs_close(g_pSM_VideoLinkGraphs);
    g_pSM_VideoLinkGraphs = NULL;
 
-   shared_mem_video_decode_stats_close(g_psmvds);
-   g_psmvds = NULL;
+   shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
+   g_pSM_VideoDecodeStats = NULL;
 
-   shared_mem_video_decode_stats_history_close(g_psmvds_history);
-   g_psmvds_history = NULL;
+   shared_mem_video_stream_stats_history_rx_processors_close(g_pSM_VDS_history);
+   g_pSM_VDS_history = NULL;
 
    shared_mem_controller_video_retransmissions_stats_close(g_pSM_ControllerRetransmissionsStats);
    g_pSM_ControllerRetransmissionsStats = NULL;
 
-   shared_mem_rc_downstream_info_close(g_pPHDownstreamInfoRC);
-   g_pPHDownstreamInfoRC = NULL;
+   shared_mem_rc_downstream_info_close(g_pSM_DownstreamInfoRC);
+   g_pSM_DownstreamInfoRC = NULL;
 
    shared_mem_i2c_controller_rc_in_close(g_pSM_RCIn);
    g_pSM_RCIn = NULL;
@@ -383,112 +429,6 @@ void _pairing_close_shared_mem()
 bool pairing_isStarted()
 {
    return s_isRXStarted;
-}
-
-bool pairing_isReceiving()
-{
-   if ( ! pairing_isStarted() )
-      return false;
-   if ( g_bSearching )
-      return false;
-   if ( NULL == g_pSM_RadioStats )
-      return false;
-   if ( ! s_bPairingReceivedAnything )
-      return false;
-
-   for( int i=0; i<g_pSM_RadioStats->countRadioLinks; i++ )
-   {
-      if ( g_TimeNow > 2200 && g_pSM_RadioStats->radio_links[i].timeLastRxPacket >= g_TimeNow-2000 )
-         return true;
-   }
-
-   return false;
-}
-
-bool pairing_wasReceiving()
-{
-   if ( NULL == g_pSM_RadioStats )
-      return false;
-
-   return s_bPairingReceivedAnything;
-}
-
-bool pairing_hasReceivedVideoStreamData()
-{
-   if ( NULL == g_pSM_RadioStats )
-      return false;
-
-   if ( g_bSearching )
-      return false;
-
-   if ( s_PairingHasReceivedVideoData )
-      return true;
-
-   if ( 0 != s_PairingFirstVideoPacketTime )
-   {
-      if ( g_TimeNow >= s_PairingFirstVideoPacketTime + 100 )
-      {
-          s_PairingHasReceivedVideoData = true;
-          return true;
-      }
-      return false;
-   }
-
-   if ( g_TimeNow > 300 && g_pSM_RadioStats->radio_streams[STREAM_ID_VIDEO_1].timeLastRxPacket >= g_TimeNow-300 )
-      s_PairingFirstVideoPacketTime = g_pSM_RadioStats->radio_streams[STREAM_ID_VIDEO_1].timeLastRxPacket;
-   return false;
-}
-
-
-u32 pairing_getCurrentVehicleID()
-{
-   if ( ! pairing_isStarted() )
-      return 0;
-   if ( ! g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-      return 0;
-   if ( pairing_isReceiving() || pairing_wasReceiving() )
-      return g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id;
-   return 0;
-}
-
-bool pairing_is_connected_to_wrong_model()
-{
-   if ( ! pairing_isStarted() )
-      return false;
-   if ( ! pairing_isReceiving() )
-      return false;
-   if ( NULL == g_pCurrentModel )
-      return false;
-
-   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo )
-   if ( 0 != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id )
-   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id == g_pCurrentModel->vehicle_id )
-      return false;
-
-   bool bHasRelayVehicle = false;
-   u32 uRelayVehicleId = 0;
-
-   if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId > 0 )
-   if ( g_pCurrentModel->relay_params.uRelayVehicleId != 0 )
-   if ( g_pCurrentModel->relay_params.uRelayVehicleId != MAX_U32 )
-   {
-      bHasRelayVehicle = true;
-      uRelayVehicleId = g_pCurrentModel->relay_params.uRelayVehicleId;
-   }
-
-   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-   {
-      if ( 0 == g_VehiclesRuntimeInfo[i].uVehicleId || MAX_U32 == g_VehiclesRuntimeInfo[i].uVehicleId )
-         continue;
-
-      if ( ! g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-         continue;
-
-      if ( g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.vehicle_id != g_pCurrentModel->vehicle_id )
-      if ( (!bHasRelayVehicle) || (bHasRelayVehicle && (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.vehicle_id != uRelayVehicleId)) )
-         return true;
-   }
-   return false;
 }
 
 void pairing_loop()
@@ -500,39 +440,10 @@ void pairing_loop()
       return;
 
 
-   if ( s_uTimeToSetAffinities != 0 && s_PairingStartTime != 0 )
+   if ( (s_uTimeToSetAffinities != 0) && s_isRXStarted )
    if ( g_TimeNow > s_uTimeToSetAffinities )
    {
       controller_check_update_processes_affinities();
       s_uTimeToSetAffinities = 0;
    }
-
-   if ( g_bIsRouterReady && (NULL != g_pSM_RadioStats) )
-   if ( ! s_bPairingReceivedAnything )
-   {
-      for( int i=0; i<g_pSM_RadioStats->countRadioInterfaces; i++ )
-      {
-         if ( g_pSM_RadioStats->radio_interfaces[i].totalRxPackets > 0 )
-         //if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotTelemetryInfo && 0 != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.vehicle_id )
-         {
-            s_bPairingReceivedAnything = true;
-            onEventPairingStartReceivingData();
-            break;
-         }
-      }
-   }
-
-   int val = 0;
-   if ( NULL != pSemaphoreRestartVideoPlayer )
-   if ( 0 == sem_getvalue(pSemaphoreRestartVideoPlayer, &val) )
-   if ( 0 < val )
-   if ( EAGAIN != sem_trywait(pSemaphoreRestartVideoPlayer) )
-   {
-      log_line("Received event to restart video player.");
-      ruby_stop_recording();
-      controller_stop_video_player();
-      controller_launch_video_player();
-
-      s_uTimeToSetAffinities = g_TimeNow+4000;
-   } 
 }

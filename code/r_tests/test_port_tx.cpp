@@ -56,7 +56,6 @@ int main(int argc, char *argv[])
    PH.packet_flags = PACKET_COMPONENT_RUBY;
    PH.vehicle_id_src = 0;
    PH.vehicle_id_dest = PH.vehicle_id_src;
-   PH.total_headers_length = sizeof(t_packet_header);
    PH.total_length = sizeof(t_packet_header) + strlen(szMsg)+1;
    PH.tx_time = 0;
    u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -64,7 +63,7 @@ int main(int argc, char *argv[])
    memcpy(packet+sizeof(t_packet_header), szMsg, strlen(szMsg)+1);
 
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_packet(rawPacket, packet, PH.total_length, port, 0, 0, NULL);
+   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, port, 0, 0, NULL);
 
    if ( 0 == write_packet_to_radio(sock, rawPacket, totalLength ) )
       printf("Failed to write to radio interface.\n");

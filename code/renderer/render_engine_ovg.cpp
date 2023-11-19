@@ -108,7 +108,7 @@ void RenderEngineOVG::setStrokeWidth(float fWidth)
    StrokeWidth(fWidth);
 }
 
-u32 RenderEngineOVG::loadFont(const char* szFontFile)
+int RenderEngineOVG::loadFont(const char* szFontFile)
 {
    if ( m_iCountFonts > 9 )
       return 0;
@@ -121,7 +121,7 @@ u32 RenderEngineOVG::loadFont(const char* szFontFile)
    m_CurrentFontId++;
    m_FontIds[m_iCountFonts] = m_CurrentFontId;
    m_iCountFonts++;
-   return (u32) m_CurrentFontId;
+   return m_CurrentFontId;
 }
 
 void RenderEngineOVG::freeFont(u32 idFont)
@@ -240,7 +240,7 @@ void RenderEngineOVG::drawImage(float xPos, float yPos, float fWidth, float fHei
    DrawImageAtFit(0, 0, fWidth*m_iRenderWidth, fHeight*m_iRenderHeight, m_Images[indexImage]);
 }
 
-float RenderEngineOVG::textWidth(float fTextHeight, u32 fontId, const char* szText)
+float RenderEngineOVG::textWidth(u32 fontId, const char* szText)
 {
    int indexFont = -1;
    for( int i=0; i<m_iCountFonts; i++ )
@@ -252,12 +252,12 @@ float RenderEngineOVG::textWidth(float fTextHeight, u32 fontId, const char* szTe
    if ( -1 == indexFont )
       return 0.0;
    
-   float fWidth = TextWidth(szText, m_Fonts[indexFont], fTextHeight*m_iRenderHeight);
+   float fWidth = TextWidth(szText, m_Fonts[indexFont], 1.0*m_iRenderHeight);
    fWidth = fWidth/(float)m_iRenderWidth;
    return fWidth;
 }
 
-void RenderEngineOVG::drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
+void RenderEngineOVG::drawText(float xPos, float yPos, u32 fontId, const char* szText)
 {
    int indexFont = -1;
    for( int i=0; i<m_iCountFonts; i++ )
@@ -269,10 +269,10 @@ void RenderEngineOVG::drawText(float xPos, float yPos, float fTextHeight, u32 fo
    if ( -1 == indexFont )
       return;
 
-   Text(xPos*m_iRenderWidth, m_iRenderHeight - (yPos+fTextHeight)*m_iRenderHeight, szText, m_Fonts[indexFont], fTextHeight*m_iRenderHeight);
+   Text(xPos*m_iRenderWidth, m_iRenderHeight - yPos*m_iRenderHeight, szText, m_Fonts[indexFont], 1.0*m_iRenderHeight);
 }
 
-void RenderEngineOVG::drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
+void RenderEngineOVG::drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText)
 {
    int indexFont = -1;
    for( int i=0; i<m_iCountFonts; i++ )
@@ -284,10 +284,10 @@ void RenderEngineOVG::drawTextLeft(float xPos, float yPos, float fTextHeight, u3
    if ( -1 == indexFont )
       return;
 
-   TextEnd(xPos*m_iRenderWidth, m_iRenderHeight - (yPos+fTextHeight)*m_iRenderHeight, szText, m_Fonts[indexFont], fTextHeight*m_iRenderHeight);
+   TextEnd(xPos*m_iRenderWidth, m_iRenderHeight - yPos*m_iRenderHeight, szText, m_Fonts[indexFont], 1.0*m_iRenderHeight);
 }
 
-float RenderEngineOVG::getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
+float RenderEngineOVG::getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
    int indexFont = -1;
    for( int i=0; i<m_iCountFonts; i++ )
@@ -302,6 +302,8 @@ float RenderEngineOVG::getMessageHeight(const char* text, float fTextHeight, flo
    if ( NULL == text || strlen(text) >= 1023 )
       return 0.0;
 
+   float fTextHeight = textHeight(fontId);
+   
    char szText[1024];
    strcpy(szText, text );
    const char* szTokens = " \n";
@@ -337,7 +339,7 @@ float RenderEngineOVG::getMessageHeight(const char* text, float fTextHeight, flo
    return h;
 }
 
-float RenderEngineOVG::drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
+float RenderEngineOVG::drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
    int indexFont = -1;
    for( int i=0; i<m_iCountFonts; i++ )
@@ -351,6 +353,8 @@ float RenderEngineOVG::drawMessageLines(float xPos, float yPos, const char* text
 
    if ( NULL == text || strlen(text) >= 1023 )
       return 0.0;
+
+   float fTextHeight = textHeight(fontId);
 
    char szText[1024];
    strcpy(szText, text );

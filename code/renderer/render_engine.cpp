@@ -199,7 +199,7 @@ void RenderEngine::enableFontScaling(bool bEnable)
    m_bEnableFontScaling = bEnable;
 }
 
-u32 RenderEngine::loadFont(const char* szFontFile)
+int RenderEngine::loadFont(const char* szFontFile)
 {
    return 0;
 }
@@ -255,37 +255,27 @@ float RenderEngine::textHeight(u32 fontId)
 {
    return 0.0;
 }
-
-float RenderEngine::textHeight(float fTextHeight, u32 fontId)
-{
-   return fTextHeight;
-}
-
+     
 float RenderEngine::textWidth(u32 fontId, const char* szText)
 {
-   return textWidth(0.0, fontId, szText);
+   return 0.0;
 }
-     
-float RenderEngine::textWidth(float fTextHeight, u32 fontId, const char* szText)
+
+float RenderEngine::textHeightScaled(u32 fontId, float fScale)
+{
+   return textHeight(fontId)*fScale;
+}
+
+float RenderEngine::textWidthScaled(u32 fontId, float fScale, const char* szText)
 {
    return 0.0;
 }
 
-float RenderEngine::textHeightScaled(float fTextHeight, u32 fontId, float fScale)
-{
-   return fTextHeight*fScale;
-}
-
-float RenderEngine::textWidthScaled(float fTextHeight, u32 fontId, float fScale, const char* szText)
-{
-   return 0.0;
-}
-
-void RenderEngine::drawTextScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText)
+void RenderEngine::drawTextScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText)
 {
 }
 
-void RenderEngine::drawTextLeftScaled(float xPos, float yPos, float fTextHeight, u32 fontId, float fScale, const char* szText)
+void RenderEngine::drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText)
 {
 }
 
@@ -293,19 +283,11 @@ void RenderEngine::drawText(float xPos, float yPos, u32 fontId, const char* szTe
 {
 }
 
-void RenderEngine::drawText(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
-{
-}
-
-void RenderEngine::drawTextNoOutline(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
+void RenderEngine::drawTextNoOutline(float xPos, float yPos, u32 fontId, const char* szText)
 {
 }
 
 void RenderEngine::drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText)
-{
-}
-
-void RenderEngine::drawTextLeft(float xPos, float yPos, float fTextHeight, u32 fontId, const char* szText)
 {
 }
 
@@ -314,19 +296,14 @@ float RenderEngine::getMessageHeight(const char* text, float line_spacing_percen
    return 0.0;
 }
 
-float RenderEngine::getMessageHeight(const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
+float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
    return 0.0;
 }
 
-float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
+float RenderEngine::drawMessageLines(const char* text, float xPos, float yPos, float line_spacing_percent, float max_width, u32 fontId)
 {
-   return 0.0;
-}
-
-float RenderEngine::drawMessageLines(const char* text, float xPos, float yPos, float fTextHeight, float line_spacing_percent, float max_width, u32 fontId)
-{
-   return drawMessageLines(xPos,yPos, text, fTextHeight, line_spacing_percent, max_width, fontId);
+   return drawMessageLines(xPos,yPos, text, line_spacing_percent, max_width, fontId);
 }
 
 void RenderEngine::drawLine(float x1, float y1, float x2, float y2)

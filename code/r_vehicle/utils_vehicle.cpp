@@ -16,9 +16,9 @@ Code written by: Petru Soroaga, 2021-2023
 #include "utils_vehicle.h"
 #include "shared_vars.h"
 
-static u32 s_lastCameraCommandModifyCounter = 0;
-static u8 s_CameraCommandNumber = 0;
-static u32 s_uCameraCommandsBuffer[8];
+u32 s_lastCameraCommandModifyCounter = 0;
+u8 s_CameraCommandNumber = 0;
+u32 s_uCameraCommandsBuffer[8];
 
 
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
@@ -28,7 +28,7 @@ bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldPro
 
    type_video_link_profile tmp;
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
-   tmp.keyframe = pOldProfile->keyframe;
+   tmp.keyframe_ms = pOldProfile->keyframe_ms;
 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
       return true;
@@ -99,18 +99,19 @@ void video_overwrites_init(shared_mem_video_link_overwrites* pSMLVO, Model* pMod
    pSMLVO->userVideoLinkProfile = pModel->video_params.user_selected_video_link_profile;
    pSMLVO->currentVideoLinkProfile = pSMLVO->userVideoLinkProfile;
 
-   pSMLVO->currentProfileDefaultVideoBitrate = pModel->video_link_profiles[pSMLVO->currentVideoLinkProfile].bitrate_fixed_bps;
-   pSMLVO->currentSetVideoBitrate = pSMLVO->currentProfileDefaultVideoBitrate;
+   pSMLVO->currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(pModel, pSMLVO->currentVideoLinkProfile);
+   pSMLVO->currentProfileAndLevelDefaultBitrate = pSMLVO->currentProfileMaxVideoBitrate;
+   pSMLVO->currentSetVideoBitrate = pSMLVO->currentProfileMaxVideoBitrate;
 
    pSMLVO->currentDataBlocks = pModel->video_link_profiles[pSMLVO->currentVideoLinkProfile].block_packets;
    pSMLVO->currentECBlocks = pModel->video_link_profiles[pSMLVO->currentVideoLinkProfile].block_fecs;
    pSMLVO->currentProfileShiftLevel = 0;
    pSMLVO->currentH264QUantization = 0;
    
-   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe > 0 )
-      pSMLVO->uCurrentKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe;
+   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
+      pSMLVO->uCurrentKeyframeMs = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms;
    else
-      pSMLVO->uCurrentKeyframe = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL * pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].fps / 1000;
+      pSMLVO->uCurrentKeyframeMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
       
    pSMLVO->hasEverSwitchedToLQMode = 0;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
@@ -119,13 +120,20 @@ void video_overwrites_init(shared_mem_video_link_overwrites* pSMLVO, Model* pMod
 
 void send_control_message_to_raspivid(u8 parameter, u8 value)
 {
-   if ( NULL == g_pCurrentModel || (! g_pCurrentModel->hasCamera()) )
+   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->hasCamera()) )
       return;
-   if ( (! g_pCurrentModel->isCameraCSICompatible()) && (! g_pCurrentModel->isCameraVeye()) )
+   if ( (! g_pCurrentModel->isActiveCameraCSICompatible()) && (! g_pCurrentModel->isActiveCameraVeye()) )
    {
       log_softerror_and_alarm("Can't signal on the fly video capture parameter change. Capture camera is not raspi or veye.");
       return;
    }
+
+   if ( g_uRouterState & ROUTER_STATE_NEEDS_RESTART_VIDEO_CAPTURE )
+   {
+      log_line("Video capture is restarting, do not send command (%d) to video capture program.", parameter);
+      return;
+   }
+
    if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
    {
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = ((u32)value) * 100000;

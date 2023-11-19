@@ -12,8 +12,10 @@ Code written by: Petru Soroaga, 2021-2023
 #include "base.h"
 #include "config.h"
 #include "hardware.h"
+#include "hardware_radio.h"
 #include "hw_procs.h"
 #include "controller_utils.h"
+#include "ctrl_interfaces.h"
 
 u32 controller_utils_getControllerId()
 {
@@ -260,4 +262,64 @@ bool controller_utils_usb_import_has_any_controller_id_file()
       return true;
 
    return false;
+}
+
+// Returns number of asignable radio interfaces or a negative error code number
+int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId)
+{
+   int iCountAssignableRadioInterfaces = 0;
+   int iCountPotentialAssignableRadioInterfaces = 0;
+   int iErrorCode = 0;
+
+   if ( NULL == pModel )
+      return -10;
+   if ( (iVehicleRadioLinkId < 0) || (iVehicleRadioLinkId >= pModel->radioLinksParams.links_count) )
+      return -11;
+
+   if ( pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+      return -12;
+   if ( pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
+      return -14;
+   if ( ! (pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
+      return -15;
+   
+   for( int iInterface = 0; iInterface < hardware_get_radio_interfaces_count(); iInterface++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterface);
+      if ( NULL == pRadioHWInfo )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCardInfo )
+         continue;
+
+      if ( ! hardware_radio_supports_frequency(pRadioHWInfo, pModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId]) )
+         continue;
+
+      if ( pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+         continue;
+      if ( pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
+         continue;
+
+      if ( ! (pModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
+         continue;
+
+      if ( ! (pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
+         continue;
+
+      if ( pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+      {
+         iCountPotentialAssignableRadioInterfaces++;
+         continue;
+      }
+      iCountAssignableRadioInterfaces++;
+   }
+
+   if ( iCountAssignableRadioInterfaces > 0 )
+      return iCountAssignableRadioInterfaces;
+
+   if ( iCountPotentialAssignableRadioInterfaces > 0 )
+      return -iCountPotentialAssignableRadioInterfaces;
+
+   return iErrorCode;
 }

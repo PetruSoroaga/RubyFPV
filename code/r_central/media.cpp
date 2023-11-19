@@ -15,7 +15,6 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/hw_procs.h"
 #include "../common/string_utils.h"
 #include "media.h"
-#include "../base/launchers.h"
 #include "../renderer/render_engine.h"
 #include "popup.h"
 #include "ruby_central.h"

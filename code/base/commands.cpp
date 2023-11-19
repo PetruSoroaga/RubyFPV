@@ -30,6 +30,9 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION: strcpy(szCommandDesc, "RadioLink_Flags_Changed_Confirmation"); break;
       case COMMAND_ID_SET_RADIO_CARD_MODEL: strcpy(szCommandDesc, "Set_Radio_Card_Model"); break;
       case COMMAND_ID_SET_MODEL_FLAGS: strcpy(szCommandDesc, "Set_Model_Flags"); break;
+      case COMMAND_ID_SET_RADIO_LINK_DATARATES: strcpy(szCommandDesc, "Set_Radio_Link_Datarates"); break;
+      case COMMAND_ID_SET_SIK_PACKET_SIZE: strcpy(szCommandDesc, "Set_SiK_Packet_Size"); break;
+       
       case COMMAND_ID_GET_USB_INFO: strcpy(szCommandDesc, "Get_USB_Info"); break;
       case COMMAND_ID_GET_USB_INFO2: strcpy(szCommandDesc, "Get_USB_Info2"); break;
       case COMMAND_ID_SET_CAMERA_PROFILE: strcpy(szCommandDesc, "Set_Camera_Profile"); break;
@@ -40,7 +43,8 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_OSD_CURRENT_LAYOUT: strcpy(szCommandDesc, "Set_Current_OSD_Layout"); break;
       case COMMAND_ID_GET_CORE_PLUGINS_INFO: strcpy(szCommandDesc, "Get_Core_Plugins_Info"); break;
       case COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS: strcpy(szCommandDesc, "Set_Controller_Telemetry_Options"); break;
-
+      case COMMAND_ID_GET_SIK_CONFIG: strcpy(szCommandDesc, "Get_SiK_Config"); break;
+      case COMMAND_ID_ROTATE_RADIO_LINKS: strcpy(szCommandDesc, "Rotate_Radio_Links"); break;
       case COMMAND_ID_SWAP_RADIO_INTERFACES: strcpy(szCommandDesc, "Swap_Radio_Interfaces"); break;
       case COMMAND_ID_SET_RELAY_PARAMETERS: strcpy(szCommandDesc, "Set_Relay_Parameters"); break;
       case COMMAND_ID_SET_SERIAL_PORTS_INFO: strcpy(szCommandDesc, "Set_Serial_Ports_Info"); break;
@@ -56,6 +60,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_RC_PARAMS: strcpy(szCommandDesc, "Set_RcParams"); break;
       case COMMAND_ID_SET_VEHICLE_NAME: strcpy(szCommandDesc, "Set_VehicleName"); break;
       case COMMAND_ID_REBOOT: strcpy(szCommandDesc, "Reboot"); break;
+      case COMMAND_ID_FACTORY_RESET: strcpy(szCommandDesc, "Factory Reset"); break;
       case COMMAND_ID_SET_NICE_VALUE_TELEMETRY: strcpy(szCommandDesc, "Set_NiceValueTelemetry"); break;
       case COMMAND_ID_SET_NICE_VALUES: strcpy(szCommandDesc, "Set_NiceValues"); break;
       case COMMAND_ID_SET_IONICE_VALUES: strcpy(szCommandDesc, "Set_IONiceValues"); break;
@@ -75,7 +80,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_UPLOAD_SW_TO_VEHICLE: strcpy(szCommandDesc, "Upload_SW_To_Vehicle"); break;
       case COMMAND_ID_UPLOAD_SW_TO_VEHICLE63: strcpy(szCommandDesc, "Upload_SW_To_Vehicle_2"); break;
       case COMMAND_ID_UPLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Upload_File_Segment"); break;
-      case COMMAND_ID_SET_CLOCK_SYNC_TYPE: strcpy(szCommandDesc, "Set_Clock_Sync_Type"); break;
+      case COMMAND_ID_SET_RXTX_SYNC_TYPE: strcpy(szCommandDesc, "Set_RxTx_Sync_Type"); break;
       case COMMAND_ID_RESET_CPU_SPEED: strcpy(szCommandDesc, "Reset_CPU_Speed"); break;
       case COMMAND_ID_SET_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Set_Developer_Flags"); break;
       case COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Reset_All_Developer_Flags"); break;

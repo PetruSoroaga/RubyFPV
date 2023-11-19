@@ -26,12 +26,16 @@ bool s_bHasReceivedGPSInfo = false;
 bool s_bHasReceivedGPSPos = false;
 bool s_bHasReceivedHeartbeat = false;
 
-static char s_szLastMessage[1024];
-static u32 s_LastMessageTime = 0;
+#define MAX_FC_MESSAGES_HISTORY 10
+char s_szLastMessages[MAX_FC_MESSAGES_HISTORY][FC_MESSAGE_MAX_LENGTH];
+u32 s_uLastMessagesTimes[MAX_FC_MESSAGES_HISTORY];
+int s_iNextMessageIndex = 0;
 
-static u32 s_TimeLastMAVLink_Altitude = 0;
+u32 s_TimeLastMAVLink_Altitude = 0;
 long s_LastMAVLink_Altitude = 0; // in 1/10 meters
 
+int s_iHeartbeatMsgCount = 0;
+int s_iSystemMsgCount = 0;
 
 #ifndef HAVE_ENUM_COPTER_MODE
 #define HAVE_ENUM_COPTER_MODE
@@ -112,7 +116,7 @@ typedef enum ROVER_MODE
 mavlink_status_t statusMav;
 mavlink_message_t msgMav;
 u32 s_vehicleMavId = 1;
-static int s_iAllowAnyVehicleSysId = 0;
+int s_iAllowAnyVehicleSysId = 0;
 
 
 void _rotate_point(float x, float y, float xCenter, float yCenter, float angle, float* px, float* py)
@@ -139,8 +143,15 @@ void parse_telemetry_init(u32 vehicleMavId)
    s_bHasReceivedGPSPos = false;
    s_bHasReceivedHeartbeat = false;
 
-   s_szLastMessage[0] = 0;
-   s_LastMessageTime = 0;
+   s_iNextMessageIndex = 0;
+   for( int i=0; i<MAX_FC_MESSAGES_HISTORY; i++ )
+   {
+      s_szLastMessages[i][0] = 0;
+      s_uLastMessagesTimes[i] = 0;
+   }
+   
+   s_iHeartbeatMsgCount = 0;
+   s_iSystemMsgCount = 0;
 }
 
 void parse_telemetry_allow_any_sysid(int iAllow)
@@ -149,12 +160,106 @@ void parse_telemetry_allow_any_sysid(int iAllow)
 }
 
 
-void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ruby_telemetry_extended_v2* pPHRTE, u8 vehicleType)
+int get_heartbeat_msg_count()
 {
-   char szBuff[1024];
+   return s_iHeartbeatMsgCount;
+}
+
+int get_system_msg_count()
+{
+   return s_iSystemMsgCount;
+}
+
+void reset_heartbeat_msg_count()
+{
+   s_iHeartbeatMsgCount = 0;
+}
+
+void reset_system_msg_count()
+{
+   s_iSystemMsgCount = 0;
+}
+
+void _add_fc_message(char* szMessage)
+{
+   if ( (NULL == szMessage) || (0 == szMessage[0]) )
+      return;
+
+   strncpy(s_szLastMessages[s_iNextMessageIndex], szMessage, FC_MESSAGE_MAX_LENGTH-1);
+   s_szLastMessages[s_iNextMessageIndex][FC_MESSAGE_MAX_LENGTH-1] = 0;
+   s_uLastMessagesTimes[s_iNextMessageIndex] = g_TimeNow;
+   s_iNextMessageIndex++;
+   
+   if ( s_iNextMessageIndex >= MAX_FC_MESSAGES_HISTORY )
+   {
+      for( int i=0; i<MAX_FC_MESSAGES_HISTORY-1; i++ )
+      {
+         strcpy(&s_szLastMessages[i][0], &s_szLastMessages[i+1][0]);
+         s_uLastMessagesTimes[i] = s_uLastMessagesTimes[i+1];
+      }
+      s_iNextMessageIndex = MAX_FC_MESSAGES_HISTORY-1;
+   }
+}
+
+bool _check_add_fc_message(char* szMessage)
+{
+   if ( (NULL == szMessage) || (0 == szMessage[0]) )
+      return false;
+
+   char szTmpMsg[FC_MESSAGE_MAX_LENGTH];
+   strncpy(szTmpMsg, szMessage, FC_MESSAGE_MAX_LENGTH-1);
+   szTmpMsg[FC_MESSAGE_MAX_LENGTH-1] = 0;
+
+   bool bDuplicateMessage = false;
+
+   for( int i=0; i<s_iNextMessageIndex; i++ )
+   {
+      if ( 0 != s_szLastMessages[i] )
+      if ( 0 == strcmp(szTmpMsg, s_szLastMessages[i]) )
+      {
+         bDuplicateMessage = true;
+         break;
+      }
+   }
+
+   if ( ! bDuplicateMessage )
+   {
+      _add_fc_message(szMessage);
+      return true;
+   }
+
+   // If the duplicate message is too frequent, do not add it to the list
+   
+   bool bMustDiscard = false;
+
+   for( int i=0; i<s_iNextMessageIndex; i++ )
+   {
+      if ( 0 == s_szLastMessages[i] )
+         continue;
+      if ( 0 != strcmp(szTmpMsg, s_szLastMessages[i]) )
+         continue;
+
+      if ( s_uLastMessagesTimes[i] > g_TimeNow - 3000 )
+      {
+         bMustDiscard = true;
+         s_uLastMessagesTimes[i] = g_TimeNow;
+      }
+   }
+
+   if ( bMustDiscard )
+      return false;
+
+   _add_fc_message(szMessage);
+   return true;
+}
+
+void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ruby_telemetry_extended_v3* pPHRTE, u8 vehicleType)
+{
+   char szBuff[512];
    u32 tmp32;
    u8 tmp8;
    int tmpi;
+   int imah = 0;
    //u32 uTmp32;
 
    if ( 0 == s_iAllowAnyVehicleSysId )
@@ -170,9 +275,8 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
    { 
       case MAVLINK_MSG_ID_STATUSTEXT:
          mavlink_msg_statustext_get_text(&msgMav, szBuff);
-         strcpy(s_szLastMessage, szBuff);
-         s_LastMessageTime = get_current_timestamp_ms();
-         log_line("MAV status text: %s", szBuff);
+         if ( _check_add_fc_message(szBuff) )
+            log_line("MAV status text: %s", szBuff);
          #ifdef DEBUG_MAV
          printf("MAV status text: %s\n", szBuff);
          #endif
@@ -180,9 +284,8 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
 
       case MAVLINK_MSG_ID_STATUSTEXT_LONG:
          mavlink_msg_statustext_long_get_text(&msgMav, szBuff);
-         strcpy(s_szLastMessage, szBuff);
-         s_LastMessageTime = get_current_timestamp_ms();
-         log_line("MAV status text long: %s", szBuff);
+         if ( _check_add_fc_message(szBuff) )
+            log_line("MAV status text long: %s", szBuff);
          #ifdef DEBUG_MAV
          printf("MAV status text long: %s\n", szBuff);
          #endif
@@ -292,29 +395,29 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             pdpfct->flags &= ~FC_TELE_FLAGS_ARMED;
 
          s_bHasReceivedHeartbeat = true;
+         s_iHeartbeatMsgCount++;
          break;
 
       case MAVLINK_MSG_ID_BATTERY_STATUS:
-      {
-         i32 mah = mavlink_msg_battery_status_get_current_consumed(&msgMav);
-         pdpfct->mah = (mah<0)?0:mah;
+         imah = mavlink_msg_battery_status_get_current_consumed(&msgMav);
+         pdpfct->mah = (imah<0)?0:imah;
          #ifdef DEBUG_MAV
-         log_line("MAV battery status: mah: %d, %u", mah, pdpfct->mah);
-         printf("MAV battery status: mah: %d, %u\n", mah, pdpfct->mah);
+         log_line("MAV battery status: mah: %d, %u", imah, pdpfct->mah);
+         printf("MAV battery status: mah: %d, %u\n", imah, pdpfct->mah);
          #endif
          break;
-      }
+
       case MAVLINK_MSG_ID_SYS_STATUS:
-      {
-         i16 mah = mavlink_msg_sys_status_get_current_battery(&msgMav);
+         imah = mavlink_msg_sys_status_get_current_battery(&msgMav);
          pdpfct->voltage = mavlink_msg_sys_status_get_voltage_battery(&msgMav);
-         pdpfct->current = (mah<0)?0:(mah*10U);
+         pdpfct->current = (imah<0)?0:(imah*10U);
          #ifdef DEBUG_MAV
          log_line("MAV Sys Status: volt: %f, amps: %f", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
          printf("MAV Sys Status: volt: %f, amps: %f\n", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
          #endif
+         s_iSystemMsgCount++;
          break;
-      }
+      
       case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
          pdpfct->altitude_abs = mavlink_msg_global_position_int_get_alt(&msgMav) / 10.0f + 100000;
          pdpfct->altitude = mavlink_msg_global_position_int_get_relative_alt(&msgMav) / 10.0f + 100000;
@@ -322,7 +425,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          {
             int li = g_pCurrentModel->osd_params.layout;
             if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
-            if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG_EXT_SHOW_LOCAL_VERTICAL_SPEED )
+            if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
             {
                if ( s_TimeLastMAVLink_Altitude == 0 )
                {
@@ -389,7 +492,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          //pdpfct->altitude = mavlink_msg_vfr_hud_get_alt(&msgMav)*100 + 100000;
 
          if ( g_pCurrentModel->osd_params.layout < 0 || g_pCurrentModel->osd_params.layout >= MODEL_MAX_OSD_PROFILES ||
-              (!(g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG_EXT_SHOW_LOCAL_VERTICAL_SPEED)) )
+              (!(g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED)) )
             pdpfct->vspeed = mavlink_msg_vfr_hud_get_climb(&msgMav)*100 + 100000; 
          pdpfct->hspeed = mavlink_msg_vfr_hud_get_groundspeed(&msgMav) * 100.0f + 100000;
 
@@ -413,9 +516,10 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
 
       case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
          tmpi = (int)((u8)mavlink_msg_rc_channels_raw_get_rssi(&msgMav));
-         if ( (tmpi != 255) && (NULL != pPHRTE) )
+         
+         if ( /*(tmpi != 255) &&*/ (NULL != pPHRTE) )
          {
-            pdpfct->rc_rssi = (tmpi*100)/254;
+            pdpfct->rc_rssi = (tmpi*100)/255;
             if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
             {
                log_line("Received RC RSSI from FC through MAVLink, value: %d", pdpfct->rc_rssi);
@@ -423,8 +527,8 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             }
             pPHRTE->uplink_mavlink_rc_rssi = pdpfct->rc_rssi;
          }
-         if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
-            pPHRTE->uplink_mavlink_rc_rssi = 255;
+         //if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
+         //   pPHRTE->uplink_mavlink_rc_rssi = 255;
 
          s_MAVLinkRCChannels[0] = mavlink_msg_rc_channels_raw_get_chan1_raw(&msgMav);
          s_MAVLinkRCChannels[1] = mavlink_msg_rc_channels_raw_get_chan2_raw(&msgMav);
@@ -438,9 +542,10 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
 
       case MAVLINK_MSG_ID_RC_CHANNELS:
          tmpi = (int)((u8)mavlink_msg_rc_channels_get_rssi(&msgMav));
-         if ( (tmpi != 255) && (NULL != pPHRTE) )
+         
+         if ( /*(tmpi != 255) &&*/ (NULL != pPHRTE) )
          {
-            pdpfct->rc_rssi = (tmpi*100)/254;
+            pdpfct->rc_rssi = (tmpi*100)/255;
             if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
             {
                log_line("Received RC RSSI from FC through MAVLink, value: %d", pdpfct->rc_rssi);
@@ -448,8 +553,8 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             }
             pPHRTE->uplink_mavlink_rc_rssi = pdpfct->rc_rssi;
          }
-         if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
-            pPHRTE->uplink_mavlink_rc_rssi = 255;
+         //if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
+         //   pPHRTE->uplink_mavlink_rc_rssi = 255;
 
          s_MAVLinkRCChannels[0] = mavlink_msg_rc_channels_get_chan1_raw(&msgMav);
          s_MAVLinkRCChannels[1] = mavlink_msg_rc_channels_get_chan2_raw(&msgMav);
@@ -464,7 +569,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          s_MAVLinkRCChannels[10] = mavlink_msg_rc_channels_get_chan11_raw(&msgMav);
          s_MAVLinkRCChannels[11] = mavlink_msg_rc_channels_get_chan12_raw(&msgMav);
          s_MAVLinkRCChannels[12] = mavlink_msg_rc_channels_get_chan13_raw(&msgMav);
-         s_MAVLinkRCChannels[13] = mavlink_msg_rc_channels_get_chan14_raw(&msgMav);
+         s_MAVLinkRCChannels[13] = mavlink_msg_rc_channels_get_chan14_raw(&msgMav);         
          break;
 
       case MAVLINK_MSG_ID_RADIO_STATUS:
@@ -594,7 +699,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
    }
 }
 
-bool parse_telemetry_from_fc( u8* buffer, int length, t_packet_header_fc_telemetry* pphfct, t_packet_header_ruby_telemetry_extended_v2* pPHRTE, u8 vehicleType, int telemetry_type )
+bool parse_telemetry_from_fc( u8* buffer, int length, t_packet_header_fc_telemetry* pphfct, t_packet_header_ruby_telemetry_extended_v3* pPHRTE, u8 vehicleType, int telemetry_type )
 {
    if ( telemetry_type == TELEMETRY_TYPE_LTM )
       return parse_telemetry_from_fc_ltm(buffer, length, pphfct, pPHRTE, vehicleType);
@@ -631,19 +736,16 @@ bool has_received_flight_mode()
    return s_bHasReceivedHeartbeat;
 }
 
-void reset_last_message()
-{
-   s_szLastMessage[0] = 0;
-   s_LastMessageTime = 0;
-}
-
 u32 get_last_message_time()
 {
-   return s_LastMessageTime;
+   if ( 0 == s_iNextMessageIndex )
+      return 0;
+   return s_uLastMessagesTimes[s_iNextMessageIndex-1];
 }
 
 char* get_last_message()
 {
-   s_szLastMessage[FC_MESSAGE_MAX_LENGTH-1] = 0;
-   return s_szLastMessage;
+   if ( 0 == s_iNextMessageIndex )
+      return NULL;
+   return s_szLastMessages[s_iNextMessageIndex-1];
 }

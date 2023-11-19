@@ -32,11 +32,18 @@ t_i2c_device_settings s_listI2CDevicesSettings[MAX_I2C_DEVICES];
 int s_iCountI2CDevicesSettings = 0;
 int s_iI2CDeviceSettingsLoaded = 0;
 
+void hardware_i2c_reset_enumerated_flag()
+{
+   s_iHardwareI2CBussesEnumerated = 0;
+}
+
 void hardware_enumerate_i2c_busses()
 {
    if ( 0 != s_iHardwareI2CBussesEnumerated )
+   {
+      log_line("[Hardware] IC2 devices already enumerated. %d busses, %d known devices found.", s_iHardwareI2CBusCount, s_iKnownDevicesFound);
       return;
-
+   }
    s_iHardwareI2CBussesEnumerated = 1;
    s_iHardwareI2CBusCount = 0;
    s_iKnownDevicesFound = 0;

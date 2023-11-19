@@ -13,6 +13,7 @@ Code written by: Petru Soroaga, 2021-2023
 
 #include "../base/hardware.h"
 #include "../renderer/render_engine.h"
+#include "fonts.h"
 #include "colors.h"
 #include "shared_vars.h"
 #include <math.h>
@@ -53,12 +54,12 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
    g_pRenderEngine->setFill(color_line[0], color_line[1], color_line[2], color_line[3]);
    g_pRenderEngine->setStroke(color_line[0], color_line[1], color_line[2], 0);
    g_pRenderEngine->setStrokeSize(0);
-   g_pRenderEngine->drawText(xPos+paddingH+radiusH+height_text*0.2, yPos+paddingV+height_text*0.2, height_text*0.9, g_idFontMenu, "1");
-   g_pRenderEngine->drawText(xPos+paddingH+height_text*0.3, yPos+paddingV+radiusV, height_text*0.9, g_idFontMenu, "2");
-   g_pRenderEngine->drawText(xPos+paddingH-height_text*0.2, yPos+paddingV+2*radiusV+paddingV, height_text*0.9, g_idFontMenu, "3");
-   g_pRenderEngine->drawText(xPos+paddingH+radiusH+height_text*0.2+2*radiusH+paddingH, yPos+paddingV+height_text*0.2, height_text*0.9, g_idFontMenu, "4");
-   g_pRenderEngine->drawText(xPos+paddingH+height_text*0.3+2*radiusH+paddingH, yPos+paddingV+radiusV, height_text*0.9, g_idFontMenu, "5");
-   g_pRenderEngine->drawText(xPos+paddingH-height_text*0.2+2*radiusH+paddingH, yPos+paddingV+2*radiusV+paddingV, height_text*0.9, g_idFontMenu, "6");
+   g_pRenderEngine->drawText(xPos+paddingH+radiusH+height_text*0.2, yPos+paddingV+height_text*0.2, g_idFontMenu, "1");
+   g_pRenderEngine->drawText(xPos+paddingH+height_text*0.3, yPos+paddingV+radiusV, g_idFontMenu, "2");
+   g_pRenderEngine->drawText(xPos+paddingH-height_text*0.2, yPos+paddingV+2*radiusV+paddingV, g_idFontMenu, "3");
+   g_pRenderEngine->drawText(xPos+paddingH+radiusH+height_text*0.2+2*radiusH+paddingH, yPos+paddingV+height_text*0.2, g_idFontMenu, "4");
+   g_pRenderEngine->drawText(xPos+paddingH+height_text*0.3+2*radiusH+paddingH, yPos+paddingV+radiusV, g_idFontMenu, "5");
+   g_pRenderEngine->drawText(xPos+paddingH-height_text*0.2+2*radiusH+paddingH, yPos+paddingV+2*radiusV+paddingV, g_idFontMenu, "6");
 
    g_pRenderEngine->setFill(color_high[0], color_high[1], color_high[2], color_high[3]);
    g_pRenderEngine->setStroke(color_high[0], color_high[1], color_high[2], color_high[3]);
@@ -263,7 +264,7 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
 
    x = xPos + paddingH + 2*radiusH + paddingH + 2*radiusH + 2*paddingH;
    y = yPos + paddingV;
-   g_pRenderEngine->drawText(x,y, height_text, g_idFontMenu, "Auxiliary Axes:");
+   g_pRenderEngine->drawText(x,y, g_idFontMenu, "Auxiliary Axes:");
 
    y += 1.9*height_text;
    for( int i=6; i<numAxes; i++ )
@@ -272,7 +273,7 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
       g_pRenderEngine->setStroke(color_line[0], color_line[1], color_line[2], 0);
       g_pRenderEngine->setStrokeSize(0);
       sprintf(szBuff, "%d", i+1);
-      g_pRenderEngine->drawText(x-paddingH*1.2, y-height_text*0.01, height_text*0.99, g_idFontMenu, szBuff);
+      g_pRenderEngine->drawText(x-paddingH*1.2, y-height_text*0.01, g_idFontMenu, szBuff);
 
       g_pRenderEngine->setFill(color_line[0], color_line[1], 0, 0);
       g_pRenderEngine->setStroke(color_line[0], color_line[1], color_line[2], color_line[3]);
@@ -313,7 +314,7 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
    g_pRenderEngine->setStrokeSize(0);
 
    y = yPos+paddingV*3.0+2*radiusV+1.2*height_text;
-   g_pRenderEngine->drawText( x, y, height_text, g_idFontMenu, "Buttons:");
+   g_pRenderEngine->drawText( x, y, g_idFontMenu, "Buttons:");
 
    y += height_text*1.8;
    float x0 = x;
@@ -337,9 +338,9 @@ void render_joystick(float xPos, float yPos, float width, float height, int numA
       g_pRenderEngine->setStrokeSize(0);
       sprintf(szBuff, "%d", i+1);
       if ( i < 9 )
-         g_pRenderEngine->drawText(x+0.3*height_text, y+0.3*height_text, height_text*0.9, g_idFontMenu, szBuff);
+         g_pRenderEngine->drawText(x+0.3*height_text, y+0.3*height_text, g_idFontMenu, szBuff);
       else
-         g_pRenderEngine->drawText(x+0.3*height_text, y+0.3*height_text, height_text*0.9, g_idFontMenu, szBuff);
+         g_pRenderEngine->drawText(x+0.3*height_text, y+0.3*height_text, g_idFontMenu, szBuff);
 
       x += 2*radiusButtonH+10.0*g_pRenderEngine->getPixelWidth();
 

@@ -145,6 +145,14 @@ u8 base_compute_crc8(u8* pBuffer, int iLength)
    return uCrc;
 }
 
+int base_check_crc32(u8* pBuffer, int iLength)
+{
+   u32 crc = base_compute_crc32(pBuffer + sizeof(u32), iLength-sizeof(u32)); 
+   u32* p = (u32*)pBuffer;
+   if ( *p != crc )
+      return 0;
+   return 1;
+}
 
 void init_boot_timestamp()
 {
@@ -316,10 +324,10 @@ void _log_service_entry(char* szBuff)
    strcat(msg.text, " ");
    strcat(msg.text, sszComponentName);
    strcat(msg.text, ": ");
-   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
+   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
+   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
 }
 
 
@@ -334,10 +342,10 @@ void _log_service_entry_error(char* szBuff)
    strcat(msg.text, " ");
    strcat(msg.text, sszComponentName);
    strcat(msg.text, ": ERROR: ");
-   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
+   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
+   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
 }
 
 void _log_service_entry_softerror(char* szBuff)
@@ -351,10 +359,10 @@ void _log_service_entry_softerror(char* szBuff)
    strcat(msg.text, " ");
    strcat(msg.text, sszComponentName);
    strcat(msg.text, ": SOFTERROR: ");
-   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-2-strlen(msg.text)] = 0;
+   szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, sizeof(msg), 0);  
+   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
 }
 
 void log_init_local_only(const char* component_name)
@@ -442,6 +450,7 @@ void log_line(const char* format, ...)
    {
       char szBuff[1200];
       vsnprintf(szBuff,1199, format, args);
+      szBuff[1199] = 0;
       _log_service_entry(szBuff);
       return;
    }
@@ -516,6 +525,7 @@ void log_line_watchdog(const char* format, ...)
    {
       char szBuff[1200];
       vsnprintf(szBuff, 1199, format, args);
+      szBuff[1199] = 0;
       _log_service_entry(szBuff);
       return;
    }
@@ -570,6 +580,7 @@ void log_line_commands(const char* format, ...)
    {
       char szBuff[1200];
       vsnprintf(szBuff, 1199, format, args);
+      szBuff[1199] = 0;
       _log_service_entry(szBuff);
       return;
    }
@@ -780,6 +791,7 @@ void log_dword(const char* szText, u32 value)
    {
       char szBuff[1200];
       snprintf(szBuff, 1199, "%s %u", szText, value);
+      szBuff[1199] = 0;
       _log_service_entry(szBuff);
       return;
    }
@@ -834,6 +846,7 @@ void log_dword_bits(const char* szText, u32 value)
    {
       char szBuff[200];
       snprintf(szBuff, 199, "%s %u", szText, value);
+      szBuff[199] = 0;
       _log_service_entry(szBuff);
       return;
    }
@@ -893,6 +906,7 @@ void log_error_and_alarm(const char* format, ...)
    {
       char szBuff[1200];
       vsnprintf(szBuff, 1199, format, args);
+      szBuff[1199] = 0;
       _log_service_entry_error(szBuff);
       return;
    }
@@ -982,6 +996,7 @@ void log_softerror_and_alarm(const char* format, ...)
    {
       char szBuff[1200];
       vsnprintf(szBuff, 1199, format, args);
+      szBuff[1199] = 0;
       _log_service_entry_softerror(szBuff);
       return;
    }

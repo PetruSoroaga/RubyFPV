@@ -75,7 +75,7 @@ u32 parse_ltm_read_u32()
    return t;
 }
 
-bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ruby_telemetry_extended_v2* pPHRTE, u8 vehicleType)
+bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ruby_telemetry_extended_v3* pPHRTE, u8 vehicleType)
 {
    s_LTMPayloadReadIndex = 0;
    u8 tmp8;
@@ -122,6 +122,7 @@ bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ru
       s_bHasReceivedGPSPos = true;
       s_bHasReceivedGPSInfo = true;
       //printf("\nalt: %d, lat: %u\n", pdpfct->altitude, pdpfct->latitude);
+      s_iSystemMsgCount++;
       return true;
    }
  
@@ -243,6 +244,7 @@ bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ru
          pdpfct->flags &= ~FC_TELE_FLAGS_ARMED;
       }
       s_bHasReceivedHeartbeat = true;
+      s_iHeartbeatMsgCount++;
       return true;
    }
    return false;
@@ -250,7 +252,7 @@ bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ru
 
 
 
-bool parse_telemetry_from_fc_ltm( u8* buffer, int length, t_packet_header_fc_telemetry* pphfct, t_packet_header_ruby_telemetry_extended_v2* pPHRTE, u8 vehicleType)
+bool parse_telemetry_from_fc_ltm( u8* buffer, int length, t_packet_header_fc_telemetry* pphfct, t_packet_header_ruby_telemetry_extended_v3* pPHRTE, u8 vehicleType)
 {
    bool ret = false;
    u8 c;

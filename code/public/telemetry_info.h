@@ -146,7 +146,7 @@ typedef struct
    u32 uVehicleId;
    u8  uIsSpectatorMode; // 0/1
    u8  uIsRelaing;
-   u32 uRelayVehicleId;
+   u32 uRelayedVehicleId;
    u8  uActiveCamera; // 0..N (camera or video stream)
    u8  uTotalCameras; // total number of cameras (cameras or video streams)
 
