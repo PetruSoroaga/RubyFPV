@@ -44,7 +44,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/controller_utils.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
-#include "hw_config_check.h"
+#include "../r_vehicle/hw_config_check.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 

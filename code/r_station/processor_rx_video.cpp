@@ -136,12 +136,12 @@ ProcessorRxVideo::~ProcessorRxVideo()
 
    m_siInstancesCount--;
 
-   if ( 0 == m_siInstancesCount )
+   if (0 == m_siInstancesCount && m_fdLogFile != NULL)
    {
-      if ( m_fdLogFile > 0 )
-         fclose(m_fdLogFile);
-      m_fdLogFile = NULL;
+       fclose(m_fdLogFile);
+       m_fdLogFile = NULL;
    }
+
 }
 
 bool ProcessorRxVideo::init()

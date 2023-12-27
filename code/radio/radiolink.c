@@ -157,7 +157,6 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
 
 int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 {
- 
    return 0;
 }
 
@@ -165,6 +164,5 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 
 int radio_write_sik_packet(int interfaceIndex, u8* pData, int dataLength, u32 uTimeNow)
 {
-
-   return 0
+   return 0;
 }
