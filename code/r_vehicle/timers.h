@@ -16,7 +16,6 @@ extern u32 g_TimeLastCheckRadioSilenceFailsafe;
 
 extern u32 g_TimeLastCheckEverySecond;
 extern u32 g_TimeLastRCSentToFC;
-extern u32 g_TimeLastMessageFromFC;
 extern u32 g_TimeLastMAVLinkHeartbeatSent;
 
 // RC TX
@@ -31,7 +30,6 @@ extern u32 g_TimeLastQualityMeasurement;
 
 extern u32 g_TimeFirstReceivedRadioPacketFromController;
 extern u32 g_TimeLastReceivedRadioPacketFromController;
-extern u32 g_TimeLastVideoBlockSent;
 extern u32 g_TimeLastDebugFPSComputeTime;
 extern u32 g_TimeLastLiveLogCheck;
 extern u32 g_TimeLastSetRadioLinkFlagsStartOperation;

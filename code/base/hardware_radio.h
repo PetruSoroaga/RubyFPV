@@ -11,6 +11,7 @@
 #define RADIO_TYPE_REALTEK 3
 #define RADIO_TYPE_MEDIATEK 4
 #define RADIO_TYPE_SIK 5
+#define RADIO_TYPE_SERIAL 6
 
 #define RADIO_HW_DRIVER_ATHEROS 0       // ath9k_htc
 #define RADIO_HW_DRIVER_RALINK 1        // rt2800usb, only 2.4Ghz band
@@ -20,6 +21,8 @@
 #define RADIO_HW_DRIVER_REALTEK_8812AU 6          // 8812au
 #define RADIO_HW_DRIVER_REALTEK_RTL88X2BU 7       // rtl88x2bu
 #define RADIO_HW_DRIVER_SERIAL_SIK 8
+#define RADIO_HW_DRIVER_SERIAL 9
+
 
 // 0 is generic card model
 #define CARD_MODEL_TPLINK722N       1
@@ -38,6 +41,8 @@
 #define CARD_MODEL_ALFA_AWUS036ACS  14
 
 #define CARD_MODEL_SIK_RADIO 100
+#define CARD_MODEL_SERIAL_RADIO 101
+#define CARD_MODEL_SERIAL_RADIO_ELRS 102
 
 
 #define RADIO_HW_SUPPORTED_BAND_23 1
@@ -67,7 +72,7 @@ typedef struct
 {
    int nChannel;
    int nChannelFlags;
-   int nRate;
+   int nDataRateBPSMCS; // positive: bps, negative: mcs rate, 0: never
    int nAntenna;
    int nRadiotapFlags;
    int nDbm;
@@ -95,6 +100,8 @@ typedef struct
    int isEnabled;
    u8 supportedBands;  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
    int isHighCapacityInterface;
+   int isSerialRadio;
+   int isConfigurable;
    int isTxCapable;
    int iCurrentDataRate;
    u32 uCurrentFrequencyKhz;
@@ -157,6 +164,9 @@ const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex);
 
 int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freqKhz);
 int hardware_radio_supports_frequency(radio_hw_info_t* pRadioInfo, u32 freqKhz);

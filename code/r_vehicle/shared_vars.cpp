@@ -73,6 +73,3 @@ int g_iShowVideoKeyframesAfterRelaySwitch = 0;
 int g_iGetSiKConfigAsyncResult = 0;
 int g_iGetSiKConfigAsyncRadioInterfaceIndex = -1;
 u8 g_uGetSiKConfigAsyncVehicleLinkIndex = 0;
-
-// TX Telemetry
-int s_MAVLinkRCChannels[16];

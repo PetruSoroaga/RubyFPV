@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -400,6 +418,22 @@ char* str_get_packet_history_symbol(int iPacketType, int iRepeatCount)
    return s_szOSDRenderRxHistoryPacketSymbol;
 }
 
+char* str_get_packet_test_link_command(int iTestCommandId)
+{
+   static char s_szTestRadioLinkCommandType[32];
+   s_szTestRadioLinkCommandType[0] = 0;
+
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS )
+      strcpy(s_szTestRadioLinkCommandType, "[Status]");
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START )
+      strcpy(s_szTestRadioLinkCommandType, "[Start]");
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING )
+      strcpy(s_szTestRadioLinkCommandType, "[Ping]");
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+      strcpy(s_szTestRadioLinkCommandType, "[End]");
+
+   return s_szTestRadioLinkCommandType;
+}
 
 void str_getDataRateDescription(int dataRateBPS, char* szOutput)
 {
@@ -414,6 +448,10 @@ void str_getDataRateDescription(int dataRateBPS, char* szOutput)
          sprintf(szOutput, "MCS-%d %u Mb", mcsIndex, getRealDataRateFromMCSRate(mcsIndex)/1000/1000 );
       else
          sprintf(szOutput, "MCS-?");
+   }
+   else if ( 0 == dataRateBPS )
+   {
+      strcpy(szOutput, "None (0)");
    }
    else if ( dataRateBPS <= 56 )
    {
@@ -594,6 +632,7 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypePi3B = "Raspberry Pi 3B";
    static const char* s_szBoardTypePi3BP = "Raspberry Pi 3B+";
    static const char* s_szBoardTypePi4B = "Raspberry Pi 4B";
+   static const char* s_szBoardTypeOpenIPCGoke = "OpenIPC Goke";
 
    if ( board_type == BOARD_TYPE_PIZERO )
       return s_szBoardTypePi0;
@@ -615,6 +654,9 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypePi3BP;
    if ( board_type == BOARD_TYPE_PI4B )
       return s_szBoardTypePi4B;
+
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE )
+      return s_szBoardTypeOpenIPCGoke;
 
    return s_szBoardTypeUnknown;
 }
@@ -693,6 +735,8 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
       strcat(szOutput, "USB");
    else if ( camType == CAMERA_TYPE_IP )
       strcat(szOutput, "IP");
+   else if ( camType == CAMERA_TYPE_OPENIPC_GOKE )
+      strcat(szOutput, "Goke OpenIPC");
    else if ( camType == 0 )
       strcat(szOutput, "None");
    else
@@ -788,6 +832,8 @@ const char* str_get_radio_type_description(int typeAndDriver)
       strcpy(sszNICTypeDescription, "Mediatek");
    if ( typeAndDriver == RADIO_TYPE_SIK )
       strcpy(sszNICTypeDescription, "SiK-Radio");
+   if ( typeAndDriver == RADIO_TYPE_SERIAL )
+      strcpy(sszNICTypeDescription, "Serial-Radio");
    return sszNICTypeDescription;
 }
 
@@ -811,6 +857,8 @@ const char* str_get_radio_driver_description(int typeAndDriver)
       strcpy(sszNICDriverDescription, "8812au");
    if ( typeAndDriver == RADIO_HW_DRIVER_SERIAL_SIK )
       strcpy(sszNICDriverDescription, "SiK");
+   if ( typeAndDriver == RADIO_HW_DRIVER_SERIAL )
+      strcpy(sszNICDriverDescription, "Serial");
    return sszNICDriverDescription;
 }
 
@@ -838,6 +886,8 @@ const char* str_get_radio_card_model_string(int cardModel)
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
    
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
+   if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
+   if ( cardModel == CARD_MODEL_SERIAL_RADIO_ELRS ) strcpy(s_szCardModelDescription, "ELRS-Radio");
 
    return s_szCardModelDescription;
 }
@@ -866,6 +916,8 @@ const char* str_get_radio_card_model_string_short(int cardModel)
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
 
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
+   if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
+   if ( cardModel == CARD_MODEL_SERIAL_RADIO_ELRS ) strcpy(s_szCardModelDescription, "ELRS");
 
    return s_szCardModelDescription;
 }
@@ -909,8 +961,8 @@ char* str_get_radio_frame_flags_description2(u32 frameFlags)
 
 void str_get_radio_frame_flags_description(u32 frameFlags, char* szOutput)
 {
-   if ( frameFlags & RADIO_FLAGS_ENABLE_MCS_FLAGS )
-      strcpy(szOutput, "[MCS rates and flags]");
+   if ( frameFlags & 0x00FF0000 )
+      strcpy(szOutput, "[MCS rates]");
    else
       strcpy(szOutput, "[LEGACY rates]");
 
@@ -925,18 +977,6 @@ void str_get_radio_frame_flags_description(u32 frameFlags, char* szOutput)
    if ( !( frameFlags & RADIO_FLAGS_FRAME_TYPE_RTS) )      
       strcat(szOutput, " [Frames Type: UNKNOWN]");
 
-   if ( frameFlags & RADIO_FLAGS_HT20 )
-      strcat(szOutput, " [HT20]");
-   if ( frameFlags & RADIO_FLAGS_HT40 )
-      strcat(szOutput, " [HT40]");
-
-   if ( frameFlags & RADIO_FLAGS_LDPC )
-      strcat(szOutput, " [LDPC]");
-   if ( frameFlags & RADIO_FLAGS_SHORT_GI )
-      strcat(szOutput, " [SGI]");
-   if ( frameFlags & RADIO_FLAGS_STBC )
-      strcat(szOutput, " [STBC]");
-
    if ( frameFlags & RADIO_FLAGS_SIK_ECC )
       strcat(szOutput, " [SIK_ECC]");
    if ( frameFlags & RADIO_FLAGS_SIK_LBT )
@@ -944,12 +984,35 @@ void str_get_radio_frame_flags_description(u32 frameFlags, char* szOutput)
    if ( frameFlags & RADIO_FLAGS_SIK_MCSTR )
       strcat(szOutput, " [SIK_MCSTR]");
 
-   if ( (frameFlags & RADIO_FLAGS_APPLY_MCS_FLAGS_ON_VEHICLE) && (frameFlags & RADIO_FLAGS_APPLY_MCS_FLAGS_ON_CONTROLLER) )
-      strcat(szOutput, " [Apply On Both]");
-   else if ( frameFlags & RADIO_FLAGS_APPLY_MCS_FLAGS_ON_VEHICLE )
-      strcat(szOutput, " [Apply On Vehicle]");
+   if ( (frameFlags & RADIO_FLAG_HT40_VEHICLE) && (frameFlags & RADIO_FLAG_HT40_CONTROLLER) )
+      strcat(szOutput, " [HT40 V/C]");
+   else if ( frameFlags & RADIO_FLAG_HT40_VEHICLE )
+      strcat(szOutput, " [HT40 V]");
+   else if ( frameFlags & RADIO_FLAG_HT40_CONTROLLER )
+      strcat(szOutput, " [HT40 C]");
    else
-      strcat(szOutput, " [Apply On Controller]");
+      strcat(szOutput, " [HT20 V/C]");
+
+   if ( (frameFlags & RADIO_FLAG_SGI_VEHICLE) && (frameFlags & RADIO_FLAG_SGI_CONTROLLER) )
+      strcat(szOutput, " [SGI V/C]");
+   else if ( frameFlags & RADIO_FLAG_SGI_VEHICLE )
+      strcat(szOutput, " [SGI V]");
+   else if ( frameFlags & RADIO_FLAG_SGI_CONTROLLER )
+      strcat(szOutput, " [SGI C]");
+
+   if ( (frameFlags & RADIO_FLAG_STBC_VEHICLE) && (frameFlags & RADIO_FLAG_STBC_CONTROLLER) )
+      strcat(szOutput, " [STBC V/C]");
+   else if ( frameFlags & RADIO_FLAG_STBC_VEHICLE )
+      strcat(szOutput, " [STBC V]");
+   else if ( frameFlags & RADIO_FLAG_STBC_CONTROLLER )
+      strcat(szOutput, " [STBC C]");
+   
+   if ( (frameFlags & RADIO_FLAG_LDPC_VEHICLE) && (frameFlags & RADIO_FLAG_LDPC_CONTROLLER) )
+      strcat(szOutput, " [LDPC V/C]");
+   else if ( frameFlags & RADIO_FLAG_LDPC_VEHICLE )
+      strcat(szOutput, " [LDPC V]");
+   else if ( frameFlags & RADIO_FLAG_LDPC_CONTROLLER )
+      strcat(szOutput, " [LDPC C]");
 }
 
 char* str_format_video_encoding_flags(u32 uVideoEncodingFlags)
@@ -1003,6 +1066,7 @@ char* str_get_radio_stream_name(int iStreamId)
 {
    static char s_szStreamName[32];
 
+   strcpy(s_szStreamName, "N/A");
    if ( iStreamId == STREAM_ID_DATA )
       strcpy(s_szStreamName, "Data Stream 1");
    else if ( iStreamId < STREAM_ID_VIDEO_1 )
@@ -1051,8 +1115,11 @@ char* str_get_serial_port_usage(int iSerialPortUsage)
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_DATA_LINK )
       strcpy(s_szSerialPortUsage, "Data Link");
 
-   if ( iSerialPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
-      strcpy(s_szSerialPortUsage, "Radio Interface");
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
+      strcpy(s_szSerialPortUsage, "SiK Radio Interface");
+
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO )
+      strcpy(s_szSerialPortUsage, "Serial Radio Interface");
 
    if ( iSerialPortUsage >= SERIAL_PORT_USAGE_CORE_PLUGIN )
       strcpy(s_szSerialPortUsage, "Core Plugin");
@@ -1151,6 +1218,8 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RADIO_DATARATES");
    else if ( iModelChangeType == MODEL_CHANGED_RADIO_POWERS )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RADIO_POWERS");
+   else if ( iModelChangeType == MODEL_CHANGED_RADIO_LINK_PARAMS )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RADIO_LINK_PARAMS");
    else if ( iModelChangeType == MODEL_CHANGED_ADAPTIVE_VIDEO_FLAGS )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_ADAPTIVE_VIDEO_FLAGS");
    else if ( iModelChangeType == MODEL_CHANGED_EC_SCHEME )
@@ -1182,6 +1251,10 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_OSD_PARAMS");
    else if ( iModelChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE");
+   else if ( iModelChangeType == MODEL_CHANGED_RC_PARAMS )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RC_PARAMS");
+   else if ( iModelChangeType == MODEL_CHANGED_RESET_RADIO_LINK )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RESET_RADIO_LINK");
    else
       strcpy(s_szModelChangeTypeString, "UNKNOWN");
    return s_szModelChangeTypeString;
@@ -1230,4 +1303,18 @@ char* str_format_relay_mode(u32 uRelayMode)
    if ( 0 == s_szRelayModeDescription[0] )
       strcpy(s_szRelayModeDescription, "None");
    return s_szRelayModeDescription;
+}
+
+char* str_format_firmware_type(u32 uFirmwareType)
+{
+   static char s_szFormatFirmwareType[32];
+   s_szFormatFirmwareType[0] = 0;
+ 
+   if ( uFirmwareType == MODEL_FIRMWARE_TYPE_RUBY )
+      strcpy(s_szFormatFirmwareType, "Ruby");
+   else if ( uFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
+      strcpy(s_szFormatFirmwareType, "OpenIPC");
+   else
+      strcpy(s_szFormatFirmwareType, "Unknown");
+   return s_szFormatFirmwareType;  
 }

@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "menu.h"
 #include "menu_objects.h"
 #include "menu_controller.h"
@@ -28,11 +45,9 @@ MenuControllerExpert::MenuControllerExpert(void)
 {
    m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.15;
-   m_ExtraItemsHeight = 0.0;
-
+   
    float fSliderWidth = 0.12;
 
-   m_iConfirmationId = 0;
    readConfigFile();
    addTopInfo();
 
@@ -74,6 +89,7 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_pItemsSelect[2] = new MenuItemSelect("Enable CPU Overclocking", "Enables overclocking of the main ARM CPU.");  
    m_pItemsSelect[2]->addSelection("No");
    m_pItemsSelect[2]->addSelection("Yes");
+   m_pItemsSelect[2]->setIsEditable();
    m_IndexCPUEnabled = addMenuItem(m_pItemsSelect[2]);
 
    m_pItemsSlider[5] = new MenuItemSlider("CPU Speed (Mhz)", "Sets the main CPU frequency. Requires a reboot.", 700,1600, 1050, fSliderWidth);
@@ -83,6 +99,7 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_pItemsSelect[3] = new MenuItemSelect("Enable GPU Overclocking", "Enables overclocking of the GPU cores.");  
    m_pItemsSelect[3]->addSelection("No");
    m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3]->setIsEditable();
    m_IndexGPUEnabled = addMenuItem(m_pItemsSelect[3]);
 
    m_pItemsSlider[6] = new MenuItemSlider("GPU Speed (Mhz)", "Sets the GPU frequency. Requires a reboot.", 200,1000,600, fSliderWidth);
@@ -318,17 +335,15 @@ void MenuControllerExpert::Render()
    RenderEnd(yTop);
 }
 
-void MenuControllerExpert::onReturnFromChild(int returnValue)
+void MenuControllerExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   if ( 10 == m_iConfirmationId && 1 == returnValue )
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
       onEventReboot();
       hw_execute_bash_command("sudo reboot -f", NULL);
-      return;
    }
-   m_iConfirmationId = 0;
 }
 
 
@@ -469,8 +484,7 @@ void MenuControllerExpert::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
-         m_iConfirmationId = 10;
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the controller?", m_iConfirmationId);
+         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the controller?", 1);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");

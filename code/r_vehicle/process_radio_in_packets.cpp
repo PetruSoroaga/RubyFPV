@@ -1,3 +1,32 @@
+/*
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/models_list.h"
@@ -206,7 +235,7 @@ void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
          g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
 
-      radio_utils_set_datarate_atheros(g_pCurrentModel, i, datarateVideoBPS);
+      radio_utils_set_datarate_atheros(g_pCurrentModel, i, datarateVideoBPS, 0);
       
       pRadioInfo->iCurrentDataRate = datarateVideoBPS;
 
@@ -294,7 +323,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterface);
 
    g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = pRadioHWInfo->monitor_interface_read.radioInfo.nDbm;
-   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->monitor_interface_read.radioInfo.nRate;
+   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
 
    if ( dataLength <= 0 )
    {
@@ -383,7 +412,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       {
          int iParamsLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command);
          t_packet_header_command* pPHC = (t_packet_header_command*)(pData + sizeof(t_packet_header));
-         if ( pPHC->command_type == COMMAND_ID_UPLOAD_SW_TO_VEHICLE || pPHC->command_type == COMMAND_ID_UPLOAD_SW_TO_VEHICLE63 )
+         if ( pPHC->command_type == COMMAND_ID_UPLOAD_SW_TO_VEHICLE63 )
             g_uTimeLastCommandSowftwareUpload = g_TimeNow;
 
          if ( pPHC->command_type == COMMAND_ID_SET_RADIO_LINK_FLAGS )
@@ -458,40 +487,16 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
 
          if ( NULL != g_pProcessorTxVideo )
             g_pProcessorTxVideo->setLastRequestedAdaptiveVideoLevelFromController(iAdaptiveLevel);
-         int iLevelsHQ = g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile);
-         int iLevelsMQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
-         int iLevelsLQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
-
-         int iTargetProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-         int iTargetShiftLevel = 0;
-
-         if ( iAdaptiveLevel < iLevelsHQ )
-         {
-            iTargetProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-            iTargetShiftLevel = iAdaptiveLevel;
-         }
-         else if ( iAdaptiveLevel < iLevelsHQ + iLevelsMQ )
-         {
-            iTargetProfile = VIDEO_PROFILE_MQ;
-            iTargetShiftLevel = iAdaptiveLevel - iLevelsHQ;
-         }
-         else if ( iAdaptiveLevel < iLevelsHQ + iLevelsMQ + iLevelsLQ )
-         {
-            iTargetProfile = VIDEO_PROFILE_LQ;
-            iTargetShiftLevel = iAdaptiveLevel - iLevelsHQ - iLevelsMQ;
-         }
-         else
-         {
-            iTargetProfile = VIDEO_PROFILE_LQ;
-            iTargetShiftLevel = iLevelsHQ + iLevelsMQ + iLevelsLQ - 1;           
-         }
+         
+         int iTargetProfile = g_pCurrentModel->get_video_profile_from_total_levels_shift(iAdaptiveLevel);
+         int iTargetProfileShiftLevel = g_pCurrentModel->get_video_profile_level_shift_from_total_levels_shift(iAdaptiveLevel);
          
          if ( iTargetProfile == g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile )
-         if ( iTargetShiftLevel == g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel )
+         if ( iTargetProfileShiftLevel == g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel )
          {
             return;
          }
-         video_stats_overwrites_switch_to_profile_and_level(iTargetProfile, iTargetShiftLevel);
+         video_stats_overwrites_switch_to_profile_and_level(iAdaptiveLevel, iTargetProfile, iTargetProfileShiftLevel);
          return;
       }
       

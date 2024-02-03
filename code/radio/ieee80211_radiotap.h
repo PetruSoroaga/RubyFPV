@@ -66,30 +66,6 @@
  */
 #define IEEE80211_RADIOTAP_HDRLEN	64
 
-/* The radio capture header precedes the 802.11 header.
- * All data in the header is little endian on all platforms.
- */
-struct ieee80211_radiotap_header {
-	u8 it_version;		/* Version 0. Only increases
-				 * for drastic changes,
-				 * introduction of compatible
-				 * new fields does not count.
-				 */
-	u8 it_pad;
-	__le16 it_len;		/* length of the whole
-				 * header in bytes, including
-				 * it_version, it_pad,
-				 * it_len, and data fields.
-				 */
-	__le32 it_present;	/* A bitmap telling which
-				 * fields are present. Set bit 31
-				 * (0x80000000) to extend the
-				 * bitmap by another 32 bits.
-				 * Additional extensions are made
-				 * by setting bit 31.
-				 */
-};
-
 #define IEEE80211_RADIOTAP_PRESENT_EXTEND_MASK 0x80000000
 
 /* Name                                 Data type    Units
@@ -190,26 +166,33 @@ struct ieee80211_radiotap_header {
  *
  */
 enum ieee80211_radiotap_type {
-	IEEE80211_RADIOTAP_TSFT = 0,
-	IEEE80211_RADIOTAP_FLAGS = 1,
-	IEEE80211_RADIOTAP_RATE = 2,
-	IEEE80211_RADIOTAP_CHANNEL = 3,
-	IEEE80211_RADIOTAP_FHSS = 4,
-	IEEE80211_RADIOTAP_DBM_ANTSIGNAL = 5,
-	IEEE80211_RADIOTAP_DBM_ANTNOISE = 6,
-	IEEE80211_RADIOTAP_LOCK_QUALITY = 7,
-	IEEE80211_RADIOTAP_TX_ATTENUATION = 8,
-	IEEE80211_RADIOTAP_DB_TX_ATTENUATION = 9,
-	IEEE80211_RADIOTAP_DBM_TX_POWER = 10,
-	IEEE80211_RADIOTAP_ANTENNA = 11,
-	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
-	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
-	IEEE80211_RADIOTAP_RX_FLAGS = 14,
-	IEEE80211_RADIOTAP_TX_FLAGS = 15,
-	IEEE80211_RADIOTAP_RTS_RETRIES = 16,
-	IEEE80211_RADIOTAP_DATA_RETRIES = 17,
- IEEE80211_RADIOTAP_MCS = 19,
-	IEEE80211_RADIOTAP_EXT = 31
+   IEEE80211_RADIOTAP_TSFT = 0,
+   IEEE80211_RADIOTAP_FLAGS = 1,
+   IEEE80211_RADIOTAP_RATE = 2,
+   IEEE80211_RADIOTAP_CHANNEL = 3,
+   IEEE80211_RADIOTAP_FHSS = 4,
+   IEEE80211_RADIOTAP_DBM_ANTSIGNAL = 5,
+   IEEE80211_RADIOTAP_DBM_ANTNOISE = 6,
+   IEEE80211_RADIOTAP_LOCK_QUALITY = 7,
+   IEEE80211_RADIOTAP_TX_ATTENUATION = 8,
+   IEEE80211_RADIOTAP_DB_TX_ATTENUATION = 9,
+   IEEE80211_RADIOTAP_DBM_TX_POWER = 10,
+   IEEE80211_RADIOTAP_ANTENNA = 11,
+   IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
+   IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
+   IEEE80211_RADIOTAP_RX_FLAGS = 14,
+   IEEE80211_RADIOTAP_TX_FLAGS = 15,
+   IEEE80211_RADIOTAP_RTS_RETRIES = 16,
+   IEEE80211_RADIOTAP_DATA_RETRIES = 17,
+
+   IEEE80211_RADIOTAP_MCS = 19,
+   IEEE80211_RADIOTAP_AMPDU_STATUS = 20,
+   IEEE80211_RADIOTAP_VHT = 21,
+   IEEE80211_RADIOTAP_TIMESTAMP = 22, 
+
+   IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE = 29,
+   IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
+   IEEE80211_RADIOTAP_EXT = 31
 };
 
 /* Channel flags. */
@@ -274,12 +257,72 @@ enum ieee80211_radiotap_type {
 
 #define IEEE80211_RADIOTAP_MCS_STBC_SHIFT       5
 
+/* The radio capture header precedes the 802.11 header.
+ * All data in the header is little endian on all platforms.
+ */
+struct ieee80211_radiotap_header
+{
+   u8 it_version;  /* Version 0. Only increases
+       * for drastic changes,
+       * introduction of compatible
+       * new fields does not count.
+       */
+   u8 it_pad;
+   __le16 it_len;  /* length of the whole
+       * header in bytes, including
+       * it_version, it_pad,
+       * it_len, and data fields.
+       */
+   __le32 it_present; /* A bitmap telling which
+       * fields are present. Set bit 31
+       * (0x80000000) to extend the
+       * bitmap by another 32 bits.
+       * Additional extensions are made
+       * by setting bit 31.
+       */
+};
 
-/* Ugly macro to convert literal channel numbers into their mhz equivalents
- * There are certianly some conditions that will break this (like feeding it '30')
- * but they shouldn't arise since nothing talks on channel 30. */
-#define ieee80211chan2mhz(x) \
-	(((x) <= 14) ? \
-	(((x) == 14) ? 2484 : ((x) * 5) + 2407) : \
-	((x) + 1000) * 5)
+struct radiotap_align_size
+{
+   uint8_t align:4, size:4;
+};
 
+struct ieee80211_radiotap_namespace
+{
+   const struct radiotap_align_size *align_size;
+   int n_bits;
+   uint32_t oui;
+   uint8_t subns;
+};
+
+struct ieee80211_radiotap_vendor_namespaces
+{
+   const struct ieee80211_radiotap_namespace *ns;
+   int n_ns;
+};
+
+static inline u16 __get_unaligned_memmove16(const void *p)
+{
+   u16 tmp;
+   memmove(&tmp, p, 2);
+   return tmp;
+}
+
+static inline u32 __get_unaligned_memmove32(const void *p)
+{
+   u32 tmp;
+   memmove(&tmp, p, 4);
+   return tmp;
+} 
+
+static inline u16 get_unaligned_le16(const void *p)
+{
+   u16 tmp = __get_unaligned_memmove16((const u8 *)p);
+   return le16_to_cpu(tmp);
+}
+
+static inline u32 get_unaligned_le32(const void *p)
+{
+   u32 tmp = __get_unaligned_memmove32((const u8 *)p);
+   return le32_to_cpu(tmp);
+} 

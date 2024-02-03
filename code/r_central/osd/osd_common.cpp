@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "osd_common.h"
@@ -39,6 +57,7 @@ Code written by: Petru Soroaga, 2021-2023
 
 
 u32 g_idIconRuby = 0;
+u32 g_idIconOpenIPC = 0;
 u32 g_idIconDrone = 0;
 u32 g_idIconPlane = 0;
 u32 g_idIconCar = 0;
@@ -66,6 +85,7 @@ u32 g_idIconRadio = 0;
 u32 g_idIconWind = 0;
 u32 g_idIconController = 0;
 u32 g_idIconX = 0;
+u32 g_idIconFavorite = 0;
 
 float sfScreenXMargin = 0.02;
 float sfScreenYMargin = 0.02;
@@ -80,6 +100,10 @@ int s_iOSDTransparency = 1;
 
 float g_fOSDStatsForcePanelWidth = 0.0;
 float g_fOSDStatsBgTransparency = 1.0;
+
+u32 g_uOSDElementChangeTimeout = 2000;
+u32 g_uOSDElementChangeBlinkInterval = 100;
+bool g_bOSDElementChangeNotification = true;
 
 int s_iCurrentOSDLayoutIndex = 0;
 Model* s_pCurrentOSDLayoutSourceModel = NULL;
@@ -188,6 +212,7 @@ bool osd_load_resources()
       g_fOSDDbm[i] = -200.0f;
 
    g_idIconRuby = g_pRenderEngine->loadIcon("res/icon_ruby.png");
+   g_idIconOpenIPC = g_pRenderEngine->loadIcon("res/openipc.png");
    g_idIconDrone = g_pRenderEngine->loadIcon("res/icon_v_drone.png");
    g_idIconPlane = g_pRenderEngine->loadIcon("res/icon_v_plane.png");
    g_idIconCar = g_pRenderEngine->loadIcon("res/icon_v_car.png");
@@ -216,6 +241,7 @@ bool osd_load_resources()
    g_idIconWind = g_pRenderEngine->loadIcon("res/icon_wind.png");
    g_idIconController = g_pRenderEngine->loadIcon("res/icon_controller.png");
    g_idIconX = g_pRenderEngine->loadIcon("res/icon_x.png");
+   g_idIconFavorite = g_pRenderEngine->loadIcon("res/favorite.png");
 
    osd_stats_init();
    return true;
@@ -269,6 +295,16 @@ void osd_set_colors()
    double* pc = get_Color_OSDTextOutline();
    g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], pc[3]);
    g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness);
+}
+
+void osd_set_colors_text(double* pColorText)
+{
+   if ( NULL == pColorText )
+      return;
+   g_pRenderEngine->setColors(pColorText);
+   double* pc = get_Color_OSDTextOutline();
+   g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], pc[3]);
+   g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness); 
 }
 
 void osd_set_colors_alpha(float alpha)
@@ -397,11 +433,14 @@ float osd_show_value_centered(float x, float y, const char* szValue, u32 fontId)
 u32 osd_getVehicleIcon(int vehicle_type)
 {
    u32 idIcon = g_idIconRuby;
-   if ( vehicle_type == MODEL_TYPE_DRONE )
+
+   if ( ((vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
+      return g_idIconOpenIPC;
+   if ( (vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE )
       idIcon = g_idIconDrone;
-   if ( vehicle_type == MODEL_TYPE_AIRPLANE )
+   if ( (vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE )
       idIcon = g_idIconPlane;
-   if ( vehicle_type == MODEL_TYPE_CAR )
+   if ( (vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_CAR )
       idIcon = g_idIconCar;
    return idIcon;
 }
@@ -521,7 +560,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    float fWidth = 0.0;
    float yPos = yBottom-fHeight;
    
-   Model *pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+   Model *pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 30);
    if ( NULL == pModel || ( pModel->vehicle_id == g_pCurrentModel->vehicle_id ) )
    {
       fHeight = height_text + 2.0*fPaddingY;
@@ -674,7 +713,6 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
 int osd_get_current_layout_index()
 {
    return s_iCurrentOSDLayoutIndex;
-
 }
 
 Model* osd_get_current_layout_source_model()
@@ -688,6 +726,7 @@ void osd_set_current_layout_index_and_source_model(Model* pModel, int iLayout)
    s_pCurrentOSDLayoutSourceModel = pModel;
    if ( NULL == pModel )
       return;
+   /*
    int k=0; 
    while ( (k < 10) && (! (pModel->osd_params.osd_flags2[s_iCurrentOSDLayoutIndex] & OSD_FLAG2_LAYOUT_ENABLED)) )
    {
@@ -696,6 +735,7 @@ void osd_set_current_layout_index_and_source_model(Model* pModel, int iLayout)
       if ( s_iCurrentOSDLayoutIndex >= osdLayoutLast )
          s_iCurrentOSDLayoutIndex = osdLayout1;
    }
+   */
 }
 
 void osd_set_current_data_source_vehicle_index(int iIndex)

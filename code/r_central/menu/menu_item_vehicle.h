@@ -8,7 +8,7 @@ class MenuItemVehicle: public MenuItem
      MenuItemVehicle(const char* title, const char* tooltip);
      virtual ~MenuItemVehicle();
 
-     void setVehicleIndex(int vehicleIndex);
+     void setVehicleIndex(int vehicleIndex, bool bSpectator);
 
      virtual void beginEdit();
      virtual void endEdit(bool bCanceled);
@@ -22,4 +22,5 @@ class MenuItemVehicle: public MenuItem
 
    protected:
       int m_iVehicleIndex;
+      bool m_bIsSpectator;
 };

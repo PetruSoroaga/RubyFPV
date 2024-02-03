@@ -3,7 +3,7 @@
 void onModelAdded(u32 uModelId);
 void onModelDeleted(u32 uModelId);
 
-void onMainVehicleChanged();
+void onMainVehicleChanged(bool bRemovePreviousVehicleState);
 
 void onEventReboot();
 void onEventBeforePairing();

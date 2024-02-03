@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <sys/types.h>
@@ -70,7 +88,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "video_link_stats_overwrites.h"
 #include "video_link_check_bitrate.h"
 #include "processor_relay.h"
-
+#include "test_link_params.h"
 
 #define MAX_RECV_UPLINK_HISTORY 12
 #define SEND_ALARM_MAX_COUNT 5
@@ -98,7 +116,6 @@ t_packet_queue s_QueueRadioPacketsOut;
 u32 s_LoopCounter = 0;
 u32 s_debugFramesCount = 0;
 u32 s_debugVideoBlocksInCount = 0;
-u32 s_debugVideoBlocksOutCount = 0;
 
 bool s_bRadioReinitialized = false;
 
@@ -219,7 +236,7 @@ bool links_set_cards_frequencies_and_params(int iLinkId)
       }
       else
       {
-         if ( radio_utils_set_interface_frequency(g_pCurrentModel, i, uRadioLinkFrequency, g_pProcessStats) )
+         if ( radio_utils_set_interface_frequency(g_pCurrentModel, i, nRadioLinkId, uRadioLinkFrequency, g_pProcessStats, 0) )
             radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, uRadioLinkFrequency);
       }
    }
@@ -375,7 +392,7 @@ int open_radio_interfaces()
          if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] )
          if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]) < getRealDataRateFromRadioDataRate(nRateTx) )
             nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i];
-         radio_utils_set_datarate_atheros(g_pCurrentModel, i, nRateTx);
+         radio_utils_set_datarate_atheros(g_pCurrentModel, i, nRateTx, 0);
       }
 
       if ( (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
@@ -537,7 +554,7 @@ void send_radio_config_to_controller()
    memcpy(packet + sizeof(t_packet_header), (u8*)&(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
    memcpy(packet + sizeof(t_packet_header) + sizeof(type_relay_parameters), (u8*)&(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(packet + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
-   send_packet_to_radio_interfaces(packet, PH.total_length);
+   send_packet_to_radio_interfaces(packet, PH.total_length, -1);
 }
 
 void send_radio_reinitialized_message()
@@ -551,7 +568,7 @@ void send_radio_reinitialized_message()
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
 
-   send_packet_to_radio_interfaces(packet, PH.total_length);
+   send_packet_to_radio_interfaces(packet, PH.total_length, -1);
 }
 
 
@@ -921,7 +938,7 @@ void reinit_radio_interfaces()
          continue;
       }
       g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i] = g_pCurrentModel->radioLinksParams.link_frequency_khz[g_pCurrentModel->radioInterfacesParams.interface_link_id[i]];
-      radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i], g_pProcessStats );
+      radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_link_id[i], g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i], g_pProcessStats, 0 );
    }
    log_line("Setting all the cards frequencies again. Done.");
    hardware_save_radio_info();
@@ -1027,7 +1044,7 @@ int try_read_video_input(bool bDiscard)
 
    struct timeval timePipeInput;
    timePipeInput.tv_sec = 0;
-   timePipeInput.tv_usec = 100; // 0.1 miliseconds timeout
+   timePipeInput.tv_usec = 200; // 0.2 miliseconds timeout
 
    int selectResult = select(s_fInputVideoStream+1, &readset, NULL, NULL, &timePipeInput);
    if ( selectResult <= 0 )
@@ -1195,7 +1212,7 @@ void process_and_send_packets()
            (uLastPacketType == PACKET_TYPE_COMMAND_RESPONSE) )
       if ( composed_packet_length > 0 )
       {
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length);
+         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
          composed_packet_length = 0;
       }
 
@@ -1233,18 +1250,14 @@ void process_and_send_packets()
 
             for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
             {
-               // 0...127 regular datarates, 128+: mcs rates;
-               if ( get_last_tx_used_datarate(i, 0) >= 0 )
-                  pPHRTE->downlink_datarate_bps[i][0] = 1000*1000*get_last_tx_used_datarate(i, 0);
-               else
-                  pPHRTE->downlink_datarate_bps[i][0] = get_last_tx_used_datarate(i, 0);
+               // positive: regular datarates, negative: mcs rates;
+               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate(i, 0);
+               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate(i, 1);
+               //log_line("DEBUG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
 
-               if ( get_last_tx_used_datarate(i, 1) >= 0 )
-                  pPHRTE->downlink_datarate_bps[i][0] = 1000*1000*get_last_tx_used_datarate(i, 1);
-               else
-                  pPHRTE->downlink_datarate_bps[i][0] = get_last_tx_used_datarate(i, 1);
-
-               pPHRTE->uplink_datarate_bps[i] = 1000*500*g_UplinkInfoRxStats[i].lastReceivedDataRate;
+               pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
+               //log_line("DEBUG set last recv data rate for %d: %d", i, pPHRTE->last_recv_datarate_bps[i]);
+                 
                pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
                pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
             }
@@ -1274,14 +1287,14 @@ void process_and_send_packets()
       
       if ( bHasLowCapacityFlag )
       {
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length);
+         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
          composed_packet_length = 0;
          continue;
       }
 
       #else
 
-      send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength);
+      send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
       composed_packet_length = 0;
       
       #endif
@@ -1294,7 +1307,7 @@ void process_and_send_packets()
 
    if ( composed_packet_length > 0 )
    {
-      send_packet_to_radio_interfaces(composed_packet, composed_packet_length);
+      send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
    }
 }
 
@@ -1530,6 +1543,9 @@ int periodic_loop()
 
    _check_reinit_sik_interfaces();
 
+   if ( test_link_is_in_progress() )
+      test_link_loop();
+
    if ( ! g_bHasSentVehicleSettingsAtLeastOnce )
    if ( (g_TimeNow > g_TimeStart + 4000) )
    {
@@ -1580,15 +1596,15 @@ int periodic_loop()
                continue;
             if ( g_pCurrentModel->radioLinkIsSiKRadio(iLinkId) )
             {
-               g_SM_RadioStats.radio_interfaces[i].lastDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
-               g_SM_RadioStats.radio_interfaces[i].lastDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
-               g_SM_RadioStats.radio_interfaces[i].lastDataRateVideo = 0;
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo = 0;
             }
             else if ( g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId] < 0 )
             {
-               g_SM_RadioStats.radio_interfaces[i].lastDataRate = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
-               g_SM_RadioStats.radio_interfaces[i].lastDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
-               g_SM_RadioStats.radio_interfaces[i].lastDataRateVideo = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRate = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
+               g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
             }
          }
 
@@ -1643,9 +1659,9 @@ int periodic_loop()
             statsCompact.lastDbm = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbm;
             statsCompact.lastDbmVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmVideo;
             statsCompact.lastDbmData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmData;
-            statsCompact.lastDataRate = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDataRate;
-            statsCompact.lastDataRateVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDataRateVideo;
-            statsCompact.lastDataRateData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDataRateData;
+            statsCompact.lastRecvDataRate = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRate;
+            statsCompact.lastRecvDataRateVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateVideo;
+            statsCompact.lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateData;
 
             statsCompact.totalRxBytes = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalRxBytes;
             statsCompact.totalTxBytes = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalTxBytes;
@@ -1735,7 +1751,7 @@ int periodic_loop()
             continue;
          if ( i == s_iPendingFrequencyChangeLinkId )
          {
-            radio_utils_set_interface_frequency(g_pCurrentModel, i, s_uPendingFrequencyChangeTo, g_pProcessStats); 
+            radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_link_id[i], s_uPendingFrequencyChangeTo, g_pProcessStats, 0); 
             g_pCurrentModel->nic_frequency[i] = s_uPendingFrequencyChangeTo;
          }
       }
@@ -1874,7 +1890,6 @@ int periodic_loop()
          s_MinVideoBlocksGapMilisec = 40;
 
       s_debugVideoBlocksInCount = 0;
-      s_debugVideoBlocksOutCount = 0;
    }
 
    if ( s_bRadioReinitialized )
@@ -2110,7 +2125,7 @@ void _check_router_state()
       else if ( g_TimeNow > g_TimeToRestartVideoCapture )
       {
          vehicle_launch_video_capture(g_pCurrentModel, &(g_SM_VideoLinkStats.overwrites));
-         vehicle_check_update_processes_affinities(true);
+         vehicle_check_update_processes_affinities(true, g_pCurrentModel->isActiveCameraVeye());
          send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED,1,0, 5);
 
          log_line("Opening video commands pipe write endpoint...");
@@ -2769,7 +2784,7 @@ int main (int argc, char *argv[])
    g_pProcessorTxAudio = new ProcessorTxAudio();
 
    radio_duplicate_detection_init();
-   radio_rx_start_rx_thread(&g_SM_RadioStats, NULL, 0);
+   radio_rx_start_rx_thread(&g_SM_RadioStats, NULL, 0, g_pCurrentModel->getVehicleFirmwareType());
    
    g_uRouterState = ROUTER_STATE_RUNNING;
 
@@ -2836,7 +2851,7 @@ int main (int argc, char *argv[])
 
    while ( !g_bQuit )
    {
-      hardware_sleep_ms(1);
+      hardware_sleep_micros(1000);
       g_TimeNow = get_current_timestamp_ms();
       u32 tTime0 = g_TimeNow;
 
@@ -2918,6 +2933,7 @@ int main (int argc, char *argv[])
 
       int iReadCameraBytes = 0;
       int iReadCameraCount = 0;
+      int iReadCameraTotal = 0;
       do
       {
          iReadCameraCount++;
@@ -2925,10 +2941,12 @@ int main (int argc, char *argv[])
             iReadCameraBytes = try_read_video_input(false);
          if ( -1 == iReadCameraBytes )
             log_softerror_and_alarm("Failed to read camera stream.");
+         else
+            iReadCameraTotal += iReadCameraBytes;
          if ( iReadCameraBytes < 100 )
             break;
-      } while ( (iReadCameraBytes > 0) && (iReadCameraCount < 5) );
-
+      } while ( (iReadCameraBytes > 0) && (iReadCameraCount < 3) );
+      
       u32 tTime3 = get_current_timestamp_ms();
 
       if ( tTime3 > (tTime2 + DEFAULT_MAX_LOOP_TIME_MILISECONDS) )
@@ -2936,9 +2954,9 @@ int main (int argc, char *argv[])
           tTime3-tTime2, 
           tTimeD1 - tTime2, tTimeD2 - tTimeD1, tTimeD3 - tTimeD2, tTimeD4 - tTimeD3,
           tTimeD5 - tTimeD4, tTimeD6 - tTimeD5, tTime3 - tTimeD6);
-      int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
-      int hasVideoBlockReadyToSendIndex = process_data_tx_video_has_block_ready_to_send();
 
+      int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
+      
       bool bSendPacketsNow = false;
 
       if ( g_bVideoPaused || (! g_pCurrentModel->hasCamera()) )
@@ -2950,10 +2968,6 @@ int main (int argc, char *argv[])
 
       if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
       if ( videoPacketsReadyToSend > 0 )
-         bSendPacketsNow = true;
-
-      if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_ADV )
-      if ( -1 != hasVideoBlockReadyToSendIndex )
          bSendPacketsNow = true;
 
       if ( packets_queue_has_packets(&s_QueueRadioPacketsOut) )
@@ -2968,8 +2982,8 @@ int main (int argc, char *argv[])
 
       u32 tTime4 = get_current_timestamp_ms();
 
-      if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_NONE ||
-           g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
+      //if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_NONE ||
+      //     g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
       {
          if ( videoPacketsReadyToSend > 0 )
             process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
@@ -2977,18 +2991,6 @@ int main (int argc, char *argv[])
          u32 tTime5 = get_current_timestamp_ms();
          _check_loop_consistency(0, uLastTotalTxPackets, uLastTotalTxBytes, tTime0,tTime1, tTime2, tTime3, tTime4, tTime5);
          continue;
-      }
-
-      if ( -1 != hasVideoBlockReadyToSendIndex || g_TimeLastVideoBlockSent <= g_TimeNow - s_MinVideoBlocksGapMilisec )
-      {         
-         int countBlocksPendingToSend = process_data_tx_video_get_pending_blocks_to_send_count();
-         while ( countBlocksPendingToSend > 0 )
-         {
-            process_data_tx_video_send_first_complete_block(countBlocksPendingToSend==1);
-            g_TimeLastVideoBlockSent = get_current_timestamp_ms();
-            s_debugVideoBlocksOutCount++;
-            countBlocksPendingToSend--;
-         }
       }
 
       u32 tTime5 = get_current_timestamp_ms();

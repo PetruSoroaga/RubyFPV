@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -237,39 +255,34 @@ void MenuSystemDevLogs::exportAllLogs()
    addMessage("Done. All logs have been copied to the USB memory stick on a folder named Ruby. You can now remove the USB memory stick.");
 }
 
-void MenuSystemDevLogs::onReturnFromChild(int returnValue)
+void MenuSystemDevLogs::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
    // Export controller logs to USB zip file
-   if ( 1 == m_iConfirmationId && 1 == returnValue )
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
-      m_iConfirmationId = 0;
       exportAllLogs();
       return;
    }   
 
    // Delete controller logs
-   if ( 2 == m_iConfirmationId && 1 == returnValue )
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) )
    {
-      m_iConfirmationId = 0;
       hw_execute_bash_command("rm -rf logs/*", NULL);
       addMessage("Done. All controller logs have been cleared.");
       return;
    }   
 
    // Delete vehicle logs
-   if ( 3 == m_iConfirmationId && 1 == returnValue )
+   if ( (3 == iChildMenuId/1000) && (1 == returnValue) )
    {
-      m_iConfirmationId = 0;
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_CLEAR_LOGS, 0, NULL, 0) )
          valuesToUI();
       else
          addMessage("Done. All vehicle logs have been cleared.");
       return;
    }   
-
-   m_iConfirmationId = 0;
 }
 
 
@@ -329,7 +342,7 @@ void MenuSystemDevLogs::onSelectItem()
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_DOWNLOAD_FILE, FILE_ID_VEHICLE_LOGS_ARCHIVE, NULL, 0) )
          valuesToUI();
       else
-         menu_close_all();
+         menu_discard_all();
    }
 
    if ( m_IndexLogLevelVehicle == m_SelectedIndex )
@@ -355,8 +368,7 @@ void MenuSystemDevLogs::onSelectItem()
 
    if ( m_IndexZipAllLogs == m_SelectedIndex )
    {
-      m_iConfirmationId = 1;
-      MenuConfirmation* pMC = new MenuConfirmation("Export all logs","Insert an USB memory stick and press [Ok] to export the logs to the memory stick.",m_iConfirmationId, true);
+      MenuConfirmation* pMC = new MenuConfirmation("Export all logs","Insert an USB memory stick and press [Ok] to export the logs to the memory stick.",1, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return;
@@ -364,8 +376,7 @@ void MenuSystemDevLogs::onSelectItem()
 
    if ( m_IndexClearControllerLogs == m_SelectedIndex )
    {
-      m_iConfirmationId = 2;
-      MenuConfirmation* pMC = new MenuConfirmation("Clear controller logs", "Are you sure you want to delete all the controller logs?",m_iConfirmationId);
+      MenuConfirmation* pMC = new MenuConfirmation("Clear controller logs", "Are you sure you want to delete all the controller logs?",2);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return;
@@ -379,8 +390,7 @@ void MenuSystemDevLogs::onSelectItem()
          return;
       }
 
-      m_iConfirmationId = 3;
-      MenuConfirmation* pMC = new MenuConfirmation("Clear vehicle logs", "Are you sure you want to delete all the vehicle logs?",m_iConfirmationId);
+      MenuConfirmation* pMC = new MenuConfirmation("Clear vehicle logs", "Are you sure you want to delete all the vehicle logs?",3);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return;

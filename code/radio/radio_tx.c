@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -72,38 +90,47 @@ int _radio_tx_create_msg_queue()
 int _radio_tx_send_msg(int iInterfaceIndex, u8* pData, int iLength)
 {
    // Split the packet into small SiK packets and send it
+   // radio packet header is part of the total packet size, so take it into account
    
    t_packet_header_short PHS;
    u8 uBuffer[1000];
    int iTotalBytesSent = 0;
 
-   for( int iPos=0; iPos < iLength; iPos += s_iRadioTxSiKPacketSize )
+   int iUsableDataBytesInEachPacket = s_iRadioTxSiKPacketSize - sizeof(t_packet_header_short);
+
+   int iBytesLeftToSend = iLength;
+   u8* pDataToSend = pData;
+
+   while ( iBytesLeftToSend > 0 )
    {
       radio_packet_short_init(&PHS);
-      
-      int iShortPacketSize = s_iRadioTxSiKPacketSize;
-      
-      if ( iPos == 0 )
+
+      PHS.start_header = SHORT_PACKET_START_BYTE_REG_PACKET;
+      if ( pData == pDataToSend )
          PHS.start_header = SHORT_PACKET_START_BYTE_START_PACKET;
-      
-      if ( iPos + iShortPacketSize >= iLength )
-      {
-         iShortPacketSize = iLength - iPos;
+      if ( iBytesLeftToSend <= iUsableDataBytesInEachPacket ) 
          PHS.start_header = SHORT_PACKET_START_BYTE_END_PACKET;
-      }
+
+      int iShortPacketDataSize = iUsableDataBytesInEachPacket;
+      if ( iBytesLeftToSend <= iUsableDataBytesInEachPacket )
+         iShortPacketDataSize = iBytesLeftToSend;
 
       PHS.packet_id = radio_packets_short_get_next_id_for_radio_interface(iInterfaceIndex);
-      PHS.data_length = (u8)iShortPacketSize;
+      PHS.data_length = (u8)iShortPacketDataSize;
       memcpy(uBuffer, (u8*)&PHS, sizeof(t_packet_header_short));
-      memcpy(&uBuffer[sizeof(t_packet_header_short)], &pData[iPos], iShortPacketSize);
-      iShortPacketSize += sizeof(t_packet_header_short);
-      uBuffer[1] = base_compute_crc8(&uBuffer[2], iShortPacketSize - 2);
+      memcpy(&uBuffer[sizeof(t_packet_header_short)], pDataToSend, iShortPacketDataSize);
+
+      iBytesLeftToSend -= iShortPacketDataSize;
+      pDataToSend += iShortPacketDataSize;
+
+      iShortPacketDataSize += sizeof(t_packet_header_short);
+      uBuffer[1] = base_compute_crc8(&uBuffer[2], iShortPacketDataSize - 2);
       
-      int iWriteResult = radio_write_sik_packet(iInterfaceIndex, uBuffer, iShortPacketSize, get_current_timestamp_ms());
-      if ( iWriteResult != iShortPacketSize )
+      int iWriteResult = radio_write_sik_packet(iInterfaceIndex, uBuffer, iShortPacketDataSize, get_current_timestamp_ms());
+      if ( iWriteResult != iShortPacketDataSize )
       {
          log_softerror_and_alarm("[RadioTx] Failed to send message to Sik radio: sent %d bytes, only %d bytes written.",
-            iShortPacketSize, iWriteResult);
+            iShortPacketDataSize, iWriteResult);
          if ( iWriteResult > 0 )
             iTotalBytesSent += iWriteResult;
          continue; 
@@ -118,18 +145,27 @@ static void * _thread_radio_tx(void *argument)
 {
    log_line("[RadioTxThread] Started.");
 
-   pthread_t thId = pthread_self();
-   pthread_attr_t thAttr;
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
    int policy = 0;
-   int max_prio_for_policy = 0;
+   int ret = 0;
 
-   pthread_attr_init(&thAttr);
-   pthread_attr_getschedpolicy(&thAttr, &policy);
-   max_prio_for_policy = sched_get_priority_max(policy);
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("[RadioTxThread] Failed to get schedule param");
+   log_line("[RadioTxThread] Current thread policy/priority: %d/%d", policy, params.sched_priority);
 
-   pthread_setschedprio(thId, max_prio_for_policy);
-   pthread_attr_destroy(&thAttr);
+   params.sched_priority = DEFAULT_PRORITY_THREAD_RADIO_RX;
+   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("[RadioTxThread] Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
 
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("[RadioTxThread] Failed to get schedule param");
+   log_line("[RadioTxThread] Current new thread policy/priority: %d/%d", policy, params.sched_priority);
+
+   log_line("[RadioTxThread] SiK packet size is: %d bytes (of which %d bytes are the header)", s_iRadioTxSiKPacketSize, (int)sizeof(t_packet_header_short));
    log_line("[RadioTxThread] Initialized State. Waiting for tx messages...");
 
    int* piQuit = (int*) argument;
@@ -242,26 +278,40 @@ void radio_tx_pause_radio_interface(int iRadioInterfaceIndex)
 {
    if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
-   s_iRadioTxInterfacesPaused[iRadioInterfaceIndex] = 1;
-   log_line("[RadioTx] Pause Tx on radio interface %d", iRadioInterfaceIndex+1);
+   s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]++;
+
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
+
+   if ( NULL != pRadioHWInfo )
+      log_line("[RadioRx] Pause Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
+   else
+      log_line("[RadioRx] Pause Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, "N/A", s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
 }
 
 void radio_tx_resume_radio_interface(int iRadioInterfaceIndex)
 {
    if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
-   s_iRadioTxInterfacesPaused[iRadioInterfaceIndex] = 0;
-   log_line("[RadioTx] Resumed Tx on radio interface %d", iRadioInterfaceIndex+1);
+   s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]--;
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
+
+   if ( NULL != pRadioHWInfo )
+      log_line("[RadioRx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
+   else
+      log_line("[RadioRx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, "N/A", s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
 }
 
 void radio_tx_set_sik_packet_size(int iSiKPacketSize)
 {
    s_iRadioTxSiKPacketSize = iSiKPacketSize;
-   log_line("[RadioTx] Set SiK packet size to %d bytes", s_iRadioTxSiKPacketSize);
-   if ( (s_iRadioTxSiKPacketSize < 10) || (s_iRadioTxSiKPacketSize > 250) )
+   log_line("[RadioTx] Set SiK packet size to %d bytes (of which %d bytes are the header)", s_iRadioTxSiKPacketSize, (int)sizeof(t_packet_header_short));
+   if ( (s_iRadioTxSiKPacketSize < DEFAULT_RADIO_SERIAL_AIR_MIN_PACKET_SIZE) ||
+        (s_iRadioTxSiKPacketSize > DEFAULT_RADIO_SERIAL_AIR_MAX_PACKET_SIZE) )
    {
       s_iRadioTxSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
-      log_line("[RadioTx] Set SiK packet size to %d bytes", s_iRadioTxSiKPacketSize);
+      log_line("[RadioTx] Set SiK packet size to %d bytes (of which %d bytes are the header)", s_iRadioTxSiKPacketSize, (int)sizeof(t_packet_header_short));
    }
 }
 

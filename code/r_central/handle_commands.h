@@ -19,7 +19,7 @@ u32 handle_commands_increment_command_counter();
 u32 handle_commands_decrement_command_counter();
 
 bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int length);
-bool handle_commands_send_single_command_to_vehicle(u8 commandType, u8 resendCounter, u32 param, u8* pBuffer, int length);
+bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCounter, u32 param, u8* pBuffer, int length);
 bool handle_commands_send_single_oneway_command(u8 resendCounter, u8 commandType, u32 param, u8* pBuffer, int length);
 bool handle_commands_send_single_oneway_command(u8 resendCounter, u8 commandType, u32 param, u8* pBuffer, int length, int delayMs);
 bool handle_commands_send_single_oneway_command_to_vehicle(u32 uVehicleId, u8 resendCounter, u8 commandType, u32 param, u8* pBuffer, int length, int delayMs);

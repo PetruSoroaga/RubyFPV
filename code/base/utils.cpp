@@ -1,19 +1,39 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "utils.h"
 #include <math.h>
 #include "../base/config.h"
 #include "../base/models.h"
+#include "../base/hw_procs.h"
 #include "../common/string_utils.h"
+#include "../radio/radioflags.h"
 
 bool ruby_is_first_pairing_done()
 {
@@ -306,7 +326,7 @@ float _compute_controller_rc_value_axe(Model* pModel, int nChannel, float prevRC
 
    // Throttle with reverse/fwd?
 
-   if ( pModel->vehicle_type == MODEL_TYPE_CAR || pModel->vehicle_type == MODEL_TYPE_BOAT || pModel->vehicle_type == MODEL_TYPE_ROBOT )
+   if ( (pModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_CAR || (pModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_BOAT || (pModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_ROBOT )
    if ( nChannel == 2 && NULL != pModel && (pModel->rc_params.rcChAssignmentThrotleReverse & RC_CH_ASSIGNMENT_FLAG_ASSIGNED) )
    {
       fNormalizedValue = (float)(rawValue - pCtrlInterface->axesMinValue[nAxe])/(float)(pCtrlInterface->axesMaxValue[nAxe] - pCtrlInterface->axesMinValue[nAxe]);
@@ -487,13 +507,13 @@ int get_rc_channel_failsafe_value(Model* pModel, int nChannel, int prevRCValue)
 }
 
 
-u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
+u32 utils_get_max_radio_datarate_for_profile(Model* pModel, int iProfile)
 {
    if ( NULL == pModel )
-      return DEFAULT_VIDEO_BITRATE;
+      return DEFAULT_RADIO_DATARATE_DATA;
 
-   if ( iProfile < 0 || iProfile >= MAX_VIDEO_LINK_PROFILES )
-      return DEFAULT_VIDEO_BITRATE;
+   if ( (iProfile < 0) || (iProfile >= MAX_VIDEO_LINK_PROFILES) )
+      return DEFAULT_RADIO_DATARATE_DATA;
 
    int iMinRadioDataRate = 0; 
    u32 uMinRadioDataRateBPS = 0;
@@ -556,13 +576,30 @@ u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
    }
 
    if ( 0 == uMinRadioDataRateBPS )
-      uMinRadioDataRateBPS = DEFAULT_VIDEO_BITRATE;
+      uMinRadioDataRateBPS = DEFAULT_RADIO_DATARATE_DATA;
    
+   return uMinRadioDataRateBPS;
+}
+
+u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
+{
+   if ( NULL == pModel )
+      return DEFAULT_VIDEO_BITRATE;
+
+   if ( (iProfile < 0) || (iProfile >= MAX_VIDEO_LINK_PROFILES) )
+      return DEFAULT_VIDEO_BITRATE;
+
+   u32 uMaxRadioDataRateBPS = utils_get_max_radio_datarate_for_profile(pModel, iProfile);
+
    // Compute now max actual video bitrate that is set for profile and that does not go above the radio maxim
 
-   u32 uMaxVideoBitrateBPSForRadioRate = (uMinRadioDataRateBPS * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT) / 100;
+   u32 uMaxVideoBitrateBPSForRadioRate = (uMaxRadioDataRateBPS * DEFAULT_VIDEO_LINK_LOAD_PERCENT) / 100;
+
+   int iProfileDataPackets = 0;
+   int iProfileECPackets = 0;
+   pModel->get_video_profile_ec_scheme(iProfile, &iProfileDataPackets, &iProfileECPackets);
    
-   uMaxVideoBitrateBPSForRadioRate = (uMaxVideoBitrateBPSForRadioRate * pModel->video_link_profiles[iProfile].block_packets) / (pModel->video_link_profiles[iProfile].block_packets + pModel->video_link_profiles[iProfile].block_fecs);
+   uMaxVideoBitrateBPSForRadioRate = (uMaxVideoBitrateBPSForRadioRate * (u32)iProfileDataPackets) / (u32)(iProfileDataPackets + iProfileECPackets);
 
    return uMaxVideoBitrateBPSForRadioRate;
 }
@@ -593,7 +630,11 @@ u32 utils_get_max_allowed_video_bitrate_for_profile_and_level(Model* pModel, int
    if ( iLevel >= iMaxLevels )
       iLevel = iMaxLevels-1;
 
-   u32 uTotalBitrateUsedForProfile = uMaxVideoBitrateForProfile * (pModel->video_link_profiles[iProfile].block_packets + pModel->video_link_profiles[iProfile].block_fecs) / pModel->video_link_profiles[iProfile].block_packets;
+   int iProfileDataPackets = 0;
+   int iProfileECPackets = 0;
+   pModel->get_video_profile_ec_scheme(iProfile, &iProfileDataPackets, &iProfileECPackets);
+
+   u32 uTotalBitrateUsedForProfile = uMaxVideoBitrateForProfile * (u32)(iProfileDataPackets + iProfileECPackets) / iProfileDataPackets;
    
    u32 uBottomVideoBitrate = uTotalBitrateUsedForProfile / 2; // fec is equal to data packets on the lowest level
    
@@ -713,4 +754,335 @@ int utils_get_video_profile_lq_radio_datarate(Model* pModel)
    if ( iMaxRadioDataRate > 0 )
       return 6000000;
    return -1;
+}
+
+void log_current_full_radio_configuration(Model* pModel)
+{
+   log_line("=====================================================================================");
+
+   if ( NULL == pModel )
+   {
+      log_line("Current vehicle radio configuration:");
+      log_error_and_alarm("INVALID MODEL parameter");
+      log_line("=====================================================================================");
+      return;
+   }
+
+   if ( pModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
+      log_line("Current vehicle radio configuration: %d radio links, of which one is a relay link:", pModel->radioLinksParams.links_count);
+   else
+      log_line("Current vehicle radio configuration: %d radio links:", pModel->radioLinksParams.links_count);
+   log_line("");
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   {
+      char szPrefix[32];
+      char szBuff[256];
+      char szBuff2[256];
+      char szBuff3[256];
+      char szBuff4[256];
+      char szBuff5[1200];
+      szBuff[0] = 0;
+      szPrefix[0] = 0;
+      for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
+      {
+         if ( pModel->radioInterfacesParams.interface_link_id[k] == i )
+         {
+            char szInfo[32];
+            if ( 0 != szBuff[0] )
+               sprintf(szInfo, ", %d", k+1);
+            else
+               sprintf(szInfo, "%d", k+1);
+            strcat(szBuff, szInfo);
+         }
+      }
+      if ( pModel->relay_params.isRelayEnabledOnRadioLinkId == i )
+         strcpy(szPrefix, "Relay ");
+
+      if ( pModel->relay_params.isRelayEnabledOnRadioLinkId == i )
+         log_line("* %sRadio Link %d Info:  %s, radio interface(s) assigned to this link: [%s]", szPrefix, i+1, str_format_frequency(pModel->relay_params.uRelayFrequencyKhz), szBuff);
+      else
+         log_line("* %sRadio Link %d Info:  %s, radio interface(s) assigned to this link: [%s]", szPrefix, i+1, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[i]), szBuff);
+      
+      szBuff[0] = 0;
+
+      str_get_radio_capabilities_description(pModel->radioLinksParams.link_capabilities_flags[i], szBuff);
+      str_get_radio_frame_flags_description(pModel->radioLinksParams.link_radio_flags[i], szBuff2); 
+      log_line("* %sRadio Link %d Capab: %s, Radio flags: %s", szPrefix, i+1, szBuff, szBuff2);
+      str_getDataRateDescription(pModel->radioLinksParams.link_datarate_video_bps[i], szBuff);
+      str_getDataRateDescription(pModel->radioLinksParams.link_datarate_data_bps[i], szBuff2);
+      str_getDataRateDescription(pModel->radioLinksParams.uplink_datarate_video_bps[i], szBuff3);
+      str_getDataRateDescription(pModel->radioLinksParams.uplink_datarate_data_bps[i], szBuff4);
+      sprintf(szBuff5, "video: %s, data: %s, uplink video: %s, data: %s;", szBuff, szBuff2, szBuff3, szBuff4);
+      log_line("* %sRadio Link %d Datarates: %s", szPrefix, i+1, szBuff5);
+      log_line("");
+   }
+
+   log_line("=====================================================================================");
+   log_line("Physical Radio Interfaces (%d configured, %d detected):", pModel->radioInterfacesParams.interfaces_count, hardware_get_radio_interfaces_count());
+   log_line("");
+   int count = pModel->radioInterfacesParams.interfaces_count;
+   if ( count != hardware_get_radio_interfaces_count() )
+   {
+      log_softerror_and_alarm("Count of detected radio interfaces is not the same as the count of configured ones for this vehicle!");
+      if ( count > hardware_get_radio_interfaces_count() )
+         count = hardware_get_radio_interfaces_count();
+   }
+   for( int i=0; i<count; i++ )
+   {
+      char szPrefix[32];
+      char szBuff[256];
+      char szBuff2[256];
+      szPrefix[0] = 0;
+      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
+      str_get_radio_capabilities_description(pModel->radioInterfacesParams.interface_capabilities_flags[i], szBuff);
+      str_get_radio_frame_flags_description(pModel->radioInterfacesParams.interface_current_radio_flags[i], szBuff2); 
+      if ( pModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
+         strcpy(szPrefix, "Relay ");
+      log_line("* %sRadio int %d: %s [%s] %s, current frequency: %s, assigned to radio link %d", szPrefix, i+1, pRadioInfo->szUSBPort, str_get_radio_card_model_string(pModel->radioInterfacesParams.interface_card_model[i]), pRadioInfo->szDriver, str_format_frequency(pRadioInfo->uCurrentFrequencyKhz), pModel->radioInterfacesParams.interface_link_id[i]+1);
+      log_line("* %sRadio int %d Capab: %s, Radio flags: %s", szPrefix, i+1, szBuff, szBuff2);
+      char szDR1[32];
+      char szDR2[32];
+      if ( pModel->radioInterfacesParams.interface_datarate_video_bps[i] != 0 )
+         str_getDataRateDescription(pModel->radioInterfacesParams.interface_datarate_video_bps[i], szDR1);
+      else
+         strcpy(szDR1, "auto");
+
+      if ( pModel->radioInterfacesParams.interface_datarate_data_bps[i] != 0 )
+         str_getDataRateDescription(pModel->radioInterfacesParams.interface_datarate_data_bps[i], szDR2);
+      else
+         strcpy(szDR2, "auto");
+      log_line("* %sRadio int %d Datarates (video/data): %s / %s", szPrefix, i+1, szDR1, szDR2);
+      log_line("");
+   }
+   log_line("=====================================================================================");
+}
+
+
+bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAssignedModelRadioLink, u32 uFrequencyKhz, shared_mem_process_stats* pProcessStats, u32 uDelayMs)
+{
+   if ( uFrequencyKhz <= 0 )
+   {
+      log_softerror_and_alarm("Skipping setting card (%d) due to invalid uFrequencyKhz 0.", iRadioIndex);
+      return false;
+   }
+
+   u32 uFreqWifi = uFrequencyKhz/1000;
+
+   char szInfo[64];
+   u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   if ( hardware_is_station() && (uDelayMs > 0) )
+   {
+      delayMs = uDelayMs;
+      if ( delayMs<1 || delayMs > 200 )
+         delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   }
+   else if ( NULL != pModel )
+      delayMs = (pModel->uDeveloperFlags >> 8) & 0xFF; 
+
+   int iStartIndex = 0;
+   int iEndIndex = hardware_get_radio_interfaces_count()-1;
+
+   if ( -1 == iRadioIndex )
+   {
+      log_line("Setting all radio interfaces to frequency %s (guard interval: %d ms) for model radio link %d", str_format_frequency(uFrequencyKhz), (int)delayMs, iAssignedModelRadioLink);
+      strcpy(szInfo, "all radio interfaces");
+   }
+   else
+   {
+      radio_hw_info_t* pRadioInfo2 = hardware_get_radio_info(iRadioIndex);
+      log_line("Setting radio interface %d (%s, %s) to frequency %s (freq for wifi: %u) (guard interval: %d ms) for model radio link %d", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver), str_format_frequency(uFrequencyKhz), uFreqWifi, (int)delayMs, iAssignedModelRadioLink);
+      sprintf(szInfo, "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver));
+      iStartIndex = iRadioIndex;
+      iEndIndex = iRadioIndex;
+   }
+
+   char cmd[128];
+   char szOutput[512];
+   bool failed = false;
+   bool anySucceeded = false;
+
+   for( int i=iStartIndex; i<=iEndIndex; i++ )
+   {
+      if ( NULL != pProcessStats )
+         pProcessStats->lastActiveTime = get_current_timestamp_ms();
+      
+      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioInfo || (0 == hardware_radioindex_supports_frequency(i, uFrequencyKhz)) )
+      {
+         log_line("Radio interface %d (%s, %s) does not support %s. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz));
+         pRadioInfo->lastFrequencySetFailed = 1;
+         pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;
+         failed = true;
+         continue;
+      }
+
+      if ( hardware_radio_is_sik_radio(pRadioInfo) )
+      {
+         if ( ! hardware_radio_sik_set_frequency(pRadioInfo, uFrequencyKhz, pProcessStats) )
+         {
+            log_softerror_and_alarm("Failed to switch SiK radio interface %d to frequency %s", i+1, str_format_frequency(uFrequencyKhz));
+            if ( NULL != pProcessStats )
+               pProcessStats->lastActiveTime = get_current_timestamp_ms();
+            continue;
+         }
+      }
+      else if ( hardware_radio_is_wifi_radio(pRadioInfo) )
+      {
+         bool bTryHT40 = false;
+         bool bUsedHT40 = false;
+         szOutput[0] = 0;
+
+         if ( (NULL != pModel) && (iAssignedModelRadioLink >= 0) && (iAssignedModelRadioLink < MAX_RADIO_INTERFACES) )
+         {
+            if ( hardware_is_station() )
+            if ( pModel->radioLinksParams.link_radio_flags[iAssignedModelRadioLink] & RADIO_FLAG_HT40_CONTROLLER )
+                  bTryHT40 = true;
+            if ( hardware_is_vehicle() )
+            if ( pModel->radioLinksParams.link_radio_flags[iAssignedModelRadioLink] & RADIO_FLAG_HT40_VEHICLE )
+                  bTryHT40 = true;
+         }
+
+         if ( bTryHT40 )
+         {
+            if ( (pRadioInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
+            {
+               sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
+               bUsedHT40 = true;
+            }
+            else
+            {
+               sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
+               bUsedHT40 = true;
+            }
+         }
+         else if ( pRadioInfo->isHighCapacityInterface )
+            sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
+
+         hw_execute_bash_command_raw(cmd, szOutput);
+
+         if ( NULL != strstr( szOutput, "Invalid argument" ) )
+         if ( bUsedHT40 )
+         if ( pRadioInfo->isHighCapacityInterface )
+         {
+            int len = strlen(szOutput);
+            for( int i=0; i<len; i++ )
+               if ( szOutput[i] == 10 || szOutput[i] == 13 )
+                  szOutput[i] = '.';
+
+            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
+            hardware_sleep_ms(delayMs);
+            szOutput[0] = 0;
+            sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
+            hw_execute_bash_command_raw(cmd, szOutput);
+         }
+
+         if ( NULL != strstr( szOutput, "failed" ) )
+         {
+            pRadioInfo->lastFrequencySetFailed = 1;
+            pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;
+            pRadioInfo->uCurrentFrequencyKhz = 0;
+            failed = true;
+            int len = strlen(szOutput);
+            for( int i=0; i<len; i++ )
+               if ( szOutput[i] == 10 || szOutput[i] == 13 )
+                  szOutput[i] = '.';
+            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s, returned error: [%s]", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
+            hardware_sleep_ms(delayMs);
+            continue;
+         }
+      }
+      
+      else
+      {
+         log_softerror_and_alarm("Detected unknown radio interface type.");
+         continue;
+      }
+      log_line("Setting radio interface %d (%s, %s) to frequency %s succeeded.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz));
+      pRadioInfo->uCurrentFrequencyKhz = uFrequencyKhz;
+      pRadioInfo->lastFrequencySetFailed = 0;
+      pRadioInfo->uFailedFrequencyKhz = 0;
+      anySucceeded = true;
+
+      if ( NULL != pProcessStats )
+         pProcessStats->lastActiveTime = get_current_timestamp_ms();
+      hardware_sleep_ms(delayMs);
+   }
+
+   if ( -1 == iRadioIndex )
+      log_line("Setting %s to frequency %s result: %s, at least one radio interface succeeded: ", szInfo, str_format_frequency(uFrequencyKhz), (failed?"failed":"succeeded"), (anySucceeded?"yes":"no"));
+
+   return anySucceeded;
+}
+
+bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps, u32 uDelayMs)
+{
+   u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   if ( hardware_is_station() && (uDelayMs > 0) )
+   {
+      delayMs = uDelayMs;
+      if ( delayMs<1 || delayMs > 200 )
+         delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   }
+   else if ( NULL != pModel )
+      delayMs = (pModel->uDeveloperFlags >> 8) & 0xFF; 
+
+   delayMs += 20;
+   log_line("Setting global datarate for Atheros/RaLink radio interface %d to: %d (guard interval: %d ms)", iCard+1, dataRate_bps, (int)delayMs);
+   
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iCard);
+   if ( NULL == pRadioHWInfo )
+   {
+      log_softerror_and_alarm("Can't get info for radio interface %d", iCard+1);
+      return false;
+   }
+
+   if ( pRadioHWInfo->iCurrentDataRate == dataRate_bps )
+   {
+      log_line("Atheros/RaLink radio interface %d already on datarate: %d. Done.", iCard+1, dataRate_bps);
+      return true;
+   }
+
+   char cmd[1024];
+
+   sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   sprintf(cmd, "iw dev %s set type managed", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   if ( dataRate_bps > 0 )
+      sprintf(cmd, "iw dev %s set bitrates legacy-2.4 %d", pRadioHWInfo->szName, dataRate_bps/1000/1000 );
+   else
+      sprintf(cmd, "iw dev %s set bitrates ht-mcs-2.4 %d", pRadioHWInfo->szName, -dataRate_bps-1 );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   sprintf(cmd, "iw dev %s set monitor none", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
+   pRadioHWInfo->iCurrentDataRate = dataRate_bps;
+   hardware_save_radio_info();
+   log_line("Setting datarate on Atheros/RaLink radio interface %d to: %d completed.", iCard+1, dataRate_bps);
+   return true;
+}
+
+
+void log_camera_profiles_differences(camera_profile_parameters_t* pProfile1, camera_profile_parameters_t* pProfile2)
+{
+ 
 }

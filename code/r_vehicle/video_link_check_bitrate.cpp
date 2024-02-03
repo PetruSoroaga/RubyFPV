@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -294,11 +312,11 @@ void video_link_check_adjust_bitrate_for_overload()
    sl_uTimeLastVideoOverloadCheck = g_TimeNow;
 
    u32 uTotalSentVideoBitRateAverage = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage();
-   u32 uTotalSentVideoBitRate = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(500);
+   u32 uTotalSentVideoBitRateFast = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(250);
    u32 uMaxTxTime = DEFAULT_TX_TIME_OVERLOAD;
    if ( (g_pCurrentModel->board_type == BOARD_TYPE_PIZERO) || (g_pCurrentModel->board_type == BOARD_TYPE_PIZEROW) )
          uMaxTxTime += 200;
-   uMaxTxTime += (uTotalSentVideoBitRate/1000/1000)*20;
+   uMaxTxTime += (uTotalSentVideoBitRateFast/1000/1000)*20;
 
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_IGNORE_TX_SPIKES )
       uMaxTxTime = 900;
@@ -312,8 +330,8 @@ void video_link_check_adjust_bitrate_for_overload()
       send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW, 0, 0, 2); 
    }
 
-   int iMaxAllowedThreshold = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
-   int iMaxAllowedThresholdFast = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * 85;
+   int iMaxAllowedThresholdAlarm = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
+   int iMaxAllowedThreshold = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_LOAD_PERCENT;
    
    // Check for TX time overload or data rate overload and lower video bitrate if needed
 
@@ -328,11 +346,12 @@ void video_link_check_adjust_bitrate_for_overload()
       bIsTxOverloadCondition = true;
    }
 
-   if ( uTotalSentVideoBitRate > (u32)iMaxAllowedThresholdFast )
-   if ( uTotalSentVideoBitRateAverage > (u32)iMaxAllowedThreshold )
+   if ( (uTotalSentVideoBitRateFast > (u32)iMaxAllowedThreshold) || (uTotalSentVideoBitRateAverage > (u32)iMaxAllowedThreshold) )
    {
       bIsDataOverloadCondition = true;
       bIsDataRateOverloadCondition = true;
+      //log_line("DEBUG overload: sent %u, %u, avg: %u, %u", uTotalSentVideoBitRateFast, (u32)iMaxAllowedThreshold, 
+      //   uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThresholdAlarm);
    }
 
    if ( g_uTimeLastVideoTxOverload > g_TimeNow - 4000 )
@@ -360,24 +379,15 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_TimeNow >= g_SM_VideoLinkStats.timeLastAdaptiveParamsChangeDown + 200 )
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateDownOnTxOverload + 250 )
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateUpOnTxOverload + 250 )
-   if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRate) )
+   if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRateFast) )
    {
       g_uTimeLastVideoTxOverload = 0;
       g_TimeLastOverwriteBitrateDownOnTxOverload = g_TimeNow;
 
       u32 uParam = 0;
       if ( bIsDataRateOverloadCondition )
+      if ( (uTotalSentVideoBitRateAverage > (u32)iMaxAllowedThresholdAlarm) )
       {
-         /*
-         log_line("DEBUG overload, sent %u / %u bps, safe is %d bps, current profile: %s, current level %d, last profile changed down/up: %u/%u ms ago, last adaptive changed down/up: %u/%u ms ago",
-            uTotalSentVideoBitRateAverage, uTotalSentVideoBitRate, iMaxAllowedThreshold,
-            str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel,
-            g_TimeNow - g_SM_VideoLinkStats.timeLastProfileChangeDown,
-            g_TimeNow - g_SM_VideoLinkStats.timeLastProfileChangeDown,
-            g_TimeNow - g_SM_VideoLinkStats.timeLastAdaptiveParamsChangeDown,
-            g_TimeNow - g_SM_VideoLinkStats.timeLastAdaptiveParamsChangeUp
-            );
-         */
          u32 bitrateTotal = uTotalSentVideoBitRateAverage;
          bitrateTotal /= 1000;
          u32 bitrateBar = iMaxAllowedThreshold;

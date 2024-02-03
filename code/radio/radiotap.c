@@ -1,49 +1,32 @@
 #include "radiotap.h"
 #include "../base/base.h"
 
-/**
- * ieee80211_radiotap_iterator_init - radiotap parser iterator initialization
- * @iterator: radiotap_iterator to initialize
- * @radiotap_header: radiotap header to parse
- * @max_length: total length we can parse into (eg, whole packet length)
- *
- * Returns: 0 or a negative error code if there is a problem.
- *
- * This function initializes an opaque iterator struct which can then
- * be passed to ieee80211_radiotap_iterator_next() to visit every radiotap
- * argument which is present in the header.  It knows about extended
- * present headers and handles them.
- *
- * How to use:
- * call __ieee80211_radiotap_iterator_init() to init a semi-opaque iterator
- * struct ieee80211_radiotap_iterator (no need to init the struct beforehand)
- * checking for a good 0 return code.  Then loop calling
- * __ieee80211_radiotap_iterator_next()... it returns either 0,
- * -ENOENT if there are no more args to parse, or -EINVAL if there is a problem.
- * The iterator's @this_arg member points to the start of the argument
- * associated with the current argument index that is present, which can be
- * found in the iterator's @this_arg_index member.  This arg index corresponds
- * to the IEEE80211_RADIOTAP_... defines.
- *
- * Radiotap header length:
- * You can find the CPU-endian total radiotap header length in
- * iterator->max_length after executing ieee80211_radiotap_iterator_init()
- * successfully.
- *
- * Example code:
- * See Documentation/networking/radiotap-headers.txt
- */
+/* Are two types/vars the same type (ignoring qualifiers)? */
+#ifndef __same_type
+# define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#endif
 
-int ieee80211_radiotap_iterator_init(
-    struct ieee80211_radiotap_iterator *iterator,
-    struct ieee80211_radiotap_header *radiotap_header,
-    int max_length)
+#ifndef BUILD_BUG_ON
+/* Force a compilation error if condition is true */
+#define BUILD_BUG_ON(condition) ((void)BUILD_BUG_ON_ZERO(condition))
+/* Force a compilation error if condition is true, but also produce a
+   result (of value 0 and type size_t), so the expression can be used
+   e.g. in a structure initializer (or where-ever else comma expressions
+   aren't permitted). */
+#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
+#define BUILD_BUG_ON_NULL(e) ((void *)sizeof(struct { int:-!!(e); }))
+#endif
+  
+#define __must_be_array(a)      BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+
+/*
+
+int ieee80211_radiotap_iterator_init(struct ieee80211_radiotap_iterator *iterator, struct ieee80211_radiotap_header *radiotap_header, int max_length)
 {
-	/* Linux only supports version 0 radiotap format */
-	if (radiotap_header->it_version)
+ if (radiotap_header->it_version)
 		return -EINVAL;
 
-	/* sanity check for allowed length and radiotap length field */
 	if (max_length < le16_to_cpu(radiotap_header->it_len))
 		return -EINVAL;
 
@@ -54,18 +37,10 @@ int ieee80211_radiotap_iterator_init(
 	iterator->arg = (u8 *)radiotap_header + sizeof(*radiotap_header);
 	iterator->this_arg = 0;
 
-	/* find payload start allowing for extended bitmap(s) */
-
 	if (unlikely(iterator->bitmap_shifter & (1<<IEEE80211_RADIOTAP_EXT))) {
 		while (le32_to_cpu(*((u32 *)iterator->arg)) &
 				   (1<<IEEE80211_RADIOTAP_EXT)) {
 			iterator->arg += sizeof(u32);
-
-			/*
-			 * check for insanity where the present bitmaps
-			 * keep claiming to extend up to or even beyond the
-			 * stated radiotap header length
-			 */
 
 			if (((ulong)iterator->arg -
 			     (ulong)iterator->rtheader) > iterator->max_length)
@@ -73,55 +48,95 @@ int ieee80211_radiotap_iterator_init(
 		}
 
 		iterator->arg += sizeof(u32);
-
-		/*
-		 * no need to check again for blowing past stated radiotap
-		 * header length, because ieee80211_radiotap_iterator_next
-		 * checks it before it is dereferenced
-		 */
 	}
-
-	/* we are all initialized happily */
 
 	return 0;
 }
+*/
 
 
-/**
- * ieee80211_radiotap_iterator_next - return next radiotap parser iterator arg
- * @iterator: radiotap_iterator to move to next arg (if any)
- *
- * Returns: 0 if there is an argument to handle,
- * -ENOENT if there are no more args or -EINVAL
- * if there is something else wrong.
- *
- * This function provides the next radiotap arg index (IEEE80211_RADIOTAP_*)
- * in @this_arg_index and sets @this_arg to point to the
- * payload for the field.  It takes care of alignment handling and extended
- * present fields.  @this_arg can be changed by the caller (eg,
- * incremented to move inside a compound argument like
- * IEEE80211_RADIOTAP_CHANNEL).  The args pointed to are in
- * little-endian format whatever the endianess of your CPU.
- */
+static const struct radiotap_align_size rtap_namespace_sizes[] = {
+ [IEEE80211_RADIOTAP_TSFT] = { .align = 8, .size = 8, },
+ [IEEE80211_RADIOTAP_FLAGS] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_RATE] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_CHANNEL] = { .align = 2, .size = 4, },
+ [IEEE80211_RADIOTAP_FHSS] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_DBM_ANTSIGNAL] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_DBM_ANTNOISE] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_LOCK_QUALITY] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_TX_ATTENUATION] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_DB_TX_ATTENUATION] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_DBM_TX_POWER] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_ANTENNA] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_DB_ANTSIGNAL] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_DB_ANTNOISE] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_RX_FLAGS] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_TX_FLAGS] = { .align = 2, .size = 2, },
+ [IEEE80211_RADIOTAP_RTS_RETRIES] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_DATA_RETRIES] = { .align = 1, .size = 1, },
+ [IEEE80211_RADIOTAP_MCS] = { .align = 1, .size = 3, },
+ [IEEE80211_RADIOTAP_AMPDU_STATUS] = { .align = 4, .size = 8, },
+ [IEEE80211_RADIOTAP_VHT] = { .align = 2, .size = 12, },
+ [IEEE80211_RADIOTAP_TIMESTAMP] = { .align = 8, .size = 12, },
+};
 
+static const struct ieee80211_radiotap_namespace radiotap_ns_default = {
+ .n_bits = ARRAY_SIZE(rtap_namespace_sizes),
+ .align_size = rtap_namespace_sizes,
+};
+ 
+
+int ieee80211_radiotap_iterator_init(struct ieee80211_radiotap_iterator *iterator, struct ieee80211_radiotap_header *radiotap_header, int max_length)
+{
+ if (max_length < (int)sizeof(struct ieee80211_radiotap_header))
+  return -EINVAL;
+
+ if (radiotap_header->it_version)
+  return -EINVAL;
+
+ if (max_length < get_unaligned_le16(&radiotap_header->it_len))
+  return -EINVAL;
+
+ iterator->_rtheader = radiotap_header;
+ iterator->max_length = get_unaligned_le16(&radiotap_header->it_len);
+ iterator->_arg_index = 0;
+ iterator->_bitmap_shifter = get_unaligned_le32(&radiotap_header->it_present);
+ iterator->_arg = (uint8_t *)radiotap_header + sizeof(*radiotap_header);
+ iterator->_reset_on_ext = 0;
+ iterator->_next_bitmap = &radiotap_header->it_present;
+ iterator->_next_bitmap++;
+ iterator->_vns = NULL;
+ iterator->current_namespace = &radiotap_ns_default;
+ iterator->is_radiotap_ns = 1;
+
+ if (iterator->_bitmap_shifter & (1<<IEEE80211_RADIOTAP_EXT)) {
+  if ((unsigned long)iterator->_arg -
+      (unsigned long)iterator->_rtheader + sizeof(uint32_t) >
+      (unsigned long)iterator->max_length)
+   return -EINVAL;
+  while (get_unaligned_le32(iterator->_arg) &
+     (1 << IEEE80211_RADIOTAP_EXT)) {
+   iterator->_arg += sizeof(uint32_t);
+
+   if ((unsigned long)iterator->_arg -
+       (unsigned long)iterator->_rtheader +
+       sizeof(uint32_t) >
+       (unsigned long)iterator->max_length)
+    return -EINVAL;
+  }
+
+  iterator->_arg += sizeof(uint32_t);
+ }
+
+ iterator->this_arg = iterator->_arg;
+
+ return 0;
+}
+
+/*
 int ieee80211_radiotap_iterator_next(
     struct ieee80211_radiotap_iterator *iterator)
 {
-
-	/*
-	 * small length lookup table for all radiotap types we heard of
-	 * starting from b0 in the bitmap, so we can walk the payload
-	 * area of the radiotap header
-	 *
-	 * There is a requirement to pad args, so that args
-	 * of a given length must begin at a boundary of that length
-	 * -- but note that compound args are allowed (eg, 2 x u16
-	 * for IEEE80211_RADIOTAP_CHANNEL) so total arg length is not
-	 * a reliable indicator of alignment requirement.
-	 *
-	 * upper nybble: content alignment for arg
-	 * lower nybble: content length for arg
-	 */
 
 	static const u8 rt_sizes[] = {
 		[IEEE80211_RADIOTAP_TSFT] = 0x88,
@@ -137,42 +152,26 @@ int ieee80211_radiotap_iterator_next(
 		[IEEE80211_RADIOTAP_DBM_TX_POWER] = 0x11,
 		[IEEE80211_RADIOTAP_ANTENNA] = 0x11,
 		[IEEE80211_RADIOTAP_DB_ANTSIGNAL] = 0x11,
-		[IEEE80211_RADIOTAP_DB_ANTNOISE] = 0x11
-		/*
-		 * add more here as they are defined in
-		 * include/net/ieee80211_radiotap.h
-		 */
+		[IEEE80211_RADIOTAP_DB_ANTNOISE] = 0x11,
+  [IEEE80211_RADIOTAP_RX_FLAGS] = 0x22,
+  [IEEE80211_RADIOTAP_TX_FLAGS] = 0x22,
+  [IEEE80211_RADIOTAP_RTS_RETRIES] = 0x11,
+  [IEEE80211_RADIOTAP_DATA_RETRIES] = 0x11
+  //[18] = 0x11,
+  //[IEEE80211_RADIOTAP_MCS] = 0x13
+		
 	};
 
-	/*
-	 * for every radiotap entry we can at
-	 * least skip (by knowing the length)...
-	 */
+	
 
 	while (iterator->arg_index < sizeof(rt_sizes)) {
 		int hit = 0;
 		int pad;
 
 		if (!(iterator->bitmap_shifter & 1))
-			goto next_entry; /* arg not present */
+			goto next_entry;
 
-		/*
-		 * arg is present, account for alignment padding
-		 *  8-bit args can be at any alignment
-		 * 16-bit args must start on 16-bit boundary
-		 * 32-bit args must start on 32-bit boundary
-		 * 64-bit args must start on 64-bit boundary
-		 *
-		 * note that total arg size can differ from alignment of
-		 * elements inside arg, so we use upper nybble of length
-		 * table to base alignment on
-		 *
-		 * also note: these alignments are ** relative to the
-		 * start of the radiotap header **.  There is no guarantee
-		 * that the radiotap header itself is aligned on any
-		 * kind of boundary.
-		 */
-
+	
 		pad = (((ulong)iterator->arg) -
 			((ulong)iterator->rtheader)) &
 			((rt_sizes[iterator->arg_index] >> 4) - 1);
@@ -181,23 +180,14 @@ int ieee80211_radiotap_iterator_next(
 			iterator->arg +=
 				(rt_sizes[iterator->arg_index] >> 4) - pad;
 
-		/*
-		 * this is what we will return to user, but we need to
-		 * move on first so next call has something fresh to test
-		 */
+		
 		iterator->this_arg_index = iterator->arg_index;
 		iterator->this_arg = iterator->arg;
 		hit = 1;
 
-		/* internally move on the size of this arg */
 		iterator->arg += rt_sizes[iterator->arg_index] & 0x0f;
 
-		/*
-		 * check for insanity where we are given a bitmap that
-		 * claims to have more arg content than the length of the
-		 * radiotap section.  We will normally end up equalling this
-		 * max_length on the last arg, never exceeding it.
-		 */
+		
 
 		if (((ulong)iterator->arg - (ulong)iterator->rtheader) >
 		    iterator->max_length)
@@ -206,27 +196,163 @@ int ieee80211_radiotap_iterator_next(
 	next_entry:
 		iterator->arg_index++;
 		if (unlikely((iterator->arg_index & 31) == 0)) {
-			/* completed current u32 bitmap */
+			
 			if (iterator->bitmap_shifter & 1) {
-				/* b31 was set, there is more */
-				/* move to next u32 bitmap */
+				
 				iterator->bitmap_shifter =
 				    le32_to_cpu(*iterator->next_bitmap);
 				iterator->next_bitmap++;
 			} else {
-				/* no more bitmaps: end */
+				
 				iterator->arg_index = sizeof(rt_sizes);
 			}
-		} else { /* just try the next bit */
+		} else { 
 			iterator->bitmap_shifter >>= 1;
 		}
 
-		/* if we found a valid arg earlier, return it now */
+		
 		if (hit)
 			return 0;
 	}
 
-	/* we don't know how to handle any more args, we're done */
 	return -ENOENT;
 }
+*/
 
+static void find_ns(struct ieee80211_radiotap_iterator *iterator,
+      uint32_t oui, uint8_t subns)
+{
+ int i;
+
+ iterator->current_namespace = NULL;
+
+ if (!iterator->_vns)
+  return;
+
+ for (i = 0; i < iterator->_vns->n_ns; i++) {
+  if (iterator->_vns->ns[i].oui != oui)
+   continue;
+  if (iterator->_vns->ns[i].subns != subns)
+   continue;
+
+  iterator->current_namespace = &iterator->_vns->ns[i];
+  break;
+ }
+}
+
+extern int ieee80211_radiotap_iterator_next(struct ieee80211_radiotap_iterator *iterator)
+{
+   while (1) {
+  int hit = 0;
+  int pad, align, size, subns;
+  uint32_t oui;
+
+  if ((iterator->_arg_index % 32) == IEEE80211_RADIOTAP_EXT &&
+      !(iterator->_bitmap_shifter & 1))
+   return -ENOENT;
+
+  if (!(iterator->_bitmap_shifter & 1))
+   goto next_entry;
+
+  switch (iterator->_arg_index % 32) {
+  case IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE:
+  case IEEE80211_RADIOTAP_EXT:
+   align = 1;
+   size = 0;
+   break;
+  case IEEE80211_RADIOTAP_VENDOR_NAMESPACE:
+   align = 2;
+   size = 6;
+   break;
+  default:
+   if (!iterator->current_namespace ||
+       iterator->_arg_index >= iterator->current_namespace->n_bits) {
+    if (iterator->current_namespace == &radiotap_ns_default)
+     return -ENOENT;
+    align = 0;
+   } else {
+    align = iterator->current_namespace->align_size[iterator->_arg_index].align;
+    size = iterator->current_namespace->align_size[iterator->_arg_index].size;
+   }
+   if (!align) {
+    iterator->_arg = iterator->_next_ns_data;
+    iterator->current_namespace = NULL;
+    goto next_entry;
+   }
+   break;
+  }
+
+  pad = ((unsigned long)iterator->_arg -
+         (unsigned long)iterator->_rtheader) & (align - 1);
+
+  if (pad)
+   iterator->_arg += align - pad;
+
+  if (iterator->_arg_index % 32 == IEEE80211_RADIOTAP_VENDOR_NAMESPACE) {
+   int vnslen;
+
+   if ((unsigned long)iterator->_arg + size -
+       (unsigned long)iterator->_rtheader >
+       (unsigned long)iterator->max_length)
+    return -EINVAL;
+
+   oui = (*iterator->_arg << 16) |
+    (*(iterator->_arg + 1) << 8) |
+    *(iterator->_arg + 2);
+   subns = *(iterator->_arg + 3);
+
+   find_ns(iterator, oui, subns);
+
+   vnslen = get_unaligned_le16(iterator->_arg + 4);
+   iterator->_next_ns_data = iterator->_arg + size + vnslen;
+   if (!iterator->current_namespace)
+    size += vnslen;
+  }
+
+  iterator->this_arg_index = iterator->_arg_index;
+  iterator->this_arg = iterator->_arg;
+  iterator->this_arg_size = size;
+
+  iterator->_arg += size;
+
+  if ((unsigned long)iterator->_arg -
+      (unsigned long)iterator->_rtheader >
+      (unsigned long)iterator->max_length)
+   return -EINVAL;
+
+  switch (iterator->_arg_index % 32) {
+  case IEEE80211_RADIOTAP_VENDOR_NAMESPACE:
+   iterator->_reset_on_ext = 1;
+
+   iterator->is_radiotap_ns = 0;
+   iterator->this_arg_index =
+    IEEE80211_RADIOTAP_VENDOR_NAMESPACE;
+   if (!iterator->current_namespace)
+    hit = 1;
+   goto next_entry;
+  case IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE:
+   iterator->_reset_on_ext = 1;
+   iterator->current_namespace = &radiotap_ns_default;
+   iterator->is_radiotap_ns = 1;
+   goto next_entry;
+  case IEEE80211_RADIOTAP_EXT:
+   iterator->_bitmap_shifter =
+    get_unaligned_le32(iterator->_next_bitmap);
+   iterator->_next_bitmap++;
+   if (iterator->_reset_on_ext)
+    iterator->_arg_index = 0;
+   else
+    iterator->_arg_index++;
+   iterator->_reset_on_ext = 0;
+   break;
+  default:
+   hit = 1;
+ next_entry:
+   iterator->_bitmap_shifter >>= 1;
+   iterator->_arg_index++;
+  }
+
+  if (hit)
+   return 0;
+ } 
+}

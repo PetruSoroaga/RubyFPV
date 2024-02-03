@@ -12,3 +12,5 @@ bool videoLinkProfileIsOnlyAdaptiveVideoChanged(type_video_link_profile* pOldPro
 
 void video_overwrites_init(shared_mem_video_link_overwrites* pSMVLO, Model* pModel);
 void send_control_message_to_raspivid(u8 parameter, u8 value);
+
+bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_process_stats* pProcessStats);

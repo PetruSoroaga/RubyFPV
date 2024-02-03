@@ -13,8 +13,6 @@ class MenuVehicleRadioLinkSiK: public Menu
       virtual void valuesToUI();
       virtual void Render();
       virtual void onShow();
-      virtual void onReturnFromChild(int returnValue); 
-      virtual void onItemValueChanged(int itemIndex);
       virtual void onSelectItem();
             
    private:

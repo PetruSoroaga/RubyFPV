@@ -92,9 +92,10 @@
 #define MENU_ID_CONFIRMATION_DELETE_LOGS 104
 #define MENU_ID_VEHICLE_RADIO_CONFIG 105
 #define MENU_ID_DIAGNOSE_RADIO_LINK 106
-
-#define MENU_ID_TEXT 80
-#define MENU_ID_TXINFO 81
+#define MENU_ID_IMPORT_ENC_KEY 107
+#define MENU_ID_PREFERENCES_BUTTONS 108
+#define MENU_ID_TEXT 110
+#define MENU_ID_TXINFO 111
 
 
 #define MAX_MENU_ITEMS 150
@@ -152,6 +153,7 @@ class Menu
      void removeAllItems();
      void removeMenuItem(MenuItem* pItem);
      int addMenuItem(MenuItem* item);
+     int insertMenuItem(MenuItem* pItem, int iPosition);
      void addSeparator();
      int addSection(const char* szSectionName);
      void enableMenuItem(int index, bool enable);
@@ -161,9 +163,12 @@ class Menu
      u32 getOnChildAddTime();
      u32 getOnReturnFromChildTime();
 
+     void addExtraHeightAtEnd(float fExtraH);
+
      virtual bool periodicLoop();
      virtual float RenderFrameAndTitle();
      virtual float RenderItem(int index, float yPos, float dx = 0);
+     bool didRenderedLastItem();
      virtual void RenderPrepare();
      virtual void Render();
      virtual void RenderEnd(float yTop);
@@ -177,16 +182,15 @@ class Menu
      virtual void onFocusedItemChanged();
      virtual void onItemValueChanged(int itemIndex);
      virtual void onItemEndEdit(int itemIndex);
-     virtual void onChildMenuAdd();
-     virtual void onReturnFromChild(int returnValue);
+     virtual void onChildMenuAdd(Menu* pChildMenu);
+     virtual void onReturnFromChild(int iChildMenuId, int returnValue);
      virtual void valuesToUI(){};
 
      float getSelectionWidth();
      float getUsableWidth();
      float getRenderWidth();
      float getRenderXPos();
-     int getConfirmationId();
-
+     
      void startAnimationOnChildMenuAdd();
      void startAnimationOnChildMenuClosed();
      
@@ -194,11 +198,12 @@ class Menu
      void computeRenderSizes();
      void updateScrollingOnSelectionChange();
      bool checkIsArmed();
-     void addMessageWithTitle(const char* szTitle, const char* szMessage);
+     void addMessageWithTitle(int iId, const char* szTitle, const char* szMessage);
      void addMessage(const char* szMessage);
-     void addMessage2(const char* szMessage, const char* szLine2);
+     void addMessage(int iId, const char* szMessage);
+     void addMessage2(int iId, const char* szMessage, const char* szLine2);
      void addMessageNeedsVehcile(const char* szMessage, int iConfirmationId);
-     void addMessageVideoBitrate(Model* pModel);
+     char* addMessageVideoBitrate(Model* pModel);
      bool uploadSoftware();
      bool _uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload);
      bool checkCancelUpload();
@@ -212,9 +217,11 @@ class Menu
      static float m_sfScaleFactor;
      
      bool m_bInvalidated;
-     bool m_bHasChildMenuActive;
      bool m_bFullWidthSelection;
      bool m_bFirstShow;
+     bool m_bRenderedLastItem;
+     int  m_ThisRenderCycleStartRenderItemIndex;
+     int  m_ThisRenderCycleEndRenderItemIndex;
      Menu* m_pParent;
      MenuItem* m_pMenuItems[MAX_MENU_ITEMS];
      bool m_bHasSeparatorAfter[MAX_MENU_ITEMS];
@@ -224,8 +231,6 @@ class Menu
      bool m_bIsSelectingInsideColumn;
      int m_SelectedIndex;
      float m_fSelectionWidth;
-     float m_ExtraItemsHeight;
-     int m_iExtraItemsHeightPositionIndex;
      float m_RenderXPos;
      float m_RenderYPos;
      float m_RenderTotalHeight;
@@ -242,6 +247,7 @@ class Menu
      float m_fRenderItemsVisibleHeight;
      float m_fRenderItemsStartYPos;
      float m_fRenderItemsStopYPos;
+     float m_fExtraHeightEnd;
      
      float m_fRenderScrollBarsWidth;
      bool  m_bEnableScrolling;
@@ -254,9 +260,7 @@ class Menu
      u32 m_uOnShowTime;
      u32 m_uOnChildAddTime;
      u32 m_uOnChildCloseTime;
-     int m_iConfirmationId;
-     bool m_bHasConfirmationOnTop;
-
+     
      u32 m_bIsAnimationInProgress;
      u32 m_uAnimationStartTime;
      u32 m_uAnimationLastStepTime;

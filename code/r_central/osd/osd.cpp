@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "osd_common.h"
@@ -368,17 +386,20 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
    float w = 0;
    szSuffix[0] = 0;
 
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+   if ( NULL == pActiveModel )
+      return 0.0;
+
    bool bMultiLine = false;
-   if ( NULL != g_pCurrentModel && (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT) )
+   if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
       bMultiLine = true;
 
    u32 totalMaxVideo_bps = 0;
-   Model* pModel = osd_get_current_data_source_vehicle_model();
-   if ( (NULL != pModel) && g_bIsRouterReady )
+   if ( g_bIsRouterReady )
    {
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
-         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId != pModel->vehicle_id )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId != pActiveModel->vehicle_id )
             continue;
          totalMaxVideo_bps = g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].rxBytesPerSec * 8;
          break;
@@ -387,22 +408,22 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
 
    strcpy(szSuffix, "Mbps");
 
-
-   if ( (!g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo) || NULL == g_pCurrentModel )
-      strcpy(szBuff,"0");
+   if ( pActiveModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
+      sprintf(szBuff,"%.1f", totalMaxVideo_bps/1000.0/1000.0);
    else
-      sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
-
-   if ( NULL == g_pCurrentModel )
-      return 0.0;
-
-   u32 uRealDataRate = g_pCurrentModel->getLinkRealDataRate(0);
-   if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
-   if ( g_pCurrentModel->getLinkRealDataRate(1) > uRealDataRate )
-      uRealDataRate = g_pCurrentModel->getLinkRealDataRate(1);
-   if ( g_pCurrentModel->radioLinksParams.links_count > 2 )
-   if ( g_pCurrentModel->getLinkRealDataRate(2) > uRealDataRate )
-      uRealDataRate = g_pCurrentModel->getLinkRealDataRate(2);
+   {
+      if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
+         sprintf(szBuff,"%.1f", totalMaxVideo_bps/1000.0/1000.0);
+      else
+         sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+   }
+   u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
+   if ( pActiveModel->radioLinksParams.links_count > 1 )
+   if ( pActiveModel->getLinkRealDataRate(1) > uRealDataRate )
+      uRealDataRate = pActiveModel->getLinkRealDataRate(1);
+   if ( pActiveModel->radioLinksParams.links_count > 2 )
+   if ( pActiveModel->getLinkRealDataRate(2) > uRealDataRate )
+      uRealDataRate = pActiveModel->getLinkRealDataRate(2);
 
    if ( totalMaxVideo_bps >= (float)(uRealDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
       g_pRenderEngine->setColors(get_Color_IconWarning());
@@ -641,8 +662,12 @@ float _osd_show_rc_rssi(float xPos, float yPos, float fScale)
    char szBuff[32];
    bool bHasRubyRC = false;
    
-   if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->rc_params.rc_enabled && (!g_pCurrentModel->is_spectator) )
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+   int iRuntimeIndex = osd_get_current_data_source_vehicle_index();
+   if ( (NULL == pActiveModel) || (iRuntimeIndex < 0) )
+      return 0.0;
+
+   if ( pActiveModel->rc_params.rc_enabled && (!pActiveModel->is_spectator) )
       bHasRubyRC = true;
  
    osd_set_colors();
@@ -653,7 +678,7 @@ float _osd_show_rc_rssi(float xPos, float yPos, float fScale)
    float y = yPos;
 
    strcpy(szBuff, "RC RSSI: N/A");
-   if ( NULL != g_pCurrentModel && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
+   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
    {
       int val = 0;
       if ( bHasRubyRC )
@@ -1668,10 +1693,10 @@ void _render_osd_left_right()
 
    bool bShowAlt = false;
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_ALTITUDE ) )
-   if ( pActiveModel->vehicle_type == MODEL_TYPE_GENERIC ||
-        pActiveModel->vehicle_type == MODEL_TYPE_DRONE || 
-        pActiveModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        pActiveModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
    {
      bShowAlt = true;
      if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bFCTelemetrySourcePresent )
@@ -1751,10 +1776,10 @@ void _render_osd_left_right()
    }
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_PITCH ) )
-   if ( pActiveModel->vehicle_type == MODEL_TYPE_GENERIC ||
-        pActiveModel->vehicle_type == MODEL_TYPE_DRONE || 
-        pActiveModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        pActiveModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
    {
       if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )  
          sprintf(szBuff, "Pitch: %d", (int)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.pitch/100.0-180.0));
@@ -1774,6 +1799,7 @@ void _render_osd_left_right()
    y = y0;
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RC_RSSI ) )
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       _osd_show_rc_rssi(x,y, 1.0);
       y += height_text + 1.0*vSpacing;
@@ -1958,6 +1984,7 @@ void osd_render_elements()
       return;
 
    if ( ( 0 < pActiveModel->iGPSCount) && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
+   if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude > 5) || (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude < -5) )
    {
       if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_POS_CURRENT )
       {
@@ -1991,10 +2018,7 @@ void osd_render_elements()
    if ( (g_bToglleAllOSDOff || g_bToglleOSDOff) && (!s_bDebugOSDShowAll) )
    {
       if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
-      {
-         g_pRenderEngine->enableFontScaling(false);
          return;
-      }
 
       float x = osd_getMarginX() + osd_getSpacingV() + 0.225*osd_getScaleOSD();
       float y = osd_getMarginY();
@@ -2064,7 +2088,7 @@ void osd_render_elements()
       g_pRenderEngine->enableFontScaling(false);
       return;
    }
-   
+
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BGBARS) )
       render_bars();
    
@@ -2126,6 +2150,7 @@ void osd_render_elements()
    x = 1.0 - osd_getMarginX() - 0.5*osd_getSpacingH();
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RC_RSSI ) )
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       x -= _osd_show_rc_rssi(x,y, 1.0) + osd_getSpacingH();
    }
@@ -2149,6 +2174,58 @@ void osd_render_elements()
 
    float xStartRecording = x;
    osd_show_recording(true,x,y);
+
+
+   // Top part full layout right
+   //--------------------------------------------------------
+
+   x = 0.2*osd_getScaleOSD()+osd_getMarginX();
+   y = osd_getMarginY() + osd_getBarHeight() + 0.5*osd_getSpacingV();
+
+   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MBPS ) )
+   {
+      x = xStartRecording;
+      x -= osd_show_video_link_mbs(x,y, true);
+      x -= osd_getSpacingH()*0.6;
+   }
+
+   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED ) )
+   {
+      u32 uVehicleIdVideo = 0;
+      if ( (osd_get_current_data_source_vehicle_index() >= 0) && (osd_get_current_data_source_vehicle_index() < MAX_CONCURENT_VEHICLES) )
+         uVehicleIdVideo = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId;
+      if ( NULL == pVDS )
+         strcpy(szBuff, "N/A");
+      else if ( link_has_received_videostream(uVehicleIdVideo) )
+      {
+         //sprintf(szBuff, "%d x %d  %d fps", g_SM_VideoDecodeStats.width, g_SM_VideoDecodeStats.height, g_SM_VideoDecodeStats.fps);
+         strcpy(szBuff, "N/A");
+         for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
+            if ( g_iOptionsVideoWidth[i] == pVDS->width )
+            if ( g_iOptionsVideoHeight[i] == pVDS->height )
+            {
+               sprintf(szBuff, "%s %d fps", g_szOptionsVideoRes[i], pVDS->fps);
+               break;
+            }
+      }
+      else
+         sprintf(szBuff, "[waiting]");
+      x += osd_show_value_left(x,y, szBuff, g_idFontOSDSmall);
+   }
+
+   // Top part full layout right line 3
+   //--------------------------------------------------------
+
+   y = osd_getMarginY() + osd_getBarHeight() + 0.7*osd_getSpacingV();
+   x = 1.0 - osd_getMarginX() - osd_getSpacingH();
+
+   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_CPU_INFO ) ||
+        p->iShowControllerCPUInfo )
+   {
+      y = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.7*osd_getSpacingV();
+      x = 1.0 - osd_getMarginX();
+      x -= osd_show_cpus(x,y, 1.0);
+   }
 
    // Bottom part - left
    //------------------------------------
@@ -2265,10 +2342,10 @@ void osd_render_elements()
    }
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_ALTITUDE ) )
-   if ( pActiveModel->vehicle_type == MODEL_TYPE_GENERIC ||
-        pActiveModel->vehicle_type == MODEL_TYPE_DRONE || 
-        pActiveModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        pActiveModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
    {
      float alt = _osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude_abs/100.0f-1000.0);
      if ( pActiveModel->osd_params.altitude_relative )
@@ -2435,10 +2512,10 @@ void osd_render_elements()
    }
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_PITCH ) )
-   if ( pActiveModel->vehicle_type == MODEL_TYPE_GENERIC ||
-        pActiveModel->vehicle_type == MODEL_TYPE_DRONE || 
-        pActiveModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        pActiveModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
    {
       if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )  
          sprintf(szBuff, "%d", (int)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.pitch/100.0-180.0));
@@ -2475,57 +2552,6 @@ void osd_render_elements()
       x = xEnd2;
    if ( xEnd3 < x )
       x = xEnd3;
-
-   // Top part full layout right
-   //--------------------------------------------------------
-
-   x = 0.2*osd_getScaleOSD()+osd_getMarginX();
-   y = osd_getMarginY() + osd_getBarHeight() + 0.5*osd_getSpacingV();
-
-   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MBPS ) )
-   {
-      x = xStartRecording;
-      x -= osd_show_video_link_mbs(x,y, true);
-      x -= osd_getSpacingH()*0.6;
-   }
-
-   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED ) )
-   {
-      u32 uVehicleIdVideo = 0;
-      if ( (osd_get_current_data_source_vehicle_index() >= 0) && (osd_get_current_data_source_vehicle_index() < MAX_CONCURENT_VEHICLES) )
-         uVehicleIdVideo = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId;
-      if ( NULL == pVDS )
-         strcpy(szBuff, "N/A");
-      else if ( link_has_received_videostream(uVehicleIdVideo) )
-      {
-         //sprintf(szBuff, "%d x %d  %d fps", g_SM_VideoDecodeStats.width, g_SM_VideoDecodeStats.height, g_SM_VideoDecodeStats.fps);
-         strcpy(szBuff, "N/A");
-         for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-            if ( g_iOptionsVideoWidth[i] == pVDS->width )
-            if ( g_iOptionsVideoHeight[i] == pVDS->height )
-            {
-               sprintf(szBuff, "%s %d fps", g_szOptionsVideoRes[i], pVDS->fps);
-               break;
-            }
-      }
-      else
-         sprintf(szBuff, "[waiting]");
-      x += osd_show_value_left(x,y, szBuff, g_idFontOSDSmall);
-   }
-
-   // Top part full layout right line 3
-   //--------------------------------------------------------
-
-   y = osd_getMarginY() + osd_getBarHeight() + 0.7*osd_getSpacingV();
-   x = 1.0 - osd_getMarginX() - osd_getSpacingH();
-
-   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_CPU_INFO ) ||
-        p->iShowControllerCPUInfo )
-   {
-      y = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.7*osd_getSpacingV();
-      x = 1.0 - osd_getMarginX();
-      x -= osd_show_cpus(x,y, 1.0);
-   }
 
    g_pRenderEngine->enableFontScaling(false);
 }
@@ -2578,7 +2604,7 @@ void osd_render_stats()
       showStats = false;
    if ( s_bDebugOSDShowAll )
       showStats = true;
-
+   
    if ( !(pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED) )
       return;
 
@@ -2661,6 +2687,10 @@ void osd_render_all()
    if ( (NULL == pModel) || (0 == g_uActiveControllerModelVID) )
       return;
 
+   if ( ! (pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED) )
+   if ( ! (pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY) )
+      return;
+
    if ( ! pairing_isStarted() )
       return;
 
@@ -2668,6 +2698,7 @@ void osd_render_all()
    
    s_RenderCount++;
 
+   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
    if ( (NULL != p) && (p->iShowProcessesMonitor) )
       osd_show_monitor();
 
@@ -2710,6 +2741,8 @@ void osd_render_all()
    for ( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
+      if ( NULL == pNICInfo )
+         continue;
       if ( fabs(g_fOSDDbm[i] - (float)g_SM_RadioStats.radio_interfaces[i].lastDbm) > 10.0 )
          g_fOSDDbm[i] = 0.7 * g_fOSDDbm[i] + 0.3 * (float)g_SM_RadioStats.radio_interfaces[i].lastDbm;
       else
@@ -2734,14 +2767,22 @@ void osd_render_all()
       g_pRenderEngine->setBackgroundBoundingBoxPadding(0.0);
    }
 
-   osd_render_elements();
+   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
+   {
+      osd_render_elements();
+      osd_render_instruments();
+   }
+
    osd_widgets_render(pModel->vehicle_id);
-   osd_render_instruments();
    osd_plugins_render();
    g_pRenderEngine->drawBackgroundBoundingBoxes(false);
-   osd_render_stats();
+
+   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
+      osd_render_stats();
+     
    osd_render_warnings();
    
+   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
    if ( (NULL != p) && (p->iShowProcessesMonitor) )
       osd_show_monitor();
 

@@ -1,16 +1,34 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <pthread.h>
-#include "../base/radio_utils.h"
+//#include "../base/radio_utils.h"
 #include "../base/ctrl_settings.h"
 #include "../common/models_connect_frequencies.h"
 #include "../common/string_utils.h"
@@ -305,7 +323,7 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
       return;
    }
    
-   Model* pModel = findModelWithId(pPH->vehicle_id_src);
+   Model* pModel = findModelWithId(pPH->vehicle_id_src, 6);
    if ( NULL == pModel )
    {
       log_softerror_and_alarm("[Commands] Received small segment (%d bytes) for model settings, but can't find VID %u", iDataLength, pPH->vehicle_id_src);
@@ -802,7 +820,7 @@ bool handle_last_command_result()
             {
                 reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[1]));
                 g_VehiclesRuntimeInfo[1].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
-                g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId);
+                g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId, 7);
             }
 
             u8 uOldRelayMode = oldRelayParams.uCurrentRelayMode;
@@ -848,7 +866,7 @@ bool handle_last_command_result()
            g_pCurrentModel = NULL;
            save_PluginsSettings();
            log_line("[Commands] Command response factory reset: Deleted model 1/3.");
-           menu_close_all();
+           menu_discard_all();
            log_line("[Commands] Command response factory reset: Deleted model 2/3.");
            Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Factory Reset Complete",NULL);
            pm->m_xPos = 0.4; pm->m_yPos = 0.4;
@@ -1166,7 +1184,8 @@ bool handle_last_command_result()
 
       case COMMAND_ID_SET_VEHICLE_TYPE:
          log_line("[Commands] Command set vehicle type succeeded, vehicle type: %d", s_CommandParam );
-         g_pCurrentModel->vehicle_type = s_CommandParam;
+         g_pCurrentModel->vehicle_type &= MODEL_FIRMWARE_MASK;
+         g_pCurrentModel->vehicle_type |= (s_CommandParam & MODEL_TYPE_MASK);
          g_pCurrentModel->constructLongName();
          saveControllerModel(g_pCurrentModel);         
          break;
@@ -1243,7 +1262,7 @@ bool handle_last_command_result()
             tmp = 0;
          g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = tmp;
          saveControllerModel(g_pCurrentModel);  
-         sprintf(szBuff, "Switched camera %d to profile %s", g_pCurrentModel->iCurrentCamera, model_getCameraProfileName(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile));
+         sprintf(szBuff, "Switched camera %d to profile %s", g_pCurrentModel->iCurrentCamera+1, model_getCameraProfileName(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile));
          warnings_add(pPH->vehicle_id_src, szBuff);
          break;
 
@@ -1356,7 +1375,7 @@ bool handle_last_command_result()
             saveControllerModel(g_pCurrentModel);
             g_pCurrentModel->b_mustSyncFromVehicle = true;
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
-            menu_close_all();
+            menu_discard_all();
             break;
          }
 
@@ -1381,6 +1400,9 @@ bool handle_last_command_result()
 
       case COMMAND_ID_SET_RADIO_LINK_FREQUENCY:
        {
+         warnings_remove_configuring_radio_link(true);
+         link_reset_reconfiguring_radiolink();
+            
          if ( s_CommandParam & 0x80000000 ) // New format
          {
             u32 tmpLink = (s_CommandParam>>24) & 0x7F;
@@ -1425,14 +1447,9 @@ bool handle_last_command_result()
                send_control_message_to_router_and_data(PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, (u8*)(&data[0]), 2*sizeof(u32));
             }
          }
-         if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-         {
-            warnings_remove_configuring_radio_link(true);
-            link_reset_reconfiguring_radiolink();
-         }
          break;
       }
-      
+
       case COMMAND_ID_SET_RADIO_LINK_CAPABILITIES:
          {
             int linkIndex = s_CommandParam & 0xFF;
@@ -1446,13 +1463,8 @@ bool handle_last_command_result()
                bOnlyVideoDataFlagsChanged = true;
             g_pCurrentModel->radioLinksParams.link_capabilities_flags[linkIndex] = flags;
             saveControllerModel(g_pCurrentModel);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(true);
-               link_reset_reconfiguring_radiolink();
-            }
             if ( bOnlyVideoDataFlagsChanged )
-               send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+               send_model_changed_message_to_router(MODEL_CHANGED_RADIO_LINK_CAPABILITIES, 0);
             else
             {
                log_line("[Commands] Radio link capabilities changed. Reinitializing radio links and router...");
@@ -1473,6 +1485,33 @@ bool handle_last_command_result()
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          break;
 
+      case COMMAND_ID_RESET_RADIO_LINK:
+         {
+            u32 linkIndex = s_CommandParam;
+            log_line("[Commands] Received command response for command to reset radio link %u.", linkIndex+1);
+            g_pCurrentModel->resetRadioLinkParams(linkIndex);
+            int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(linkIndex);
+            bool bIsAtheros = false;
+            if ( iRadioInterfaceId >= 0 )
+            {
+               if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
+                  bIsAtheros = true;
+               if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
+                  bIsAtheros = true; 
+            }      
+            if ( bIsAtheros )
+            {
+               g_pCurrentModel->radioLinksParams.link_datarate_video_bps[linkIndex] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+               g_pCurrentModel->radioLinksParams.link_datarate_data_bps[linkIndex] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+            }
+
+            // Populate radio interfaces radio flags and rates from radio links radio flags and rates
+            g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_RESET_RADIO_LINK, linkIndex);
+            return true;
+         }
+         
       case COMMAND_ID_SET_RADIO_LINK_FLAGS:
          {
             u32* p = (u32*)&(s_CommandBuffer[0]);
@@ -1485,29 +1524,24 @@ bool handle_last_command_result()
             pi++;
             int datarateData = *pi;
 
-            if ( (linkIndex >= g_pCurrentModel->radioLinksParams.links_count) ||
-                 (linkIndex != g_iConfiguringRadioLinkIndex) )
+            if ( linkIndex >= g_pCurrentModel->radioLinksParams.links_count )
             {
                log_softerror_and_alarm("[Commands] Received command response from vehicle to set radio link flags, but radio link id is invalid (%d). Only %d radio links present.", linkIndex, g_pCurrentModel->radioLinksParams.links_count);
                break;
             }
-            log_line("[Commands] Received command response for command sent to vehicle to set radio link flags on radio link %d", g_iConfiguringRadioLinkIndex+1);
             warnings_add_configuring_radio_link_line("Waiting for confirmation from vehicle");
             return true;
          }
 
-      case COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION:
+      case COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION:
          {
-            link_set_received_change_confirmation(true, false, false);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(true);
-               link_reset_reconfiguring_radiolink();
-            }
+            warnings_remove_configuring_radio_link(true);
+            link_reset_reconfiguring_radiolink();
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
             break;
          }
-
+// TO DO
+         /*
       case COMMAND_ID_SET_RADIO_LINK_DATARATES:
          {
             memcpy(&g_pCurrentModel->radioLinksParams, s_CommandBuffer, sizeof(type_radio_links_parameters));
@@ -1516,7 +1550,7 @@ bool handle_last_command_result()
             send_model_changed_message_to_router(MODEL_CHANGED_RADIO_DATARATES, s_CommandParam);
             break;
          }
-
+*/
       case COMMAND_ID_SET_VIDEO_PARAMS:
          {
             video_parameters_t params;
@@ -1702,7 +1736,7 @@ bool handle_last_command_result()
                   popups_add_topmost(p);
                }
             }
-            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            send_model_changed_message_to_router(MODEL_CHANGED_RC_PARAMS, 0);
          break;
          }
 
@@ -1774,6 +1808,7 @@ bool _commands_check_send_get_settings()
    if ( ! g_bIsReinit )
    if ( ! s_bHasCommandInProgress )
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
+   if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
    if ( ! g_bSearching )
    if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
    if ( g_VehiclesRuntimeInfo[0].bPairedConfirmed )
@@ -1830,6 +1865,7 @@ bool _commands_check_send_get_settings()
    }
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
+   if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
    {
       static u32 s_uLastTimeErrorVehicleSync = 0;
       if ( g_TimeNow >= s_uLastTimeErrorVehicleSync + 2000 )
@@ -1848,6 +1884,7 @@ bool _commands_check_send_get_settings()
             );
      }
    }
+   
    bool bHasPluginsSupport = false;
    if ( (NULL != g_pCurrentModel) && (((g_pCurrentModel->sw_version>>8) & 0xFF) >= 7) )
       bHasPluginsSupport = true;
@@ -1975,7 +2012,7 @@ void _handle_commands_on_command_timeout()
       link_reset_reconfiguring_radiolink();
    }
    else if ( s_CommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS ||
-        s_CommandType == COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION )
+        s_CommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION )
    {
       if ( s_CommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS )
          log_softerror_and_alarm("[Commands] The new radio flags where not received by vehicle (no command acknolwedge received)." );
@@ -2031,16 +2068,16 @@ void handle_commands_loop()
 
    // Did it timed out?
 
-   if ( s_CommandResendCounter >= s_CommandMaxResendCounter && g_TimeNow > s_CommandStartTime + s_CommandTimeout )
-   {
-      log_softerror_and_alarm("[Commands] Last command did not complete (timed out waiting for a response)." );
-      popup_log_add_entry("Command timed out (No response from vehicle).");
-      _handle_commands_on_command_timeout();
-      return;
-   }
-
    if ( g_TimeNow > s_CommandStartTime + s_CommandTimeout )
    {
+      if ( s_CommandResendCounter >= s_CommandMaxResendCounter )
+      {
+         log_softerror_and_alarm("[Commands] Last command did not complete (timed out waiting for a response)." );
+         popup_log_add_entry("Command timed out (No response from vehicle).");
+         _handle_commands_on_command_timeout();
+         return;
+      }
+
       if ( NULL != g_pCurrentModel )
          reset_model_settings_download_buffers(g_pCurrentModel->vehicle_id);
 
@@ -2266,7 +2303,7 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
          s_CommandMaxResendCounter = 20;
       }
    }
-   if ( s_CommandType == COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION )
+   if ( s_CommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION )
    {
       s_CommandTimeout = 250;
       s_CommandMaxResendCounter = 12;
@@ -2290,7 +2327,7 @@ u32 handle_commands_decrement_command_counter()
    return s_CommandCounter; 
 }
 
-bool handle_commands_send_single_command_to_vehicle(u8 commandType, u8 resendCounter, u32 param, u8* pBuffer, int length)
+bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCounter, u32 param, u8* pBuffer, int length)
 {
    if ( NULL == g_pCurrentModel )
       return false;
@@ -2301,6 +2338,20 @@ bool handle_commands_send_single_command_to_vehicle(u8 commandType, u8 resendCou
       handle_commands_show_popup_progress();
       return false;
    }
+
+
+   s_CommandTargetVehicleId = g_pCurrentModel->vehicle_id;
+   s_CommandBufferLength = length;
+   if ( NULL != pBuffer )
+      memcpy(s_CommandBuffer, pBuffer, s_CommandBufferLength );
+   s_CommandType = commandType;
+   s_CommandParam = param;
+   s_CommandResendCounter = resendCounter;
+
+   s_CommandReplyLength = 0;
+   s_CommandTimeout = 5000;
+   s_CommandMaxResendCounter = 0;
+   s_CommandStartTime = g_TimeNow;
 
    t_packet_header PH;
    t_packet_header_command PHC;
@@ -2408,7 +2459,7 @@ void handle_commands_abandon_command()
 
 bool handle_commands_is_command_in_progress()
 {
-   return s_bHasCommandInProgress;
+   return (s_bHasCommandInProgress || link_is_reconfiguring_radiolink());
 }
 
 void handle_commands_show_popup_progress()

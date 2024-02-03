@@ -25,7 +25,6 @@ class MenuVehicleRCFailsafe: public Menu
       virtual ~MenuVehicleRCFailsafe();
       virtual void Render();
       virtual void onShow();
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
       virtual void valuesToUI();
             

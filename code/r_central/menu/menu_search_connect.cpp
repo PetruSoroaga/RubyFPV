@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu_search_connect.h"
@@ -16,12 +34,38 @@ Code written by: Petru Soroaga, 2021-2023
 
 MenuSearchConnect::MenuSearchConnect(void)
 //:Menu(MENU_ID_SEARCH_CONNECT, "Found Vehicle", "")
-:Menu(MENU_ID_CONFIRMATION, "Found Vehicle", "") // Id confirmation to keep the parent menu on screen too
+:Menu(MENU_ID_CONFIRMATION+1000*1, "Found Vehicle", "") // Id confirmation to keep the parent menu on screen too
 {
-   m_Width = 0.38;
+   m_iSearchModelTypes = 0;
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   m_Width = 0.40 + 3.0*height_text;
    m_xPos = menu_get_XStartPos(this, m_Width);
    m_yPos = 0.32;
    m_bSpectatorOnlyMode = false;
+
+   m_iIndexController = -1;
+   m_iIndexSpectator = -1;
+   m_iIndexSkip = -1;
+}
+
+void MenuSearchConnect::setSpectatorOnly()
+{
+   m_bSpectatorOnlyMode = true;
+}
+
+void MenuSearchConnect::setCurrentFrequency(u32 freq)
+{
+   m_CurrentSearchFrequency = freq;
+}
+
+void MenuSearchConnect::onShow()
+{
+   Menu::onShow();
+
+   removeAllItems();
+   m_iIndexController = -1;
+   m_iIndexSpectator = -1;
+   m_iIndexSkip = -1;
 
    int iCountLinks = 0;
    if ( g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo )
@@ -33,26 +77,13 @@ MenuSearchConnect::MenuSearchConnect(void)
 
    if ( iCountLinks > 1 )
       m_Width = 0.46;
-   addMenuItem(new MenuItem("Connect for control", "Connect to this vehicle as controller"));
-   addMenuItem(new MenuItem("View as spectator", "Connect to this vehicle as spectator"));
-   addMenuItem(new MenuItem("Skip", "Skip this vehicle"));
-   m_ExtraItemsHeight = 1.8*g_pRenderEngine->textHeight(g_idFontMenu);
-}
+   if ( (!m_bSpectatorOnlyMode) && (m_iSearchModelTypes == 0) )
+      m_iIndexController = addMenuItem(new MenuItem("Connect for control", "Connect to this vehicle as controller"));
+   else
+      addExtraHeightAtEnd(g_pRenderEngine->textHeight(g_idFontMenu));
 
-void MenuSearchConnect::setSpectatorOnly()
-{
-   m_bSpectatorOnlyMode = true;
-   m_pMenuItems[1]->setEnabled(false);
-}
-
-void MenuSearchConnect::setCurrentFrequency(u32 freq)
-{
-   m_CurrentSearchFrequency = freq;
-}
-
-void MenuSearchConnect::onShow()
-{
-   Menu::onShow();
+   m_iIndexSpectator = addMenuItem(new MenuItem("View as spectator", "Connect to this vehicle as spectator"));
+   m_iIndexSkip = addMenuItem(new MenuItem("Skip", "Skip this vehicle"));
 }
 
 void MenuSearchConnect::Render()
@@ -61,7 +92,7 @@ void MenuSearchConnect::Render()
    float yTop = Menu::RenderFrameAndTitle();
    float y0 = yTop;
    float y = y0;
-   for( int i=0; i<3; i++ )
+   for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
 
    char szBuff[128];
@@ -82,6 +113,14 @@ void MenuSearchConnect::Render()
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.8);
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
       g_pRenderEngine->setColors(get_Color_MenuText());
+
+      if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
+      {
+         float fIconSize = height_text*4.0;
+         g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - fIconSize/g_pRenderEngine->getAspectRatio(), y-0.4*height_text, fIconSize/g_pRenderEngine->getAspectRatio(), fIconSize, idIcon);
+         fMaxWidth -= fIconSize/g_pRenderEngine->getAspectRatio();
+         y += 0.2*height_text;
+      }
    }
     
    sprintf(szBuff,"Found vehicle on %s", str_format_frequency(m_CurrentSearchFrequency));
@@ -97,11 +136,16 @@ void MenuSearchConnect::Render()
       return;
    }
 
-   sprintf(szBuff,"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
-   if ( 0 == g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
-      strcat(szBuff, "No Name");
+   if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
+      sprintf(szBuff, "Type: OpenIPC, Name: %s", (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name);
    else
-      strncat(szBuff, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+   {
+      sprintf(szBuff,"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
+      if ( 0 == g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
+         strcat(szBuff, "No Name");
+      else
+         strncat(szBuff, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+   }
    g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
 
@@ -130,24 +174,21 @@ void MenuSearchConnect::Render()
       y += g_pRenderEngine->getMessageHeight(szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text * MENU_ITEM_SPACING;    
    }
-   u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
-   u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
-   vMaj = vMaj >> 4;
-   vMin = vMin & 0x0F;
-   //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
-   sprintf(szBuff,"Version: %d.%d", vMaj, vMin);
-   g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
-   y += height_text *(1.0+MENU_ITEM_SPACING);
+
+   if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_RUBY )
+   {
+      u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
+      u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
+      vMaj = vMaj >> 4;
+      vMin = vMin & 0x0F;
+      //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
+      sprintf(szBuff,"Version: %d.%d", vMaj, vMin);
+      g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
+      y += height_text *(1.0+MENU_ITEM_SPACING);
+   }
    y += height_text *0.6;
 
    RenderEnd(yTop);
-}
-
-int MenuSearchConnect::onBack()
-{
-   log_line("MenuSearchConnect::onBack()");
-   log_line("Default back");
-   return 0;
 }
 
 void MenuSearchConnect::onSelectItem()
@@ -155,7 +196,7 @@ void MenuSearchConnect::onSelectItem()
    Menu::onSelectItem();
    
    // Add model as controller
-   if ( 0 == m_SelectedIndex )
+   if ( m_iIndexController == m_SelectedIndex )
    {
       menu_stack_pop(2);
       warnings_remove_all();
@@ -163,7 +204,7 @@ void MenuSearchConnect::onSelectItem()
    }
 
    // Add model as spectator
-   if ( 1 == m_SelectedIndex )
+   if ( m_iIndexSpectator == m_SelectedIndex )
    {
       menu_stack_pop(1);
       warnings_remove_all();
@@ -171,7 +212,7 @@ void MenuSearchConnect::onSelectItem()
    }
 
    // Skip vehicle
-   if ( 2 == m_SelectedIndex )
+   if ( m_iIndexSkip == m_SelectedIndex )
    {
       menu_stack_pop(0);
       return;

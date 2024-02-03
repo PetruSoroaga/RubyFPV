@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../../base/utils.h"
@@ -36,8 +54,10 @@ MenuVehicleRC::MenuVehicleRC(void)
    m_Width = 0.31;
    m_xPos = 0.14;
    m_yPos = 0.19;
-   float fSliderWidth = 0.09;
+   float fSliderWidth = 0.09 * Menu::getScaleFactor();
 
+   m_uLastSBUSFrameTime = 0;
+   m_uLastSBUSFrameIndex = 0;
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
    if ( 0 == pCI->inputInterfacesCount )
@@ -138,7 +158,7 @@ MenuVehicleRC::MenuVehicleRC(void)
    m_pMenuItems[m_IndexChannels]->showArrow();
 
    if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_CAR || g_pCurrentModel->vehicle_type == MODEL_TYPE_BOAT || g_pCurrentModel->vehicle_type == MODEL_TYPE_ROBOT )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_CAR || (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_BOAT || (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_ROBOT )
    {
       m_pItemsSelect[5] = new MenuItemSelect("Throttle Reverse/Forward", "Assign a button or switch to change throttle from forward to reverse and vice versa.");
       m_pItemsSelect[5]->addSelection("None");
@@ -175,8 +195,6 @@ MenuVehicleRC::MenuVehicleRC(void)
    m_iQA1Org = p->iActionQuickButton1;
    m_iQA2Org = p->iActionQuickButton2;
    m_iQA3Org = p->iActionQuickButton3;
-
-   m_ExtraItemsHeight = 0.0;
 
    m_TimeLastRCCompute = g_TimeNow;
 }
@@ -431,6 +449,12 @@ bool MenuVehicleRC::periodicLoop()
       {
          m_CurrentRCValues[i] = compute_controller_rc_value(g_pCurrentModel, i, m_CurrentRCValues[i], &g_SM_RCIn, NULL, NULL, miliSec);
       }
+
+      if ( g_SM_RCIn.uFrameIndex != m_uLastSBUSFrameIndex )
+      {
+         m_uLastSBUSFrameTime = g_TimeNow;
+         m_uLastSBUSFrameIndex = g_SM_RCIn.uFrameIndex;
+      }
    }
 
    if ( m_bWaitingForInput && NULL != pJoy && NULL != m_pJoystick )
@@ -601,9 +625,54 @@ void MenuVehicleRC::renderLiveValues()
 
    float xPos = m_RenderXPos + m_RenderWidth + 0.02;
    float yPos = m_RenderYPos + 0.02;
-   float fWidth = 0.3 * m_sfScaleFactor;
+   float fWidth = 0.31 * m_sfScaleFactor;
    float fHeight = 2.0*fPaddingY + height_text*5.5 + g_pCurrentModel->rc_params.channelsCount * (height_text + fItemSpacing);
 
+   // Begin compute failsafe flag
+
+   bool bIsFailSafe = false;
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE )
+      bIsFailSafe = true;
+
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
+   if ( -1 == m_nIndexPrimaryHID || NULL == m_pJoystick )
+      bIsFailSafe = true;
+
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
+   {
+      int i2cAddress = hardware_i2c_has_external_extenders_rcin();
+      if ( i2cAddress <= 0 )
+         bIsFailSafe = true;
+      if ( NULL != g_pSM_RCIn )
+      {
+         if ( ! (g_SM_RCIn.uFlags & RC_IN_FLAG_HAS_INPUT) )
+            bIsFailSafe = true;
+
+         if ( g_SM_RCIn.uTimeStamp < g_TimeNow-g_pCurrentModel->rc_params.rc_failsafe_timeout_ms )
+            bIsFailSafe = true;
+      }
+      bool bAllZero = true;
+      for( int i=0; i<g_pCurrentModel->rc_params.channelsCount; i++ )
+      {
+         if ( m_CurrentRCValues[i] != 0 )
+         {
+            bAllZero = false;
+         }
+      }
+      if ( bAllZero )
+         bIsFailSafe = true;
+
+      if ( (m_uLastSBUSFrameTime < g_TimeNow - g_pCurrentModel->rc_params.rc_failsafe_timeout_ms) || (g_SM_RCIn.uTimeStamp < g_TimeNow - g_pCurrentModel->rc_params.rc_failsafe_timeout_ms) )
+         bIsFailSafe = true;
+   }
+   // End compute failsafe flag
+
+   if ( bIsFailSafe )
+   {
+      fHeight += height_text*1.2;
+      if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
+         fHeight += 2.0 * height_text_small;
+   }
    g_pRenderEngine->setColors(get_Color_PopupBg());
    g_pRenderEngine->setStroke(get_Color_PopupBorder());
 
@@ -615,62 +684,99 @@ void MenuVehicleRC::renderLiveValues()
    xPos += fPaddingX;
    fWidth -= fPaddingX;
 
-   sprintf(szBuff, "RC Output: %s", (g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED)?"Enabled":"Disabled");
-   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, szBuff);
-   y += height_text;
+   bool bHasInputSource = false;
 
-   bool bIsFailSafe = false;
+   sprintf(szBuff, "Ok");
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE )
+      strcpy(szBuff, "No Input Source");
+
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
+   {
+      bHasInputSource = true;
+      strcpy(szBuff, "USB Joystick");
+   }
+
+   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
+   {
+      bHasInputSource = true;
+      strcpy(szBuff, "SBUS/IBUS");
+
+      int i2cAddress = hardware_i2c_has_external_extenders_rcin();
+      if ( i2cAddress > 0 )
+      {
+         t_i2c_device_settings* pInfo = hardware_i2c_get_device_settings((u8)i2cAddress);
+         if ( pInfo->uParams[1] )
+            strcpy(szBuff, "SBUS/IBUS Inverted");
+         else
+            strcpy(szBuff, "SBUS/IBUS Non-Inverted");
+      }
+   }
+
+   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, "RC Input Source:");
+   if ( ! bHasInputSource )
+      g_pRenderEngine->setColors(get_Color_IconError());
+   g_pRenderEngine->drawTextLeft(xPos + fWidth - fPaddingX, y, g_idFontMenu, szBuff);
+   g_pRenderEngine->setColors(get_Color_MenuText());    
+   y += height_text*1.1;
+
+   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, "RC Output:");
+   sprintf(szBuff, "%s", (g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED)?"Enabled":"Disabled");
+   if ( ! g_pCurrentModel->rc_params.rc_enabled )
+      strcpy(szBuff, "Disabled (RC Disabled)");
+
+   if ( g_pCurrentModel->rc_params.rc_enabled )
+   if ( g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED )
+      g_pRenderEngine->setColors(get_Color_IconError());
+
+   g_pRenderEngine->drawTextLeft(xPos + fWidth - fPaddingX, y, g_idFontMenu, szBuff);
+   g_pRenderEngine->setColors(get_Color_MenuText());    
+   y += height_text*1.1;
 
    u8 fsMode = g_pCurrentModel->rc_params.failsafeFlags & 0xFF;
 
    if ( RC_FAILSAFE_NOOUTPUT == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: No output");
+      sprintf(szBuff, "No output");
    if ( RC_FAILSAFE_KEEPLAST == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Keep last values");
+      sprintf(szBuff, "Keep last values");
    if ( RC_FAILSAFE_BELOWRANGE == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Output below range");
+      sprintf(szBuff, "Output below range");
    if ( RC_FAILSAFE_VALUE == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Fixed values");
+      sprintf(szBuff, "Fixed values");
    if ( RC_FAILSAFE_CUSTOM == fsMode )
-      sprintf(szBuff, "RC Failsafe Type: Custom");
-   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, szBuff);
+      sprintf(szBuff, "Custom");
+
+   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, "RC Failsafe Type:");
+   g_pRenderEngine->drawTextLeft(xPos + fWidth - fPaddingX, y, g_idFontMenu, szBuff);
    y += height_text;
 
-   sprintf(szBuff, "Input: Ok");
-   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE )
+   if ( bIsFailSafe )
    {
-      sprintf(szBuff, "Input: No Input Source");
-      bIsFailSafe = true;
+      y += height_text*0.2;
+      g_pRenderEngine->setColors(get_Color_IconError());
+      g_pRenderEngine->drawText(xPos, y, g_idFontMenu, "Failsafe State!");
+      g_pRenderEngine->setColors(get_Color_MenuText());    
+      y += height_text;
+
+      if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
+      {
+         g_pRenderEngine->drawMessageLines("Check Inverted / Non-Inverted flag in [Controller] -> [Peripherals] menu.", xPos, y, 1.0, fWidth -2.0*fPaddingX ,g_idFontMenuSmall );
+         y += 2.0 * height_text_small;
+      }
    }
 
-   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
-   {
-      if ( -1 == m_nIndexPrimaryHID || NULL == m_pJoystick )
-         bIsFailSafe = true;
-   }
-
-   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
-   if ( NULL != g_pSM_RCIn )
-   if ( ! (g_SM_RCIn.uFlags & RC_IN_FLAG_HAS_INPUT) )
-   {
-      sprintf(szBuff, "Input: No SBUS/IBUS frames");
-      bIsFailSafe = true;
-   }
-
-   g_pRenderEngine->drawText(xPos, y, g_idFontMenu, szBuff);
-   y += height_text*1.8;
+   y += height_text *0.7;
 
    float x0 = xPos;
-   float x1 = xPos + 0.07*m_sfScaleFactor;
-   float x2 = xPos + 0.15*m_sfScaleFactor;
-   float x3 = xPos + 0.23*m_sfScaleFactor;
-   g_pRenderEngine->drawText(x0, y, g_idFontMenu, "Channel");
-   g_pRenderEngine->drawText(x1, y, g_idFontMenu, "Live Value");
-   g_pRenderEngine->drawText(x2-0.01*m_sfScaleFactor, y, g_idFontMenu, "FailSafe Type");
+   float x1 = xPos + 0.09*m_sfScaleFactor;
+   float x2 = xPos + 0.17*m_sfScaleFactor;
+   float x3 = xPos + 0.25*m_sfScaleFactor;
+   g_pRenderEngine->drawText(x0 + 0.015*m_sfScaleFactor, y, g_idFontMenuSmall, "Channel");
+   g_pRenderEngine->drawText(x1 + 0.005*m_sfScaleFactor, y, g_idFontMenuSmall, "Live Value");
+   g_pRenderEngine->drawText(x2 + 0.0*m_sfScaleFactor, y, g_idFontMenuSmall, "FailSafe Type");
    if ( g_pCurrentModel->rc_params.inputType != RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
-      g_pRenderEngine->drawText(x3, y, g_idFontMenu, "Expo");
+      g_pRenderEngine->drawText(x3, y, g_idFontMenuSmall, "Expo");
 
-   y += height_text*1.8;
+   y += height_text*1.5;
    g_pRenderEngine->drawLine(x0, y-height_text*0.4, xPos+fWidth-fPaddingX, y-height_text*0.4);
 
    float corner = 0.003*m_sfScaleFactor;
@@ -681,8 +787,23 @@ void MenuVehicleRC::renderLiveValues()
    for( int ch=0; ch<g_pCurrentModel->rc_params.channelsCount; ch++ )
    {
       g_pCurrentModel->get_rc_channel_name(ch, szBuff);
+      char szTmp[32];
+      strcpy(szTmp, szBuff);
+      int iPos = -1;
+      for( int i=0; i<strlen(szBuff); i++ )
+      {
+         if ( szBuff[i] == '[' )
+         {
+            iPos = i;
+            szBuff[i] = 0;
+            break;
+         }
+      }
       g_pRenderEngine->drawText(x0, y, g_idFontMenu, szBuff);
-      
+      float fTmpW = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
+      if ( -1 != iPos )
+         g_pRenderEngine->drawText(x0 + fTmpW, y + 0.15 * height_text, g_idFontMenuSmall, &(szTmp[iPos]));
+
       u32 fsChType = get_rc_channel_failsafe_type(g_pCurrentModel, ch);
       int fsValue = get_rc_channel_failsafe_value(g_pCurrentModel, ch, m_CurrentRCValues[ch]); 
       if ( (fsValue < 0) || (fsValue > 2500) )
@@ -712,8 +833,11 @@ void MenuVehicleRC::renderLiveValues()
    
       g_pRenderEngine->setColors(get_Color_MenuText());
       sprintf(szBuff, "%d", val);
+
+      bool bShowSmall = false;
       if ( bIsFailSafe )
       {
+         bShowSmall = true;
          u32 fsChType = get_rc_channel_failsafe_type(g_pCurrentModel, ch);
          sprintf(szBuff, "FS: %d", val);
          if ( RC_FAILSAFE_NOOUTPUT == fsChType )
@@ -721,9 +845,16 @@ void MenuVehicleRC::renderLiveValues()
       }
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
       if ( ! (g_pCurrentModel->rc_params.rcChAssignment[ch] & RC_CH_ASSIGNMENT_FLAG_ASSIGNED ) )
+      {
          sprintf(szBuff, "Not Assigned");
+         bShowSmall = true;
+      }
 
-      g_pRenderEngine->drawText(x1+0.003*m_sfMenuPaddingX, y-height_text*0.001, g_idFontMenu, szBuff);
+      if ( bShowSmall )
+         g_pRenderEngine->drawText(x1+0.3*m_sfMenuPaddingX, y+height_text*0.08, g_idFontMenuSmall, szBuff);
+      else
+         g_pRenderEngine->drawText(x1+0.3*m_sfMenuPaddingX, y-height_text*0.001, g_idFontMenu, szBuff);
+      
       g_pRenderEngine->setColors(get_Color_MenuText());
 
       sprintf(szBuff, "%d", fsValue);
@@ -734,7 +865,7 @@ void MenuVehicleRC::renderLiveValues()
       if ( RC_FAILSAFE_KEEPLAST == fsChType )
          sprintf(szBuff, "Keep Last (%d)", fsValue);
 
-      g_pRenderEngine->drawText(x2, y, g_idFontMenu, szBuff);
+      g_pRenderEngine->drawText(x2, y+height_text*0.1, g_idFontMenuSmall, szBuff);
 
       if ( g_pCurrentModel->rc_params.inputType != RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
       {
@@ -747,29 +878,27 @@ void MenuVehicleRC::renderLiveValues()
 }
 
 
-void MenuVehicleRC::onReturnFromChild(int returnValue)
+void MenuVehicleRC::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
-   if ( 10 == m_iConfirmationId )
+   if ( 10 == iChildMenuId/1000 )
    {
       if ( 1 == returnValue )
          valuesToUI();
-      m_iConfirmationId = 0;
       return;
    }
 
-   if ( 2 == m_iConfirmationId )
+   // Confirmation of enable/disable RC link
+   if ( 2 == iChildMenuId/1000 )
    {
       if ( 1 != returnValue )
       {
-         m_iConfirmationId = 0;
          valuesToUI();
          return;
       }
-      m_iConfirmationId = 0;
 
       rc_parameters_t params;
 
@@ -789,7 +918,6 @@ void MenuVehicleRC::onReturnFromChild(int returnValue)
       updateUIState(m_bPendingEnable);
       return;
    }
-   m_iConfirmationId = 0;
 }
 
 void MenuVehicleRC::onSelectItem()
@@ -799,7 +927,25 @@ void MenuVehicleRC::onSelectItem()
 
    if ( m_IndexRCInputType == m_SelectedIndex && (! m_pMenuItems[m_SelectedIndex]->isEditing()) )
    {
-      m_iConfirmationId = 10;
+      hardware_i2c_log_devices();
+      ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
+      bool bHasRCIn = true;
+      int i2cAddress = hardware_i2c_has_external_extenders_rcin();
+      log_line("Menu: RCIn Extender I2C address: %d", i2cAddress);
+      if ( (! hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_RC_IN)) &&
+           (! hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_EXTENDER)) &&
+           (! hardware_has_i2c_device_id(i2cAddress)) )
+         bHasRCIn = false;
+      if ( 0 == i2cAddress )
+         bHasRCIn = false;
+
+      if ( 0 == pCI->inputInterfacesCount )
+      if ( ! bHasRCIn )
+      {
+         addMessage2(0, "No RC Input devices detected.", "Connect a USB gamepad/joystick or add a SBUS/IBUS input source if you want to enable RC input.\nThen go to [Menu]->[Controller]->[Peripherals] and configure it first.");
+         return;
+      }
+
       add_menu_to_stack(new MenuVehicleRCInput());
       return;
    }
@@ -823,10 +969,11 @@ void MenuVehicleRC::onSelectItem()
 
    if ( m_IndexRCEnabled == m_SelectedIndex )
    {
-      int index = m_pItemsSelect[0]->getSelectedIndex();
-      bool enable = (index!=0);
+      bool enable = (0 != m_pItemsSelect[0]->getSelectedIndex());
       if ( enable == g_pCurrentModel->rc_params.rc_enabled )
          return;
+
+      // Confirm change if vehicle is armed
 
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
@@ -837,8 +984,7 @@ void MenuVehicleRC::onSelectItem()
             sprintf(szBuff, "Your vehicle is armed. Are you sure you want to disable the RC link? You will lose RC controll of the vehicle.");
          else
             sprintf(szBuff, "Your vehicle is armed. Are you sure you want to enable the RC link? It can have unintended consequences depending on how the flight controller is setup.");
-         m_iConfirmationId = 2;
-         MenuConfirmation* pMC = new MenuConfirmation("WARNING!",szBuff,m_iConfirmationId);
+         MenuConfirmation* pMC = new MenuConfirmation("WARNING!",szBuff,2);
          add_menu_to_stack(pMC);         
          return;
       }

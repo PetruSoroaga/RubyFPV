@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdio.h>
@@ -44,13 +62,15 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/ctrl_interfaces.h"
 #include "../base/controller_utils.h"
 #include "../base/plugins_settings.h"
-#include "../base/radio_utils.h"
+//#include "../base/radio_utils.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
 #include "../base/core_plugins_settings.h"
+#include "../base/utils.h"
 #include "../renderer/render_engine.h"
 #include "../common/string_utils.h"
 #include "../common/relay_utils.h"
+#include "../common/favorites.h"
 
 #include "colors.h"
 #include "osd.h"
@@ -80,6 +100,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "menu_info_booster.h"
 #include "menu_confirmation_import.h"
 #include "process_router_messages.h"
+#include "quickactions.h"
 
 u32 s_idBgImage = 0;
 u32 s_idBgImageMenu = 0;
@@ -123,6 +144,12 @@ Popup* ruby_get_startup_popup()
    popupStartup.useSmallLines(false);
    return &popupStartup;
 }
+
+int ruby_get_start_sequence_step()
+{
+   return s_StartSequence;
+}
+
 
 void load_resources()
 {
@@ -570,7 +597,7 @@ void _render_video_background()
       if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
          bVehicleHasCamera = false;
 
-      Model* pModel = findModelWithId(uVehicleIdFullVideo);
+      Model* pModel = findModelWithId(uVehicleIdFullVideo, 60);
       if ( NULL != pModel )
       if ( pModel->iCameraCount <= 0 )
          bVehicleHasCamera = false;
@@ -579,6 +606,9 @@ void _render_video_background()
          bVehicleHasCamera = true;
       if ( bVehicleHasCamera && link_has_received_videostream(uVehicleIdFullVideo) )
          return;
+
+      if ( pModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
+         bVehicleHasCamera = true;
    }
 
    g_pRenderEngine->setGlobalAlfa(1.0);
@@ -603,7 +633,7 @@ void _render_video_background()
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
       {
-         Model* pModel = findModelWithId(uVehicleIdFullVideo);
+         Model* pModel = findModelWithId(uVehicleIdFullVideo, 61);
          if ( NULL != pModel )
             sprintf(szText, "%s has no cameras or video streams", pModel->getLongName());
       }
@@ -955,43 +985,21 @@ void ruby_stop_recording()
    send_packet_to_router(buffer, PH.total_length);
 }
 
-bool quickActionCheckVehicle(const char* szText)
-{
-   bool bHasVehicle = false;
-   if ( pairing_isStarted() && (NULL != g_pCurrentModel) )
-   if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
-   if ( link_has_received_main_vehicle_ruby_telemetry() )
-      bHasVehicle = true;
-
-   if ( bHasVehicle )
-      return true;
-
-   char szBuff[256];
-   if ( NULL == szText || 0 == szText[0] )
-      strcpy(szBuff, "You must be connected to a vehicle to use this Quick Action button function");
-   else
-      sprintf(szBuff, "You must be connected to a vehicle to %s", szText);
-
-   Popup* p = new Popup(szBuff, 0.1,0.7, 0.54, 4);
-   p->setCentered();
-   p->setIconId(g_idIconInfo, get_Color_IconWarning());
-   popups_add_topmost(p);
-   return false;  
-}
-
 void executeQuickActions()
 {
-   static u32 s_uTimeLastQuickActionPress = 0;
-   static u32 s_uLastQuickActionSwitchVideoProfile = 0;
-
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
    if ( NULL == p )
       return;
-   if ( g_bIsReinit )
+   if ( g_bIsReinit || g_bSearching )
       return;
    if ( NULL == g_pCurrentModel )
+   {
+      Popup* p = new Popup("You must be connected to a vehicle to execute Quick Actions.", 0.1,0.8, 0.54, 5);
+      p->setIconId(g_idIconError, get_Color_IconError());
+      popups_add_topmost(p);
       return;
+   }
 
    if ( pCS->iQAButtonRelaySwitching > 0 )
    {
@@ -1012,108 +1020,27 @@ void executeQuickActions()
 
    log_line("Current assigned QA actions: button1: %d, button2: %d, button3: %d",
     p->iActionQuickButton1,p->iActionQuickButton2,p->iActionQuickButton3);
-   if ( NULL != g_pCurrentModel )
-   if ( pairing_isStarted() )
+   
+   if ( (!pairing_isStarted()) || (! g_bIsRouterReady) )
+   {
+      warnings_add(0, "Please connect to a vehicle first, to execute Quick Actions.");
+      return;
+   }
+
    if ( pCS->iDevSwitchVideoProfileUsingQAButton >= 0 && pCS->iDevSwitchVideoProfileUsingQAButton < 3 )
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && (pCS->iDevSwitchVideoProfileUsingQAButton==0)) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && (pCS->iDevSwitchVideoProfileUsingQAButton==1)) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && (pCS->iDevSwitchVideoProfileUsingQAButton==2)) )
    {
-      s_uLastQuickActionSwitchVideoProfile++;
-      if ( s_uLastQuickActionSwitchVideoProfile > 2 )
-         s_uLastQuickActionSwitchVideoProfile = 0;
-
-      if ( 0 == s_uLastQuickActionSwitchVideoProfile )
-      {
-         handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO, 0, NULL, 0);
-         warnings_add(0, "Dev: Switch to Auto Video Link Quality.");
-      }
-      if ( 1 == s_uLastQuickActionSwitchVideoProfile )
-      {
-         handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED, 0, NULL, 0);
-         warnings_add(0, "Dev: Switch to Med Video Link Quality.");
-      }
-      if ( 2 == s_uLastQuickActionSwitchVideoProfile )
-      {
-         handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW, 0, NULL, 0);
-         warnings_add(0, "Dev: Switch to Low Video Link Quality.");
-      }
+      executeQuickActionSwitchVideoProfile();
       return;
    }
 
-   if ( NULL != g_pCurrentModel )
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionCycleOSD == p->iActionQuickButton1) || 
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionCycleOSD == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionCycleOSD == p->iActionQuickButton3) )
    {
-      //if ( ! quickActionCheckVehicle("cycle the OSD screens") )
-      //   return;
-
-      g_bHasVideoDecodeStatsSnapshot = false;
-
-      Model* pModel = osd_get_current_layout_source_model();
-      if ( NULL == pModel )
-         return;
-      log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->vehicle_id, pModel->getShortName(), pModel->osd_params.layout);
-
-      int curentLayout = pModel->osd_params.layout;
-      int k=0; 
-      while ( k < 10 )
-      {
-         k++;
-         pModel->osd_params.layout++;
-         if ( pModel->osd_params.layout >= osdLayoutLast )
-            pModel->osd_params.layout = osdLayout1;
-         if ( pModel->osd_params.osd_flags2[pModel->osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED )
-            break; 
-      }
-
-      if ( curentLayout == pModel->osd_params.layout )
-      {
-         char szBuff[128];
-         sprintf(szBuff, "You have a single OSD screen enabled on %s. Enable more to be able to switch them.", pModel->getLongName());
-         Popup* p = new Popup(szBuff, 0.1,0.7, 0.54, 4);
-         p->setCentered();
-         p->setIconId(g_idIconInfo, get_Color_IconWarning());
-         popups_add_topmost(p);
-         return;
-      }
-
-      osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
-
-      u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
-      osd_setScaleOSD((int)scale);
-      scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
-      osd_setScaleOSDStats((int)scale);
-      osd_apply_preferences();
-      applyFontScaleChanges();
-
-      saveControllerModel(pModel);
-      save_Preferences();
-
-      if ( pModel->osd_params.layout == 0 )
-         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 1");
-      if ( pModel->osd_params.layout == 1 )
-         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 2");
-      if ( pModel->osd_params.layout == 2 )
-         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 3");
-      if ( pModel->osd_params.layout == 3 )
-         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean");
-      if ( pModel->osd_params.layout == 4 )
-         warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean Extended");
-
-      if ( pModel->is_spectator )
-         return;
-
-      //osd_parameters_t params;
-      //memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-      handle_commands_abandon_command();
-      //handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t));
-      handle_commands_send_single_oneway_command_to_vehicle(pModel->vehicle_id, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.layout, NULL, 0, 0);
-      g_iMustSendCurrentActiveOSDLayoutCounter = 10; // send it 10 times, every 200 ms
-      g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
-
-      send_model_changed_message_to_router(MODEL_CHANGED_OSD_PARAMS, 0);
+      executeQuickActionCycleOSD();
       return;
    }
 
@@ -1135,10 +1062,7 @@ void executeQuickActions()
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionTakePicture == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionTakePicture == p->iActionQuickButton3) )
    {
-      if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
-         return;
-      s_uTimeLastQuickActionPress = get_current_timestamp_ms();
-      media_take_screenshot(p->iAddOSDOnScreenshots);
+      executeQuickActionTakePicture();
       return;
    }
          
@@ -1173,17 +1097,6 @@ void executeQuickActions()
       return;
    }
 
-   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleAllOff == p->iActionQuickButton1) ||
-        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleAllOff == p->iActionQuickButton2) ||
-        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleAllOff == p->iActionQuickButton3) )
-   {
-      if ( ! quickActionCheckVehicle("toggle all info on/off") )
-         return;
-      g_bToglleAllOSDOff = ! g_bToglleAllOSDOff;
-      return;
-   }
-
-   if ( NULL != g_pCurrentModel )
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionOSDFreeze == p->iActionQuickButton1) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionOSDFreeze == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionOSDFreeze == p->iActionQuickButton3) )
@@ -1196,100 +1109,7 @@ void executeQuickActions()
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRelaySwitch == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRelaySwitch == p->iActionQuickButton3) )
    {
-      if ( ! quickActionCheckVehicle("relay switch") )
-         return;
-      if ( NULL == g_pCurrentModel || g_pCurrentModel->is_spectator )
-         return;
-      if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
-         return;
-      
-      s_uTimeLastQuickActionPress = get_current_timestamp_ms();
-
-      if ( NULL == g_pCurrentModel || ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) ) )
-      {
-         Popup* p =new Popup("You must be connected to a vehicle to switch relaying!", 0.1,0.8, 0.54, 4);
-         p->setIconId(g_idIconError, get_Color_IconError());
-         popups_add_topmost(p);
-         return;
-      }
-
-      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0 )
-      {
-         char szBuff[128];
-         sprintf(szBuff, "Relaying is not enabled on this vehicle (%s)!", g_pCurrentModel->getLongName() );
-         Popup* p = new Popup(szBuff, 0.1,0.8, 0.5, 4);
-         p->setIconId(g_idIconError, get_Color_IconError());
-         popups_add_topmost(p);
-         return;
-      }
-
-      // Switching to remote video stream?
-      if ( ! (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_REMOTE) )
-      if ( ! link_is_relayed_vehicle_online() )
-      {
-         Popup* p = new Popup("Relayed vehicle is not online. Can't switch to relay it.", 0.1,0.8, 0.54, 4);
-         p->setCentered();
-         p->setBottomAlign(true);
-         p->setBottomMargin(0.2);
-         p->setIconId(g_idIconInfo, get_Color_IconWarning());
-         popups_add_topmost(p);
-         return;
-      }
-      
-      type_relay_parameters newParams;
-      memcpy((u8*)&newParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
-      u32 uOldRelayMode = newParams.uCurrentRelayMode;
-
-      // Switch to relayed vehicle
-      if ( newParams.uCurrentRelayMode & RELAY_MODE_MAIN )
-      {
-         newParams.uCurrentRelayMode &= ~RELAY_MODE_MAIN;
-         newParams.uCurrentRelayMode |= RELAY_MODE_REMOTE;
-
-         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-         {
-            if ( g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->relay_params.uRelayedVehicleId )
-            {
-               osd_set_current_data_source_vehicle_index(i);
-               break;
-            }
-         }
-      }
-      // Switch to main vehicle
-      else
-      {
-         newParams.uCurrentRelayMode &= ~RELAY_MODE_REMOTE;
-         newParams.uCurrentRelayMode |= RELAY_MODE_MAIN;
-
-         osd_set_current_data_source_vehicle_index(0);
-      }
-
-      if ( g_pCurrentModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_SWITCH_OSD )
-      {
-         Model * pModel = g_pCurrentModel;
-         if ( newParams.uCurrentRelayMode & RELAY_MODE_REMOTE )
-            pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
-           
-         if ( NULL != pModel )
-         {
-            osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
-            u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
-            osd_setScaleOSD((int)scale);
-            scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
-            osd_setScaleOSDStats((int)scale);
-            if ( render_engine_is_raw() )
-               applyFontScaleChanges();
-         }
-      }
-
-      newParams.uCurrentRelayMode |= RELAY_MODE_IS_RELAY_NODE;
-
-      log_line("Pressed QA button to switch relay mode from %d to %d (%s to %s)",
-         uOldRelayMode, newParams.uCurrentRelayMode,
-         str_format_relay_mode(uOldRelayMode), str_format_relay_mode(newParams.uCurrentRelayMode));
-
-      handle_commands_abandon_command();
-      handle_commands_send_to_vehicle(COMMAND_ID_SET_RELAY_PARAMETERS, 0, (u8*)&newParams, sizeof(type_relay_parameters));
+      executeQuickActionRelaySwitch();
       return;
    }
 
@@ -1297,32 +1117,7 @@ void executeQuickActions()
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionVideoRecord == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionVideoRecord == p->iActionQuickButton3) )
    {
-      if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
-         return;
-      s_uTimeLastQuickActionPress = get_current_timestamp_ms();
-
-      if ( NULL == g_pCurrentModel )
-      {
-         Popup* p = new Popup("You must be connected to a vehicle to start video recording.", 0.1,0.8, 0.54, 5);
-         p->setIconId(g_idIconError, get_Color_IconError());
-         popups_add_topmost(p);
-         return;
-      }
-      if ( g_bVideoRecordingStarted )
-      {
-         ruby_stop_recording();
-      }
-      else
-      {
-         if ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
-         {
-            Popup* p = new Popup("You must be connected to a vehicle to start video recording.", 0.1,0.8, 0.54, 5);
-            p->setIconId(g_idIconError, get_Color_IconError());
-            popups_add_topmost(p);
-         }
-         else
-            ruby_start_recording();
-      }
+      executeQuickActionRecord();
       return;
    }
 
@@ -1332,6 +1127,11 @@ void executeQuickActions()
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRCEnable == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRCEnable == p->iActionQuickButton3) )
    {
+      if ( (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator )
+      {
+         warnings_add(0, "Can't enable RC while in spectator mode.");
+         return;
+      }
       if ( ! quickActionCheckVehicle("enable/disable the RC link output") )
          return;
 
@@ -1348,6 +1148,43 @@ void executeQuickActions()
    }
    #endif
 
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionCameraProfileSwitch == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionCameraProfileSwitch == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionCameraProfileSwitch == p->iActionQuickButton3) )
+   {
+      if ( g_pCurrentModel->is_spectator )
+      {
+         warnings_add(0, "Can't switch camera profile for spectator vehicles.");
+         return;
+      }
+      if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
+      {
+         warnings_add(0, "Can't switch camera profile for OpenIPC vehicles.");
+         return;
+      }
+      if ( handle_commands_is_command_in_progress() )
+      {
+         return;
+      }
+
+      int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
+      camera_profile_parameters_t* pProfile1 = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile]);
+      iProfile++;
+      if ( iProfile >= MODEL_CAMERA_PROFILES-1 )
+         iProfile = 0;
+
+      camera_profile_parameters_t* pProfile2 = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile]);
+      
+      //char szBuff[64];
+      //sprintf(szBuff, "Switching to camera profile %s", model_getCameraProfileName(iProfile));
+      //warnings_add(g_pCurrentModel->vehicle_id, szBuff);
+
+      log_camera_profiles_differences(pProfile1, pProfile2);
+
+      handle_commands_send_to_vehicle(COMMAND_ID_SET_CAMERA_PROFILE, iProfile, NULL, 0);
+      return;
+   }
+
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionRotaryFunction == p->iActionQuickButton1) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionRotaryFunction == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionRotaryFunction == p->iActionQuickButton3) )
@@ -1363,6 +1200,14 @@ void executeQuickActions()
       if ( 2 == pCS->nRotaryEncoderFunction )
          warnings_add(0, "Rotary Encoder function changed to: Camera Adjustment");
 
+      return;
+   }
+
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionSwitchFavorite == p->iActionQuickButton1) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionSwitchFavorite == p->iActionQuickButton2) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionSwitchFavorite == p->iActionQuickButton3) )
+   {
+      executeQuickActionSwitchFavoriteVehicle();
       return;
    }
 }
@@ -1577,9 +1422,8 @@ void start_loop()
         {
            Popup* p = new Popup("All radio interfaces are disabled on the controller.", 0.3,0.4, 0.5, 6);
            p->setIconId(g_idIconError, get_Color_IconError());
-           p->addLine("Go to [Menu]->[Controller]->[Radio Interfaces] and enable at least one radio interface.");
+           p->addLine("Go to [Menu]->[Radio Configuration] and enable at least one radio interface.");
            popups_add_topmost(p);
-           radio_set_out_datarate(DEFAULT_RADIO_DATARATE_DATA);
            log_line("Finished executing start up sequence step: %d", s_StartSequence);
            s_StartSequence = START_SEQ_PRE_SYNC_DATA;
            return;
@@ -1639,7 +1483,6 @@ void start_loop()
         if ( bChanged )
           save_ControllerInterfacesSettings();
      }
-     radio_set_out_datarate(DEFAULT_RADIO_DATARATE_DATA);
      log_line("Finished executing start up sequence step: %d", s_StartSequence);
      s_StartSequence = START_SEQ_PRE_SYNC_DATA;
      return;
@@ -1728,6 +1571,7 @@ void start_loop()
    {
       log_line("Start sequence: LOAD_DATA");
 
+      load_favorites();
       // Check file system for write access
 
       log_line("Checking the file system for write access...");
@@ -1892,8 +1736,7 @@ void start_loop()
    {
       log_line("Start sequence: START_SEQ_START_PROCESSES");
       ControllerSettings* pCS = get_ControllerSettings();
-      hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
-
+      
       link_watch_init();
       osd_plugins_load();
       r_check_processes_filesystem();
@@ -1916,7 +1759,7 @@ void start_loop()
          s_TimeCentralInitializationComplete = g_TimeNow;
          return;
       }
-      onMainVehicleChanged();
+      onMainVehicleChanged(true);
       if ( 0 < hardware_get_radio_interfaces_count() )
          pairing_start_normal();
 
@@ -1993,7 +1836,7 @@ void start_loop()
          if ( controller_utils_usb_import_has_any_controller_id_file() )
          {
             log_line("USB has exported settings. Add confirmation to import them.");
-            menu_close_all();
+            menu_discard_all();
             s_pMenuConfirmationImport = new MenuConfirmationImport("Automatic Import", "There are controller settings saved and present on the USB stick. Do you want to import them?", 55);
             s_pMenuConfirmationImport->m_yPos = 0.3;
             add_menu_to_stack(s_pMenuConfirmationImport);
@@ -2406,6 +2249,20 @@ int main(int argc, char *argv[])
       return 0;
       */
    }
+   else
+   {
+     if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
+     if ( ! hw_process_exists("ruby_gpio_detect") )
+     {
+        hardware_sleep_ms(100);
+        if ( ! hw_process_exists("ruby_gpio_detect") )
+        {
+           hardware_sleep_ms(500);
+           if ( ! hw_process_exists("ruby_gpio_detect") )
+              hw_execute_bash_command("./ruby_gpio_detect&", NULL);
+        }
+     }
+   }
 
    g_bIsHDMIConfirmation = false;
    if ( access( FILE_TMP_HDMI_CHANGED, R_OK ) != -1 )
@@ -2510,7 +2367,7 @@ int main(int argc, char *argv[])
          u32 uTimeStart = get_current_timestamp_ms();
          main_loop_r_central();
          u32 dTime = get_current_timestamp_ms() - uTimeStart;
-         if ( dTime > 200 )
+         if ( dTime > 400 )
          if ( s_StartSequence == START_SEQ_COMPLETED || s_StartSequence == START_SEQ_FAILED )
             log_softerror_and_alarm("Main processing loop took too long (%u ms).", dTime);
       }
@@ -2521,6 +2378,7 @@ int main(int argc, char *argv[])
    if ( ! g_bIsReinit )
       pairing_stop();
    controller_stop_i2c();
+   log_line("Central: Releasing %d OSD plugins...", g_iPluginsOSDCount);
    for( int i=0; i<g_iPluginsOSDCount; i++ )
       if ( NULL != g_pPluginsOSD[i] )
       if ( NULL != g_pPluginsOSD[i]->pLibrary )
@@ -2543,7 +2401,7 @@ int main(int argc, char *argv[])
 void ruby_set_active_model_id(u32 uVehicleId)
 {
    g_uActiveControllerModelVID = uVehicleId;
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 62);
    if ( NULL == pModel )
       log_line("Ruby: Set active model vehicle id to %u (no model found on controller for this VID)", g_uActiveControllerModelVID );
    else

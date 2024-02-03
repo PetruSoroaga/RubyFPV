@@ -8,7 +8,6 @@ class MenuConfirmationDeleteLogs: public Menu
       MenuConfirmationDeleteLogs(u32 uFreeSpaceMb, u32 uLogsSizeBytes);
       virtual ~MenuConfirmationDeleteLogs();
       virtual void onShow();
-      virtual int onBack();
       virtual void onSelectItem();
 
    protected:

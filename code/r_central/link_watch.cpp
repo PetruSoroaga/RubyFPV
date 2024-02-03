@@ -1,17 +1,35 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
 #include "../base/config.h"
-#include "../base/radio_utils.h"
+//#include "../base/radio_utils.h"
 #include "../radio/radiopackets2.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
@@ -55,7 +73,6 @@ u32 s_CountProcessRouterFailures = 0;
 u32 s_CountProcessTelemetryFailures = 0;
 
 bool s_bLinkWatchIsRCOutputEnabled = false;
-u32 s_TimeLastMessageFromFC = 0;
 
 bool s_bLinkWatchShownSwitchVehicleMenu = false;
 
@@ -98,51 +115,24 @@ void link_watch_reset()
    link_reset_reconfiguring_radiolink();
 }
 
+void link_set_is_reconfiguring_radiolink(int iRadioLink )
+{
+   g_bConfiguringRadioLink = true;
+}
+
 void link_set_is_reconfiguring_radiolink(int iRadioLink, bool bConfirmFlagsChanges, bool bWaitVehicleConfirmation, bool bWaitControllerConfirmation)
 {
-   g_uTimeStartConfiguringRadioLink = g_TimeNow;
-   g_TimeStartPendingRadioFlagsChange = g_TimeNow;
    g_bConfiguringRadioLink = true;
-   g_iConfiguringRadioLinkIndex = iRadioLink;
-   g_bConfiguringRadioLinkWaitFlagsConfirmation = bConfirmFlagsChanges;
-   g_bConfiguringRadioLinkWaitVehicleReconfiguration = bWaitVehicleConfirmation;
-   g_bConfiguringRadioLinkWaitControllerReconfiguration = bWaitControllerConfirmation;
 }
 
 void link_reset_reconfiguring_radiolink()
 {
-   g_uTimeStartConfiguringRadioLink = 0;
-   g_TimeStartPendingRadioFlagsChange = 0;
    g_bConfiguringRadioLink = false;
-   g_iConfiguringRadioLinkIndex = -1;
-   g_bConfiguringRadioLinkWaitFlagsConfirmation = false;
-   g_bConfiguringRadioLinkWaitVehicleReconfiguration = false;
-   g_bConfiguringRadioLinkWaitControllerReconfiguration = false;
-}
-
-void link_set_received_change_confirmation(bool bConfirmedFlagsChanges, bool bConfirmedVehicle, bool bConfirmedController)
-{
-   if ( bConfirmedFlagsChanges )
-      g_bConfiguringRadioLinkWaitFlagsConfirmation = false;
-   if ( bConfirmedVehicle )
-      g_bConfiguringRadioLinkWaitVehicleReconfiguration = false;
-   if ( bConfirmedController )
-      g_bConfiguringRadioLinkWaitControllerReconfiguration = false;
 }
 
 bool link_is_reconfiguring_radiolink()
 {
    return g_bConfiguringRadioLink;
-}
-
-bool link_reconfiguring_is_waiting_for_confirmation()
-{
-   if ( ! g_bConfiguringRadioLink )
-      return false;
-
-   if ( g_bConfiguringRadioLinkWaitFlagsConfirmation || g_bConfiguringRadioLinkWaitVehicleReconfiguration || g_bConfiguringRadioLinkWaitControllerReconfiguration )
-      return true;
-   return false;
 }
 
 void link_watch_mark_started_video_processing()
@@ -232,6 +222,7 @@ void link_watch_loop_popup_looking()
    }
    else
    {
+      log_line("Will add `looking for` popup for VID %u, firmware type: %s", g_pCurrentModel->vehicle_id, str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
       idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
       if ( g_pCurrentModel->radioLinksParams.links_count < 2 )
          sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
@@ -281,9 +272,12 @@ void link_watch_loop_popup_looking()
 void link_watch_loop_unexpected_vehicles()
 {
    // If we just paired, wait for router ready
-    if ( g_bSearching || (!g_bIsRouterReady) || (NULL == g_pCurrentModel) )
+   if ( g_bSearching || (!g_bIsRouterReady) || (NULL == g_pCurrentModel) )
       return;
 
+   if ( g_bSwitchingFavoriteVehicle )
+      return;
+     
    // Did not received any info from no unexpected vehicles? Then do nothing.
    if ( ! g_UnexpectedVehicleRuntimeInfo.bGotRubyTelemetryInfo )
       return;
@@ -293,7 +287,7 @@ void link_watch_loop_unexpected_vehicles()
    if( ! g_bFirstModelPairingDone )
       return;
 
-   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 10);
    
    // Received unexpected known vehicle
 
@@ -397,7 +391,7 @@ void link_watch_link_lost()
    if ( ! link_has_received_main_vehicle_ruby_telemetry() )
       return;
 
-   if ( g_TimeNow < g_VehiclesRuntimeInfo[0].uTimeLastRecvAnyRubyTelemetry + 1000 )
+   if ( g_TimeNow < g_VehiclesRuntimeInfo[0].uTimeLastRecvAnyRubyTelemetry + TIMEOUT_TELEMETRY_LOST )
    {
       if ( NULL != g_pPopupLinkLost )
       {
@@ -873,52 +867,6 @@ void link_watch_rc()
    }
 }
 
-void _link_watch_send_flags_change_confirmation_command()
-{
-   if ( g_TimeNow < g_TimeStartPendingRadioFlagsChange+500 )
-      return;
-
-   //log_line("Checking for working new radio flags...");
-
-   bool bHasNewPackets = false;
-   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-   for( int k=0; k<MAX_RADIO_STREAMS; k++ )
-   {
-      if ( g_SM_RadioStats.radio_streams[i][0].uVehicleId == g_pCurrentModel->vehicle_id )
-      if ( g_SM_RadioStats.radio_streams[i][k].timeLastRxPacket > g_TimeStartPendingRadioFlagsChange+500 )
-         bHasNewPackets = true;
-   }
-
-   if ( (!bHasNewPackets) && (g_TimeNow >= g_TimeStartPendingRadioFlagsChange + TIMEOUT_RADIO_FRAMES_FLAGS_CHANGE_CONFIRMATION) )
-   {
-      log_softerror_and_alarm("Link Watch: The new radio flags where not confirmed by working downlink from vehicle (timeout)." );
-
-      log_line("Reverting radio links changes to last good ones.");
-      memcpy(&(g_pCurrentModel->radioLinksParams), &g_LastGoodRadioLinksParams, sizeof(type_radio_links_parameters));
-      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
-      saveControllerModel(g_pCurrentModel);
-      send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
-
-      handle_commands_abandon_command();
-      warnings_remove_configuring_radio_link(false);
-      link_reset_reconfiguring_radiolink();
-
-      MenuConfirmation* pMC = new MenuConfirmation("Unsupported Parameter","Your vehicle radio link does not support this combination of radio params.", -1, true);
-      pMC->m_yPos = 0.3;
-      add_menu_to_stack(pMC);
-      menu_invalidate_all();
-      return;
-   }
-
-   if ( ! bHasNewPackets )
-      return;
-
-   log_line("Link Watch: New radio link flags working on the downlink. Sending confirmation to vehicle");
-
-   handle_commands_send_to_vehicle(COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION, g_iConfiguringRadioLinkIndex, NULL, 0);
-   g_TimeStartPendingRadioFlagsChange = g_TimeNow;
-}
-
 void link_watch_loop()
 {
    // We deleted all models or are we searching?
@@ -945,27 +893,6 @@ void link_watch_loop()
    link_watch_loop_video();
    link_watch_loop_processes();
    link_watch_rc();
-
-   if ( g_bConfiguringRadioLink )
-   {
-      if ( g_TimeNow > g_uTimeStartConfiguringRadioLink + 20000 )
-      {
-         warnings_add_configuring_radio_link_line("Something went wrong.");
-         warnings_remove_configuring_radio_link(false);
-         link_reset_reconfiguring_radiolink();
-      }
-
-      bool bSendFlagsChangeConfirmationCommand = true;
-      if ( ! g_bConfiguringRadioLinkWaitFlagsConfirmation )
-         bSendFlagsChangeConfirmationCommand = false;
-      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
-         bSendFlagsChangeConfirmationCommand = false;
-      if ( handle_commands_is_command_in_progress() )
-         bSendFlagsChangeConfirmationCommand = false;
-
-      if ( bSendFlagsChangeConfirmationCommand )
-         _link_watch_send_flags_change_confirmation_command();
-   }
 }
 
 bool link_has_received_videostream(u32 uVehicleId)

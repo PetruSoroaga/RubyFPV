@@ -1,19 +1,41 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include "config_hw.h"
+
+#ifdef HW_CAPABILITY_I2C
 #include <wiringPiI2C.h>
+#endif
 
 #include "base.h"
 #include "hardware_i2c.h"
@@ -37,6 +59,62 @@ void hardware_i2c_reset_enumerated_flag()
    s_iHardwareI2CBussesEnumerated = 0;
 }
 
+void hardware_i2c_log_devices()
+{
+   if ( 0 == s_iHardwareI2CBussesEnumerated )
+      hardware_enumerate_i2c_busses();
+
+   if ( ! s_iI2CDeviceSettingsLoaded )
+      hardware_i2c_load_device_settings();
+
+   log_line("[Hardware] I2C Buses: %d", s_iHardwareI2CBusCount);
+
+   char szBuff[256];
+
+   for( int i=0; i<s_iHardwareI2CBusCount; i++ )
+   {
+      szBuff[0] = 0;
+      int iCount = 0;
+      for( int k=0; k<128; k++ )
+      {
+         if ( 1 == s_HardwareI2CBusInfo[i].devices[k] )
+         {
+            iCount++;
+            char szTmp[32];
+            if ( 0 == szBuff[0] )
+               sprintf(szBuff, "%d", k);
+            else
+            {
+               sprintf(szTmp, ", %d", k);
+               strcat(szBuff, szTmp);
+            }
+         }
+      }
+      if ( 0 == iCount )
+         log_line("[Hardware] No I2C devices on bus %d (%d %s)", i, s_HardwareI2CBusInfo[i].nBusNumber, s_HardwareI2CBusInfo[i].szName);
+      else
+         log_line("[Hardware] %d I2C devices on bus %d (%d %s): %s", iCount, i, s_HardwareI2CBusInfo[i].nBusNumber, s_HardwareI2CBusInfo[i].szName, szBuff);
+   }
+
+   log_line("[Hardware] Settings stored for %d I2C devices:", s_iCountI2CDevicesSettings);
+   szBuff[0] = 0;
+   for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
+   {
+      if ( s_listI2CDevicesSettings[i].nDeviceType > 0 )
+      if ( s_listI2CDevicesSettings[i].nI2CAddress > 0 )
+      {
+         char szTmp[32];
+         if ( 0 == szBuff[0] )
+            sprintf(szTmp, "%d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
+         else
+            sprintf(szTmp, ", %d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
+         strcat(szBuff, szTmp);
+      }
+   }
+   if ( 0 < s_iCountI2CDevicesSettings )
+      log_line("[Hardware] Dev I2CAddress/Type: %s", szBuff);
+}
+
 void hardware_enumerate_i2c_busses()
 {
    if ( 0 != s_iHardwareI2CBussesEnumerated )
@@ -49,9 +127,10 @@ void hardware_enumerate_i2c_busses()
    s_iKnownDevicesFound = 0;
    s_iKnownConfigurableDevicesFound = 0;
 
-   char szBuff[256];
    log_line("[Hardware]: Enumerating I2C busses...");
 
+#ifdef HW_CAPABILITY_I2C
+   char szBuff[256];
    for( int i=0; i<4; i++ )
    {
       snprintf(szBuff, 255, "/dev/i2c-%d", i);
@@ -100,12 +179,15 @@ void hardware_enumerate_i2c_busses()
          s_iHardwareI2CBusCount++;
       }
    }
-
+#else
+   log_line("[Hardware] I2C is disabled in code.");
+#endif
    log_line("[Hardware]: Found %d I2C busses.", s_iHardwareI2CBusCount);
 
-   int boardType = hardware_getBoardType();
-
    int countDevicesTotal = 0;
+
+#ifdef HW_CAPABILITY_I2C
+   int boardType = hardware_getBoardType();
    char szOutput[1024];
    for( int i=0; i<s_iHardwareI2CBusCount; i++ )
    {
@@ -193,6 +275,7 @@ void hardware_enumerate_i2c_busses()
          countDevicesTotal -= iCountDevicesFoundOnThisBus;
       }
    }
+#endif
    log_line("[Hardware]: Found a total of %d I2C devices on all busses.", countDevicesTotal);
 }
 
@@ -213,6 +296,8 @@ void hardware_recheck_i2c_cameras()
       hardware_enumerate_i2c_busses();
       return;
    }
+#ifdef HW_CAPABILITY_I2C
+
    int boardType = hardware_getBoardType();
    boardType = boardType & 0xFF;
 
@@ -258,6 +343,7 @@ void hardware_recheck_i2c_cameras()
          }
       }
    }
+#endif
 }
 
 int hardware_get_i2c_busses_count()
@@ -277,7 +363,7 @@ int hardware_has_i2c_device_id(u8 deviceAddress)
    if ( 0 == s_iHardwareI2CBussesEnumerated )
       hardware_enumerate_i2c_busses();
 
-   if ( deviceAddress >= 128 )
+   if ( (deviceAddress >= 128) || (deviceAddress < 8) )
       return 0;
    if ( 0 == s_iHardwareI2CBusCount )
       return 0;
@@ -712,6 +798,7 @@ void hardware_i2c_update_device_info(u8 i2cAddress)
 // returns 1 if settings where updated, 0 if no change
 int _hardware_i2c_check_and_update_extender_device_settings(u8 i2cAddress)
 {
+#ifdef HW_CAPABILITY_I2C
    t_i2c_device_settings* pDeviceInfo = hardware_i2c_get_device_settings(i2cAddress);
    int iUpdatedI2CSettings = 0;
    if ( NULL == pDeviceInfo )
@@ -827,6 +914,10 @@ int _hardware_i2c_check_and_update_extender_device_settings(u8 i2cAddress)
 
    log_line("[Hardware]: Checked info for I2C device 0x%02X. Any changes? %s", i2cAddress, (iUpdatedI2CSettings?"Yes":"No"));
    return iUpdatedI2CSettings;
+#else
+   log_line("[Hardware] I2C devices disabled in code (2).");
+   return 0;
+#endif
 }
 
 void hardware_i2c_check_and_update_device_settings()
@@ -965,10 +1056,12 @@ int hardware_i2c_has_external_extenders_rcin()
       hardware_i2c_load_device_settings();
 
    for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
+   {
       if ( s_listI2CDevicesSettings[i].nDeviceType == I2C_DEVICE_TYPE_RUBY_ADDON )
       {
          if ( s_listI2CDevicesSettings[i].uCapabilitiesFlags & I2C_CAPABILITY_FLAG_RC_INPUT )
-            return 1;
+            return s_listI2CDevicesSettings[i].nI2CAddress;
       }
+   }
    return 0; 
 }

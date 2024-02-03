@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../../base/base.h"
@@ -96,9 +114,6 @@ void osd_render_stats_full_rx_port()
    yPos += 2*s_fOSDStatsMargin*0.7;
    width -= 4*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
 
-   float widthMax = width;
-   float rightMargin = xPos + width;
-
    float y = yPos;
 
    osd_set_colors();
@@ -140,7 +155,7 @@ void osd_render_stats_full_rx_port()
       g_pRenderEngine->drawText(xPos, y, fontId, szBuff);
       y += lineHeight;
 
-      sprintf(szBuff2, "%.1f", (float)(g_SM_RadioStats.radio_interfaces[i].lastDataRate));
+      sprintf(szBuff2, "%.1f", (float)(g_SM_RadioStats.radio_interfaces[i].lastRecvDataRate));
 
       sprintf(szBuff, "Mode: N/A %s Mbs", removeTrailingZero(szBuff2));
       if ( g_SM_RadioStats.radio_interfaces[i].openedForWrite && g_SM_RadioStats.radio_interfaces[i].openedForRead )
@@ -301,7 +316,6 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
    float height = height_text * s_OSDStatsLineSpacing + 2.0 *s_fOSDStatsMargin*1.0;
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
-   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
 
    if ( NULL == pActiveModel )
       return 0.0;
@@ -358,13 +372,12 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
    int iRuntimeInfoToUse = osd_get_current_data_source_vehicle_index();
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
-   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
 
    if ( NULL == pActiveModel )
       return 0.0;
-   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.layout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS) )
+   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.layout] & OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES) )
       return 0.0;
-
+   
    bool bIsMinimal = false;
    bool bIsCompact = false;
    if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS )
@@ -380,8 +393,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
    float width = osd_render_stats_radio_interfaces_get_width(pStats);
    
    float height = osd_render_stats_radio_interfaces_get_height(pStats);
-   float hPixel = 1.0/g_pRenderEngine->getScreenHeight();
-
+   
    char szBuff[128];
 
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
@@ -469,7 +481,6 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( NULL == pNICInfo )
          continue;
-      t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNICInfo->szMAC);
       
       int iLocalRadioLinkId = pStats->radio_interfaces[i].assignedLocalRadioLinkId;
       int iVehicleRadioLinkId = pStats->radio_interfaces[i].assignedVehicleRadioLinkId;
@@ -491,7 +502,9 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       osd_set_colors();
 
       double* pcBarRx = get_Color_OSDText();
-      double* pcBarGreen = get_Color_IconSucces();
+      //double* pcBarGreen = get_Color_IconSucces();
+      double colorGreen[4] = {160,255,170,1};
+      double* pcBarGreen = &colorGreen[0];
       g_pRenderEngine->setFill(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
       g_pRenderEngine->setStroke(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
       g_pRenderEngine->setStrokeSize(fStroke);
@@ -682,8 +695,8 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          char szDR[64];
          szDRV[0] = 0;
          szDRD[0] = 0;
-         str_getDataRateDescriptionNoSufix(pStats->radio_interfaces[i].lastDataRateVideo, szDRV);
-         str_getDataRateDescription(pStats->radio_interfaces[i].lastDataRateData, szDRD);
+         str_getDataRateDescriptionNoSufix(pStats->radio_interfaces[i].lastRecvDataRateVideo, szDRV);
+         str_getDataRateDescription(pStats->radio_interfaces[i].lastRecvDataRateData, szDRD);
          sprintf(szDR, " V/D: %s/%s", szDRV, szDRD);
          strcat(szBuff, szDR);
       }
@@ -792,10 +805,6 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          sl_uLastCounterSlicesUpdatedInVehicleInterfacesGraph[i] = pVehicleInterfaceRadioStats->uSlicesUpdated;
       }
 
-      int iCountSlicesVehicleInSecond = 100;
-      if ( 0 != pStats->graphRefreshIntervalMs )
-         iCountSlicesVehicleInSecond = 1000/pStats->graphRefreshIntervalMs;
-
       osd_set_colors();
 
       double* pc = get_Color_OSDText();
@@ -837,6 +846,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       g_pRenderEngine->setStrokeSize(fStroke);
          
       if ( maxRecv >= 0.1 )
+      if ( ! g_VehiclesRuntimeInfo[iRuntimeInfoToUse].bLinkLost )
       for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
       {
          g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
@@ -948,8 +958,8 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
             char szDR[64];
             szDRV[0] = 0;
             szDRD[0] = 0;
-            str_getDataRateDescriptionNoSufix(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastDataRateVideo, szDRV);
-            str_getDataRateDescription(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastDataRateData, szDRD);
+            str_getDataRateDescriptionNoSufix(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastRecvDataRateVideo, szDRV);
+            str_getDataRateDescription(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastRecvDataRateData, szDRD);
             sprintf(szDR, " V/D: %s/%s", szDRV, szDRD);
             strcat(szBuff, szDR);
          }
@@ -1093,8 +1103,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    float width = osd_render_stats_local_radio_links_get_width(pRadioStats, scale);
    
    float height = osd_render_stats_local_radio_links_get_height(pRadioStats, scale);
-   float hPixel = 1.0/g_pRenderEngine->getScreenHeight();
-
+   
    char szBuff[128];
    char szBuff2[128];
 
@@ -1121,7 +1130,6 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
    for( int i=0; i<pRadioStats->countLocalRadioInterfaces; i++ )
    {
-      radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       int iLocalRadioLinkId = pRadioStats->radio_interfaces[i].assignedLocalRadioLinkId;
       if ( iLocalRadioLinkId < 0 )
          continue;
@@ -1238,7 +1246,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
          if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] == 0 )
             continue;
          u32 uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
-         Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k]);
+         Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k], 31);
          if ( NULL != pModel )
             sprintf(szBuff, "%s:",pModel->getLongName());
          else
@@ -1436,7 +1444,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
                sprintf(szBuff, "%s:", str_get_radio_stream_name(i));
             else
             {
-               Model* pModelTmp = findModelWithId(pRadioStats->radio_streams[k][0].uVehicleId);
+               Model* pModelTmp = findModelWithId(pRadioStats->radio_streams[k][0].uVehicleId, 32);
                if ( NULL == pModelTmp )
                   sprintf(szBuff, "Unkown %s:", str_get_radio_stream_name(i));
                else
@@ -1733,7 +1741,6 @@ float osd_render_stats_radio_interfaces_graph( float xPos, float yPos, shared_me
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioHWInfo )
          continue;
-      t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
       int iRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId;
       
       osd_set_colors();

@@ -6,6 +6,8 @@ void warnings_on_changed_vehicle();
 void warnings_remove_all();
 void warnings_periodic_loop();
 
+void warnings_replace(const char* szSource, const char* szDest);
+
 void warnings_add(u32 uVehicleId, const char* szTitle);
 void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId);
 void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, double* pColorIcon, int timeout=8);
@@ -22,6 +24,8 @@ void warnings_add_configuring_radio_link(int iRadioLink, const char* szMessage);
 void warnings_add_configuring_radio_link_line(const char* szLine);
 void warnings_remove_configuring_radio_link(bool bSucceeded);
 Popup* warnings_get_configure_radio_link_popup();
+char* warnings_get_last_message_configure_radio_link();
+
 
 void warnings_add_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz);
 void warnings_remove_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz, bool bSucceeded);

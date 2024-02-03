@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -76,7 +94,14 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[2]->setIsEditable();
    m_IndexRetransmissions = addMenuItem(m_pItemsSelect[2]);
 
+   m_pItemsSelect[18] = new MenuItemSelect("Retransmissions Algorithm", "Change the way retransmissions are requested.");  
+   m_pItemsSelect[18]->addSelection("Regular");
+   m_pItemsSelect[18]->addSelection("Aggressive");
+   m_pItemsSelect[18]->setIsEditable();
+   m_IndexRetransmissionsFast = addMenuItem(m_pItemsSelect[18]);
+   
    addMenuItem(new MenuItemSection("Data & Error Correction Settings"));
+
 
    m_pItemsSelect[16] = new MenuItemSelect("Radio Data Rate for Video", "Actual radio data rate to use for this video profile for video data transmission.");
    m_pItemsSelect[16]->addSelection("Auto (Use Radio Link)");
@@ -109,6 +134,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSlider[2] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0,MAX_FECS_PACKETS_IN_BLOCK,MAX_FECS_PACKETS_IN_BLOCK/2, fSliderWidth);
    m_IndexBlockFECs = addMenuItem(m_pItemsSlider[2]);
 
+   m_pItemsSlider[2]->setExtraHeight( (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall));
 
    addMenuItem(new MenuItemSection("H264 Encoder Settings"));
 
@@ -232,7 +258,14 @@ void MenuVehicleVideoEncodings::valuesToUI()
    m_pItemsSelect[10]->setSelectedIndex(controllerLinkLost);
 
    m_pItemsSlider[5]->setCurrentValue(g_pCurrentModel->video_params.videoAdjustmentStrength);
+   
    m_pItemsSelect[2]->setSelectedIndex(retr);
+   m_pItemsSelect[18]->setSelectedIndex((g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_RETRANSMISSIONS_FAST)?1:0);
+   if ( retr )
+      m_pItemsSelect[18]->setEnabled(true);
+   else
+      m_pItemsSelect[18]->setEnabled(false);
+
    if ( 0 == adaptive )
    {
       m_pItemsSelect[9]->setEnabled(false);
@@ -288,9 +321,6 @@ void MenuVehicleVideoEncodings::valuesToUI()
    m_pItemsSelect[11]->setSelectedIndex((g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_FILL_H264_SPT_TIMINGS)?1:0);
    m_pItemsSelect[12]->setSelectedIndex(g_pCurrentModel->video_params.iH264Slices-1);
 
-   m_ExtraItemsHeight = 0;
-   m_ExtraItemsHeight += (1.0 + MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall);
-
    m_ShowBitrateWarning = false;
 
    u32 uRealDataRate = g_pCurrentModel->getLinkRealDataRate(0);
@@ -334,13 +364,11 @@ void MenuVehicleVideoEncodings::Render()
    for( int i=0; i<m_ItemsCount; i++ )
    {
       y += RenderItem(i,y);
-      if ( i == 10 )
+      if ( (i == m_IndexBlockFECs) && didRenderedLastItem() )
       {
-         //y += 0.5 * MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenuSmall);
          char szBuff[64];
          sprintf(szBuff, "EC rate: %d%%", 100*g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs/(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets));
-         g_pRenderEngine->drawText( x, y, g_idFontMenuSmall, szBuff);
-         y += (MENU_ITEM_SPACING + 1.0) * g_pRenderEngine->textHeight(g_idFontMenuSmall);
+         g_pRenderEngine->drawText( x, y - (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall), g_idFontMenuSmall, szBuff);
       }
    }
    RenderEnd(y0);
@@ -499,6 +527,19 @@ void MenuVehicleVideoEncodings::onSelectItem()
         m_IndexBlockPackets == m_SelectedIndex || 
         m_IndexBlockFECs == m_SelectedIndex )
       sendVideoLinkProfile();
+
+   if ( m_IndexRetransmissionsFast == m_SelectedIndex )
+   {
+      video_parameters_t paramsNew;
+      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      paramsNew.uVideoExtraFlags &= ~VIDEO_FLAG_RETRANSMISSIONS_FAST;
+      if ( 1 == m_pItemsSelect[18]->getSelectedIndex() )
+         paramsNew.uVideoExtraFlags |= VIDEO_FLAG_RETRANSMISSIONS_FAST;
+
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+         valuesToUI();
+      return;
+   }
 
    if ( m_IndexDataRate == m_SelectedIndex )
       sendVideoLinkProfile();

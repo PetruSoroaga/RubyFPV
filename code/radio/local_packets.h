@@ -28,6 +28,8 @@
 
 #define PACKET_TYPE_LOCAL_CONTROL_SWITCH_RADIO_LINK 172 // request: vehicle_id_dest has the vehicle radio link id to switch to; response: vehicle_id_src has the radio link id switched to, vehicle_id_dest has the result code
 
+#define PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE 173 // vehicle_id_dest or src is the vehicle id to switch to or switched to
+
 #define PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED 175
 #define PACKET_TYPE_LOCAL_CONTROL_RECEIVED_MODEL_SETTING 176
 #define PACKET_TYPE_LOCAL_CONTROL_REINITIALIZE_RADIO_LINKS 177

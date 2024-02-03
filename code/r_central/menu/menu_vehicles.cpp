@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "menu.h"
 #include "menu_vehicles.h"
 #include "menu_confirmation.h"
@@ -16,7 +33,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "menu_vehicle_selector.h"
 
 #include "../osd/osd_common.h"
-#include "../../base/radio_utils.h"
+#include "../../common/favorites.h"
+//#include "../../base/radio_utils.h"
 
 const char* s_textTitle[] = { "My Vehicles",  NULL };
 const char* s_szVehicleNone = "No vehicles defined. To add a vehicle:\n Search for a vehicle and then connect to it as controller.";
@@ -28,7 +46,7 @@ MenuVehicles::MenuVehicles(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
    m_IndexSelectedVehicle = -1;
 
-   log_line("MenuVehicles: On open, this is the current radio interfaces configuration:");
+   log_line("[Menu] MenuVehicles: On open, this is the current radio interfaces configuration:");
    hardware_load_radio_info();
 
    m_bDisableStacking = true;
@@ -40,20 +58,21 @@ void MenuVehicles::onShow()
    m_Height = 0.0;
    
    if ( (NULL != g_pCurrentModel) && ( 0 != g_uActiveControllerModelVID) )
-      log_line("MenuVehicles: Current vehicle id: %u (%u)", g_pCurrentModel->vehicle_id, g_uActiveControllerModelVID);
+      log_line("[Menu] MenuVehicles: Current vehicle id: %u (%u)", g_pCurrentModel->vehicle_id, g_uActiveControllerModelVID);
    else
-      log_line("MenuVehicles: No current vehicle.");
+      log_line("[Menu] MenuVehicles: No current vehicle.");
    removeAllTopLines();
    removeAllItems();
 
    m_IndexSelectedVehicle = -1;
 
    addTopLine("Select the vehicle to control:");
+   bool bCurrentVehicleFound = false;
 
    for( int i=0; i<getControllerModelsCount(); i++ )
    {
       Model *p = getModelAtIndex(i);
-      log_line("MenuVehicles: Iterating vehicles: id: %u", p->vehicle_id);
+      log_line("[Menu] MenuVehicles: Iterating vehicles: id: %u", p->vehicle_id);
       char szBuff[256];
       if ( 1 == p->radioLinksParams.links_count )
          sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
@@ -77,32 +96,35 @@ void MenuVehicles::onShow()
       }
 
       MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);
-      pItem->setVehicleIndex(i);
+      pItem->setVehicleIndex(i, false);
       addMenuItem( pItem );
       if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
       if ( (g_uActiveControllerModelVID == p->vehicle_id) && (g_pCurrentModel->vehicle_id == p->vehicle_id) )
       {
-         log_line("MenuVehicles: Found current vehicle in the list.");
+         log_line("[Menu] MenuVehicles: Found current vehicle in the list.");
+         bCurrentVehicleFound = true;
       }
    }
+
+   if ( ! bCurrentVehicleFound )
+      log_softerror_and_alarm("[Menu] MenuVehicles: Current vehicle not found in the vehicles list!");
    if ( 0 == getControllerModelsCount() )
    {
       removeAllTopLines();
-      m_ExtraItemsHeight += 1.2*g_pRenderEngine->getMessageHeight(s_szVehicleNone, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu );
-      m_ExtraItemsHeight += g_pRenderEngine->textHeight(g_idFontMenu);
+      addTopLine(s_szVehicleNone);
    }
-   else
-      m_ExtraItemsHeight += g_pRenderEngine->textHeight(g_idFontMenu);
+
+   addSeparator();
    m_IndexImport = addMenuItem(new MenuItem("Import Vehicle", "Imports a new vehicle from a model file on a USB stick."));
 
    Menu::onShow();
 }
 
 
-void MenuVehicles::onReturnFromChild(int returnValue)
+void MenuVehicles::onReturnFromChild(int iChildMenuId, int returnValue)
 {
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
    invalidate();
-   Menu::onReturnFromChild(returnValue);
 }
 
 void MenuVehicles::Render()
@@ -112,24 +134,27 @@ void MenuVehicles::Render()
    float y = yTop;
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float xPos = m_RenderXPos + m_sfMenuPaddingX;
-
-   if ( 0 == getControllerModelsCount() )
-   {
-      g_pRenderEngine->setColors(get_Color_MenuText());
-      float h = g_pRenderEngine->drawMessageLines(xPos, y, s_szVehicleNone, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu );
-      y += 1.2*h;
-   }
+   float dy = 0.2*height_text;
+   float fFavoriteHeight = 1.2*g_pRenderEngine->textHeight(g_idFontMenu);
+   float fFavoriteWidth = fFavoriteHeight / g_pRenderEngine->getAspectRatio();
 
    for( int i=0; i<m_ItemsCount; i++ )
    {
-      if ( m_IndexImport == i )
-      {
-         y += height_text;
-         y += RenderItem(i,y);
-         continue;
-      }
+      float y0 = y;
       y += RenderItem(i,y);
+      if ( i >= getControllerModelsCount() )
+         continue;
+
+      Model *pModel = getModelAtIndex(i);
+      if ( NULL == pModel )
+         continue;
+      if ( vehicle_is_favorite(pModel->vehicle_id) )
+      {
+         if ( (NULL != g_pCurrentModel) && (pModel->vehicle_id == g_pCurrentModel->vehicle_id) )
+            g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy+0.6*height_text, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
+         else
+            g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
+      }
    }
    RenderEnd(yTop);
 }
@@ -141,7 +166,7 @@ void MenuVehicles::onSelectItem()
    {
       if ( ! hardware_try_mount_usb() )
       {
-         log_line("No USB memory stick available.");
+         log_line("[Menu] MenuVehicles: No USB memory stick available.");
          Popup* p = new Popup("Please insert a USB memory stick to import the vehicle from.",0.28, 0.32, 0.32, 3);
          p->setCentered();
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
@@ -159,8 +184,7 @@ void MenuVehicles::onSelectItem()
          sync();
          ruby_signal_alive();
          delete pM;
-         m_iConfirmationId = 10;
-         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"No vehicle settings files",NULL);
+         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+10*1000,"No vehicle settings files",NULL);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->addTopLine("There are no vehicle settings files on the USB stick.");
@@ -173,19 +197,19 @@ void MenuVehicles::onSelectItem()
 
    if ( 0 == getControllerModelsCount() )
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
 
    Model *pModel = getModelAtIndex(m_SelectedIndex);
    if ( NULL == pModel )
    {
-      log_softerror_and_alarm("NULL model for vehicle: %s.", m_pMenuItems[m_SelectedIndex]->getTitle());
+      log_softerror_and_alarm("[Menu] MenuVehicles: NULL model for vehicle: %s.", m_pMenuItems[m_SelectedIndex]->getTitle());
       return;
    }
 
    m_IndexSelectedVehicle = m_SelectedIndex;
-   log_line("Adding menu for vehicle index %d", m_IndexSelectedVehicle);
+   log_line("[Menu] MenuVehicles: Adding menu selector for vehicle index %d", m_IndexSelectedVehicle);
    
    MenuVehicleSelector* pMenu = new MenuVehicleSelector();
    pMenu->m_IndexSelectedVehicle = m_SelectedIndex;

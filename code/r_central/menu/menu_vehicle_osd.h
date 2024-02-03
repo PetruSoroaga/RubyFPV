@@ -20,6 +20,8 @@ class MenuVehicleOSD: public Menu
       int m_IndexOSDLayout;
       int m_IndexOSDEnabled;
       int m_IndexOSDFontSize, m_IndexOSDTransparency, m_IndexBgOnTexts;
+      int m_IndexHighlightChangeElements;
+      int m_IndexDontShowFCMessages;
       int m_IndexOSDElements;
       int m_IndexOSDWidgets;
       int m_IndexOSDInstruments;

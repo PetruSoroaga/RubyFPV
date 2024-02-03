@@ -12,8 +12,6 @@ class MenuRoot: public Menu
       virtual void onSelectItem();
 
    private:
-      bool hasChanged;
-
       void RenderVehicleInfo();
       void createAboutInfo(Menu* pm);
       void createHWInfo(Menu* pm);

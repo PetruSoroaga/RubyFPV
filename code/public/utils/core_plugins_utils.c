@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <errno.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,14 +32,16 @@ void core_plugin_util_log_line(const char* szLine)
    }
 
    if ( -1 == s_logServiceMessageQueueCorePlugin )
+   {
+      //printf("\nNo service, %d, %s\n", errno, strerror(errno));
       return;
-
+   }
    type_log_message_buffer_core_plugin msg;
    msg.type = 1;
    msg.text[0] = 0;
 
 
-   strcpy(msg.text, "S-CorePlugin");
+   strcpy(msg.text, "S-Plugin");
    strcat(msg.text, ": ");
 
    if ( strlen(szLine) > 300 - 2 - strlen(msg.text) )

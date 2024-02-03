@@ -11,7 +11,6 @@ class MenuVehicleRCCamera: public Menu
       virtual ~MenuVehicleRCCamera();
       virtual void onShow();
       virtual void Render();
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
       virtual void valuesToUI();
             

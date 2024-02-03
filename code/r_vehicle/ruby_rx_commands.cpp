@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/shared_mem.h"
@@ -966,7 +984,7 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->iFreqARM = 1000;
       else if ( board_type == BOARD_TYPE_PI3B )
          g_pCurrentModel->iFreqARM = 1200;
-      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B )
+      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
          g_pCurrentModel->iFreqARM = 1400;
       else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
                && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
@@ -1600,7 +1618,8 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_VEHICLE_TYPE )
    {
-      g_pCurrentModel->vehicle_type = pPHC->command_param;
+      g_pCurrentModel->vehicle_type &= MODEL_FIRMWARE_MASK;
+      g_pCurrentModel->vehicle_type |= pPHC->command_param & MODEL_TYPE_MASK;
       saveCurrentModel();
       signalReloadModel(0, 0);
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
@@ -1671,19 +1690,87 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PROFILE )
    {
-      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags;
-
+      int iOldCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
+      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iOldCamProfileIndex].flags;
+      camera_profile_parameters_t oldCamParams;
+      camera_profile_parameters_t oldCamParamsCheck;
+      memcpy(&oldCamParams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
+      memcpy(&oldCamParamsCheck, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
+      if ( (pPHC->command_param < 0) || (pPHC->command_param >= MODEL_CAMERA_PROFILES) )
+      {
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         return true;
+      }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
       g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = pPHC->command_param;
-      log_line("Switched camera %d to profile %d.", g_pCurrentModel->iCurrentCamera, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
+      log_line("Switched camera %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
       saveCurrentModel();
-      signalReloadModel(0, 0);
+      signalReloadModel(MODEL_CHANGED_CAMERA_PARAMS, 0);
 
-      if ( g_pCurrentModel->hasCamera() )
+      if ( ! g_pCurrentModel->hasCamera() )
+         return true;
+
+      if ( ! g_pCurrentModel->isActiveCameraCSICompatible() )
+      if ( ! g_pCurrentModel->isActiveCameraVeye() )
       {
-         if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags) & CAMERA_FLAG_AWB_MODE_OLD) )
-            g_pCurrentModel->setAWBMode();
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+         return true;
+      }
 
+      int iNewCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
+      camera_profile_parameters_t* pCamParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iNewCamProfileIndex]);
+
+      g_pCurrentModel->log_camera_profiles_differences(&oldCamParams, pCamParams, iOldCamProfileIndex, iNewCamProfileIndex);
+
+      if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != (pCamParams->flags & CAMERA_FLAG_AWB_MODE_OLD) )
+         g_pCurrentModel->setAWBMode();
+
+      bool bSentUsingPipe = false;
+      oldCamParamsCheck.flags = pCamParams->flags;
+      oldCamParamsCheck.brightness = pCamParams->brightness;
+      oldCamParamsCheck.contrast = pCamParams->contrast;
+      oldCamParamsCheck.saturation = pCamParams->saturation;
+      oldCamParamsCheck.sharpness = pCamParams->sharpness;
+      for( int i=0; i<(int)sizeof(oldCamParamsCheck.dummy)/(int)sizeof(oldCamParamsCheck.dummy[0]); i++ )
+         oldCamParamsCheck.dummy[i] = pCamParams->dummy[i];
+      oldCamParamsCheck.fovV = pCamParams->fovV;
+      oldCamParamsCheck.fovH = pCamParams->fovH;
+      if ( 0 == memcmp(&oldCamParamsCheck, pCamParams, sizeof(camera_profile_parameters_t)) )
+      {
+         log_line("Send commands to camera directly");
+
+         if ( g_pCurrentModel->isActiveCameraVeye() )
+         {
+            vehicle_update_camera_params(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
+            bSentUsingPipe = true;
+         }
+         else
+         {
+            if ( oldCamParams.brightness != pCamParams->brightness )
+            {
+               bSentUsingPipe = true;
+               signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
+            }
+            if ( oldCamParams.contrast != pCamParams->contrast )
+            {
+               bSentUsingPipe = true;
+               signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
+            }
+            if ( oldCamParams.saturation != pCamParams->saturation )
+            {
+               bSentUsingPipe = true;
+               signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
+            }
+            if ( oldCamParams.sharpness != pCamParams->sharpness )
+            {
+               bSentUsingPipe = true;
+               signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
+            }
+         }
+      }
+      if ( ! bSentUsingPipe )
+      {
+         log_line("Send command to restart video stream");
          sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
       }
       return true;
@@ -1770,7 +1857,7 @@ bool process_command(u8* pBuffer, int length)
          if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] == (int)uLinkIndex )
          {
             if ( ! g_pCurrentModel->radioLinkIsSiKRadio(i) )
-               radio_utils_set_interface_frequency(g_pCurrentModel, i, uNewFreq, g_pProcessStats);
+               radio_utils_set_interface_frequency(g_pCurrentModel, i, (int)uLinkIndex, uNewFreq, g_pProcessStats, 0);
             g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i] = uNewFreq;
          }
       hardware_save_radio_info();
@@ -1905,6 +1992,43 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
+   if ( uCommandType == COMMAND_ID_RESET_RADIO_LINK )
+   {
+      u32 linkIndex = pPHC->command_param;
+      if ( (linkIndex < 0) || (linkIndex >= (u32)g_pCurrentModel->radioLinksParams.links_count) )
+      {
+         log_error_and_alarm("Invalid link index received in command: link %d (%d radio links on vehicle)", (int)linkIndex+1, g_pCurrentModel->radioLinksParams.links_count);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         return true;
+      }
+
+      g_pCurrentModel->resetRadioLinkParams(linkIndex);
+      int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(linkIndex);
+      bool bIsAtheros = false;
+      if ( iRadioInterfaceId >= 0 )
+      {
+         if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
+            bIsAtheros = true;
+         if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
+            bIsAtheros = true; 
+      }
+      if ( bIsAtheros )
+      {
+         g_pCurrentModel->radioLinksParams.link_datarate_video_bps[linkIndex] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+         g_pCurrentModel->radioLinksParams.link_datarate_data_bps[linkIndex] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+      }
+      // Populate radio interfaces radio flags and rates from radio links radio flags and rates
+      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_RESET_RADIO_LINK, linkIndex);
+
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 2);
+      for( int i=0; i<5; i++ )
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 5);
+      return true;
+   }
+   
    if ( uCommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS )
    {
       if ( iParamsLength != (int)(2*sizeof(u32)+2*sizeof(int)) )
@@ -1922,7 +2046,7 @@ bool process_command(u8* pBuffer, int length)
       piData++;
       int datarateData = *piData;
 
-      if ( linkIndex < 0 || linkIndex >= (u32)g_pCurrentModel->radioLinksParams.links_count )
+      if ( (linkIndex < 0) || (linkIndex >= (u32)g_pCurrentModel->radioLinksParams.links_count) )
       {
          log_error_and_alarm("Invalid link index received in command: link %d (%d radio links on vehicle)", (int)linkIndex+1, g_pCurrentModel->radioLinksParams.links_count);
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
@@ -1954,14 +2078,14 @@ bool process_command(u8* pBuffer, int length)
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS, linkIndex);
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 5);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 2);
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 10);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 5);
 
       return true;
    }
 
-   if ( uCommandType == COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION )
+   if ( uCommandType == COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION )
    {
       int linkId = (int)(pPHC->command_param);
       log_line("Received radio link flags change confirmation from controller for link %d.", linkId+1);
@@ -1975,6 +2099,8 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
+// TO DO
+   /*
    if ( uCommandType == COMMAND_ID_SET_RADIO_LINK_DATARATES )
    {
       if ( iParamsLength != (int)(sizeof(type_radio_links_parameters)) )
@@ -2002,7 +2128,7 @@ bool process_command(u8* pBuffer, int length)
       signalReloadModel(MODEL_CHANGED_RADIO_DATARATES, iRadioLink);
       return true;
    }
-
+*/
    if ( uCommandType == COMMAND_ID_RESET_ALL_TO_DEFAULTS )
    {
       for( int i=0; i<20; i++ )
@@ -2436,7 +2562,7 @@ bool process_command(u8* pBuffer, int length)
          if ( NULL == pPortInfo )
             continue;
 
-         if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+         if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
          if ( pPortInfo->lPortSpeed != g_pCurrentModel->hardware_info.serial_bus_speed[i] )
          if ( hardware_serial_is_sik_radio(pPortInfo->szPortDeviceName) )
          {
@@ -2778,8 +2904,9 @@ bool process_command(u8* pBuffer, int length)
       if ( bNewZIPCommand )
          _populate_camera_name();
 
-      if ( bSave )
-         saveCurrentModel();
+      //if ( bSave )
+      saveCurrentModel();
+
       if ( bTelemetryChanged || bNotifyChanged || bSave )
          signalReloadModel(0, 0);
 
@@ -3167,12 +3294,6 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
-   if ( uCommandType == COMMAND_ID_UPLOAD_SW_TO_VEHICLE )
-   {
-      process_sw_upload_old(pPHC->command_param, pBuffer, length);
-      return true;
-   }
-
    if ( uCommandType == COMMAND_ID_UPLOAD_SW_TO_VEHICLE63 )
    {
       process_sw_upload_new(pPHC->command_param, pBuffer, length);
@@ -3327,6 +3448,9 @@ void _periodic_loop()
          s_iRadioLinkIdChangeConfirmation = -1;
       }
    }
+
+   if ( process_sw_upload_is_started() )
+      process_sw_upload_check_timeout(g_TimeNow);
 }
 
 void handle_sigint(int sig) 

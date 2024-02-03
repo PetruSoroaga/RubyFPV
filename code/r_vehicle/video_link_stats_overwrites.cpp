@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -188,7 +206,7 @@ u32 _get_bitrate_for_current_level_and_profile_including_overwrites()
    return uTargetVideoBitrate;
 }
 
-void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int iLevelShift)
+void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, int iVideoProfile, int iLevelShift)
 {
    onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, iVideoProfile);
    bool bVideoProfileChanged = false;
@@ -216,9 +234,12 @@ void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int i
    }
    g_SM_VideoLinkStats.overwrites.currentProfileAndLevelDefaultBitrate = utils_get_max_allowed_video_bitrate_for_profile_and_level(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
 
-   g_SM_VideoLinkStats.overwrites.currentDataBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_packets;
-   g_SM_VideoLinkStats.overwrites.currentECBlocks = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].block_fecs;
-   g_SM_VideoLinkStats.overwrites.currentECBlocks += g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel;
+   int iData = 0;
+   int iEC = 0;
+   g_pCurrentModel->get_level_shift_ec_scheme(iTotalLevelsShift, &iData, &iEC);
+
+   g_SM_VideoLinkStats.overwrites.currentDataBlocks = iData;
+   g_SM_VideoLinkStats.overwrites.currentECBlocks = iEC;
 
    g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = _get_bitrate_for_current_level_and_profile_including_overwrites();
 
@@ -1003,14 +1024,14 @@ void video_stats_overwrites_periodic_loop()
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
       {
          log_line("[Video] Switch to MQ profile due to controller link lost and adaptive video is on.");
-         video_stats_overwrites_switch_to_profile_and_level(VIDEO_PROFILE_MQ,0);
+         video_stats_overwrites_switch_to_profile_and_level(g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile), VIDEO_PROFILE_MQ,0);
       }
       else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       {
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
          {
             log_line("[Video] Switch to LQ profile due to controller link lost and adaptive video is on (full).");
-            video_stats_overwrites_switch_to_profile_and_level(VIDEO_PROFILE_LQ,0);
+            video_stats_overwrites_switch_to_profile_and_level(g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile) + g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ), VIDEO_PROFILE_LQ,0);
          }
       }
    }

@@ -8,7 +8,7 @@ class MenuVehicles: public Menu
       MenuVehicles();
       virtual void Render();
       virtual void onShow();
-      virtual void onReturnFromChild(int returnValue);
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void onSelectItem();
       
    protected:

@@ -12,7 +12,6 @@ extern u32 g_TimeLastPeriodicCheck;
 
 extern u32 g_TimeLastFPSCalculation;
 extern u32 g_TimeLastJoystickCheck;
-extern u32 g_TimeLastRCFrameSent;
 
 // Router
 

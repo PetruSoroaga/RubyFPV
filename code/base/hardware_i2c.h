@@ -77,6 +77,7 @@ typedef struct
 
 
 void hardware_i2c_reset_enumerated_flag();
+void hardware_i2c_log_devices();
 void hardware_enumerate_i2c_busses();
 void hardware_recheck_i2c_cameras();
 int hardware_get_i2c_busses_count();
@@ -104,6 +105,7 @@ int hardware_i2c_has_current_sensor();
 int hardware_i2c_has_external_extenders();
 int hardware_i2c_has_external_extenders_rotary_encoders();
 int hardware_i2c_has_external_extenders_buttons();
+// Returns i2c address of the device
 int hardware_i2c_has_external_extenders_rcin();
 
 #ifdef __cplusplus

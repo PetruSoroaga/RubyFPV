@@ -38,7 +38,7 @@ typedef struct
    char* szUserDefinedName;
    char szMAC[MAX_MAC_LENGTH];
    u32 capabilities_flags;
-   int datarate_bps;
+   int datarateBPSMCS; // positive: bps; negative: mcs rate; 0: none
    int iInternal;
 } t_ControllerRadioInterfaceInfo;
 

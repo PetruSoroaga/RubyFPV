@@ -4,7 +4,7 @@
 
 void controller_compute_cpu_info();
 
-void controller_launch_router(bool bSearchMode);
+void controller_launch_router(bool bSearchMode, int iFirmwareType);
 void controller_stop_router();
 
 void controller_launch_video_player();

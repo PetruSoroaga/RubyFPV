@@ -7,6 +7,7 @@
 #include "../public/render_engine_ui.h"
 #include "../public/telemetry_info.h"
 #include "../public/settings_info.h"
+#include "../public/utils/core_plugins_utils.h"
 
 #include "ruby_plugins_common.cpp"
 
@@ -24,7 +25,12 @@ extern "C" {
 
 void init(void* pEngine)
 {
+  char szBuff[256];
+  sprintf(szBuff,"Plugin altitude Init., engine: 0x%x", pEngine );
+  core_plugin_util_log_line(szBuff);
   g_pEngine = (RenderEngineUI*)pEngine;
+  sprintf(szBuff,"Plugin altitude Init., engine new: 0x%x", g_pEngine );
+  core_plugin_util_log_line(szBuff);
 }
 
 char* getName()
@@ -92,6 +98,9 @@ char* getPluginSettingOptionName(int settingIndex, int optionIndex)
 
 float getDefaultWidth()
 {
+  char szBuff[256];
+  sprintf(szBuff,"Plugin altitude w, engine: 0x%x", g_pEngine );
+  core_plugin_util_log_line(szBuff);
    if ( NULL == g_pEngine )
       return 0.28;
    return 0.28/g_pEngine->getAspectRatio();
@@ -99,6 +108,9 @@ float getDefaultWidth()
 
 float getDefaultHeight()
 {
+  char szBuff[256];
+  sprintf(szBuff,"Plugin altitude h, engine: 0x%x", g_pEngine );
+  core_plugin_util_log_line(szBuff);
    if ( NULL == g_pEngine )
       return 0.28;
    return 0.28;

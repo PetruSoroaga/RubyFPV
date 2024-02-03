@@ -6,6 +6,7 @@
 #include "../base/models.h"
 #include "../base/radio_utils.h"
 #include "../base/encr.h"
+#include "../base/utils.h"
 #include "../common/radio_stats.h"
 #include "../common/string_utils.h"
 
@@ -119,7 +120,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
    int iResult = 0;
    radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
    int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
-   int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nRate;
+   int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
 
    bool bVideoData = false;
    t_packet_header* pPH = (t_packet_header*)pBuffer;
@@ -170,7 +171,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
 
 void process_packet(int iInterfaceIndex )
 {
-   //printf("x");
+   printf("x");
    fflush(stdout);
          
    int nLength = 0;
@@ -279,7 +280,7 @@ int main(int argc, char *argv[])
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( 0 == strcmp(szCard, pNICInfo->szName ) )
       {
-         //radio_utils_set_interface_frequency(i, freq, NULL);
+         //radio_utils_set_interface_frequency(i, freq, NULL, 0);
        iInterfaceIndex = i;
        break;
       }
@@ -295,7 +296,10 @@ int main(int argc, char *argv[])
       return 0;
    }
 
-   radio_utils_set_interface_frequency(NULL, iInterfaceIndex, iFreq, NULL);
+   if ( iFreq < 10000 )
+      iFreq *= 1000;
+
+   radio_utils_set_interface_frequency(NULL, iInterfaceIndex, -1, iFreq, NULL, 0);
 
    printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq, port);
 
@@ -330,6 +334,8 @@ int main(int argc, char *argv[])
    g_SM_RadioStats.radio_interfaces[0].assignedLocalRadioLinkId = 0;
    g_SM_RadioStats.countLocalRadioInterfaces = 1;
    g_SM_RadioStats.countLocalRadioLinks = 1;
+
+   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq, port);
 
    if ( -1 == g_iOnlyStreamId )
       printf("\nLooking for any stream\n");

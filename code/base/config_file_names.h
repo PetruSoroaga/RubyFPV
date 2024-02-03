@@ -14,6 +14,8 @@
 
 #define FOLDER_RUBY "/home/pi/ruby"
 #define FOLDER_CONFIG "config/"
+#define FOLDER_CONFIG_MODELS "config/models/"
+#define FOLDER_LOGS "logs/"
 #define FOLDER_MEDIA "media/"
 #define FOLDER_MEDIA_VEHICLE_DATA "media/vehicle-%u"
 #define FOLDER_VEHICLE_HISTORY "config/models/history-%d"
@@ -39,6 +41,8 @@
 #define FILE_CONTROLLER_ID "config/controller_id.cfg"
 #define FILE_CONTROLLER_BUTTONS "config/controller_btns.cfg"
 #define FILE_CONTROLLER_OSD_WIDGETS "config/osd_widgets.cfg"
+#define FILE_CONTROLLER_FAVORITES_VEHICLES "config/favorites.cfg"
+
 
 #define FILE_CONFIG_CURRENT_VERSION "config/current_version.inf"
 #define FILE_VEHICLE_SETTINGS "config/vehicle_settings.cfg"
@@ -59,6 +63,8 @@
 #define FILE_CONFIG_MODELS_CONNECT_FREQUENCIES "config/models_connect_freq.cfg"
 #define FILE_CONFIG_LAST_SIK_RADIOS_DETECTED "config/last_sik_radios_detected.cfg"
 
+#define FILE_DEFAULT_OPENIPC_KEYS "res/openipc_default.key"
+
 #define FILE_BOOT_TIMESTAMP "config/boot_timestamp.cfg"
 #define FILE_BOOT_COUNT "config/boot_count.cfg"
 #define FILE_VEHICLE_REBOOT_CACHE "config/reboot_cache.tmp"
@@ -77,7 +83,7 @@
 #define VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME "ruby_capture_veye"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_p"
-#define VIDEO_PLAYER_STREAM "ruby_player_s"
+#define VIDEO_PLAYER_STDIN "ruby_player_s"
 #define VIDEO_PLAYER_OFFLINE "ruby_player_f2"
 
 #define VEYE_COMMANDS_FOLDER "/usr/local/share/veye-raspberrypi"

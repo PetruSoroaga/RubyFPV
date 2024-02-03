@@ -24,6 +24,9 @@
 #define BOARD_TYPE_PI3BPLUS 16
 #define BOARD_TYPE_PI4B     20
 
+#define BOARD_TYPE_OPENIPC_GOKE 30
+
+
 #define CAMERA_TYPE_NONE 0
 #define CAMERA_TYPE_CSI   1
 #define CAMERA_TYPE_VEYE290  3
@@ -32,6 +35,7 @@
 #define CAMERA_TYPE_HDMI  7
 #define CAMERA_TYPE_USB   8
 #define CAMERA_TYPE_IP    9
+#define CAMERA_TYPE_OPENIPC_GOKE 20
 
 
 #define MAX_JOYSTICK_INTERFACE_NAME 128
@@ -70,6 +74,7 @@ void hardware_swap_buttons(int swap);
 int hardware_detectBoardType();
 int hardware_getBoardType();
 int hardware_getWifiType();
+u32 hardware_get_base_ruby_version();
 
 void hardware_enum_joystick_interfaces();
 int hardware_get_joystick_interfaces_count();

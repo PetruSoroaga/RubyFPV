@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -27,7 +45,7 @@ MenuSwitchVehicle::MenuSwitchVehicle(u32 uVehicleId)
    szBuff[0] = 0;
    szName[0] = 0;
    strcpy(szName, "Unknown");
-   Model* pModelTmp = findModelWithId(m_uVehicleId);
+   Model* pModelTmp = findModelWithId(m_uVehicleId, 16);
    if ( NULL != pModelTmp )
    strcpy(szName, pModelTmp->getLongName());
 
@@ -87,26 +105,26 @@ void MenuSwitchVehicle::onSelectItem()
 {
    if ( 1 == m_SelectedIndex )
    {
-      menu_close_all();
+      menu_discard_all();
       return;
    }
    if ( 0 == m_SelectedIndex )
    {
-      Model *pModel = findModelWithId(m_uVehicleId);
+      Model *pModel = findModelWithId(m_uVehicleId, 17);
 
       if ( NULL == pModel )
       {
          log_softerror_and_alarm("NULL model for vehicle to switch to.");
-         menu_close_all();
+         menu_discard_all();
          return;
       }
       if ( NULL != g_pCurrentModel && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
       {
-         menu_close_all();
+         menu_discard_all();
          return;
       }
 
-      menu_close_all();
+      menu_discard_all();
       render_all(get_current_timestamp_ms(), true);
       Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
       popups_add_topmost(p);
@@ -114,14 +132,15 @@ void MenuSwitchVehicle::onSelectItem()
          
       pairing_stop();
       pModel->is_spectator = false;
-      g_pCurrentModel = pModel;
+      setCurrentModel(pModel->vehicle_id);
+      g_pCurrentModel = getCurrentModel();
       setControllerCurrentModel(g_pCurrentModel->vehicle_id);
       saveControllerModel(g_pCurrentModel);
 
       ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
 
       g_bIsFirstConnectionToCurrentVehicle = true;
-      onMainVehicleChanged();
+      onMainVehicleChanged(true);
       pairing_start_normal(); 
    }
 }

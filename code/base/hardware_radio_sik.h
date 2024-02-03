@@ -9,8 +9,6 @@ extern "C" {
 #endif 
 
 int hardware_radio_has_sik_radios();
-int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex);
-int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_sik_firmware_is_old();
 
 int hardware_radio_sik_reinitialize_serial_ports();

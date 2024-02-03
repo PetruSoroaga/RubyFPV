@@ -1,17 +1,36 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "process_radio_in_packets.h"
 #include "processor_rx_audio.h"
 #include "processor_rx_video.h"
+#include "processor_rx_video_wfbohd.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
@@ -31,6 +50,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "ruby_rt_station.h"
 #include "relay_rx.h"
 #include "links_utils.h"
+#include "test_link_params.h"
 #include "shared_vars.h"
 #include "timers.h"
 
@@ -42,6 +62,8 @@ u32 s_uRadioRxReadTimeoutCount = 0;
 u32 s_uTotalBadPacketsReceived = 0;
 
 u32 s_TimeLastLoggedSearchingRubyTelemetry = 0;
+u32 s_TimeLastLoggedSearchingRubyTelemetryVehicleId = 0;
+
 
 u32 s_uParseRadioInNALStartSequence = 0xFFFFFFFF;
 u32 s_uParseRadioInNALCurrentSlices = 0;
@@ -99,7 +121,8 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
 
          if ( pRadioHWInfo->uCurrentFrequencyKhz == freqOld )
          {
-            radio_utils_set_interface_frequency(NULL, i, freqNew, g_pProcessStats);
+            Preferences* pP = get_Preferences();
+            radio_utils_set_interface_frequency(g_pCurrentModel, i, nLink, freqNew, g_pProcessStats, pP->iDebugWiFiChangeDelay);
             g_SM_RadioStats.radio_interfaces[i].uCurrentFrequencyKhz = freqNew;
             radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, freqNew);
          }
@@ -138,6 +161,12 @@ void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
 int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 {
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
+
+   if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
+   {
+      test_link_process_received_message(iInterfaceIndex, pPacketBuffer);
+      return 0;
+   }
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_RADIO_CONFIG_UPDATED )
    {
@@ -387,7 +416,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 void _process_received_single_packet_while_searching(int interfaceIndex, u8* pData, int length)
 {
    t_packet_header* pPH = (t_packet_header*)pData;
-
+      
    // Ruby telemetry is always sent to central and rx telemetry (to populate Ruby telemetry shared object)
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
@@ -400,9 +429,10 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
          u8 vMin = pPHRTE->version;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
-         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+         if ( (g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000) || (s_TimeLastLoggedSearchingRubyTelemetryVehicleId != pPH->vehicle_id_src) )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+            s_TimeLastLoggedSearchingRubyTelemetryVehicleId = pPH->vehicle_id_src;
             char szFreq1[64];
             char szFreq2[64];
             char szFreq3[64];
@@ -426,9 +456,10 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
          u8 vMin = pPHRTE->version;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
-         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+         if ( (g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000) || (s_TimeLastLoggedSearchingRubyTelemetryVehicleId != pPH->vehicle_id_src) )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+            s_TimeLastLoggedSearchingRubyTelemetryVehicleId = pPH->vehicle_id_src;
             char szFreq1[64];
             char szFreq2[64];
             char szFreq3[64];
@@ -445,16 +476,24 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       }
       // v3 ruby telemetry
-      else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      bool bIsV3 = false;
+      if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3)))
+         bIsV3 = true;
+      if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info)))
+         bIsV3 = true;
+      if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)))
+         bIsV3 = true;
+      if ( bIsV3 )
       {
          t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pData + sizeof(t_packet_header));
          u8 vMaj = pPHRTE->version;
          u8 vMin = pPHRTE->version;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
-         if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+         if ( (g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000) || (s_TimeLastLoggedSearchingRubyTelemetryVehicleId != pPH->vehicle_id_src) )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+            s_TimeLastLoggedSearchingRubyTelemetryVehicleId = pPH->vehicle_id_src;
             char szFreq1[64];
             char szFreq2[64];
             char szFreq3[64];
@@ -475,9 +514,10 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT )
    {
-      if ( g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000 )
+      if ( (g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000) || (s_TimeLastLoggedSearchingRubyTelemetryVehicleId != pPH->vehicle_id_src) )
       {
          s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
+         s_TimeLastLoggedSearchingRubyTelemetryVehicleId = pPH->vehicle_id_src;
          log_line("Received a Ruby telemetry short packet while searching: vehicle ID: %u", pPH->vehicle_id_src );
       }
       if ( -1 != g_fIPCToCentral )
@@ -493,29 +533,23 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
       return;
 
    t_packet_header* pPH = (t_packet_header*)pPacketData;
-   Model* pModel = findModelWithId(pPH->vehicle_id_src);
+   Model* pModel = findModelWithId(pPH->vehicle_id_src, 110);
    if ( NULL == pModel )
       return;
 
-   int iVideoPacketLength = 0;
+   int iVideoDataLength = 0;
    u8* pTmp = NULL;
-   if ( ((pModel->sw_version)>>16) > 79 ) // 7.7
-   {
-      t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
-      iVideoPacketLength = pPHVFNew->video_packet_length;    
-      pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
-   }
-   else
-   {
-      t_packet_header_video_full_old76* pPHVFOld = (t_packet_header_video_full_old76*) (pPacketData+sizeof(t_packet_header));
-      iVideoPacketLength = pPHVFOld->video_packet_length;
-      pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_old76);
-   }
- 
+   t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
+   iVideoDataLength = pPHVFNew->video_data_length;    
+   pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
+   
+   if ( pPHVFNew->video_block_packet_index >= pPHVFNew->block_packets )
+      return;
+
    int iFoundNALVideoFrame = 0;
    int iFoundPosition = -1;
    
-   for( int k=0; k<iVideoPacketLength; k++ )
+   for( int k=0; k<iVideoDataLength; k++ )
    {
       s_uParseRadioInNALStartSequence = (s_uParseRadioInNALStartSequence<<8) | (*pTmp);
       s_uParseRadioInNALTotalParsedBytes++;
@@ -576,10 +610,10 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
        }
 
        s_uLastRadioInVideoFrameTime = g_TimeNow;
-       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = iVideoPacketLength-iFoundPosition;
+       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = iVideoDataLength-iFoundPosition;
    }
    else
-      g_VideoInfoStats.uTmpCurrentFrameSize += iVideoPacketLength;
+      g_VideoInfoStats.uTmpCurrentFrameSize += iVideoDataLength;
 }
 
 
@@ -642,7 +676,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
 {
    t_packet_header* pPH = (t_packet_header*)pPacket;
    u32 uVehicleId = pPH->vehicle_id_src;
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 111);
    bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
    
    if ( NULL == pModel )
@@ -678,20 +712,20 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
          return -1;
       }
       u32 uVideoBlockIndex = pPHVFNew->video_block_index;
-      if ( (pModel->sw_version >> 16) < 79 )
-      {
-         t_packet_header_video_full_old76* pPHVFOld = (t_packet_header_video_full_old76*) (pPacket+sizeof(t_packet_header));
-         uVideoBlockIndex = pPHVFOld->video_block_index;
-      }
 
-      log_line("Create new video Rx processor for VID %u, video stream %u, at packet index: %u, video block index: %u", uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F), pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
-      g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %u, at packet index: %u, video block index: %u", uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()), (u32)(uVideoStreamIndexAndType & 0x0F), pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
+      if ( pModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
+         g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideoWFBOHD(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      else
+         g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      
       g_pVideoProcessorRxList[iFirstFreeSlot]->init();
       iRuntimeIndex = iFirstFreeSlot;
    }
 
    if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
    if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
+   if ( pModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
    }
@@ -914,7 +948,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       }
       else
          cOther = 1;
-      add_detailed_history_rx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, cVideo, cRetr, cTelem, cRC, cPing, cOther, pRadioHWInfo->monitor_interface_read.radioInfo.nRate/2);
+      add_detailed_history_rx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, cVideo, cRetr, cTelem, cRC, cPing, cOther, pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS);
       #ifdef PROFILE_RX
       u32 dTimeDbg = get_current_timestamp_ms() - timeStart;
       if ( dTimeDbg >= PROFILE_RX_MAX_TIME )

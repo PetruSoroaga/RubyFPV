@@ -12,11 +12,14 @@ class MenuSearchConnect: public Menu
       virtual void Render();
       virtual void onShow();
       virtual void onSelectItem();
-      virtual int onBack();
       void setSpectatorOnly();
       void setCurrentFrequency(u32 freq);
-
+      int m_iSearchModelTypes;
    private:
       bool m_bSpectatorOnlyMode;
       u32 m_CurrentSearchFrequency;
+
+      int m_iIndexController;
+      int m_iIndexSpectator;
+      int m_iIndexSkip;
 };

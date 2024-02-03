@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -76,6 +94,9 @@ int s_CurrentMaxBlocksInBuffers = MAX_RXTX_BLOCKS_BUFFER;
 
 int s_currentReadBufferIndex = 0;
 int s_currentReadBlockPacketIndex = 0;
+
+int s_iCurrentBufferIndexToSend = 0;
+int s_iCurrentBlockPacketIndexToSend = 0;
 
 int s_LastSentBlockBufferIndex = -1;
 
@@ -339,8 +360,8 @@ void _log_encoding_scheme()
 
    log_line("New current video profile used: %s (video stream Id: %s), extra params: 0x%08X, (for video res %d x %d, %d FPS, %d ms keyframe):",
       szScheme, szVideoStream, s_CurrentPHVF.encoding_extra_flags, s_CurrentPHVF.video_width, s_CurrentPHVF.video_height, s_CurrentPHVF.video_fps, s_CurrentPHVF.video_keyframe_interval_ms );
-   log_line("New encoding scheme used: %d/%d block data/ECs, packet length: %d, R-data/R-retr: %d/%d",
-      s_CurrentPHVF.block_packets, s_CurrentPHVF.block_fecs, s_CurrentPHVF.video_packet_length,
+   log_line("New encoding scheme used: %d/%d block data/ECs, video data length: %d, R-data/R-retr: %d/%d",
+      s_CurrentPHVF.block_packets, s_CurrentPHVF.block_fecs, s_CurrentPHVF.video_data_length,
       (uValueDup & 0x0F), ((uValueDup >> 4) & 0x0F) );
    log_line("Encoding change (%u times) active starting with stream packet: %u, video block index: %u, video packet index: %u", s_uCountEncodingChanges,
       (s_CurrentPH.stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), s_CurrentPHVF.video_block_index, s_CurrentPHVF.video_block_packet_index);
@@ -350,7 +371,7 @@ void _log_encoding_scheme()
    return;
    log_line("New encoding scheme: [%u/%u], %d/%d, %d/%d/%d", s_CurrentPHVF.video_block_index, s_CurrentPHVF.video_block_packet_index,
       (s_CurrentPHVF.video_link_profile>>4) & 0x0F, s_CurrentPHVF.video_link_profile & 0x0F,
-         s_CurrentPHVF.block_packets, s_CurrentPHVF.block_fecs, s_CurrentPHVF.video_packet_length);
+         s_CurrentPHVF.block_packets, s_CurrentPHVF.block_fecs, s_CurrentPHVF.video_data_length);
 }
 
 // Returns true if it changed
@@ -412,9 +433,9 @@ bool _check_update_video_link_profile_data()
       }
    }
 
-   if ( s_CurrentPHVF.video_packet_length != g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length )
+   if ( s_CurrentPHVF.video_data_length != g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length )
    {
-      s_CurrentPHVF.video_packet_length = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length;
+      s_CurrentPHVF.video_data_length = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length;
       bChanged = true;
    }
 
@@ -428,11 +449,11 @@ bool _check_update_video_link_profile_data()
 
 void _reset_tx_buffers()
 {
-   if ( s_CurrentPHVF.video_packet_length < 100 )
+   if ( s_CurrentPHVF.video_data_length < 100 )
    {
-      s_CurrentPHVF.video_packet_length = 100;
+      s_CurrentPHVF.video_data_length = 100;
       if ( NULL != g_pCurrentModel )
-         s_CurrentPHVF.video_packet_length = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length;
+         s_CurrentPHVF.video_data_length = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length;
    }
    if ( 0 == s_CurrentPHVF.block_packets )
       s_CurrentPHVF.block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
@@ -447,7 +468,7 @@ void _reset_tx_buffers()
       }
       s_BlocksTxBuffers[i].video_block_index = MAX_U32;
 
-      s_BlocksTxBuffers[i].video_data_length = s_CurrentPHVF.video_packet_length;
+      s_BlocksTxBuffers[i].video_data_length = s_CurrentPHVF.video_data_length;
       s_BlocksTxBuffers[i].block_packets = s_CurrentPHVF.block_packets;
       s_BlocksTxBuffers[i].block_fecs = s_CurrentPHVF.block_fecs;
    }
@@ -617,6 +638,11 @@ bool _inject_faults(int bufferIndex, u32 streamPacketIndex, int packetIndex, boo
 
 void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool isDuplicationPacket, bool isLastBlockToSend)
 {
+   //log_line("DEBUG sent (%d/%d), [%u/%d/%d], %d, %d, %d, read: (%d/%d), scheme: %d/%d", bufferIndex, packetIndex,
+   //    s_BlocksTxBuffers[bufferIndex].video_block_index, packetIndex, s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].packetLength, (int)isRetransmitted, (int)isDuplicationPacket, (int)isLastBlockToSend,
+   //    s_currentReadBufferIndex, s_currentReadBlockPacketIndex,
+   //    s_BlocksTxBuffers[bufferIndex].block_packets, s_BlocksTxBuffers[bufferIndex].block_fecs);
+
    if ( s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].flags != PACKET_FLAG_SENT &&
         s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].flags != PACKET_FLAG_READ )
       return;
@@ -657,7 +683,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
                      (s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[packetIndex].flags & PACKET_FLAG_SENT) )
                   if ( (s_BlocksTxBuffers[prevBlockBufferIndex].block_packets == s_CurrentPHVF.block_packets) && 
                     (s_BlocksTxBuffers[prevBlockBufferIndex].block_fecs == s_CurrentPHVF.block_fecs ) &&
-                    (s_BlocksTxBuffers[prevBlockBufferIndex].video_data_length == s_CurrentPHVF.video_packet_length ) )
+                    (s_BlocksTxBuffers[prevBlockBufferIndex].video_data_length == s_CurrentPHVF.video_data_length ) )
                   if ( s_BlocksTxBuffers[prevBlockBufferIndex].video_block_index > s_LastEncodingChangeAtVideoBlockIndex )
                   {
                     _send_packet(prevBlockBufferIndex, prevBlockPacketIndex, false, true, false);
@@ -735,13 +761,14 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    if ( _inject_recoverable_faults(bufferIndex, pHeader->stream_packet_idx, packetIndex, isRetransmitted) )
       return;
 
-   send_packet_to_radio_interfaces(s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].pRawData, s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].packetLength);
+   send_packet_to_radio_interfaces(s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].pRawData, s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].packetLength, -1);
 
    s_lCountBytesSend += s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].packetLength;
    s_lCountBytesSend += sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + 14; // 14 - radio headers
 
 
    if ( (! isRetransmitted) && (! isDuplicationPacket) )
+   if ( packetIndex < s_BlocksTxBuffers[bufferIndex].block_packets )
    if ( NULL != g_pCurrentModel )
    if ( (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO) ||
         (g_iShowVideoKeyframesAfterRelaySwitch > 0) )
@@ -824,29 +851,24 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
 int process_data_tx_video_has_packets_ready_to_send()
 {
    int countReadyToSend = 0;
-   int prevBlockPacketIndex = s_currentReadBlockPacketIndex;
-   int prevBlockBufferIndex = s_currentReadBufferIndex;
 
-   // Look back max 3 blocks
-   int countPackets = 3 * (s_BlocksTxBuffers[s_currentReadBlockPacketIndex].block_packets + s_BlocksTxBuffers[s_currentReadBlockPacketIndex].block_fecs);
+   int iBufferIndex = s_iCurrentBufferIndexToSend;
+   int iPacketIndex = s_iCurrentBlockPacketIndexToSend;
 
-   for( int i=0; i<=countPackets; i++ )
+   while ( true )
    {
-      prevBlockPacketIndex--;
-      if ( prevBlockPacketIndex < 0 )
-      {
-         prevBlockBufferIndex--;
-         if ( prevBlockBufferIndex < 0 )
-            prevBlockBufferIndex = s_CurrentMaxBlocksInBuffers-1;
-         prevBlockPacketIndex = s_BlocksTxBuffers[prevBlockBufferIndex].block_packets + s_BlocksTxBuffers[prevBlockBufferIndex].block_fecs - 1;
-         if ( prevBlockPacketIndex < 0 )
-            prevBlockPacketIndex = 0;
-      }
-      if ( ( s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_READ ) &&
-           ( !(s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_SENT)) )
-         countReadyToSend++;
-      else
+      if ( ! ( s_BlocksTxBuffers[iBufferIndex].packetsInfo[iPacketIndex].flags & PACKET_FLAG_READ ) )
          break;
+      countReadyToSend++;
+
+      iPacketIndex++;
+      if ( iPacketIndex >= s_BlocksTxBuffers[iBufferIndex].block_packets )
+      {
+         iPacketIndex = 0;
+         iBufferIndex++;
+         if ( iBufferIndex >= s_CurrentMaxBlocksInBuffers )
+            iBufferIndex = 0;
+      }
    }
    return countReadyToSend;
 }
@@ -856,66 +878,77 @@ int process_data_tx_video_has_packets_ready_to_send()
 
 int process_data_tx_video_send_packets_ready_to_send(int howMany)
 {
-   if ( 0 == howMany )
+   if ( howMany <= 0 )
       return 0;
 
    int countSent = 0;
-
-   int prevBlockBufferIndex = s_currentReadBufferIndex;
-   int prevBlockPacketIndex = s_currentReadBlockPacketIndex;
-
-   int countToSend = 0;
-   for( int i=0; i<howMany; i++ )
-   {
-      prevBlockPacketIndex--;
-      if ( prevBlockPacketIndex < 0 )
-      {
-         prevBlockPacketIndex = s_BlocksTxBuffers[prevBlockBufferIndex].block_packets + s_BlocksTxBuffers[prevBlockBufferIndex].block_fecs - 1;
-         if ( prevBlockPacketIndex < 0 )
-            prevBlockPacketIndex = 0;
-         prevBlockBufferIndex--;
-         if ( prevBlockBufferIndex < 0 )
-            prevBlockBufferIndex = s_CurrentMaxBlocksInBuffers-1;
-      }
-      if ( ( s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_READ ) &&
-           ( !(s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_SENT)) )
-         countToSend++;
-      else
-         break;
-   }
-
+   
    u32 uMicroTime = 0;
-   if ( countToSend > 5 )
+   if ( howMany > 5 )
       uMicroTime = get_current_timestamp_micros();
 
-   for( int i=0; i<countToSend; i++ )
+   //log_line("DEBUG (%d/%d) ready to send: %d", s_iCurrentBufferIndexToSend, s_iCurrentBlockPacketIndexToSend, howMany);
+
+   for( int i=0; i<howMany; i++ )
    {
-      if ( ( s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_READ ) &&
-           ( !(s_BlocksTxBuffers[prevBlockBufferIndex].packetsInfo[prevBlockPacketIndex].flags & PACKET_FLAG_SENT)) )
+      if ( ! ( s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].packetsInfo[s_iCurrentBlockPacketIndexToSend].flags & PACKET_FLAG_READ ) )
+         break;
+
+      _send_packet(s_iCurrentBufferIndexToSend, s_iCurrentBlockPacketIndexToSend, false, false, true);
+      countSent++;
+
+      // Send ec packet if any
+
+      bool bUseLegacyScheme = false;
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_USE_OLD_EC_SCHEME )
+         bUseLegacyScheme = true;
+
+      if ( bUseLegacyScheme )
+      if ( s_iCurrentBlockPacketIndexToSend == (s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets - 1) )
       {
-         _send_packet(prevBlockBufferIndex, prevBlockPacketIndex, false, false, true);
-         countSent++;
+         for( int k=0; k<s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs; k++ )
+            _send_packet(s_iCurrentBufferIndexToSend, s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets + k, false, false, true);
       }
-      prevBlockPacketIndex++;
-      if ( prevBlockPacketIndex >= s_BlocksTxBuffers[prevBlockBufferIndex].block_packets + s_BlocksTxBuffers[prevBlockBufferIndex].block_fecs )
+
+      if ( ! bUseLegacyScheme )
       {
-         prevBlockPacketIndex = 0;
-         prevBlockBufferIndex++;
-         if ( prevBlockBufferIndex >= s_CurrentMaxBlocksInBuffers )
-            prevBlockBufferIndex = 0;
+         int iECPacketsPerSlice = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/4 + 1;
+         int iECSlices = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/iECPacketsPerSlice + 1;
+         //log_line("DEBUG ec %d/%d, ec slices: %d, ec packets/slice: %d", s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets, s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs, iECSlices, iECPacketsPerSlice);
+         if ( s_iCurrentBlockPacketIndexToSend < iECSlices )
+         {         
+            int iPrevBlockToCheck = s_iCurrentBufferIndexToSend-s_iCurrentBlockPacketIndexToSend-1;
+            if ( iPrevBlockToCheck < 0 )
+               iPrevBlockToCheck += s_CurrentMaxBlocksInBuffers;
+          
+            for( int k=s_iCurrentBlockPacketIndexToSend*iECPacketsPerSlice; k<(s_iCurrentBlockPacketIndexToSend+1)*iECPacketsPerSlice; k++ )
+            {
+               if ( k < s_BlocksTxBuffers[iPrevBlockToCheck].block_fecs )
+               if ( s_BlocksTxBuffers[iPrevBlockToCheck].packetsInfo[s_BlocksTxBuffers[iPrevBlockToCheck].block_packets + k].flags & PACKET_FLAG_READ )
+                  _send_packet(iPrevBlockToCheck, s_BlocksTxBuffers[iPrevBlockToCheck].block_packets + k, false, false, true);
+            }
+         }
+      }
+      s_iCurrentBlockPacketIndexToSend++;
+      if ( s_iCurrentBlockPacketIndexToSend >= s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets )
+      {
+         s_iCurrentBlockPacketIndexToSend = 0;
+         s_iCurrentBufferIndexToSend++;
+         if ( s_iCurrentBufferIndexToSend >= s_CurrentMaxBlocksInBuffers )
+            s_iCurrentBufferIndexToSend = 0;
       }
    }
 
    static int sl_iCountSuccessiveOverloads = 0;
-   if ( countToSend > 5 )
+   if ( howMany > 5 )
    {
       uMicroTime = get_current_timestamp_micros() - uMicroTime;
       u32 uVideoPacketsPerSec = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage() / 1200 / 8;
       if ( uVideoPacketsPerSec < 10 )
          uVideoPacketsPerSec = 10;
-      if ( uMicroTime/countToSend > 500000/uVideoPacketsPerSec )
+      if ( uMicroTime/howMany > 500000/uVideoPacketsPerSec )
       {
-         //log_line("DEBUG sending %d packets took %u microseconds, %u packs/sec, counter %d", countToSend, uMicroTime, uVideoPacketsPerSec, sl_iCountSuccessiveOverloads);
+         //log_line("DEBUG sending %d packets took %u microseconds, %u packs/sec, counter %d", howMany, uMicroTime, uVideoPacketsPerSec, sl_iCountSuccessiveOverloads);
          sl_iCountSuccessiveOverloads++;
          int iMaxOverloads = (int)uVideoPacketsPerSec/10;
          if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_IGNORE_TX_SPIKES )
@@ -937,66 +970,6 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
    return countSent;
 }
 
-// Returns the block index to send in the blocks buffer, or -1 if none ready
-
-int process_data_tx_video_has_block_ready_to_send()
-{
-   // No new complete blocks? Return
-   if ( s_LastSentBlockBufferIndex + 1 == s_currentReadBufferIndex )
-      return -1;
-
-   if ( (s_LastSentBlockBufferIndex == s_CurrentMaxBlocksInBuffers-1) && (s_currentReadBufferIndex == 0) )
-      return -1;
-
-   int blockIndexToSend = s_LastSentBlockBufferIndex+1;
-   if ( blockIndexToSend >= s_CurrentMaxBlocksInBuffers )
-      blockIndexToSend = 0;
-
-   bool hasAllPackets = true;
-   for( int i=0; i<s_BlocksTxBuffers[blockIndexToSend].block_packets+s_BlocksTxBuffers[blockIndexToSend].block_fecs; i++ )
-      if ( s_BlocksTxBuffers[blockIndexToSend].packetsInfo[i].flags == PACKET_FLAG_EMPTY )
-      {
-         hasAllPackets = false;
-         break;
-      }
-
-   if ( ! hasAllPackets )
-      return -1;
-
-   return blockIndexToSend;
-}
-
-int process_data_tx_video_get_pending_blocks_to_send_count()
-{
-   // No new complete blocks? Return
-   if ( s_LastSentBlockBufferIndex + 1 == s_currentReadBufferIndex )
-      return -1;
-
-   if ( (s_LastSentBlockBufferIndex == s_CurrentMaxBlocksInBuffers-1) && (s_currentReadBufferIndex == 0) )
-      return -1;
-
-   int count = s_currentReadBufferIndex - s_LastSentBlockBufferIndex - 1;
-   if ( count < 0 )
-      count += s_CurrentMaxBlocksInBuffers;
-   return count;
-}
-
-// Returns how many blocks where sent
-
-int process_data_tx_video_send_first_complete_block(bool isLastBlockToSend)
-{
-   // No new complete blocks? Return
-   int blockIndexToSend = process_data_tx_video_has_block_ready_to_send();
-   if ( -1 == blockIndexToSend )
-      return 0;
-
-   for( int i=0; i<s_BlocksTxBuffers[blockIndexToSend].block_packets+s_BlocksTxBuffers[blockIndexToSend].block_fecs; i++ )
-      _send_packet(blockIndexToSend, i, false, false, isLastBlockToSend);
-
-   s_LastSentBlockBufferIndex = blockIndexToSend;
-   return 1;
-}
-
 
 // Returns true if a block is complete
 
@@ -1011,6 +984,9 @@ bool _onNewCompletePacketReadFromInput()
       s_LastSentBlockBufferIndex = -1;
       s_currentReadBufferIndex = 0;
       s_currentReadBlockPacketIndex = 0;
+      s_iCurrentBufferIndexToSend = 0;
+      s_iCurrentBlockPacketIndexToSend = 0;
+
       s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
       _reset_tx_buffers();
       return false;
@@ -1024,14 +1000,15 @@ bool _onNewCompletePacketReadFromInput()
    g_PHVehicleTxStats.tmp_uVideoIntervalsCount++;
    g_PHVehicleTxStats.tmp_uVideoIntervalsSum += uTimeDiff;
    
-   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_READ;
+   // Save the new packet in the tx buffers
 
-   s_currentReadBlockPacketIndex++;
-   s_CurrentPHVF.video_block_packet_index++;
+   s_BlocksTxBuffers[s_currentReadBufferIndex].video_block_index = s_CurrentPHVF.video_block_index;
+   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_READ;
+   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length;
 
    s_CurrentPHVF.video_link_profile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
    s_CurrentPHVF.encoding_extra_flags = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].encoding_extra_flags;
-      
+
    s_CurrentPHVF.uLastRecvVideoRetransmissionId = 0;
    s_CurrentPHVF.encoding_extra_flags2 = g_SM_VideoLinkStats.overwrites.currentH264QUantization;
    s_CurrentPHVF.encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE;
@@ -1043,23 +1020,23 @@ bool _onNewCompletePacketReadFromInput()
    else
       s_CurrentPHVF.video_keyframe_interval_ms = 255*250;
 
+   t_packet_header* pHeader = (t_packet_header*)(s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].pRawData);
+   t_packet_header_video_full_77* pVideo = (t_packet_header_video_full_77*)(((u8*)(pHeader)) + sizeof(t_packet_header));
+   memcpy(pHeader, &s_CurrentPH, sizeof(t_packet_header));
+   memcpy(pVideo, &s_CurrentPHVF, sizeof(t_packet_header_video_full_77));
+
+   s_currentReadBlockPacketIndex++;
+   s_CurrentPHVF.video_block_packet_index++;
+
+   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_EMPTY;
+   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
+   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
+      
    // Still on the data packets ?
-
    if ( s_currentReadBlockPacketIndex < s_CurrentPHVF.block_packets )
-   {
-      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_EMPTY;
-      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length;
-      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
-
-      t_packet_header* pHeader = (t_packet_header*)(s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].pRawData);
-      t_packet_header_video_full_77* pVideo = (t_packet_header_video_full_77*)(((u8*)(pHeader)) + sizeof(t_packet_header));
-      memcpy(pHeader, &s_CurrentPH, sizeof(t_packet_header));
-      memcpy(pVideo, &s_CurrentPHVF, sizeof(t_packet_header_video_full_77));
-
       return false;
-   }
 
-   // Generate and add FEC packets if configured so.
+   // Generate and add EC packets if EC is enabled
 
    if ( s_CurrentPHVF.block_fecs > 0 )
    {
@@ -1078,7 +1055,7 @@ bool _onNewCompletePacketReadFromInput()
       {
          s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_READ;
          s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length;
-         s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 5000;
+         s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
 
          t_packet_header* pHeader = (t_packet_header*)(s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].pRawData);
          t_packet_header_video_full_77* pVideo = (t_packet_header_video_full_77*)(((u8*)(pHeader)) + sizeof(t_packet_header));
@@ -1090,25 +1067,6 @@ bool _onNewCompletePacketReadFromInput()
       }
    }
 
-   // Move to next block
-
-   s_CurrentPHVF.video_block_index++;
-   s_CurrentPHVF.video_block_packet_index = 0;
-
-   s_currentReadBufferIndex++;
-   s_currentReadBlockPacketIndex = 0;
-
-   if ( s_currentReadBufferIndex >= s_CurrentMaxBlocksInBuffers )
-   {
-      s_currentReadBufferIndex = 0;
-      //log_line("Buffer overlaped");
-   }
-
-   s_BlocksTxBuffers[s_currentReadBufferIndex].video_block_index = s_CurrentPHVF.video_block_index;
-   for( int i=0; i<MAX_TOTAL_PACKETS_IN_BLOCK; i++ )
-      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[i].flags = PACKET_FLAG_EMPTY;
-
-
    if ( s_bPendingEncodingSwitch )
    {
       //log_line("Applying pending encodings change (starting at video block index %u):", s_CurrentPHVF.video_block_index);
@@ -1118,18 +1076,46 @@ bool _onNewCompletePacketReadFromInput()
          _log_encoding_scheme();
 
       s_CurrentPH.vehicle_id_src = g_pCurrentModel->vehicle_id;
-      s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_packet_length;
+      s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
    }
 
-   s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length = s_CurrentPHVF.video_packet_length;
+   // We read the end of a video block
+   // Move to next video block in the tx queue
+
+   s_CurrentPHVF.video_block_index++;
+   s_CurrentPHVF.video_block_packet_index = 0;
+
+   s_currentReadBufferIndex++;
+   s_currentReadBlockPacketIndex = 0;
+
+   if ( s_currentReadBufferIndex >= s_CurrentMaxBlocksInBuffers )
+      s_currentReadBufferIndex = 0;
+
+   if ( s_currentReadBufferIndex == s_iCurrentBufferIndexToSend )
+   {
+      s_iCurrentBlockPacketIndexToSend = 0;
+      s_iCurrentBufferIndexToSend++;
+      if ( s_iCurrentBufferIndexToSend >= s_CurrentMaxBlocksInBuffers )
+         s_iCurrentBufferIndexToSend = 0;
+   }
+
+   s_BlocksTxBuffers[s_currentReadBufferIndex].video_block_index = s_CurrentPHVF.video_block_index;
+   for( int i=0; i<MAX_TOTAL_PACKETS_IN_BLOCK; i++ )
+   {
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[i].flags = PACKET_FLAG_EMPTY;
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[i].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[i].currentReadPosition = 0;
+   }
+
+   s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length = s_CurrentPHVF.video_data_length;
    s_BlocksTxBuffers[s_currentReadBufferIndex].block_packets = s_CurrentPHVF.block_packets;
    s_BlocksTxBuffers[s_currentReadBufferIndex].block_fecs = s_CurrentPHVF.block_fecs;
 
    s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[0].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length;
    s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[0].currentReadPosition = 0;
 
-   t_packet_header* pHeader = (t_packet_header*)(s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[0].pRawData);
-   t_packet_header_video_full_77* pVideo = (t_packet_header_video_full_77*)(((u8*)(pHeader)) + sizeof(t_packet_header));
+   pHeader = (t_packet_header*)(s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[0].pRawData);
+   pVideo = (t_packet_header_video_full_77*)(((u8*)(pHeader)) + sizeof(t_packet_header));
    memcpy(pHeader, &s_CurrentPH, sizeof(t_packet_header));
    memcpy(pVideo, &s_CurrentPHVF, sizeof(t_packet_header_video_full_77));
 
@@ -1190,9 +1176,11 @@ bool process_data_tx_video_init()
 
    s_currentReadBufferIndex = 0;
    s_currentReadBlockPacketIndex = 0;
+   s_iCurrentBufferIndexToSend = 0;
+   s_iCurrentBlockPacketIndexToSend = 0;
 
    s_BlocksTxBuffers[0].video_block_index = 0;
-   s_BlocksTxBuffers[0].video_data_length = s_CurrentPHVF.video_packet_length;
+   s_BlocksTxBuffers[0].video_data_length = s_CurrentPHVF.video_data_length;
    s_BlocksTxBuffers[0].block_packets = s_CurrentPHVF.block_packets;
    s_BlocksTxBuffers[0].block_fecs = s_CurrentPHVF.block_fecs;
 

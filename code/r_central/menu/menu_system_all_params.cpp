@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -389,21 +407,14 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-      int dataRate = controllerGetCardDataRate(pNICInfo->szMAC);
+      int dataRateCard = controllerGetCardDataRate(pNICInfo->szMAC);
       sprintf(szTemp, "%d: ", i);
       strcat(szBuff, szTemp);
-      if ( dataRate == 0 )
+      if ( dataRateCard == 0 )
          strcat(szBuff, "Same as vehicle");
-      else if ( dataRate < 0 )
-      {
-         sprintf(szTemp, "MCS-%d (%d Mbps)", -dataRate-1, getRealDataRateFromMCSRate(-dataRate-1)/1000/1000);
-         strcat(szBuff, szTemp);
-      }
       else
-      {
-         sprintf(szTemp, "%d Mbps", dataRate);
-         strcat(szBuff, szTemp);
-      }
+         str_getDataRateDescription(dataRateCard, szTemp);
+      
       if ( i < hardware_get_radio_interfaces_count()-1 )
          strcat(szBuff, ", ");
    }
@@ -426,7 +437,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
          strcat(szBuff,", ");
       if ( g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] < 0 )
       {
-         sprintf(szTemp, "MCS-%d (%d Mbps), STBC: %s", -g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, getRealDataRateFromMCSRate(-g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1)/1000/1000, (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[i] & RADIO_FLAGS_STBC)?"Yes":"No");
+         sprintf(szTemp, "MCS-%d (%d Mbps), STBC: %s", -g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, getRealDataRateFromMCSRate(-g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1)/1000/1000, (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[i] & RADIO_FLAG_STBC_VEHICLE)?"Yes":"No");
          strcat(szBuff, szTemp);
       }
       else

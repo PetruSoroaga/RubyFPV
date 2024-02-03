@@ -60,7 +60,6 @@ extern bool g_bIsRouterPacketsHistoryGraphPaused;
 
 extern bool g_bMenuPopupUpdateVehicleShown;
 extern type_radio_links_parameters g_LastGoodRadioLinksParams;
-
 extern bool g_bSwitchingRadioLink;
 
 extern bool g_bHasVideoDataOverloadAlarm;

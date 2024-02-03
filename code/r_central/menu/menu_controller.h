@@ -10,7 +10,7 @@ class MenuController: public Menu
       virtual void Render();
       virtual void valuesToUI();
       virtual bool periodicLoop();
-      virtual void onReturnFromChild(int returnValue);  
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
 
    private:
@@ -18,7 +18,7 @@ class MenuController: public Menu
       MenuItemSlider* m_pItemsSlider[10];
 
       int m_IndexCPU, m_IndexInterfaces, m_IndexPorts;
-      int m_IndexPreferences, m_IndexPreferencesUI, m_IndexPlugins, m_IndexReboot;
+      int m_IndexButtons, m_IndexPreferences, m_IndexPreferencesUI, m_IndexPlugins, m_IndexReboot;
       int m_IndexUpdate;
       //int m_IndexShowCPUInfo, m_IndexShowVoltage;
       int m_IndexNetwork, m_IndexEncryption;

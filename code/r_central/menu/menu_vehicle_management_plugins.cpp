@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -43,8 +61,6 @@ MenuVehicleManagePlugins::~MenuVehicleManagePlugins()
 void MenuVehicleManagePlugins::onShow()
 {
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0;
-   
    populateInfo();
    Menu::onShow();
 }
@@ -172,19 +188,19 @@ bool MenuVehicleManagePlugins::periodicLoop()
 
 int MenuVehicleManagePlugins::onBack()
 {
-   if ( NULL == m_pPopup )
-      return Menu::onBack();
-   return 1;
+   if ( NULL != m_pPopup )
+      return 1;
+
+   return Menu::onBack();
 }
      
 
-void MenuVehicleManagePlugins::onReturnFromChild(int returnValue)
+void MenuVehicleManagePlugins::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   if ( 2 == m_iConfirmationId && 1 == returnValue && -1 != m_IndexSelectedPlugin )
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) && (-1 != m_IndexSelectedPlugin) )
    {
-      m_iConfirmationId = 0;
       for( int i=m_IndexSelectedPlugin; i<g_iVehicleCorePluginsCount; i++ )
          memcpy((u8*)&(g_listVehicleCorePlugins[i]), (u8*)&(g_listVehicleCorePlugins[i+1]), sizeof(CorePluginSettings));
       g_iVehicleCorePluginsCount--;
@@ -193,8 +209,6 @@ void MenuVehicleManagePlugins::onReturnFromChild(int returnValue)
       valuesToUI();
       return;
    }
-   
-   m_iConfirmationId = 0;
 }
 
 
@@ -256,8 +270,7 @@ void MenuVehicleManagePlugins::onSelectItem()
       }
       if ( iAction == 2 )
       {
-         m_iConfirmationId = 2;
-         MenuConfirmation* pMC = new MenuConfirmation("Delete Plugin","Are you sure you want to delete this plugin?",m_iConfirmationId);
+         MenuConfirmation* pMC = new MenuConfirmation("Delete Plugin","Are you sure you want to delete this plugin?",2);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
          return;

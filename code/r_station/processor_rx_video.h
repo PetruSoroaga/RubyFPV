@@ -68,9 +68,9 @@ class ProcessorRxVideo
       static void oneTimeInit();
       //static void log(const char* format, ...);
 
-      bool init();
-      bool uninit();
-      void resetState();
+      virtual bool init();
+      virtual bool uninit();
+      virtual void resetState();
       void resetRetransmissionsStats();
       void onControllerSettingsChanged();
 
@@ -86,9 +86,9 @@ class ProcessorRxVideo
       shared_mem_video_stream_stats_history* getVideoDecodeStatsHistory();
       shared_mem_controller_retransmissions_stats* getControllerRetransmissionsStats();
 
-      void periodicLoop(u32 uTimeNow);
-
-      int handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
+      void updateHistoryStats(u32 uTimeNow);
+      virtual void periodicLoop(u32 uTimeNow);
+      virtual int handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
 
       static int m_siInstancesCount;
       static FILE* m_fdLogFile;
@@ -134,7 +134,6 @@ class ProcessorRxVideo
       u32 m_uRetryRetransmissionAfterTimeoutMiliseconds;
       int m_iMilisecondsMaxRetransmissionWindow;
       u32 m_uTimeIntervalMsForRequestingRetransmissions;
-      bool m_bUseNewVideoPacketsStructure;
 
       // Output state
 

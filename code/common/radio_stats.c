@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga  petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -217,9 +235,11 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
       pSMRS->radio_interfaces[i].lastDbm = 200;
       pSMRS->radio_interfaces[i].lastDbmVideo = 200;
       pSMRS->radio_interfaces[i].lastDbmData = 200;
-      pSMRS->radio_interfaces[i].lastDataRate = 0;
-      pSMRS->radio_interfaces[i].lastDataRateVideo = 0;
-      pSMRS->radio_interfaces[i].lastDataRateData = 0;
+      pSMRS->radio_interfaces[i].lastRecvDataRate = 0;
+      pSMRS->radio_interfaces[i].lastRecvDataRateVideo = 0;
+      pSMRS->radio_interfaces[i].lastRecvDataRateData = 0;
+      pSMRS->radio_interfaces[i].lastSentDataRateVideo = 0;
+      pSMRS->radio_interfaces[i].lastSentDataRateData = 0;
       pSMRS->radio_interfaces[i].lastReceivedRadioLinkPacketIndex = MAX_U32;
 
       pSMRS->radio_interfaces[i].totalRxBytes = 0;
@@ -287,6 +307,8 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
       pSMRS->radio_links[i].linkDelayRoundtripMs = MAX_U32;
       pSMRS->radio_links[i].linkDelayRoundtripMinimMs = MAX_U32;
       pSMRS->radio_links[i].lastTxInterfaceIndex = -1;
+      pSMRS->radio_links[i].lastSentDataRateVideo = 0;
+      pSMRS->radio_links[i].lastSentDataRateData = 0;
       pSMRS->radio_links[i].downlink_tx_time_per_sec = 0;
       pSMRS->radio_links[i].tmp_downlink_tx_time_per_sec = 0;
    }
@@ -312,9 +334,11 @@ void radio_stats_enable_history_monitor(int iEnable)
 void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
 {
    static int sl_iEnableRadioStatsLog = 0;
+   static int sl_iEnableRadioStatsLogTx = 1;
+
    static u32 sl_uLastTimeLoggedRadioStats = 0;
 
-   if ( 0 == sl_iEnableRadioStatsLog )
+   if ( (0 == sl_iEnableRadioStatsLog) && (0 == sl_iEnableRadioStatsLogTx) )
       return;
 
    if ( uTimeNow < sl_uLastTimeLoggedRadioStats + 5000 )
@@ -324,6 +348,19 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
 
    char szBuff[512];
    char szBuff2[64];
+
+
+   if ( sl_iEnableRadioStatsLogTx )
+   {
+      strcpy(szBuff, "Radio Interf total tx packets/bytes: ");
+      for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
+      {
+         sprintf(szBuff2, "%u/%u, ", pSMRS->radio_interfaces[i].totalTxPackets, pSMRS->radio_interfaces[i].totalTxBytes);
+         strcat(szBuff, szBuff2);
+      }
+      log_line(szBuff);
+      return;
+   }
 
    log_line("----------------------------------------");
    log_line("Radio RX stats (refresh at %d ms, graphs at %d ms), %d local radio interfaces, %d local radio links, %d vehicle radio links:", pSMRS->refreshIntervalMs, pSMRS->graphRefreshIntervalMs, pSMRS->countLocalRadioInterfaces, pSMRS->countLocalRadioLinks, pSMRS->countVehicleRadioLinks);
@@ -582,11 +619,11 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
 
          pSMRS->radio_interfaces[i].rxRelativeQuality = pSMRS->radio_interfaces[i].rxQuality;
          if ( pSMRS->radio_interfaces[i].lastDbm > 0 )
-            pSMRS->radio_interfaces[i].rxRelativeQuality -= pSMRS->radio_interfaces[i].lastDbm;
+            pSMRS->radio_interfaces[i].rxRelativeQuality -= pSMRS->radio_interfaces[i].lastDbm/2;
          else
-            pSMRS->radio_interfaces[i].rxRelativeQuality += pSMRS->radio_interfaces[i].lastDbm;
+            pSMRS->radio_interfaces[i].rxRelativeQuality += pSMRS->radio_interfaces[i].lastDbm/2;
 
-         if ( pSMRS->radio_interfaces[i].lastDbm < -100 )
+         if ( (pSMRS->radio_interfaces[i].lastDbm < -100) && (pSMRS->radio_interfaces[i].rxQuality == 0) )
             pSMRS->radio_interfaces[i].rxRelativeQuality -= 10000;
 
          pSMRS->radio_interfaces[i].rxRelativeQuality -= totalRecvLost;
@@ -821,13 +858,13 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
    if ( iIsVideo )
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastDbmVideo = pRadioInfo->monitor_interface_read.radioInfo.nDbm;
-      pSMRS->radio_interfaces[iInterfaceIndex].lastDataRateVideo = ((int)pRadioInfo->monitor_interface_read.radioInfo.nRate) * 500 * 1000;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateVideo = pRadioInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
       pSMRS->radio_interfaces[iInterfaceIndex].lastDbm = pSMRS->radio_interfaces[iInterfaceIndex].lastDbmVideo;
    }
    else
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastDbmData = pRadioInfo->monitor_interface_read.radioInfo.nDbm;
-      pSMRS->radio_interfaces[iInterfaceIndex].lastDataRateData = ((int)pRadioInfo->monitor_interface_read.radioInfo.nRate) * 500 * 1000;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateData = pRadioInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
       pSMRS->radio_interfaces[iInterfaceIndex].lastDbm = pSMRS->radio_interfaces[iInterfaceIndex].lastDbmData;
    }
    
@@ -935,6 +972,96 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
 
 // Returns 1 if ok, -1 for error
 
+int radio_stats_update_on_new_wfbohd_radio_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsVideo, int iDataIsOk, int iCountSkippedPackets)
+{
+   if ( NULL == pSMRS )
+      return -1;
+
+   radio_hw_info_t* pRadioInfo = hardware_get_radio_info(iInterfaceIndex);
+   if ( NULL == pRadioInfo )
+   {
+      log_softerror_and_alarm("Tried to update radio stats on invalid radio interface number %d. Invalid radio info.", iInterfaceIndex+1);
+      return -1;
+   }
+   
+   pSMRS->timeLastRxPacket = timeNow;
+   if ( iIsVideo )
+   {
+      pSMRS->radio_interfaces[iInterfaceIndex].lastDbmVideo = pRadioInfo->monitor_interface_read.radioInfo.nDbm;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateVideo = pRadioInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastDbm = pSMRS->radio_interfaces[iInterfaceIndex].lastDbmVideo;
+   }
+   else
+   {
+      pSMRS->radio_interfaces[iInterfaceIndex].lastDbmData = pRadioInfo->monitor_interface_read.radioInfo.nDbm;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateData = pRadioInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
+      pSMRS->radio_interfaces[iInterfaceIndex].lastDbm = pSMRS->radio_interfaces[iInterfaceIndex].lastDbmData;
+   }
+   
+   // -------------------------------------------------------------
+   // Begin - Update last received packet time
+
+   u32 uTimeGap = timeNow - pSMRS->radio_interfaces[iInterfaceIndex].timeLastRxPacket;
+   if ( 0 == pSMRS->radio_interfaces[iInterfaceIndex].timeLastRxPacket )
+      uTimeGap = 0;
+   if ( uTimeGap > 254 )
+      uTimeGap = 254;
+   if ( pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] == 0xFF )
+      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] = uTimeGap;
+   else if ( uTimeGap > pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] )
+      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] = uTimeGap;
+     
+   pSMRS->radio_interfaces[iInterfaceIndex].timeLastRxPacket = timeNow;
+   
+   
+   // End - Update last received packet time
+   // ----------------------------------------------------------------
+
+   // ----------------------------------------------------------------------
+   // Update rx bytes and packets count on interface
+
+   pSMRS->radio_interfaces[iInterfaceIndex].totalRxBytes += iPacketLength;
+   pSMRS->radio_interfaces[iInterfaceIndex].tmpRxBytes += iPacketLength;
+
+   pSMRS->radio_interfaces[iInterfaceIndex].totalRxPackets++;
+   pSMRS->radio_interfaces[iInterfaceIndex].tmpRxPackets++;
+
+   // -------------------------------------------------------------------------
+   // Begin - Update history and good/bad/lost packets for interface 
+
+   pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsCount++;
+   if ( NULL != pSMRXStats )
+      pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPackets++;
+
+   s_uControllerLinkStats_tmpRecv[iInterfaceIndex]++;
+
+   if ( (0 == iDataIsOk) || (iPacketLength <= 0) )
+   {
+      pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsBadCount++;
+      if ( NULL != pSMRXStats )
+         pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsBad++;
+      s_uControllerLinkStats_tmpRecvBad[iInterfaceIndex]++;
+   }
+
+   if ( NULL != pPacketBuffer )
+   {
+      if ( iCountSkippedPackets > 0 )
+      {
+          pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsLostCount += iCountSkippedPackets;
+          pSMRS->radio_interfaces[iInterfaceIndex].totalRxPacketsLost += iCountSkippedPackets;
+          if ( NULL != pSMRXStats )
+             pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsLost += iCountSkippedPackets;
+          s_uControllerLinkStats_tmpRecvLost[iInterfaceIndex] += iCountSkippedPackets;
+      }
+   }
+
+   // End - Update history and good/bad/lost packets for interface 
+
+   return 1;
+}
+
+// Returns 1 if ok, -1 for error
+
 int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength)
 {
    if ( NULL == pSMRS )
@@ -1015,8 +1142,9 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
 
    // End - Update last received packet time
  
+
    if ( 0 ==  pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxPackets )
-      log_line("[RadioStats] Start receiving radio stream %d from VID %u", (int)uStreamIndex, uVehicleId);
+      log_line("[RadioStats] Start receiving radio stream %d (%s) from VID %u", (int)uStreamIndex, str_get_radio_stream_name(uStreamIndex), uVehicleId);
 
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxBytes += iPacketLength;
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].tmpRxBytes += iPacketLength;
@@ -1116,6 +1244,29 @@ void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* 
 
    pSMRS->radio_streams[iStreamsVehicleIndex][iStreamIndex].totalTxPackets++;
    pSMRS->radio_streams[iStreamsVehicleIndex][iStreamIndex].tmpTxPackets++;
+}
+
+void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS, int iInterfaceIndex, int iLocalRadioLinkIndex, int iDataRate, int iIsVideoPacket)
+{
+   if ( NULL == pSMRS )
+      return;
+
+   if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= MAX_RADIO_INTERFACES) )
+      return;
+
+   if ( (iLocalRadioLinkIndex < 0) || (iLocalRadioLinkIndex >= MAX_RADIO_INTERFACES) )
+      return;
+
+   if ( iIsVideoPacket )
+   {
+      pSMRS->radio_interfaces[iInterfaceIndex].lastSentDataRateVideo = iDataRate;
+      pSMRS->radio_links[iLocalRadioLinkIndex].lastSentDataRateVideo = iDataRate;
+   }
+   else
+   {
+      pSMRS->radio_interfaces[iInterfaceIndex].lastSentDataRateData = iDataRate;
+      pSMRS->radio_links[iLocalRadioLinkIndex].lastSentDataRateData = iDataRate;    
+   }
 }
 
 void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats)

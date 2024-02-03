@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../../base/base.h"
@@ -251,12 +269,16 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
       height += height_text*s_OSDStatsLineSpacing;
   
    // Dynamic Params
-   if ( bIsCompact || bIsNormal || bIsExtended )
-      height += 7.2*height_text*s_OSDStatsLineSpacing;
-   if ( bIsNormal || bIsExtended )
-      height += height_text*s_OSDStatsLineSpacing;
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
+   {
+      if ( bIsCompact || bIsNormal || bIsExtended )
+         height += 7.2*height_text*s_OSDStatsLineSpacing;
+      if ( bIsNormal || bIsExtended )
+         height += height_text*s_OSDStatsLineSpacing;
+   }
 
    // Rx packets Buffers
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       float hBar = 0.014*scale;
@@ -275,34 +297,43 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
       height += height_text_small*1.2;
       height += hGraph*0.6;
 
-      // History gap graph
-      height += height_text_small*1.2;
-      height += hGraph*0.6;
+      if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
+      {
+         // History gap graph
+         height += height_text_small*1.2;
+         height += hGraph*0.6;
 
-      // Pending good blocks graph
-      height += height_text_small*1.2;
-      height += hGraph*0.8;
+         // Pending good blocks graph
+         height += height_text_small*1.2;
+         height += hGraph*0.8;
+      }
    }
 
-
    if ( bIsNormal || bIsExtended )
-      height += height_text * 2.0;
+      height += height_text * s_OSDStatsLineSpacing;
    if ( bIsExtended )
-      height += height_text * 3.0;
+      height += height_text * s_OSDStatsLineSpacing;
 
-   // History requested retransmissions
-
-   if ( bIsNormal || bIsExtended )
-   if ( iDeveloperMode )
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
-      height += height_text_small*2.0;
-      height += hGraph;
+      if ( bIsNormal || bIsExtended )
+         height += height_text * s_OSDStatsLineSpacing;
+      if ( bIsExtended )
+         height += 2.0 * height_text * s_OSDStatsLineSpacing;
+
+      // History requested retransmissions
+
+      if ( bIsNormal || bIsExtended )
+      if ( iDeveloperMode )
+      {
+         height += height_text_small*2.0;
+         height += hGraph;
+      }
+
+      // Dev requested Retransmissions
+      if ( iDeveloperMode )
+        height += 5.0*height_text*s_OSDStatsLineSpacing;
    }
-
-   // Dev requested Retransmissions
-   if ( iDeveloperMode )
-     height += 5.0*height_text*s_OSDStatsLineSpacing;
-
    return height;
 }
 
@@ -347,6 +378,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       }
    }
 
+   if ( (NULL == pVDS) || (NULL == pActiveModel) )
+      return 0.0;
+
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
    {
       if ( pSM_ControllerRetransmissionsStats->video_streams[i].uVehicleId == uActiveVehicleId )
@@ -356,7 +390,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       }
    }
 
-   if ( (NULL == pVDS) || (NULL == pCRS) || (NULL == pActiveModel) )
+   if ( NULL == pCRS )
       return 0.0;
 
    int iIndexRouterRuntimeInfo = -1;
@@ -388,13 +422,13 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( ! bIsSnapshot )
       osd_stats_video_decode_snapshot_update(iDeveloperMode, pSM_RadioStats, pVDS, pVDSH, pSM_VideoStats, pSM_VideoHistoryStats, pSM_ControllerRetransmissionsStats, pCRS);
 
-   float video_mbps = pSM_RadioStats->radio_streams[0][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
+   float frecv_video_mbps = pSM_RadioStats->radio_streams[0][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( pSM_RadioStats->radio_streams[i][0].uVehicleId == pActiveModel->vehicle_id )
+      if ( pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId == pActiveModel->vehicle_id )
       {
-         video_mbps = pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
+         frecv_video_mbps = pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
          break;
       }
    }
@@ -410,7 +444,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    float wPixel = g_pRenderEngine->getPixelWidth();
 
    char szBuff[64];
-
+   char szBuff2[64];
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
    g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
    osd_set_colors();
@@ -456,21 +490,23 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
             strcat(szMode, "-");
      
-         sprintf(szBuff, "%s %.1f Mbs", szMode, video_mbps);
+         sprintf(szBuff, "%s %.1f Mbs", szMode, frecv_video_mbps);
          if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
-            sprintf(szBuff, "%s- %.1f Mbs", szMode, video_mbps);
+            sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
+
+         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
          {
-            sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+            sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
             if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
-               sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+               sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
          }
          u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
          if ( pActiveModel->radioLinksParams.links_count > 1 )
          if ( pActiveModel->getLinkRealDataRate(1) > uRealDataRate )
             uRealDataRate = pActiveModel->getLinkRealDataRate(1);
 
-         if ( video_mbps*1000*1000 >= (float)(uRealDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
+         if ( frecv_video_mbps*1000*1000 >= (float)(uRealDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
             g_pRenderEngine->setColors(get_Color_IconWarning());
          
          if ( g_bHasVideoDataOverloadAlarm && (g_TimeLastVideoDataOverloadAlarm > 0) && (g_TimeNow <  g_TimeLastVideoDataOverloadAlarm + 5000) )
@@ -513,7 +549,10 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             if ( g_iOptionsVideoWidth[i] == pVDS->width )
             if ( g_iOptionsVideoHeight[i] == pVDS->height )
             {
-               sprintf(szBuff, "%s %s %d fps %d ms KF", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps, pVDS->keyframe_ms);
+               if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
+                  sprintf(szBuff, "%s %s %d fps %d ms KF", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps, pVDS->keyframe_ms);
+               else
+                  sprintf(szBuff, "%s %s %d fps", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps);
                break;
             }
 
@@ -528,23 +567,76 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    u32 msFEC = 0;
    u32 videoBitrate = 1;
    videoBitrate = pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps;
-   msData = (1000*8*pVDS->data_packets_per_block*pVDS->video_packet_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
-   msFEC = (1000*8*pVDS->fec_packets_per_block*pVDS->video_packet_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
+   msData = (1000*8*pVDS->data_packets_per_block*pVDS->video_data_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
+   msFEC = (1000*8*pVDS->fec_packets_per_block*pVDS->video_data_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
 
    if ( bIsCompact || bIsNormal || bIsExtended )
    {
+      static u32 s_uTimeLastECSchemeChangedTime = 0;
+      static int s_iLastECSchemeReceivedData = 0;
+      static int s_iLastECSchemeReceivedEC = 0;
+
+      if ( (s_iLastECSchemeReceivedData != pVDS->data_packets_per_block) || (s_iLastECSchemeReceivedEC != pVDS->fec_packets_per_block) )
+      {
+         s_uTimeLastECSchemeChangedTime = g_TimeNow;
+         s_iLastECSchemeReceivedData = pVDS->data_packets_per_block;
+         s_iLastECSchemeReceivedEC = pVDS->fec_packets_per_block;
+      }
+
+      bool bECChanged = false;
+      if ( g_bOSDElementChangeNotification )
+      if ( pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
+      if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
+         bECChanged = true;
+
+      szBuff2[0] = 0;
       if ( pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
-         sprintf(szBuff, "EC: %s %d/%d/%d, %d ms KF (Fixed)", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_packet_length, pVDS->keyframe_ms);
+      {
+         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
+         {
+            sprintf(szBuff, "EC: %s %s%d/%d/%d", szCurrentProfile,
+               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
+         }
+         else
+            sprintf(szBuff, "EC: %s %d/%d/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+      }
       else
-         sprintf(szBuff, "EC: %s %d/%d/%d, %d ms KF (Auto)", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_packet_length, pVDS->keyframe_ms);
-      g_pRenderEngine->drawText(xPos, y, s_idFontStatsSmall, szBuff);
-      y += height_text*s_OSDStatsLineSpacing;
+      {
+         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
+         {
+            sprintf(szBuff, "EC: %s %s%d/%d/%d", szCurrentProfile,
+               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
+         }
+         else
+            sprintf(szBuff, "EC: %s %d/%d/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+      }
+
+      if ( bECChanged && g_bOSDElementChangeNotification )
+      if ( pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
+         osd_set_colors_text(get_Color_OSDElementChanged());
+
+      y += height_text*s_OSDStatsLineSpacing*0.1;
+      if ( (! bECChanged) || (g_TimeNow >= s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout/2) ||
+          (bECChanged && ((g_TimeNow/g_uOSDElementChangeBlinkInterval)%2)))
+         g_pRenderEngine->drawText(xPos, y, s_idFontStatsSmall, szBuff);
+      if ( bECChanged )
+         osd_set_colors();
+
+      if ( 0 != szBuff2[0] )
+      {
+         float fWEC = g_pRenderEngine->textWidth(s_idFontStatsSmall, szBuff);
+         g_pRenderEngine->drawText(xPos + fWEC, y, s_idFontStatsSmall, szBuff2);
+      }
+      y += height_text*s_OSDStatsLineSpacing*0.9;
    }
   
 
    // --------------------------------------
    // Begin - Dynamic params
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsCompact || bIsNormal || bIsExtended )
    {
       strcpy(szBuff, "Retransmissions: ");
@@ -745,6 +837,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // ---------------------------------------
    // Begin - Draw Rx packets buffer
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       y += height_text*0.1;
@@ -1116,6 +1209,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // ----------------------------------------------------
    // History packets max gap graph
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( iDeveloperMode )
    if ( bIsExtended )
    {
@@ -1175,6 +1269,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // -----------------------------------------
    // Pending good blocks to output graph
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( bIsExtended )
    {
@@ -1269,6 +1364,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing;
    }
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsNormal || bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Discarded buff/seg/pack:");
@@ -1277,6 +1373,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing;
    }
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Lost packets max gap:");
@@ -1286,7 +1383,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Lost packets max gap time:");
       if ( videoBitrate > 0 )
-         sprintf(szBuff, "%d ms", (maxHistoryPacketsGap*pVDS->video_packet_length*1000*8)/videoBitrate);
+         sprintf(szBuff, "%d ms", (maxHistoryPacketsGap*pVDS->video_data_length*1000*8)/videoBitrate);
       else
          sprintf(szBuff, "N/A ms");
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -1296,6 +1393,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    //-------------------------------------------------
    // History requested retransmissions vs missing packets
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsNormal || bIsExtended )
    if ( iDeveloperMode )
    {
@@ -1465,6 +1563,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    // Dev requested retransmissions
 
+   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( iDeveloperMode )
    {
       g_pRenderEngine->setColors(get_Color_Dev());
@@ -3062,9 +3161,9 @@ float osd_render_stats_flight_end(float scale)
    float lineHeight = height_text*s_OSDStatsLineSpacing*1.4;
    float height = 4.0 *s_fOSDStatsMargin*scale*1.1 + lineHeight;
    height += 14.6*lineHeight + 0.8 * height_text;
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       height += lineHeight;
 
    float iconHeight = 2.2*lineHeight;
@@ -3095,9 +3194,9 @@ float osd_render_stats_flight_end(float scale)
    float widthMax = width;
    float rightMargin = xPos + width;
 
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       g_pRenderEngine->drawText(xPos, yPos, fontId, "Post Flight Statistics");
    else
       g_pRenderEngine->drawText(xPos, yPos, fontId, "Post Run Statistics");
@@ -3126,9 +3225,9 @@ float osd_render_stats_flight_end(float scale)
 
    g_pRenderEngine->drawLine(xPos, y-lineHeight*0.6, xPos+width, y-lineHeight*0.6);
    
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       sprintf(szBuff, "Flight No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
    else
       sprintf(szBuff, "Run No. %d", (int)g_pCurrentModel->m_Stats.uTotalFlights);
@@ -3136,9 +3235,9 @@ float osd_render_stats_flight_end(float scale)
    g_pRenderEngine->drawText(xPos, y, fontId, szBuff);
    y += lineHeight;
 
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       g_pRenderEngine->drawText(xPos, y, fontId, "Flight time:");
    else
       g_pRenderEngine->drawText(xPos, y, fontId, "Run time:");
@@ -3149,9 +3248,9 @@ float osd_render_stats_flight_end(float scale)
    g_pRenderEngine->drawTextLeft(rightMargin, y, fontId, szBuff);
    y += lineHeight;
 
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       g_pRenderEngine->drawText(xPos, y, fontId, "Total flight distance:");
    else
       g_pRenderEngine->drawText(xPos, y, fontId, "Total traveled distance:");
@@ -3196,9 +3295,9 @@ float osd_render_stats_flight_end(float scale)
    g_pRenderEngine->drawTextLeft(rightMargin, y, fontId, szBuff);
    y += lineHeight;
 
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
    {
       g_pRenderEngine->drawText(xPos, y, fontId, "Max Altitude:");
       if ( pP->iUnits == prefUnitsImperial )
@@ -3255,9 +3354,9 @@ float osd_render_stats_flight_end(float scale)
    g_pRenderEngine->drawTextLeft(rightMargin, y, fontId, szBuff);
    y += lineHeight;
 
-   if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-        g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+   if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+        (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
       g_pRenderEngine->drawText(xPos, y, fontId, "All time flight time:");
    else
       g_pRenderEngine->drawText(xPos, y, fontId, "All time drive time:");

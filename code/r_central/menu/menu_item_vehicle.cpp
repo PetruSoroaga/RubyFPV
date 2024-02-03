@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu_item_vehicle.h"
@@ -18,21 +36,24 @@ MenuItemVehicle::MenuItemVehicle(const char* title)
 :MenuItem(title)
 {
    m_iVehicleIndex = -1;
+   m_bIsSpectator = false;
 }
 
 MenuItemVehicle::MenuItemVehicle(const char* title, const char* tooltip)
 :MenuItem(title, tooltip)
 {
    m_iVehicleIndex = -1;
+   m_bIsSpectator = false;
 }
 
 MenuItemVehicle::~MenuItemVehicle()
 {
 }
 
-void MenuItemVehicle::setVehicleIndex(int vehicleIndex)
+void MenuItemVehicle::setVehicleIndex(int vehicleIndex, bool bIsSpectator)
 {
    m_iVehicleIndex = vehicleIndex;
+   m_bIsSpectator = bIsSpectator;
 }
 
 
@@ -49,11 +70,9 @@ void MenuItemVehicle::endEdit(bool bCanceled)
 
 float MenuItemVehicle::getItemHeight(float maxWidth)
 {
-   if ( m_RenderHeight > 0.001 )
-      return m_RenderHeight;
    m_RenderTitleHeight = g_pRenderEngine->textHeight(g_idFontMenu);
    m_RenderHeight = m_RenderTitleHeight*1.2;
-   if ( -1 != m_iVehicleIndex && NULL != g_pCurrentModel && (!g_pCurrentModel->is_spectator) )
+   if ( (-1 != m_iVehicleIndex) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
    {
       Model *pModel = getModelAtIndex(m_iVehicleIndex);
       if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
@@ -62,6 +81,7 @@ float MenuItemVehicle::getItemHeight(float maxWidth)
          m_RenderHeight = m_RenderTitleHeight*1.1;
       }
    }
+   m_RenderHeight += m_fExtraHeight;
    return m_RenderHeight;
 }
 
@@ -95,13 +115,26 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
       return;
    }
 
-   Model *pModel = getModelAtIndex(m_iVehicleIndex);
-   u32 idIcon = osd_getVehicleIcon( pModel->vehicle_type );
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   Model *pModel = NULL;
 
+   if ( m_bIsSpectator )
+      pModel = getSpectatorModel(m_iVehicleIndex);
+   else
+      pModel = getModelAtIndex(m_iVehicleIndex);
+   
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   u32 idIcon = 0;
+   if ( NULL != pModel )
+      idIcon = osd_getVehicleIcon(pModel->vehicle_type);
+   
    bool bIsCurrentVehicle = false;
-   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) && g_pCurrentModel->vehicle_id == pModel->vehicle_id )
+   bool bIsCurrentSpectatorVehicle = false;
+   if ( !m_bIsSpectator )
+   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
       bIsCurrentVehicle = true;
+   if ( m_bIsSpectator )
+   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+      bIsCurrentSpectatorVehicle = true;
 
    float fIconHeight = height_text;
    if ( bIsCurrentVehicle )
@@ -122,7 +155,7 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
    else
       RenderBaseTitle(xPos+fIconWidth + height_text*0.5, yPos, bSelected, fWidthSelection - fIconWidth - height_text*0.8);
 
-   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+   if ( bIsCurrentVehicle )
    {
       float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
       float h2 = getItemHeight(0.0) + 0.5*Menu::getSelectionPaddingY();
@@ -131,6 +164,17 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
       g_pRenderEngine->setStroke(get_Color_MenuText());
       g_pRenderEngine->setFill(250,250,250,0.1);   
       g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos, maxWidth, h2, 0.1*Menu::getMenuPaddingY());
+      g_pRenderEngine->setColors(get_Color_MenuText());
+   }
+   else if ( bIsCurrentSpectatorVehicle )
+   {
+      float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
+      float h2 = getItemHeight(0.0) + 0.6*Menu::getSelectionPaddingY();
+
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStroke(get_Color_MenuText());
+      g_pRenderEngine->setFill(250,250,250,0.1);   
+      g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos-0.4*Menu::getSelectionPaddingY(), maxWidth, h2, 0.1*Menu::getMenuPaddingY());
       g_pRenderEngine->setColors(get_Color_MenuText());
    }
 }

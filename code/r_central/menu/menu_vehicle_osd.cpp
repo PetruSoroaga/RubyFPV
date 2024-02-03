@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "menu.h"
 #include "menu_vehicle_osd.h"
 #include "menu_item_select.h"
@@ -60,6 +77,7 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[1] = new MenuItemSelect("Enabled", "Enables or disables this screen");  
    m_pItemsSelect[1]->addSelection("No");
    m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1]->addSelection("Only plugins");
    m_pItemsSelect[1]->setIsEditable();
    m_IndexOSDEnabled = addMenuItem(m_pItemsSelect[1]);
 
@@ -89,6 +107,20 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[4]->setIsEditable();
    m_IndexBgOnTexts = addMenuItem(m_pItemsSelect[4]);
 
+   m_pItemsSelect[5] = new MenuItemSelect("Highlight Changing Elements", "Highlight when important OSD elements change (i.e. radio modulation schemes).");  
+   m_pItemsSelect[5]->addSelection("No");
+   m_pItemsSelect[5]->addSelection("Yes");
+   m_pItemsSelect[5]->setIsEditable();
+   m_IndexHighlightChangeElements = addMenuItem(m_pItemsSelect[5]);
+
+
+   m_pItemsSelect[6] = new MenuItemSelect("Don't show FC messages", "Do not show messages/texts from flight controller.");  
+   m_pItemsSelect[6]->addSelection("No");
+   m_pItemsSelect[6]->addSelection("Yes");
+   m_pItemsSelect[6]->setIsEditable();
+   m_IndexDontShowFCMessages = addMenuItem(m_pItemsSelect[6]);
+  
+
    m_IndexOSDElements = addMenuItem(new MenuItem("Layout OSD Elements", "Configure which OSD elements show up on current screen"));
    m_pMenuItems[m_IndexOSDElements]->showArrow();
 
@@ -116,16 +148,32 @@ void MenuVehicleOSD::valuesToUI()
    m_pItemsSelect[2]->setSelectedIndex(g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & 0xFF);
    m_pItemsSelect[3]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex])>>8) & 0xFF);
    m_pItemsSelect[4]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY) ? 1:0);
+   m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ? 1:0);
+   m_pItemsSelect[6]->setSelectedIndex((g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES) ? 1:0);
+   
    if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_LAYOUT_ENABLED )
    {
       m_pItemsSelect[1]->setSelectedIndex(1);
       m_pItemsSelect[2]->setEnabled(true);
       m_pItemsSelect[3]->setEnabled(true);
       m_pItemsSelect[4]->setEnabled(true);
+      m_pItemsSelect[5]->setEnabled(true);
       m_pMenuItems[m_IndexOSDElements]->setEnabled(true);
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
       m_pMenuItems[m_IndexOSDInstruments]->setEnabled(true);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(true);
+   }
+   else if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY )
+   {
+      m_pItemsSelect[1]->setSelectedIndex(2);
+      m_pItemsSelect[2]->setEnabled(true);
+      m_pItemsSelect[3]->setEnabled(true);
+      m_pItemsSelect[4]->setEnabled(true);
+      m_pItemsSelect[5]->setEnabled(false);
+      m_pMenuItems[m_IndexOSDElements]->setEnabled(false);
+      m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
+      m_pMenuItems[m_IndexOSDInstruments]->setEnabled(true);
+      m_pMenuItems[m_IndexOSDStats]->setEnabled(false);
    }
    else
    {
@@ -133,6 +181,7 @@ void MenuVehicleOSD::valuesToUI()
       m_pItemsSelect[2]->setEnabled(false);
       m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[4]->setEnabled(false);
+      m_pItemsSelect[5]->setEnabled(true);
       m_pMenuItems[m_IndexOSDElements]->setEnabled(false);
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(false);
       m_pMenuItems[m_IndexOSDInstruments]->setEnabled(false);
@@ -228,9 +277,17 @@ void MenuVehicleOSD::onSelectItem()
    if ( m_IndexOSDEnabled == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
+      {
          params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_LAYOUT_ENABLED;
-      else
+         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY;
+      }
+      else if ( 1 == m_pItemsSelect[1]->getSelectedIndex() )
          params.osd_flags2[layoutIndex] |= OSD_FLAG2_LAYOUT_ENABLED;
+      else
+      {
+         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_LAYOUT_ENABLED;
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY;
+      }
       sendToVehicle = true;
    }
 
@@ -259,6 +316,24 @@ void MenuVehicleOSD::onSelectItem()
          params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
       else
          params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+      sendToVehicle = true;
+   }
+
+   if ( m_IndexHighlightChangeElements == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[5]->getSelectedIndex() )
+         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
+      else
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
+      sendToVehicle = true;
+   }
+
+   if ( m_IndexDontShowFCMessages == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[6]->getSelectedIndex() )
+         params.osd_preferences[layoutIndex] &= ~OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES;
+      else
+         params.osd_preferences[layoutIndex] |= OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES;
       sendToVehicle = true;
    }
 

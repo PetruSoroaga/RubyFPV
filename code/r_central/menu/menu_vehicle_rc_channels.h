@@ -41,7 +41,6 @@ class MenuVehicleRCChannels: public Menu
       virtual void onShow();
       virtual int onBack();
       virtual bool periodicLoop();
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
       virtual void valuesToUI();
             

@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu_objects.h"
@@ -55,8 +73,6 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_ItemsCount = 0;
    m_SelectedIndex = 0;
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0;
-   m_iExtraItemsHeightPositionIndex = -1;
    m_RenderTotalHeight = 0;
    m_RenderHeight = 0;
    m_RenderWidth = 0;
@@ -74,11 +90,17 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_fRenderItemsStartYPos = 0.0;
    m_fRenderItemsStopYPos = 0.0;
 
+   m_bRenderedLastItem = false;
+   m_ThisRenderCycleStartRenderItemIndex = -1;
+   m_ThisRenderCycleEndRenderItemIndex = -1;
+
    m_bEnableScrolling = true;
    m_bHasScrolling = false;
    m_iIndexFirstVisibleItem = 0;
    m_fSelectionWidth = 0;
 
+   m_fExtraHeightEnd = 0.0;
+   
    m_bDisableStacking = false;
    m_bDisableBackgroundAlpha = false;
    m_fAlfaWhenInBackground = MENU_ALFA_WHEN_IN_BG;
@@ -102,10 +124,7 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_uOnShowTime = g_TimeNow;
    m_uOnChildAddTime = 0;
    m_uOnChildCloseTime = 0;
-   m_bHasChildMenuActive = false;
-   m_iConfirmationId = 0;
-   m_bHasConfirmationOnTop = false;
-
+   
    m_bIsAnimationInProgress = false;
    m_uAnimationStartTime = 0;
    m_uAnimationLastStepTime = 0;
@@ -117,7 +136,6 @@ Menu::Menu(int id, const char* title, const char* subTitle)
 
 Menu::~Menu()
 {
-   m_bHasChildMenuActive = false;
    removeAllItems();
    removeAllTopLines();
 }
@@ -254,7 +272,8 @@ void Menu::removeMenuItem(MenuItem* pItem)
          m_ItemsCount--;
          if ( m_SelectedIndex >= m_ItemsCount )
             m_SelectedIndex--;
-
+         else if ( (m_SelectedIndex >= i) && (m_SelectedIndex > 0) )
+            m_SelectedIndex--;
          m_iIndexFirstVisibleItem = 0;
          m_bInvalidated = true;
          return;
@@ -279,6 +298,27 @@ int Menu::addMenuItem(MenuItem* item)
    if ( item->isEnabled() )
       m_SelectedIndex = 0;
    return m_ItemsCount-1;
+}
+
+int Menu::insertMenuItem(MenuItem* pItem, int iPosition)
+{
+   if ( (NULL == pItem) || (iPosition < 0) || (iPosition > m_ItemsCount) )
+      return -1;
+
+   for( int i=m_ItemsCount-1; i>= iPosition; i-- )
+   {
+      m_pMenuItems[i+1] = m_pMenuItems[i];
+      m_bHasSeparatorAfter[i+1] = m_bHasSeparatorAfter[i];   
+   }
+   m_pMenuItems[iPosition] = pItem;
+   m_bHasSeparatorAfter[iPosition] = false;
+   m_pMenuItems[iPosition]->m_pMenu = this;
+
+   if ( m_SelectedIndex >= iPosition )
+      m_SelectedIndex++;
+   m_ItemsCount++;
+   m_bInvalidated = true;
+   return iPosition;
 }
 
 void Menu::addSeparator()
@@ -319,10 +359,6 @@ void Menu::enableMenuItem(int index, bool enable)
    m_bInvalidated = true;
 }
 
-int Menu::getConfirmationId()
-{
-   return m_iConfirmationId;
-}
 
 u32 Menu::getOnShowTime()
 {
@@ -339,6 +375,12 @@ u32 Menu::getOnReturnFromChildTime()
    return m_uOnChildCloseTime;
 }
 
+void Menu::addExtraHeightAtEnd(float fExtraH)
+{
+   m_fExtraHeightEnd = fExtraH;
+}
+
+
 float Menu::getRenderWidth()
 {
    return m_RenderWidth;
@@ -353,7 +395,8 @@ float Menu::getRenderXPos()
 
 void Menu::onShow()
 {
-   //log_line("Menu [%s] on show (%s): xPos: %.2f, xRenderPos: %.2f", m_szTitle, m_bFirstShow? "first show":"not first show", m_xPos, m_RenderXPos);
+   log_line("[Menu] (loop %u) [%s] on show (%s): xPos: %.2f, xRenderPos: %.2f",
+      menu_get_loop_counter()%1000, m_szTitle, m_bFirstShow? "first show":"not first show", m_xPos, m_RenderXPos);
    if ( m_bDisableStacking )
       m_RenderXPos = m_xPos;
 
@@ -479,8 +522,7 @@ void Menu::computeRenderSizes()
 
    m_fRenderItemsStartYPos = m_RenderYPos + m_RenderTotalHeight;
    
-   m_fRenderItemsTotalHeight = m_ExtraItemsHeight;
-   m_RenderTotalHeight += m_ExtraItemsHeight;
+   m_fRenderItemsTotalHeight = 0.0;
    
    for( int i=0; i<m_ItemsCount; i++ )
    {
@@ -596,6 +638,7 @@ void Menu::computeRenderSizes()
 
    m_RenderHeight -= m_RenderMaxFooterHeight;
    m_RenderHeight += m_RenderFooterHeight;
+   m_RenderHeight += m_fExtraHeightEnd;
    
    m_fSelectionWidth = 0;
 
@@ -621,6 +664,9 @@ void Menu::computeRenderSizes()
 
 void Menu::RenderPrepare()
 {
+   m_ThisRenderCycleStartRenderItemIndex = -1;
+   m_ThisRenderCycleEndRenderItemIndex = -1;
+
    if ( m_bInvalidated )
    {
       computeRenderSizes();
@@ -639,14 +685,8 @@ void Menu::RenderPrepare()
    if ( ! m_bIsAnimationInProgress )
       return;
    
-   if ( m_bHasConfirmationOnTop || m_bDisableStacking )
+   if ( m_bDisableStacking )
       return;
-
-   if ( menu_has_menu_confirmation_above(this) )
-   {
-      m_bHasConfirmationOnTop = true;
-      return;
-   }
 
    float f = (g_TimeNow-m_uAnimationStartTime)/(float)m_uAnimationTotalDuration;
    if ( f < 0.0 ) f = 0.0;
@@ -656,7 +696,7 @@ void Menu::RenderPrepare()
    {
       f = 1.0;
       m_bIsAnimationInProgress = false;
-      log_line("Menu: Finished animation for menu id %d", m_MenuId);
+      log_line("[Menu] Finished animation for menu id %d", m_MenuId);
       m_RenderXPos = m_fAnimationTargetXPos;
       m_fAnimationTargetXPos = -10.0;
       if ( m_uOnChildCloseTime > m_uOnChildAddTime )
@@ -686,7 +726,7 @@ void Menu::RenderEnd(float yPos)
       if ( m_pMenuItems[i]->isEditing() )
       {
          s_bMenuObjectsRenderEndItems = true;
-         RenderItem(i,m_pMenuItems[i]->m_RenderLastY, m_pMenuItems[i]->m_RenderLastX - (m_RenderXPos + m_sfMenuPaddingX) - m_pMenuItems[i]->m_fMarginX);
+         RenderItem(i,m_pMenuItems[i]->m_RenderLastY, m_pMenuItems[i]->m_RenderLastX - (m_RenderXPos + m_sfMenuPaddingX));
          s_bMenuObjectsRenderEndItems = false;
       }
    }
@@ -847,23 +887,37 @@ float Menu::RenderFrameAndTitle()
 
 float Menu::RenderItem(int index, float yPos, float dx)
 {
+   m_bRenderedLastItem = false;
    if ( NULL == m_pMenuItems[index] )
       return 0.0;
 
-   dx += m_pMenuItems[index]->m_fMarginX;
-   m_pMenuItems[index]->setLastRenderPos(m_RenderXPos + m_sfMenuPaddingX + dx, yPos);
-   
    if ( m_bHasScrolling )
    if ( index < m_iIndexFirstVisibleItem )
       return 0.0;
 
+   if ( -1 == m_ThisRenderCycleStartRenderItemIndex )
+      m_ThisRenderCycleStartRenderItemIndex = index;
+   else if ( index < m_ThisRenderCycleStartRenderItemIndex )
+      m_ThisRenderCycleStartRenderItemIndex = index;
+   
+   if ( m_bHasScrolling )
+   if ( -1 != m_ThisRenderCycleEndRenderItemIndex )
+   if ( index > m_ThisRenderCycleEndRenderItemIndex )
+      return 0.0;
+
+   //dx += m_pMenuItems[index]->m_fMarginX;
+   m_pMenuItems[index]->setLastRenderPos(m_RenderXPos + m_sfMenuPaddingX + dx + m_pMenuItems[index]->m_fMarginX, yPos);
+   
    float fHeightFont = g_pRenderEngine->textHeight(g_idFontMenu);
    float hItem = m_pMenuItems[index]->getItemHeight(getUsableWidth() - m_pMenuItems[index]->m_fMarginX);
    
    float fTotalHeight = hItem;
    if ( m_bHasScrolling )
    if ( yPos + fTotalHeight > m_fRenderItemsStopYPos + 0.001 )
+   {
+      m_ThisRenderCycleEndRenderItemIndex = index;
       return 0.0;
+   }
 
    fTotalHeight += fHeightFont * MENU_ITEM_SPACING;
    if ( m_bHasSeparatorAfter[index] )
@@ -914,7 +968,13 @@ float Menu::RenderItem(int index, float yPos, float dx)
 
    g_pRenderEngine->setColors(get_Color_MenuText());
 
+   m_bRenderedLastItem = true;
    return fTotalHeight;
+}
+
+bool Menu::didRenderedLastItem()
+{
+   return m_bRenderedLastItem;
 }
 
 void Menu::updateScrollingOnSelectionChange()
@@ -922,33 +982,48 @@ void Menu::updateScrollingOnSelectionChange()
    if ( (! m_bEnableScrolling) || (! m_bHasScrolling) )
       return;
 
-   int countItemsDisabledJustBeforeSelection = 0;
-   while ( m_SelectedIndex - countItemsDisabledJustBeforeSelection - 1 >= 0 )
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+
+   // -------------------------------------
+   // Begin - Scroll up
+
+   int countItemsNonSelectableJustBeforeSelection = 0;
+   while ( m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1 >= 0 )
    {
-      if ( m_pMenuItems[m_SelectedIndex - countItemsDisabledJustBeforeSelection - 1]->m_bEnabled )
+      if ( m_pMenuItems[m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1]->m_bEnabled )
+      if ( m_pMenuItems[m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1]->isSelectable() )
          break;
-      countItemsDisabledJustBeforeSelection++;
+      countItemsNonSelectableJustBeforeSelection++;
    }
 
    if ( m_SelectedIndex < m_iIndexFirstVisibleItem )
    {
       m_iIndexFirstVisibleItem = m_SelectedIndex;
-      m_iIndexFirstVisibleItem -= countItemsDisabledJustBeforeSelection;
+      m_iIndexFirstVisibleItem -= countItemsNonSelectableJustBeforeSelection;
       if ( m_iIndexFirstVisibleItem < 0 )
          m_iIndexFirstVisibleItem = 0;
       return;
    }
 
-   float fTotalItemsHeight = 0.0;
+   // End - Scroll up
+   // -------------------------------------
+
+   // -------------------------------------
+   // Begin - Scroll down
+
+   // Compute total height of visible items to render
+   // From first visible index up to current selected item
+
+   float fTotalVisibleItemsHeight = 0.0;
    for( int i=m_iIndexFirstVisibleItem; i<=m_SelectedIndex; i++ )
    {
       float fItemTotalHeight = 0.0;
       if ( m_iColumnsCount < 2 )
       {
          fItemTotalHeight += m_pMenuItems[i]->getItemHeight(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
-         fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
+         fItemTotalHeight += height_text * MENU_ITEM_SPACING;
          if ( m_bHasSeparatorAfter[i] )
-            fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
+            fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
       }
       else if ( (i%m_iColumnsCount) == 0 )
       {
@@ -957,26 +1032,23 @@ void Menu::updateScrollingOnSelectionChange()
          if ( m_bHasSeparatorAfter[i] )
             fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
       }
-      if ( -1 != m_iExtraItemsHeightPositionIndex )
-      if ( m_iExtraItemsHeightPositionIndex == i )
-         fItemTotalHeight += m_ExtraItemsHeight;
 
-      fTotalItemsHeight += fItemTotalHeight;
+      fTotalVisibleItemsHeight += fItemTotalHeight;
    }
 
    // End - computed total items height up to, including, selected item
 
-   // Move displayed items range down untill the selected item becomes visible
+   // Move displayed items range down (that is first visible item index) untill the selected item becomes visible
 
-   while ( fTotalItemsHeight >= m_fRenderItemsStopYPos - m_fRenderItemsStartYPos - 0.01 * m_sfScaleFactor)
+   while ( fTotalVisibleItemsHeight >= m_fRenderItemsStopYPos - m_fRenderItemsStartYPos - 0.001 * m_sfScaleFactor)
    {
       float fItemTotalHeight = 0.0;
       if ( m_iColumnsCount < 2 )
       {
          fItemTotalHeight += m_pMenuItems[m_iIndexFirstVisibleItem]->getItemHeight(getUsableWidth() - m_pMenuItems[m_iIndexFirstVisibleItem]->m_fMarginX);
-         fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
+         fItemTotalHeight += height_text * MENU_ITEM_SPACING;
          if ( m_bHasSeparatorAfter[m_iIndexFirstVisibleItem] )
-            fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
+            fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
       }
       else if ( (m_iIndexFirstVisibleItem%m_iColumnsCount) == 0 )
       {
@@ -986,11 +1058,7 @@ void Menu::updateScrollingOnSelectionChange()
             fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
       }
 
-      if ( -1 != m_iExtraItemsHeightPositionIndex )
-      if ( m_iExtraItemsHeightPositionIndex == m_iIndexFirstVisibleItem )
-         fItemTotalHeight += m_ExtraItemsHeight;
-
-      fTotalItemsHeight -= fItemTotalHeight;
+      fTotalVisibleItemsHeight -= fItemTotalHeight;
       m_iIndexFirstVisibleItem++;
    }
 }
@@ -998,13 +1066,11 @@ void Menu::updateScrollingOnSelectionChange()
 
 int Menu::onBack()
 {
-   if ( m_MenuId == 0 ) // simple message menu? just pop it and return.
-   {
-      menu_stack_pop();
-      return 1;
-   }
+   log_line("[Menu] (loop %u): id %d-%d, name [%s], on back",
+       menu_get_loop_counter()%1000, m_MenuId%1000, m_MenuId/1000, m_szTitle);
 
    for( int i=0; i<m_ItemsCount; i++ )
+   {
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          m_pMenuItems[i]->endEdit(true);
@@ -1012,7 +1078,7 @@ int Menu::onBack()
          onItemEndEdit(i);
          return 1;
       }
-
+   }
    if ( m_iColumnsCount > 1 && m_bEnableColumnSelection && m_bIsSelectingInsideColumn )
    {
       m_bIsSelectingInsideColumn = false;
@@ -1020,6 +1086,8 @@ int Menu::onBack()
       onFocusedItemChanged();
       return 1;
    }
+
+   menu_stack_pop(0);
    return 0;
 }
 
@@ -1027,7 +1095,7 @@ void Menu::onSelectItem()
 {
    if ( m_MenuId == MENU_ID_SIMPLE_MESSAGE ) // simple message menu? just pop it and return.
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
    if ( m_SelectedIndex < 0 || m_SelectedIndex >= m_ItemsCount )
@@ -1040,11 +1108,15 @@ void Menu::onSelectItem()
       MenuItem* pSelectedItem = m_pMenuItems[m_SelectedIndex];
       if ( pSelectedItem->isEditing() )
       {
+         log_line("[Menu] End edit item %d", m_SelectedIndex);
          pSelectedItem->endEdit(false);
          onItemEndEdit(m_SelectedIndex);
       }
       else
+      {
+         log_line("[Menu] Begin edit item %d", m_SelectedIndex);
          pSelectedItem->beginEdit();
+      }
    }
    else
    {
@@ -1055,7 +1127,10 @@ void Menu::onSelectItem()
          onFocusedItemChanged();
       }
       else
+      {
+         log_line("[Menu] Selected menu item %d", m_SelectedIndex);
          m_pMenuItems[m_SelectedIndex]->onClick();
+      }
    }
 }
 
@@ -1065,7 +1140,7 @@ void Menu::onMoveUp(bool bIgnoreReversion)
    Preferences* p = get_Preferences();
    if ( m_MenuId == 0 ) // simple message menu? just pop it and return.
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
    if ( 0 == m_ItemsCount )
@@ -1163,7 +1238,7 @@ void Menu::onMoveDown(bool bIgnoreReversion)
    Preferences* p = get_Preferences();
    if ( m_MenuId == 0 ) // simple message menu? just pop it and return.
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
    if ( 0 == m_ItemsCount )
@@ -1259,7 +1334,7 @@ void Menu::onMoveLeft(bool bIgnoreReversion)
 {
    if ( m_MenuId == 0 ) // simple message menu? just pop it and return.
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
    if ( 0 == m_ItemsCount )
@@ -1289,7 +1364,7 @@ void Menu::onMoveRight(bool bIgnoreReversion)
 {
    if ( m_MenuId == 0 ) // simple message menu? just pop it and return.
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
    if ( 0 == m_ItemsCount )
@@ -1332,48 +1407,46 @@ void Menu::onItemEndEdit(int itemIndex)
 {
 }
 
-void Menu::onReturnFromChild(int returnValue)
+void Menu::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   if ( ! m_bHasChildMenuActive )
-      return;
-   m_bHasChildMenuActive = false;
-   m_uOnChildCloseTime = g_TimeNow;
-   m_uOnChildAddTime = 0;
-   m_bInvalidated = true;
-   m_bHasConfirmationOnTop = false;
-   
-   m_bIsAnimationInProgress = false;
-   if ( m_RenderXPos != m_xPos )
-   {
-      Preferences* pP = get_Preferences();
-      if ( (NULL == pP) || (! pP->iMenusStacked) )
-         return;
-      if ( m_bDisableStacking )
-         return;
+   log_line("[Menu] (loop %u): id %d-%d, name [%s], on return from child id %d-%d, result %d",
+       menu_get_loop_counter()%1000, m_MenuId%1000, m_MenuId/1000, m_szTitle, iChildMenuId%1000, iChildMenuId/1000, returnValue);
 
-      menu_startAnimationOnChildMenuClosed(this);
-   }
+   m_bInvalidated = true;
+   m_bIsAnimationInProgress = false;
+
+   m_uOnChildAddTime = 0;
+   m_uOnChildCloseTime = 0;
+      
+   Preferences* pP = get_Preferences();
+   if ( (NULL == pP) || (! pP->iMenusStacked) )
+      return;
+
+   if ( menu_had_disable_stacking(iChildMenuId) )
+      return;
+   if ( m_bDisableStacking || menu_hasAnyDisableStackingMenu() )
+      return;
+
+   m_uOnChildCloseTime = g_TimeNow;
+   log_line("[Menu] On return from child will start animating, disable stacking: %d", (int)m_bDisableStacking);
+   menu_startAnimationOnChildMenuClosed(this);
 }
 
 // It is called just before the new child menu is added to the stack.
 // So it's not yet actually present in the stack.
 
-void Menu::onChildMenuAdd()
+void Menu::onChildMenuAdd(Menu* pChildMenu)
 {
-   if ( menu_has_menu_confirmation_above(this) )
-      m_bHasConfirmationOnTop = true;
+   log_line("[Menu] (loop %u) this menu %d-%d [%s]: add child menu: %d-%d [%s]",
+      menu_get_loop_counter()%1000, m_MenuId%1000, m_MenuId/1000,
+      m_szTitle, 
+      pChildMenu->m_MenuId%1000, pChildMenu->m_MenuId/1000,
+      pChildMenu->m_szTitle);
 
-   if ( m_bHasChildMenuActive )
-      return;
-
-   m_bHasChildMenuActive = true;
    m_uOnChildAddTime = g_TimeNow;
    m_uOnChildCloseTime = 0;
    m_bInvalidated = true;
    
-   if ( m_bHasConfirmationOnTop )
-      return;
-
    // Animate menus
    
    m_bIsAnimationInProgress = false;
@@ -1382,7 +1455,9 @@ void Menu::onChildMenuAdd()
    if ( (NULL == pP) || (! pP->iMenusStacked) )
       return;
 
-   if ( m_bDisableStacking )
+   if ( m_bDisableStacking || pChildMenu->m_bDisableStacking )
+      return;
+   if ( menu_hasAnyDisableStackingMenu() )
       return;
 
    menu_startAnimationOnChildMenuAdd(this);
@@ -1403,7 +1478,7 @@ void Menu::startAnimationOnChildMenuAdd()
       m_fAnimationTargetXPos = m_RenderXPos;
    m_fAnimationTargetXPos -= m_RenderWidth*0.4;
 
-   log_line("Menu: Start open menu animation for menu id %d, from xpos %f to xpos %f (original pos: %f, render pos now: %f)",
+   log_line("[Menu] Start open menu animation for menu id %d, from xpos %.2f to xpos %.2f (original pos: %.2f, render pos now: %.2f)",
       m_MenuId, m_fAnimationStartXPos, m_fAnimationTargetXPos,
       m_xPos, m_RenderXPos);
 }
@@ -1429,8 +1504,8 @@ void Menu::startAnimationOnChildMenuClosed()
       m_fAnimationTargetXPos += m_RenderWidth*0.4;
    }
 
-   log_line("Menu: Start close menu animation for menu id %d, from xpos %f to xpos %f (original pos: %f, render pos now: %f)",
-      m_MenuId, m_fAnimationStartXPos, m_fAnimationTargetXPos,
+   log_line("[Menu] (loop %u) Start close menu animation for menu id %d, from xpos %.2f to xpos %.2f (original pos: %.2f, render pos now: %.2f)",
+      menu_get_loop_counter()%1000, m_MenuId, m_fAnimationStartXPos, m_fAnimationTargetXPos,
       m_xPos, m_RenderXPos);
 
 }
@@ -1449,32 +1524,37 @@ bool Menu::checkIsArmed()
    return false;
 }
 
-void Menu::addMessageWithTitle(const char* szTitle, const char* szMessage)
+void Menu::addMessageWithTitle(int iId, const char* szTitle, const char* szMessage)
 {
-   m_iConfirmationId = 0;
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,szTitle,NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, szTitle,NULL);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
+   pm->m_bDisableStacking = true;
    pm->addTopLine(szMessage);
    add_menu_to_stack(pm); 
 }
 
 void Menu::addMessage(const char* szMessage)
 {
-   m_iConfirmationId = 0;
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Info",NULL);
+   addMessage(0, szMessage);
+}
+
+void Menu::addMessage(int iId, const char* szMessage)
+{
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, "Info",NULL);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
+   pm->m_bDisableStacking = true;
    pm->addTopLine(szMessage);
    add_menu_to_stack(pm);
 }
 
-void Menu::addMessage2(const char* szMessage, const char* szLine2)
+void Menu::addMessage2(int iId, const char* szMessage, const char* szLine2)
 {
-   m_iConfirmationId = 0;
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Info",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, "Info",NULL);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
+   pm->m_bDisableStacking = true;
    pm->addTopLine(szMessage);
    pm->addTopLine(szLine2);
    add_menu_to_stack(pm);
@@ -1505,8 +1585,45 @@ bool Menu::checkCancelUpload()
    return true;
 }
 
+static int s_iThreadGenerateUploadCounter = 0;
+
+static void * _thread_generate_upload(void *argument)
+{
+   char szComm[256];
+   char* szFileName = (char*)argument;
+   if ( NULL == argument )
+      return NULL;
+   log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileName);
+
+    // Add update info file
+   if( access( FILE_INFO_LAST_UPDATE, R_OK ) == -1 )
+   {
+      sprintf(szComm, "cp %s %s 2>/dev/null", FILE_INFO_VERSION, FILE_INFO_LAST_UPDATE);
+      hw_execute_bash_command(szComm, NULL);
+   }
+
+   sprintf(szComm, "rm -rf %s 2>/dev/null", szFileName);
+   hw_execute_bash_command(szComm, NULL);
+   hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
+   hw_execute_bash_command("chmod 777 ruby_update_vehicle", NULL);
+   sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFileName);
+   hw_execute_bash_command(szComm, NULL);
+
+   log_line("Save last generated update archive...");
+   hw_execute_bash_command("rm -rf last_uploaded_archive.tar 2>&1", NULL);
+   sprintf(szComm, "cp -rf %s last_uploaded_archive.tar", szFileName);
+   hw_execute_bash_command(szComm, NULL);
+   hw_execute_bash_command("chmod 777 last_uploaded_archive.tar 2>&1", NULL);
+
+   log_line("ThreadGenerateUpload finished, counter %d", s_iThreadGenerateUploadCounter);
+   s_iThreadGenerateUploadCounter--;
+   return NULL;
+}
+
 bool Menu::uploadSoftware()
 {
+   log_line("Menu: Start upload procedure.");
+
    ruby_pause_watchdog();
    g_bUpdateInProgress = true;
    render_commands_set_progress_percent(0, true);
@@ -1523,8 +1640,8 @@ bool Menu::uploadSoftware()
 
    char szComm[256];
    char szBuff[1024];
-   char szArchiveToUpload[256];
-   szArchiveToUpload[0] = 0;
+   static char s_szArchiveToUpload[256];
+   s_szArchiveToUpload[0] = 0;
    int iUpdateType = -1;
 
    //bool bForceUseBinaries = false;
@@ -1544,7 +1661,7 @@ bool Menu::uploadSoftware()
          if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "ruby_update") )
          {
             log_line("Found zip update archive to upload to vehicle: [%s]", szBuff);
-            strcpy(szArchiveToUpload, szBuff);
+            strcpy(s_szArchiveToUpload, szBuff);
             iUpdateType = 0;
          }
          else
@@ -1557,39 +1674,62 @@ bool Menu::uploadSoftware()
    // Always will do this
    if ( iUpdateType == -1 )
    {
-      strcpy(szArchiveToUpload, "tmp/sw.tar");
+      strcpy(s_szArchiveToUpload, "tmp/sw.tar");
       iUpdateType = 1;
 
-      // Add update info file
-      if( access( FILE_INFO_LAST_UPDATE, R_OK ) == -1 )
+      g_TimeNow = get_current_timestamp_ms();
+      ruby_signal_alive();
+
+      pthread_t pThread;
+      if ( 0 != pthread_create(&pThread, NULL, &_thread_generate_upload, s_szArchiveToUpload) )
       {
-         sprintf(szComm, "cp %s %s 2>/dev/null", FILE_INFO_VERSION, FILE_INFO_LAST_UPDATE);
-         hw_execute_bash_command(szComm, NULL);
+         render_commands_set_progress_percent(-1, true);
+         ruby_resume_watchdog();
+         g_bUpdateInProgress = false;
+         addMessage("There was an error updating your vehicle.");
+         return false;
       }
+      s_iThreadGenerateUploadCounter++;
 
-      sprintf(szComm, "rm -rf %s 2>/dev/null", szArchiveToUpload);
-      hw_execute_bash_command(szComm, NULL);
+      // Wait for the thread to finish
+      u32 uTimeLastRender = 0;
+      while ( s_iThreadGenerateUploadCounter > 0 )
+      {
+         try_read_messages_from_router(5);
+         hardware_sleep_ms(5);
+         g_TimeNow = get_current_timestamp_ms();
+         g_TimeNowMicros = get_current_timestamp_micros();
+         if ( checkCancelUpload() )
+         {
+            render_commands_set_progress_percent(-1, true);
+            ruby_resume_watchdog();
+            g_bUpdateInProgress = false;
+            return false;
+         }
 
+         if ( g_TimeNow > (uTimeLastRender+100) )
+         {
+            uTimeLastRender = g_TimeNow;
+            render_commands_set_progress_percent(0, true);
+            g_pRenderEngine->startFrame();
+            //osd_render();
+            popups_render();
+            //menu_render();
+            render_commands();
+            popups_render_topmost();
+            g_pRenderEngine->endFrame();
+         }
+      }
+      if ( s_iThreadGenerateUploadCounter < 0 )
+         s_iThreadGenerateUploadCounter = 0;
       g_TimeNow = get_current_timestamp_ms();
       ruby_signal_alive();
-
-      hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
-      hw_execute_bash_command("chmod 777 ruby_update_vehicle", NULL);
-      sprintf(szComm, "tar -czf %s ruby_* 2>&1", szArchiveToUpload);
-      hw_execute_bash_command(szComm, NULL);
-      g_TimeNow = get_current_timestamp_ms();
-      ruby_signal_alive();
-
-      log_line("Save last generated update archive...");
-      hw_execute_bash_command("rm -rf last_uploaded_archive.tar 2>&1", NULL);
-      sprintf(szComm, "cp -rf %s last_uploaded_archive.tar", szArchiveToUpload);
-      hw_execute_bash_command(szComm, NULL);
-      hw_execute_bash_command("chmod 777 last_uploaded_archive.tar 2>&1", NULL);
    }
    log_line("Generated update archive to upload to vehicle.");
 
-   if ( ! _uploadVehicleUpdate(iUpdateType, szArchiveToUpload) )
+   if ( ! _uploadVehicleUpdate(iUpdateType, s_szArchiveToUpload) )
    {
+      render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
       addMessage("There was an error updating your vehicle.");
@@ -1641,7 +1781,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
    cpswp_cancel.type = iUpdateType;
    cpswp_cancel.total_size = 0;
    cpswp_cancel.file_block_index = MAX_U32;
-   cpswp_cancel.last_block = false;
+   cpswp_cancel.is_last_block = false;
    cpswp_cancel.block_length = 0;
 
    g_bUpdateInProgress = true;
@@ -1707,7 +1847,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
       l += nRead;
       pcpsp->total_size = (u32)lSize;
       pcpsp->file_block_index = nTotalPackets;
-      pcpsp->last_block = ((l == lSize)?true:false);
+      pcpsp->is_last_block = ((l == lSize)?true:false);
       pcpsp->type = iUpdateType;
       pPackets[nTotalPackets] = pPacket;
       nTotalPackets++;
@@ -1722,6 +1862,8 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
    g_TimeNowMicros = get_current_timestamp_micros();
    u32 uTimeLastRender = 0;
 
+   static int s_iAckFrequency = DEFAULT_UPLOAD_PACKET_CONFIRMATION_FREQUENCY;
+
    int iLastAcknowledgedPacket = -1;
    int iPacketToSend = 0;
    int iCountMaxRetriesForCurrentSegments = 10;
@@ -1731,7 +1873,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
       command_packet_sw_package* pcpsp = (command_packet_sw_package*)pPacket;
 
       bool bWaitAck = true;
-      if ( (! pcpsp->last_block) && ((iPacketToSend % DEFAULT_UPLOAD_PACKET_CONFIRMATION_FREQUENCY) !=0 ) )
+      if ( (! pcpsp->is_last_block) && ((iPacketToSend % s_iAckFrequency) != 0 ) )
          bWaitAck = false;
       
       if ( ! bWaitAck )
@@ -1751,7 +1893,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
 
       u32 commandUID = handle_commands_increment_command_counter();
       u8 resendCounter = 0;
-      int waitReplyTime = 60;
+      int waitReplyTime = 100;
       bool gotResponse = false;
       bool responseOk = false;
 
@@ -1768,7 +1910,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
          g_TimeNowMicros = get_current_timestamp_micros();
          ruby_signal_alive();
 
-         if ( ! handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, resendCounter, bWaitAck, pPacket, pcpsp->block_length+sizeof(command_packet_sw_package)) )
+         if ( ! handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, resendCounter, bWaitAck, pPacket, pcpsp->block_length+sizeof(command_packet_sw_package)) )
          {
             addMessage("There was an error uploading the software package.");
             fclose(fd);
@@ -1776,7 +1918,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
             for( int i=0; i<5; i++ )
             {
                handle_commands_increment_command_counter();
-               handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
+               handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
                hardware_sleep_ms(20);
             }
             send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
@@ -1784,6 +1926,8 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
             //   free((u8*)pPackets[i]);
             //free((u8*)pPackets);
             g_bUpdateInProgress = false;
+            if ( s_iAckFrequency >= 2 )
+               s_iAckFrequency /= 2;
             return false;
          }
 
@@ -1800,7 +1944,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
                for( int i=0; i<5; i++ )
                {
                   handle_commands_increment_command_counter();
-                  handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
+                  handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
                   hardware_sleep_ms(20);
                }
                send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
@@ -1808,6 +1952,9 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
                //   free((u8*)pPackets[i]);
                //free((u8*)pPackets);
                g_bUpdateInProgress = false;
+
+               if ( s_iAckFrequency >= 2 )
+                  s_iAckFrequency /= 2;
                return false;
             }
 
@@ -1850,7 +1997,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
          for( int i=0; i<5; i++ )
          {
             handle_commands_increment_command_counter();
-            handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
+            handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
             hardware_sleep_ms(20);
          }
          send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
@@ -1875,12 +2022,14 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
             for( int i=0; i<5; i++ )
             {
                handle_commands_increment_command_counter();
-               handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
+               handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
                hardware_sleep_ms(20);
             }
             send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
 
             g_bUpdateInProgress = false;
+            if ( s_iAckFrequency >= 2 )
+               s_iAckFrequency /= 2;
             return false;
          }
       }
@@ -1899,7 +2048,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
          for( int i=0; i<5; i++ )
          {
             handle_commands_increment_command_counter();
-            handle_commands_send_single_command_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
+            handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, 0, 0, (u8*)&cpswp_cancel, sizeof(command_packet_sw_package));
             hardware_sleep_ms(20);
          }
          send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
@@ -1907,6 +2056,8 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
          //   free((u8*)pPackets[i]);
          //free((u8*)pPackets);
          g_bUpdateInProgress = false;
+         if ( s_iAckFrequency >= 2 )
+            s_iAckFrequency /= 2;
          return false;
       }
 
@@ -1935,42 +2086,49 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
 
 void Menu::addMessageNeedsVehcile(const char* szMessage, int iConfirmationId)
 {
-   m_iConfirmationId = iConfirmationId;
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Not connected",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+iConfirmationId*1000,"Not connected",NULL);
    pm->m_xPos = 0.4; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    pm->addTopLine(szMessage);
+   pm->m_bDisableStacking = true;
    add_menu_to_stack(pm);
 }
 
-void Menu::addMessageVideoBitrate(Model* pModel)
+char* Menu::addMessageVideoBitrate(Model* pModel)
 {
+   static char s_szMenuObjectsVideoBitrateWarning[256];
+
+   s_szMenuObjectsVideoBitrateWarning[0] = 0;
    if ( menu_has_menu(MENU_ID_SIMPLE_MESSAGE) )
-      return;
+      return s_szMenuObjectsVideoBitrateWarning;
    if ( NULL == pModel )
-      return;
+      return s_szMenuObjectsVideoBitrateWarning;
 
    int iProfile = pModel->video_params.user_selected_video_link_profile;
+   u32 uMaxVideoRadioDataRate = utils_get_max_radio_datarate_for_profile(pModel, iProfile);
    u32 uMaxVideoRate = utils_get_max_allowed_video_bitrate_for_profile(pModel, iProfile);
    if ( pModel->video_link_profiles[iProfile].bitrate_fixed_bps <= uMaxVideoRate )
-      return;
+      return s_szMenuObjectsVideoBitrateWarning;
 
    Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Video Bitrate Warning",NULL);
    pm->m_xPos = m_xPos-0.05; pm->m_yPos = m_yPos+0.05;
    pm->m_Width = 0.5;
-   
+   pm->m_bDisableStacking = true;
+
    char szLine1[256];
    char szLine2[256];
+   char szMaxRadioVideo[64];
    char szBRVideo[256];
    char szBRRadio[256];
 
    str_format_bitrate(pModel->video_link_profiles[iProfile].bitrate_fixed_bps, szBRVideo);
    str_format_bitrate(uMaxVideoRate, szBRRadio);
-   
-   sprintf(szLine1, "Your current video bitrate of %s is bigger than %d%% of your current radio links datarates capacity.",
-       szBRVideo, DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT);
+   str_format_bitrate(uMaxVideoRadioDataRate, szMaxRadioVideo);
+   sprintf(szLine1, "Your current video bitrate of %s is bigger than %d%% of your maximum current radio links datarates capacity of %s.",
+       szBRVideo, DEFAULT_VIDEO_LINK_LOAD_PERCENT,szMaxRadioVideo);
    strcpy(szLine2, "Lower your set video bitrate or increase the radio datarates on your radio links, otherways you will experience delays in the video stream.");
    
+   strcpy(s_szMenuObjectsVideoBitrateWarning, szLine1);
    // If a custom data rate was set for this video profile and it's too small, show warning
 
    if ( 0 != pModel->video_link_profiles[iProfile].radio_datarate_video_bps )
@@ -1981,6 +2139,7 @@ void Menu::addMessageVideoBitrate(Model* pModel)
           str_format_bitrate(uMaxVideoRate, szBRRadio);
           sprintf(szLine1, "You set a custom radio datarate for this video profile of %s which is smaller than what is optimum for your desired video bitrate %s.", szBRRadio, szBRVideo );
           sprintf(szLine2, "Disable the custom radio datarate for this video profile or decrease the desired video bitrate. Should be lower than %d%% of the set radio datarate.", DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT);
+          strcpy(s_szMenuObjectsVideoBitrateWarning, szLine1);
       }
    }
 
@@ -2016,4 +2175,6 @@ void Menu::addMessageVideoBitrate(Model* pModel)
    
    pm->m_fAlfaWhenInBackground = 1.0;
    add_menu_to_stack(pm);
+
+   return s_szMenuObjectsVideoBitrateWarning;
 }

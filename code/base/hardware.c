@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <fcntl.h>        // serialport
@@ -29,8 +47,9 @@ Code written by: Petru Soroaga, 2021-2023
 #include "hardware_i2c.h"
 #include "../common/string_utils.h"
 
-
+#ifdef HW_CAPABILITY_GPIO
 static int s_iButtonsWhereInited = 0;
+#endif
 
 static int s_ihwSwapButtons = 0;
 int sLastReadMenu = 0;
@@ -74,8 +93,9 @@ int sInitialReadQAPlus = 0;
 int sInitialReadQAMinus = 0;
 
 static u32 s_long_key_press_delta = 700;
+#ifdef HW_CAPABILITY_GPIO
 static u32 s_long_press_repeat_time = 150;
-
+#endif
 int s_bBlockCurrentPressedKeys = 0;
 
 int s_hwWasSetup = 0;
@@ -108,12 +128,14 @@ char s_szUSBMountName[64];
 
 int init_hardware()
 {
+   log_line("[Hardware] Start Initialization...");
    initSequenceTimeStart = get_current_timestamp_ms();
 
    s_szUSBMountName[0] = 0;
 
    int failed = 0;
 
+   #ifdef HW_CAPABILITY_GPIO
    if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) != -1 )
    {
       int failedButtons = GPIOInitButtons();
@@ -122,8 +144,12 @@ int init_hardware()
          log_softerror_and_alarm("[Hardware] Failed to set GPIOs for buttons.");
          failed = 1;
       }
+      else
+         log_line("[Hardware] Loaded file with current GPIO detection for buttons.");
       s_iButtonsWhereInited = 1;
    }
+   else
+      log_line("[Hardware] No file with current GPIO detection for buttons.");
 
    if (-1 == GPIOExport(GPIO_PIN_BUZZER))
    {
@@ -199,12 +225,18 @@ int init_hardware()
       sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
       sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
       sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
-      log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
+      log_line("[Hardware] Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
    }
+   else
+      log_line("[Hardware] GPIO menu buttons where not setup yet.");
+   #endif
 
    s_iHardwareJoystickCount = 0;
    s_hwWasSetup = 1;
    s_bHarwareHasDetectedSystemType = 0;
+
+   log_line("[Hardware] Initialization complete. %s.", failed?"Failed":"No errors");
+
    if ( failed )
       return 0;
    return 1;
@@ -213,6 +245,8 @@ int init_hardware()
 int init_hardware_only_status_led()
 {
    initSequenceTimeStart = get_current_timestamp_ms();
+
+   #ifdef HW_CAPABILITY_GPIO
    if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_VEHICLE))
    {
       log_line("Failed to get GPIO access to Ruby type PIN.");
@@ -249,7 +283,7 @@ int init_hardware_only_status_led()
    hw_execute_bash_command_silent(szBuff, NULL);
 
    log_line("HW: GPIO setup successfully.");
-
+   #endif
    s_iHardwareJoystickCount = 0;
    s_hwWasSetup = 1;
    s_bHarwareHasDetectedSystemType = 0;
@@ -258,6 +292,7 @@ int init_hardware_only_status_led()
 
 void hardware_release()
 {
+   #ifdef HW_CAPABILITY_GPIO
    GPIOUnexport(GPIO_PIN_MENU);
    GPIOUnexport(GPIO_PIN_BACK);
    GPIOUnexport(GPIO_PIN_MINUS);
@@ -273,6 +308,7 @@ void hardware_release()
    GPIOUnexport(GPIO_PIN_RECORDING_LED);
    GPIOUnexport(GPIO_PIN_DETECT_TYPE_VEHICLE);
    GPIOUnexport(GPIO_PIN_DETECT_TYPE_CONTROLLER);
+   #endif
    log_line("Hardware released!");
 }
 
@@ -288,9 +324,11 @@ int hardware_getBoardType()
 
    if ( s_iHardwareLastDetectedBoardType != BOARD_TYPE_NONE )
       return s_iHardwareLastDetectedBoardType;
-     
+        
    char szBuff[256];
    szBuff[0] = 0;
+
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
    log_line("Detected board Id: %s", szBuff);
 
@@ -336,7 +374,12 @@ int hardware_getBoardType()
    if ( strcmp(szBuff, "2a21041") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV11;}
    if ( strcmp(szBuff, "2a01041") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV11;}
    if ( strcmp(szBuff, "2a22042") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV12;}
-   
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC
+   s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
+   #endif
+
    strncpy(szBuff, str_get_hardware_board_name(s_iHardwareLastDetectedBoardType), 255);
    if ( szBuff[0] == 0 )
       strcpy(szBuff, "N/A");
@@ -350,6 +393,7 @@ int hardware_getWifiType()
 {
    int wifi_type = WIFI_TYPE_NONE;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[256];
    szBuff[0] = 0;
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
@@ -386,8 +430,49 @@ int hardware_getWifiType()
    if ( strcmp(szBuff, "2a21041") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
    if ( strcmp(szBuff, "2a01041") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
    if ( strcmp(szBuff, "2a22042") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   
+   #endif
+
    return wifi_type;
+}
+
+u32 s_uBaseRubyVersion = 0;
+
+u32 hardware_get_base_ruby_version()
+{
+   if ( 0 != s_uBaseRubyVersion )
+      return s_uBaseRubyVersion;
+
+   FILE* fd = fopen("version_ruby_base.txt", "r");
+   if ( NULL == fd )
+   {
+      log_softerror_and_alarm("[Hardware] Failed to open base Ruby version file.");
+      return s_uBaseRubyVersion;
+   }
+   char szBuff[32];
+   if ( 1 != fscanf(fd, "%s", szBuff) )
+   {
+      fclose(fd);
+      log_softerror_and_alarm("[Hardware] Failed to read base Ruby version file.");
+      return s_uBaseRubyVersion;
+   }
+   fclose(fd);
+   log_line("[Hardware] Read base Ruby version: [%s]", szBuff);
+
+   for( int i=0; i<strlen(szBuff); i++ )
+   {
+      if ( szBuff[i] == '.' )
+      {
+         szBuff[i] = 0;
+         int iMajor = 0;
+         int iMinor = 0;
+         sscanf(szBuff, "%d", &iMajor);
+         sscanf(&szBuff[i+1], "%d", &iMinor);
+         s_uBaseRubyVersion = (((u32)iMajor) << 8) | ((u32)iMinor);
+         log_line("[Hardware] Parsed base Ruby version: %u/%u", (s_uBaseRubyVersion>>8) & 0xFF, s_uBaseRubyVersion & 0xFF);
+         return s_uBaseRubyVersion;
+      }
+   }
+   return s_uBaseRubyVersion;
 }
 
 int hardware_detectBoardType()
@@ -429,6 +514,7 @@ int hardware_detectBoardType()
       fclose(fd);
    }
 
+   #ifdef HW_PLATFORM_RASPBERRY
    fd = fopen("/boot/ruby_board.txt", "w");
    if ( NULL != fd )
    {
@@ -444,6 +530,7 @@ int hardware_detectBoardType()
    }
 
    hw_execute_bash_command("cat /proc/device-tree/model > /boot/ruby_board_desc.txt", NULL);
+   #endif
    hw_execute_bash_command("cat /proc/device-tree/model > config/ruby_board_desc.txt", NULL);
 
    return board_type;
@@ -451,11 +538,13 @@ int hardware_detectBoardType()
 
 void hardware_enum_joystick_interfaces()
 {
+   s_iHardwareJoystickCount = 0;
+   #ifdef HW_PLATFORM_RASPBERRY
+
    char szDevName[256];
 
    log_line("------------------------------------------------------------------------");
    log_line("|  HW: Enumerating hardware HID interfaces...                          |");
-   s_iHardwareJoystickCount = 0;
 
    for( int i=0; i<MAX_JOYSTICK_INTERFACES; i++ )
    {
@@ -510,6 +599,7 @@ void hardware_enum_joystick_interfaces()
    }
    log_line("|  HW: Enumerating hardware HID interfaces result: found %d interfaces. |", s_iHardwareJoystickCount);
    log_line("------------------------------------------------------------------------");
+   #endif
 }
 
 int hardware_get_joystick_interfaces_count()
@@ -526,6 +616,7 @@ hw_joystick_info_t* hardware_get_joystick_info(int index)
 
 int hardware_open_joystick(int joystickIndex)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    if (joystickIndex < 0 || joystickIndex >= s_iHardwareJoystickCount )
       return 0;
    if ( s_HardwareJoystickInfo[joystickIndex].deviceIndex < 0 )
@@ -552,10 +643,14 @@ int hardware_open_joystick(int joystickIndex)
    }
    log_line("HW: Opened HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    return 1;
+   #else
+   return 0;
+   #endif
 }
 
 void hardware_close_joystick(int joystickIndex)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    if (joystickIndex < 0 || joystickIndex >= s_iHardwareJoystickCount )
       return;
    if ( -1 == s_HardwareJoystickInfo[joystickIndex].fd )
@@ -566,6 +661,7 @@ void hardware_close_joystick(int joystickIndex)
       s_HardwareJoystickInfo[joystickIndex].fd = -1;
       log_line("HW: Closed HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    }
+   #endif
 }
 
 // Return 1 if joystick file is opened
@@ -583,6 +679,7 @@ int hardware_is_joystick_opened(int joystickIndex)
 
 int hardware_read_joystick(int joystickIndex, int miliSec)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    if (joystickIndex < 0 || joystickIndex >= s_iHardwareJoystickCount )
       return -1;
    if ( s_HardwareJoystickInfo[joystickIndex].deviceIndex < 0 )
@@ -632,12 +729,17 @@ int hardware_read_joystick(int joystickIndex, int miliSec)
       }
    }
    return countEvents;
+   #else
+   return -1;
+   #endif
 }
 
 
 u16 hardware_get_flags()
 {
    u16 retValue = 0xFFFF;
+
+   #ifdef HW_PLATFORM_RASPBERRY
    char szOut[1024];
    hw_execute_bash_command_silent("vcgencmd get_throttled", szOut);
    int len = strlen(szOut)-1;
@@ -656,7 +758,9 @@ u16 hardware_get_flags()
          retValue = u;
       }
    }
-   
+   #else
+   retValue = 0;
+   #endif
    return retValue;
 }
 
@@ -664,6 +768,8 @@ void gpio_read_buttons_loop()
 {
    if ( ! s_hwWasSetup )
       return;
+
+   #ifdef HW_CAPABILITY_GPIO
 
    int iForceMenuPressed = 0;
    int iForceBackPressed = 0;
@@ -1025,6 +1131,7 @@ void gpio_read_buttons_loop()
       keyQA1DownStartTime = time_now;
       log_line("[Hardware] Set QA1 button as pressed after initial detection.");
    }
+   #endif
 }
 
 void hardware_loop()
@@ -1032,6 +1139,7 @@ void hardware_loop()
    if ( ! s_hwWasSetup )
       return;
 
+   #ifdef HW_CAPABILITY_GPIO
    gpio_read_buttons_loop();
 
    u32 t = get_current_timestamp_ms();
@@ -1090,14 +1198,18 @@ void hardware_loop()
          s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
       }
    }
+   #endif
 }
 
 void hardware_setCriticalErrorFlag()
 {
    if ( ! s_hwWasSetup )
       return;
+
+   #ifdef HW_CAPABILITY_GPIO
    GPIOWrite(GPIO_PIN_LED_ERROR, HIGH);
    hasCriticalError = 1;
+   #endif
 }
 
 void hardware_setRecoverableErrorFlag()
@@ -1327,6 +1439,7 @@ int hardware_try_mount_usb()
    if ( s_iUSBMounted )
       return 1;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[128];
    char szCommand[128];
    char szOutput[2048];
@@ -1431,11 +1544,19 @@ int hardware_try_mount_usb()
             iCount++;
          }
          if ( 0 < strlen(p) )
-            strncpy(s_szUSBMountName, p, 48);
+         {
+            char szTmp[2048];
+            strcpy(szTmp, p);
+            szTmp[48] = 0;
+            strcpy(s_szUSBMountName, szTmp);
+         }
       }
    }
 
    return s_iUSBMounted;
+   #else
+   return 0;
+   #endif
 }
 
 void hardware_unmount_usb()
@@ -1443,6 +1564,7 @@ void hardware_unmount_usb()
    if ( 0 == s_iUSBMounted )
       return;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szCommand[128];
    sprintf(szCommand, "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
    hw_execute_bash_command(szCommand, NULL);
@@ -1455,6 +1577,7 @@ void hardware_unmount_usb()
    s_iUSBMounted = 0;
    log_line("[Hardware] USB memory stick [%s] has been unmounted!", s_szUSBMountName );
    s_szUSBMountName[0] = 0;
+   #endif
 }
 
 char* hardware_get_mounted_usb_name()
@@ -1529,12 +1652,14 @@ int _hardware_get_camera_hardware_version_from_string(char* szHardwareId)
 u32 _hardware_detect_camera_type()
 {
    char szBuff[1024];
-   char szComm[1024];
-   char szOutput[2048];
 
    s_bHardwareHasCamera = 0;
    s_uHardwareCameraType = CAMERA_TYPE_NONE;
    s_iHardwareCameraI2CBus = -1;
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   char szComm[1024];
+   char szOutput[2048];
 
    int retryCount = 3;
  
@@ -1637,7 +1762,14 @@ u32 _hardware_detect_camera_type()
       hardware_sleep_ms(400);
       retryCount--;
    }
-   
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC
+   s_bHardwareHasCamera = 1;
+   s_iHardwareCameraI2CBus = -1;
+   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
+   #endif
+
    if ( s_bHardwareHasCamera == 0 )
       log_line("Hardware: No camera detected.");
    else
@@ -1661,6 +1793,7 @@ int hardware_detectSystemType()
 
    s_iHardwareSystemIsVehicle = 0;
 
+   #ifdef HW_CAPABILITY_GPIO
    int val = GPIORead(GPIO_PIN_DETECT_TYPE_VEHICLE);
    if ( val == 1 )
    {
@@ -1672,6 +1805,7 @@ int hardware_detectSystemType()
       log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
       s_iHardwareSystemIsVehicle = 1;
    }   
+   #endif
 
    _hardware_detect_camera_type();
 
@@ -1689,12 +1823,14 @@ int hardware_detectSystemType()
       s_iHardwareSystemIsVehicle = 1;
    }
 
+   #ifdef HW_CAPABILITY_GPIO
    val = GPIORead(GPIO_PIN_DETECT_TYPE_CONTROLLER);
    if ( val == 1 )
    {
       log_line("Hardware: Detected GPIO signal to start as controller.");
       s_iHardwareSystemIsVehicle = 0;
    }
+   #endif
 
    if ( s_iHardwareSystemIsVehicle )
    {
@@ -1846,7 +1982,9 @@ int hardware_sleep_micros(u32 microSeconds)
 
 void hardware_recording_led_set_off()
 {
+   #ifdef HW_CAPABILITY_GPIO
    GPIOWrite(GPIO_PIN_RECORDING_LED, LOW);
+   #endif
    s_isRecordingLedOn = 0;
    s_isRecordingLedBlinking = 0;
    s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
@@ -1854,7 +1992,9 @@ void hardware_recording_led_set_off()
 
 void hardware_recording_led_set_on()
 {
+   #ifdef HW_CAPABILITY_GPIO
    GPIOWrite(GPIO_PIN_RECORDING_LED, HIGH);
+   #endif
    s_isRecordingLedOn = 1;
    s_isRecordingLedBlinking = 0;
    s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
@@ -1862,7 +2002,9 @@ void hardware_recording_led_set_on()
 
 void hardware_recording_led_set_blinking()
 {
+   #ifdef HW_CAPABILITY_GPIO
    GPIOWrite(GPIO_PIN_RECORDING_LED, HIGH);
+   #endif
    s_isRecordingLedOn = 1;
    s_isRecordingLedBlinking = 1;
    s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
@@ -1870,12 +2012,16 @@ void hardware_recording_led_set_blinking()
 
 void hardware_mount_root()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
+   #endif
 }
 
 void hardware_mount_boot()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("sudo mount -o remount,rw /boot", NULL);
+   #endif
 }
 
 int hardware_has_eth()
@@ -1894,6 +2040,7 @@ int hardware_has_eth()
 
 int hardware_get_cpu_speed()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    char szOutput[64];
    szOutput[0] = 0;
    hw_execute_bash_command_raw_silent("vcgencmd measure_clock arm", szOutput);
@@ -1930,10 +2077,14 @@ int hardware_get_cpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
+   #else
+   return 1000000000;
+   #endif
 }
 
 int hardware_get_gpu_speed()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    char szOutput[64];
    szOutput[0] = 0;
    hw_execute_bash_command_raw_silent("vcgencmd measure_clock core", szOutput);
@@ -1970,10 +2121,14 @@ int hardware_get_gpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
+   #else
+   return 1000000000;
+   #endif
 }
 
 int hardware_set_audio_output(int iAudioDevice, int iAudioVolume)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    char szComm[256];
    sprintf(szComm, "sudo amixer cset numid=1 %d%%", iAudioVolume);
    hw_execute_bash_command(szComm, NULL);
@@ -1982,5 +2137,6 @@ int hardware_set_audio_output(int iAudioDevice, int iAudioVolume)
       hw_execute_bash_command("sudo amixer cset numid=3 2", NULL);
    if ( 2 == iAudioDevice )
       hw_execute_bash_command("sudo amixer cset numid=3 0", NULL);
+   #endif
    return 1;
 }

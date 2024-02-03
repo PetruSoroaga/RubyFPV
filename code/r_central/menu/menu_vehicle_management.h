@@ -11,9 +11,8 @@ class MenuVehicleManagement: public Menu
       virtual void Render();
       virtual void onShow();
       virtual bool periodicLoop();
-      virtual int  onBack();
       virtual void onSelectItem();
-      virtual void onReturnFromChild(int returnValue);        
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);        
 
    protected:
       int m_IndexUpdate, m_IndexConfig, m_IndexModules, m_IndexReset, m_IndexDelete, m_IndexReboot;

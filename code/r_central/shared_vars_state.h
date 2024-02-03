@@ -117,6 +117,7 @@ extern int g_iCurrentActiveVehicleRuntimeInfoIndex;
 extern bool g_bSearching;
 extern bool g_bSearchFoundVehicle;
 extern int g_iSearchFrequency;
+extern int g_iSearchFirmwareType;
 extern int g_iSearchSiKAirDataRate;
 extern int g_iSearchSiKECC;
 extern int g_iSearchSiKLBT;
@@ -149,13 +150,9 @@ extern u32 g_uLastControllerAlarmIOFlags;
 
 extern bool g_bChangedOSDStatsFontSize;
 
-extern u32  g_uTimeStartConfiguringRadioLink;
 extern bool g_bReconfiguringRadioLinks;
 extern bool g_bConfiguringRadioLink;
-extern int  g_iConfiguringRadioLinkIndex;
-extern bool g_bConfiguringRadioLinkWaitFlagsConfirmation;
-extern bool g_bConfiguringRadioLinkWaitVehicleReconfiguration;
-extern bool g_bConfiguringRadioLinkWaitControllerReconfiguration;
+extern bool g_bSwitchingFavoriteVehicle;
 
 void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo);
 void shared_vars_state_reset_all_vehicles_runtime_info();

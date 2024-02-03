@@ -14,17 +14,20 @@ class MenuVehicleTelemetry: public Menu
       virtual void valuesToUI();
             
    private:
-      MenuItemSelect* m_pItemsSelect[10];
+      MenuItemSelect* m_pItemsSelect[15];
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemRange*  m_pItemsRange[10];
 
       int m_IndexTelemetryFlags;
       int m_IndexTelemetryAnySystem;
+      int m_IndexTelemetryNoFCMessages;
       int m_IndexTelemetryRequestStreams;
       int m_IndexTelemetryControllerSysId;
       int m_IndexInfoSysId;
+      int m_IndexRemoveDuplicateMsg;
       int m_IndexRUpdateRate;
       int m_IndexVTelemetryType, m_IndexVSerialPort, m_IndexVBaudRate;
       int m_IndexSpectator;
       int m_IndexDataRate;
+      int m_IndexGPS;
 };

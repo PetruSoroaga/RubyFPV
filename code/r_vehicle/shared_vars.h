@@ -100,6 +100,3 @@ extern int g_iGetSiKConfigAsyncResult;
 extern int g_iGetSiKConfigAsyncRadioInterfaceIndex;
 extern u8 g_uGetSiKConfigAsyncVehicleLinkIndex;
 
-// TX Telemetry
-extern int s_MAVLinkRCChannels[16];
-

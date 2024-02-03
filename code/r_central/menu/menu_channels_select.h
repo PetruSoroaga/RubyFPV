@@ -15,7 +15,7 @@ extern u32 s_uChannelsSelect58Band;
 class MenuChannelsSelect: public Menu
 {
    public:
-      MenuChannelsSelect(u32 uFrequencyBands);
+      MenuChannelsSelect(u32 uFrequencyBands, int iId);
       virtual ~MenuChannelsSelect();
       virtual void valuesToUI();
       virtual void Render();

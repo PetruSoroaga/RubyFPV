@@ -7,6 +7,7 @@
 #include "../public/render_engine_ui.h"
 #include "../public/telemetry_info.h"
 #include "../public/settings_info.h"
+#include "../public/utils/core_plugins_utils.h"
 
 #include "ruby_plugins_common.cpp"
 
@@ -32,6 +33,7 @@ extern "C" {
 
 void init(void* pEngine)
 {
+  core_plugin_util_log_line("Plugin heading Init.");
   g_pUIEngine = (RenderEngineUI*)pEngine;
 }
 
@@ -117,6 +119,7 @@ char* getPluginSettingOptionName(int settingIndex, int optionIndex)
 
 float getDefaultWidth()
 {
+  core_plugin_util_log_line("Plugin heading width.");
    if ( NULL == g_pUIEngine )
       return 0.2;
    return 0.2/g_pUIEngine->getAspectRatio();
@@ -124,6 +127,7 @@ float getDefaultWidth()
 
 float getDefaultHeight()
 {
+  core_plugin_util_log_line("Plugin heading height.");
    if ( NULL == g_pUIEngine )
       return 0.2;
    return 0.2;

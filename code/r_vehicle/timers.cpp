@@ -14,7 +14,6 @@ u32 g_TimeLastCheckRadioSilenceFailsafe = 0;
 
 u32 g_TimeLastCheckEverySecond = 0;
 u32 g_TimeLastRCSentToFC = 0;
-u32 g_TimeLastMessageFromFC = 0;
 u32 g_TimeLastMAVLinkHeartbeatSent = 0;
 
 // RC TX
@@ -29,7 +28,6 @@ u32 g_TimeLastQualityMeasurement = 0;
 
 u32 g_TimeFirstReceivedRadioPacketFromController = 0;
 u32 g_TimeLastReceivedRadioPacketFromController = 0;
-u32 g_TimeLastVideoBlockSent = 0;
 u32 g_TimeLastDebugFPSComputeTime = 0;
 u32 g_TimeLastLiveLogCheck = 0;
 u32 g_TimeLastSetRadioLinkFlagsStartOperation = 0;

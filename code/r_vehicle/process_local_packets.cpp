@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/encr.h"
@@ -25,6 +42,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../common/string_utils.h"
 #include "process_local_packets.h"
 #include "processor_tx_video.h"
+#include "utils_vehicle.h"
 
 #include "../radio/radiopackets2.h"
 #include "../radio/radiolink.h"
@@ -430,12 +448,12 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
       int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[iInterface1];
       if ( (iRadioLinkId >= 0) && (iRadioLinkId < g_pCurrentModel->radioLinksParams.links_count) )
-      if ( radio_utils_set_interface_frequency(g_pCurrentModel, iInterface1, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId], g_pProcessStats) )
+      if ( radio_utils_set_interface_frequency(g_pCurrentModel, iInterface1, iRadioLinkId, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId], g_pProcessStats, 0) )
          radio_stats_set_card_current_frequency(&g_SM_RadioStats, iInterface1, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId]);
 
       iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[iInterface2];
       if ( (iRadioLinkId >= 0) && (iRadioLinkId < g_pCurrentModel->radioLinksParams.links_count) )
-      if ( radio_utils_set_interface_frequency(g_pCurrentModel, iInterface2, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId], g_pProcessStats) )
+      if ( radio_utils_set_interface_frequency(g_pCurrentModel, iInterface2, iRadioLinkId, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId], g_pProcessStats, 0) )
          radio_stats_set_card_current_frequency(&g_SM_RadioStats, iInterface2, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId]);
 
       if ( NULL != g_pProcessStats )
@@ -604,7 +622,15 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
    if ( changeType == MODEL_CHANGED_RADIO_LINK_CAPABILITIES )
    {
-      log_line("Received local notification (type %d) that some params changed that do not require additional processing besides reloading the current model.", (int)changeType);
+      log_line("Received local notification (type %d) that link capabilities flags changed, that do not require additional processing besides reloading the current model.", (int)changeType);
+      bMustSignalOtherComponents = false;
+      bMustReinitVideo = false;
+      return;
+   }
+
+   if ( changeType == MODEL_CHANGED_RADIO_LINK_PARAMS )
+   {
+      log_line("Received local notification (type %d) that radio link params have changed on model's radio link %d.", (int)changeType, iExtraParam+1);
       bMustSignalOtherComponents = false;
       bMustReinitVideo = false;
       return;
@@ -739,6 +765,17 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       return;
    }
 
+   if ( changeType == MODEL_CHANGED_RESET_RADIO_LINK )
+   {
+      int iLink = iExtraParam;
+      log_line("Received local notification that radio link %d was reseted.", iLink+1);
+      bMustSignalOtherComponents = true;
+      bMustReinitVideo = false;
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+      return;
+   }
+
    if ( changeType == MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS )
    {
       int iLink = iExtraParam;
@@ -761,11 +798,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       else
       {
          log_line("Radio link %d is regular 2.4/5.8 link.", iLink+1);
-         if ( ! (radioFlags & RADIO_FLAGS_APPLY_MCS_FLAGS_ON_VEHICLE) )
-         {
-            radioFlags &= ~(RADIO_FLAGS_STBC | RADIO_FLAGS_LDPC | RADIO_FLAGS_SHORT_GI | RADIO_FLAGS_HT40);
-            radioFlags |= RADIO_FLAGS_HT20;
-         }
          radio_set_frames_flags(radioFlags);
       }
 
@@ -928,7 +960,7 @@ void process_local_control_packet(t_packet_header* pPH)
          if ( g_pCurrentModel->isActiveCameraHDMI() )
             hardware_sleep_ms(800);
          vehicle_launch_video_capture(g_pCurrentModel, &(g_SM_VideoLinkStats.overwrites));
-         vehicle_check_update_processes_affinities(true);
+         vehicle_check_update_processes_affinities(true, g_pCurrentModel->isActiveCameraVeye());
       }
       else
          log_line("Vehicle has no camera. No video capture started.");

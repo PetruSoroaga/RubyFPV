@@ -80,9 +80,11 @@ typedef struct
    int lastDbm;
    int lastDbmVideo;
    int lastDbmData;
-   int lastDataRate; // positive: bps, negative: MCS
-   int lastDataRateVideo; 
-   int lastDataRateData;
+   int lastRecvDataRate; // positive: bps, negative: MCS, 0 - never
+   int lastRecvDataRateVideo; 
+   int lastRecvDataRateData;
+   int lastSentDataRateVideo; // positive: bps, negative: MCS, 0 - never
+   int lastSentDataRateData;
    u32 lastReceivedRadioLinkPacketIndex; // for lost packets calculation
 
    u32 totalRxBytes;
@@ -123,9 +125,11 @@ typedef struct
    int lastDbm;
    int lastDbmVideo;
    int lastDbmData;
-   int lastDataRate; // positive: bps, negative: MCS
-   int lastDataRateVideo;
-   int lastDataRateData;
+   int lastRecvDataRate; // positive: bps, negative: MCS, 0 - never
+   int lastRecvDataRateVideo;
+   int lastRecvDataRateData;
+   int lastSentDataRateVideo; // positive: bps, negative: MCS, 0 - never
+   int lastSentDataRateData;
 
    u32 totalRxBytes;
    u32 totalTxBytes;
@@ -179,6 +183,8 @@ typedef struct
    u32 linkDelayRoundtripMs;
    u32 linkDelayRoundtripMinimMs;
    int lastTxInterfaceIndex;
+   int lastSentDataRateVideo; // positive: bps, negative: MCS, 0 - never
+   int lastSentDataRateData;
 
    u32 downlink_tx_time_per_sec;
    u32 tmp_downlink_tx_time_per_sec;

@@ -8,6 +8,7 @@ bool loadAllModels();
 bool saveCurrentModel();
 Model* getCurrentModel();
 bool reloadCurrentModel();
+void setCurrentModel(u32 uVehicleId);
 
 int getControllerModelsCount();
 int getControllerModelsSpectatorCount();
@@ -21,7 +22,7 @@ void moveSpectatorModelToTop(int index);
 Model* getModelAtIndex(int index);
 Model* addNewModel();
 void replaceModel(int index, Model* pModel);
-Model* findModelWithId(u32 vehicle_id);
+Model* findModelWithId(u32 uVehicleId, u32 uSrcId);
 bool controllerHasModelWithId(u32 uVehicleId);
 Model* deleteModel(Model* pModel);
 void saveControllerModel(Model* pModel);

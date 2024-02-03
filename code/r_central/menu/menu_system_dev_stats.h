@@ -10,7 +10,6 @@ class MenuSystemDevStats: public Menu
       virtual void onShow(); 
       virtual void Render();
       virtual void valuesToUI();
-      virtual void onReturnFromChild(int returnValue);
       virtual void onSelectItem();
 
    private:

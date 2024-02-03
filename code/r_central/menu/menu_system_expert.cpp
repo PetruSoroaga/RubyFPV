@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -226,14 +244,14 @@ void MenuSystemExpert::Render()
 }
 
 
-void MenuSystemExpert::onReturnFromChild(int returnValue)
+void MenuSystemExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   if ( 1 == m_iConfirmationId && 1 == returnValue )
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
    }
-   if ( 20 == m_iConfirmationId && 1 == returnValue )
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS, 0, NULL, 0) )
       {
@@ -247,18 +265,16 @@ void MenuSystemExpert::onReturnFromChild(int returnValue)
       pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
       save_ControllerSettings();      
 
-      m_iConfirmationId = 21;
-      Menu* pm = new MenuConfirmation("Developer Settings Reset", "Vehicle and controller will reboot now.", m_iConfirmationId, true);
+      Menu* pm = new MenuConfirmation("Developer Settings Reset", "Vehicle and controller will reboot now.", 3, true);
       pm->m_yPos = 0.4;
       add_menu_to_stack(pm);
       return;
    }
 
-   if ( 21 == m_iConfirmationId )
+   if ( 3 == iChildMenuId/1000 )
    {
       hw_execute_bash_command("sudo reboot -f", NULL);      
    }
-   m_iConfirmationId = 0;
 }
 
 
@@ -402,7 +418,7 @@ void MenuSystemExpert::onSelectItem()
          g_bIsRouterPacketsHistoryGraphOn = false;
          g_bIsRouterPacketsHistoryGraphPaused = false;
          handle_commands_send_ruby_message(&PH, NULL, 0);
-         menu_close_all();
+         menu_discard_all();
          shared_mem_router_packets_stats_history_close(g_pDebugSMRPST);
          return;
       }
@@ -419,7 +435,7 @@ void MenuSystemExpert::onSelectItem()
             log_softerror_and_alarm("Failed to open shared mem for read for router packets stats history.");
             return;
          } 
-         menu_close_all();
+         menu_discard_all();
          return;
       }
    }
@@ -627,15 +643,14 @@ void MenuSystemExpert::onSelectItem()
 
    if ( m_IndexResetDev == m_SelectedIndex )
    {
-      m_iConfirmationId = 20;
-      Menu* pm = new MenuConfirmation("Developer Settings Reset", "All developer settings where reset.", m_iConfirmationId);
+      Menu* pm = new MenuConfirmation("Developer Settings Reset", "All developer settings where reset.", 2);
       pm->m_yPos = 0.4;
       add_menu_to_stack(pm);
    }
 
    if ( m_IndexRXScope == m_SelectedIndex )
    {
-      menu_close_all();
+      menu_discard_all();
       rx_scope_start();
    }
 }

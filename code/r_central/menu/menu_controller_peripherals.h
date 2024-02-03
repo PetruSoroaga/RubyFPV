@@ -14,7 +14,6 @@ class MenuControllerPeripherals: public Menu
       virtual bool periodicLoop();
       virtual void Render();
       virtual void valuesToUI();
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
 
    private:

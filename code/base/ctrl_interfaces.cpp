@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "base.h"
@@ -50,7 +68,7 @@ void _controller_interfaces_add_card(const char* szMAC)
    if ( hardware_radio_is_sik_radio(pRadioInfo) )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
 
-   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].datarate_bps = 0;
+   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].datarateBPSMCS = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName = (char*)malloc(2);
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName[0] = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iInternal = false;
@@ -121,9 +139,9 @@ int save_ControllerInterfacesSettings()
       if ( szBuff[0] == '~' && szBuff[1] == 0 )
          szBuff[0] = 0;
       if (  0 == szBuff[0] )
-         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate_bps);
+         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarateBPSMCS);
       else
-         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarate_bps);
+         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarateBPSMCS);
       fprintf(fd, "%d\n", s_CIS.listRadioInterfaces[i].iInternal);
    }
 
@@ -206,43 +224,52 @@ int load_ControllerInterfacesSettings()
    }
 
    if ( ! failed )
-   for( int i=0; i<s_CIS.radioInterfacesCount; i++ )
    {
-      u32 tmp = 0;
-      int tmp2 = 0;
-      s_CIS.listRadioInterfaces[i].szUserDefinedName = (char*)malloc(64);
-      if ( 5 != fscanf(fd, "%s %s %d %u %d", s_CIS.listRadioInterfaces[i].szUserDefinedName, s_CIS.listRadioInterfaces[i].szMAC, &(s_CIS.listRadioInterfaces[i].cardModel), &tmp, &tmp2) )
+      log_line("Loading %d controller interfaces settings...", s_CIS.radioInterfacesCount);
+      for( int i=0; i<s_CIS.radioInterfacesCount; i++ )
       {
-         failed = 5;
-         log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri data)",FILE_CONTROLLER_INTERFACES);
-      }
-      if ( failed )
-      {
-         s_CIS.radioInterfacesCount = 0;
-         break;
-      }
+         u32 tmp = 0;
+         int tmp2 = 0;
+         s_CIS.listRadioInterfaces[i].szUserDefinedName = (char*)malloc(64);
+         if ( 5 != fscanf(fd, "%s %s %d %u %d", s_CIS.listRadioInterfaces[i].szUserDefinedName, s_CIS.listRadioInterfaces[i].szMAC, &(s_CIS.listRadioInterfaces[i].cardModel), &tmp, &tmp2) )
+         {
+            failed = 5;
+            log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri data)",FILE_CONTROLLER_INTERFACES);
+         }
+         if ( failed )
+         {
+            s_CIS.radioInterfacesCount = 0;
+            break;
+         }
 
-      if ( 1 != fscanf(fd, "%d", &s_CIS.listRadioInterfaces[i].iInternal) )
-      {
-         failed = 1;
-         s_CIS.radioInterfacesCount = 0;
-         break;
-      }
+         if ( 1 != fscanf(fd, "%d", &s_CIS.listRadioInterfaces[i].iInternal) )
+         {
+            failed = 1;
+            s_CIS.radioInterfacesCount = 0;
+            break;
+         }
 
-      s_CIS.listRadioInterfaces[i].capabilities_flags = tmp;
-      s_CIS.listRadioInterfaces[i].datarate_bps = tmp2;
+         s_CIS.listRadioInterfaces[i].capabilities_flags = tmp;
+         s_CIS.listRadioInterfaces[i].datarateBPSMCS = tmp2;
 
-      int kSize = (int)strlen(s_CIS.listRadioInterfaces[i].szUserDefinedName);
-      for( int k=0; k<kSize; k++ )
-         if ( s_CIS.listRadioInterfaces[i].szUserDefinedName[k] == '~' )
-            s_CIS.listRadioInterfaces[i].szUserDefinedName[k] = ' ';
+         int kSize = (int)strlen(s_CIS.listRadioInterfaces[i].szUserDefinedName);
+         for( int k=0; k<kSize; k++ )
+            if ( s_CIS.listRadioInterfaces[i].szUserDefinedName[k] == '~' )
+               s_CIS.listRadioInterfaces[i].szUserDefinedName[k] = ' ';
 
-      if ( 0 == s_CIS.listRadioInterfaces[i].szUserDefinedName[0] || (s_CIS.listRadioInterfaces[i].szUserDefinedName[0] == ' ' && 0 == s_CIS.listRadioInterfaces[i].szUserDefinedName[1]) )
-      {
-          s_CIS.listRadioInterfaces[i].szUserDefinedName[0] = 0;
+         if ( 0 == s_CIS.listRadioInterfaces[i].szUserDefinedName[0] || (s_CIS.listRadioInterfaces[i].szUserDefinedName[0] == ' ' && 0 == s_CIS.listRadioInterfaces[i].szUserDefinedName[1]) )
+         {
+             s_CIS.listRadioInterfaces[i].szUserDefinedName[0] = 0;
+         }
+         char szDatarate[64];
+         char szFlags[128];
+         str_getDataRateDescription(s_CIS.listRadioInterfaces[i].datarateBPSMCS, szDatarate);
+         str_get_radio_capabilities_description(s_CIS.listRadioInterfaces[i].capabilities_flags, szFlags);
+         log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], custom datarate: %s, flags: %s",
+            i, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].szUserDefinedName,
+            szDatarate, szFlags );
       }
    }
-
    s_CIS.listMACTXPreferredCount = 0;
    if ( 1 != fscanf(fd, "%*s %d", &s_CIS.listMACTXPreferredCount) )
    {
@@ -370,10 +397,11 @@ void controllerRadioInterfacesLogInfo()
       else
          log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       u32 uFlags = controllerGetCardFlags(pRadioInfo->szMAC);
-      int nRate = controllerGetCardDataRate(pRadioInfo->szMAC);
+      char szDataRate[64];
+      str_getDataRateDescription(controllerGetCardDataRate(pRadioInfo->szMAC), szDataRate);
       szBuff[0] = 0;
       str_get_radio_capabilities_description(uFlags, szBuff);
-      log_line("      Controller set rate: %d, set flags: %s", nRate, szBuff);
+      log_line("      Controller set rate: %s, set flags: %s", szDataRate, szBuff);
    }
    log_line("=================================================================");
 }
@@ -390,7 +418,7 @@ int controllerIsCardDisabled(const char* szMAC)
 {
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
-      return 1;
+      return 0;
 
    if ( s_CIS.listRadioInterfaces[index].capabilities_flags & RADIO_HW_CAPABILITY_FLAG_DISABLED )   
       return 1;
@@ -401,7 +429,7 @@ int controllerIsCardRXOnly(const char* szMAC)
 {
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
-      return 1;
+      return 0;
    if ( !(s_CIS.listRadioInterfaces[index].capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
       return 1;
    return 0;
@@ -411,7 +439,7 @@ int controllerIsCardTXOnly(const char* szMAC)
 {
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
-      return 1;
+      return 0;
    if ( !(s_CIS.listRadioInterfaces[index].capabilities_flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
       return 1;
    return 0;
@@ -591,7 +619,7 @@ int controllerGetCardDataRate(const char* szMAC)
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
       return 0;
-   return s_CIS.listRadioInterfaces[index].datarate_bps;
+   return s_CIS.listRadioInterfaces[index].datarateBPSMCS;
 }
 
 void controllerSetCardDataRate(const char* szMAC, int dataRateBPS)
@@ -599,7 +627,7 @@ void controllerSetCardDataRate(const char* szMAC, int dataRateBPS)
    int index = _controller_interfaces_get_card_index(szMAC);
    if ( -1 == index )
       return;
-   s_CIS.listRadioInterfaces[index].datarate_bps = dataRateBPS;
+   s_CIS.listRadioInterfaces[index].datarateBPSMCS = dataRateBPS;
 }
 
 void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char* szOutput)

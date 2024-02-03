@@ -1,13 +1,32 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #include <ctype.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -59,32 +78,10 @@ int hardware_radio_has_sik_radios()
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioHWInfo )
          continue;
-      u32 uType = pRadioHWInfo->typeAndDriver & 0xFF;
-      if ( uType == RADIO_TYPE_SIK )
+      if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
          iCount++;
    }
    return iCount;
-}
-
-int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex)
-{
-   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iHWInterfaceIndex);
-   if ( NULL == pRadioHWInfo )
-      return 0;
-     
-   return hardware_radio_is_sik_radio(pRadioHWInfo);
-}
-
-int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo)
-{
-   if ( NULL == pRadioInfo )
-      return 0;
-
-   u32 uType = pRadioInfo->typeAndDriver & 0xFF;
-   if ( uType == RADIO_TYPE_SIK )
-      return 1;
-
-   return 0;
 }
 
 radio_hw_info_t* hardware_radio_sik_get_from_serial_port(const char* szSerialPort)
@@ -138,7 +135,7 @@ int hardware_radio_sik_reinitialize_serial_ports()
       hw_serial_port_info_t* pSerialPort = hardware_get_serial_port_info(i);
       if ( NULL == pSerialPort )
          continue;
-      if ( pSerialPort->iPortUsage != SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      if ( pSerialPort->iPortUsage != SERIAL_PORT_USAGE_SIK_RADIO )
          continue;
       radio_hw_info_t* pSiKRadio = hardware_radio_sik_get_from_serial_port(pSerialPort->szPortDeviceName); 
       if ( NULL == pSiKRadio )
@@ -667,7 +664,7 @@ int hardware_radio_sik_save_configuration()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
-      if ( (NULL == pRadioInfo) || ((pRadioInfo->typeAndDriver & 0xFF) != RADIO_TYPE_SIK) )
+      if ( ! hardware_radio_is_sik_radio(pRadioInfo) )
          continue;
        fwrite( (u8*)pRadioInfo, 1, sizeof(radio_hw_info_t), fd );
 
@@ -865,6 +862,8 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
 
       s_radioHWInfoSikTemp.typeAndDriver = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
       s_radioHWInfoSikTemp.iCardModel = CARD_MODEL_SIK_RADIO;
+      s_radioHWInfoSikTemp.isSerialRadio = 1;
+      s_radioHWInfoSikTemp.isConfigurable = 1;
       s_radioHWInfoSikTemp.isSupported = 1;
       s_radioHWInfoSikTemp.isHighCapacityInterface = 0;
       s_radioHWInfoSikTemp.isEnabled = 1;
@@ -900,7 +899,7 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
             continue;
          if ( 0 == strcmp(pSerial->szPortDeviceName, szDevName) )
          {
-            pSerial->iPortUsage = SERIAL_PORT_USAGE_HARDWARE_RADIO;
+            pSerial->iPortUsage = SERIAL_PORT_USAGE_SIK_RADIO;
             pSerial->lPortSpeed = iSpeed;
             pSerial->iSupported = 1;
             hardware_serial_save_configuration();

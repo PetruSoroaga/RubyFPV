@@ -1,7 +1,7 @@
 #pragma once
 
 void video_stats_overwrites_init();
-void video_stats_overwrites_switch_to_profile_and_level(int iVideoProfile, int iLevelShift);
+void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, int iVideoProfile, int iLevelShift);
 void video_stats_overwrites_reset_to_highest_level();
 void video_stats_overwrites_reset_to_forced_profile();
 void video_stats_overwrites_periodic_loop();

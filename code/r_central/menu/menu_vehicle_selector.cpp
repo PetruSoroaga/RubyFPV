@@ -1,26 +1,45 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
 #include "menu_vehicle_selector.h"
 #include "menu_confirmation.h"
 #include "menu_item_text.h"
-
+#include "../../common/favorites.h"
 
 MenuVehicleSelector::MenuVehicleSelector(void)
 :Menu(MENU_ID_VEHICLE_SELECTOR, "Vehicle Actions", NULL)
 {
-   m_Width = 0.16;
+   m_Width = 0.18;
    m_xPos = menu_get_XStartPos(this, m_Width);
    m_bDisableStacking = true;
+   m_bSpectatorMode = false;
    m_yPos = 0.18;
 }
 
@@ -31,15 +50,18 @@ MenuVehicleSelector::~MenuVehicleSelector()
 void MenuVehicleSelector::onShow()
 {
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0;
-   
-   log_line("Showing vehicle selector for vehicle index: %d", m_IndexSelectedVehicle);
+   log_line("[Menu] Showing vehicle selector for vehicle index: %d", m_IndexSelectedVehicle);
    removeAllItems();
 
-   Model *pModel = getModelAtIndex(m_IndexSelectedVehicle);
+   Model *pModel = NULL;
+   if ( m_bSpectatorMode )
+      pModel = getSpectatorModel(m_IndexSelectedVehicle);
+   else
+      pModel = getModelAtIndex(m_IndexSelectedVehicle);
+
    if ( NULL == pModel )
    {
-      log_softerror_and_alarm("NULL model for vehicle index %d.", m_IndexSelectedVehicle);
+      log_softerror_and_alarm("[Menu] Vehicle Selector: NULL model for vehicle index %d.", m_IndexSelectedVehicle);
       addMenuItem(new MenuItemText("Can't get vehicle info!"));
       return;
    }
@@ -49,10 +71,14 @@ void MenuVehicleSelector::onShow()
    strcpy(szBuff, "Actions");
    setTitle(szBuff);
    m_IndexSelect = addMenuItem(new MenuItem("Select","Make this vehicle the active one."));
+   if ( vehicle_is_favorite(pModel->vehicle_id) )
+      m_IndexFavorite = addMenuItem(new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles."));
+   else
+      m_IndexFavorite = addMenuItem(new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action."));
    m_IndexDelete = addMenuItem(new MenuItem("Delete","Deletes this vehicle."));
   
    Menu::onShow();
-   log_line("Showed vehicle selector for vehicle index: %d", m_IndexSelectedVehicle);
+   log_line("[Menu] Showed vehicle selector for vehicle index: %d, VID: %u, spectator mode? %s", m_IndexSelectedVehicle, pModel->vehicle_id, m_bSpectatorMode?"yes":"no");
 }
 
 void MenuVehicleSelector::Render()
@@ -66,11 +92,16 @@ void MenuVehicleSelector::Render()
 }
 
 
-void MenuVehicleSelector::onReturnFromChild(int returnValue)
+void MenuVehicleSelector::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   Model *pModel = getModelAtIndex(m_IndexSelectedVehicle);
+   Model *pModel = NULL;
+   if ( m_bSpectatorMode )
+      pModel = getSpectatorModel(m_IndexSelectedVehicle);
+   else
+      pModel = getModelAtIndex(m_IndexSelectedVehicle);
+
    if ( NULL == pModel )
    {
       log_softerror_and_alarm("NULL model for vehicle index %d.", m_IndexSelectedVehicle);
@@ -78,16 +109,16 @@ void MenuVehicleSelector::onReturnFromChild(int returnValue)
    }
 
    // Delete model
-   if ( (1 == returnValue) && (1 == m_iConfirmationId) )
+   if ( (1 == returnValue) && (1 == iChildMenuId/1000) )
    {
-      log_line("Pressed command to delete model");
-      log_line("Deleting model VID %u, ptr: %X", pModel->vehicle_id, pModel);
+      log_line("[Menu] VehicleSelector: Pressed command to delete model");
+      log_line("[Menu] VehicleSelector: Deleting model VID %u, ptr: %X", pModel->vehicle_id, pModel);
       if ( NULL != g_pCurrentModel )
-         log_line("Current local model: VID: %u, ptr: %X", g_pCurrentModel->vehicle_id, g_pCurrentModel);
+         log_line("[Menu] VehicleSelector: Current local model: VID: %u, ptr: %X", g_pCurrentModel->vehicle_id, g_pCurrentModel);
 
       if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
       {
-         log_line("Pressed command to delete model: current model.");
+         log_line("[Menu] VehicleSelector: Pressed command to delete model: current model.");
          render_all(get_current_timestamp_ms(), true, false);
          pairing_stop();
 
@@ -98,51 +129,52 @@ void MenuVehicleSelector::onReturnFromChild(int returnValue)
       deletePluginModelSettings(pModel->vehicle_id);
       save_PluginsSettings();
       deleteModel(pModel);
-      log_line("Menu Vehicle Selector: Deleted model 1/2.");
+      log_line("[Menu] VehicleSelector: Deleted model 1/2.");
       notification_add_model_deleted();
-      m_iConfirmationId = 0;
       m_IndexSelectedVehicle = -1;
-      menu_refresh_all_menus();
+      menu_refresh_all_menus_except(this);
       menu_stack_pop(0);
-      log_line("Menu Vehicle Selector: Deleted model 2/2.");
+      log_line("[Menu] VehicleSelector: Deleted model 2/2.");
       return;
    }
-
-   m_iConfirmationId = 0;
 }
 
 
 void MenuVehicleSelector::onSelectItem()
 {
-   Model *pModel = getModelAtIndex(m_IndexSelectedVehicle);
+   Model *pModel = NULL;
+   if ( m_bSpectatorMode )
+      pModel = getSpectatorModel(m_IndexSelectedVehicle);
+   else
+      pModel = getModelAtIndex(m_IndexSelectedVehicle);
+
    if ( NULL == pModel )
    {
-      log_softerror_and_alarm("NULL model for vehicle index %d.", m_IndexSelectedVehicle);
+      log_softerror_and_alarm("[Menu] VehicleSelector: NULL model for vehicle index %d.", m_IndexSelectedVehicle);
       return;
    }
 
    if ( m_IndexDelete == m_SelectedIndex )
    {
       if ( (NULL != g_pCurrentModel) && (pModel->vehicle_id == g_pCurrentModel->vehicle_id) )
-      if ( checkIsArmed() )
+      if ( (!m_bSpectatorMode) && checkIsArmed() )
          return;
       char szBuff[64];
       sprintf(szBuff, "Are you sure you want to delete %s?", pModel->getLongName());
-      m_iConfirmationId = 1;
-      add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, m_iConfirmationId));
+      add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
       return;
    }
 
    if ( m_IndexSelect == m_SelectedIndex )
    {
-      if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
+      if ( NULL != g_pCurrentModel )
       if ( (g_uActiveControllerModelVID == pModel->vehicle_id) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
       {
-         menu_close_all();
+         menu_discard_all();
          return;
       }
 
-      menu_close_all();
+      menu_discard_all();
       warnings_remove_all();
       render_all(get_current_timestamp_ms(), true);
       Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
@@ -152,14 +184,31 @@ void MenuVehicleSelector::onSelectItem()
       pairing_stop();
 
       hardware_sleep_ms(100);
-      pModel->is_spectator = false;
       g_pCurrentModel = pModel;
       setControllerCurrentModel(g_pCurrentModel->vehicle_id);
       saveControllerModel(g_pCurrentModel);
 
       ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
       
-      onMainVehicleChanged();
+      onMainVehicleChanged(true);
       pairing_start_normal(); 
+   }
+
+   if ( m_IndexFavorite == m_SelectedIndex )
+   {
+      if ( vehicle_is_favorite(pModel->vehicle_id) )
+         remove_favorite(pModel->vehicle_id);
+      else
+         add_favorite(pModel->vehicle_id);
+
+      MenuItem* pItem = NULL;
+      if ( vehicle_is_favorite(pModel->vehicle_id) )
+         pItem = new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles.");
+      else
+        pItem = new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action.");
+      m_pMenuItems[m_IndexFavorite] = pItem;  
+
+      save_favorites();
+      invalidate();
    }
 }

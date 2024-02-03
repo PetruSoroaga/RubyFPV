@@ -31,6 +31,7 @@ typedef enum
    quickActionRCEnable,
    quickActionRotaryFunction,
    quickActionOSDFreeze,
+   quickActionSwitchFavorite,
    quickActionLast
 } quickAction;
 

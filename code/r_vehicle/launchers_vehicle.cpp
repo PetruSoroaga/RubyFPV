@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "launchers_vehicle.h"
@@ -116,6 +134,9 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       memset((u8*)&s_LastAppliedVeyeVideoParams, 0, sizeof(video_parameters_t));
    }
 
+   bool bResult = true;
+
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( pModel->isActiveCameraVeye() )
    {
       char szComm[1024];
@@ -193,7 +214,7 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
    }
 
    //log_line("Executing video pipeline: [%s]", szBuff);
-   bool bResult = hw_execute_bash_command(szBuff, NULL);
+   bResult = hw_execute_bash_command(szBuff, NULL);
 
    if ( pModel->isActiveCameraVeye() )
    {
@@ -211,7 +232,8 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       g_TimeStartRaspiVid = g_TimeNow;
       g_bDidSentRaspividBitrateRefresh = false;
    }
-
+   #endif
+   
    log_line("Completed launching video capture.");
    return bResult;
 }
@@ -220,6 +242,7 @@ void vehicle_stop_video_capture(Model* pModel)
 {
    g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 0;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( pModel->isActiveCameraVeye() )
    {
       hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE);
@@ -228,6 +251,7 @@ void vehicle_stop_video_capture(Model* pModel)
    }
    else
       hw_stop_process(VIDEO_RECORDER_COMMAND);
+   #endif
 
    g_TimeStartRaspiVid = 0;
    g_bDidSentRaspividBitrateRefresh = true;
@@ -240,6 +264,7 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
    if ( ! pModel->isActiveCameraVeye() )
       return;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szComm[1024];
    char szCameraFlags[512];
    szCameraFlags[0] = 0;
@@ -465,7 +490,8 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
          hw_execute_bash_command(szComm, NULL);
       }
    }
-
+   #endif
+   
    memcpy((u8*)&s_LastAppliedVeyeCameraParams, (u8*)&(pModel->camera_params[iCameraIndex]), sizeof(type_camera_parameters));
    memcpy((u8*)&s_LastAppliedVeyeVideoParams, (u8*)&(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile]), sizeof(type_video_link_profile));
 }
@@ -576,6 +602,12 @@ void vehicle_stop_audio_capture(Model* pModel)
 static void * _thread_adjust_affinities_vehicle(void *argument)
 {
    s_bThreadBgAffinitiesStarted = true;
+   bool bVeYe = false;
+   if ( NULL != argument )
+   {
+      bool* pB = (bool*)argument;
+      bVeYe = *pB;
+   }
    log_line("Started background thread to adjust processes affinities...");
    
    if ( s_iCPUCoresCount < 1 )
@@ -605,25 +637,36 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
       hw_set_proc_affinity("ruby_tx_telemetry", 2,2);
       hw_set_proc_affinity("ruby_rx_rc", 2,2);
-      hw_set_proc_affinity("ruby_capture_raspi", 3, s_iCPUCoresCount);
+
+      #ifdef HW_PLATFORM_RASPBERRY
+      if ( bVeYe )
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 3, s_iCPUCoresCount);
+      else
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, 3, s_iCPUCoresCount);
+      #endif
    }
    else
    {
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
-      hw_set_proc_affinity("ruby_capture_raspi", 2, s_iCPUCoresCount);
+      #ifdef HW_PLATFORM_RASPBERRY
+      if ( bVeYe )
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 2, s_iCPUCoresCount);
+      else
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, 2, s_iCPUCoresCount);
+      #endif
    }
    log_line("Background thread to adjust processes affinities completed.");
    s_bThreadBgAffinitiesStarted = false;
    return NULL;
 }
 
-void vehicle_check_update_processes_affinities(bool bUseThread)
+void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
 {
    log_line("Adjust processes affinities. Use thread: %s", (bUseThread?"Yes":"No"));
 
    if ( ! bUseThread )
    {
-      _thread_adjust_affinities_vehicle(NULL);
+      _thread_adjust_affinities_vehicle(&bVeYe);
       log_line("Adjusted processes affinities");
       return;
    }
@@ -634,7 +677,7 @@ void vehicle_check_update_processes_affinities(bool bUseThread)
       return;
    }
    s_bThreadBgAffinitiesStarted = true;
-   if ( 0 != pthread_create(&s_pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, NULL) )
+   if ( 0 != pthread_create(&s_pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &bVeYe) )
    {
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
       s_bThreadBgAffinitiesStarted = false;

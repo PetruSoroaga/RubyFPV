@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -50,8 +68,6 @@ void MenuVehicleRelay::onShow()
 {
    m_fHeightHeader = 0.24/g_pRenderEngine->getAspectRatio();
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0.0;
-   
    char szBuff[256];
    removeAllItems();
    removeAllTopLines();
@@ -83,7 +99,7 @@ void MenuVehicleRelay::onShow()
       return;
    }
 
-   m_ExtraItemsHeight = m_fHeightHeader;
+   //m_ExtraItemsHeight = m_fHeightHeader;
    m_bIsConfigurable = true;
 
    sprintf(szBuff, "Selects the vehicle to relay using the currently active vehicle: %s.", g_pCurrentModel->getLongName());
@@ -179,7 +195,7 @@ void MenuVehicleRelay::valuesToUI()
    if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
    if ( g_pCurrentModel->relay_params.uRelayFrequencyKhz != 0 )
    {
-      Model *pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+      Model *pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 18);
       if ( NULL == pRelayedModel )
       {
          log_softerror_and_alarm("MenuVehicleRelay: valuestoUI: Relay is enabled on inexistent VID: %u. Disabling relaying.", g_pCurrentModel->relay_params.uRelayedVehicleId);
@@ -287,7 +303,7 @@ void MenuVehicleRelay::Render()
    float yTop = RenderFrameAndTitle(); 
 
    _drawHeader(yTop - 0.4*m_sfMenuPaddingY);
-   float y = yTop + m_ExtraItemsHeight;
+   float y = yTop;
  
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
@@ -400,7 +416,7 @@ void MenuVehicleRelay::_drawHeader(float yPos)
       return;
    }
 
-   Model* pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+   Model* pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 19);
    
    if ( NULL == pRelayedModel )
    {
@@ -474,7 +490,6 @@ int MenuVehicleRelay::onBack()
    if ( pCS->iQAButtonRelaySwitching <= 0 )
    {
       addMessage("You have not assigned a Quick Action button to do relay switching. You will have no way to switch between vehicles.");
-      Menu::onBack();
       return 1;
    }
    return Menu::onBack();
@@ -495,7 +510,7 @@ bool MenuVehicleRelay::_check_if_vehicle_can_be_relayed(u32 uVehicleId)
 
    log_line("MenuVehicleRelay: Checking if vehicle VID %u can be relayed.", uVehicleId);
 
-   Model *pRelayedModel = findModelWithId(uVehicleId);
+   Model *pRelayedModel = findModelWithId(uVehicleId, 20);
    if ( NULL == pRelayedModel )
    {
       strcpy(m_szRelayError, "Invalid vehicle selected.");
@@ -693,7 +708,7 @@ void MenuVehicleRelay::onSelectItem()
 
    if ( (m_IndexBack != -1) && (m_IndexBack == m_SelectedIndex) )
    {
-      menu_stack_pop();
+      menu_stack_pop(0);
       return;
    }
 
@@ -726,14 +741,14 @@ void MenuVehicleRelay::onSelectItem()
       if ( ! _check_if_vehicle_can_be_relayed(m_uVehiclesID[iIndexVehicle-1]) )
       {
          if ( 0 != m_szRelayError2[0] )
-            addMessage2(m_szRelayError, m_szRelayError2);
+            addMessage2(0, m_szRelayError, m_szRelayError2);
          else
             addMessage(m_szRelayError);
          valuesToUI();
          return;
       }
 
-      Model *pRelayedModel = findModelWithId(m_uVehiclesID[iIndexVehicle-1]);
+      Model *pRelayedModel = findModelWithId(m_uVehiclesID[iIndexVehicle-1], 21);
       if ( NULL == pRelayedModel )
       {
          addMessage("Invalid vehicle selected.");
@@ -808,7 +823,7 @@ void MenuVehicleRelay::onSelectItem()
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId == iNewRadioLinkToUse )
          return;
 
-      Model *pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+      Model *pRelayedModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 22);
       if ( NULL == pRelayedModel )
       {
          addMessage("Invalid vehicle selected.");

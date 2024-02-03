@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "hw_config_check.h"
@@ -92,14 +110,7 @@ bool _check_update_hardware_one_interface_after_and_before(Model* pModel)
          if ( pModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 )
             pModel->radioLinksParams.link_frequency_khz[0] = DEFAULT_FREQUENCY58;
 
-         pModel->radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-         pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-         pModel->radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
-         pModel->radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
-         pModel->radioLinksParams.bUplinkSameAsDownlink[0] = 1;
-         pModel->radioLinksParams.uplink_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-         pModel->radioLinksParams.uplink_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
-         pModel->radioLinksParams.uplink_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
+         pModel->resetRadioLinkParams(0);
       }
    }
 
@@ -167,16 +178,8 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
       // Remove all radio links except the one we are keeping
       // Move it to first in the list of radio links and make sure it can be used for data and video
 
-      pModel->radioLinksParams.link_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[iRadioLinkIndex];
-      pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[iRadioLinkIndex];
-      pModel->radioLinksParams.link_radio_flags[0] = pModel->radioLinksParams.link_radio_flags[iRadioLinkIndex];
-      pModel->radioLinksParams.link_datarate_video_bps[0] = pModel->radioLinksParams.link_datarate_video_bps[iRadioLinkIndex];
-      pModel->radioLinksParams.link_datarate_data_bps[0] = pModel->radioLinksParams.link_datarate_data_bps[iRadioLinkIndex];
-      pModel->radioLinksParams.bUplinkSameAsDownlink[0] = pModel->radioLinksParams.bUplinkSameAsDownlink[iRadioLinkIndex];
-      pModel->radioLinksParams.uplink_radio_flags[0] = pModel->radioLinksParams.uplink_radio_flags[iRadioLinkIndex];
-      pModel->radioLinksParams.uplink_datarate_video_bps[0] = pModel->radioLinksParams.uplink_datarate_video_bps[iRadioLinkIndex];
-      pModel->radioLinksParams.uplink_datarate_data_bps[0] = pModel->radioLinksParams.uplink_datarate_data_bps[iRadioLinkIndex];
-
+      pModel->copy_radio_link_params(iRadioLinkIndex, 0);
+      
       pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
       pModel->radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
       pModel->radioLinksParams.links_count = 1;
@@ -215,16 +218,8 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
    // Remove all radio links except the one we are keeping
    // Move it to first in the list of radio links and make sure it can be used for data and video
 
-   pModel->radioLinksParams.link_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[iRadioLinkIndex];
-   pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[iRadioLinkIndex];
-   pModel->radioLinksParams.link_radio_flags[0] = pModel->radioLinksParams.link_radio_flags[iRadioLinkIndex];
-   pModel->radioLinksParams.link_datarate_video_bps[0] = pModel->radioLinksParams.link_datarate_video_bps[iRadioLinkIndex];
-   pModel->radioLinksParams.link_datarate_data_bps[0] = pModel->radioLinksParams.link_datarate_data_bps[iRadioLinkIndex];
-   pModel->radioLinksParams.bUplinkSameAsDownlink[0] = pModel->radioLinksParams.bUplinkSameAsDownlink[iRadioLinkIndex];
-   pModel->radioLinksParams.uplink_radio_flags[0] = pModel->radioLinksParams.uplink_radio_flags[iRadioLinkIndex];
-   pModel->radioLinksParams.uplink_datarate_video_bps[0] = pModel->radioLinksParams.uplink_datarate_video_bps[iRadioLinkIndex];
-   pModel->radioLinksParams.uplink_datarate_data_bps[0] = pModel->radioLinksParams.uplink_datarate_data_bps[iRadioLinkIndex];
-
+   pModel->copy_radio_link_params(iRadioLinkIndex, 0);
+ 
    pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
    pModel->radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
    pModel->radioLinksParams.links_count = 1;
@@ -277,14 +272,7 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
    int iRadioLink = pModel->radioLinksParams.links_count;
    
    pModel->radioLinksParams.link_frequency_khz[iRadioLink] = 0;
-   pModel->radioLinksParams.link_radio_flags[iRadioLink] = DEFAULT_RADIO_FRAMES_FLAGS;
-   pModel->radioLinksParams.link_capabilities_flags[iRadioLink] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-   pModel->radioLinksParams.link_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_VIDEO;
-   pModel->radioLinksParams.link_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_DATA;
-   pModel->radioLinksParams.bUplinkSameAsDownlink[iRadioLink] = 1;
-   pModel->radioLinksParams.uplink_radio_flags[iRadioLink] = DEFAULT_RADIO_FRAMES_FLAGS;
-   pModel->radioLinksParams.uplink_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_VIDEO;
-   pModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_DATA;
+   pModel->resetRadioLinkParams(iRadioLink);
 
    if ( 0 == iRadioLink )
    {

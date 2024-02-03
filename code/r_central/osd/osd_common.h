@@ -38,9 +38,14 @@ extern u32 g_idIconRadio;
 extern u32 g_idIconWind;
 extern u32 g_idIconController;
 extern u32 g_idIconX;
+extern u32 g_idIconFavorite;
 
 extern float g_fOSDStatsForcePanelWidth;
 extern float g_fOSDStatsBgTransparency;
+
+extern u32 g_uOSDElementChangeTimeout;
+extern u32 g_uOSDElementChangeBlinkInterval;
+extern bool g_bOSDElementChangeNotification;
 
 float osd_getMarginX();
 float osd_getMarginY();
@@ -64,6 +69,8 @@ float osd_getSpacingV();
 
 void osd_set_transparency(int value);
 void osd_set_colors();
+void osd_set_colors_text(double* pColorText);
+
 void osd_set_colors_alpha(float alpha);
 void osd_set_colors_background_fill();
 void osd_set_colors_background_fill(float fAlpha);

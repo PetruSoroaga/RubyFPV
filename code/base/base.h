@@ -13,7 +13,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/mman.h>
-
+#include <signal.h>
+#include "build.h"
 
 typedef unsigned int u32;
 typedef unsigned short u16;

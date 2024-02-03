@@ -1,3 +1,32 @@
+/*
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "../base/base.h"
 #include "../base/hardware.h"
 #include "keyboard.h"
@@ -230,8 +259,9 @@ bool _keyboard_try_detect()
 
 void _add_input_event(u32 uEvent)
 {
-   //log_line("[Keyboard] Added input event %u, %d events", uEvent, s_iCountKeyboardInputEvents);
-   int iLock =pthread_mutex_lock(&s_pThreadKeyboardMutex);
+   if ( uEvent == INPUT_EVENT_PRESS_MENU )
+      log_line("[Input] Added input event %u, %d events", uEvent, s_iCountKeyboardInputEvents);
+   int iLock = pthread_mutex_lock(&s_pThreadKeyboardMutex);
 
    s_uKeyboardInputEvents[s_iCountKeyboardInputEvents] = uEvent;
    s_iCountKeyboardInputEvents++;
@@ -245,7 +275,7 @@ void _add_input_event(u32 uEvent)
          pthread_mutex_unlock(&s_pThreadKeyboardMutex);
 }
 
-int _read_input_events()
+int _read_keyboard_input_events()
 {
    fd_set readset;
    int iMaxFD = 0;
@@ -301,21 +331,21 @@ int _read_input_events()
          {
             u32 uEvent = 0;
 
-            if ( (events[k].code == 28) || (events[k].code == 57) )
+            if ( (events[k].code == 28) || (events[k].code == 57) || (events[k].code == 96) )
                uEvent = INPUT_EVENT_PRESS_MENU;
             else if ( (events[k].code == 14) || (events[k].code == 1) )
                uEvent = INPUT_EVENT_PRESS_BACK;
-            else if ( (events[k].code == 103) || (events[k].code == 22) )
+            else if ( (events[k].code == 103) || (events[k].code == 22) || (events[k].code == 72) || (events[k].code == 75) )
                uEvent = INPUT_EVENT_PRESS_MINUS;
-            else if ( (events[k].code == 108) || (events[k].code == 32) )
+            else if ( (events[k].code == 108) || (events[k].code == 32) || (events[k].code == 80) || (events[k].code == 77) )
                uEvent = INPUT_EVENT_PRESS_PLUS;
-            else if ( events[k].code == 2 )
+            else if ( (events[k].code == 2) || (events[k].code == 79) )
                uEvent = INPUT_EVENT_PRESS_QA1;
-            else if ( events[k].code == 3 )
+            else if ( (events[k].code == 3) )
                uEvent = INPUT_EVENT_PRESS_QA2;
-            else if ( events[k].code == 4 )
+            else if ( (events[k].code == 4) || (events[k].code == 81) )
                uEvent = INPUT_EVENT_PRESS_QA3;
-            else
+            else if ( events[k].code != 69 )
             {
                log_line("[Keyboard] Pressed unknown key %d", events[k].code);
                uEvent = ((u32)events[k].code) << 16;
@@ -375,7 +405,7 @@ static void * _thread_keyboard(void *argument)
          }
       }
 
-      if ( _read_input_events() < 0 )
+      if ( _read_keyboard_input_events() < 0 )
          s_uNextKeyboardDetectTime = g_TimeNow + 500;
    }
 
@@ -437,6 +467,7 @@ int keyboard_uninit()
      s_InputDevicesInfo[i].szName[0] = 0;
    }
 
+   log_line("[Keyboard] Uninited.");
    return 0;
 }
 
@@ -486,5 +517,31 @@ int keyboard_consume_input_events()
 
 u32 keyboard_get_triggered_input_events()
 {
+   return s_uKeyboardInputEventsSum;
+}
+
+u32 keyboard_add_triggered_input_event(u32 uEventId)
+{
+   s_uKeyboardInputEventsSum |= uEventId;
+   return s_uKeyboardInputEventsSum;
+}
+
+u32 keyboard_add_triggered_gpio_input_events()
+{
+   if ( isKeyMenuPressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_MENU;
+   if ( isKeyBackPressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_BACK;
+   if ( isKeyMinusPressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_MINUS;
+   if ( isKeyPlusPressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_PLUS;
+   if ( isKeyQA1Pressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_QA1;
+   if ( isKeyQA2Pressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_QA2;
+   if ( isKeyQA3Pressed() )
+      s_uKeyboardInputEventsSum |= INPUT_EVENT_PRESS_QA3;
+
    return s_uKeyboardInputEventsSum;
 }

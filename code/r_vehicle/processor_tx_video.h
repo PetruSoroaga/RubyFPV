@@ -75,10 +75,6 @@ bool process_data_tx_video_on_data_read_complete(int countRead);
 int process_data_tx_video_has_packets_ready_to_send();
 int process_data_tx_video_send_packets_ready_to_send(int howMany);
 
-int process_data_tx_video_has_block_ready_to_send();
-int process_data_tx_video_get_pending_blocks_to_send_count();
-int process_data_tx_video_send_first_complete_block(bool isLastBlockToSend);
-
 void process_data_tx_video_signal_encoding_changed();
 void process_data_tx_video_signal_model_changed();
 

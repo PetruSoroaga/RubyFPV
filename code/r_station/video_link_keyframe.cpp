@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -29,7 +47,7 @@ bool s_bReceivedKeyFrameFromVideoStream = false;
 
 void video_link_keyframe_init(u32 uVehicleId)
 {
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 150);
    if ( NULL == pModel )
       return;
 
@@ -47,7 +65,7 @@ void video_link_keyframe_init(u32 uVehicleId)
 
 void video_link_keyframe_set_intial_received_level(u32 uVehicleId, int iReceivedKeyframeMs)
 {
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 151);
    if ( NULL == pModel )
       return;
 
@@ -72,7 +90,7 @@ void video_link_keyframe_set_intial_received_level(u32 uVehicleId, int iReceived
 
 void video_link_keyframe_set_current_level_to_request(u32 uVehicleId, int iKeyframeMs)
 {
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 152);
    if ( NULL == pModel )
       return;
 
@@ -98,7 +116,7 @@ void video_link_keyframe_set_current_level_to_request(u32 uVehicleId, int iKeyfr
 
 void _video_link_keyframe_check_send_to_vehicle(u32 uVehicleId)
 {
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 153);
    if ( NULL == pModel )
       return;
 
@@ -155,7 +173,7 @@ void _video_link_keyframe_request_new_keyframe_interval(u32 uVehicleId, int iInt
    if ( iIntervalMs > 20000 )
       iIntervalMs = 20000;
 
-   Model* pModel = findModelWithId(uVehicleId);
+   Model* pModel = findModelWithId(uVehicleId, 154);
    if ( NULL == pModel )
       return;
 
@@ -192,7 +210,9 @@ void video_link_keyframe_periodic_loop()
       
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+         continue;
+      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 155);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
@@ -209,7 +229,9 @@ void video_link_keyframe_periodic_loop()
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+         continue;
+      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 156);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
 

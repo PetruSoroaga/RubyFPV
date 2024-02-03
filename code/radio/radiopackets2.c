@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -20,7 +38,7 @@ void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 u
    
    if ( uStreamId >= MAX_RADIO_STREAMS )
       uStreamId = MAX_RADIO_STREAMS-1;
-   pPH->crc = 0;
+   pPH->uCRC = 0;
    pPH->vehicle_id_src = 0;
    pPH->vehicle_id_dest = 0;
    pPH->radio_link_packet_index = 0;
@@ -83,16 +101,16 @@ void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_rub
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       if ( pV1->downlink_datarates[i][0] < 128 )
-         pV3->downlink_datarate_bps[i][0] = 1000 * 1000 * pV1->downlink_datarates[i][0];
+         pV3->last_sent_datarate_bps[i][0] = 1000 * 1000 * pV1->downlink_datarates[i][0];
       else
-         pV3->downlink_datarate_bps[i][0] = (127-pV1->downlink_datarates[i][0]);
+         pV3->last_sent_datarate_bps[i][0] = (127-pV1->downlink_datarates[i][0]);
       
       if ( pV1->downlink_datarates[i][1] < 128 )
-         pV3->downlink_datarate_bps[i][1] = 1000 * 1000 * pV1->downlink_datarates[i][1];
+         pV3->last_sent_datarate_bps[i][1] = 1000 * 1000 * pV1->downlink_datarates[i][1];
       else
-         pV3->downlink_datarate_bps[i][1] = (127-pV1->downlink_datarates[i][1]);
+         pV3->last_sent_datarate_bps[i][1] = (127-pV1->downlink_datarates[i][1]);
       
-      pV3->uplink_datarate_bps[i] = 1000 * 1000 * pV1->uplink_datarate[i];
+      pV3->last_recv_datarate_bps[i] = 1000 * 1000 * pV1->uplink_datarate[i];
 
       pV3->uplink_rssi_dbm[i] = pV1->uplink_rssi_dbm[i];
       pV3->uplink_link_quality[i] = pV1->uplink_link_quality[i];
@@ -143,16 +161,16 @@ void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(t_packet_header_rub
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       if ( pV2->downlink_datarates[i][0] < 128 )
-         pV3->downlink_datarate_bps[i][0] = 1000 * 1000 * pV2->downlink_datarates[i][0];
+         pV3->last_sent_datarate_bps[i][0] = 1000 * 1000 * pV2->downlink_datarates[i][0];
       else
-         pV3->downlink_datarate_bps[i][0] = (127-pV2->downlink_datarates[i][0]);
+         pV3->last_sent_datarate_bps[i][0] = (127-pV2->downlink_datarates[i][0]);
       
       if ( pV2->downlink_datarates[i][1] < 128 )
-         pV3->downlink_datarate_bps[i][1] = 1000 * 1000 * pV2->downlink_datarates[i][1];
+         pV3->last_sent_datarate_bps[i][1] = 1000 * 1000 * pV2->downlink_datarates[i][1];
       else
-         pV3->downlink_datarate_bps[i][1] = (127-pV2->downlink_datarates[i][1]);
+         pV3->last_sent_datarate_bps[i][1] = (127-pV2->downlink_datarates[i][1]);
       
-      pV3->uplink_datarate_bps[i] = 1000 * 1000 * pV2->uplink_datarate[i];
+      pV3->last_recv_datarate_bps[i] = 1000 * 1000 * pV2->uplink_datarate[i];
 
       pV3->uplink_rssi_dbm[i] = pV2->uplink_rssi_dbm[i];
       pV3->uplink_link_quality[i] = pV2->uplink_link_quality[i];

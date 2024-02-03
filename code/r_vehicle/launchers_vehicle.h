@@ -23,4 +23,4 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex);
 void vehicle_launch_audio_capture(Model* pModel);
 void vehicle_stop_audio_capture(Model* pModel);
 
-void vehicle_check_update_processes_affinities(bool bUseThread);
+void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe);

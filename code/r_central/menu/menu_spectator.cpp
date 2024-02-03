@@ -1,17 +1,40 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
 #include "menu_spectator.h"
 #include "menu_search.h"
+#include "menu_item_text.h"
+#include "menu_vehicle_selector.h"
+
+#include "../../common/favorites.h"
+#include "../osd/osd_common.h"
 
 const char* s_szNoSpectator = "No recently viewed vehicles in spectator mode.";
 
@@ -19,29 +42,63 @@ MenuSpectator::MenuSpectator(void)
 :Menu(MENU_ID_SPECTATOR, "Spectator Mode Vehicles", NULL)
 {
    addTopLine("Select a recently viewed vehicle to connect to in spectator mode:");
-   m_Width = 0.18;
+   m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.25;
+   m_IndexSelectedVehicle = -1;
 }
 
 
 void MenuSpectator::onShow()
 {
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0.02*m_sfScaleFactor;
    
    removeAllItems();
+   m_IndexSelectedVehicle = -1;
+
    for( int i=0; i<getControllerModelsSpectatorCount(); i++ )
    {
       Model *p = getSpectatorModel(i);
-      char szBuff[64];
-      sprintf(szBuff, p->getLongName());
-      addMenuItem( new MenuItem(szBuff) );
-      if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == p->vehicle_id )
-         m_ExtraItemsHeight += (1+MENU_TEXTLINE_SPACING)*g_pRenderEngine->textHeight(g_idFontMenu);
+      log_line("MenuSpectator: Iterating vehicles: id: %u", p->vehicle_id);
+      char szBuff[256];
+      if ( 1 == p->radioLinksParams.links_count )
+         sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+      else if ( 2 == p->radioLinksParams.links_count )
+      {
+         char szFreq1[64];
+         char szFreq2[64];
+         strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency_khz[1]));
+         sprintf(szBuff, "%s, %s/%s", p->getLongName(), szFreq1, szFreq2);
+      }
+      else
+      {
+         char szFreq1[64];
+         char szFreq2[64];
+         char szFreq3[64];
+         strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency_khz[1]));
+         strcpy(szFreq3, str_format_frequency(p->radioLinksParams.link_frequency_khz[2]));
+         sprintf(szBuff, "%s, %s/%s/%s", p->getLongName(), szFreq1, szFreq2, szFreq3);
+      }
+
+      MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);
+      pItem->setVehicleIndex(i, true);
+      addMenuItem( pItem );
+
+      //MenuItem* pMI = new MenuItem(szBuff);
+      //addMenuItem( pMI );
+      //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == p->vehicle_id )
+      //   pMI->setExtraHeight((1+MENU_TEXTLINE_SPACING)*g_pRenderEngine->textHeight(g_idFontMenu));
 
    }
    if ( 0 == getControllerModelsSpectatorCount() )
-      m_ExtraItemsHeight += 1.3*g_pRenderEngine->getMessageHeight(s_szNoSpectator, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+   {
+      MenuItem* pMI = new MenuItemText(s_szNoSpectator);
+      pMI->setEnabled(false);
+      addMenuItem(pMI);
+   }
+   else
+      addSeparator();
    addMenuItem( new MenuItem("Search for vehicles") );
    Menu::onShow();
 }
@@ -52,35 +109,34 @@ void MenuSpectator::Render()
    float yTop = RenderFrameAndTitle();
    float y = yTop;
 
-   if ( 0 == getControllerModelsSpectatorCount() )
-   {
-      g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y, s_szNoSpectator, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
-      y += 1.3*g_pRenderEngine->getMessageHeight(s_szNoSpectator, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
-   }
-   
+   float dy = 0.2*g_pRenderEngine->textHeight(g_idFontMenu);
+   float fFavoriteHeight = 1.2*g_pRenderEngine->textHeight(g_idFontMenu);
+   float fFavoriteWidth = fFavoriteHeight / g_pRenderEngine->getAspectRatio();
+
    for( int i=0; i<m_ItemsCount; i++ )
    {
       if ( i == m_ItemsCount-1 )
          y += 0.02*m_sfScaleFactor;
 
-      Model *p = getSpectatorModel(i);
-      float h = RenderItem(i,y);
-      if ( NULL != p && NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == p->vehicle_id )
-      {
-         float maxWidth = m_RenderWidth - 2.0*m_sfMenuPaddingX + 2.0*m_sfSelectionPaddingX;
-         float x = m_xPos+ 0.4*m_sfMenuPaddingX;
-         float h2 = m_pMenuItems[i]->getItemHeight(0.0) + 0.3*m_sfMenuPaddingY;
-   
-         g_pRenderEngine->setColors(get_Color_MenuText());
-         g_pRenderEngine->setStroke(get_Color_MenuText());
-         g_pRenderEngine->setFill(250,250,250,0.05);   
-         g_pRenderEngine->drawRoundRect(m_RenderXPos+m_sfMenuPaddingX - m_sfSelectionPaddingX, y-0.07*m_sfMenuPaddingY, maxWidth, h2, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
-         g_pRenderEngine->setColors(get_Color_MenuText());
-      }
-      y += h;
+      float y0 = y;
+      y += RenderItem(i,y);
+      if ( i >= getControllerModelsSpectatorCount() )
+         continue;
+
+      Model *pModel = getSpectatorModel(i);
+      if ( NULL == pModel )
+         continue;
+      if ( vehicle_is_favorite(pModel->vehicle_id) )
+         g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
    }
    RenderEnd(yTop);
+}
+
+
+void MenuSpectator::onReturnFromChild(int iChildMenuId, int returnValue)
+{
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
+   invalidate();
 }
 
 void MenuSpectator::onSelectItem()
@@ -92,35 +148,25 @@ void MenuSpectator::onSelectItem()
       add_menu_to_stack(pMenuSearchSpectator);
       return;
    }
+
+   if ( 0 == getControllerModelsSpectatorCount() )
+   {
+       return;
+   }
+
    Model *pModel = getSpectatorModel(m_SelectedIndex);
    if ( NULL == pModel )
    {
       log_softerror_and_alarm("NULL model for spectator mode vehicle: %s.", m_pMenuItems[m_SelectedIndex]->getTitle());
       return;
    }
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == pModel->vehicle_id )
-   {
-      menu_close_all();
-      return;
-   }
-   menu_close_all();
-   warnings_remove_all();
-   render_all(get_current_timestamp_ms(), true);
-   Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
-   popups_add_topmost(p);
-   render_all(get_current_timestamp_ms(), true);
-   pairing_stop();
-   hardware_sleep_ms(100);
 
-   saveControllerModel(g_pCurrentModel);
-
-   moveSpectatorModelToTop(m_SelectedIndex);
-   g_pCurrentModel = pModel;
-   setControllerCurrentModel(pModel->vehicle_id);
-   saveControllerModel(g_pCurrentModel);
-
-   ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+   m_IndexSelectedVehicle = m_SelectedIndex;
+   log_line("Adding menu for vehicle index %d", m_IndexSelectedVehicle);
    
-   onMainVehicleChanged();
-   pairing_start_normal(); 
+   MenuVehicleSelector* pMenu = new MenuVehicleSelector();
+   pMenu->m_IndexSelectedVehicle = m_SelectedIndex;
+   pMenu->m_bSpectatorMode = true;
+   pMenu->m_yPos = m_pMenuItems[m_SelectedIndex]->getItemRenderYPos() - g_pRenderEngine->textHeight(g_idFontMenu);
+   add_menu_to_stack(pMenu);
 }

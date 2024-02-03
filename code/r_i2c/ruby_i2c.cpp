@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -21,7 +39,9 @@ Code written by: Petru Soroaga, 2021-2023
 
 #include <time.h>
 #include <sys/resource.h>
+#ifdef HW_CAPABILITY_I2C
 #include <wiringPiI2C.h>
+#endif
 #include <math.h>
 
 
@@ -89,6 +109,7 @@ void close_files()
 
 void _init_INA()
 {
+#ifdef HW_CAPABILITY_I2C
    if ( NULL != g_pSMCurrent )
    {
       g_pSMCurrent->lastSetTime = MAX_U32;
@@ -132,10 +153,12 @@ void _init_INA()
          wiringPiI2CWriteReg16 (g_nINAFd, 0, val);
       }
    }
+#endif
 }
 
 bool _setup_external_device(int iIndex)
 {
+#ifdef HW_CAPABILITY_I2C
    u8 bufferOut[32];
    u8 bufferIn[64];
 
@@ -264,6 +287,9 @@ bool _setup_external_device(int iIndex)
    }
 	  g_bListExternalDevicesSetupCorrectly[iIndex] = true;
 	  return true;
+#else
+   return false;
+#endif
 }
 
 void _init_external_device(u8 i2cAddress)
@@ -340,6 +366,8 @@ void load_settings()
    if ( g_iHasExternalRCInputDevice > 0 )
    if ( g_SleepTime > 20 )
       g_SleepTime = 20;
+
+#ifdef HW_CAPABILITY_I2C
  
    if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_RC_IN) )
    {
@@ -404,10 +432,12 @@ void load_settings()
       else
          wiringPiI2CWriteReg8(file, I2C_DEVICE_COMMAND_ID_RC_IN_SET_INVERTED, 0);
    }
+#endif
 }
 
 void checkReadINA()
 {
+#ifdef HW_CAPABILITY_I2C
    if (  g_TimeNow < g_TimeLastINARead )
       g_TimeLastINARead = g_TimeNow;
 
@@ -443,10 +473,12 @@ void checkReadINA()
          g_pSMCurrent->lastSetTime = g_TimeNow;
       }
    }
+#endif
 }
 
 void _read_RCIn_OldMethod()
 {
+#ifdef HW_CAPABILITY_I2C
    if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_PICO_RC_IN) )
    if ( g_nFileRCIn <= 0 )
    if ( NULL != g_pSMRCIn )
@@ -542,10 +574,12 @@ void _read_RCIn_OldMethod()
    }
    log_line(szOut);
    */
+#endif
 }
 
 void checkReadRCIn()
 {
+#ifdef HW_CAPABILITY_I2C
    if ( NULL == g_pDeviceInfoRCIn && NULL == g_pDeviceInfoPicoExtender && (g_iHasExternalRCInputDevice==0) )
       return;
 
@@ -581,7 +615,6 @@ void checkReadRCIn()
       }
 
       // Get device RC channels
-
       bufferOut[0] = I2C_COMMAND_START_FLAG;
       bufferOut[1] = I2C_COMMAND_ID_RC_GET_CHANNELS;
       bufferOut[2] = base_compute_crc8(bufferOut,2);
@@ -635,10 +668,12 @@ void checkReadRCIn()
          }
       }
    }
+#endif
 }
 
 void checkReadRotaryEncoderAndButtons()
 {
+#ifdef HW_CAPABILITY_I2C
    if ( NULL == g_pSMRotaryEncoderButtonsEvents )
       return;
 
@@ -868,6 +903,7 @@ void checkReadRotaryEncoderAndButtons()
    }
    log_line(szBuff);
    */
+#endif
 }
 
 void handle_sigint(int sig) 

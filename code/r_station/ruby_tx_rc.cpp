@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdlib.h>
@@ -41,6 +59,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../common/string_utils.h"
 
 #include "timers.h"
+#include "shared_vars.h"
 
 #include <sys/resource.h>
 #include <semaphore.h>
@@ -48,12 +67,6 @@ Code written by: Petru Soroaga, 2021-2023
 
 #define MAX_SERIAL_BUFFER_SIZE 512
 
-bool g_bDebug = false;
-bool g_bSearching = false;
-bool g_bQuit = false;
-bool g_bUpdateInProgress = false;
-
-u32 g_uControllerId = 0;
 u32 g_iFPSFramesCount = 0;
 int g_iFPSMaxJoystickEvents = 0;
 int g_iFPSTotalJoystickEvents = 0;
@@ -67,7 +80,6 @@ u8 s_PipeBufferFromRouter[MAX_PACKET_TOTAL_SIZE];
 int s_PipeBufferFromRouterPos = 0;
 
 
-Model* g_pCurrentModel = NULL;
 shared_mem_process_stats* s_pProcessStats = NULL;
 t_shared_mem_i2c_controller_rc_in* s_pSM_RCIn = NULL;
 
@@ -81,6 +93,8 @@ u16 s_ComputedRCValues[MAX_RC_CHANNELS];
 
 u32 s_uLastTimeStampRCInFrame = 0;
 u8 s_uLastFrameIndexRCIn = 0;
+u32 s_uTimeLastRCFrameSent = 0;
+u32 s_uTimeBetweenRCFramesOutput = 100000;
 
 void init_controller_settings();
 
@@ -181,12 +195,14 @@ void try_read_pipes()
                   g_pCurrentModel->b_mustSyncFromVehicle = false;
                   log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
                }
+               if ( uChangeType == MODEL_CHANGED_RC_PARAMS )
+                  log_line("RC parameters have changed. Updating local model.");
                
                if ( NULL != g_pCurrentModel )
                {
-                  int miliSecInterval = 1000/g_pCurrentModel->rc_params.rc_frames_per_second;
-                  log_line("Using a RC rate of %d packets/sec, %d ms between packets", g_pCurrentModel->rc_params.rc_frames_per_second, miliSecInterval);
                   log_line("RC is enabled: %s", g_pCurrentModel->rc_params.rc_enabled?"yes":"no");
+                  s_uTimeBetweenRCFramesOutput = 1000/g_pCurrentModel->rc_params.rc_frames_per_second;
+                  log_line("Using a RC rate of %d packets/sec, %u ms between packets", g_pCurrentModel->rc_params.rc_frames_per_second, s_uTimeBetweenRCFramesOutput);
                }
                load_ControllerInterfacesSettings();
             }
@@ -285,12 +301,12 @@ int main (int argc, char *argv[])
    else
       log_line("Opened shared mem for RC tx process watchdog stats for writing.");
  
-   long miliSecInterval = 100;
+   s_uTimeBetweenRCFramesOutput = 100000;
    if ( NULL != g_pCurrentModel )
    {
-      miliSecInterval = 1000/g_pCurrentModel->rc_params.rc_frames_per_second;
-      log_line("Using a RC rate of %d packets/sec, %d ms between packets", g_pCurrentModel->rc_params.rc_frames_per_second, miliSecInterval);
       log_line("RC is enabled: %s", g_pCurrentModel->rc_params.rc_enabled?"yes":"no");
+      s_uTimeBetweenRCFramesOutput = 1000/g_pCurrentModel->rc_params.rc_frames_per_second;
+      log_line("Using a RC rate of %d packets/sec, %u ms between packets", g_pCurrentModel->rc_params.rc_frames_per_second, s_uTimeBetweenRCFramesOutput);
    }
    else
       log_line("No model. RC is inactive.");
@@ -333,7 +349,7 @@ int main (int argc, char *argv[])
    while ( !g_bQuit )
    { 
       g_iFPSFramesCount++;
-      hardware_sleep_ms(10);
+      hardware_sleep_ms(5);
 
       if ( NULL != s_pProcessStats )
       {
@@ -383,7 +399,7 @@ int main (int argc, char *argv[])
          if ( s_pSM_RCIn->uFlags & RC_IN_FLAG_HAS_INPUT )
          {
             g_PHRCFUpstream.flags |= RC_FULL_FRAME_FLAGS_HAS_INPUT;
-            if ( s_uLastTimeStampRCInFrame != s_pSM_RCIn->uTimeStamp || s_uLastFrameIndexRCIn != s_pSM_RCIn->uFrameIndex )
+            if ( (s_uLastTimeStampRCInFrame != s_pSM_RCIn->uTimeStamp) && (s_uLastFrameIndexRCIn != s_pSM_RCIn->uFrameIndex) )
             {
                s_uLastTimeStampRCInFrame = s_pSM_RCIn->uTimeStamp;
                s_uLastFrameIndexRCIn = s_pSM_RCIn->uFrameIndex;
@@ -396,6 +412,9 @@ int main (int argc, char *argv[])
                //log_line("%d %d %d", s_pSM_RCIn->uChannels[0], s_pSM_RCIn->uChannels[1], s_pSM_RCIn->uChannels[2] );
             }
          }
+
+         if ( s_uLastTimeStampRCInFrame < g_TimeNow - g_pCurrentModel->rc_params.rc_failsafe_timeout_ms )
+            g_PHRCFUpstream.flags &= ~RC_FULL_FRAME_FLAGS_HAS_INPUT;
       }
 
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
@@ -406,14 +425,19 @@ int main (int argc, char *argv[])
             g_PHRCFUpstream.flags &= (~RC_FULL_FRAME_FLAGS_HAS_INPUT);
       }
 
-      if ( g_TimeNow < g_TimeLastRCFrameSent + miliSecInterval )
+      if ( g_TimeNow < s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput )
       {
          _update_loop_info(tTime0);
+
+         u32 uDelta = s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput - g_TimeNow;
+         if ( uDelta > 40 )
+            uDelta = 40;
+         hardware_sleep_ms(uDelta/2);
          continue;
       }
 
-      u32 miliSec = g_TimeNow - g_TimeLastRCFrameSent;
-      g_TimeLastRCFrameSent = g_TimeNow;
+      u32 miliSec = g_TimeNow - s_uTimeLastRCFrameSent;
+      s_uTimeLastRCFrameSent = g_TimeNow;
 
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
       {

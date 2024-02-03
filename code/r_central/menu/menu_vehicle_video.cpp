@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../../base/hdmi_video.h"
@@ -28,6 +46,8 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
    float fSliderWidth = 0.12 * Menu::getScaleFactor();
+   m_pMenuItemVideoWarning = NULL;
+   m_idxSelection = 0;
    char szBuff[32];
 
    char szCam[256];
@@ -99,6 +119,16 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[2]->disableClick();
    m_IndexVideoProfile = addMenuItem(m_pItemsSelect[2]);
 
+   m_IndexDevECScheme = -1;
+   if ( g_pCurrentModel->bDeveloperMode )
+   {
+      m_pItemsSelect[5] = new MenuItemSelect("EC Algorithm", "Change the algorithm used for video error correction.");  
+      m_pItemsSelect[5]->addSelection("Legacy");
+      m_pItemsSelect[5]->addSelection("New");
+      m_pItemsSelect[5]->setIsEditable();
+      m_pItemsSelect[5]->setTextColor(get_Color_Dev());
+      m_IndexDevECScheme = addMenuItem(m_pItemsSelect[5]);
+   }
    m_pItemsSelect[4] = new MenuItemSelect("Enable HDMI Output", "Enables or disables video output the the HDMI port on the vehicle.");  
    m_pItemsSelect[4]->addSelection("Off");
    m_pItemsSelect[4]->addSelection("On");
@@ -118,9 +148,29 @@ void MenuVehicleVideo::valuesToUI()
    char szBuff[128];
    bool found = false;
 
+   removeMenuItem(m_pMenuItemVideoWarning);
+   m_pMenuItemVideoWarning = NULL;
+   m_idxSelection = 0;
+
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile]);
 
+   bool bShowWarning = false;
+
+   u32 uMaxVideoRadioDataRate = utils_get_max_radio_datarate_for_profile(g_pCurrentModel, g_pCurrentModel->video_params.user_selected_video_link_profile);
+   u32 uMaxVideoRate = utils_get_max_allowed_video_bitrate_for_profile(g_pCurrentModel, g_pCurrentModel->video_params.user_selected_video_link_profile);
+
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps > uMaxVideoRate )
+   {
+      char szBuff2[128];
+      char szBuff3[128];
+      str_format_bitrate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps, szBuff);
+      str_format_bitrate(uMaxVideoRate, szBuff2);
+      str_format_bitrate(uMaxVideoRadioDataRate, szBuff3);
+      log_line("MenuVehicleVideo: Current video profile (%s) set video bitrate (%s) is greater than %d%% of max allowed radio datarate (%s of max radio datarate of %s). Show warning.",
+         str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), szBuff, DEFAULT_VIDEO_LINK_LOAD_PERCENT, szBuff2, szBuff3);
+      bShowWarning = true;
+   }
 
    if ( m_IndexForceCameraMode != -1 )
    if ( ! g_pCurrentModel->isActiveCameraVeye() )
@@ -193,22 +243,23 @@ void MenuVehicleVideo::valuesToUI()
 
    m_pItemsSelect[4]->setSelectedIndex((g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_ENABLE_LOCAL_HDMI_OUTPUT)?1:0);
   
-   bool bShowWarning = false;
 
-   u32 uMaxVideoRate = utils_get_max_allowed_video_bitrate_for_profile(g_pCurrentModel, g_pCurrentModel->video_params.user_selected_video_link_profile);
-
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps > uMaxVideoRate )
+   if ( g_pCurrentModel->bDeveloperMode )
+   if ( -1 != m_IndexDevECScheme )
    {
-      char szBuff2[128];
-      str_format_bitrate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps, szBuff);
-      str_format_bitrate(uMaxVideoRate, szBuff2);
-      log_line("MenuVehicleVideo: Current video profile (%s) set video bitrate (%s) is greater than %d%% of max allowed radio datarate (%s). Show warning.",
-         str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), szBuff, DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT, szBuff2);
-      bShowWarning = true;
+      m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_USE_OLD_EC_SCHEME)?0:1);
    }
 
    if ( bShowWarning )
-      addMessageVideoBitrate(g_pCurrentModel);
+   {
+      char* szVideoWarning = addMessageVideoBitrate(g_pCurrentModel);
+      if ( (NULL != szVideoWarning) && (0 != szVideoWarning[0]) )
+      {
+         m_pMenuItemVideoWarning = new MenuItemText(szVideoWarning, true);
+         insertMenuItem(m_pMenuItemVideoWarning, 0);
+         m_idxSelection = 1;
+      }
+   }
 }
 
 void MenuVehicleVideo::Render()
@@ -333,17 +384,15 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 }
 
 
-void MenuVehicleVideo::onReturnFromChild(int returnValue)
+void MenuVehicleVideo::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   if ( 10 == m_iConfirmationId )
+   if ( 10 == iChildMenuId/1000 )
    {
       valuesToUI();
-      m_iConfirmationId = 0;
       return;
    }
-   m_iConfirmationId = 0;
 }
 
 void MenuVehicleVideo::onSelectItem()
@@ -363,7 +412,7 @@ void MenuVehicleVideo::onSelectItem()
 
    if ( ! g_pCurrentModel->isActiveCameraVeye() )
    if ( -1 != m_IndexForceCameraMode )
-   if ( m_IndexForceCameraMode == m_SelectedIndex )
+   if ( (m_IndexForceCameraMode + m_idxSelection) == m_SelectedIndex )
    {
       type_camera_parameters cparams;
       memcpy(&cparams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
@@ -378,13 +427,13 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( m_IndexRes == m_SelectedIndex || m_IndexFPS == m_SelectedIndex || m_IndexKeyframe == m_SelectedIndex || m_IndexAutoKeyframe == m_SelectedIndex )
+   if ( ((m_IndexRes + m_idxSelection) == m_SelectedIndex) || ((m_IndexFPS + m_idxSelection) == m_SelectedIndex) || ((m_IndexKeyframe + m_idxSelection) == m_SelectedIndex) || ((m_IndexAutoKeyframe + m_idxSelection) == m_SelectedIndex) )
    {
       sendVideoLinkProfiles();
       return;
    }
 
-   if ( m_IndexMaxKeyFrame == m_SelectedIndex )
+   if ( (m_IndexMaxKeyFrame + m_idxSelection) == m_SelectedIndex )
    {
       video_parameters_t paramsNew;
       memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
@@ -395,19 +444,32 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( m_IndexFixedBitrate == m_SelectedIndex )
+   if ( (m_IndexFixedBitrate + m_idxSelection) == m_SelectedIndex )
    {
       sendVideoLinkProfiles();
       return;
    }
-   if ( m_IndexVideoProfile == m_SelectedIndex )
+   if ( (m_IndexVideoProfile + m_idxSelection) == m_SelectedIndex )
    {
-      m_iConfirmationId = 10;
       add_menu_to_stack(new MenuVehicleVideoProfileSelector());
       return;
    }
 
-   if ( m_IndexHDMIOutput == m_SelectedIndex )
+   if ( g_pCurrentModel->bDeveloperMode )
+   if ( -1 != m_IndexDevECScheme )
+   if ( (m_IndexDevECScheme + m_idxSelection) == m_SelectedIndex )
+   {
+      int iIndex = m_pItemsSelect[5]->getSelectedIndex();
+      if ( 0 == iIndex )
+         g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_USE_OLD_EC_SCHEME;
+      else
+         g_pCurrentModel->uDeveloperFlags &= ~DEVELOPER_FLAGS_BIT_USE_OLD_EC_SCHEME;
+      if ( ! handle_commands_send_developer_flags() )
+         valuesToUI();
+   }
+
+
+   if ( (m_IndexHDMIOutput + m_idxSelection) == m_SelectedIndex )
    {
       video_parameters_t paramsOld;
       memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
@@ -426,6 +488,6 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( m_IndexExpert == m_SelectedIndex )
+   if ( (m_IndexExpert + m_idxSelection) == m_SelectedIndex )
       add_menu_to_stack(new MenuVehicleVideoEncodings());
 }

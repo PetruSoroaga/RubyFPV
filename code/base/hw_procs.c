@@ -46,6 +46,8 @@ void hw_stop_process(const char* szProcName)
    if ( NULL == szProcName || 0 == szProcName[0] )
       return;
 
+   log_line("Stopping process [%s]...", szProcName);
+   
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command(szComm, szPids);
    if ( strlen(szPids) > 2 )

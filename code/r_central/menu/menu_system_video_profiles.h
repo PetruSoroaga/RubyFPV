@@ -10,7 +10,6 @@ class MenuSystemVideoProfiles: public Menu
       virtual void onShow(); 
       virtual void Render();
       virtual void valuesToUI();
-      virtual void onReturnFromChild(int returnValue);
       virtual void onSelectItem();
 
    private:
@@ -31,6 +30,7 @@ class MenuSystemVideoProfiles: public Menu
       int m_IndexVideoProfile_VideoRadioRate[8];
       int m_IndexVideoProfile_DataRadioRate[8];
       int m_IndexVideoProfile_PacketLength[8];
+      int m_IndexVideoProfile_AutoECScheme[8];
       int m_IndexVideoProfile_BlockPackets[8];
       int m_IndexVideoProfile_BlockFECs[8];
       int m_IndexVideoProfile_H264Profile[8];

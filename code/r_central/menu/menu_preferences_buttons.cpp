@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -17,10 +35,10 @@ Code written by: Petru Soroaga, 2021-2023
 #include "osd_common.h"
 #include "menu_preferences_ui.h"
 
-MenuPreferences::MenuPreferences(void)
-:Menu(MENU_ID_PREFERENCES, "User Interface Buttons", NULL)
+MenuButtons::MenuButtons(void)
+:Menu(MENU_ID_PREFERENCES_BUTTONS, "User Interface Buttons", NULL)
 {
-   m_Width = 0.29;
+   m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    int c = 0;
@@ -47,10 +65,11 @@ MenuPreferences::MenuPreferences(void)
    m_pItemsSelect[c]->addSelection("Toggle Stats Off");
    m_pItemsSelect[c]->addSelection("Toggle All Off");
    m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Camera Profile");
+   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
    m_pItemsSelect[c]->addSelection("RC Output On/Off");
    m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
    m_pItemsSelect[c]->addSelection("Freeze OSD");
+   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -65,10 +84,11 @@ MenuPreferences::MenuPreferences(void)
    m_pItemsSelect[c]->addSelection("Toggle Stats Off");
    m_pItemsSelect[c]->addSelection("Toggle All Off");
    m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Camera Profile");
+   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
    m_pItemsSelect[c]->addSelection("RC Output On/Off");
    m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
    m_pItemsSelect[c]->addSelection("Freeze OSD");
+   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -83,10 +103,11 @@ MenuPreferences::MenuPreferences(void)
    m_pItemsSelect[c]->addSelection("Toggle Stats Off");
    m_pItemsSelect[c]->addSelection("Toggle All Off");
    m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Camera Profile");
+   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
    m_pItemsSelect[c]->addSelection("RC Output On/Off");
    m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
    m_pItemsSelect[c]->addSelection("Freeze OSD");
+   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -122,7 +143,7 @@ MenuPreferences::MenuPreferences(void)
    c++;
 }
 
-void MenuPreferences::valuesToUI()
+void MenuButtons::valuesToUI()
 {
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
@@ -145,13 +166,13 @@ void MenuPreferences::valuesToUI()
    m_pItemsSelect[8]->setSelection(pCS->nRotaryEncoderSpeed2);
 }
 
-void MenuPreferences::onShow()
+void MenuButtons::onShow()
 {
    removeAllTopLines();
    Menu::onShow();
 }
 
-void MenuPreferences::Render()
+void MenuButtons::Render()
 {
    RenderPrepare();
    float yTop = RenderFrameAndTitle();
@@ -161,7 +182,7 @@ void MenuPreferences::Render()
    RenderEnd(yTop);
 }
 
-void MenuPreferences::onSelectItem()
+void MenuButtons::onSelectItem()
 {
    Menu::onSelectItem();
 

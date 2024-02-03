@@ -37,21 +37,26 @@ float menu_getGlobalAlpha();
 int menu_init();
 void menu_loop();
 void menu_refresh_all_menus();
+void menu_refresh_all_menus_except(Menu* pMenu);
 void menu_render();
-void menu_close_all();
+u32 menu_get_loop_counter();
+
+void menu_discard_all();
 void add_menu_to_stack(Menu* pMenu);
 void remove_menu_from_stack(Menu* pMenu);
 void replace_menu_on_stack(Menu* pMenuSrc, Menu* pMenuNew);
 
-void menu_stack_pop(int returnValue = 0);
+void menu_stack_pop(int returnValue);
 bool menu_is_menu_on_top(Menu* pMenu);
-bool menu_has_menu_confirmation_above(Menu* pMenu);
+bool menu_has_children(Menu* pMenu);
 bool menu_has_menu(int menuId);
+int menu_had_disable_stacking(int iMenuId);
 Menu* menu_get_menu_by_id(int menuId);
 bool isMenuOn();
 
 void menu_invalidate_all();
 
+int menu_hasAnyDisableStackingMenu();
 void menu_startAnimationOnChildMenuAdd(Menu* pTopMenu);
 void menu_startAnimationOnChildMenuClosed(Menu* pTopMenu);
 

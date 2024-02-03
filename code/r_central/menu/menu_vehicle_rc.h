@@ -16,7 +16,7 @@ class MenuVehicleRC: public Menu
       virtual int onBack();
       virtual bool periodicLoop();
       virtual void Render();
-      virtual void onReturnFromChild(int returnValue);  
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
       virtual void valuesToUI();
             
@@ -34,7 +34,8 @@ class MenuVehicleRC: public Menu
       u32 m_TimeLastJoystickCheck;
       int m_nIndexPrimaryHID;
       t_ControllerInputInterface* m_pJoystick;
-
+      u32 m_uLastSBUSFrameTime;
+      u8  m_uLastSBUSFrameIndex;
       bool m_bPendingEnable;
 
       int m_iQA1Org;

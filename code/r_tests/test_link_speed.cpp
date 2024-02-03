@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
                continue;
             }
             int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
-            int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nRate;
+            int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
 
             t_packet_header* pPH = (t_packet_header*)pBuffer; 
             

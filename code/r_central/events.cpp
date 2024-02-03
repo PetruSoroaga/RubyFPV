@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -56,7 +74,7 @@ void onModelDeleted(u32 uModelId)
 }
 
 
-void onMainVehicleChanged()
+void onMainVehicleChanged(bool bRemovePreviousVehicleState)
 {
    log_line("[Event] Handling event Main Vehicle Changed...");
 
@@ -75,7 +93,7 @@ void onMainVehicleChanged()
    if ( ! s_bEventsFirstTimeMainVehicleChanged )
    {
       popups_remove_all();
-      menu_close_all();
+      menu_discard_all();
       warnings_remove_all();
       osd_warnings_reset();
    }
@@ -83,7 +101,8 @@ void onMainVehicleChanged()
    s_bEventsFirstTimeMainVehicleChanged = false;
    g_bIsFirstConnectionToCurrentVehicle = true;
    
-   shared_vars_state_reset_all_vehicles_runtime_info();
+   if ( bRemovePreviousVehicleState )
+      shared_vars_state_reset_all_vehicles_runtime_info();
    
    if ( NULL == g_pCurrentModel )
       log_softerror_and_alarm("[Event] New main vehicle is NULL.");
@@ -92,7 +111,8 @@ void onMainVehicleChanged()
          
    //g_nTotalControllerCPUSpikes = 0;
 
-   local_stats_reset_all();
+   if ( bRemovePreviousVehicleState )
+      local_stats_reset_all();
 
    osd_stats_init();
    
@@ -202,11 +222,18 @@ void onEventBeforePairing()
       if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
       {
          g_VehiclesRuntimeInfo[1].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
-         g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId);
+         g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId, 3);
       }
    }
 
    log_current_runtime_vehicles_info();
+
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->audio_params.has_audio_device )
+   {
+      ControllerSettings* pCS = get_ControllerSettings();
+      
+      hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
+   }
 
    log_line("[Event] Current VID for vehicle runtime info[0] is: %u", g_VehiclesRuntimeInfo[0].uVehicleId);
    log_line("[Event] Handled event BeforePairing. Done.");
@@ -527,7 +554,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    if ( pModel->vehicle_id != modelTemp.vehicle_id )
    {
-      Model* pTempModel = findModelWithId(modelTemp.vehicle_id);
+      Model* pTempModel = findModelWithId(modelTemp.vehicle_id, 4);
       if ( NULL == pTempModel )
       {
          log_softerror_and_alarm("[Event] Received model settings for unknown vehicle id %u (none in the list).", modelTemp.vehicle_id);
@@ -599,7 +626,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->vehicle_id, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
    log_line("Received model (VID %u) is in developer mode: %s", pModel->vehicle_id, pModel->bDeveloperMode?"yes":"no");
    log_line("Received model (VID %u) is spectator: %s", pModel->vehicle_id, pModel->is_spectator?"yes":"no");
-   log_line("Received model (VID %u) on time: %02d:%02d, total flights: %u", pModel->vehicle_id, pModel->m_Stats.uCurrentOnTime/60, pModel->m_Stats.uCurrentOnTime%60, pModel->m_Stats.uTotalFlights);
+   log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", pModel->vehicle_id, pModel->m_Stats.uCurrentOnTime/60, pModel->m_Stats.uCurrentOnTime%60, pModel->m_Stats.uCurrentFlightTime/60, pModel->m_Stats.uCurrentFlightTime%60, pModel->m_Stats.uTotalFlights);
    saveControllerModel(pModel);
    log_line("[Event] Updated current local vehicle with received settings.");
 
@@ -712,7 +739,7 @@ void onEventRelayModeChanged()
    log_line("[Event] New relay mode: %d (%s), main VID: %u, relayed VID: %u", g_pCurrentModel->relay_params.uCurrentRelayMode, str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode), g_pCurrentModel->vehicle_id, g_pCurrentModel->relay_params.uRelayedVehicleId);
    log_line("[Event] Handled of event OnRelayModeChanged complete.");
 
-   Model* pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+   Model* pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 5);
    if ( NULL != pModel )
    {
       bool bDifferentResolution = false;

@@ -14,16 +14,18 @@ class MenuSearch: public Menu
       virtual void Render();
       virtual void onShow();
       virtual int onBack();
-      virtual void onReturnFromChild(int returnValue);  
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
       void setSpectatorOnly();
 
    private:
-      void _populate_search_frequencies();
+      int _populate_search_frequencies();
+      void _add_menu_items();
 
       int render_search_step;
       bool search_finished_with_no_results;
       int m_SearchBandIndex;
+      int m_iSearchModelTypes;
       bool m_bIsSearchPaused;
       bool m_SpectatorOnlyMode;
       bool m_bIsSearchingSiK;
@@ -47,13 +49,17 @@ class MenuSearch: public Menu
       u32 m_SupportedBands;
       u8 m_SupportedBandsList[8];
       int m_iCountSupportedBands;
-      
+
+      bool m_bHasSiKRadio;
+      u32 m_uSiKBands;
+
       int m_IndexBand;
+      int m_IndexModelTypes;
       int m_IndexStartSearch;
       int m_IndexManualSearch;
 
-      bool m_bHasSiKRadio;
       MenuItemSelect* m_pItemsSelect[10];
+      int m_IndexImportKey;
       int m_IndexSiKInfo;
       int m_IndexSiKAirRate;
       int m_IndexSiKECC;

@@ -14,7 +14,6 @@ class MenuItemCheckbox: public MenuItem
      virtual void endEdit(bool bCanceled);
      virtual void onClick();
 
-     virtual float getItemHeight(float maxWidth);
      virtual float getTitleWidth(float maxWidth);
      virtual float getValueWidth(float maxWidth);
      

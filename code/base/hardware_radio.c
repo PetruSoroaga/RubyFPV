@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <fcntl.h>        // serialport
@@ -204,6 +222,10 @@ void _hardware_detect_card_model(int iIndex)
        sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACH;
 
    if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/8811" ) )
+       sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACS;
+   if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/0811" ) )
+       sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACS;
+   if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "bda/811" ) )
        sRadioInfo[iIndex].iCardModel = CARD_MODEL_ALFA_AWUS036ACS;
 
    if ( NULL != strstr( sRadioInfo[iIndex].szProductId, "2604/12" ) )
@@ -562,6 +584,8 @@ int _hardware_enumerate_wifi_radios()
       sscanf(szBuff, "%s", sRadioInfo[s_iHwRadiosCount].szName);
       sRadioInfo[s_iHwRadiosCount].iCardModel = 0;
       sRadioInfo[s_iHwRadiosCount].isSupported = 0;
+      sRadioInfo[s_iHwRadiosCount].isSerialRadio = 0;
+      sRadioInfo[s_iHwRadiosCount].isConfigurable = 1;
       sRadioInfo[s_iHwRadiosCount].isEnabled = 1;
       sRadioInfo[s_iHwRadiosCount].isTxCapable = 1;
       sRadioInfo[s_iHwRadiosCount].isHighCapacityInterface = 1;
@@ -886,6 +910,38 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
         uType == RADIO_TYPE_ATHEROS ||
         uType == RADIO_TYPE_REALTEK ||
         uType == RADIO_TYPE_MEDIATEK )
+      return 1;
+
+   return 0;
+}
+
+int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo)
+{
+   if ( NULL == pRadioInfo )
+      return 0;
+
+   if ( pRadioInfo->isSerialRadio )
+      return 1;
+   return 0;
+}
+
+
+int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex)
+{
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iHWInterfaceIndex);
+   if ( NULL == pRadioHWInfo )
+      return 0;
+     
+   return hardware_radio_is_sik_radio(pRadioHWInfo);
+}
+
+int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo)
+{
+   if ( NULL == pRadioInfo )
+      return 0;
+
+   u32 uType = pRadioInfo->typeAndDriver & 0xFF;
+   if ( uType == RADIO_TYPE_SIK )
       return 1;
 
    return 0;

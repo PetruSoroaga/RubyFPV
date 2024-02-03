@@ -19,7 +19,7 @@ class MenuStorage: public Menu
       virtual void onMoveLeft(bool bIgnoreReversion);
       virtual void onMoveRight(bool bIgnoreReversion);
       virtual void onFocusedItemChanged();
-      virtual void onReturnFromChild(int returnValue);  
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual int onBack();
       virtual void onSelectItem();
 

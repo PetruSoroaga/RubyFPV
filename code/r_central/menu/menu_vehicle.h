@@ -11,7 +11,6 @@ class MenuVehicle: public Menu
       virtual void onShow();
       virtual bool periodicLoop();
       virtual void onSelectItem();
-      virtual void onReturnFromChild(int returnValue);        
 
    protected:    
       u16 m_Flags;
@@ -31,6 +30,7 @@ class MenuVehicle: public Menu
       int m_IndexPeripherals;
       int m_IndexCPU;
       int m_IndexRadio;
+      int m_IndexLogType;
 
       bool m_bWaitingForVehicleInfo;
 };

@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/resource.h>
@@ -37,14 +54,13 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/shared_mem.h"
 #include "../base/models.h"
 #include "../base/models_list.h"
-#include "../base/radio_utils.h"
+//#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../radio/radiolink.h"
 #include "../base/controller_utils.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
-#include "hw_config_check.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 
@@ -60,6 +76,7 @@ int board_type = BOARD_TYPE_NONE;
 
 void power_leds(int onoff)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    DIR *d;
    struct dirent *dir;
    char szBuff[512];
@@ -82,6 +99,7 @@ void power_leds(int onoff)
       }
       closedir(d);
    }
+   #endif
 }
 
 void initLogFiles()
@@ -158,6 +176,7 @@ void detectSystemType()
    log_line("===========================================================================");
    log_line("");
 
+   #ifdef HW_PLATFORM_RASPBERRY
    FILE* fd = fopen("/boot/ruby_systype.txt", "w");
    if ( NULL != fd )
    {
@@ -167,6 +186,7 @@ void detectSystemType()
          fprintf(fd, "STATION");
       fclose(fd);
    }
+   #endif
 }
 
 
@@ -194,6 +214,7 @@ void _check_files()
    //if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
    //   { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
 
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) == -1 )
    {
       hw_execute_bash_command("cp -rf /etc/modprobe.d/ath9k_hw.conf /etc/modprobe.d/ath9k_hw.conf.org", NULL);
@@ -214,7 +235,8 @@ void _check_files()
       if ( access( "/etc/modprobe.d/rtl88XXau.conf.org", R_OK ) == -1 )
          {failed = true; strcat(szFilesMissing, " RTL_XX_config");}
    }
-   
+   #endif
+
    if ( failed )
       printf("Ruby: Checked files consistency: failed.\n");
    else
@@ -267,6 +289,8 @@ void _create_default_model()
 
    if ( s_isVehicle )
    {
+      #ifdef HW_PLATFORM_RASPBERRY
+
       hardware_mount_boot();
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
@@ -277,7 +301,7 @@ void _create_default_model()
          m.iFreqARM = 1000;
       else if ( board_type == BOARD_TYPE_PI3B )
          m.iFreqARM = 1200;
-      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B )
+      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
          m.iFreqARM = 1400;
       else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
                && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
@@ -291,6 +315,7 @@ void _create_default_model()
       //config_file_force_value("config.txt", "hdmi_safe", 1);
         
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
+      #endif
 
       bool bHasAtheros = false;
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -329,18 +354,18 @@ void _create_default_model()
    {
       m.resetRadioLinksParams();
 
-         m.radioInterfacesParams.interfaces_count = 1;
-         m.radioInterfacesParams.interface_type_and_driver[0] = 0xFF0000;
-         m.radioInterfacesParams.interface_supported_bands[0] = RADIO_HW_SUPPORTED_BAND_24;
-         strcpy(m.radioInterfacesParams.interface_szMAC[0], "YYYYYY");
-         strcpy(m.radioInterfacesParams.interface_szPort[0], "Y");
-         m.radioInterfacesParams.interface_current_frequency_khz[0] = DEFAULT_FREQUENCY;
-         m.radioInterfacesParams.interface_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
-         m.radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+      m.radioInterfacesParams.interfaces_count = 1;
+      m.radioInterfacesParams.interface_type_and_driver[0] = 0xFF0000;
+      m.radioInterfacesParams.interface_supported_bands[0] = RADIO_HW_SUPPORTED_BAND_24;
+      strcpy(m.radioInterfacesParams.interface_szMAC[0], "YYYYYY");
+      strcpy(m.radioInterfacesParams.interface_szPort[0], "Y");
+      m.radioInterfacesParams.interface_current_frequency_khz[0] = DEFAULT_FREQUENCY;
+      m.radioInterfacesParams.interface_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
+      m.radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
 
-         m.radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-         m.radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
-         m.radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
+      m.radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
+      m.radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
+      m.radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
 
       m.populateRadioInterfacesInfoFromHardware();
 
@@ -348,6 +373,72 @@ void _create_default_model()
       m.is_spectator = false;
       m.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
+}
+
+bool _check_for_update_from_boot()
+{
+   #ifdef HW_PLATFORM_RASPBERRY
+   char szComm[2048];
+   char szFoundFile[1024];
+   char szZipFile[1024];
+   sprintf(szComm, "find /boot/ruby_update*.zip 2>/dev/null");
+
+   hw_execute_bash_command(szComm, szFoundFile);
+
+   if ( (strlen(szFoundFile) == 0) || (NULL == strstr(szFoundFile, "ruby_update")) )
+   {
+      log_line("No update archive found on /boot folder. Skipping update from /boot");
+      return false;
+   }
+   szFoundFile[127] = 0;
+   strcpy(szZipFile, szFoundFile);
+   log_line("Found zip archive [%s] on /boot folder.", szZipFile);
+
+   if ( hardware_is_vehicle() )
+   {
+      sprintf(szComm, "cp -rf %s .", szZipFile);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   else
+   {
+      sprintf(szComm, "mkdir -p %s", FOLDER_USB_MOUNT);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %s %s/", szZipFile, FOLDER_USB_MOUNT);
+      hw_execute_bash_command(szComm, NULL);
+   }
+
+   for( int i=0; i<20; i++ )
+   {
+      hardware_sleep_ms(100);
+      power_leds(i%2);
+   }
+   
+   hw_execute_bash_command("./ruby_update_worker", NULL);
+
+   hw_execute_bash_command("rm -rf /boot/ruby_update*.zip", NULL);
+   hw_execute_bash_command("rm -rf ruby_update*.zip", NULL);
+   sprintf(szComm, "rm -rf %s/ruby_update*.zip", FOLDER_USB_MOUNT);
+   hw_execute_bash_command(szComm, NULL);
+
+
+   if ( hardware_is_vehicle() )
+      hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
+   else
+      hw_execute_bash_command("cp -rf ruby_update ruby_update_controller", NULL);
+
+   for( int i=0; i<30; i++ )
+   {
+      hardware_sleep_ms(100);
+      power_leds(i%2);
+   }
+
+   log_line("Done executing update from /boot folder. Rebooting now.");
+   fflush(stdout);
+   hw_execute_bash_command("sudo reboot -f", NULL);
+   return true;
+   #else
+   return false;
+   #endif
 }
 
 void do_first_boot_initialization()
@@ -358,6 +449,7 @@ void do_first_boot_initialization()
    //if ( access( "/boot/ssh", R_OK ) == -1 )
    //   hw_execute_bash_command("touch /boot/ssh", NULL);
 
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( s_isVehicle )
    {
       hw_execute_bash_command("sudo sed -i 's/ruby/r-vehicle/g' /etc/hosts", NULL);
@@ -368,7 +460,7 @@ void do_first_boot_initialization()
       hw_execute_bash_command("sudo sed -i 's/ruby/r-controller/g' /etc/hosts", NULL);
       hw_execute_bash_command("sudo sed -i 's/ruby/r-controller/g' /etc/hostname", NULL);
    }
-
+   #endif
 
    char szBuff[128];
    hardware_sleep_ms(200);
@@ -422,7 +514,7 @@ void do_first_boot_initialization()
          }
          m.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
          
-         hw_execute_bash_command("rm -rf /home/pi/ruby/config/reset_info.txt", NULL);
+         hw_execute_bash_command("rm -rf config/reset_info.txt", NULL);
       }
    }
    else
@@ -436,12 +528,13 @@ void do_first_boot_initialization()
                pcs->iFreqARM = 1000;
             else if ( board_type == BOARD_TYPE_PI3B )
                pcs->iFreqARM = 1200;
-            else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B )
+            else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
                pcs->iFreqARM = 1400;
             else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
                   && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
                pcs->iFreqARM = 1200;
    
+            #ifdef HW_PLATFORM_RASPBERRY
             hardware_mount_boot();
             hardware_sleep_ms(50);
             hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
@@ -450,6 +543,7 @@ void do_first_boot_initialization()
             config_file_set_value("config.txt", "arm_freq_min", pcs->iFreqARM);
 
             hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
+            #endif
          }
       }
 
@@ -519,11 +613,16 @@ int main (int argc, char *argv[])
    printf("\nRuby is starting...\n");
    fflush(stdout);
 
+   #ifdef HW_PLATFORM_RASPBERRY
    //execute_bash_command_silent("con2fbmap 1 0", NULL);
    system("sudo mount -o remount,rw /");
    system("sudo mount -o remount,rw /boot");
    system("cd /boot; sudo mount -o remount,rw /boot; cd /home/pi/ruby");
    hardware_sleep_ms(50);
+   #endif
+
+   sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
+   hw_execute_bash_command_silent(szComm, NULL);
 
    s_iBootCount = 0;
    FILE* fd = fopen(FILE_BOOT_COUNT, "r");
@@ -559,6 +658,8 @@ int main (int argc, char *argv[])
       power_leds(readWriteRetryCount%2);
 
       hardware_sleep_ms(100);
+
+      #ifdef HW_PLATFORM_RASPBERRY
       system("sudo mount -o remount,rw /");
       system("sudo mount -o remount,rw /boot");
       system("cd /boot; sudo mount -o remount,rw /boot; cd /home/pi/ruby");
@@ -566,6 +667,7 @@ int main (int argc, char *argv[])
       hardware_mount_boot();
       hw_execute_bash_command_silent("cd /boot; mount -o remount,rw /boot; cd /home/pi/ruby", NULL);
       hardware_sleep_ms(100);
+      #endif
       hw_execute_bash_command_silent("mkdir -p tmp", NULL);
       hw_execute_bash_command_silent("chmod 777 tmp", NULL);
       hw_execute_bash_command_silent("rm -rf tmp/*", NULL);
@@ -580,9 +682,12 @@ int main (int argc, char *argv[])
       sprintf(szComm, "umount %s", TEMP_VIDEO_MEM_FOLDER);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      hw_execute_bash_command_silent("mkdir -p logs", NULL);
-      hw_execute_bash_command_silent("mkdir -p config", NULL);
-      hw_execute_bash_command_silent("mkdir -p config/models", NULL);
+      sprintf(szComm, "mkdir -p %s", FOLDER_LOGS);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG_MODELS);
+      hw_execute_bash_command_silent(szComm, NULL);
       hw_execute_bash_command_silent("mkdir -p media", NULL);
       hw_execute_bash_command_silent("mkdir -p updates", NULL);
 
@@ -604,7 +709,7 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_silent(szComm, NULL);
 
       fd = fopen(LOG_FILE_START, "a+");
-      if ( NULL == fd || fd < 0 )
+      if ( NULL == fd )
          continue;
 
       fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, tty_name);
@@ -612,7 +717,7 @@ int main (int argc, char *argv[])
       fd = NULL;
 
       fd = fopen(FILE_BOOT_COUNT, "w");
-      if ( NULL == fd || fd < 0 )
+      if ( NULL == fd )
          continue;
       fprintf(fd, "%d\n", s_iBootCount);
       fclose(fd);
@@ -624,7 +729,7 @@ int main (int argc, char *argv[])
    fflush(stdout);
 
    fd = fopen(LOG_FILE_START, "a+");
-   if ( NULL != fd && fd >= 0 )
+   if ( NULL != fd )
    {
       fprintf(fd, "Starting run number %d; Starting Ruby on TTY name: %s\n\n", s_iBootCount, tty_name);
       fclose(fd);
@@ -635,24 +740,36 @@ int main (int argc, char *argv[])
 
    log_line("Files are ok, checking processes and init log files...");
 
+   #ifdef HW_PLATFORM_RASPBERRY
    _check_files();
+   #endif
 
    log_line("Ruby Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+   printf("Ruby Start on verison %d.%d (b %d)\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    fflush(stdout);
-
-   
+   u32 uBaseVersion = hardware_get_base_ruby_version();
+   log_line("Ruby base version is %d.%d", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
+   printf("Ruby base version is %d.%d\n", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
+   fflush(stdout);
    char szOutput[4096];
    szOutput[0] = 0;
+
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("sudo modprobe i2c-dev", NULL);
    hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1", szOutput);
+   #else
+   hw_execute_bash_command("modprobe -a 88XXau 2>&1", szOutput);
+   #endif
    if ( 0 != szOutput[0] )
    if ( strlen(szOutput) > 10 )
       log_line("Error on loading driver: [%s]", szOutput);
      
    hardware_sleep_ms(50);
 
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("./ruby_initdhcp &", NULL);
-   
+   #endif
+
    hw_execute_bash_command_raw("lsusb", szOutput);
    strcat(szOutput, "\n*END*\n");
    log_line("USB Devices:");
@@ -663,24 +780,39 @@ int main (int argc, char *argv[])
    log_line("Loaded Modules:");
    log_line(szOutput);      
       
+   #ifdef HW_CAPABILITY_I2C
    hw_execute_bash_command_raw("i2cdetect -l", szOutput);
    log_line("I2C buses:");
    log_line(szOutput);      
+   #endif
 
    int iCount = 0;
    bool bWiFiDetected = false;
+   int iWifiIndexToTry = 0;
+
    while ( iCount < 30 )
    {
       iCount++;
       szOutput[0] = 0;
       hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
+
+      if ( 0 == iWifiIndexToTry )
       if ( 0 != strstr(szOutput, "wlan0") )
       {
          log_line("WiFi detected on the first try: [%s]", szOutput);
          bWiFiDetected = true;
          break;
       }
-      for( int i=0; i<3; i++ )
+
+      if ( 1 == iWifiIndexToTry )
+      if ( 0 != strstr(szOutput, "wlan1") )
+      {
+         log_line("WiFi detected on the first try: [%s]", szOutput);
+         bWiFiDetected = true;
+         break;
+      }
+
+      for( int i=0; i<2; i++ )
       {
          sprintf(szComm, "ifconfig wlan%d down", i );
          hw_execute_bash_command(szComm, NULL);
@@ -702,10 +834,13 @@ int main (int argc, char *argv[])
          power_leds(0);
          hardware_sleep_ms(170);
       }
+
+      iWifiIndexToTry = 1 - iWifiIndexToTry;
    }
    
-   hw_execute_bash_command_raw("ifconfig 2>&1 | grep wlan0", szOutput);
-   log_line("Radio interface wlan0 state: [%s]", szOutput);
+   sprintf(szComm, "ifconfig 2>&1 | grep wlan%d", iWifiIndexToTry);
+   hw_execute_bash_command_raw(szComm, szOutput);
+   log_line("Radio interface wlan%d state: [%s]", iWifiIndexToTry, szOutput);
 
    ///////////////
    /*
@@ -763,6 +898,11 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_raw("cat /sys/class/net/wlan2/device/uevent", szOutput);
       log_line("Network wlan2 info: [%s]", szOutput);
    }
+   if ( access("/sys/class/net/wlan3/device/uevent", R_OK) != -1 )
+   {
+      hw_execute_bash_command_raw("cat /sys/class/net/wlan3/device/uevent", szOutput);
+      log_line("Network wlan3 info: [%s]", szOutput);
+   }
 
    sprintf(szComm, "rm -rf %s", FILE_SYSTEM_TYPE);
    hw_execute_bash_command_silent(szComm, NULL);
@@ -780,6 +920,7 @@ int main (int argc, char *argv[])
 
    board_type = hardware_detectBoardType();
 
+   #ifdef HW_CAPABILITY_I2C
    // Initialize I2C bus 0 for different boards types
    {
       log_line("Initialize I2C busses...");
@@ -818,6 +959,8 @@ int main (int argc, char *argv[])
       log_line("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.", iKnown, iConfigurable );
       printf("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.\n", iKnown, iConfigurable );
    }
+   #endif
+
    fflush(stdout);
    detectSystemType();
 
@@ -889,7 +1032,7 @@ int main (int argc, char *argv[])
       hw_serial_port_info_t* pSerialPort = hardware_get_serial_port_info(i);
       if ( NULL == pSerialPort )
          continue;
-      if ( pSerialPort->iPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      if ( pSerialPort->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       if ( ! hardware_serial_is_sik_radio(pSerialPort->szPortDeviceName) )
       {
          log_line("Serial port %d [%s] was a SiK radio. Now it's a regular serial port. Setting it as used for nothing.", i+1, pSerialPort->szPortDeviceName);
@@ -986,6 +1129,9 @@ int main (int argc, char *argv[])
    log_line("ruby_central: [%s]", szOutput);
    hw_execute_bash_command_raw("./ruby_start -ver", szOutput);
    log_line("ruby_start: [%s]", szOutput);
+
+
+   _check_for_update_from_boot();
 
    if ( s_isVehicle )
    {
@@ -1173,8 +1319,10 @@ int main (int argc, char *argv[])
       //execute_bash_command_silent("printf \"\\033c\"", NULL);
       //hw_launch_process("./ruby_controller");
 
+      #ifdef HW_CAPABILITY_GPIO
       if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
          hw_execute_bash_command("./ruby_gpio_detect&", NULL);
+      #endif
 
       if ( hardware_radio_has_sik_radios() )
       {
@@ -1276,10 +1424,11 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
       log_line("Network devices found: [%s]", szOutput);
 
+      #ifdef HW_PLATFORM_RASPBERRY
       hw_execute_bash_command("rm -rf /boot/last_ruby_boot.txt", NULL);
       hw_execute_bash_command("cp -rf logs/log_system.txt /boot/last_ruby_boot.txt", NULL);
-      
       log_line("Copy boot log to /boot partition. Done.");
+      #endif
 
       int iCheckCount = 0;
       while ( true )
@@ -1348,10 +1497,11 @@ int main (int argc, char *argv[])
       hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
       log_line("Network devices found: [%s]", szOutput);
 
+      #ifdef HW_PLATFORM_RASPBERRY
       hw_execute_bash_command("rm -rf /boot/last_ruby_boot.txt", NULL);
-      hw_execute_bash_command("cp -rf logs/log_system.txt /boot/last_ruby_boot.txt", NULL);
-      
+      hw_execute_bash_command("cp -rf logs/log_system.txt /boot/last_ruby_boot.txt", NULL);      
       log_line("Copy boot log to /boot partition. Done.");
+      #endif
       system("clear");
    }
 

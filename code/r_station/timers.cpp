@@ -10,7 +10,6 @@ u32 g_TimeLastPeriodicCheck = 0;
 // RC Tx
 u32 g_TimeLastFPSCalculation = 0;
 u32 g_TimeLastJoystickCheck = 0;
-u32 g_TimeLastRCFrameSent = 0;
 
 // Router
 u32 g_uTimeLastReceivedResponseToAMessage = 0;

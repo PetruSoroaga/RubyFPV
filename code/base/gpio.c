@@ -1,6 +1,7 @@
 #include "base.h"
 #include "gpio.h"
 #include "hw_procs.h"
+#include "config_hw.h"
 #include "config_file_names.h"
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -15,6 +16,7 @@ static int s_iGPIOButtonsPullDirection = 1;
 
 int GPIOExport(int pin)
 {
+   #ifdef HW_CAPABILITY_GPIO
    char buffer[6];
    ssize_t bytes_written;
    int fd;
@@ -29,93 +31,105 @@ int GPIOExport(int pin)
    bytes_written = snprintf(buffer, 6, "%d", pin);
    write(fd, buffer, bytes_written);
    close(fd);
+   #endif
    return(0);
 }
 
 int GPIOUnexport(int pin)
 {
-	char buffer[6];
-	ssize_t bytes_written;
-	int fd;
+   #ifdef HW_CAPABILITY_GPIO
+  	char buffer[6];
+  	ssize_t bytes_written;
+  	int fd;
 
-	fd = open("/sys/class/gpio/unexport", O_WRONLY);
-	if (-1 == fd) {
-		//fprintf(stderr, "Failed to open unexport for writing!\n");
-		return(-1);
-	}
+  	fd = open("/sys/class/gpio/unexport", O_WRONLY);
+  	if (-1 == fd) {
+  		//fprintf(stderr, "Failed to open unexport for writing!\n");
+  		return(-1);
+  	}
 
-	bytes_written = snprintf(buffer, 6, "%d", pin);
-	write(fd, buffer, bytes_written);
-	close(fd);
-	return(0);
+  	bytes_written = snprintf(buffer, 6, "%d", pin);
+  	write(fd, buffer, bytes_written);
+  	close(fd);
+   #endif
+  	return(0);
 }
 
 int GPIODirection(int pin, int dir)
 {
+   #ifdef HW_CAPABILITY_GPIO
    static const char s_directions_str[]  = "in\0out";
    char path[64];
    int fd;
 
-	snprintf(path, 64, "/sys/class/gpio/gpio%d/direction", pin);
-	fd = open(path, O_WRONLY);
-	if (-1 == fd) {
-		//fprintf(stderr, "Failed to open gpio direction for writing!\n");
-		return(-1);
-	}
+  	snprintf(path, 64, "/sys/class/gpio/gpio%d/direction", pin);
+  	fd = open(path, O_WRONLY);
+  	if (-1 == fd) {
+  		//fprintf(stderr, "Failed to open gpio direction for writing!\n");
+  		return(-1);
+  	}
 
-	if (-1 == write(fd, &s_directions_str[IN == dir ? 0 : 3], IN == dir ? 2 : 3)) {
-		//fprintf(stderr, "Failed to set direction!\n");
-		return(-1);
-	}
+  	if (-1 == write(fd, &s_directions_str[IN == dir ? 0 : 3], IN == dir ? 2 : 3)) {
+  		//fprintf(stderr, "Failed to set direction!\n");
+  		return(-1);
+  	}
 
-	close(fd);
-	return(0);
+  	close(fd);
+   #endif
+  	return(0);
 }
 
 int GPIORead(int pin)
 {
+   #ifdef HW_CAPABILITY_GPIO
    char path[64];
    char value_str[5];
    int fd;
 
-	snprintf(path, 64, "/sys/class/gpio/gpio%d/value", pin);
-	fd = open(path, O_RDONLY);
-	if (-1 == fd) {
-		//fprintf(stderr, "Failed to open gpio value for reading!\n");
-		return(-1);
-	}
+  	snprintf(path, 64, "/sys/class/gpio/gpio%d/value", pin);
+  	fd = open(path, O_RDONLY);
+  	if (-1 == fd) {
+  		//fprintf(stderr, "Failed to open gpio value for reading!\n");
+  		return(-1);
+  	}
 
-	int ir = read(fd, value_str, 3);
-        if ( ir == -1 ) {
-		//fprintf(stderr, "Failed to read value!\n");
-		return(-1);
-	}
-        value_str[ir] = 0;
-	close(fd);
-	return(atoi(value_str));
+  	int ir = read(fd, value_str, 3);
+          if ( ir == -1 ) {
+  		//fprintf(stderr, "Failed to read value!\n");
+  		return(-1);
+  	}
+          value_str[ir] = 0;
+  	close(fd);
+  	return(atoi(value_str));
+   #else
+   return 0;
+   #endif
 }
 
 int GPIOWrite(int pin, int value)
 {
-	static const char s_values_str[] = "01";
+   #ifdef HW_CAPABILITY_GPIO
 
-	char path[64];
-	int fd;
+  	static const char s_values_str[] = "01";
 
-	snprintf(path, 64, "/sys/class/gpio/gpio%d/value", pin);
-	fd = open(path, O_WRONLY);
-	if (-1 == fd) {
-		//fprintf(stderr, "Failed to open gpio value for writing!\n");
-		return(-1);
-	}
+  	char path[64];
+  	int fd;
 
-	if (1 != write(fd, &s_values_str[LOW == value ? 0 : 1], 1)) {
-		//fprintf(stderr, "Failed to write value!\n");
-		return(-1);
-	}
+  	snprintf(path, 64, "/sys/class/gpio/gpio%d/value", pin);
+  	fd = open(path, O_WRONLY);
+  	if (-1 == fd) {
+  		//fprintf(stderr, "Failed to open gpio value for writing!\n");
+  		return(-1);
+  	}
 
-	close(fd);
-	return(0);
+  	if (1 != write(fd, &s_values_str[LOW == value ? 0 : 1], 1)) {
+  		//fprintf(stderr, "Failed to write value!\n");
+  		return(-1);
+  	}
+
+  	close(fd);
+   #endif
+  	return(0);
 }
 
 int GPIOGetButtonsPullDirection()
@@ -125,6 +139,7 @@ int GPIOGetButtonsPullDirection()
 
 int _GPIOTryPullUpDown(int iPin, int iPullDirection)
 {
+   #ifdef HW_CAPABILITY_GPIO
    int failed = 0;
    if (-1 == GPIODirection(iPin, OUT))
    {
@@ -159,11 +174,15 @@ int _GPIOTryPullUpDown(int iPin, int iPullDirection)
    hw_execute_bash_command_silent(szComm, NULL);
 
    return failed;
+   #else
+   return 0;
+   #endif
 }
 
 
 void _GPIO_PullAllDown()
 {
+   #ifdef HW_CAPABILITY_GPIO
    char szBuff[64];
    _GPIOTryPullUpDown(GPIO_PIN_BACK, 0);
    _GPIOTryPullUpDown(GPIO_PIN_PLUS, 0);
@@ -220,10 +239,12 @@ void _GPIO_PullAllDown()
    hw_execute_bash_command_silent(szBuff, NULL);
 
    log_line("[GPIO] Pulled all buttons down");
+   #endif
 }
 
 void _GPIO_PullAllUp()
 {
+   #ifdef HW_CAPABILITY_GPIO
    char szBuff[64];
    _GPIOTryPullUpDown(GPIO_PIN_BACK, 1);
    _GPIOTryPullUpDown(GPIO_PIN_PLUS, 1);
@@ -279,16 +300,19 @@ void _GPIO_PullAllUp()
    sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTIONMINUS);
    hw_execute_bash_command_silent(szBuff, NULL);
    log_line("[GPIO] Pulled all buttons up");
+   #endif
 }
 
 int GPIOButtonsResetDetectionFlag()
 {
+   #ifdef HW_CAPABILITY_GPIO
    log_line("[GPIO] Reset buttons direction detection flag.");
    char szComm[256];
    sprintf(szComm, "rm -rf %s", FILE_CONTROLLER_BUTTONS);
    hw_execute_bash_command(szComm, NULL);
    s_iGPIOButtonsDirectionDetected = 0;
    s_iGPIOButtonsPullDirection = 1;
+   #endif
    return 1;
 }
 
@@ -297,6 +321,7 @@ int GPIOButtonsResetDetectionFlag()
 
 int GPIOInitButtons()
 {
+   #ifdef HW_CAPABILITY_GPIO
    log_line("[GPIO] Export and initialize buttons...");
 
    s_iGPIOButtonsDirectionDetected = 0;
@@ -447,10 +472,14 @@ int GPIOInitButtons()
       GPIOButtonsTryDetectPullUpDown();
 
    return failed;
+   #else
+   return 0;
+   #endif
 }
 
 int GPIOButtonsTryDetectPullUpDown()
 {
+   #ifdef HW_CAPABILITY_GPIO
    if ( s_iGPIOButtonsDirectionDetected )
       return 1;
 
@@ -619,4 +648,7 @@ int GPIOButtonsTryDetectPullUpDown()
    if ( iLogThisTry )
       log_line("[GPIO] No detection on this try.");
    return 0;
+   #else
+   return 1;
+   #endif
 }

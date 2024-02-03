@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/alarms.h"
@@ -25,6 +43,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "warnings.h"
 #include "ui_alarms.h"
 #include "popup_log.h"
+#include "link_watch.h"
 #include "osd.h"
 #include "osd_common.h"
 #include "notifications.h"
@@ -179,7 +198,7 @@ t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
    if ( g_bSearching )
    {
       g_SearchVehicleRuntimeInfo.uVehicleId = pPH->vehicle_id_src;
-      g_SearchVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src);
+      g_SearchVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 40);
       return &g_SearchVehicleRuntimeInfo;
    }
 
@@ -205,7 +224,7 @@ t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
    // Unexpected vehicle
 
    g_UnexpectedVehicleRuntimeInfo.uVehicleId = pPH->vehicle_id_src;
-   g_UnexpectedVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src);
+   g_UnexpectedVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 41);
    return &(g_UnexpectedVehicleRuntimeInfo);
 }
 
@@ -226,7 +245,13 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       iTelemetryVersion = 2;         
    else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
       iTelemetryVersion = 3;
-   else
+
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3)) )
+      iTelemetryVersion = 3;
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info)) )
+      iTelemetryVersion = 3;
+      
+   if ( iTelemetryVersion == 0 )
    {
       log_softerror_and_alarm("Received unknown ruby telemetry version from vehicle id %u", pPH->vehicle_id_src);
       return;
@@ -246,7 +271,10 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
          }
       }
       pRuntimeInfo->bGotRubyTelemetryInfo = true;
-      log_line("Start receiving Ruby telemetry (version %d) from router for vehicle id %u, runtime index: %d.", iTelemetryVersion, pRuntimeInfo->uVehicleId, iIndexRuntime);
+      if ( g_bSearching )
+         log_line("Start receiving Ruby telemetry (version %d) from router for vehicle id %u, runtime index: search", iTelemetryVersion, pRuntimeInfo->uVehicleId);
+      else
+         log_line("Start receiving Ruby telemetry (version %d) from router for vehicle id %u, runtime index: %d.", iTelemetryVersion, pRuntimeInfo->uVehicleId, iIndexRuntime);
       log_current_runtime_vehicles_info();
    }
 
@@ -600,6 +628,64 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       return 0;
    }
 
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE )
+   {
+      log_line("Received message from router that favorite vehicle was switched to VID: %u", pPH->vehicle_id_dest);
+      g_bSwitchingFavoriteVehicle = false;
+
+      Model* pTmp = findModelWithId(pPH->vehicle_id_dest, 42);
+      if ( NULL == pTmp )
+      {
+         warnings_add(0, "Failed to switch favorite vehicle");
+         return 0;
+      }
+      char szBuff[256];
+      sprintf(szBuff, "Switched to vehicle: %s", pTmp->getLongName());
+      warnings_replace("Switching to favorite", szBuff);
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
+   {
+
+      int iRadioLinkId = pPacketBuffer[sizeof(t_packet_header)];
+      int iCmdId = pPacketBuffer[sizeof(t_packet_header)+1];
+      int iMsgLen = pPH->total_length - sizeof(t_packet_header)-2*sizeof(u8);
+      log_line("Processing received test link message type %s from router, %d data bytes for radio link %d",
+      str_get_packet_test_link_command(iCmdId), iMsgLen, iRadioLinkId+1);
+
+      if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS )
+      {
+         char szBuff[256];
+         strcpy(szBuff, (char*)(pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8)));
+         warnings_add_configuring_radio_link_line(szBuff);
+      }
+
+      if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+      {
+         bool bSucceeded = false;
+         if ( pPacketBuffer[sizeof(t_packet_header)+2*sizeof(u8)] )
+            bSucceeded = true;
+         log_line("Radio link params update succeeded? %s", bSucceeded?"Yes":"No");
+
+         warnings_remove_configuring_radio_link(bSucceeded);
+         link_reset_reconfiguring_radiolink();
+
+         if ( bSucceeded )
+         {
+            reloadCurrentModel();
+            g_pCurrentModel = getCurrentModel();
+         }
+         else
+         {
+            Popup* p = new Popup("Failed to set the new parameters.",0.25,0.44, 0.5, 4);
+            p->setIconId(g_idIconError, get_Color_IconError());
+            popups_add_topmost(p);
+         }
+      }
+      return 0;
+   }
+
    if ( pPH->packet_type == PACKET_TYPE_SIK_CONFIG )
    {
        u8 uVehicleLinkId = *(pPacketBuffer + sizeof(t_packet_header));
@@ -762,6 +848,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       pRuntimeInfo->uTimeLastRecvFCTelemetryFull = g_TimeNow;
       pRuntimeInfo->tmp_iCountFCTelemetryPacketsFull++;      
       memcpy(&(pRuntimeInfo->headerFCTelemetry), pPacketBuffer+sizeof(t_packet_header), sizeof(t_packet_header_fc_telemetry) );
+      
       if ( pRuntimeInfo->headerFCTelemetry.flags & FC_TELE_FLAGS_HAS_MESSAGE )
       {
          memcpy(&(pRuntimeInfo->headerFCTelemetryExtra), pPacketBuffer+sizeof(t_packet_header) + sizeof(t_packet_header_fc_telemetry), sizeof(t_packet_header_fc_extra) );
@@ -783,7 +870,10 @@ int _process_received_message_from_router(u8* pPacketBuffer)
             strcpy(szBuff, "FC: ");
             strcat(szBuff, pRuntimeInfo->szLastMessageFromFC);
          }
-         warnings_add(pPH->vehicle_id_src, szBuff, g_idIconInfo, get_Color_IconNormal(), 8);
+         if ( pRuntimeInfo->pModel != NULL )
+         if ( ! (pRuntimeInfo->pModel->osd_params.osd_preferences[osd_get_current_layout_index()] & OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES) )
+         if ( ! (pRuntimeInfo->pModel->telemetry_params.flags & TELEMETRY_FLAGS_DONT_SHOW_FC_MESSAGES) )
+            warnings_add(pPH->vehicle_id_src, szBuff, g_idIconInfo, get_Color_IconNormal(), 8);
          pRuntimeInfo->uTimeLastMessageFromFC = g_TimeNow;
       }
       return 0;    
@@ -897,9 +987,9 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          pRuntimeInfo->SMVehicleRxStats[countCards].lastDbm = statsCompact.lastDbm;
          pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmVideo = statsCompact.lastDbmVideo;
          pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmData = statsCompact.lastDbmData;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDataRate = statsCompact.lastDataRate;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDataRateVideo = statsCompact.lastDataRateVideo;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDataRateData = statsCompact.lastDataRateData;
+         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRate = statsCompact.lastRecvDataRate;
+         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateVideo = statsCompact.lastRecvDataRateVideo;
+         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateData = statsCompact.lastRecvDataRateData;
 
          pRuntimeInfo->SMVehicleRxStats[countCards].totalRxBytes = statsCompact.totalRxBytes;
          pRuntimeInfo->SMVehicleRxStats[countCards].totalTxBytes = statsCompact.totalTxBytes;
@@ -1009,7 +1099,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          bLocalAlarm = true;
       if ( bLocalAlarm )
       {
-         log_line("Received local alarm: %s, alarm intex: %u", szBuff, uAlarmIndex);
+         log_line("Received local alarm: %s, alarm index: %u", szBuff, uAlarmIndex);
          alarms_add_from_local(uAlarm, uFlags1, uFlags2);
       }
       else

@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../osd/osd_common.h"
@@ -38,8 +56,6 @@ MenuVehicleManagement::~MenuVehicleManagement()
 void MenuVehicleManagement::onShow()
 {
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0;
-   
    removeAllItems();
 
    m_IndexConfig = addMenuItem(new MenuItem("Get Config Info", "Gets the hardware capabilities and current configuration of the vehicle."));
@@ -101,35 +117,28 @@ bool MenuVehicleManagement::periodicLoop()
    }
    return false;
 }
-
-int MenuVehicleManagement::onBack()
-{
-   return Menu::onBack();
-}
      
-void MenuVehicleManagement::onReturnFromChild(int returnValue)
+void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
    // Delete model
-   if ( 1 == returnValue && 1 == m_iConfirmationId )
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
       if ( NULL != g_pCurrentModel )
          pairing_stop();
-      menu_close_all();
+      menu_discard_all();
       u32 uVehicleId = g_pCurrentModel->vehicle_id;
       deleteModel(g_pCurrentModel);
       g_pCurrentModel = NULL;
       notification_add_model_deleted();
       onModelDeleted(uVehicleId);
-      m_iConfirmationId = 0;
       return;
    }
 
    // Upload software
-   if ( 1 == returnValue && (2 == m_iConfirmationId || 4 == m_iConfirmationId) )
+   if ( (1 == returnValue) && ( (2 == iChildMenuId/1000) || (4 == iChildMenuId/1000)) )
    {
-      m_iConfirmationId = 0;
       if ( uploadSoftware() )
       {
          if ( NULL != g_pCurrentModel )
@@ -137,44 +146,43 @@ void MenuVehicleManagement::onReturnFromChild(int returnValue)
             g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
             saveControllerModel(g_pCurrentModel);
          }
-         m_iConfirmationId = 3;
-         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Upload Succeeded",NULL);
+         //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Upload Succeeded",NULL);
+         //pm->addTopLine("Your vehicle was updated. It will reboot now.");
+         Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", MENU_ID_SIMPLE_MESSAGE+3*1000, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
-         pm->addTopLine("Your vehicle was updated. It will reboot now.");
+         pm->m_bDisableStacking = true;
          add_menu_to_stack(pm);
+
       }
       return;
    }
 
-   if ( 3 == m_iConfirmationId )
+   if ( 3 == iChildMenuId/1000 )
    {
-      menu_close_all();
-      m_iConfirmationId = 0;
+      menu_discard_all();
       g_bSyncModelSettingsOnLinkRecover = true;
       return;
    }
 
-   if ( 10 == m_iConfirmationId && 1 == returnValue )
+   if ( (10 == iChildMenuId/1000) && (1 == returnValue) )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_REBOOT, 0, NULL, 0) )
          valuesToUI();
       else
-         menu_close_all();
-      m_iConfirmationId = 0;
+         menu_discard_all();
       return;
    }
 
    // Reset to default
-   if ( 20 == m_iConfirmationId && 1 == returnValue )
+   if ( (20 == iChildMenuId/1000) && (1 == returnValue) )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_RESET_ALL_TO_DEFAULTS, 0, NULL, 0) )
          valuesToUI();
       else
       {
          g_bSyncModelSettingsOnLinkRecover = true;
-         m_iConfirmationId = 3;
-         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Reset Complete",NULL);
+         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Reset Complete",NULL);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->addTopLine("Your vehicle was reseted to default settings. It will reboot now.");
@@ -184,7 +192,7 @@ void MenuVehicleManagement::onReturnFromChild(int returnValue)
    }
 
    // Factory reset
-   if ( 21 == m_iConfirmationId && 1 == returnValue )
+   if ( (21 == iChildMenuId/1000) && (1 == returnValue) )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_FACTORY_RESET, 0, NULL, 0) )
          valuesToUI();
@@ -194,8 +202,6 @@ void MenuVehicleManagement::onReturnFromChild(int returnValue)
       }
       return;
    }
-
-   m_iConfirmationId = 0;
 }
 
 void MenuVehicleManagement::onSelectItem()
@@ -286,8 +292,7 @@ void MenuVehicleManagement::onSelectItem()
       ruby_signal_alive();
       sync();
       ruby_signal_alive();
-      m_iConfirmationId = 10;
-      Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Export Succeeded",NULL);
+      Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+10*1000,"Export Succeeded",NULL);
       pm->m_xPos = 0.4; pm->m_yPos = 0.4;
       pm->m_Width = 0.36;
       pm->addTopLine("Your vehicle settings have been stored to the USB stick. You can now remove the USB stick.");
@@ -318,8 +323,7 @@ void MenuVehicleManagement::onSelectItem()
          sync();
          ruby_signal_alive();
          delete pM;
-         m_iConfirmationId = 10;
-         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"No settings files",NULL);
+         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+10*1000,"No settings files",NULL);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->addTopLine("There are no vehicle settings files on the USB stick.");
@@ -347,8 +351,7 @@ void MenuVehicleManagement::onSelectItem()
          char szBuff[256];
 
          sprintf(szBuff, "Your vehicle already has the latest version of the software (version %s). Do you still want to upgrade vehicle?", szBuff2);
-         m_iConfirmationId = 4;
-         MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, m_iConfirmationId);
+         MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, 4);
          add_menu_to_stack(pMC);
          //pMC->addTopLine(" ");
          //pMC->addTopLine("Note: Do not keep the vehicle very close to the controller as the radio power might be too powerfull and generate noise.");
@@ -358,8 +361,7 @@ void MenuVehicleManagement::onSelectItem()
       char szBuff3[64];
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
       sprintf(szBuff, "Your vehicle has software version %s and software version %s is available on the controller. Do you want to upgrade vehicle?", szBuff2, szBuff3);
-      m_iConfirmationId = 2;
-      MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, m_iConfirmationId);
+      MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, 2);
       add_menu_to_stack(pMC);
    }
         
@@ -369,8 +371,7 @@ void MenuVehicleManagement::onSelectItem()
          return;
       char szBuff[256];
       sprintf(szBuff, "Are you sure you want to reset all parameters for %s?", g_pCurrentModel->getLongName());
-      m_iConfirmationId = 20;
-      MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, m_iConfirmationId);
+      MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, 20);
       add_menu_to_stack(pMC);
    }
  
@@ -380,8 +381,7 @@ void MenuVehicleManagement::onSelectItem()
          return;
       char szBuff[256];
       sprintf(szBuff, "Are you sure you want to factory reset %s?", g_pCurrentModel->getLongName());
-      m_iConfirmationId = 21;
-      MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, m_iConfirmationId);
+      MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, 21);
       pMC->addTopLine("All parameters (including vehicle name, radio frequency, etc) and state will be reset to default values as after a fresh instalation.");
       add_menu_to_stack(pMC);
    }
@@ -392,8 +392,7 @@ void MenuVehicleManagement::onSelectItem()
          return;
       char szBuff[64];
       sprintf(szBuff, "Are you sure you want to delete %s?", g_pCurrentModel->getLongName());
-      m_iConfirmationId = 1;
-      add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, m_iConfirmationId));
+      add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
    }
 
    if ( m_IndexReboot == m_SelectedIndex )
@@ -401,8 +400,7 @@ void MenuVehicleManagement::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
-         m_iConfirmationId = 10;
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the vehicle?", m_iConfirmationId);
+         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the vehicle?", 10);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");
@@ -414,7 +412,7 @@ void MenuVehicleManagement::onSelectItem()
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_REBOOT, 0, NULL, 0) )
          valuesToUI();
       else
-         menu_close_all();
+         menu_discard_all();
    }
 }
 

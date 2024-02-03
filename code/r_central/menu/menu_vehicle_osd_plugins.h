@@ -12,7 +12,7 @@ class MenuVehicleOSDPlugins: public Menu
       virtual ~MenuVehicleOSDPlugins();
       virtual void valuesToUI();
       virtual void Render();
-      virtual void onReturnFromChild(int returnValue);
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void onSelectItem();
             
    private:

@@ -25,7 +25,8 @@ class MenuItem
      void showArrow();
 
      void setCondensedOnly();
-
+     void setExtraHeight(float fExtraHeight);
+     float getExtraHeight();
      void setTextColor(double* pColor);
 
      void setIsEditable();

@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdlib.h>
@@ -35,6 +53,7 @@ Code written by: Petru Soroaga, 2021-2023
 
 #include "shared_vars.h"
 #include "links_utils.h"
+#include "radio_links.h"
 #include "ruby_rt_station.h"
 #include "processor_rx_audio.h"
 #include "processor_rx_video.h"
@@ -44,6 +63,8 @@ Code written by: Petru Soroaga, 2021-2023
 #include "video_link_adaptive.h"
 #include "video_link_keyframe.h"
 #include "timers.h"
+#include "radio_links_sik.h"
+#include "test_link_params.h"
 
 
 bool _switch_to_vehicle_radio_link(int iVehicleRadioLinkId)
@@ -95,12 +116,12 @@ bool _switch_to_vehicle_radio_link(int iVehicleRadioLinkId)
 
       // Change frequency of the card to the new radio link
       u32 uCurrentFrequencyKhz = pRadioHWInfo->uCurrentFrequencyKhz;
-
-      if ( ! radio_utils_set_interface_frequency(NULL, iInterface, g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId], g_pProcessStats) )
+      Preferences* pP = get_Preferences();
+      if ( ! radio_utils_set_interface_frequency(g_pCurrentModel, iInterface, iVehicleRadioLinkId, g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId], g_pProcessStats, pP->iDebugWiFiChangeDelay) )
       {
          log_softerror_and_alarm("Failed to change local radio interface %d to new frequency %s", iInterface, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId]));
          log_line("Switching back local radio interface %d to previouse frequency %s", iInterface, str_format_frequency(uCurrentFrequencyKhz));
-         radio_utils_set_interface_frequency(NULL, iInterface, uCurrentFrequencyKhz, g_pProcessStats);
+         radio_utils_set_interface_frequency(g_pCurrentModel, iInterface, iVehicleRadioLinkId, uCurrentFrequencyKhz, g_pProcessStats, pP->iDebugWiFiChangeDelay);
          continue;
       }
             
@@ -125,6 +146,24 @@ bool _switch_to_vehicle_radio_link(int iVehicleRadioLinkId)
 
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
+   return true;
+}
+
+bool _switch_to_vehicle(Model* pTmp)
+{
+   video_processors_cleanup();
+   uninit_processing_audio();
+   radio_rx_stop_rx_thread();
+   radio_links_close_rxtx_radio_interfaces();
+
+   // Reload new model state
+   setCurrentModel(pTmp->vehicle_id);
+   g_pCurrentModel = getCurrentModel();
+   if ( ! reloadCurrentModel() )
+      log_softerror_and_alarm("Failed to load current model.");
+
+   reasign_radio_links(true);
+   video_processors_init();
    return true;
 }
 
@@ -172,7 +211,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
          return;
       }
 
-      close_and_mark_sik_interfaces_to_reopen();
+      radio_links_close_and_mark_sik_interfaces_to_reopen();
       g_SiKRadiosState.bConfiguringToolInProgress = true;
       g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
          
@@ -250,6 +289,13 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       return;
    }
 
+   if ( uChangeType == MODEL_CHANGED_RESET_RADIO_LINK )
+   {
+      int iLink = (pPH->vehicle_id_src >> 16) & 0xFF;
+      log_line("Received notification that radio link %d was reset.", iLink+1);
+      return;
+   }
+
    if ( uChangeType == MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS )
    {
       int iLink = (pPH->vehicle_id_src >> 16) & 0xFF;
@@ -266,7 +312,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
          {
             if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId == iLink )
             if ( hardware_radio_index_is_sik_radio(i) )
-               flag_update_sik_interface(i);
+               radio_links_flag_update_sik_interface(i);
          }
       }
 
@@ -366,7 +412,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       {
          log_line("Relay link id was changed (from %d to %d). Reasigning radio interfaces to current vehicle radio links...",
             oldRelayParams.isRelayEnabledOnRadioLinkId, g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId);
-         reasign_radio_links();
+         reasign_radio_links(false);
       }
       return;
    }
@@ -378,9 +424,16 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    }
    
    // Signal other components about the model change if it's not from central or if settings where synchronised form vehicle
-
+   // Signal other components too if the RC parameters where changed
+   bool bNotify = false;
    if ( (pPH->vehicle_id_src == PACKET_COMPONENT_COMMANDS) ||
         (uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE) )
+      bNotify = true;
+
+   if ( uChangeType == MODEL_CHANGED_RC_PARAMS )
+      bNotify = true;
+     
+   if ( bNotify )
    {
       if ( -1 != g_fIPCToTelemetry )
          ruby_ipc_channel_send_message(g_fIPCToTelemetry, (u8*)pPH, pPH->total_length);
@@ -393,11 +446,57 @@ void process_local_control_packet(t_packet_header* pPH)
 {
    //log_line("Process received local controll packet type: %d", pPH->packet_type);
 
+   if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
+   {
+      u8* pBuffer = (u8*)pPH;
+      int iMsgType = pBuffer[sizeof(t_packet_header)];
+      log_line("[TestLink] Received test link message from central. Message type: %s", str_get_packet_test_link_command(iMsgType));
+      if ( pPH->total_length != sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(type_radio_links_parameters) )
+      {
+         test_link_send_status_message_to_central("Invalid radio parameters.");
+         test_link_send_end_message_to_central(false);
+         test_link_end_flow(false);
+         return;
+      }
+      u8 uLink = pBuffer[sizeof(t_packet_header)+1];
+      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->vehicle_id, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 2*sizeof(u8)) ) )
+      {
+         test_link_send_status_message_to_central("Invalid radio parameters.");
+         test_link_send_end_message_to_central(false);
+         test_link_end_flow(false);
+      }
+      return;
+   }
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLLER_RELOAD_CORE_PLUGINS )
    {
       log_line("Router received a local message to reload core plugins.");
       refresh_CorePlugins(0);
       log_line("Router finished reloading core plugins.");
+      return;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE )
+   {
+      log_line("Received local request to switch to favorite vehicle VID %u (current VID: %u)", pPH->vehicle_id_dest, g_pCurrentModel->vehicle_id);
+      Model* pTmp = findModelWithId(pPH->vehicle_id_dest, 100);
+      if ( NULL == pTmp )
+      {
+         log_softerror_and_alarm("Tried to switch to invalid favorite model VID %u", pPH->vehicle_id_dest);
+         return;
+      }
+
+      _switch_to_vehicle(pTmp);
+
+      t_packet_header PH;
+      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE, STREAM_ID_DATA);
+      PH.vehicle_id_src = pPH->vehicle_id_dest;
+      PH.vehicle_id_dest = pPH->vehicle_id_dest;
+      PH.total_length = sizeof(t_packet_header);
+
+      u8 packet[MAX_PACKET_TOTAL_SIZE];
+      memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+      if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
+         log_softerror_and_alarm("No pipe to central to send message to.");
       return;
    }
 
@@ -501,10 +600,14 @@ void process_local_control_packet(t_packet_header* pPH)
          return;
       }
       log_line("Received local message to change the search frequency to %s", str_format_frequency(pPH->vehicle_id_dest));
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+         radio_rx_pause_interface(i);
       links_set_cards_frequencies_for_search((int)pPH->vehicle_id_dest, false, -1,-1,-1,-1 );
       hardware_save_radio_info();
       log_line("Switched search frequency to %s. Broadcasting that router is ready.", str_format_frequency(pPH->vehicle_id_dest));
       broadcast_router_ready();
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+         radio_rx_resume_interface(i);
       return;
    }
 
@@ -572,7 +675,7 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_RELAY_MODE_SWITCHED )
    {
       g_pCurrentModel->relay_params.uCurrentRelayMode = pPH->vehicle_id_src;
-      Model* pModel = findModelWithId(g_pCurrentModel->vehicle_id);
+      Model* pModel = findModelWithId(g_pCurrentModel->vehicle_id, 101);
       if ( NULL != pModel )
          pModel->relay_params.uCurrentRelayMode = pPH->vehicle_id_src;
 
@@ -584,7 +687,7 @@ void process_local_control_packet(t_packet_header* pPH)
       log_line("Set current keyframe to %d ms for FPS %d for current vehicle (VID: %u)", iDefaultKeyframeIntervalMs, iCurrentFPS, g_pCurrentModel->vehicle_id);
       video_link_keyframe_set_current_level_to_request(g_pCurrentModel->vehicle_id, iDefaultKeyframeIntervalMs);
       
-      pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId);
+      pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 102);
       if ( NULL != pModel )
       {
          iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
@@ -648,7 +751,7 @@ void process_local_control_packet(t_packet_header* pPH)
          if ( NULL == pPort )
             continue;
 
-         if ( pPort->iPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+         if ( pPort->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
          if ( pPort->lPortSpeed != oldSerialPorts[i].lPortSpeed )
          {
             log_line("SiK radio interface changed local serial port speed from %d bps to %d bps",
@@ -671,7 +774,7 @@ void process_local_control_packet(t_packet_header* pPH)
                continue;
             }
 
-            close_and_mark_sik_interfaces_to_reopen();
+            radio_links_close_and_mark_sik_interfaces_to_reopen();
             g_SiKRadiosState.bConfiguringToolInProgress = true;
             g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
             

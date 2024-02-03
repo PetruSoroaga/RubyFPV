@@ -11,7 +11,6 @@ class MenuVehicleImport: public Menu
       virtual void Render();
       virtual void onShow();
       virtual void onSelectItem();
-      virtual void onReturnFromChild(int returnValue);        
 
       void buildSettingsFileList();
       int getSettingsFilesCount();

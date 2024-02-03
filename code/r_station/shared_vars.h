@@ -24,6 +24,7 @@ extern u32 g_uControllerId;
 
 extern bool g_bSearching;
 extern u32  g_uSearchFrequency;
+extern u32  g_uAcceptedFirmwareType;
 extern bool g_bUpdateInProgress;
 extern bool s_bReceivedInvalidRadioPackets;
 

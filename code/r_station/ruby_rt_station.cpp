@@ -1,22 +1,42 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <sodium.h>
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/commands.h"
+#include "../base/enc.h"
 #include "../base/encr.h"
 #include "../base/shared_mem.h"
 #include "../base/models.h"
@@ -25,6 +45,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
+#include "../base/parse_fc_telemetry.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
 #include "../radio/radiolink.h"
@@ -32,11 +53,13 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../radio/radiopacketsqueue.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
+#include "../radio/zfec.h"
 #include "../radio/radio_duplicate_det.h"
 #include "../base/controller_utils.h"
 #include "../base/core_plugins_settings.h"
 #include "../common/models_connect_frequencies.h"
 
+#include "ruby_rt_station.h"
 #include "shared_vars.h"
 #include "links_utils.h"
 #include "processor_rx_audio.h"
@@ -47,10 +70,12 @@ Code written by: Petru Soroaga, 2021-2023
 #include "packets_utils.h"
 #include "video_link_adaptive.h"
 #include "video_link_keyframe.h"
+#include "wfbohd.h"
+#include "test_link_params.h"
 
 #include "timers.h"
-
-int s_iFailedInitRadioInterface = -1;
+#include "radio_links.h"
+#include "radio_links_sik.h"
 
 u8 s_BufferCommands[MAX_PACKET_TOTAL_SIZE];
 u8 s_PipeBufferCommands[MAX_PACKET_TOTAL_SIZE];
@@ -99,670 +124,6 @@ void _broadcast_radio_interface_init_failed(int iInterfaceIndex)
    log_line("Sent message to central that radio interface %d failed to initialize.", iInterfaceIndex+1);
 }
 
-void close_and_mark_sik_interfaces_to_reopen()
-{
-   int iCount = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-      if ( pRadioHWInfo->openedForWrite || pRadioHWInfo->openedForRead )
-      if ( (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == -1 ) ||
-           (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == i) )
-      {
-         radio_rx_pause_interface(i);
-         radio_tx_pause_radio_interface(i);
-         g_SiKRadiosState.bInterfacesToReopen[i] = true;
-         hardware_radio_sik_close(i);
-         iCount++;
-      }
-   }
-   log_line("[Router] Closed SiK radio interfaces (%d closed) and marked them for reopening.", iCount);
-}
-
-void reopen_marked_sik_interfaces()
-{
-   int iCount = 0;
-   int iCountSikInterfacesOpened = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-      if ( g_SiKRadiosState.bInterfacesToReopen[i] )
-      {
-         if ( hardware_radio_sik_open_for_read_write(i) <= 0 )
-            log_softerror_and_alarm("[Router] Failed to reopen SiK radio interface %d", i+1);
-         else
-         {
-            iCount++;
-            iCountSikInterfacesOpened++;
-            radio_tx_resume_radio_interface(i);
-            radio_rx_resume_interface(i);
-         }
-      }
-      g_SiKRadiosState.bInterfacesToReopen[i] = false;
-   }
-
-   log_line("[Router] Reopened SiK radio interfaces (%d reopened).", iCount);
-}
-
-void _close_rxtx_radio_interfaces()
-{
-   log_line("Closing all radio interfaces (rx/tx).");
-
-   radio_tx_mark_quit();
-   hardware_sleep_ms(10);
-   radio_tx_stop_tx_thread();
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         hardware_radio_sik_close(i);
-   }
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( pRadioHWInfo->openedForWrite )
-         radio_close_interface_for_write(i);
-   }
-
-   radio_close_interfaces_for_read();
-
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-   }
-   if ( NULL != g_pSM_RadioStats )
-      memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-   log_line("Closed all radio interfaces (rx/tx)."); 
-}
-
-void _open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
-{
-   log_line("");
-   log_line("OPEN RADIO INTERFACES START =========================================================");
-   log_line("Opening RX radio interfaces for search (%s)...", str_format_frequency(uSearchFreq));
-
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-   }
-
-   int iCountOpenRead = 0;
-   int iCountSikInterfacesOpened = 0;
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      u32 flags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-      if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
-         continue;
-
-      if ( 0 == hardware_radio_supports_frequency(pRadioHWInfo, uSearchFreq ) )
-         continue;
-
-      if ( flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      if ( flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
-      {
-         if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         {
-            if ( hardware_radio_sik_open_for_read_write(i) <= 0 )
-               s_iFailedInitRadioInterface = i;
-            else
-            {
-               g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
-               iCountOpenRead++;
-               iCountSikInterfacesOpened++;
-            }
-         }
-         else if ( radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK) > 0 )
-         {
-            log_line("Opened radio interface %d for read: USB port %s %s %s", i+1, pRadioHWInfo->szUSBPort, str_get_radio_type_description(pRadioHWInfo->typeAndDriver), pRadioHWInfo->szMAC);
-            g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
-            iCountOpenRead++;
-         }
-         else
-            s_iFailedInitRadioInterface = i;
-      }
-   }
-   
-   if ( 0 < iCountSikInterfacesOpened )
-   {
-      radio_tx_set_sik_packet_size(g_pCurrentModel->radioLinksParams.iSiKPacketSize);
-      radio_tx_start_tx_thread();
-   }
-
-   // While searching, all cards are on same frequency, so a single radio link assigned to them.
-   int iRadioLink = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( g_SM_RadioStats.radio_interfaces[i].openedForRead )
-      {
-         g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId = iRadioLink;
-         g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId = iRadioLink;
-         //iRadioLink++;
-      }
-   }
-   
-   if ( NULL != g_pSM_RadioStats )
-      memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-   log_line("Opening RX radio interfaces for search complete. %d interfaces opened for RX:", iCountOpenRead);
-   
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( g_SM_RadioStats.radio_interfaces[i].openedForRead )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo )
-            log_line("   * Radio interface %d, name: %s opened for read.", i+1, "N/A");
-         else
-            log_line("   * Radio interface %d, name: %s opened for read.", i+1, pRadioHWInfo->szName);
-      }
-   }
-   log_line("OPEN RADIO INTERFACES END =====================================================================");
-   log_line("");
-}
-
-
-void _open_rxtx_radio_interfaces()
-{
-   log_line("");
-   log_line("OPEN RADIO INTERFACES START =========================================================");
-   log_line("Opening RX/TX radio interfaces for current vehicle ...");
-
-   if ( g_bSearching || (NULL == g_pCurrentModel) )
-   {
-      log_error_and_alarm("Invalid parameters for opening radio interfaces");
-      return;
-   }
-
-   int totalCountForRead = 0;
-   int totalCountForWrite = 0;
-
-   int countOpenedForReadForRadioLink[MAX_RADIO_INTERFACES];
-   int countOpenedForWriteForRadioLink[MAX_RADIO_INTERFACES];
-   int iCountSikInterfacesOpened = 0;
-
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      countOpenedForReadForRadioLink[i] = 0;
-      countOpenedForWriteForRadioLink[i] = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-   }
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-
-      if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
-         continue;
-
-      int nVehicleRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId;
-      if ( nVehicleRadioLinkId < 0 || nVehicleRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count )
-         continue;
-
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[nVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-
-      // Ignore vehicle's relay radio links
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[nVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-         continue;
-
-      if ( NULL != pRadioHWInfo )
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
-      {
-         int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
-         if ( (0 == nRateTx) && (NULL != g_pCurrentModel) )
-         {
-            nRateTx = compute_packet_uplink_datarate(nVehicleRadioLinkId, i);
-            log_line("Current model uplink radio datarate for vehicle radio link %d (%s): %d, %u, uplink rate type: %d",
-               nVehicleRadioLinkId+1, pRadioHWInfo->szName, nRateTx, getRealDataRateFromRadioDataRate(nRateTx),
-               g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[nVehicleRadioLinkId]);
-         }
-         radio_utils_set_datarate_atheros(NULL, i, nRateTx);
-      }
-
-      u32 cardFlags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-
-      if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
-           (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
-      {
-         if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         {
-            if ( hardware_radio_sik_open_for_read_write(i) <= 0 )
-               s_iFailedInitRadioInterface = i;
-            else
-            {
-               g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
-               countOpenedForReadForRadioLink[nVehicleRadioLinkId]++;
-               totalCountForRead++;
-
-               g_SM_RadioStats.radio_interfaces[i].openedForWrite = 1;
-               countOpenedForWriteForRadioLink[nVehicleRadioLinkId]++;
-               totalCountForWrite++;
-               iCountSikInterfacesOpened++;
-            }
-         }
-         else if ( radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK) > 0 )
-         {
-            g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
-            countOpenedForReadForRadioLink[nVehicleRadioLinkId]++;
-            totalCountForRead++;
-         }
-         else
-            s_iFailedInitRadioInterface = i;
-      }
-
-      if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
-      if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
-           (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
-      if ( ! hardware_radio_is_sik_radio(pRadioHWInfo) )
-      {
-         if ( radio_open_interface_for_write(i) > 0 )
-         {
-            g_SM_RadioStats.radio_interfaces[i].openedForWrite = 1;
-            countOpenedForWriteForRadioLink[nVehicleRadioLinkId]++;
-            totalCountForWrite++;
-         }
-         else
-            s_iFailedInitRadioInterface = i;
-      }
-   }
-
-   if ( NULL != g_pSM_RadioStats )
-      memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-   log_line("Opening RX/TX radio interfaces complete. %d interfaces opened for RX, %d interfaces opened for TX:", totalCountForRead, totalCountForWrite);
-
-   if ( totalCountForRead == 0 )
-   {
-      log_error_and_alarm("Failed to find or open any RX interface for receiving data.");
-      _close_rxtx_radio_interfaces();
-      return;
-   }
-
-   if ( 0 == totalCountForWrite )
-   {
-      log_error_and_alarm("Can't find any TX interfaces for sending data.");
-      _close_rxtx_radio_interfaces();
-      return;
-   }
-
-   for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
-   {
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-      
-      // Ignore vehicle's relay radio links
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-         continue;
-
-      if ( 0 == countOpenedForReadForRadioLink[i] )
-         log_error_and_alarm("Failed to find or open any RX interface for receiving data on vehicle's radio link %d.", i+1);
-      if ( 0 == countOpenedForWriteForRadioLink[i] )
-         log_error_and_alarm("Failed to find or open any TX interface for sending data on vehicle's radio link %d.", i+1);
-
-      //if ( 0 == countOpenedForReadForRadioLink[i] && 0 == countOpenedForWriteForRadioLink[i] )
-      //   send_alarm_to_central(ALARM_ID_CONTROLLER_NO_INTERFACES_FOR_RADIO_LINK,i, 0);
-   }
-
-   log_line("Opened radio interfaces:");
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-   
-      int nVehicleRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId;      
-      int nLocalRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId;      
-      char szFlags[128];
-      szFlags[0] = 0;
-      u32 uFlags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-      str_get_radio_capabilities_description(uFlags, szFlags);
-
-      char szType[128];
-      strcpy(szType, pRadioHWInfo->szDriver);
-      if ( NULL != pCardInfo )
-         strcpy(szType, str_get_radio_card_model_string(pCardInfo->cardModel));
-
-      if ( pRadioHWInfo->openedForRead && pRadioHWInfo->openedForWrite )
-         log_line(" * Radio Interface %d, %s, %s, %s, local radio link %d, vehicle radio link %d, opened for read/write, flags: %s", i+1, pRadioHWInfo->szName, szType, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), nLocalRadioLinkId+1, nVehicleRadioLinkId+1, szFlags );
-      else if ( pRadioHWInfo->openedForRead )
-         log_line(" * Radio Interface %d, %s, %s, %s, local radio link %d, vehicle radio link %d, opened for read, flags: %s", i+1, pRadioHWInfo->szName, szType, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), nLocalRadioLinkId+1, nVehicleRadioLinkId+1, szFlags );
-      else if ( pRadioHWInfo->openedForWrite )
-         log_line(" * Radio Interface %d, %s, %s, %s, local radio link %d, vehicle radio link %d, opened for write, flags: %s", i+1, pRadioHWInfo->szName, szType, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), nLocalRadioLinkId+1, nVehicleRadioLinkId+1, szFlags );
-      else
-         log_line(" * Radio Interface %d, %s, %s, %s not used. Flags: %s", i+1, pRadioHWInfo->szName, szType, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFlags );
-   }
-
-   if ( 0 < iCountSikInterfacesOpened )
-   {
-      radio_tx_set_sik_packet_size(g_pCurrentModel->radioLinksParams.iSiKPacketSize);
-      radio_tx_start_tx_thread();
-   }
-
-   if ( NULL != g_pSM_RadioStats )
-      memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-   log_line("Finished opening RX/TX radio interfaces.");
-   log_line("OPEN RADIO INTERFACES END ===========================================================");
-   log_line("");
-}
-
-void _reinit_radio_interfaces()
-{
-   char szComm[256];
-   
-   _close_rxtx_radio_interfaces();
-   
-   send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
-
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-
-   hw_execute_bash_command("/etc/init.d/udev restart", NULL);
-   hardware_sleep_ms(200);
-   hw_execute_bash_command("sudo systemctl restart networking", NULL);
-   hardware_sleep_ms(200);
-   hw_execute_bash_command("sudo ifconfig -a", NULL);
-
-   hardware_sleep_ms(50);
-
-   hw_execute_bash_command("sudo systemctl stop networking", NULL);
-   hardware_sleep_ms(200);
-   hw_execute_bash_command("sudo ifconfig -a", NULL);
-
-   hardware_sleep_ms(50);
-
-   if ( NULL != g_pProcessStats )
-   {
-      g_TimeNow = get_current_timestamp_ms();
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-      g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-   }
-
-   char szOutput[4096];
-   szOutput[0] = 0;
-   hw_execute_bash_command_raw("sudo ifconfig -a | grep wlan", szOutput);
-
-   if ( NULL != g_pProcessStats )
-   {
-      g_TimeNow = get_current_timestamp_ms();
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-      g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-   }
-
-   log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-   
-   hw_execute_bash_command("ifconfig wlan0 down", NULL);
-   hw_execute_bash_command("ifconfig wlan1 down", NULL);
-   hw_execute_bash_command("ifconfig wlan2 down", NULL);
-   hw_execute_bash_command("ifconfig wlan3 down", NULL);
-   hardware_sleep_ms(200);
-
-   hw_execute_bash_command("ifconfig wlan0 up", NULL);
-   hw_execute_bash_command("ifconfig wlan1 up", NULL);
-   hw_execute_bash_command("ifconfig wlan2 up", NULL);
-   hw_execute_bash_command("ifconfig wlan3 up", NULL);
-   
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-   
-   // Remove radio initialize file flag
-   hw_execute_bash_command("rm -rf tmp/ruby/conf_radios", NULL);
-   hw_execute_bash_command("./ruby_initradio", NULL);
-   
-   hardware_sleep_ms(100);
-   hardware_reset_radio_enumerated_flag();
-   hardware_enumerate_radio_interfaces();
-
-   hardware_save_radio_info();
-   hardware_sleep_ms(100);
- 
-   if ( NULL != g_pProcessStats )
-   {
-      g_TimeNow = get_current_timestamp_ms();
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-      g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-   }
-
-   log_line("=================================================================");
-   log_line("Detected hardware radio interfaces:");
-   hardware_log_radio_info();
-
-   _open_rxtx_radio_interfaces();
-
-   send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0);
-
-
-}
-
-void flag_update_sik_interface(int iInterfaceIndex)
-{
-   if ( g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex >= 0 )
-   {
-      log_line("Router was re-flagged to reconfigure SiK radio interface %d.", iInterfaceIndex+1);
-      return;
-   }
-   log_line("Router was flagged to reconfigure SiK radio interface %d.", iInterfaceIndex+1);
-   g_SiKRadiosState.uTimeIntervalSiKReinitCheck = 500;
-   g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex = iInterfaceIndex;
-   g_SiKRadiosState.iThreadRetryCounter = 0;
-   close_and_mark_sik_interfaces_to_reopen();
-
-   //send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
-}
-
-
-void flag_reinit_sik_interface(int iInterfaceIndex)
-{
-   // Already flagged ?
-
-   if ( g_SiKRadiosState.bMustReinitSiKInterfaces )
-      return;
-
-   log_softerror_and_alarm("Router was flagged to reinit SiK radio interfaces.");
-   g_SiKRadiosState.uTimeIntervalSiKReinitCheck = 500;
-   g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex = -1;
-
-   close_and_mark_sik_interfaces_to_reopen();
-
-   g_SiKRadiosState.bMustReinitSiKInterfaces = true;
-   g_SiKRadiosState.uSiKInterfaceIndexThatBrokeDown = (u32) iInterfaceIndex;
-   g_SiKRadiosState.iThreadRetryCounter = 0;
-   send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_DOWN, g_SiKRadiosState.uSiKInterfaceIndexThatBrokeDown, 0);
-}
-
-static void * _reinit_sik_thread_func(void *ignored_argument)
-{
-   log_line("[Router-SiKThread] Reinitializing SiK radio interfaces...");
-
-   // radio serial ports are already closed at this point
-
-   if ( g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex >= 0 )
-   {
-      log_line("[Router-SiKThread] Must reconfigure and reinitialize SiK radio interface %d...", g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1 );
-      if ( ! hardware_radio_index_is_sik_radio(g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex) )
-         log_softerror_and_alarm("[Router-SiKThread] Radio interface %d is not a SiK radio interface.", g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1 );
-      else
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex);
-         if ( NULL == pRadioHWInfo )
-            log_softerror_and_alarm("[Router-SiKThread] Failed to get radio hw info for radio interface %d.", g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1);
-         else
-         {
-            ControllerSettings* pCS = get_ControllerSettings();
-            u32 uFreqKhz = pRadioHWInfo->uHardwareParamsList[8];
-            u32 uDataRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
-            u32 uTxPower = pCS->iTXPowerSiK;
-            u32 uLBT = 0;
-            u32 uECC = 0;
-            u32 uMCSTR = 0;
-
-            if ( NULL != g_pCurrentModel )
-            {
-               int iRadioLink = g_pCurrentModel->radioInterfacesParams.interface_link_id[g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex];
-               if ( (iRadioLink >= 0) && (iRadioLink < g_pCurrentModel->radioLinksParams.links_count) )
-               {
-                  uFreqKhz = g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLink];
-                  uDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iRadioLink];
-                  uECC = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_ECC)? 1:0;
-                  uLBT = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_LBT)? 1:0;
-                  uMCSTR = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_MCSTR)? 1:0;
-               
-                  bool bDataRateOk = false;
-                  for( int i=0; i<getSiKAirDataRatesCount(); i++ )
-                  {
-                     if ( (int)uDataRate == getSiKAirDataRates()[i] )
-                     {
-                        bDataRateOk = true;
-                        break;
-                     }
-                  }
-
-                  if ( ! bDataRateOk )
-                  {
-                     log_softerror_and_alarm("[Router-SiKThread] Invalid radio datarate for SiK radio: %d bps. Revert to %d bps.", uDataRate, DEFAULT_RADIO_DATARATE_SIK_AIR);
-                     uDataRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
-                  }
-               }
-            }
-            int iRes = hardware_radio_sik_set_params(pRadioHWInfo, 
-                   uFreqKhz,
-                   DEFAULT_RADIO_SIK_FREQ_SPREAD, DEFAULT_RADIO_SIK_CHANNELS,
-                   DEFAULT_RADIO_SIK_NETID,
-                   uDataRate, uTxPower, 
-                   uECC, uLBT, uMCSTR,
-                   NULL);
-            if ( iRes != 1 )
-            {
-               log_softerror_and_alarm("[Router-SiKThread] Failed to reconfigure SiK radio interface %d", g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1);
-               if ( g_SiKRadiosState.iThreadRetryCounter < 3 )
-               {
-                  log_line("[Router-SiKThread] Will retry to reconfigure radio. Retry counter: %d", g_SiKRadiosState.iThreadRetryCounter);
-               }
-               else
-               {
-                  send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE_FAILED, 0);
-                  reopen_marked_sik_interfaces();
-  
-                  g_SiKRadiosState.bMustReinitSiKInterfaces = false;
-                  g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex = -1;
-                  g_SiKRadiosState.uSiKInterfaceIndexThatBrokeDown = MAX_U32;
-               }
-               log_line("[Router-SiKThread] Finished.");
-               g_SiKRadiosState.bConfiguringSiKThreadWorking = false;
-               return NULL;
-            }
-            else
-            {
-               log_line("[Router-SiKThread] Updated successfully SiK radio interface %d to txpower %d, airrate: %d bps, ECC/LBT/MCSTR: %d/%d/%d",
-                   g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1,
-                   uTxPower, uDataRate, uECC, uLBT, uMCSTR);
-               radio_stats_set_card_current_frequency(&g_SM_RadioStats, g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex, uFreqKhz);
-               if ( NULL != g_pSM_RadioStats )
-                  memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-            }
-         }
-      }
-   }
-   else if ( 1 != hardware_radio_sik_reinitialize_serial_ports() )
-   {
-      log_line("[Router-SiKThread] Reinitializing of SiK radio interfaces failed (not the same ones are present yet).");
-      // Will restart the thread to try again
-      log_line("[Router-SiKThread] Finished.");
-      g_SiKRadiosState.bConfiguringSiKThreadWorking = false;
-      return NULL;
-   }
-   
-   log_line("[Router-SiKThread] Reinitialized SiK radio interfaces successfully.");
-   
-   reopen_marked_sik_interfaces();
-
-   if ( g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex >= 0 )
-      send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0);
-   else
-      send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_REINITIALIZED, g_SiKRadiosState.uSiKInterfaceIndexThatBrokeDown, 0);
-   
-   g_SiKRadiosState.bMustReinitSiKInterfaces = false;
-   g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex = -1;
-   g_SiKRadiosState.uSiKInterfaceIndexThatBrokeDown = MAX_U32;
-   log_line("[Router-SiKThread] Finished.");
-   g_SiKRadiosState.bConfiguringSiKThreadWorking = false;
-   radio_rx_reset_interfaces_broken_state();
-
-   return NULL;
-}
-
-int _check_reinit_sik_interfaces()
-{
-   if ( g_SiKRadiosState.bConfiguringToolInProgress && (g_SiKRadiosState.uTimeStartConfiguring != 0) )
-   if ( g_TimeNow >= g_SiKRadiosState.uTimeStartConfiguring+500 )
-   {
-      if ( hw_process_exists("ruby_sik_config") )
-      {
-         g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow - 400;
-      }
-      else
-      {
-         int iResult = -1;
-         FILE* fd = fopen(FILE_TMP_SIK_CONFIG_FINISHED, "rb");
-         if ( NULL != fd )
-         {
-            if ( 1 != fscanf(fd, "%d", &iResult) )
-               iResult = -2;
-            fclose(fd);
-         }
-         log_line("SiK radio configuration tool completed. Result: %d.", iResult);
-         char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
-         hw_execute_bash_command(szBuff, NULL);
-         g_SiKRadiosState.bConfiguringToolInProgress = false;
-         reopen_marked_sik_interfaces();
-         send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0);
-         return 0;
-      }
-   }
-   
-   if ( (! g_SiKRadiosState.bMustReinitSiKInterfaces) && (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == -1) )
-      return 0;
-
-   if ( g_SiKRadiosState.bConfiguringToolInProgress )
-      return 0;
-
-   if ( g_SiKRadiosState.bConfiguringSiKThreadWorking )
-      return 0;
-   
-   if ( g_TimeNow < g_SiKRadiosState.uTimeLastSiKReinitCheck + g_SiKRadiosState.uTimeIntervalSiKReinitCheck )
-      return 0;
-
-   g_SiKRadiosState.uTimeLastSiKReinitCheck = g_TimeNow;
-   g_SiKRadiosState.uTimeIntervalSiKReinitCheck += 200;
-
-   g_SiKRadiosState.bConfiguringSiKThreadWorking = true;
-   if ( 0 != pthread_create(&g_SiKRadiosState.pThreadSiKReinit, NULL, &_reinit_sik_thread_func, NULL) )
-   {
-      log_softerror_and_alarm("[Router] Failed to create worker thread to reinit SiK radio interfaces.");
-      g_SiKRadiosState.bConfiguringSiKThreadWorking = false;
-      return 0;
-   }
-
-   log_line("[Router] Created thread to reinit SiK radio interfaces.");
-   if ( 0 == g_SiKRadiosState.iThreadRetryCounter )
-      send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
-   g_SiKRadiosState.iThreadRetryCounter++;
-   return 1;
-}
 
 void _compute_radio_interfaces_assignment()
 {
@@ -799,7 +160,8 @@ void _compute_radio_interfaces_assignment()
    int iConnectFirstUsableRadioLinkId = 0;
 
    log_line("Computing radio interfaces assignment to radio links...");
-   log_line("Vehicle (%s) main 'connect to' frequency: %s, vehicle has a total of %d radio links.", g_pCurrentModel->getLongName(), str_format_frequency(uStoredMainFrequencyForModel), g_pCurrentModel->radioLinksParams.links_count);
+   log_line("Vehicle (%u, %s) main 'connect to' frequency: %s, vehicle has a total of %d radio links.",
+      g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName(), str_format_frequency(uStoredMainFrequencyForModel), g_pCurrentModel->radioLinksParams.links_count);
 
    for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
    {
@@ -1173,7 +535,8 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
       log_line("No SiK mode update. Just change all interfaces frequencies");
    
    ControllerSettings* pCS = get_ControllerSettings();
-   
+   Preferences* pP = get_Preferences();
+
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
@@ -1181,7 +544,19 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
          continue;
 
       u32 flags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-      if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+      t_ControllerRadioInterfaceInfo* pRadioInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      char szDatarate[64];
+      char szFlags[128];
+      szDatarate[0] = 0;
+      szFlags[0] = 0;
+      if ( NULL != pRadioInfo )
+         str_getDataRateDescription(pRadioInfo->datarateBPSMCS, szDatarate);
+      str_get_radio_capabilities_description(flags, szFlags);
+         
+      log_line("Checking controller interface %d settings: MAC: [%s], custom datarate: %s, flags: %s",
+            i, pRadioHWInfo->szMAC, szDatarate, szFlags );
+
+      if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       {
          log_line("Links: Radio interface %d is disabled. Skipping it.", i+1);
          continue;
@@ -1195,13 +570,13 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
 
       if ( ! (flags & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
       {
-         log_line("Links: Radio interface %d is disabled. Skipping it.", i+1);
+         log_line("Links: Radio interface %d can't Rx. Skipping it.", i+1);
          continue;
       }
 
       if ( ! (flags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
       {
-         log_line("Links: Radio interface %d can't be used for Rx. Skipping it.", i+1);
+         log_line("Links: Radio interface %d can't be used for data Rx. Skipping it.", i+1);
          continue;
       }
 
@@ -1256,7 +631,7 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
       }
       else
       {
-         if ( radio_utils_set_interface_frequency(NULL, i, uSearchFreq, g_pProcessStats) )
+         if ( radio_utils_set_interface_frequency(NULL, i, -1, uSearchFreq, g_pProcessStats, pP->iDebugWiFiChangeDelay) )
             radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, uSearchFreq);
       }
    }
@@ -1281,6 +656,7 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
       log_line("Links: Setting cards frequencies and params only for vehicle radio link %d", iVehicleLinkId+1);
 
    ControllerSettings* pCS = get_ControllerSettings();
+   Preferences* pP = get_Preferences();
          
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
@@ -1313,7 +689,7 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
       if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
       {
          if ( iVehicleLinkId >= 0 )
-            flag_update_sik_interface(i);
+            radio_links_flag_update_sik_interface(i);
          else
          {
             u32 uFreqKhz = g_pCurrentModel->radioLinksParams.link_frequency_khz[nAssignedVehicleRadioLinkId];
@@ -1366,7 +742,7 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
       }
       else
       {
-         if ( radio_utils_set_interface_frequency(NULL, i, g_pCurrentModel->radioLinksParams.link_frequency_khz[nAssignedVehicleRadioLinkId], g_pProcessStats) )
+         if ( radio_utils_set_interface_frequency(g_pCurrentModel, i, iVehicleLinkId, g_pCurrentModel->radioLinksParams.link_frequency_khz[nAssignedVehicleRadioLinkId], g_pProcessStats, pP->iDebugWiFiChangeDelay) )
             radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, g_pCurrentModel->radioLinksParams.link_frequency_khz[nAssignedVehicleRadioLinkId]);
       }
    }
@@ -1379,23 +755,24 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
    return true;
 }
 
-void reasign_radio_links()
+void reasign_radio_links(bool bSilent)
 {
    log_line("ROUTER REASIGN LINKS START -----------------------------------------------------");
    log_line("Router: Reasigning radio interfaces to radio links (close, reasign, reopen radio interfaces)...");
 
-   send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_REASIGNING_RADIO_LINKS_START, 0);
+   if ( ! bSilent )
+      send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_REASIGNING_RADIO_LINKS_START, 0);
 
    radio_rx_stop_rx_thread();
-   _close_rxtx_radio_interfaces();
+   radio_links_close_rxtx_radio_interfaces();
    _compute_radio_interfaces_assignment();
    links_set_cards_frequencies_and_params(-1);
-   _open_rxtx_radio_interfaces();
+   radio_links_open_rxtx_radio_interfaces();
 
-   radio_duplicate_detection_init();
-   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching);
+   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching, g_uAcceptedFirmwareType);
 
-   send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_REASIGNING_RADIO_LINKS_END, 0);
+   if ( ! bSilent )
+      send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_REASIGNING_RADIO_LINKS_END, 0);
 
    log_line("Router: Reasigning radio interfaces to radio links complete.");
    log_line("ROUTER REASIGN LINKS END -------------------------------------------------------");
@@ -1466,6 +843,8 @@ int _must_inject_ping_now()
    if ( g_bUpdateInProgress || g_bSearching || (NULL == g_pCurrentModel) || g_pCurrentModel->is_spectator || g_pCurrentModel->b_mustSyncFromVehicle )
       return 0;
 
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY) )
+      return 0;
    u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags);
 
    //if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
@@ -1523,6 +902,10 @@ bool _check_send_or_queue_ping()
       ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY ) )
       return false;
 
+   if ( test_link_is_in_progress() )
+   if ( test_link_active() == iVehicleRadioLinkId )
+      return false;
+     
    u32 uDestinationVehicleId = 0;
    u8 uDestinationRelayCapabilities = 0;
    u8 uDestinationRelayMode = 0;
@@ -1624,7 +1007,8 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
 
    _check_send_or_queue_ping();
 
-   if ( 0 == packets_queue_has_packets(&s_QueueRadioPackets) )
+   int iCountPendingPackets = packets_queue_has_packets(&s_QueueRadioPackets);
+   if ( 0 == iCountPendingPackets )
       return;
 
    Preferences* pP = get_Preferences();
@@ -1641,7 +1025,9 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
 
    int iMaxPacketsToSend = 4 - iCountPendingVideoRetransmissionsRequests;
    iMaxPacketsToSend += 2; // Allow at least 2 packets that are not retransmissions requests
-
+   if ( iCountPendingPackets > iMaxPacketsToSend*2 )
+      iMaxPacketsToSend *= 2;
+     
    // Send retransmissions first, if any
 
    if( iCountPendingVideoRetransmissionsRequests > 0 )
@@ -1658,7 +1044,7 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
          if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) || (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
          {
             pPH->vehicle_id_src = g_uControllerId;
-            send_packet_to_radio_interfaces(pData, length);
+            send_packet_to_radio_interfaces(pData, length, -1);
             if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
                add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, 0, 0, 0, 0, 0);
 
@@ -1720,7 +1106,7 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
             if ( i != 0 )
                hardware_sleep_ms(2);
 
-            send_packet_to_radio_interfaces(composed_packet, composed_packet_length);
+            send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
             if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
                add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
          }
@@ -1774,7 +1160,7 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
          if ( i != 0 )
             hardware_sleep_ms(2);
 
-         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength);
+         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
          if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
             add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
       }
@@ -1793,7 +1179,7 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
          if ( i != 0 )
             hardware_sleep_ms(2);
 
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length);
+         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
 
          if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
             add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
@@ -2063,11 +1449,11 @@ void _check_rx_loop_consistency()
    if ( iAnyBrokeInterface > 0 )
    {
       if ( hardware_radio_index_is_sik_radio(iAnyBrokeInterface-1) )
-         flag_reinit_sik_interface(iAnyBrokeInterface-1);
+         radio_links_flag_reinit_sik_interface(iAnyBrokeInterface-1);
       else
       {
           send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_DOWN, iAnyBrokeInterface-1, 0); 
-         _reinit_radio_interfaces();
+         radio_links_reinit_radio_interfaces();
          return;
       }
    }
@@ -2088,6 +1474,7 @@ void _check_rx_loop_consistency()
    int iAnyRxErrors = radio_rx_any_interface_bad_packets();
    if ( (iAnyRxErrors > 0) && (!g_bSearching) )
    {
+      log_softerror_and_alarm("Has receive Rx errors. Send alarm to central");
       int iError = radio_rx_get_interface_bad_packets_error_and_reset(iAnyRxErrors-1);
       send_alarm_to_central(ALARM_ID_RECEIVED_INVALID_RADIO_PACKET, (u32)iError, 0);
    }
@@ -2108,7 +1495,29 @@ void _check_rx_loop_consistency()
       }
    }
 }
-      
+
+
+void _process_auxiliary_radio_packets()
+{
+   // Received data, process it
+
+   for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
+   {
+      pcap_t* pLink = radio_links_get_auxiliary_link(i);
+      if ( NULL == pLink )
+         continue;
+
+      if ( ! radio_links_is_auxiliary_link_signaled(i) )
+         continue;
+
+      int iBufferLength = 0;
+      u8* pBuffer = radio_process_wlan_data_in_pcap(i, pLink, &iBufferLength);
+
+      wfbohd_process_auxiliary_radio_packet(pBuffer, iBufferLength);
+   }
+
+}
+     
 void _consume_ipc_messages()
 {
    int iMaxToConsume = 20;
@@ -2157,6 +1566,16 @@ void _consume_radio_rx_packets()
       if ( (NULL == pPacket) || (iPacketLength <= 0) )
          continue;
 
+      if ( g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
+      if ( ! wfbohd_is_video_player_started() )
+      {
+         t_packet_header* pPH = (t_packet_header*)pPacket;
+         if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL)
+         {
+            log_line("Start video player for OpenIPC cameras as we started receiving video data.");
+            wfbohd_check_start_video_player();
+         }
+      }
       shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
       process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);
       u32 uTime = get_current_timestamp_ms();    
@@ -2191,10 +1610,12 @@ void _check_send_pairing_requests()
       if ( g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
 
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 130);
       if ( NULL == pModel )
          continue;
       if ( pModel->is_spectator )
+         continue;
+      if ( pModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY )
          continue;
 
       bool bExpectedVehicle = false;
@@ -2224,7 +1645,7 @@ void _check_send_pairing_requests()
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet + sizeof(t_packet_header), &g_SM_RouterVehiclesRuntimeInfo.uPairingRequestId[i], sizeof(u32));
-      if ( 0 == send_packet_to_radio_interfaces(packet, PH.total_length) )
+      if ( 0 == send_packet_to_radio_interfaces(packet, PH.total_length, -1) )
       {
          if ( g_SM_RouterVehiclesRuntimeInfo.uPairingRequestId[i] < 2 )
             send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST, PH.vehicle_id_dest);
@@ -2236,8 +1657,20 @@ void _check_send_pairing_requests()
 
 void _router_periodic_loop()
 {
-   _check_reinit_sik_interfaces();
+   radio_links_check_reinit_sik_interfaces();
 
+   if ( test_link_is_in_progress() )
+      test_link_loop();
+
+   if ( (!g_bSearching) && (g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC) )
+   if ( radio_links_check_read_auxiliary_links() > 0 )
+      _process_auxiliary_radio_packets();
+
+   if ( wfbohd_is_wronk_key_flag_set() )
+   {
+      wfbohd_clear_wrong_key_flag();
+      send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY, 0);
+   }
    if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
    {
       static u32 s_uTimeLastRadioStatsSharedMemSync = 0;
@@ -2261,21 +1694,24 @@ void _router_periodic_loop()
          }
       }
 
-      if ( bHasRecentRxData )
+      if ( ! g_bSearching )
       {
-         if ( g_bIsControllerLinkToVehicleLost )
+         if ( bHasRecentRxData )
          {
-             log_line("Link to vehicle recovered (received vehicle radio packets)");
-             g_bIsControllerLinkToVehicleLost = false;
+            if ( g_bIsControllerLinkToVehicleLost )
+            {
+                log_line("Link to vehicle recovered (received vehicle radio packets)");
+                g_bIsControllerLinkToVehicleLost = false;
+            }
          }
-      }
-      else
-      {
-          if ( ! g_bIsControllerLinkToVehicleLost )
-          {
-             log_line("Link to vehicle lost (stopped receiving radio packets from vehicle)");
-             g_bIsControllerLinkToVehicleLost = true;
-          }
+         else
+         {
+             if ( ! g_bIsControllerLinkToVehicleLost )
+             {
+                log_line("Link to vehicle lost (stopped receiving radio packets from vehicle)");
+                g_bIsControllerLinkToVehicleLost = true;
+             }
+         }
       }
    }
 
@@ -2425,6 +1861,12 @@ int main (int argc, char *argv[])
       g_uSearchFrequency = atoi(argv[2]);
    }
    
+   if ( argc >= 5 )
+   if ( strcmp(argv[3], "-firmware") == 0 )
+   {
+      g_uAcceptedFirmwareType = (u32) atoi(argv[4]);
+   }
+
    if ( argc >= 8 )
    if ( strcmp(argv[1], "-search") == 0 )
    if ( strcmp(argv[3], "-sik") == 0 )
@@ -2450,7 +1892,7 @@ int main (int argc, char *argv[])
       log_enable_stdout();
  
    if ( g_bSearching )
-      log_line("Launched router in search mode, search frequency: %s", str_format_frequency(g_uSearchFrequency));
+      log_line("Launched router in search mode, search frequency: %s, search firmware type: %s", str_format_frequency(g_uSearchFrequency), str_format_firmware_type(g_uAcceptedFirmwareType));
 
    radio_init_link_structures();
    radio_enable_crc_gen(1);
@@ -2487,17 +1929,13 @@ int main (int argc, char *argv[])
       if ( g_pCurrentModel->enc_flags != MODEL_ENC_FLAGS_NONE )
          lpp(NULL, 0);
       g_pCurrentModel->logVehicleRadioInfo();
+
+      g_uAcceptedFirmwareType = g_pCurrentModel->getVehicleFirmwareType();
    }
 
    if ( NULL != g_pControllerSettings )
       hw_set_priority_current_proc(g_pControllerSettings->iNiceRouter);
  
-   rx_video_output_init();
-   ProcessorRxVideo::oneTimeInit();
-
-   if ( ! g_bSearching )
-      init_processing_audio();
-
    init_shared_memory_objects();
 
    log_line("Init shared mem objects: done");
@@ -2528,13 +1966,33 @@ int main (int argc, char *argv[])
       else
          links_set_cards_frequencies_for_search(g_uSearchFrequency, false, -1,-1,-1,-1 );
       hardware_save_radio_info();
-      _open_rxtx_radio_interfaces_for_search(g_uSearchFrequency);
+      radio_links_open_rxtx_radio_interfaces_for_search(g_uSearchFrequency);
    }
    else
    {
       _compute_radio_interfaces_assignment();
+
+      for( int iRadioLink=0; iRadioLink<g_pCurrentModel->radioLinksParams.links_count; iRadioLink++ )
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+            continue;
+         if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != iRadioLink )
+            continue;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
+           ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+            continue;
+
+         int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, &(g_pCurrentModel->radioLinksParams));
+         update_atheros_card_datarate(g_pCurrentModel, i, nRateTx, g_pProcessStats);
+         g_TimeNow = get_current_timestamp_ms();
+      }
+
       links_set_cards_frequencies_and_params(-1);
-      _open_rxtx_radio_interfaces();
+      radio_links_open_rxtx_radio_interfaces();
    }
 
    packets_queue_init(&s_QueueRadioPackets);
@@ -2565,23 +2023,18 @@ int main (int argc, char *argv[])
    else
       log_line("Router started with the default model (first model pairing was never completed)");
 
-   processor_rx_video_forware_prepare_video_stream_write();
-   if ( ! g_bSearching )
-   {
-      video_link_adaptive_init(g_pCurrentModel->vehicle_id);
-      video_link_keyframe_init(g_pCurrentModel->vehicle_id);
-   }
+   video_processors_init();
 
    load_CorePlugins(0);
 
    radio_duplicate_detection_init();
-   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching);
+   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching, g_uAcceptedFirmwareType);
 
    log_line("Broadcasting that router is ready.");
    broadcast_router_ready();
 
-   if ( s_iFailedInitRadioInterface >= 0 )
-      _broadcast_radio_interface_init_failed(s_iFailedInitRadioInterface);
+   if ( radio_links_has_failed_interfaces() >= 0 )
+      _broadcast_radio_interface_init_failed(radio_links_has_failed_interfaces());
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
@@ -2767,20 +2220,10 @@ int main (int argc, char *argv[])
 
    radio_rx_stop_rx_thread();
    radio_link_cleanup();
-   
    unload_CorePlugins();
 
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( NULL != g_pVideoProcessorRxList[i] )
-      {
-         g_pVideoProcessorRxList[i]->uninit();
-         delete g_pVideoProcessorRxList[i];
-         g_pVideoProcessorRxList[i] = NULL;
-      }
-   }
-
-   rx_video_output_uninit();
+   video_processors_cleanup();
+   uninit_processing_audio();
 
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
    shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfacesRxGraph);
@@ -2796,7 +2239,7 @@ int main (int argc, char *argv[])
    shared_mem_video_info_stats_radio_in_close(g_pSM_VideoInfoStatsRadioIn);
    shared_mem_router_vehicles_runtime_info_close(g_pSM_RouterVehiclesRuntimeInfo);
 
-   _close_rxtx_radio_interfaces(); 
+   radio_links_close_rxtx_radio_interfaces(); 
   
    ruby_close_ipc_channel(g_fIPCFromCentral);
    ruby_close_ipc_channel(g_fIPCToCentral);
@@ -2804,8 +2247,6 @@ int main (int argc, char *argv[])
    ruby_close_ipc_channel(g_fIPCToTelemetry);
    ruby_close_ipc_channel(g_fIPCFromRC);
    ruby_close_ipc_channel(g_fIPCToRC);
-
-   uninit_processing_audio();
 
    if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
@@ -2825,4 +2266,43 @@ int main (int argc, char *argv[])
    log_line("---------------------------");
  
    return 0;
+}
+
+void video_processors_init()
+{
+   wfbohd_init(g_bSearching);
+
+   if ( ! g_bSearching )
+   {
+      if ( g_uAcceptedFirmwareType != MODEL_FIRMWARE_TYPE_OPENIPC )
+         rx_video_output_init();
+   
+      ProcessorRxVideo::oneTimeInit();
+      init_processing_audio();
+   }
+
+   processor_rx_video_forware_prepare_video_stream_write();
+   if ( ! g_bSearching )
+   {
+      video_link_adaptive_init(g_pCurrentModel->vehicle_id);
+      video_link_keyframe_init(g_pCurrentModel->vehicle_id);
+   }
+}
+
+void video_processors_cleanup()
+{
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL != g_pVideoProcessorRxList[i] )
+      {
+         g_pVideoProcessorRxList[i]->uninit();
+         delete g_pVideoProcessorRxList[i];
+         g_pVideoProcessorRxList[i] = NULL;
+      }
+   }
+
+   wfbohd_cleanup();
+   if ( ! g_bSearching )
+   if ( g_uAcceptedFirmwareType != MODEL_FIRMWARE_TYPE_OPENIPC )
+      rx_video_output_uninit();
 }

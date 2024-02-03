@@ -1,5 +1,5 @@
 #include "../base/shared_mem.h"
-
+#include "../public/utils/core_plugins_utils.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -21,12 +21,12 @@ int main(int argc, char *argv[])
    srand(rand()+get_current_timestamp_micros());
    log_init("TestLOG");
    log_line("\nStarted.\n");
+
+
    int id = rand()%10000;
    int counter = 0;
-   while ( ! bQuit )
-   {
-      counter++;
-      log_line("%d counter value: %d", id, counter);
-   }
+   core_plugin_util_log_line("TestLog core");
+   counter++;
+   log_line("%d counter value: %d", id, counter);
    exit(0);
 }

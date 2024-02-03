@@ -6,16 +6,6 @@
 #include "shared_mem.h"
 #include "../radio/radiopackets2.h"
 
-#define MODEL_TYPE_GENERIC 0
-#define MODEL_TYPE_DRONE 1
-#define MODEL_TYPE_AIRPLANE 2
-#define MODEL_TYPE_HELI 3
-#define MODEL_TYPE_CAR 4
-#define MODEL_TYPE_BOAT 5
-#define MODEL_TYPE_ROBOT 6
-#define MODEL_TYPE_RELAY 7
-#define MODEL_TYPE_LAST 8
-
 #define MODEL_TELEMETRY_TYPE_NONE 0
 #define MODEL_TELEMETRY_TYPE_MAVLINK 1
 #define MODEL_TELEMETRY_TYPE_LTM 2
@@ -77,6 +67,7 @@ typedef struct
     // bit 0: Fill H264 SPS timings 
     // bit 1: Ignore Tx spikes
     // bit 2: enable HDMI output
+    // bit 3: retransmissions are started fast
    u32 dummy[3];
 } video_parameters_t;
 
@@ -102,6 +93,7 @@ typedef struct
    //    bit 0  - use medium adaptive video
    //    bit 1  - enable video auto quantization
    //    bit 2  - video auto quantization strength
+   //    bit 3  - video profile should use EC scheme as auto;
 
    int radio_datarate_video_bps; // radio data rate to use for this video profile for video packets: 0 - to use auto datarate, positive: bps, negative: MCS
    int radio_datarate_data_bps;  // radio data rate to use for this video profile for data packets: 0 - to use auto datarate, positive: bps, negative: MCS
@@ -156,6 +148,11 @@ typedef struct
      //         bit 4...7  osd stats background transparency (0...3)
      // byte 3:
      //    bit 0: show controller link lost alarm
+     //    bit 1: arrange osd stats windows top
+     //    bit 2: arrange osd stats windows bottom
+     //    bit 3: arrange osd stats windows left
+     //    bit 4: arrange osd stats windows right
+     //    bit 5: do not show messages (texts) from FC in OSD
      //
 } osd_parameters_t;
 
@@ -205,7 +202,7 @@ typedef struct
 
    u32 failsafeFlags; // first byte: what type of failsafe to execute, globally;
                       // 2nd-3rd byte: failsafe value (for that type of failsafe)
-   u32 channelsCount;
+   int channelsCount;
    u32 hid_id; // USB HID id on the controller for RC control
    u32 flags;
           // bit 0: output to FC enabled
@@ -382,8 +379,8 @@ typedef struct
    int link_datarate_video_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
    int link_datarate_data_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
 
-   u8  bUplinkSameAsDownlink[MAX_RADIO_INTERFACES];
-   u32 uplink_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: frame type, STBC, LDP, MCS etc
+   u8  uSerialPacketSize[MAX_RADIO_INTERFACES]; // packet size over air for serial radio links
+   u32 uDummy2[MAX_RADIO_INTERFACES];
    int uplink_datarate_video_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
    int uplink_datarate_data_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
 
@@ -398,6 +395,19 @@ typedef struct
    u8 uAlarmMotorCurrentThreshold; // in 0.1 amp increments, most significant bit: 0 - alarm disabled, 1 - alarm enabled
 
 } type_alarms_parameters;
+
+
+typedef struct
+{
+   u8 uLogTypeFlags;
+   // 0 - no log
+   // 1 - log when armed
+   // 2 - log when recording
+   u32 uLogIntervalMilisec;
+   u32 uLogParams; // bitmask
+   u32 uLogParams2; // bitmask
+   u32 uDummy;
+} type_logging_parameters;
 
 class Model
 {
@@ -435,6 +445,9 @@ class Model
       u32 sw_version; // byte 0: minor version, byte 1 Major version, byte 2-3: build nb
       bool is_spectator;
       u8 vehicle_type;
+         // semantic changed in version 8.0
+         // bit 0...4 - vehicle type: car, drone, plane, etc
+         // bit 5..7 - firmware type: Ruby, OpenIPC, etc
       int rxtx_sync_type;
       u32 alarms;
       int m_iRadioInterfacesGraphRefreshInterval;
@@ -450,7 +463,7 @@ class Model
 
       type_radio_interfaces_parameters radioInterfacesParams;
       type_radio_links_parameters radioLinksParams;
-
+      type_logging_parameters loggingParams;
       bool enableDHCP;
 
       u32 camera_rc_channels;
@@ -496,6 +509,7 @@ class Model
       int getLoadedFileVersion();
       void populateHWInfo();
       bool populateVehicleSerialPorts();
+      void resetRadioLinkParams(int iRadioLink);
       void populateRadioInterfacesInfoFromHardware();
       void populateDefaultRadioLinksInfoFromRadioInterfaces();
       bool check_update_radio_links();
@@ -512,6 +526,8 @@ class Model
       void resetRelayParamsToDefaults(type_relay_parameters* pRelayParams);
 
       void logVehicleRadioInfo();
+      bool logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2);
+      
       bool validate_camera_settings();
       bool validate_settings();
       bool validate_relay_links_flags();
@@ -535,6 +551,7 @@ class Model
       bool isActiveCameraVeye307();
       bool isActiveCameraVeye327290();
       bool isActiveCameraCSICompatible();
+      void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
 
       void setDefaultVideoBitrate();
       
@@ -549,10 +566,14 @@ class Model
       void copy_video_link_profile(int from, int to);
       int get_video_profile_total_levels(int iProfile);
       int get_video_profile_from_total_levels_shift(int iLevelShift);
+      int get_video_profile_level_shift_from_total_levels_shift(int iTotalLevelsShift);
+      int get_video_profile_ec_scheme(int iVideoProfile, int* piData, int* piEC);
+      int get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* piEC);
 
       void constructLongName();
       const char* getShortName();
       const char* getLongName();
+      u32 getVehicleFirmwareType();
       static const char* getVehicleType(u8 vtype);
       const char* getVehicleTypeString();
       int getSaveCount();

@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../base/base.h"
@@ -39,6 +57,8 @@ u32 s_TimeLastCPUOverloadAlarmVehicle = 0;
 u32 s_TimeLastCPUOverloadAlarmController = 0;
 
 bool s_bAlarmVehicleLowSpaceMenuShown = false;
+bool s_bAlarmWrongOpenIPCKey = false;
+u32 s_uTimeLastAlarmWrongOpenIPCKey = 0;
 
 #define MAX_POPUP_ALARMS 5
 Popup* s_pPopupAlarms[MAX_POPUP_ALARMS];
@@ -57,6 +77,8 @@ void alarms_reset_vehicle()
 
 void alarms_remove_all()
 {
+   s_bAlarmWrongOpenIPCKey = false;
+   s_uTimeLastAlarmWrongOpenIPCKey = 0;
    for( int i=0; i<MAX_POPUP_ALARMS; i++ )
    {
       if ( popups_has_popup(s_pPopupAlarms[i]) )
@@ -239,33 +261,6 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
 
    if ( uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE )
    {
-      if ( link_is_reconfiguring_radiolink() && g_bConfiguringRadioLinkWaitVehicleReconfiguration )
-      {
-         log_line("Received vehicle alarm with status update while configuring radio link %d", g_iConfiguringRadioLinkIndex);
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE )
-            warnings_add_configuring_radio_link_line("Reconfiguring vehicle radio interfaces");
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE )
-         {
-            warnings_add_configuring_radio_link_line("Reconfigured vehicle radio interface");
-            link_set_received_change_confirmation(false, true, false);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(true);
-               link_reset_reconfiguring_radiolink();
-            }
-         }
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE_FAILED )
-         {
-            warnings_add_configuring_radio_link_line("Failed to reconfigure vehicle radio interfaces");
-            link_set_received_change_confirmation(false, true, false);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(false);
-               link_reset_reconfiguring_radiolink();
-            }
-         }
-         return;
-      }
       if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE )
          sprintf(szAlarmText, "%s Reconfiguring radio interface...", szAlarmPrefix);
       if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE )
@@ -367,23 +362,34 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
          return;
       if ( g_TimeNow < g_RouterIsReadyTimestamp + 2000 )
          return;
+
       uIconId = g_idIconCamera;
       g_bHasVideoTxOverloadAlarm = true;
       g_TimeLastVideoTxOverloadAlarm = g_TimeNow;
 
       int ms = (int)(uFlags1 & 0xFFFF);
       int msMax = (int)(uFlags1 >> 16);
-      if ( NULL != g_pCurrentModel && (! g_pCurrentModel->osd_params.show_overload_alarm) )
-         return;
-      if ( uFlags2 )
-         sprintf(szAlarmText, "%s Video link transmission had an Tx overload spike", szAlarmPrefix);
+
+      if ( uFlags2 && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[0] < 0) || ((g_pCurrentModel->radioLinksParams.links_count > 1) && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[1] < 0)) )
+      {
+         sprintf(szAlarmText, "%s Video link transmission is overloaded. Switch to default radio data rates or decrease video bitrate and radio data rate.", szAlarmPrefix);
+         strcpy(szAlarmText2, "Not all radio cards do support MCS data rates properly.");
+         szAlarmText3[0] = 0;
+      }
       else
       {
-         sprintf(szAlarmText, "%s Video link transmission is overloaded (transmission took %d ms/sec, max safe limit is %d ms/sec)", szAlarmPrefix, ms, msMax);
-         osd_stats_set_last_tx_overload_time_ms(ms);
+         if ( (NULL != g_pCurrentModel) && (! g_pCurrentModel->osd_params.show_overload_alarm) )
+            return;
+         if ( uFlags2 )
+            sprintf(szAlarmText, "%s Video link transmission had an Tx overload spike", szAlarmPrefix);
+         else
+         {
+            sprintf(szAlarmText, "%s Video link transmission is overloaded (transmission took %d ms/sec, max safe limit is %d ms/sec)", szAlarmPrefix, ms, msMax);
+            osd_stats_set_last_tx_overload_time_ms(ms);
+         }
+         strcpy(szAlarmText2, "Video bitrate was decreased temporarly.");
+         strcpy(szAlarmText3, "Lower your video bitrate or switch frequencies.");
       }
-      strcpy(szAlarmText2, "Video bitrate was decreased temporarly.");
-      strcpy(szAlarmText3, "Lower your video bitrate or switch frequencies.");
    }
 
    if ( uAlarms & ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD )
@@ -509,6 +515,17 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 
    if ( uAlarms & ALARM_ID_GENERIC )
    {
+      if ( uFlags1 == ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY )
+      {
+         if ( (! s_bAlarmWrongOpenIPCKey) || (g_TimeNow > s_uTimeLastAlarmWrongOpenIPCKey + 10000) )
+         {
+            s_bAlarmWrongOpenIPCKey = true;
+            s_uTimeLastAlarmWrongOpenIPCKey = g_TimeNow;
+            sprintf(szAlarmText, "Detected OpenIPC vehicle is using a different encryption key. Update your controller encryption key.");
+         }
+         else
+            return;
+      }
       if ( uFlags1 == ALARM_ID_GENERIC_TYPE_UNKNOWN_VIDEO )
       {
          uIconId = g_idIconCamera;
@@ -592,33 +609,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          strcpy(szAlarmText, "Finished reconfiguring radio links to vehicle.");
          g_bReconfiguringRadioLinks = false;
       }
-      else if ( link_is_reconfiguring_radiolink() && g_bConfiguringRadioLinkWaitControllerReconfiguration )
-      {
-         log_line("Received controller alarm with status update while configuring radio link %d", g_iConfiguringRadioLinkIndex);
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE )
-            warnings_add_configuring_radio_link_line("Reconfiguring controller radio interfaces");
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE )
-         {
-            warnings_add_configuring_radio_link_line("Reconfigured controller radio interface");
-            link_set_received_change_confirmation(false, false, true);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(true);
-               link_reset_reconfiguring_radiolink();
-            }
-         }
-         if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE_FAILED )
-         {
-            warnings_add_configuring_radio_link_line("Failed to reconfigure controller radio interfaces");
-            link_set_received_change_confirmation(false, false, true);
-            if ( ! link_reconfiguring_is_waiting_for_confirmation() )
-            {
-               warnings_remove_configuring_radio_link(false);
-               link_reset_reconfiguring_radiolink();
-            }
-         }
-         return;
-      }
+
       if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE )
          strcpy(szAlarmText, "Reconfiguring radio interface...");
       if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE )
@@ -627,7 +618,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          strcpy(szAlarmText, "Reconfiguring radio interface failed!");
       if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST )
       {
-         Model* pModel = findModelWithId(uFlags2);
+         Model* pModel = findModelWithId(uFlags2, 70);
          t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uFlags2);
          if ( (NULL == pModel) || (NULL == pRuntimeInfo) )
          {
@@ -779,7 +770,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       if ( uAlarms & ALARM_ID_CONTROLLER_PAIRING_COMPLETED )
       {
          log_line("Adding warning for pairing with vehicle id %u ...", uFlags1);
-         Model* pModel = findModelWithId(uFlags1);
+         Model* pModel = findModelWithId(uFlags1, 71);
          if ( NULL == pModel )
             warnings_add(0, "Paired with a unknown vehicle.", g_idIconController);
          else

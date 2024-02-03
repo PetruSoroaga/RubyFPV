@@ -80,7 +80,7 @@ typedef struct
    u32 fec_time; // in micro seconds per second
    int data_packets_per_block;
    int fec_packets_per_block;
-   int video_packet_length;
+   int video_data_length;
    u8 totalEncodingSwitches;
    int iLastAckKeyframeInterval;
    int iLastAckVideoLevelShift;
@@ -254,7 +254,7 @@ shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history
 shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_write();
 void shared_mem_router_packets_stats_history_close(shared_mem_router_packets_stats_history* pAddress);
 
-void add_detailed_history_rx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countVideo, int countRetransmited, int countTelemetry, int countRC, int countPing, int countOther, int dataRate);
+void add_detailed_history_rx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countVideo, int countRetransmited, int countTelemetry, int countRC, int countPing, int countOther, int dataRateBPSMCS);
 void add_detailed_history_tx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countRetransmited, int countComands, int countPing, int countRC, int countOther, int dataRate);
 
 shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();

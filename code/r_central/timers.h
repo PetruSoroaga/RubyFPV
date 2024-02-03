@@ -8,7 +8,6 @@ extern u32 g_TimeStart;
 extern u32 g_TimeNowMicros;
 
 extern u32 g_TimeLastVideoCameraChangeCommand;
-extern u32 g_TimeStartPendingRadioFlagsChange;
 
 // Central
 

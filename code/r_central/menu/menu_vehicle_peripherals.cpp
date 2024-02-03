@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../../public/ruby_core_plugin.h"
@@ -55,10 +73,10 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       }
       else
       {
-         if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+         if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
          {
             m_pItemsSelect[i*2]->addSelection("None");
-            m_pItemsSelect[i*2]->addSelection("Radio Interface");
+            m_pItemsSelect[i*2]->addSelection("SiK Radio Interface");
          }
          else
          {
@@ -97,7 +115,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       m_pItemsSelect[i*2+1]->setIsEditable();
       m_IndexSerialPortsBaudRate[i] = addMenuItem(m_pItemsSelect[i*2+1]);
 
-      //if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      //if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       //{
       //   sprintf(szBuff,"This serial port is used by a radio interface. Radio interfaces settings are configured from [Radio Configuration] menu.");
       //   addMenuItem( new MenuItemText(szBuff, true) );
@@ -129,7 +147,7 @@ void MenuVehiclePeripherals::valuesToUI()
       m_pItemsSelect[i*2]->setEnabled(true);
       
       u32 uUsage = g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF;
-      if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       {
          m_pItemsSelect[i*2]->setSelectedIndex(1);
          m_pItemsSelect[i*2]->setEnabled(false);
@@ -168,7 +186,7 @@ void MenuVehiclePeripherals::valuesToUI()
       bool bFoundSpeed = false;
       for(int n=0; n<m_pItemsSelect[i*2+1]->getSelectionsCount(); n++ )
       {
-         if ( (uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO) && (hardware_get_serial_baud_rates()[n] < 57000) )
+         if ( (uUsage == SERIAL_PORT_USAGE_SIK_RADIO) && (hardware_get_serial_baud_rates()[n] < 57000) )
             m_pItemsSelect[i*2+1]->setSelectionIndexDisabled(n);
          else
             m_pItemsSelect[i*2+1]->setSelectionIndexEnabled(n);
@@ -191,7 +209,7 @@ void MenuVehiclePeripherals::Render()
 {
    RenderPrepare();
    float yTop = RenderFrameAndTitle();   
-   float y = yTop + m_ExtraItemsHeight;
+   float y = yTop;
  
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);

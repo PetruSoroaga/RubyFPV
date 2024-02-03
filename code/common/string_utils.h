@@ -23,6 +23,7 @@ char* str_format_frequency(u32 uFrequencyKhz);
 char* str_format_frequency_no_sufix(u32 uFrequencyKhz);
 char* str_get_packet_type(int iPacketType);
 char* str_get_packet_history_symbol(int iPacketType, int iRepeatCount);
+char* str_get_packet_test_link_command(int iTestCommandId);
 
 char* str_get_pipe_flags(int iFlags);
 
@@ -57,6 +58,8 @@ char* str_get_model_change_type(int iModelChangeType);
 
 char* str_format_relay_flags(u32 uRelayFlags);
 char* str_format_relay_mode(u32 uRelayMode);
+
+char* str_format_firmware_type(u32 uFirmwareType);
 
 #ifdef __cplusplus
 }  

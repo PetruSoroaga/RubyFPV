@@ -2,10 +2,10 @@
 #include "menu_objects.h"
 #include "menu_item_select.h"
 
-class MenuPreferences: public Menu
+class MenuButtons: public Menu
 {
    public:
-      MenuPreferences();
+      MenuButtons();
       virtual void onShow();     
       virtual void Render();
       virtual void onSelectItem();

@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -33,7 +51,11 @@ Code written by: Petru Soroaga, 2021-2023
 static int s_iCountRotaryEncoderCancelCount = 0;
 static int s_iCountRotaryEncoder2CancelCount = 0;
 
-Menu* gpMenuStack[MAX_MENU_STACK];
+Menu* g_pMenuStack[MAX_MENU_STACK];
+int g_iMenuIds[MAX_MENU_STACK];
+int g_iMenuReturnValue[MAX_MENU_STACK];
+int g_iMenuDisableStackingFlag[MAX_MENU_STACK];
+
 int g_iMenuStackTopIndex = 0;
 static float s_fMenuGlobalAlpha = 1.0;
 
@@ -60,12 +82,12 @@ float menu_get_XStartPos(float fWidth)
    if ( 0 == g_iMenuStackTopIndex )
       return 0.06;
 
-   //float dx = gpMenuStack[g_iMenuStackTopIndex-1]->m_Width*0.7;
+   //float dx = g_pMenuStack[g_iMenuStackTopIndex-1]->m_Width*0.7;
    //if ( dx > 0.18 )
    //   dx = 0.18;
    float dx = 0.12;
 
-   float xPos = gpMenuStack[g_iMenuStackTopIndex-1]->m_xPos + dx;
+   float xPos = g_pMenuStack[g_iMenuStackTopIndex-1]->m_xPos + dx;
    if ( xPos + fWidth > 0.98 )
       xPos = 0.98 - fWidth;
    return xPos;
@@ -76,7 +98,7 @@ float menu_get_XStartPos(Menu* pMenu, float fWidth)
 
    float xPos = 0.1;
    if ( g_iMenuStackTopIndex > 0 )
-      xPos = gpMenuStack[g_iMenuStackTopIndex-1]->m_xPos + gpMenuStack[g_iMenuStackTopIndex-1]->getRenderWidth()*0.5;
+      xPos = g_pMenuStack[g_iMenuStackTopIndex-1]->m_xPos + g_pMenuStack[g_iMenuStackTopIndex-1]->getRenderWidth()*0.5;
    return xPos;
 }
 
@@ -94,54 +116,58 @@ float menu_getGlobalAlpha()
 
 int menu_init()
 {
+   for( int i=0; i<MAX_MENU_STACK; i++ )
+   {
+      g_pMenuStack[i] = NULL;
+      g_iMenuIds[i] = -1;
+      g_iMenuReturnValue[i] = -1;
+      g_iMenuDisableStackingFlag[i] = 0;
+   }
    return 1;
 }
 
-void menu_close_all()
+void menu_discard_all()
 {
-   for( int i=g_iMenuStackTopIndex-1; i>=0; i-- )
+   for( int i=MAX_MENU_STACK-1; i>=0; i-- )
    {
-      gpMenuStack[i]->setParent(NULL);
-      delete gpMenuStack[i];
+      if ( NULL != g_pMenuStack[i] )
+      {
+         g_pMenuStack[i]->setParent(NULL);
+         delete g_pMenuStack[i];
+      }
+      g_pMenuStack[i] = NULL;
+      g_iMenuIds[i] = -1;
+      g_iMenuReturnValue[i] = -1;
+      g_iMenuDisableStackingFlag[i] = 0;
    }
    g_iMenuStackTopIndex = 0;
 }
 
-bool menu_has_menu_confirmation_above(Menu* pMenu)
-{
-   if ( NULL == pMenu )
-      return false;
-
-   int kIndex = -1;
-   for( int i=0; i<g_iMenuStackTopIndex; i++ )
-      if ( gpMenuStack[i] == pMenu )
-      {
-         kIndex = i;
-         break;
-      }
-
-   if ( kIndex < 0 )
-      return false;
-
-   kIndex++;
-   if ( kIndex > 0 && kIndex < g_iMenuStackTopIndex && gpMenuStack[kIndex]->m_MenuId == MENU_ID_CONFIRMATION )
-      return true;
-   return false;
-}
 
 bool menu_has_menu(int menuId)
 {
    for( int i=0; i<g_iMenuStackTopIndex; i++ )
-      if ( gpMenuStack[i]->m_MenuId == menuId )
+      if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i]->m_MenuId == menuId) )
          return true;
    return false;
+}
+
+int menu_had_disable_stacking(int iMenuId)
+{
+   for( int i=0; i<=g_iMenuStackTopIndex; i++ )
+   {
+      if ( g_iMenuIds[i] != iMenuId )
+         continue;
+      return g_iMenuDisableStackingFlag[i];
+   }
+   return 0;
 }
 
 Menu* menu_get_menu_by_id(int menuId)
 {
    for( int i=0; i<g_iMenuStackTopIndex; i++ )
-      if ( gpMenuStack[i]->m_MenuId == menuId )
-         return gpMenuStack[i];
+      if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i]->m_MenuId == menuId) )
+         return g_pMenuStack[i];
    return NULL;
 }
 
@@ -151,12 +177,20 @@ void add_menu_to_stack(Menu* pMenu)
       return;
    if ( g_iMenuStackTopIndex > 0 )
    {
-      pMenu->setParent(gpMenuStack[g_iMenuStackTopIndex-1]);
-      gpMenuStack[g_iMenuStackTopIndex-1]->onChildMenuAdd();
+      pMenu->setParent(g_pMenuStack[g_iMenuStackTopIndex-1]);
+      g_pMenuStack[g_iMenuStackTopIndex-1]->onChildMenuAdd(pMenu);
    }
    pMenu->m_MenuDepth = g_iMenuStackTopIndex;
-   gpMenuStack[g_iMenuStackTopIndex] = pMenu;
+   g_pMenuStack[g_iMenuStackTopIndex] = pMenu;
+   g_iMenuIds[g_iMenuStackTopIndex] = pMenu->m_MenuId;
+   g_iMenuReturnValue[g_iMenuStackTopIndex] = -1;
+   g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = pMenu->m_bDisableStacking;
    g_iMenuStackTopIndex++;
+   if ( g_iMenuStackTopIndex < MAX_MENU_STACK )
+   {
+      g_iMenuReturnValue[g_iMenuStackTopIndex] = -1;
+      g_iMenuIds[g_iMenuStackTopIndex] = -1;
+   }
    pMenu->onShow();
 }
 
@@ -167,7 +201,7 @@ void remove_menu_from_stack(Menu* pMenu)
    pMenu->setParent(NULL);
    int k = -1;
    for( int i=0; i<g_iMenuStackTopIndex; i++ )
-      if ( gpMenuStack[i] == pMenu )
+      if ( g_pMenuStack[i] == pMenu )
       {
          k = i;
          break;
@@ -177,10 +211,17 @@ void remove_menu_from_stack(Menu* pMenu)
       return;
    while ( k < g_iMenuStackTopIndex-1 )
    {
-      gpMenuStack[k] = gpMenuStack[k+1];
+      g_pMenuStack[k] = g_pMenuStack[k+1];
+      g_iMenuIds[k] = g_iMenuIds[k+1];
+      g_iMenuReturnValue[k] = g_iMenuReturnValue[k+1];
+      g_iMenuDisableStackingFlag[k] = g_iMenuDisableStackingFlag[k+1];
       k++;
    }
    g_iMenuStackTopIndex--;
+   g_pMenuStack[g_iMenuStackTopIndex] = NULL;
+   g_iMenuIds[g_iMenuStackTopIndex] = -1;
+   g_iMenuReturnValue[g_iMenuStackTopIndex] = -1;
+   g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = 0;
    delete pMenu;
 }
 
@@ -190,9 +231,10 @@ void replace_menu_on_stack(Menu* pMenuSrc, Menu* pMenuNew)
       return;
 
    pMenuSrc->setParent(NULL);
+
    int k = -1;
    for( int i=0; i<g_iMenuStackTopIndex; i++ )
-      if ( gpMenuStack[i] == pMenuSrc )
+      if ( g_pMenuStack[i] == pMenuSrc )
       {
          k = i;
          break;
@@ -202,24 +244,28 @@ void replace_menu_on_stack(Menu* pMenuSrc, Menu* pMenuNew)
       return;
 
    if ( k > 0 )
-      pMenuNew->setParent(gpMenuStack[k-1]);
+      pMenuNew->setParent(g_pMenuStack[k-1]);
    pMenuNew->m_MenuDepth = pMenuSrc->m_MenuDepth;
-   gpMenuStack[k] = pMenuNew;
+   g_pMenuStack[k] = pMenuNew;
+   g_iMenuIds[k] = pMenuNew->m_MenuId;
+   g_iMenuReturnValue[k] = -1;
+   g_iMenuDisableStackingFlag[k] = 0;
    pMenuNew->onShow();
 }
 
 void menu_stack_pop(int returnValue)
 {
-   int iConfirmationId = -1;
-   if ( g_iMenuStackTopIndex > 0 )
-   {
-      iConfirmationId = gpMenuStack[g_iMenuStackTopIndex-1]->getConfirmationId();
-      gpMenuStack[g_iMenuStackTopIndex-1]->setParent(NULL);
-      delete gpMenuStack[g_iMenuStackTopIndex-1];
-      g_iMenuStackTopIndex--;
-   }
-   if ( g_iMenuStackTopIndex > 0 && -1 != iConfirmationId )
-     gpMenuStack[g_iMenuStackTopIndex-1]->onReturnFromChild(returnValue);
+   if ( g_iMenuStackTopIndex <= 0 )
+      return;
+
+   log_line("[Menu] (loop %u): doing stack pop. %d menus in stack. Top menu id before pop: %d-%d, name: [%s]", s_uMenuLoopCounter%100, g_iMenuStackTopIndex, g_pMenuStack[g_iMenuStackTopIndex-1]->m_MenuId%1000, g_pMenuStack[g_iMenuStackTopIndex-1]->m_MenuId/1000, g_pMenuStack[g_iMenuStackTopIndex-1]->m_szTitle);
+   g_iMenuStackTopIndex--;
+
+   g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = g_pMenuStack[g_iMenuStackTopIndex]->m_bDisableStacking;
+   g_iMenuReturnValue[g_iMenuStackTopIndex] = returnValue;
+   g_pMenuStack[g_iMenuStackTopIndex]->setParent(NULL);
+   delete g_pMenuStack[g_iMenuStackTopIndex];
+   g_pMenuStack[g_iMenuStackTopIndex] = NULL;
 }
 
 void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* pbRotatedCW, bool* pbRotatedCCW, bool* pbRotatedFastCW, bool* pbRotatedFastCCW, bool* pbSelect2, bool* pbCancel2, bool* pbRotatedCW2, bool* pbRotatedCCW2, bool* pbRotatedFastCW2, bool* pbRotatedFastCCW2)
@@ -228,6 +274,9 @@ void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* 
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
    if ( NULL == pCS || NULL == pCI )
+      return;
+
+   if ( (ruby_get_start_sequence_step() != START_SEQ_COMPLETED) && (ruby_get_start_sequence_step() != START_SEQ_FAILED) )
       return;
 
    if ( ! hardware_i2c_has_external_extenders_rotary_encoders() )
@@ -289,6 +338,7 @@ void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* 
          s_iCountRotaryEncoderCancelCount = 0;
       }
       *pbCancel = true;
+      log_line("[Rotary1 Event] Cancel");
    }
 
    // Cancel rotary encoder 2 (long press on rotary encoder) ?
@@ -297,6 +347,7 @@ void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* 
    {
       s_iCountRotaryEncoder2CancelCount++;
       *pbCancel2 = true;
+      log_line("[Rotary2 Event] Cancel");
    }
 
    if ( events.uHasRotaryEncoder )
@@ -306,18 +357,29 @@ void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* 
       log_line("[Rotary1 Event] Select");
    }
    if ( events.uHasRotaryEncoder )
-   if ( events.uRotaryEncoderEvents & (0x01<<2) )    
+   if ( events.uRotaryEncoderEvents & (0x01<<2) )
+   {
       *pbRotatedCCW = true;
+      log_line("[Rotary1 Event] RotCCW");
+   }
    if ( events.uHasRotaryEncoder )
    if ( events.uRotaryEncoderEvents & (0x01<<3) )
+   {
       *pbRotatedCW = true;
+      log_line("[Rotary1 Event] RotCW");
+   }
    if ( events.uHasRotaryEncoder )
    if ( events.uRotaryEncoderEvents & (0x01<<4) )
+   {
       *pbRotatedFastCCW = true;
+      log_line("[Rotary1 Event] RotFastCCW");
+   }
    if ( events.uHasRotaryEncoder )
    if ( events.uRotaryEncoderEvents & (0x01<<5) )
+   {
       *pbRotatedFastCW = true;
-
+      log_line("[Rotary1 Event] RotFastCW");
+   }
    if ( events.uHasSecondaryRotaryEncoder )
    if ( events.uRotaryEncoder2Events & 0x01 )
    {
@@ -352,17 +414,25 @@ void menu_loop()
    ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
-   if ( g_iMenuStackTopIndex > 0 && NULL != gpMenuStack[g_iMenuStackTopIndex-1] )
+   for( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( gpMenuStack[g_iMenuStackTopIndex-1]->m_MenuId != MENU_ID_CONFIRMATION )
-         gpMenuStack[g_iMenuStackTopIndex-1]->periodicLoop();
-      else
-      {
-         if ( g_iMenuStackTopIndex > 1 && NULL != gpMenuStack[g_iMenuStackTopIndex-2] )
-            gpMenuStack[g_iMenuStackTopIndex-2]->periodicLoop();
-      }
+      if ( NULL != g_pMenuStack[i] )
+         g_pMenuStack[i]->periodicLoop();
    }
 
+   if ( g_iMenuStackTopIndex > 0 )
+   if ( g_iMenuReturnValue[g_iMenuStackTopIndex] != -1 )
+   if ( g_iMenuIds[g_iMenuStackTopIndex] != -1 )
+   {
+       g_pMenuStack[g_iMenuStackTopIndex-1]->onReturnFromChild(g_iMenuIds[g_iMenuStackTopIndex], g_iMenuReturnValue[g_iMenuStackTopIndex]);
+       for( int i=g_iMenuStackTopIndex; i<MAX_MENU_STACK; i++ )
+       {
+          g_iMenuReturnValue[i] = -1;
+          g_iMenuIds[i] = -1;
+          g_iMenuDisableStackingFlag[i] = 0;
+       }
+   }
+ 
    bool bRotarySelect = false;
    bool bRotaryCancel = false;
    bool bRotaryRotatedCW = false;
@@ -438,6 +508,7 @@ void menu_loop()
    else
    {
       hardware_override_keys(bRotarySelect?1:0, bRotaryCancel?1:0, bRotaryRotatedCCW?1:0, bRotaryRotatedCW?1:0, 0, 0,0,0);
+      keyboard_add_triggered_gpio_input_events();
       bRotaryEvents = bRotarySelect | bRotaryCancel | bRotaryRotatedCW | bRotaryRotatedCCW | bRotaryRotatedFastCW | bRotaryRotatedFastCCW | bRotaryRotated;
    }
 
@@ -455,11 +526,15 @@ void menu_loop()
    else
    {
       hardware_override_keys(bRotary2Select?1:0, bRotary2Cancel?1:0, bRotary2RotatedCCW?1:0, bRotary2RotatedCW?1:0, 0, 0,0,0);
+      keyboard_add_triggered_gpio_input_events();
       bRotary2Events = bRotary2Select | bRotary2Cancel | bRotary2RotatedCW | bRotary2RotatedCCW | bRotary2RotatedFastCW | bRotary2RotatedFastCCW | bRotary2Rotated;
    }
-   if ( (NULL != pCS) && (pCS->nRotaryEncoderFunction == 1) && (pCS->nRotaryEncoderFunction2 == 1) )
-      hardware_override_keys((bRotarySelect || bRotary2Select)?1:0, (bRotaryCancel || bRotary2Cancel)?1:0, (bRotaryRotatedCCW || bRotary2RotatedCCW)?1:0, (bRotaryRotatedCW || bRotary2RotatedCW)?1:0, 0, 0,0,0);
 
+   if ( (NULL != pCS) && (pCS->nRotaryEncoderFunction == 1) && (pCS->nRotaryEncoderFunction2 == 1) )
+   {
+      hardware_override_keys((bRotarySelect || bRotary2Select)?1:0, (bRotaryCancel || bRotary2Cancel)?1:0, (bRotaryRotatedCCW || bRotary2RotatedCCW)?1:0, (bRotaryRotatedCW || bRotary2RotatedCW)?1:0, 0, 0,0,0);
+      keyboard_add_triggered_gpio_input_events();
+   }
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )
    {
       if ( osd_is_stats_flight_end_on() )
@@ -474,7 +549,7 @@ void menu_loop()
           add_menu_to_stack(new MenuRoot());
       }
       else 
-         gpMenuStack[g_iMenuStackTopIndex-1]->onSelectItem();
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onSelectItem();
    }
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
@@ -491,71 +566,73 @@ void menu_loop()
          return;
       }
       
-      if ( NULL != g_pPopupCameraParams && popups_has_popup(g_pPopupCameraParams) )
-         g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
-      else
+      if ( (NULL != g_pPopupCameraParams) && popups_has_popup(g_pPopupCameraParams) )
       {
-         //system("omxplayer -p -o hdmi res/sound_menu_click2.wav");
-         int processed = 0;
-         if ( g_iMenuStackTopIndex > 0 )
-         if ( NULL != gpMenuStack[g_iMenuStackTopIndex-1] )
-             processed = gpMenuStack[g_iMenuStackTopIndex-1]->onBack();
-         if ( ! processed )
-            menu_stack_pop();
+         g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
+         return;
       }
+      //system("omxplayer -p -o hdmi res/sound_menu_click2.wav");
+      if ( g_iMenuStackTopIndex > 0 )
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onBack();
+      return;
    }
 
    if ( isKeyBackLongPressed() )
    {
       if ( NULL != g_pPopupCameraParams && popups_has_popup(g_pPopupCameraParams) )
-         g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
-      else
       {
-         for( int i=0; i<g_iMenuStackTopIndex; i++ )
-            if ( NULL != gpMenuStack[i] )
-               gpMenuStack[i]->onBack();
-
-         menu_close_all();
+         g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
+         return;
       }
+      for( int i=0; i<g_iMenuStackTopIndex; i++ )
+         if ( NULL != g_pMenuStack[i] )
+            g_pMenuStack[i]->onBack();
+
+      menu_discard_all();
+      return;
    }
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_PLUS )
    {
       if ( g_iMenuStackTopIndex > 0 )
-      if ( NULL != gpMenuStack[g_iMenuStackTopIndex-1] )
-         gpMenuStack[g_iMenuStackTopIndex-1]->onMoveDown(bRotaryRotated);
+      if ( NULL != g_pMenuStack[g_iMenuStackTopIndex-1] )
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveDown(bRotaryRotated);
    }
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS )
    {
       if ( g_iMenuStackTopIndex > 0 )
-      if ( NULL != gpMenuStack[g_iMenuStackTopIndex-1] )
-         gpMenuStack[g_iMenuStackTopIndex-1]->onMoveUp(bRotaryRotated);
+      if ( NULL != g_pMenuStack[g_iMenuStackTopIndex-1] )
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveUp(bRotaryRotated);
    }
 }
 
 
 void menu_refresh_all_menus()
 {
-   log_line("Menus: refresh all menus...");
-   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
-   {
-      if ( NULL != gpMenuStack[i] )
-         gpMenuStack[i]->onShow();
-   }
-   log_line("Menus: Refreshed all menus.");
+   menu_refresh_all_menus_except(NULL);
 }
 
+void menu_refresh_all_menus_except(Menu* pMenu)
+{
+   log_line("[Menu] Refresh all menus...");
+   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
+   {
+      if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i] != pMenu) )
+         g_pMenuStack[i]->onShow();
+   }
+   log_line("[Menu] Refreshed all menus.");
+}
+
+u32 menu_get_loop_counter()
+{
+   return s_uMenuLoopCounter;
+}
 
 void menu_render()
 {
    float fOrigAlpha = g_pRenderEngine->getGlobalAlfa();
    Preferences* pP = get_Preferences();
-   
-   bool hasConfirmationDialogOnTop = false;
-   if ( g_iMenuStackTopIndex > 1 )
-   if ( (gpMenuStack[g_iMenuStackTopIndex-1]->m_MenuId == MENU_ID_CONFIRMATION) )
-      hasConfirmationDialogOnTop = true;
    
    // If menus are stacked, render only last 3 menus
 
@@ -570,36 +647,35 @@ void menu_render()
    {
       g_pRenderEngine->setGlobalAlfa(s_fMenuGlobalAlpha);
 
-      if ( gpMenuStack[iMenuToRender]->m_bDisableBackgroundAlpha )
+      if ( g_pMenuStack[iMenuToRender]->m_bDisableBackgroundAlpha )
       {
          while ( iMenuToRender < g_iMenuStackTopIndex )
          {
-            gpMenuStack[iMenuToRender]->Render();
+            g_pMenuStack[iMenuToRender]->Render();
             iMenuToRender++;
          }
          break;
       }
 
       bool bNoBackgroundAdjustment = false;
-      if ( hasConfirmationDialogOnTop )
-      if ( (iMenuToRender == g_iMenuStackTopIndex-1) || (iMenuToRender == g_iMenuStackTopIndex-2) )
-         bNoBackgroundAdjustment = true;
 
       if ( bNoBackgroundAdjustment )
       {
-         gpMenuStack[iMenuToRender]->Render();
+         g_pMenuStack[iMenuToRender]->Render();
          iMenuToRender++;
          continue;
       }
       
-      float fBgAlphaForMenu = gpMenuStack[iMenuToRender]->m_fAlfaWhenInBackground - 0.08 * (float)(g_iMenuStackTopIndex-iMenuToRender-1);
+      float fBgAlphaForMenu = g_pMenuStack[iMenuToRender]->m_fAlfaWhenInBackground - 0.08 * (float)(g_iMenuStackTopIndex-iMenuToRender-1);
       if ( fBgAlphaForMenu < 0.0 )
          fBgAlphaForMenu = 0.0;
 
-      u32 tMenuShowTime = gpMenuStack[iMenuToRender]->getOnShowTime();
-      u32 tMenuChildAddTime = gpMenuStack[iMenuToRender]->getOnChildAddTime();
-      u32 tMenuChildCloseTime = gpMenuStack[iMenuToRender]->getOnReturnFromChildTime();
+      u32 tMenuShowTime = g_pMenuStack[iMenuToRender]->getOnShowTime();
+      u32 tMenuChildAddTime = g_pMenuStack[iMenuToRender]->getOnChildAddTime();
+      u32 tMenuChildCloseTime = g_pMenuStack[iMenuToRender]->getOnReturnFromChildTime();
 
+      bool bAnimatingAlpha = false;
+      bool bUseBgAlpha = false;
       // On Show
 
       if ( g_TimeNow < tMenuShowTime + 250 )
@@ -609,6 +685,7 @@ void menu_render()
          if ( f > 1.0 ) f = 1.0;
          float fTargetAlpha = s_fMenuGlobalAlpha * f + (1.0 - f) * fBgAlphaForMenu;
          g_pRenderEngine->setGlobalAlfa(fTargetAlpha);
+         bAnimatingAlpha = true;
       }
 
       // On child close
@@ -620,6 +697,7 @@ void menu_render()
          if ( f > 1.0 ) f = 1.0;
          float fTargetAlpha = s_fMenuGlobalAlpha * f + (1.0 - f) * fBgAlphaForMenu;
          g_pRenderEngine->setGlobalAlfa(fTargetAlpha);
+         bAnimatingAlpha = true;
       }
 
       // Child visible and not closing
@@ -634,9 +712,16 @@ void menu_render()
             if ( f > 1.0 ) f = 1.0;
             float fTargetAlpha = s_fMenuGlobalAlpha * (1.0 - f) + f * fBgAlphaForMenu;
             g_pRenderEngine->setGlobalAlfa(fTargetAlpha);
+            bAnimatingAlpha = true;
          }
+         bUseBgAlpha = true;
       }
-      gpMenuStack[iMenuToRender]->Render();
+
+      if ( ! bUseBgAlpha )
+      if ( ! bAnimatingAlpha )
+         g_pRenderEngine->setGlobalAlfa(s_fMenuGlobalAlpha);
+
+      g_pMenuStack[iMenuToRender]->Render();
       iMenuToRender++;
    }
    g_pRenderEngine->setGlobalAlfa(fOrigAlpha);
@@ -646,9 +731,18 @@ bool menu_is_menu_on_top(Menu* pMenu)
 {
    if ( g_iMenuStackTopIndex == 0 )
       return false;
-   if ( gpMenuStack[g_iMenuStackTopIndex-1] != pMenu )
+   if ( g_pMenuStack[g_iMenuStackTopIndex-1] != pMenu )
       return false;
    return true;
+}
+
+bool menu_has_children(Menu* pMenu)
+{
+   if ( g_iMenuStackTopIndex == 0 )
+      return false;
+   if ( g_pMenuStack[g_iMenuStackTopIndex-1] != pMenu )
+      return true;
+   return false;
 }
 
 bool isMenuOn()
@@ -662,9 +756,20 @@ void menu_invalidate_all()
 {
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( NULL != gpMenuStack[i] )
-         gpMenuStack[i]->invalidate();
+      if ( NULL != g_pMenuStack[i] )
+         g_pMenuStack[i]->invalidate();
    }
+}
+
+int menu_hasAnyDisableStackingMenu()
+{
+   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
+   {
+      if ( NULL != g_pMenuStack[i] )
+      if ( g_pMenuStack[i]->m_bDisableStacking )
+         return 1;
+   }
+   return 0;
 }
 
 // It is called just before the new child menu is added to the stack.
@@ -675,7 +780,7 @@ void menu_startAnimationOnChildMenuAdd(Menu* pTopMenu)
    bool bDoAnimate = true;
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( (NULL != gpMenuStack[i]) && gpMenuStack[i]->m_bDisableStacking )
+      if ( (NULL != g_pMenuStack[i]) && g_pMenuStack[i]->m_bDisableStacking )
       {
          bDoAnimate = false;
          break;
@@ -686,11 +791,11 @@ void menu_startAnimationOnChildMenuAdd(Menu* pTopMenu)
    
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( NULL == gpMenuStack[i] )
+      if ( NULL == g_pMenuStack[i] )
          continue;
 
-      gpMenuStack[i]->startAnimationOnChildMenuAdd();
-      if ( gpMenuStack[i] == pTopMenu )
+      g_pMenuStack[i]->startAnimationOnChildMenuAdd();
+      if ( g_pMenuStack[i] == pTopMenu )
          break;
    }
 }
@@ -700,7 +805,7 @@ void menu_startAnimationOnChildMenuClosed(Menu* pTopMenu)
    bool bDoAnimate = true;
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( (NULL != gpMenuStack[i]) && gpMenuStack[i]->m_bDisableStacking )
+      if ( (NULL != g_pMenuStack[i]) && g_pMenuStack[i]->m_bDisableStacking )
       {
          bDoAnimate = false;
          break;
@@ -711,11 +816,11 @@ void menu_startAnimationOnChildMenuClosed(Menu* pTopMenu)
    
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
-      if ( NULL == gpMenuStack[i] )
+      if ( NULL == g_pMenuStack[i] )
          continue;
 
-      gpMenuStack[i]->startAnimationOnChildMenuClosed();
-      if ( gpMenuStack[i] == pTopMenu )
+      g_pMenuStack[i]->startAnimationOnChildMenuClosed();
+      if ( g_pMenuStack[i] == pTopMenu )
          break;
    }
 }

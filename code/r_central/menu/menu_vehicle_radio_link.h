@@ -13,14 +13,12 @@ class MenuVehicleRadioLink: public Menu
       virtual void valuesToUI();
       virtual void Render();
       virtual void onShow();
-      virtual void onReturnFromChild(int returnValue); 
-      virtual void onItemValueChanged(int itemIndex);
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
             
    private:
-      void sendRadioLinkCapabilitiesFlags(int linkIndex);
-      void sendRadioLinkFlags(int linkIndex);
-      void sendRadioLinkInfo(int iRadioLink);
+      void sendRadioLinkCapabilities(int iRadioLink);
+      void sendRadioLinkConfig(int linkIndex);
 
       int m_iRadioLink;
 
@@ -39,10 +37,9 @@ class MenuVehicleRadioLink: public Menu
       int m_IndexDataRateTypeUplink;
       int m_IndexDataRateDataDownlink;
       int m_IndexDataRateDataUplink;
-      int m_IndexFlagsTarget;
       int m_IndexHT;
       int m_IndexLDPC;
       int m_IndexSGI;
       int m_IndexSTBC;
-      int m_IndexMCSInfo;
+      int m_IndexReset; 
 };

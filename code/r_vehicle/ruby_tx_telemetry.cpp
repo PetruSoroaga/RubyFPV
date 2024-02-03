@@ -42,7 +42,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../common/string_utils.h"
 #include "../common/relay_utils.h"
 #include "../../mavlink/common/mavlink.h"
-#include "parse_fc_telemetry.h"
+#include "../base/parse_fc_telemetry.h"
 #include "launchers_vehicle.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -380,7 +380,7 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 {
    pPHFCT->fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
 
-   if ( g_TimeLastMessageFromFC < g_TimeNow-1100 )
+   if ( get_time_last_mavlink_message_from_fc() < g_TimeNow-1100 )
       pPHFCT->flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
    else
       pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;
@@ -429,7 +429,10 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 
    s_lLastPosLat = pPHFCT->latitude;
    s_lLastPosLon = pPHFCT->longitude;
-   if ( pPHFCT->gps_fix_type >= GPS_FIX_TYPE_2D_FIX )
+   
+   if ( (pPHFCT->gps_fix_type >= GPS_FIX_TYPE_2D_FIX) &&
+        ( (pPHFCT->latitude > 5) || (pPHFCT->latitude < -5) ) &&
+        ( (pPHFCT->longitude > 5) || (pPHFCT->longitude < -5) ) )
    {
       if ( (! home_set) || (! (pPHFCT->flight_mode & FLIGHT_MODE_ARMED) ) )
       {
@@ -459,7 +462,8 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
    }
    else if ( (g_pCurrentModel->iGPSCount > 1) && ( pPHFCT->extra_info[2] != 0xFF )
              && ( pPHFCT->extra_info[1] > 0 ) && (pPHFCT->extra_info[1] != 0xFF)
-             && ( pPHFCT->extra_info[2] >= GPS_FIX_TYPE_2D_FIX ) )
+             && ( pPHFCT->extra_info[2] >= GPS_FIX_TYPE_2D_FIX ) &&
+                ( (pPHFCT->latitude > 5) || (pPHFCT->latitude < -5) ) )
    {
       if ( (! home_set) || (! (pPHFCT->flight_mode & FLIGHT_MODE_ARMED) ) )
       {
@@ -501,7 +505,7 @@ void send_mavlink_setup()
    if ( s_bMAVLinkSetupSent )
       return;
 
-   g_TimeLastMessageFromFC = g_TimeNow - 1200;
+   set_time_last_mavlink_message_from_fc(g_TimeNow - 1200);
 
    int componentId = MAV_COMP_ID_MISSIONPLANNER;
    //int componentId = MAV_COMP_ID_SYSTEM_CONTROL;
@@ -511,6 +515,19 @@ void send_mavlink_setup()
       parse_telemetry_allow_any_sysid(1);
    else
       parse_telemetry_allow_any_sysid(0);
+
+   if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_REMOVE_DUPLICATE_FC_MESSAGES )
+      parse_telemetry_remove_duplicate_messages(true);
+   else
+      parse_telemetry_remove_duplicate_messages(false);
+
+   bool bLocalVSpeed = false;
+   int li = g_pCurrentModel->osd_params.layout;
+   if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
+   if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
+      bLocalVSpeed = true;
+
+   parse_telemetry_set_show_local_vspeed(bLocalVSpeed);
 
    int len = 0;
    mavlink_message_t msgHeartBeat;
@@ -849,6 +866,14 @@ void reload_model(u8 changeType)
    {
       open_telemetry_serial_port();
    }
+
+   bool bLocalVSpeed = false;
+   int li = g_pCurrentModel->osd_params.layout;
+   if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
+   if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
+      bLocalVSpeed = true;
+
+   parse_telemetry_set_show_local_vspeed(bLocalVSpeed);
 
    s_bMAVLinkSetupSent = false;
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != MODEL_TELEMETRY_TYPE_NONE )
@@ -1233,7 +1258,7 @@ void try_read_serial_telemetry()
 
    if ( parse_telemetry_from_fc(serialBufferIn, length, &sPHFCT, &sPHRTE, g_pCurrentModel->vehicle_type, g_pCurrentModel->telemetry_params.fc_telemetry_type) )
    {
-      g_TimeLastMessageFromFC = g_TimeNow;
+      set_time_last_mavlink_message_from_fc(g_TimeNow);
       s_CountMessagesFromFCPerSecondTemp++;
    }
 }
@@ -1342,7 +1367,7 @@ void _send_telemetry_to_controller()
       PHTExtraInfo.flags = FLAG_RUBY_TELEMETRY_EXTRA_INFO_IS_VALID;
       PHTExtraInfo.uTimeNow = g_TimeNow;
       PHTExtraInfo.uRelayedVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
-      PHTExtraInfo.uThrottleInput = s_MAVLinkRCChannels[2];
+      PHTExtraInfo.uThrottleInput = get_mavlink_rc_channels()[2];
       PHTExtraInfo.uThrottleOutput = sPHFCT.throttle;
 
       sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO;
@@ -1642,20 +1667,21 @@ void _send_telemetry_to_controller()
       sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_fc_rc_channels);
 
       t_packet_header_fc_rc_channels PHFCRCChannels;
-      PHFCRCChannels.channels[0] = (u16) s_MAVLinkRCChannels[0];
-      PHFCRCChannels.channels[1] = (u16) s_MAVLinkRCChannels[1];
-      PHFCRCChannels.channels[2] = (u16) s_MAVLinkRCChannels[2];
-      PHFCRCChannels.channels[3] = (u16) s_MAVLinkRCChannels[3];
-      PHFCRCChannels.channels[4] = (u16) s_MAVLinkRCChannels[4];
-      PHFCRCChannels.channels[5] = (u16) s_MAVLinkRCChannels[5];
-      PHFCRCChannels.channels[6] = (u16) s_MAVLinkRCChannels[6];
-      PHFCRCChannels.channels[7] = (u16) s_MAVLinkRCChannels[7];
-      PHFCRCChannels.channels[8] = (u16) s_MAVLinkRCChannels[8];
-      PHFCRCChannels.channels[9] = (u16) s_MAVLinkRCChannels[9];
-      PHFCRCChannels.channels[10] = (u16) s_MAVLinkRCChannels[10];
-      PHFCRCChannels.channels[11] = (u16) s_MAVLinkRCChannels[11];
-      PHFCRCChannels.channels[12] = (u16) s_MAVLinkRCChannels[12];
-      PHFCRCChannels.channels[13] = (u16) s_MAVLinkRCChannels[13];
+      int* pRCCh = get_mavlink_rc_channels();
+      PHFCRCChannels.channels[0] = (u16) pRCCh[0];
+      PHFCRCChannels.channels[1] = (u16) pRCCh[1];
+      PHFCRCChannels.channels[2] = (u16) pRCCh[2];
+      PHFCRCChannels.channels[3] = (u16) pRCCh[3];
+      PHFCRCChannels.channels[4] = (u16) pRCCh[4];
+      PHFCRCChannels.channels[5] = (u16) pRCCh[5];
+      PHFCRCChannels.channels[6] = (u16) pRCCh[6];
+      PHFCRCChannels.channels[7] = (u16) pRCCh[7];
+      PHFCRCChannels.channels[8] = (u16) pRCCh[8];
+      PHFCRCChannels.channels[9] = (u16) pRCCh[9];
+      PHFCRCChannels.channels[10] = (u16) pRCCh[10];
+      PHFCRCChannels.channels[11] = (u16) pRCCh[11];
+      PHFCRCChannels.channels[12] = (u16) pRCCh[12];
+      PHFCRCChannels.channels[13] = (u16) pRCCh[13];
 
       memcpy(buffer, &sPH, sizeof(t_packet_header));
       memcpy(buffer+sizeof(t_packet_header), &PHFCRCChannels, sizeof(t_packet_header_fc_rc_channels));
@@ -1852,13 +1878,13 @@ void _periodic_loop()
    if ( g_pCurrentModel->functions_params.bEnableRCTriggerFreqSwitchLink1 )
    if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1 >= 0 )
    if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1 < 14 )
-   if ( s_MAVLinkRCChannels[g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1] >= 900 )
+   if ( get_mavlink_rc_channels()[g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1] >= 900 )
    {
       int nRCChannel = g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1;
 
       if ( g_pCurrentModel->functions_params.bRCTriggerFreqSwitchLink1_is3Position )
       {
-         if ( s_MAVLinkRCChannels[nRCChannel] < 1200 )
+         if ( get_mavlink_rc_channels()[nRCChannel] < 1200 )
          {
             s_bFrequencySwitch1IsDown = false;
             if ( ! s_bFrequencySwitch1IsUp )
@@ -1871,7 +1897,7 @@ void _periodic_loop()
                }
             }
          }
-         else if ( s_MAVLinkRCChannels[nRCChannel] > 1800 )
+         else if ( get_mavlink_rc_channels()[nRCChannel] > 1800 )
          {
             s_bFrequencySwitch1IsUp = false;
             if ( ! s_bFrequencySwitch1IsDown )
@@ -1900,7 +1926,7 @@ void _periodic_loop()
       }
       else
       {
-         if ( s_MAVLinkRCChannels[nRCChannel] > 1800 )
+         if ( get_mavlink_rc_channels()[nRCChannel] > 1800 )
          {
             s_bFrequencySwitch1IsUp = false;
             if ( ! s_bFrequencySwitch1IsDown )
@@ -2068,9 +2094,9 @@ void _init_telemetry_structures()
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
-      sPHRTE.downlink_datarate_bps[i][0] = 0;
-      sPHRTE.downlink_datarate_bps[i][1] = 0;
-      sPHRTE.uplink_datarate_bps[i]= 0;
+      sPHRTE.last_sent_datarate_bps[i][0] = 0;
+      sPHRTE.last_sent_datarate_bps[i][1] = 0;
+      sPHRTE.last_recv_datarate_bps[i]= 0;
       sPHRTE.uplink_rssi_dbm[i] = 0;
       sPHRTE.uplink_link_quality[i] = 0;
    }
@@ -2107,7 +2133,7 @@ void _init_telemetry_structures()
    sPHFCE.text[0] = 0;
 
    for( int i=0; i<MAX_MAVLINK_RC_CHANNELS; i++ )
-      s_MAVLinkRCChannels[i] = 0;
+      get_mavlink_rc_channels()[i] = 0;
 
    _process_cached_reboot_info();
 }
@@ -2154,8 +2180,15 @@ int main (int argc, char *argv[])
 
    hardware_reload_serial_ports();
 
-   hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry); 
-   parse_telemetry_init(g_pCurrentModel->telemetry_params.vehicle_mavlink_id);
+   hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry);
+
+   bool bLocalVSpeed = false;
+   int li = g_pCurrentModel->osd_params.layout;
+   if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
+   if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
+      bLocalVSpeed = true;
+
+   parse_telemetry_init(g_pCurrentModel->telemetry_params.vehicle_mavlink_id, bLocalVSpeed);
 
    _compute_telemetry_intervals();
 
@@ -2277,7 +2310,7 @@ int main (int argc, char *argv[])
       else
       {
          iSleepTime = 10;
-         if ( g_TimeNow > g_TimeLastMessageFromFC + 4000 )
+         if ( g_TimeNow > get_time_last_mavlink_message_from_fc() + 4000 )
          if ( s_bRetrySetupTelemetry )
          {
             if ( ! bInputFromSTDIN )
@@ -2289,7 +2322,7 @@ int main (int argc, char *argv[])
             log_line("Flight controller telemetry is enabled and no telemetry received from flight controller. Reinitialize serial telemetry...");
             open_telemetry_serial_port();
             s_bMAVLinkSetupSent = false;
-            g_TimeLastMessageFromFC = g_TimeNow - 1200;
+            set_time_last_mavlink_message_from_fc(g_TimeNow - 1200);
             if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != MODEL_TELEMETRY_TYPE_NONE )
                send_mavlink_setup();
             if ( s_iCurrentTelemetrySerialPortIndex < 0 )

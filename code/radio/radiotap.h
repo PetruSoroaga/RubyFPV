@@ -22,25 +22,45 @@ extern "C" {
  * @bitmap_shifter: internal shifter for curr u32 bitmap, b0 set == arg present
  */
 
-struct ieee80211_radiotap_iterator {
-	struct ieee80211_radiotap_header *rtheader;
-	int max_length;
-	int this_arg_index;
-	u8 *this_arg;
+/*
+struct ieee80211_radiotap_iterator
+{
+   struct ieee80211_radiotap_header *rtheader;
+   int max_length;
+   int this_arg_index;
+   u8 *this_arg;
 
-	int arg_index;
-	u8 *arg;
-	__le32 *next_bitmap;
-	u32 bitmap_shifter;
+   int arg_index;
+   u8 *arg;
+   __le32 *next_bitmap;
+   u32 bitmap_shifter;
+};
+*/
+
+struct ieee80211_radiotap_iterator
+{
+   struct ieee80211_radiotap_header *_rtheader;
+   const struct ieee80211_radiotap_vendor_namespaces *_vns;
+   const struct ieee80211_radiotap_namespace *current_namespace;
+
+   unsigned char *_arg, *_next_ns_data;
+   __le32 *_next_bitmap;
+
+   unsigned char *this_arg;
+   int this_arg_index;
+   int this_arg_size;
+
+   int is_radiotap_ns;
+
+   int max_length;
+   int _arg_index;
+   uint32_t _bitmap_shifter;
+   int _reset_on_ext;
 };
 
-extern int ieee80211_radiotap_iterator_init(
-   struct ieee80211_radiotap_iterator *iterator,
-   struct ieee80211_radiotap_header *radiotap_header,
-   int max_length);
 
-extern int ieee80211_radiotap_iterator_next(
-   struct ieee80211_radiotap_iterator *iterator);
+extern int ieee80211_radiotap_iterator_init(struct ieee80211_radiotap_iterator *iterator, struct ieee80211_radiotap_header *radiotap_header, int max_length);
+extern int ieee80211_radiotap_iterator_next(struct ieee80211_radiotap_iterator *iterator);
 
 #ifdef __cplusplus
 }

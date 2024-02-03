@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
    
    if ( freq != -1 )
    {
-      radio_utils_set_interface_frequency(-1, freq, NULL);
+      radio_utils_set_interface_frequency(-1, freq, -1, NULL, 0);
       hardware_sleep_ms(100);
    }
 

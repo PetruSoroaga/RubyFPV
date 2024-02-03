@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -41,7 +59,6 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
    setTitle(szBuff);
 
    char szBands[128];
-   char szId[32];
    int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(m_iRadioLink);
 
    if ( -1 == iRadioInterfaceId )
@@ -85,7 +102,7 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
    {
       for( int ch=0; ch<m_SupportedChannelsCount; ch++ )
       {
-         if ( m_SupportedChannels[ch] == -1 )
+         if ( m_SupportedChannels[ch] == 0 )
          {
             m_pItemsSelect[1]->addSeparator();
             continue;
@@ -120,7 +137,7 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
    m_pItemsSelect[2]->setIsEditable();
    m_IndexDataRate = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSlider[0] = new MenuItemSlider("Packet Size", 10,200, DEFAULT_SIK_PACKET_SIZE, 0.12*Menu::getScaleFactor());
+   m_pItemsSlider[0] = new MenuItemSlider("Packet Size", "Sets the default packet size sent over air. If data to be sent is bigger, it is split into packets of this size.", DEFAULT_RADIO_SERIAL_AIR_MIN_PACKET_SIZE, DEFAULT_RADIO_SERIAL_AIR_MAX_PACKET_SIZE, DEFAULT_SIK_PACKET_SIZE, 0.12*Menu::getScaleFactor());
    m_iPacketSize = addMenuItem(m_pItemsSlider[0]);
 
    m_pItemsSelect[3] = new MenuItemSelect("Error Correction", "Enables hardware error correction on the radio link. Cuts the usable radio air data rate by half.");
@@ -246,10 +263,8 @@ void MenuVehicleRadioLinkSiK::valuesToUI()
 void MenuVehicleRadioLinkSiK::Render()
 {
    RenderPrepare();
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float yTop = RenderFrameAndTitle();
    float y = yTop;
-   float maxWidth = m_RenderWidth - 2*m_sfMenuPaddingX;
 
    for( int i=0; i<m_ItemsCount; i++ )
    {
@@ -263,16 +278,6 @@ void MenuVehicleRadioLinkSiK::Render()
    RenderEnd(yTop);
 }
 
-
-void MenuVehicleRadioLinkSiK::onReturnFromChild(int returnValue)
-{
-   Menu::onReturnFromChild(returnValue);
-}
-
-void MenuVehicleRadioLinkSiK::onItemValueChanged(int itemIndex)
-{
-   Menu::onItemValueChanged(itemIndex);
-}
 
 void MenuVehicleRadioLinkSiK::sendLinkCapabilitiesFlags(int linkIndex)
 {
@@ -293,7 +298,7 @@ void MenuVehicleRadioLinkSiK::sendRadioLinkFlags(int linkIndex)
    datarate_bps = getSiKAirDataRates()[indexRate];
    
 
-   uRadioFlags &= ~(RADIO_FLAGS_APPLY_MCS_FLAGS_ON_VEHICLE | RADIO_FLAGS_APPLY_MCS_FLAGS_ON_CONTROLLER);
+   uRadioFlags &= ~(RADIO_FLAGS_MCS_MASK);
    uRadioFlags &= ~(RADIO_FLAGS_SIK_ECC | RADIO_FLAGS_SIK_LBT | RADIO_FLAGS_SIK_MCSTR);
 
    if ( 1 == m_pItemsSelect[3]->getSelectedIndex() )
@@ -359,8 +364,6 @@ void MenuVehicleRadioLinkSiK::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   char szBuff[256];
-
    if ( ! m_bHasValidInterface )
       return;
 
@@ -376,7 +379,6 @@ void MenuVehicleRadioLinkSiK::onSelectItem()
 
       int index = m_pItemsSelect[1]->getSelectedIndex();
       u32 freq = m_SupportedChannels[index];
-      int band = getBand(freq);      
       if ( freq == g_pCurrentModel->radioLinksParams.link_frequency_khz[m_iRadioLink] )
          return;
 

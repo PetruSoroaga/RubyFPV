@@ -8,7 +8,6 @@ class MenuConfirmationHDMI: public Menu
       MenuConfirmationHDMI(const char* szTitle, const char* szText, int id);
       virtual ~MenuConfirmationHDMI();
       virtual void onShow();
-      virtual int onBack();
       virtual void onSelectItem();
 
 };

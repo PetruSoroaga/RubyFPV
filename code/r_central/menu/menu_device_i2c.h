@@ -12,7 +12,6 @@ class MenuDeviceI2C: public Menu
       virtual void onShow();
       virtual void Render();
       virtual void valuesToUI();
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
 
       void setDeviceId(int nDeviceId);

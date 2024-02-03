@@ -45,6 +45,7 @@
 #define ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_LOST 6
 #define ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_RECOVERED 7
 #define ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH 8 // second param low 2 bytes is current target video adaptive level, second param high 2 bytes is received video profile in the video stream
+#define ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY 9
 
 #define ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE ((u32)(((u32)0x01)<<1))
 #define ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE ((u32)(((u32)0x01)<<2))

@@ -21,7 +21,6 @@ class MenuVehicleOSDPlugin: public Menu
       virtual void onMoveRight(bool bIgnoreReversion);
       
       virtual int onBack();
-      virtual void onReturnFromChild(int returnValue);
       virtual void onSelectItem();
             
    private:

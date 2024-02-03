@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -185,6 +203,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSlider[k*20+11]->setStep(10);
       m_IndexVideoProfile_PacketLength[k] = addMenuItem(m_pItemsSlider[k*20+11]);
 
+
+      m_pItemsSelect[k*20+18] = new MenuItemSelect("Auto EC Scheme", "Enables or disables automatic error correction scheme adjustment.");  
+      m_pItemsSelect[k*20+18]->addSelection("Manual");
+      m_pItemsSelect[k*20+18]->addSelection("Auto");
+      m_pItemsSelect[k*20+18]->setIsEditable();
+      m_IndexVideoProfile_AutoECScheme[k] = addMenuItem(m_pItemsSelect[k*20+18]);
+
       m_pItemsSlider[k*20+12] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2,MAX_DATA_PACKETS_IN_BLOCK,MAX_DATA_PACKETS_IN_BLOCK/2, fSliderWidth);
       m_IndexVideoProfile_BlockPackets[k] = addMenuItem(m_pItemsSlider[k*20+12]);
 
@@ -233,27 +258,36 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSelect[2]->addSelection("None. No vehicle.");
    else
    {
-      int iLevels = g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile);
-      m_pItemsSelect[2]->addSelection("HQ");
-      for( int i=1; i<iLevels; i++ )
+      int iLevelsUser = g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile);
+      m_pItemsSelect[2]->addSelection(str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+      for( int i=1; i<iLevelsUser; i++ )
       {
-         sprintf(szBuff, "HQ-%d",i);
+         sprintf(szBuff, "%s-%d",str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), i);
          m_pItemsSelect[2]->addSelection(szBuff);
       }
 
-      iLevels = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
+      int iLevelsMQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
       m_pItemsSelect[2]->addSelection("MQ");
-      for( int i=1; i<iLevels; i++ )
+      for( int i=1; i<iLevelsMQ; i++ )
       {
          sprintf(szBuff, "MQ-%d",i);
          m_pItemsSelect[2]->addSelection(szBuff);
       }
-      iLevels = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
+      int iLevelsLQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
       m_pItemsSelect[2]->addSelection("LQ");
-      for( int i=1; i<iLevels; i++ )
+      for( int i=1; i<iLevelsLQ; i++ )
       {
          sprintf(szBuff, "LQ-%d",i);
          m_pItemsSelect[2]->addSelection(szBuff);
+      }
+
+      for( int i=0; i<(iLevelsUser + iLevelsMQ + iLevelsLQ); i++ )
+      {
+         int iData = 0;
+         int iEC = 0;
+         int iProfile = g_pCurrentModel->get_level_shift_ec_scheme(i, &iData, &iEC);
+         sprintf(szBuff, "Video Level %d: %s %d/%d", i, str_get_video_profile_name(iProfile), iData, iEC);
+         log_line(szBuff);
       }
    }
    m_pItemsSelect[2]->setIsEditable();
@@ -349,6 +383,8 @@ void MenuSystemVideoProfiles::valuesToUI()
             m_pItemsSelect[k*20+12]->setEnabled(false);
          if ( NULL != m_pItemsSelect[k*20+17] )
             m_pItemsSelect[k*20+17]->setEnabled(false);
+         if ( NULL != m_pItemsSelect[k*20+18] )
+            m_pItemsSelect[k*20+18]->setEnabled(false);
 
          if ( NULL != m_pItemsSlider[k*20+10] )
             m_pItemsSlider[k*20+10]->setEnabled(false);
@@ -428,6 +464,16 @@ void MenuSystemVideoProfiles::valuesToUI()
          m_pItemsSelect[k*20+17]->setSelectedIndex(1);
          m_pItemsSlider[k*20+17]->setCurrentValue(-keyframe_ms);
          m_pItemsSlider[k*20+17]->setEnabled(false);       
+      }
+
+      m_pItemsSelect[k*20+18]->setEnabled(true);
+      m_pItemsSelect[k*20+18]->setSelectedIndex((g_pCurrentModel->video_link_profiles[k].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?1:0);
+      if ( g_pCurrentModel->video_link_profiles[k].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME )
+      {
+         if ( NULL != m_pItemsSlider[k*20+12] )
+            m_pItemsSlider[k*20+12]->setEnabled(false);
+         if ( NULL != m_pItemsSlider[k*20+13] )
+            m_pItemsSlider[k*20+13]->setEnabled(false);
       }
 
       int miliSec = ( g_pCurrentModel->video_link_profiles[k].encoding_extra_flags & 0xFF00 ) >> 8;
@@ -520,6 +566,10 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       else
          profiles[k].keyframe_ms = -m_pItemsSlider[k*20+17]->getCurrentValue();
       
+      if ( 0 == m_pItemsSelect[k*20+18]->getSelectedIndex() )
+         profiles[k].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME);
+      else
+         profiles[k].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
       profiles[k].packet_length = m_pItemsSlider[k*20+11]->getCurrentValue();
       profiles[k].block_packets = m_pItemsSlider[k*20+12]->getCurrentValue();
       profiles[k].block_fecs    = m_pItemsSlider[k*20+13]->getCurrentValue();
@@ -556,13 +606,6 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
    log_line("Sending new video link profiles to vehicle.");
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES, 0, buffer, MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile)) )
       valuesToUI();
-}
-
-void MenuSystemVideoProfiles::onReturnFromChild(int returnValue)
-{
-   Menu::onReturnFromChild(returnValue);
-
-   m_iConfirmationId = 0;
 }
 
 
@@ -722,6 +765,8 @@ void MenuSystemVideoProfiles::onSelectItem()
          sendVideoLinkProfiles();
 
       if ( m_IndexVideoProfile_PacketLength[k] == m_SelectedIndex )
+         sendVideoLinkProfiles();
+      if ( m_IndexVideoProfile_AutoECScheme[k] == m_SelectedIndex )
          sendVideoLinkProfiles();
       if ( m_IndexVideoProfile_BlockPackets[k] == m_SelectedIndex )
          sendVideoLinkProfiles();

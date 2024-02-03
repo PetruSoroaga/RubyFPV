@@ -14,7 +14,6 @@ class MenuControllerRadioInterface: public Menu
       virtual void onShow(); 
       virtual void Render();
       virtual void valuesToUI();
-      virtual void onReturnFromChild(int returnValue);  
       virtual int onBack();
       virtual void onSelectItem();
 

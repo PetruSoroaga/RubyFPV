@@ -26,7 +26,6 @@ class MenuVehicleRCExpo: public Menu
       virtual void Render();
       virtual void onShow();
       virtual void onItemValueChanged(int itemIndex);
-      virtual void onReturnFromChild(int returnValue);  
       virtual void onSelectItem();
       virtual void valuesToUI();
             

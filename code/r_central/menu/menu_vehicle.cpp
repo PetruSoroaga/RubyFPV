@@ -1,14 +1,31 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "../osd/osd_common.h"
 #include "menu.h"
 #include "menu_vehicle.h"
@@ -57,8 +74,6 @@ MenuVehicle::~MenuVehicle()
 void MenuVehicle::onShow()
 {
    m_Height = 0.0;
-   m_ExtraItemsHeight = 0;
-   
    addTopDescription();
    removeAllItems();
 
@@ -66,8 +81,8 @@ void MenuVehicle::onShow()
       addMenuItem(new MenuItemText("You are connected in spectator mode. Can't change vehicle settings."));
 
    m_IndexGeneral = addMenuItem(new MenuItem("General","Change general settings like name, type of vehicle and so on."));
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
-      m_pMenuItems[m_IndexGeneral]->setEnabled(false);
+   //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   //   m_pMenuItems[m_IndexGeneral]->setEnabled(false);
 
    m_IndexRadio = addMenuItem(new MenuItem("Radio Configuration", "Change the radio configuration of this vehicle."));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
@@ -80,16 +95,22 @@ void MenuVehicle::onShow()
    m_IndexOSD = addMenuItem(new MenuItem("OSD / Instruments","Change OSD type, layout and settings."));
 
    m_IndexCamera = addMenuItem(new MenuItem("Camera","Change camera parameters: brightness, contrast, sharpness and so on."));
-   //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
-   //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
-   //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   //if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC) )
    //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
 
+   //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
+   //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
+   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+      m_pMenuItems[m_IndexCamera]->setEnabled(false);
+
    m_IndexVideo = addMenuItem(new MenuItem("Video","Change video resolution, fps so on."));
+   
+   //if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC) )
+   //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
    //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
    //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
-   //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
-   //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
+   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+      m_pMenuItems[m_IndexVideo]->setEnabled(false);
 
    m_IndexAudio = addMenuItem(new MenuItem("Audio","Change the audio settings"));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
@@ -169,26 +190,15 @@ void MenuVehicle::addTopDescription()
       addTopLine("No hardware alarms.");
    else
    {
+      addTopLine("Has hardware alarms:");
       if ( m_Flags & 0b1000 )
-      {
-         m_ExtraItemsHeight += MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         m_ExtraItemsHeight += g_pRenderEngine->getMessageHeight(s_szMenuVAlarmTemp, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-      }
+         addTopLine(s_szMenuVAlarmTemp);
       if ( m_Flags & 0b0100 )
-      {
-         m_ExtraItemsHeight += MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         m_ExtraItemsHeight += g_pRenderEngine->getMessageHeight(s_szMenuVAlarmThr, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-      }
+         addTopLine(s_szMenuVAlarmThr);
       if ( m_Flags & 0b0010 )
-      {
-         m_ExtraItemsHeight += MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         m_ExtraItemsHeight += g_pRenderEngine->getMessageHeight(s_szMenuVAlarmFreq, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-      }
+         addTopLine(s_szMenuVAlarmFreq);
       if ( m_Flags & 0b0001 )
-      {
-         m_ExtraItemsHeight += MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         m_ExtraItemsHeight += g_pRenderEngine->getMessageHeight(s_szMenuVAlarmVoltage, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-      }      
+         addTopLine(s_szMenuVAlarmVoltage);
    }
 }
 
@@ -202,40 +212,6 @@ void MenuVehicle::Render()
 
    float yTop = RenderFrameAndTitle();
    float y = yTop;
-
-   if ( m_Flags != 0xFFFF )
-   {
-      y -= MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-      if ( m_Flags & 0b1000 )
-      {
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         g_pRenderEngine->setColors(get_Color_MenuText());
-         y += g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX + m_fIconSize + 0.2*m_sfMenuPaddingX, y, s_szMenuVAlarmTemp, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-      }
-      if ( m_Flags & 0b0100 )
-      {
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         g_pRenderEngine->setColors(get_Color_MenuText());
-         y += g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX + m_fIconSize + 0.2*m_sfMenuPaddingX, y, s_szMenuVAlarmThr, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-      }
-      if ( m_Flags & 0b0010 )
-      {
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         g_pRenderEngine->setColors(get_Color_MenuText());
-         y += g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX + m_fIconSize + 0.2*m_sfMenuPaddingX, y, s_szMenuVAlarmFreq, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-      }
-      if ( m_Flags & 0b0001 )
-      {
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         g_pRenderEngine->setColors(get_Color_MenuText());
-         y += g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX + m_fIconSize + 0.2*m_sfMenuPaddingX, y, s_szMenuVAlarmVoltage, MENU_TEXTLINE_SPACING, getUsableWidth() - m_fIconSize, g_idFontMenu);
-         y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-      }      
-      y += 0.5 * MENU_TEXTLINE_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-   }
 
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
@@ -266,11 +242,6 @@ bool MenuVehicle::periodicLoop()
 }
 
 
-void MenuVehicle::onReturnFromChild(int returnValue)
-{
-   Menu::onReturnFromChild(returnValue);
-}
-
 void MenuVehicle::onSelectItem()
 {
    if ( NULL == g_pCurrentModel )
@@ -282,16 +253,18 @@ void MenuVehicle::onSelectItem()
       return;
    }
 
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   if ( g_pCurrentModel->is_spectator )
    {
-      if ( (m_IndexOSD != m_SelectedIndex) && ( m_IndexManagement != m_SelectedIndex) )
+      if ( (m_IndexOSD != m_SelectedIndex) && (m_IndexGeneral != m_SelectedIndex) )
       {
-      Popup* p = new Popup(true, "Vehicle Settings can not be changed on a spectator vehicle.", 5 );
-      p->setIconId(g_idIconError, get_Color_IconError());
-      popups_add_topmost(p);
-      valuesToUI();
-      return;
+         Popup* p = new Popup(true, "Vehicle Settings can not be changed on a spectator vehicle.", 5 );
+         p->setIconId(g_idIconError, get_Color_IconError());
+         popups_add_topmost(p);
+         valuesToUI();
+         return;
       }
+      if ( m_IndexGeneral == m_SelectedIndex )
+         add_menu_to_stack(new MenuVehicleGeneral());
       if ( m_IndexOSD == m_SelectedIndex )
          add_menu_to_stack(new MenuVehicleOSD());
       return;
@@ -442,8 +415,7 @@ void MenuVehicle::onSelectItem()
 
       if ( ! bCanUse )
       {
-         m_iConfirmationId = 10;
-         MenuConfirmation* pMC = new MenuConfirmation("No Suitable Hardware","You need at least two radio interfaces on the vehicle to be able to use the relay functionality.",m_iConfirmationId, true);
+         MenuConfirmation* pMC = new MenuConfirmation("No Suitable Hardware","You need at least two radio interfaces on the vehicle to be able to use the relay functionality.",10, true);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
          return;

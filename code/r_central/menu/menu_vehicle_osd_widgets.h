@@ -19,7 +19,6 @@ class MenuVehicleOSDWidgets: public Menu
       virtual void onMoveLeft(bool bIgnoreReversion);
       virtual void onMoveRight(bool bIgnoreReversion);
       
-      virtual void onReturnFromChild(int returnValue);
       virtual void onSelectItem();
             
       virtual int onBack();

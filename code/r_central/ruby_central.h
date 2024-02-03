@@ -38,6 +38,8 @@ void ruby_stop_recording();
 
 void ruby_load_models();
 
+int ruby_get_start_sequence_step();
+
 void ruby_signal_alive();
 
 void ruby_pause_watchdog();

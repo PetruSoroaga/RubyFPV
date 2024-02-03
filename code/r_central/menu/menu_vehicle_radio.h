@@ -11,9 +11,7 @@ class MenuVehicleRadioConfig: public Menu
       virtual ~MenuVehicleRadioConfig();
       virtual void Render();
       virtual void valuesToUI();
-      virtual int onBack();
       virtual void onSelectItem();
-      virtual void onReturnFromChild(int returnValue);
             
    private:
       MenuItemSelect* m_pItemsSelect[30];

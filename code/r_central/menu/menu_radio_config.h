@@ -18,8 +18,7 @@ class MenuRadioConfig: public Menu
       virtual void onItemValueChanged(int itemIndex);
       virtual void onItemEndEdit(int itemIndex);
       
-      virtual int  onBack();
-      virtual void onReturnFromChild(int returnValue);        
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);        
      
       virtual void onSelectItem();
 

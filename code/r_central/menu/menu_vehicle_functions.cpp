@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -214,13 +232,14 @@ void MenuVehicleFunctions::sendParams()
       valuesToUI();      
 }
 
-void MenuVehicleFunctions::onReturnFromChild(int returnValue)
+void MenuVehicleFunctions::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
 #ifdef FEATURE_ENABLE_RC_FREQ_SWITCH
 
-   if ( 1 == m_iConfirmationId && 1 == returnValue )
+   if ( MENU_ID_CHANNELS_SELECT == (iChildMenuId%1000) )
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
       type_functions_parameters params;
       memcpy(&params, &(g_pCurrentModel->functions_params), sizeof(type_functions_parameters));
@@ -236,7 +255,8 @@ void MenuVehicleFunctions::onReturnFromChild(int returnValue)
          valuesToUI();      
    }
 
-   if ( 2 == m_iConfirmationId && 1 == returnValue )
+   if ( MENU_ID_CHANNELS_SELECT == (iChildMenuId%1000) )
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) )
    {
       type_functions_parameters params;
       memcpy(&params, &(g_pCurrentModel->functions_params), sizeof(type_functions_parameters));
@@ -283,8 +303,7 @@ void MenuVehicleFunctions::onSelectItem()
       s_uChannelsSelect24Band = g_pCurrentModel->functions_params.uChannels24FreqSwitch[0];
       s_uChannelsSelect25Band = g_pCurrentModel->functions_params.uChannels25FreqSwitch[0];
       s_uChannelsSelect58Band = g_pCurrentModel->functions_params.uChannels58FreqSwitch[0];
-      m_iConfirmationId = 1;
-      add_menu_to_stack(new MenuChannelsSelect(uFrequencyBands));
+      add_menu_to_stack(new MenuChannelsSelect(uFrequencyBands,1));
       return;
    }
 
@@ -305,8 +324,7 @@ void MenuVehicleFunctions::onSelectItem()
       s_uChannelsSelect24Band = g_pCurrentModel->functions_params.uChannels24FreqSwitch[1];
       s_uChannelsSelect25Band = g_pCurrentModel->functions_params.uChannels25FreqSwitch[1];
       s_uChannelsSelect58Band = g_pCurrentModel->functions_params.uChannels58FreqSwitch[1];
-      m_iConfirmationId = 2;
-      add_menu_to_stack(new MenuChannelsSelect(uFrequencyBands));
+      add_menu_to_stack(new MenuChannelsSelect(uFrequencyBands,2));
       return;
    }
    

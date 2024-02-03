@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "base.h"
@@ -25,15 +43,14 @@ const char* commands_get_description(u8 command_type)
    {
       case COMMAND_ID_SET_VEHICLE_TYPE: strcpy(szCommandDesc, "Set_Vehicle_Type"); break;
       case COMMAND_ID_SET_RADIO_LINK_FREQUENCY: strcpy(szCommandDesc, "Set_Radio_Link_Frequency"); break;
-      case COMMAND_ID_SET_RADIO_LINK_CAPABILITIES: strcpy(szCommandDesc, "Set_Radio_Link_Capabilities"); break;
       case COMMAND_ID_SET_RADIO_LINK_FLAGS: strcpy(szCommandDesc, "Set_Radio_Link_Flags"); break;
-      case COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION: strcpy(szCommandDesc, "RadioLink_Flags_Changed_Confirmation"); break;
+      case COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION: strcpy(szCommandDesc, "RadioLink_Flags_Changed_Confirmation"); break;
       case COMMAND_ID_SET_RADIO_CARD_MODEL: strcpy(szCommandDesc, "Set_Radio_Card_Model"); break;
       case COMMAND_ID_SET_MODEL_FLAGS: strcpy(szCommandDesc, "Set_Model_Flags"); break;
-      case COMMAND_ID_SET_RADIO_LINK_DATARATES: strcpy(szCommandDesc, "Set_Radio_Link_Datarates"); break;
       case COMMAND_ID_SET_SIK_PACKET_SIZE: strcpy(szCommandDesc, "Set_SiK_Packet_Size"); break;
-       
+      case COMMAND_ID_RESET_RADIO_LINK: strcpy(szCommandDesc, "Reset_Radio_Link"); break; 
       case COMMAND_ID_GET_USB_INFO: strcpy(szCommandDesc, "Get_USB_Info"); break;
+      case COMMAND_ID_SET_RADIO_LINK_CAPABILITIES: strcpy(szCommandDesc, "Set_Radio_Link_Capabilities"); break;
       case COMMAND_ID_GET_USB_INFO2: strcpy(szCommandDesc, "Get_USB_Info2"); break;
       case COMMAND_ID_SET_CAMERA_PROFILE: strcpy(szCommandDesc, "Set_Camera_Profile"); break;
       case COMMAND_ID_SET_CAMERA_PARAMETERS: strcpy(szCommandDesc, "Set_Camera_Params"); break;
@@ -77,7 +94,6 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_GET_CPU_INFO: strcpy(szCommandDesc, "Get_CPU_Info"); break;
       case COMMAND_ID_SET_RC_CAMERA_PARAMS: strcpy(szCommandDesc, "Set_Camera_RC_Params"); break;
       case COMMAND_ID_ENABLE_LIVE_LOG: strcpy(szCommandDesc, "Enable_Live_Log"); break;
-      case COMMAND_ID_UPLOAD_SW_TO_VEHICLE: strcpy(szCommandDesc, "Upload_SW_To_Vehicle"); break;
       case COMMAND_ID_UPLOAD_SW_TO_VEHICLE63: strcpy(szCommandDesc, "Upload_SW_To_Vehicle_2"); break;
       case COMMAND_ID_UPLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Upload_File_Segment"); break;
       case COMMAND_ID_SET_RXTX_SYNC_TYPE: strcpy(szCommandDesc, "Set_RxTx_Sync_Type"); break;

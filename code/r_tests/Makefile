@@ -1,11 +1,11 @@
 CPPFLAGS+= -O2 -I../openvg -I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/usr/include/freetype2
-LDFLAGS+= -lfreetype -lz -lpthread -lpcap -lwiringPi -lpng -ljpeg -lz -li2c
+LDFLAGS+= -lfreetype -lz -lpthread -lpcap -lwiringPi -lpng -ljpeg -lz -li2c -lsodium
 LDFLAGS+= -L/usr/lib/arm-linux-gnueabihf -L../openvg -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm
 CFLAGS := $(CFLAGS) 
 RELEASE_DIR = ../../
 
 
-all: test_port_rx test_udp_server test_udp_client test_serial_link test_audio test_keyboard
+all: test_port_rx test_port_rx_wfb test_log
 
 base.o: ../base/base.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -20,6 +20,9 @@ config.o: ../base/config.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
 encr.o: ../base/encr.c
+	gcc -c -o $@ $< $(CPPFLAGS)
+
+enc.o: ../base/enc.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
 gpio.o: ../base/gpio.c
@@ -88,6 +91,9 @@ commands.o: ../base/commands.cpp
 fec.o: ../radio/fec.c
 	gcc -c -o $@ $< $(CPPFLAGS)  
 
+zfec.o: ../radio/zfec.c
+	gcc -c -o $@ $< $(CPPFLAGS)  
+
 radiotap.o: ../radio/radiotap.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
@@ -95,6 +101,9 @@ radiopackets2.o: ../radio/radiopackets2.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
 radiopackets_short.o: ../radio/radiopackets_short.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
+radiopackets_wfbohd.o: ../radio/radiopackets_wfbohd.c
 	gcc -c -o $@ $< $(CPPFLAGS) 
 
 radiolink.o: ../radio/radiolink.c
@@ -106,10 +115,14 @@ radio_rx.o: ../radio/radio_rx.c
 radio_tx.o: ../radio/radio_tx.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
+core_plugins_utils.o: ../public/utils/core_plugins_utils.c
+	gcc -c -o $@ $< $(CPPFLAGS) 
+
+
 radio_duplicate_det.o: ../radio/radio_duplicate_det.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-test_audio: test_audio.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
+test_audio: test_audio.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o enc.o zfec.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_audio $(RELEASE_DIR) 
 
@@ -120,9 +133,13 @@ test_link_speed: test_link_speed.o shared_mem.o base.o config.o radiotap.o radio
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_link_speed $(RELEASE_DIR) 
 
-test_port_rx: test_port_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
+test_port_rx: test_port_rx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o zfec.o enc.o radiopackets_wfbohd.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_port_rx $(RELEASE_DIR) 
+
+test_port_rx_wfb: test_port_rx_wfb.o shared_mem.o base.o enc.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o zfec.o radiopackets_wfbohd.o
+	g++ -o $@ $^ $(LDFLAGS)  
+	cp -f test_port_rx_wfb $(RELEASE_DIR) 
 
 test_port_tx: test_port_tx.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o hardware_serial.o radio_rx.o radio_tx.o radio_duplicate_det.o
 	g++ -o $@ $^ $(LDFLAGS)  
@@ -132,7 +149,7 @@ test_video_rx: test_video_rx.o shared_mem.o base.o config.o radiotap.o radiolink
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_video_rx $(RELEASE_DIR) 
 
-test_log: test_log.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
+test_log: test_log.o core_plugins_utils.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
 	g++ -o $@ $^ $(LDFLAGS)  
 
 test_camera: test_camera.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o
@@ -183,9 +200,9 @@ test_keyboard: test_keyboard.o shared_mem.o base.o config.o radiotap.o radiolink
 	g++ -o $@ $^ $(LDFLAGS)   
 	cp -f test_keyboard $(RELEASE_DIR) 
 
-test_serial_link: test_serial_link.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o  utils.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o
+test_serial_link: test_serial_link.o shared_mem.o base.o config.o radiotap.o radiolink.o hardware.o models.o models_list.o gpio.o commands.o radio_utils.o hw_procs.o radiopackets2.o utils.o encr.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o hardware_i2c.o hardware_serial.o hardware_radio_sik.o  utils.o encr.o alarms.o ruby_ipc.o hardware_radio.o string_utils.o radio_stats.o radiopackets_short.o radio_rx.o radio_tx.o radio_duplicate_det.o ctrl_preferences.o enc.o zfec.o
 	g++ -o $@ $^ $(LDFLAGS)  
 	cp -f test_serial_link $(RELEASE_DIR) 
 
 clean:
-	rm -f test_keyboard test_audio test_wiringpi_spi test_serial_link test_link_speed test_udp_client test_udp_server test_ruby_vehicle_ping test_port_rx test_port_tx test_log test_camera test_video_rx test_joystick test_i2c test_socket_in test_socket_out test_serial_read test_ui test_fec *.o
+	rm -f test_keyboard test_audio test_wiringpi_spi test_serial_link test_port_rx_wfb test_link_speed test_udp_client test_udp_server test_ruby_vehicle_ping test_port_rx test_port_tx test_log test_camera test_video_rx test_joystick test_i2c test_socket_in test_socket_out test_serial_read test_ui test_fec *.o

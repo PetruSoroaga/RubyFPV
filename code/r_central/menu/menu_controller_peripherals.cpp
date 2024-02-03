@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -88,10 +106,10 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
       sprintf( szBuff, "%s Usage", pInfo->szName );
       m_pItemsSelect[10+i*2] = new MenuItemSelect(szBuff, "Enables this serial port on the controller for a particular use.");
       
-      if ( uUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       {
          m_pItemsSelect[10+i*2]->addSelection("None");
-         m_pItemsSelect[10+i*2]->addSelection("Radio Interface");
+         m_pItemsSelect[10+i*2]->addSelection("SiK Radio Interface");
       }
       else
       {
@@ -136,13 +154,11 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
 
    addMenuItem(new MenuItemSection("Input Devices / Joysticks"));
 
-   m_ExtraItemsHeight = (1+MENU_TEXTLINE_SPACING) * g_pRenderEngine->textHeight(g_idFontMenu);
-
    controllerInterfacesEnumJoysticks();
 
    log_line("Input devices: %d", pCI->inputInterfacesCount);
    if ( 0 == pCI->inputInterfacesCount )
-      addMenuItem( new MenuItemLegend("No joysticks, gamepads or RC transmitters detected.","", 0) );
+      addMenuItem( new MenuItemLegend("Info","No joysticks, gamepads or RC transmitters detected.", 0) );
    else
    {
       int nCountAdded = 0;
@@ -156,10 +172,10 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
          m_pMenuItems[m_IndexJoysticks[i]]->showArrow();
 
          if ( ! pCII->bCalibrated )
-            m_ExtraItemsHeight += 1.4*g_pRenderEngine->getMessageHeight(s_szMenuJoystickNotCalibrated, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+            m_pMenuItems[m_IndexJoysticks[i]]->setExtraHeight(1.4*g_pRenderEngine->getMessageHeight(s_szMenuJoystickNotCalibrated, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu));
       }
       if ( 0 == nCountAdded )
-         addMenuItem( new MenuItemLegend("No joysticks, gamepads or RC transmitters detected.","", 0) );
+         addMenuItem( new MenuItemLegend("Info", "No joysticks, gamepads or RC transmitters detected.", 0) );
    }
 
    addMenuItem(new MenuItemSection("I2C Devices"));
@@ -193,7 +209,7 @@ void MenuControllerPeripherals::valuesToUI()
       if ( NULL == pInfo )
          continue;
 
-      if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO )
+      if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       {
          m_pItemsSelect[10+i*2]->setSelectedIndex(1);
          m_pItemsSelect[10+i*2]->setEnabled(false);
@@ -236,7 +252,7 @@ void MenuControllerPeripherals::valuesToUI()
       bool bFoundSpeed = false;
       for(int n=0; n<m_pItemsSelect[11+i*2]->getSelectionsCount(); n++ )
       {
-         if ( (pInfo->iPortUsage == SERIAL_PORT_USAGE_HARDWARE_RADIO) && (hardware_get_serial_baud_rates()[n] < 57000) )
+         if ( (pInfo->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO) && (hardware_get_serial_baud_rates()[n] < 57000) )
             m_pItemsSelect[11+i*2]->setSelectionIndexDisabled(n);
          else
             m_pItemsSelect[11+i*2]->setSelectionIndexEnabled(n);
@@ -279,10 +295,9 @@ bool MenuControllerPeripherals::periodicLoop()
 
          if ( (NULL != pPortInfo) && (! pPortInfo->iSupported) )
          {
-           m_iConfirmationId = 1;
            char szError[1024];
            sprintf(szError, "Your USB to Serial adapter on port %s is not compatible. Use brand name adapters or ones with CP2102 chipset. The ones with 340 chipset are not compatible.", pPortInfo->szName);
-           MenuConfirmation* pMC = new MenuConfirmation("Unsupported USB to Serial Adapter", szError, m_iConfirmationId, true);
+           MenuConfirmation* pMC = new MenuConfirmation("Unsupported USB to Serial Adapter", szError, 1, true);
            pMC->m_yPos = 0.3;
            add_menu_to_stack(pMC);
            m_bShownUSBWarning = true;
@@ -389,11 +404,6 @@ void MenuControllerPeripherals::Render()
    }
 
    RenderEnd(yTop);
-}
-
-void MenuControllerPeripherals::onReturnFromChild(int returnValue)
-{
-   Menu::onReturnFromChild(returnValue);
 }
 
 void MenuControllerPeripherals::onSelectItem()

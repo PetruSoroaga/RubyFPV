@@ -1,12 +1,30 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "menu.h"
@@ -22,6 +40,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "menu_storage.h"
 #include "menu_system.h"
 #include "menu_radio_config.h"
+#include "menu_item_text.h"
 
 #include "osd_common.h"
 #include "../launchers_controller.h"
@@ -36,26 +55,33 @@ static int sCounterRefresh_RootMenu = 0;
 MenuRoot::MenuRoot(void)
 :Menu(MENU_ID_ROOT, SYSTEM_NAME, NULL)
 {
-   m_Width = 0.16;
+   m_Width = 0.164;
    m_xPos = menu_get_XStartPos(m_Width);
    m_yPos = 0.36;
-   m_bFullWidthSelection = true;
+   //m_bFullWidthSelection = true;
 
    addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
    addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
    addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
    addMenuItem(new MenuItem("Search", "Search for vehicles."));
-   addSeparator();
+   //addSeparator();
 
    addMenuItem(new MenuItem("Radio Configuration", "Change the current radio configuration and radio settings."));
    addMenuItem(new MenuItem("Controller Settings", "Change controller settings and user interface preferences."));
-   addSeparator();
+   //addSeparator();
 
    addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
    addMenuItem(new MenuItem("System", "Configure system options, shows detailed information about the system"));
 
-   m_ExtraItemsHeight = 1.8*g_pRenderEngine->textHeight(g_idFontMenuSmall);
-   hasChanged = true;
+   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(Menu::getSelectionPaddingY());
+   char szBuff[256];
+   char szBuff2[64];
+   getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
+   sprintf(szBuff, "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
+
+   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
+   sprintf(szBuff, "Running on: %s", str_get_hardware_board_name_short(hardware_getBoardType()));
+   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
 }
 
 MenuRoot::~MenuRoot()
@@ -68,7 +94,6 @@ void MenuRoot::onShow()
    int iPrevSelectedItem = m_SelectedIndex;
    log_line("Entering root menu...");
    load_Preferences();
-   m_Height = 0.0;
    sCounterRefresh_RootMenu = 0;
    Menu::onShow();
    if ( iPrevSelectedItem > 0 )
@@ -83,7 +108,7 @@ void MenuRoot::RenderVehicleInfo()
    Preferences* pP = get_Preferences();
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float iconHeight = 4.0*height_text;
+   float iconHeight = 3.0*height_text;
    float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
 
    float xPos = m_RenderXPos;
@@ -148,9 +173,9 @@ void MenuRoot::RenderVehicleInfo()
       if ( bConnected )
       {
       strcpy(szRunType, "runs");
-      if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-         g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-         g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+      if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
          strcpy(szRunType, "flights");
    
       //sprintf(szLine3, "Total %s: %d", szRunType, g_pCurrentModel->stats_TotalFlights);
@@ -162,9 +187,9 @@ void MenuRoot::RenderVehicleInfo()
       int hours = (g_pCurrentModel->m_Stats.uTotalFlightTime/3600);
 
       strcpy(szRunType, "run time");
-      if ( g_pCurrentModel->vehicle_type == MODEL_TYPE_DRONE ||
-         g_pCurrentModel->vehicle_type == MODEL_TYPE_AIRPLANE ||
-         g_pCurrentModel->vehicle_type == MODEL_TYPE_HELI )
+      if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
          strcpy(szRunType, "flight time");
       sprintf(szLine4, "Total %s: %dh:%02dm:%02ds", szRunType, hours, min, sec);
       hText4 = g_pRenderEngine->getMessageHeight(szLine4, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
@@ -184,7 +209,7 @@ void MenuRoot::RenderVehicleInfo()
 
    height += 2.0*height_text;
 
-   yPos -= height + 0.02*m_sfMenuPaddingY;
+   yPos -= height + 0.5*m_sfMenuPaddingY;
 
    g_pRenderEngine->setColors(get_Color_MenuBg(), 0.9);
    g_pRenderEngine->setStroke(get_Color_MenuBorder());
@@ -211,7 +236,7 @@ void MenuRoot::RenderVehicleInfo()
 
          g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
          g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
-         g_pRenderEngine->drawIcon(xPos+width - iconWidth -2.2*m_sfMenuPaddingX , yPos+iconHeight*0.05, iconWidth, iconHeight, idIcon);
+         g_pRenderEngine->drawIcon(xPos+width - iconWidth -2.2*m_sfMenuPaddingX , yPos+height - iconHeight - 2.0*Menu::getMenuPaddingY(), iconWidth, iconHeight, idIcon);
       }
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
@@ -246,9 +271,13 @@ void MenuRoot::Render()
 
    sCounterRefresh_RootMenu++;
 
+   m_RenderHeight -= 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+
    float yTop = RenderFrameAndTitle();
    float y = yTop;
 
+   m_RenderHeight += 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+   
    RenderVehicleInfo();
 
    bool bTmp1 = m_bEnableScrolling;
@@ -256,28 +285,13 @@ void MenuRoot::Render()
    m_bEnableScrolling = false;
    m_bHasScrolling = false;
 
-   RenderItem(0, m_RenderYPos - 0.02*m_sfMenuPaddingY - g_pRenderEngine->textHeight(g_idFontMenu) - m_sfMenuPaddingY);
+   RenderItem(0, m_RenderYPos - 0.02*m_sfMenuPaddingY - g_pRenderEngine->textHeight(g_idFontMenu) - 1.5*m_sfMenuPaddingY);
 
    m_bEnableScrolling = bTmp1;
    m_bHasScrolling = bTmp2;
 
    for( int i=1; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
-
-   char szBuff[256];
-   char szBuff2[64];
-   getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-
-   sprintf(szBuff, "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
-
-   y += 0.7 * m_sfMenuPaddingY;
-   y += g_pRenderEngine->drawMessageLines(m_RenderXPos+m_sfMenuPaddingX, y, szBuff, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
-   y += 0.1 * m_sfMenuPaddingY;
-
-   sprintf(szBuff, "Running on: %s", str_get_hardware_board_name_short(hardware_getBoardType()));
-
-   y += g_pRenderEngine->drawMessageLines(m_RenderXPos + m_sfMenuPaddingX, y, szBuff, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
-   y += 0.3 * m_sfMenuPaddingY;
 
    RenderEnd(yTop);
 }
@@ -440,7 +454,7 @@ void MenuRoot::onSelectItem()
       if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
         (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
       {
-         addMessage2("Not paired with any vehicle.", "Search for vehicles to find one and connect to.");
+         addMessage2(0, "Not paired with any vehicle.", "Search for vehicles to find one and connect to.");
          return;
       }
       add_menu_to_stack(new MenuVehicle());
@@ -468,4 +482,3 @@ void MenuRoot::onSelectItem()
    if ( 7 == m_SelectedIndex )
       show_MenuInfo();
 }
-

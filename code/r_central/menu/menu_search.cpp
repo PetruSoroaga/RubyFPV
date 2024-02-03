@@ -1,20 +1,38 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
-*/
+    MIT Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "menu_search.h"
 #include "menu.h"
 #include "../../common/models_connect_frequencies.h"
 
 #include "menu_item_text.h"
 #include "menu_search_connect.h"
+#include "menu_confirmation_import_key.h"
 #include "../process_router_messages.h"
 #include "../../base/utils.h"
 #include "../link_watch.h"
@@ -27,17 +45,50 @@ MenuSearch::MenuSearch(void)
    m_Width = 0.30;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
    m_SpectatorOnlyMode = false;
+   search_finished_with_no_results = false;
+   m_nSkippedCount = 0;
+
+   addExtraHeightAtEnd(3.0*g_pRenderEngine->textHeight(g_idFontMenu));
+
    addTopLine("Make sure your vehicle is powered on when you start searching.");
    addTopLine("Note: Long press on [Cancel] key or choose 'Stop Search' to cancel a search in progress.");
    addTopLine("");
+
+   log_line("MenuSearch: On open, this is the current radio interfaces configuration:");
+   hardware_load_radio_info();
+   controllerRadioInterfacesLogInfo();
+
+   m_bIsSearchingManual = false;
+   m_bIsSearchingAuto = false;
+   m_bIsSearchingSiK = false;
+   m_bIsSearchPaused = false;
+   m_bMustSwitchBack = false;
+   m_bDidConnectToAVehicle = false;
+
+
+   m_pModelOriginal = g_pCurrentModel;
+
+   if ( NULL != g_pCurrentModel )
+      log_line("Search open: has a current model: VID %u, name: [%s]", g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName());
+   else
+      log_line("Search open: does not have a current model.");
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+      radio_hw_info_t* pRadioInterface = hardware_get_radio_info(i);
+      if ( NULL == pRadioInterface )
+         continue;
+      m_FrequencyOriginal[i] = pRadioInterface->uCurrentFrequencyKhz;
+   }
 
    m_pPopupSearch = NULL;
 
    m_SupportedBands = 0;
    m_iCountSupportedBands = 0;
+   m_iSearchModelTypes = 0;
 
    m_bHasSiKRadio = false;
-   u32 uSiKBands = 0;
+   m_uSiKBands = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
@@ -55,7 +106,7 @@ MenuSearch::MenuSearch(void)
       if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
       {
          m_bHasSiKRadio = true;
-         uSiKBands |= pRadioHWInfo->supportedBands;
+         m_uSiKBands |= pRadioHWInfo->supportedBands;
       }
 
       if ( controllerIsCardTXOnly(pRadioHWInfo->szMAC) )
@@ -69,155 +120,15 @@ MenuSearch::MenuSearch(void)
    if ( m_bHasSiKRadio )
     m_Width = 0.38;
    
-   for( int i=0; i<10; i++ )
-      m_pItemsSelect[i] = 0;
-
-   m_IndexSiKInfo = -1;
-   m_IndexSiKAirRate = -1;
-   m_IndexSiKECC = -1;
-   m_IndexSiKLBT = -1;
-   m_IndexSiKMCSTR = -1;
-
-   m_IndexBand = 0;
-   m_IndexStartSearch = 1;
-   m_IndexManualSearch = 2;
-
-   log_line("MenuSearch: Has SiK radios? %s", m_bHasSiKRadio?"yes":"no");
-
-   m_pItemSelectBand = new MenuItemSelect("Band:", "Change the frequency bands to search on.");
-   
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_433 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_433;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("433 Mhz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_868 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_868;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("868 Mhz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_915 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_915;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("915 Mhz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_23 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_23;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("2.3 Ghz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_24 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_24;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("2.4 Ghz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_25 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_25;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("2.5 Ghz");
-   }
-   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_58 )
-   {
-      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_58;
-      m_iCountSupportedBands++;
-      m_pItemSelectBand->addSelection("5.8 Ghz");
-   }
-
-   for( int i=0; i<m_iCountSupportedBands; i++ )
-      log_line("MenuSearch() Supported search bands (%d of %d): %s", i+1, m_iCountSupportedBands, str_getBandName(m_SupportedBandsList[i]));
-   m_pItemSelectBand->setIsEditable();
-   addMenuItem(m_pItemSelectBand);
-   addMenuItem(new MenuItem("Start Search", "Start/Stop searching for vehicles on current band."));
-
-   log_line("MenuSearch: On open, this is the current radio interfaces configuration:");
-   hardware_load_radio_info();
-
-   controllerRadioInterfacesLogInfo();
-
-   m_bIsSearchingManual = false;
-   m_bIsSearchingAuto = false;
-   m_bIsSearchingSiK = false;
-   m_bIsSearchPaused = false;
-   m_bMustSwitchBack = false;
-   m_bDidConnectToAVehicle = false;
-
-   m_pModelOriginal = g_pCurrentModel;
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      radio_hw_info_t* pRadioInterface = hardware_get_radio_info(i);
-      if ( NULL == pRadioInterface )
-         continue;
-      m_FrequencyOriginal[i] = pRadioInterface->uCurrentFrequencyKhz;
-   }
-
-   _populate_search_frequencies();
-
-   if ( m_bHasSiKRadio )
-   {
-      float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-  
-      char szBuff[256];
-      char szBands[128];
-      str_get_supported_bands_string(uSiKBands, szBands);
-      sprintf(szBuff, "SiK parameters (for searching on %s)", szBands);
-      
-      MenuItemText* pItem = new MenuItemText(szBuff);
-      pItem->setMargin(0.0);
-      m_IndexSiKInfo = addMenuItem(pItem);
-
-      m_pItemsSelect[2] = new MenuItemSelect("SiK Radio Data Rate", "Sets the physical radio air data rate to use while searching.");
-      
-      sprintf(szBuff, "Default (%d kbps)", DEFAULT_RADIO_DATARATE_SIK_AIR/1000);
-      m_pItemsSelect[2]->addSelection(szBuff);
-
-      for( int i=0; i<getSiKAirDataRatesCount(); i++ )
-      {
-         sprintf(szBuff, "%d kbps", (getSiKAirDataRates()[i])/1000);
-         m_pItemsSelect[2]->addSelection(szBuff);
-      }
-      
-      m_pItemsSelect[2]->setIsEditable();
-      m_pItemsSelect[2]->setMargin(height_text);
-      m_IndexSiKAirRate = addMenuItem(m_pItemsSelect[2]);
-
-
-      m_pItemsSelect[3] = new MenuItemSelect("SiK Error Correction", "Enables hardware error correction flag while searching.");
-      m_pItemsSelect[3]->addSelection("No (Default)");
-      m_pItemsSelect[3]->addSelection("Yes");
-      m_pItemsSelect[3]->setIsEditable();
-      m_pItemsSelect[3]->setMargin(height_text);
-      m_IndexSiKECC = addMenuItem(m_pItemsSelect[3]);
-
-      m_pItemsSelect[4] = new MenuItemSelect("SiK Listen Before Talk", "Enables listen before talk flag while searching.");
-      m_pItemsSelect[4]->addSelection("No (Default)");
-      m_pItemsSelect[4]->addSelection("Yes");
-      m_pItemsSelect[4]->setIsEditable();
-      m_pItemsSelect[4]->setMargin(height_text);
-      m_IndexSiKLBT = addMenuItem(m_pItemsSelect[4]);
-
-      m_pItemsSelect[5] = new MenuItemSelect("SiK Enable Manchester Encoding", "Enables Manchester type of encoding flag while searching.");
-      m_pItemsSelect[5]->addSelection("No (Default)");
-      m_pItemsSelect[5]->addSelection("Yes");
-      m_pItemsSelect[5]->setIsEditable();
-      m_pItemsSelect[5]->setMargin(height_text);
-      m_IndexSiKMCSTR = addMenuItem(m_pItemsSelect[5]);
-   }
-
-   search_finished_with_no_results = false;
-   m_nSkippedCount = 0;
-
-   m_ExtraItemsHeight = 3.2*g_pRenderEngine->textHeight(g_idFontMenu);
-   computeRenderSizes();
+   _add_menu_items();
 }
 
 void MenuSearch::valuesToUI()
 {
+   log_line("MenuSearch: updating UI values...");
+
+   m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
+
    if ( m_bHasSiKRadio )
    {
       ControllerSettings* pCS = get_ControllerSettings();
@@ -253,10 +164,28 @@ void MenuSearch::valuesToUI()
          if ( pCS->iSearchSiKMCSTR )
             m_pItemsSelect[5]->setSelectedIndex(1);
       }
+
+      if ( 0 != m_iSearchModelTypes )
+      {
+         enableMenuItem(m_IndexSiKInfo, false);
+         enableMenuItem(m_IndexSiKAirRate, false);
+         enableMenuItem(m_IndexSiKECC, false);
+         enableMenuItem(m_IndexSiKLBT, false);
+         enableMenuItem(m_IndexSiKMCSTR, false);
+      }
+      else
+      {
+         enableMenuItem(m_IndexSiKInfo, true);
+         enableMenuItem(m_IndexSiKAirRate, true);
+         enableMenuItem(m_IndexSiKECC, true);
+         enableMenuItem(m_IndexSiKLBT, true);
+         enableMenuItem(m_IndexSiKMCSTR, true);
+      }
    }
+   log_line("MenuSearch: updated UI values.");
 }
 
-void MenuSearch::_populate_search_frequencies()
+int MenuSearch::_populate_search_frequencies()
 {
    int selectedIndex = 0;
    char szBuff[32];
@@ -391,11 +320,160 @@ void MenuSearch::_populate_search_frequencies()
       }
       m_pItemsSelectFreq->addSeparator();
    }
+   if ( 0 == m_NumChannels )
+      m_pItemsSelectFreq->addSelection("No supported frequencies");
    m_pItemsSelectFreq->setSelection(selectedIndex);
    m_pItemsSelectFreq->setIsEditable();
 
-   addMenuItem(m_pItemsSelectFreq);
+   return addMenuItem(m_pItemsSelectFreq);
 }
+
+
+void MenuSearch::_add_menu_items()
+{
+   int iTmp = m_SelectedIndex;
+
+   removeAllItems();
+
+   for( int i=0; i<10; i++ )
+      m_pItemsSelect[i] = 0;
+
+   m_IndexImportKey = -1;
+   m_IndexSiKInfo = -1;
+   m_IndexSiKAirRate = -1;
+   m_IndexSiKECC = -1;
+   m_IndexSiKLBT = -1;
+   m_IndexSiKMCSTR = -1;
+
+   log_line("MenuSearch: Has SiK radios? %s", m_bHasSiKRadio?"yes":"no");
+
+   m_iCountSupportedBands = 0;
+   m_pItemSelectBand = new MenuItemSelect("Band:", "Change the frequency bands to search on.");
+   
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_433 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_433;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("433 Mhz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_868 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_868;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("868 Mhz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_915 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_915;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("915 Mhz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_23 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_23;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("2.3 Ghz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_24 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_24;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("2.4 Ghz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_25 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_25;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("2.5 Ghz");
+   }
+   if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_58 )
+   {
+      m_SupportedBandsList[m_iCountSupportedBands] = RADIO_HW_SUPPORTED_BAND_58;
+      m_iCountSupportedBands++;
+      m_pItemSelectBand->addSelection("5.8 Ghz");
+   }
+
+   for( int i=0; i<m_iCountSupportedBands; i++ )
+      log_line("MenuSearch() Supported search bands (%d of %d): %s", i+1, m_iCountSupportedBands, str_getBandName(m_SupportedBandsList[i]));
+   
+   if ( 0 == m_iCountSupportedBands )
+      m_pItemSelectBand->addSelection("No bands supported.");
+   m_pItemSelectBand->setIsEditable();
+
+   m_IndexBand = addMenuItem(m_pItemSelectBand);
+
+   m_pItemsSelect[0] = new MenuItemSelect("Vehicle Types", "Select what type of vehicles to search for, based on vehicle firmware to look for. You can search for a particular type of firmware: Ruby, OpenIPC.");
+   m_pItemsSelect[0]->addSelection("Ruby");
+   m_pItemsSelect[0]->addSelection("OpenIPC");
+   m_pItemsSelect[0]->setIsEditable();
+   m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
+   m_IndexModelTypes = addMenuItem(m_pItemsSelect[0]);
+
+   if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
+      m_IndexImportKey = addMenuItem(new MenuItem("Import OpenIPC key", "Imports a custom OpenIPC encryption key from a USB memory stick."));
+   else
+      m_IndexImportKey = -1;
+
+   m_IndexStartSearch = addMenuItem(new MenuItem("Start Search", "Start/Stop searching for vehicles on current band."));
+   m_IndexManualSearch = _populate_search_frequencies();
+
+   if ( m_bHasSiKRadio )
+   {
+      float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+  
+      char szBuff[256];
+      char szBands[128];
+      str_get_supported_bands_string(m_uSiKBands, szBands);
+      sprintf(szBuff, "SiK parameters (for searching on %s)", szBands);
+      
+      MenuItemText* pItem = new MenuItemText(szBuff);
+      pItem->setMargin(0.0);
+      m_IndexSiKInfo = addMenuItem(pItem);
+
+      m_pItemsSelect[2] = new MenuItemSelect("SiK Radio Data Rate", "Sets the physical radio air data rate to use while searching.");
+      
+      sprintf(szBuff, "Default (%d kbps)", DEFAULT_RADIO_DATARATE_SIK_AIR/1000);
+      m_pItemsSelect[2]->addSelection(szBuff);
+
+      for( int i=0; i<getSiKAirDataRatesCount(); i++ )
+      {
+         sprintf(szBuff, "%d kbps", (getSiKAirDataRates()[i])/1000);
+         m_pItemsSelect[2]->addSelection(szBuff);
+      }
+      
+      m_pItemsSelect[2]->setIsEditable();
+      m_pItemsSelect[2]->setMargin(height_text);
+      m_IndexSiKAirRate = addMenuItem(m_pItemsSelect[2]);
+
+
+      m_pItemsSelect[3] = new MenuItemSelect("SiK Error Correction", "Enables hardware error correction flag while searching.");
+      m_pItemsSelect[3]->addSelection("No (Default)");
+      m_pItemsSelect[3]->addSelection("Yes");
+      m_pItemsSelect[3]->setIsEditable();
+      m_pItemsSelect[3]->setMargin(height_text);
+      m_IndexSiKECC = addMenuItem(m_pItemsSelect[3]);
+
+      m_pItemsSelect[4] = new MenuItemSelect("SiK Listen Before Talk", "Enables listen before talk flag while searching.");
+      m_pItemsSelect[4]->addSelection("No (Default)");
+      m_pItemsSelect[4]->addSelection("Yes");
+      m_pItemsSelect[4]->setIsEditable();
+      m_pItemsSelect[4]->setMargin(height_text);
+      m_IndexSiKLBT = addMenuItem(m_pItemsSelect[4]);
+
+      m_pItemsSelect[5] = new MenuItemSelect("SiK Enable Manchester Encoding", "Enables Manchester type of encoding flag while searching.");
+      m_pItemsSelect[5]->addSelection("No (Default)");
+      m_pItemsSelect[5]->addSelection("Yes");
+      m_pItemsSelect[5]->setIsEditable();
+      m_pItemsSelect[5]->setMargin(height_text);
+      m_IndexSiKMCSTR = addMenuItem(m_pItemsSelect[5]);
+   }
+
+   m_SelectedIndex = iTmp;
+   computeRenderSizes();
+
+   log_line("MenuSearch: Added items.");
+}
+
 
 void MenuSearch::setSpectatorOnly()
 {
@@ -606,11 +684,12 @@ void MenuSearch::startSearch()
 
    render_all(get_current_timestamp_ms(), true);
    pairing_stop();
-   render_all(get_current_timestamp_ms(), true);
 
    if ( ! m_bDidConnectToAVehicle )
       m_bMustSwitchBack = true;
    
+   m_pItemsSelect[0]->setEnabled(false);
+
    if ( m_bHasSiKRadio )
    {
       enableMenuItem(m_IndexSiKInfo, false);
@@ -626,6 +705,8 @@ void MenuSearch::startSearch()
    handle_commands_abandon_command();
    reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
    
+   render_all(get_current_timestamp_ms(), true);
+
    m_CurrentSearchFrequencyKhz = 0;
    m_bIsSearchingManual = false;
    m_bIsSearchingAuto = true;
@@ -664,6 +745,7 @@ void MenuSearch::stopSearch()
 
    reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
 
+   m_pItemsSelect[0]->setEnabled(true);
    if ( m_bHasSiKRadio )
    {
       enableMenuItem(m_IndexSiKInfo, true);
@@ -689,16 +771,12 @@ void MenuSearch::Render()
    float y0 = yTop;
    float y = y0;
    for( int i=0; i<m_ItemsCount; i++ )
-   {
       y += RenderItem(i,y);
-      if ( y == m_IndexManualSearch )
-         y += height_text*0.3;
-   }
+
    y += height_text*0.4;
 
    char szBuff[200];
-   float width_text = 0;
-
+   
    if ( search_finished_with_no_results && (! g_bSearchFoundVehicle) )
    {
        g_pRenderEngine->setColors(get_Color_MenuText());
@@ -719,14 +797,18 @@ void MenuSearch::Render()
 
    if ( (! m_bIsSearchingManual) && (! m_bIsSearchingAuto) && (!g_bSearchFoundVehicle) )
    {
+      if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
+      {
+         strcpy(szBuff, "Note: Searching OpenIPC firmware vehicles takes longer due to how radio link protocol works on them.");
+         g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y, szBuff, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
+         y += height_text *(1.0+MENU_ITEM_SPACING);
+      }
       RenderEnd(yTop);
       return;
    }
 
    if ( m_bIsSearchingManual || m_bIsSearchingAuto )
       onSearchStep();
-
-   float x = m_xPos + m_sfMenuPaddingX;
        
    g_pRenderEngine->setColors(get_Color_MenuText());
 
@@ -858,7 +940,7 @@ void MenuSearch::onSearchStep()
              pairing_start_search_sik_mode(m_CurrentSearchFrequencyKhz, iAirDataRate, iECC, iLBT, iMCSTR);
          }  
          else
-            pairing_start_search_mode(m_CurrentSearchFrequencyKhz);
+            pairing_start_search_mode(m_CurrentSearchFrequencyKhz, m_iSearchModelTypes);
 
          hardware_sleep_ms(delayMs);
       }
@@ -892,6 +974,8 @@ void MenuSearch::onSearchStep()
          uWaitTimeMs = 1500;
          log_line("MenuSearch::onSearchStep() Searching on 433/868/915 Mhz band and we have Sik radios. Increase search time to %u ms", uWaitTimeMs);
       }
+      if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
+         uWaitTimeMs = 4000;
 
       if ( g_TimeNow > g_RouterIsReadyTimestamp + uWaitTimeMs )
       {
@@ -942,7 +1026,6 @@ void MenuSearch::onSearchStep()
              szFreq1, szFreq2, szFreq3 );
          m_bIsSearchPaused = true;
          g_bSearchFoundVehicle = true;
-         m_iConfirmationId = 1;
          invalidate();
          setTooltip("");
          if ( NULL != m_pPopupSearch )
@@ -951,6 +1034,7 @@ void MenuSearch::onSearchStep()
             m_pPopupSearch = NULL;
          }
          MenuSearchConnect* pMenu = new MenuSearchConnect();
+         pMenu->m_iSearchModelTypes = m_iSearchModelTypes;
          pMenu->setCurrentFrequency(m_CurrentSearchFrequencyKhz);
          if ( m_SpectatorOnlyMode )
             pMenu->setSpectatorOnly();
@@ -971,9 +1055,9 @@ void MenuSearch::onSearchStep()
    }
 }
 
-void MenuSearch::onReturnFromChild(int returnValue)
+void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
 {
-   Menu::onReturnFromChild(returnValue);
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
 
    if ( NULL != m_pPopupSearch )
    {
@@ -981,144 +1065,157 @@ void MenuSearch::onReturnFromChild(int returnValue)
       m_pPopupSearch = NULL;
    }
 
-   if ( 1 == m_iConfirmationId )
+   if ( 1 != iChildMenuId/1000 )
+      return;
+
+   if ( NULL != m_pModelOriginal )
+      log_line("Search: had an initial model when opened search menu: VID %u, name: [%s]", m_pModelOriginal->vehicle_id, m_pModelOriginal->getLongName());
+   else
+      log_line("Search: did not had an initial model when opened search menu.");
+
+   if ( NULL != g_pCurrentModel )
+      log_line("Search: has a current model: VID %u, name: [%s]", g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName());
+   else
+      log_line("Search: does not have a current model.");
+
+   // Skip
+   if ( 0 == returnValue )
    {
-      m_iConfirmationId = 0;
-
-      // Skip
-      if ( 0 == returnValue )
-      {
-         m_nSkippedCount++;
-         log_line("Pressed Skip search");
-         m_bIsSearchPaused = false;
-         g_bSearchFoundVehicle = false;
-         invalidate();
-         createSearchPopup();
-         return;
-      }
-
-      // Connect as Spectator
-      if ( 1 == returnValue )
-      {
-         bool bIsNew = false;
-         log_line("Pressed add as spectator. Has an active model already: %s. Current total spectator vehicles: %d.", (NULL != g_pCurrentModel)?"Yes":"No", getControllerModelsSpectatorCount());
-         if( ! ruby_is_first_pairing_done() )
-         {
-            deleteAllModels();
-            bIsNew = true;
-         }
-         
-         if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id) )
-            bIsNew = true;
-
-         Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
-         pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
-         pModel->is_spectator = true;
-
-         set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
-
-         stopSearch();
-         ruby_set_is_first_pairing_done();
-         g_bFirstModelPairingDone = true;
-         g_pCurrentModel = pModel;
-         setControllerCurrentModel(g_pCurrentModel->vehicle_id);
-         saveControllerModel(g_pCurrentModel);
-
-         ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
-
-         if ( bIsNew )
-            onModelAdded(pModel->vehicle_id);
-         onMainVehicleChanged();
-         log_line("Added vehicle id: %u as spectator.", pModel->vehicle_id);
-         pairing_start_normal();
-         m_bDidConnectToAVehicle = true;
-         m_bMustSwitchBack = false;
-         log_line("MenuSearch: Close all");
-         menu_close_all();
-         return;
-      }
-
-      // Connect for Control
-
-      if ( 2 == returnValue )
-      {
-         bool bIsNew = false;
-         log_line("Pressed add as controller. Has an active model already: %s. Current total controller vehicles: %d.", (NULL != g_pCurrentModel)?"Yes":"No", getControllerModelsCount());
-         if( ! ruby_is_first_pairing_done() )
-         {
-            log_line("First pairing was not completed before. Deleting all models.");
-            deleteAllModels();
-            bIsNew = true;
-         }
-         else
-         {
-            log_line("First pairing was already completed.");
-         
-            if ( NULL != g_pCurrentModel )
-            {
-               log_line("Save current model, current model vehicle id: %u. Received vehicle id while searching: %u",
-                  g_pCurrentModel->vehicle_id,
-                  g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id );
-
-               saveControllerModel(g_pCurrentModel);
-            }
-            else
-               log_line("No current model, do not save it.");
-         }
-
-         if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id) )
-            bIsNew = true;
-         if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id) )
-            bIsNew = true;
-         log_line("This VID (%u) is a new vehicle? %s", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, bIsNew?"Yes":"No, controller already kowns about it.");
-
-         Model* pModel = NULL;
-         if ( bIsNew )
-         {
-            log_line("Search: Adding a new vehicle model as controller");
-            log_line("Creating a vehicle model for vehicle uid: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
-            pModel = addNewModel();
-         }
-         else
-         {
-            pModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
-            log_line("Search: Found existing controller vehicle model for vehicle id %u.", pModel->vehicle_id);
-         }
-         pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
-         pModel->is_spectator = false;
-
-         set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
-
-         stopSearch();
-         log_line("MenuSearch: Save model VID %u, mode: %s", pModel->vehicle_id, (pModel->is_spectator)?"spectator":"control");
-         ruby_set_is_first_pairing_done();
-         g_bFirstModelPairingDone = true;
-         g_pCurrentModel = pModel;
-         setControllerCurrentModel(g_pCurrentModel->vehicle_id);
-         saveControllerModel(g_pCurrentModel);
-
-         ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
-         
-         g_pCurrentModel->b_mustSyncFromVehicle = true;
-         log_line("MenuSearch: Changed current main vehicle to vehicle id %u", g_pCurrentModel->vehicle_id);
-         if ( bIsNew )
-            onModelAdded(pModel->vehicle_id);
-         onMainVehicleChanged();
-         log_line("Added VID %u as a controller model", pModel->vehicle_id);
-         pairing_start_normal();
-         m_bDidConnectToAVehicle = true;
-         m_bMustSwitchBack = false;
-         log_line("MenuSearch: Close all");
-         menu_close_all();
-         return;
-      }
+      m_nSkippedCount++;
+      log_line("Pressed Skip search");
+      m_bIsSearchPaused = false;
+      g_bSearchFoundVehicle = false;
+      invalidate();
+      createSearchPopup();
+      return;
    }
-   m_iConfirmationId = 0;
+
+   if ( NULL != m_pModelOriginal )
+   {
+      log_line("Save current original model, vehicle id: %u. Received vehicle id while searching: %u",
+         m_pModelOriginal->vehicle_id,
+         g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id );
+
+      saveControllerModel(m_pModelOriginal);
+   }
+   else
+      log_line("No original model, do not save it.");
+
+   bool bIsNew = false;
+   if( ! ruby_is_first_pairing_done() )
+   {
+      log_line("First pairing was not completed before. Deleting all models.");
+      deleteAllModels();
+      bIsNew = true;
+   }
+   else
+      log_line("First pairing was already completed.");
+
+   if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id) )
+      bIsNew = true;
+
+   if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 14) )
+      bIsNew = true;
+     
+   if ( bIsNew )
+      log_line("Search: Found vehicle id %u is new (not on controller).", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+   else
+      log_line("Search: Found vehicle id %u already exists on controller.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+   
+   // Connect as Spectator
+
+   if ( 1 == returnValue )
+   {
+      log_line("Pressed add as spectator. Current total spectator vehicles: %d.", getControllerModelsSpectatorCount());
+      
+      Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
+      pModel->is_spectator = true;
+
+      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
+
+      stopSearch();
+      ruby_set_is_first_pairing_done();
+      g_bFirstModelPairingDone = true;
+      setCurrentModel(pModel->vehicle_id);
+      g_pCurrentModel = getCurrentModel();
+      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      saveControllerModel(g_pCurrentModel);
+
+      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+
+      if ( bIsNew )
+         onModelAdded(pModel->vehicle_id);
+      onMainVehicleChanged(true);
+      log_line("Added vehicle id: %u as spectator.", pModel->vehicle_id);
+      pairing_start_normal();
+      m_bDidConnectToAVehicle = true;
+      m_bMustSwitchBack = false;
+      log_line("MenuSearch: Close all");
+      menu_discard_all();
+      return;
+   }
+
+   // Connect for Control
+
+   if ( 2 == returnValue )
+   {
+      log_line("Pressed add as controller. Current total controller vehicles: %d.", getControllerModelsCount());
+     
+      Model* pModel = NULL;
+      if ( bIsNew )
+      {
+         log_line("Search: Adding a new vehicle model as controller");
+         log_line("Creating a vehicle model for vehicle uid: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+         pModel = addNewModel();
+      }
+      else
+      {
+         pModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 15);
+         log_line("Search: Found existing controller vehicle model for vehicle id %u.", pModel->vehicle_id);
+      }
+      pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
+      pModel->is_spectator = false;
+
+      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
+
+      stopSearch();
+      log_line("MenuSearch: Save model VID %u, mode: %s", pModel->vehicle_id, (pModel->is_spectator)?"spectator":"control");
+      ruby_set_is_first_pairing_done();
+      g_bFirstModelPairingDone = true;
+      setCurrentModel(pModel->vehicle_id);
+      g_pCurrentModel = getCurrentModel();
+      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      saveControllerModel(g_pCurrentModel);
+
+      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+     
+      if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
+         g_pCurrentModel->b_mustSyncFromVehicle = true;
+      log_line("MenuSearch: Changed current main vehicle to vehicle id %u", g_pCurrentModel->vehicle_id);
+      if ( bIsNew )
+         onModelAdded(pModel->vehicle_id);
+      onMainVehicleChanged(true);
+      log_line("Added VID %u as a controller model", pModel->vehicle_id);
+      pairing_start_normal();
+      m_bDidConnectToAVehicle = true;
+      m_bMustSwitchBack = false;
+      log_line("MenuSearch: Close all");
+      menu_discard_all();
+      return;
+   }
 }
 
 int MenuSearch::onBack()
 {
    log_line("MenuSearch::onBack()");
+
+   if ( m_pPopupSearch )
+   {
+      popups_remove( m_pPopupSearch );
+      m_pPopupSearch = NULL;
+   }
+
    if ( m_pItemSelectBand->isEditing() )
    {
       log_line("MenuSearch::onBack() end edit");
@@ -1133,9 +1230,6 @@ int MenuSearch::onBack()
       m_pItemsSelectFreq->endEdit(true);
       return 1;
    }
-
-   if ( Menu::onBack() == 1 )
-      return 1;
 
    search_finished_with_no_results = false;
 
@@ -1170,23 +1264,32 @@ int MenuSearch::onBack()
       }
       else
          log_line("MenuSearch:onBack() no previous current model to switch back to.");
-      return 1;
-   }
-   log_line("Default back, no particular action.");
-
-   if ( m_pPopupSearch )
-   {
-      popups_remove( m_pPopupSearch );
-      m_pPopupSearch = NULL;
    }
 
-   return 0;
+
+   return Menu::onBack();
 }
 
 void MenuSearch::onSelectItem()
 {
    Menu::onSelectItem();
 
+   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+      return;
+
+   int iCountValidRadioInterfaces = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioHWInfo )
+         continue;
+
+      if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+         continue;
+      iCountValidRadioInterfaces++;
+   }
+   log_line("Valid interfaces for search: %d", iCountValidRadioInterfaces);
+   
    if ( m_IndexBand == m_SelectedIndex )
    {
       m_SearchBandIndex = m_pItemSelectBand->getSelectedIndex();
@@ -1194,10 +1297,27 @@ void MenuSearch::onSelectItem()
       return;
    }
 
+   if ( m_IndexModelTypes == m_SelectedIndex )
+   {
+      m_iSearchModelTypes = m_pItemsSelect[0]->getSelectedIndex();
+      _add_menu_items();
+      return;
+   }
+
+   if ( m_IndexImportKey == m_SelectedIndex )
+   {
+      add_menu_to_stack( new MenuConfirmationImportKey("Import Encryption Key", "Import a custom OpenIPC encryption key from a USB memory stick.", 5));
+      return;
+   }
    // Start/Stop Search
    if ( m_IndexStartSearch == m_SelectedIndex )
    {
       log_line("Pressed Star/Stop search button");
+      if ( 0 == iCountValidRadioInterfaces )
+      {
+         addMessage2(0, "No active radio interfaces.", "All your controller's radio interfaces are disabled. Enable at least a radio interface (from the Radio menu) to be able to search for vehicles.");
+         return;
+      }
       if ( ! m_bIsSearchingAuto )
          startSearch();
       else
@@ -1212,6 +1332,12 @@ void MenuSearch::onSelectItem()
    if ( (m_IndexManualSearch == m_SelectedIndex) && (! m_pItemsSelectFreq->isEditing()) )
    {
       log_line("Pressed manual search button");
+
+      if ( (0 == iCountValidRadioInterfaces) || (0 == m_NumChannels) )
+      {
+         addMessage2(0, "No active radio interfaces.", "All your controller's radio interfaces are disabled. Enable at least a radio interface (from the Radio menu) to be able to search for vehicles.");
+         return;
+      }
 
       createSearchPopup();
       g_bSearching = true;
@@ -1229,6 +1355,7 @@ void MenuSearch::onSelectItem()
 
       log_line("Searching only on %s", str_format_frequency(m_pSearchChannels[0]));
 
+      m_pItemsSelect[0]->setEnabled(false);
       if ( m_bHasSiKRadio )
       {
          enableMenuItem(m_IndexSiKInfo, false);
@@ -1340,5 +1467,8 @@ void MenuSearch::createSearchPopup()
    }     
 
    m_pPopupSearch->addLine("Long press on [Back] to stop the search.");
+
+   if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
+      m_pPopupSearch->addLine("* Searching OpenIPC firmware vehicles takes longer due to how radio link protocol works on them.");
    popups_add_topmost(m_pPopupSearch);
 }

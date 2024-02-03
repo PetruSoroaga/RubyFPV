@@ -18,15 +18,19 @@
 // lower 3 bytes: frequency (new format, in khz), 4-th byte: link index, most significat bit set to 1 to signal new format for this parameter
 
 #define COMMAND_ID_SET_RADIO_LINK_CAPABILITIES 6
-// low byte: link index, next 3 bytes: link_capabilities_flags (only lowest 3 bytes of it) (tx/rx/relay - video/data)
+// has a u32 param
+// byte 0: link index
+// byte 1-3: link_capabilities_flags (only lowest 3 bytes of it) (tx/rx/relay - video/data)
+// Capability flag RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY is never set, just read
 
 #define COMMAND_ID_SET_RADIO_LINK_FLAGS 7
+// Starting with 8.1 is used now only for SiK links
 // u32 - link index
-// u32 - link radio flags (use MCS, MCS flags, STBC, adaptive rates, SIK flags, etc)
+// u32 - link radio flags (MCS flags if any, STBC, adaptive rates, SIK flags, etc)
 // int - datarate video  -1..-n MCS or 0..x classic, in bps
 // int - datarate data 
 
-#define COMMAND_ID_RADIO_LINK_FLAGS_CHANGED_CONFIRMATION 8
+#define COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION 8
 // param is radio link id
 
 #define COMMAND_ID_SET_RADIO_SLOTTIME 9
@@ -49,7 +53,8 @@
 #define COMMAND_ID_SET_IONICE_VALUES 17
 #define COMMAND_ID_SET_ENABLE_DHCP 18
 
-#define COMMAND_ID_SET_RADIO_LINK_DATARATES 19 // added in v7.6
+// Deperecated in 8.1
+//#define COMMAND_ID_SET_RADIO_LINK_DATARATES 19 // added in v7.6
 // param: radio link index
 // data: type_radio_links_parameters structure
 
@@ -76,6 +81,8 @@ typedef struct
    
 } __attribute__((packed)) command_packet_core_plugins_response;
 
+#define COMMAND_ID_RESET_RADIO_LINK 27
+// param is radio link id
 
 #define COMMAND_ID_SET_SERIAL_PORTS_INFO 28
 // contains a model_hardware_info_t structure
@@ -216,13 +223,12 @@ typedef struct
 
 
 #define COMMAND_ID_UPLOAD_SW_TO_VEHICLE63 209
-#define COMMAND_ID_UPLOAD_SW_TO_VEHICLE 210
 typedef struct
 {
    int type; // 0: update zip, 1: generated tar file from controller
    u32 total_size; // total_size and block_length are zero to cancel an upload
    u32 file_block_index; // MAX_U32 to cancel an upload
-   bool last_block;
+   bool is_last_block;
    int block_length; // total_size and block_length are zero to cancel an upload
 } __attribute__((packed)) command_packet_sw_package;
 
