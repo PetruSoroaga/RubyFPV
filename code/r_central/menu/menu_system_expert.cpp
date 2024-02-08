@@ -514,7 +514,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_start: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_start: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_controller -ver", szOutput);
@@ -524,7 +524,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_controller: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_controller: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_central -ver", szOutput);
@@ -534,7 +534,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_central: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_central: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_rt_station -ver", szOutput);
@@ -544,7 +544,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_rt_station: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_station: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_rx_telemetry -ver", szOutput);
@@ -554,7 +554,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_rx_telemetry: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_telemetry: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_tx_rc -ver", szOutput);
@@ -564,7 +564,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_tx_rc: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_rc: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_i2c -ver", szOutput);
@@ -574,7 +574,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_i2c: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_i2c: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_player_p -ver", szOutput);
@@ -584,7 +584,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_player_p: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_player_p: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_update_worker -ver", szOutput);
@@ -594,7 +594,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_update_worker: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_update_worker: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
@@ -604,7 +604,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_vehicle: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_vehicle: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
@@ -614,7 +614,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_rt_vehicle: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_vehicle: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
@@ -624,7 +624,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_tx_telemetry: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_telemetry: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
@@ -634,7 +634,7 @@ void MenuSystemExpert::onSelectItem()
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
-      sprintf(szBuff, "ruby_rx_rc: %s", szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_rc: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       add_menu_to_stack(pMenu);

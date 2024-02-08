@@ -311,6 +311,7 @@ int _log_check_for_service_log_access()
    key = ftok("ruby_logger", LOGGER_MESSAGE_QUEUE_ID);
    
    s_logServiceMessageQueue = msgget(key, 0222);
+
    if ( s_logServiceMessageQueue < 0 )
    {
       s_logServiceAccessErrorCount++;
@@ -331,7 +332,7 @@ int _log_check_for_service_log_access()
    return 1;
 }
 
-void _log_service_entry(char* szBuff)
+int _log_service_entry(char* szBuff)
 {
    type_log_message_buffer msg;
    msg.type = 1;
@@ -345,11 +346,13 @@ void _log_service_entry(char* szBuff)
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
+   if ( msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, IPC_NOWAIT) < 0 )
+      return 0;
+   return 1;
 }
 
 
-void _log_service_entry_error(char* szBuff)
+int _log_service_entry_error(char* szBuff)
 {
    type_log_message_buffer msg;
    msg.type = 3;
@@ -363,10 +366,12 @@ void _log_service_entry_error(char* szBuff)
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
+   if ( msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, IPC_NOWAIT) < 0 )
+      return 0;
+   return 1;
 }
 
-void _log_service_entry_softerror(char* szBuff)
+int _log_service_entry_softerror(char* szBuff)
 {
    type_log_message_buffer msg;
    msg.type = 2;
@@ -380,7 +385,9 @@ void _log_service_entry_softerror(char* szBuff)
    szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-3-strlen(msg.text)] = 0;
    strcat(msg.text, szBuff);
 
-   msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, 0);  
+   if ( msgsnd(s_logServiceMessageQueue, &msg, strlen(msg.text)+1, IPC_NOWAIT) < 0 )
+      return 0;
+   return 1;
 }
 
 void log_init_local_only(const char* component_name)
@@ -410,7 +417,7 @@ void log_init(const char* component_name)
    _init_timestamp_for_process();
 
    _log_check_for_service_log_access();
-
+    
    log_line("Starting...");
 }
 

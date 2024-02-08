@@ -119,10 +119,10 @@ void MenuConfirmationImportKey::onSelectItem()
       hw_execute_bash_command(szComm, NULL);
    }
 
-   sprintf(szComm, "rm -rf %s", szOutputFile);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szOutputFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s %s", szInputFile, szOutputFile);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s", szInputFile, szOutputFile);
    hw_execute_bash_command(szComm, NULL);
 
    if ( access(szOutputFile, R_OK ) == -1 )

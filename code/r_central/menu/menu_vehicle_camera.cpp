@@ -45,7 +45,7 @@ MenuVehicleCamera::MenuVehicleCamera(void)
    char szCam[256];
    char szCam2[256];
    str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
-   sprintf(szCam, "Camera: %s", szCam2);
+   snprintf(szCam, 255, "Camera: %s", szCam2);
 
    char* szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
    log_line("Current camera (%d) name: [%s]", g_pCurrentModel->iCurrentCamera, szCamName);

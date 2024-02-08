@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 
    log_init("RubySiKConfig");
 
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
    hardware_enumerate_radio_interfaces();
    hardware_radio_sik_load_configuration();
 

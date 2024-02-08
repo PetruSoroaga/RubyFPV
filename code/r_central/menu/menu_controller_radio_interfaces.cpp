@@ -47,7 +47,6 @@ MenuControllerRadioInterfaces::MenuControllerRadioInterfaces(void)
    m_Width = 0.4;
    m_xPos = 0.08;
    m_yPos = 0.1;
-   ControllerSettings* pCS = get_ControllerSettings();
 
    load_ControllerInterfacesSettings();
 
@@ -113,7 +112,6 @@ MenuControllerRadioInterfaces::MenuControllerRadioInterfaces(void)
 
 void MenuControllerRadioInterfaces::valuesToUI()
 {
-   ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    ControllerSettings* pCS = get_ControllerSettings();
 
    m_pItemsSelect[0]->setSelectedIndex(pCS->nAutomaticTxCard);
@@ -126,8 +124,6 @@ void MenuControllerRadioInterfaces::valuesToUI()
    {
       radio_hw_info_t* pNIC = hardware_get_radio_info(n);
       
-      t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNIC->szMAC);
-     
       if ( 1 == hardware_get_radio_interfaces_count() )
       {
          controllerRemoveCardDisabled(pNIC->szMAC);
@@ -232,12 +228,8 @@ void MenuControllerRadioInterfaces::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   char szBuff[256];
-
    for( int n=0; n<hardware_get_radio_interfaces_count(); n++ )
    {
-      radio_hw_info_t* pNIC = hardware_get_radio_info(n);
-
       if ( m_IndexStartNics[n] == m_SelectedIndex )
       {
          MenuControllerRadioInterface* pMenu = new MenuControllerRadioInterface(n);

@@ -104,8 +104,6 @@ void MenuVehicleGeneral::populate()
    removeAllItems();
    addTopDescription();
 
-   char szBuff[128];
-
    m_pItemEditName = new MenuItemEdit("Name", g_pCurrentModel->vehicle_name);
    m_pItemEditName->setMaxLength(MAX_VEHICLE_NAME_LENGTH-1);
    addMenuItem(m_pItemEditName);

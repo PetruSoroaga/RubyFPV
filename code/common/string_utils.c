@@ -1118,8 +1118,14 @@ char* str_get_serial_port_usage(int iSerialPortUsage)
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       strcpy(s_szSerialPortUsage, "SiK Radio Interface");
 
-   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO )
-      strcpy(s_szSerialPortUsage, "Serial Radio Interface");
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
+      strcpy(s_szSerialPortUsage, "ELRS 433Mhz Radio");
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
+      strcpy(s_szSerialPortUsage, "ELRS 868Mhz Radio");
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
+      strcpy(s_szSerialPortUsage, "ELRS 915Mhz Radio");
+   if ( iSerialPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
+      strcpy(s_szSerialPortUsage, "ELRS 2.4Ghz Radio");
 
    if ( iSerialPortUsage >= SERIAL_PORT_USAGE_CORE_PLUGIN )
       strcpy(s_szSerialPortUsage, "Core Plugin");

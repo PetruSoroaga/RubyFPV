@@ -315,7 +315,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
                radio_links_flag_update_sik_interface(i);
          }
       }
-
+      if( (NULL != g_pCurrentModel) && g_pCurrentModel->radioLinkIsELRSRadio(iLink) )
+      {
+         log_line("Radio datarates changed on a ELRS radio link (link %d).", iLink+1);
+      }
       return;
    }
 
@@ -728,7 +731,7 @@ void process_local_control_packet(t_packet_header* pPH)
       int iOldAudioDevice = get_ControllerSettings()->iAudioOutputDevice;
       int iOldAudioVolume = get_ControllerSettings()->iAudioOutputVolume;
 
-      hardware_reload_serial_ports();
+      hardware_reload_serial_ports_settings();
       load_ControllerSettings();
       g_pControllerSettings = get_ControllerSettings();
 

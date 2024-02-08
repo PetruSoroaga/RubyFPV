@@ -97,12 +97,27 @@ bool _check_update_hardware_one_interface_after_and_before(Model* pModel)
             pModel->radioLinksParams.link_frequency_khz[0] = DEFAULT_FREQUENCY_868;
          if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
             pModel->radioLinksParams.link_frequency_khz[0] = DEFAULT_FREQUENCY_915;
-         pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+         pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
          pModel->radioLinksParams.link_capabilities_flags[0] &= ~(RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
          pModel->radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_SIK_AIR;
          pModel->radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_SIK_AIR;
          pModel->radioLinksParams.uplink_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_SIK_AIR;
          pModel->radioLinksParams.uplink_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_SIK_AIR;
+      }
+      else if ( pRadioHWInfo->isSerialRadio )
+      {
+         pModel->radioLinksParams.link_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+         pModel->radioLinksParams.link_capabilities_flags[0] &= ~(RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
+         pModel->radioLinksParams.link_capabilities_flags[0] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+         pModel->radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+         if ( pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+            pModel->radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+         pModel->radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+         pModel->radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+         pModel->radioLinksParams.uplink_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+         pModel->radioLinksParams.uplink_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+
+         pModel->radioLinksParams.link_frequency_khz[0] = pRadioHWInfo->uCurrentFrequencyKhz;
       }
       else
       {
@@ -249,16 +264,18 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
    return true;
 }
 
+// Radio links are added from here, on vehicle start or from model populateDefaultRadioLinksInfoFromRadioInterfaces()
+
 void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pModel)
 {
-   radio_hw_info_t* pRadioInfo = hardware_get_radio_info(iInterfaceIndex);
-   if ( NULL == pRadioInfo )
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+   if ( NULL == pRadioHWInfo )
    {
       log_softerror_and_alarm("[HW Radio Check] Failed to add a new radio link in the current model for HW radio interface %d. Can't get radio info.", iInterfaceIndex+1);
       return;
    }
    
-   log_line("[HW Radio Check] Adding a new radio link in the current model for hardware radio interface %d [%s]...", iInterfaceIndex+1, pRadioInfo->szMAC);
+   log_line("[HW Radio Check] Adding a new radio link in the current model for hardware radio interface %d (%s) [%s]...", iInterfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->szMAC);
    
    if ( pModel->radioInterfacesParams.interface_link_id[iInterfaceIndex] != -1 )
    {
@@ -278,19 +295,19 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
    {
       log_line("[HW Radio Check] Make sure radio link 1 (first one in the model) has all required capabilities flags. Enable them on radio link 1.");
       pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[0] | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-      if ( ! hardware_radio_is_sik_radio(pRadioInfo) )
+      if ( ! hardware_radio_is_sik_radio(pRadioHWInfo) )
          pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[0] | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
       pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[0] | RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
       pModel->radioLinksParams.link_capabilities_flags[0] = pModel->radioLinksParams.link_capabilities_flags[0] & (~RADIO_HW_CAPABILITY_FLAG_DISABLED);
    }
 
-   if ( hardware_radio_is_sik_radio(pRadioInfo) )
+   if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
    {
-      if ( pRadioInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_433 )
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_433 )
          pModel->radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_433;
-      if ( pRadioInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_868 )
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_868 )
          pModel->radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_868;
-      if ( pRadioInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
          pModel->radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_915;
 
       pModel->radioLinksParams.link_capabilities_flags[iRadioLink] &= ~(RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
@@ -299,6 +316,22 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
       pModel->radioLinksParams.uplink_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
       pModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
    }
+   else if ( pRadioHWInfo->isSerialRadio )
+   {
+      pModel->radioLinksParams.link_capabilities_flags[iRadioLink] &= ~(RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
+      pModel->radioLinksParams.link_capabilities_flags[iRadioLink] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      pModel->radioLinksParams.link_capabilities_flags[iRadioLink] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      if ( pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+         pModel->radioLinksParams.link_capabilities_flags[iRadioLink] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+
+      pModel->radioLinksParams.link_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      pModel->radioLinksParams.link_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      pModel->radioLinksParams.uplink_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      pModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+
+      pModel->radioLinksParams.link_frequency_khz[iRadioLink] = pRadioHWInfo->uCurrentFrequencyKhz;
+   }
+
 
    // Assign the radio link to the radio interface
 
@@ -307,8 +340,11 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
    
    // Assign a frequency to the new radio link and the radio interface
 
-   if ( ! hardware_radio_is_sik_radio(pRadioInfo) )
+   //if ( ! hardware_radio_is_sik_radio(pRadioHWInfo) )
+   //if ( ! pRadioHWInfo->isSerialRadio )
+   if ( hardware_radio_is_wifi_radio(pRadioHWInfo) )
    {
+      log_line("[HW Radio Check] Assign a frequency to the new radio link...");
       pModel->radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY;
       if ( pModel->radioInterfacesParams.interface_supported_bands[iInterfaceIndex] & RADIO_HW_SUPPORTED_BAND_58 )
          pModel->radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY58;
@@ -320,10 +356,13 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
       
       pModel->radioInterfacesParams.interface_current_frequency_khz[iInterfaceIndex] = pModel->radioLinksParams.link_frequency_khz[iRadioLink];
    }
+   else
+      log_line("[HW Radio Check] New radio link is serial. Use adapter frequency for the radio link frequency.");
+
    pModel->radioLinksParams.links_count++;
    log_line("[HW Radio Check] Added a new model radio link (radio link %d) for hardware radio interface %d [%s], on %s", 
       pModel->radioLinksParams.links_count,
-      iInterfaceIndex+1, pRadioInfo->szMAC, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[pModel->radioLinksParams.links_count-1]));
+      iInterfaceIndex+1, pRadioHWInfo->szMAC, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[pModel->radioLinksParams.links_count-1]));
 }
 
 bool check_update_hardware_nics_vehicle(Model* pModel)
@@ -348,6 +387,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
          if ( pModel->radioInterfacesParams.interface_link_id[k] != iRadioLink )
             continue;
          bAssignedCard = true;
+         if ( ! (pModel->radioInterfacesParams.interface_capabilities_flags[k] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS) )
          if ( ! isFrequencyInBands(pModel->radioLinksParams.link_frequency_khz[iRadioLink], pModel->radioInterfacesParams.interface_supported_bands[k]) )
          {
             bLinkOk = false;
@@ -379,6 +419,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
       bAnyLinkRemoved = true;
    }
 
+   /*
    if ( bAnyLinkRemoved )
    {
       log_line("[HW Radio Check] There where invalid radio links. Repopulate all model's radio interfaces and radio links from current hardware.");
@@ -386,7 +427,8 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
       log_line("[HW Radio Check] Done checking for Radio interfaces hardware changes by repopulating model's radio interfaces and model's radio links from current hardware.");
       return true;
    }
-
+   */
+   
    int iRadioHWInterfacesCount = hardware_get_radio_interfaces_count();
 
    // Handle the case with a single radio interface before and after ( 1 interface before and 1 interface now)
@@ -423,7 +465,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
 
       for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
       {
-         if ( 0 != pModel->radioInterfacesParams.interface_szMAC[k][0] && 0 != pRadioInfo->szMAC[0] )
+         if ( (0 != pModel->radioInterfacesParams.interface_szMAC[k][0]) && (0 != pRadioInfo->szMAC[0]) )
          if ( 0 == strcmp(pModel->radioInterfacesParams.interface_szMAC[k], pRadioInfo->szMAC) )
          {
             bMatched = true;
@@ -532,6 +574,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
 
       // Populate new radio interface info
 
+      log_line("[HW Radio Check] Add new radio interface to model's radio interfaces: %s, hardware index: %d, model interface index: %d", pRadioInfo->szName, i+1, i+1);
       pModel->radioInterfacesParams.interface_card_model[i] = pRadioInfo->iCardModel;
       pModel->radioInterfacesParams.interface_current_frequency_khz[i] = 0;
       pModel->radioInterfacesParams.interface_current_radio_flags[i] = 0;
@@ -548,13 +591,25 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
 
       pModel->radioInterfacesParams.interface_capabilities_flags[i] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
       pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-            
       if ( hardware_radio_is_sik_radio(pRadioInfo) )
       {
          pModel->radioInterfacesParams.interface_current_frequency_khz[i] = pRadioInfo->uCurrentFrequencyKhz;
          pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
          pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK;
       }
+      else if ( pRadioInfo->isSerialRadio )
+      {
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+         pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+         if ( pRadioInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+            pModel->radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+         
+         pModel->radioInterfacesParams.interface_current_frequency_khz[i] = pRadioInfo->uCurrentFrequencyKhz;
+      }
+
       pModel->radioInterfacesParams.interface_link_id[i] = -1;
    }
 
@@ -593,6 +648,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
          if ( pModel->radioInterfacesParams.interface_link_id[k] != iRadioLink )
             continue;
          bAssignedCard = true;
+         if ( ! (pModel->radioInterfacesParams.interface_capabilities_flags[k] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS) )
          if ( ! isFrequencyInBands(pModel->radioLinksParams.link_frequency_khz[iRadioLink], pModel->radioInterfacesParams.interface_supported_bands[k]) )
          {
             bLinkOk = false;

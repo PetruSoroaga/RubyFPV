@@ -177,14 +177,6 @@ void MenuVehicleRCExpo::onItemValueChanged(int itemIndex)
 
 void MenuVehicleRCExpo::onSelectItem()
 {
-   int subIndex = m_SelectedIndex % m_iColumnsCount;
-
-   //if ( subIndex == 0 )
-   //{
-   //   Menu::onSelectItem();
-   //   return;
-   //}
-
    Menu::onSelectItem();
 
    if ( handle_commands_is_command_in_progress() )

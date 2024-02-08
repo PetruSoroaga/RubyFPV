@@ -285,7 +285,7 @@ void MenuVehicleManagement::onSelectItem()
       strcpy(szModelName, g_pCurrentModel->getLongName());
       str_sanitize_filename(szModelName);
 
-      sprintf(szFile, "%s/%s/ruby_model_%s_%u.txt", FOLDER_RUBY, FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->vehicle_id);
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s/%s/ruby_model_%s_%u.txt", FOLDER_RUBY, FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->vehicle_id);
       g_pCurrentModel->saveToFile(szFile, false);
    
       hardware_unmount_usb();

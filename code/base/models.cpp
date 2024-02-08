@@ -2862,6 +2862,124 @@ void Model::resetRadioLinkParams(int iRadioLink)
    radioLinksParams.uDummy2[iRadioLink] = 0;
 }
 
+
+void Model::addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbDefault24Used, bool* pbDefault24_2Used, bool* pbDefault58Used, bool* pbDefault58_2Used)
+{
+   if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= hardware_get_radio_interfaces_count()) )
+      return;
+   if ( radioLinksParams.links_count >= MAX_RADIO_INTERFACES )
+      return;
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
+   if ( NULL == pRadioHWInfo )
+      return;
+
+   resetRadioLinkParams(radioLinksParams.links_count);
+
+   radioInterfacesParams.interface_link_id[iRadioInterfaceIndex] = radioLinksParams.links_count;
+
+   if ( hardware_radio_is_wifi_radio(pRadioHWInfo) )
+   {
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] &= ~RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      
+      radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY;
+      if ( radioInterfacesParams.interface_supported_bands[iRadioInterfaceIndex] & RADIO_HW_SUPPORTED_BAND_58 )
+      {
+         if ( (NULL == pbDefault58Used) || (! (*pbDefault58Used)) )
+         {
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58;
+            if ( NULL != pbDefault58Used)
+               *pbDefault58Used = true;
+         }
+         else if ( (NULL == pbDefault58_2Used) || (! (*pbDefault58_2Used)) )
+         {
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58_2;
+            if ( NULL != pbDefault58_2Used )
+               *pbDefault58_2Used = true;
+         }
+         else
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58_3;
+      }
+      else
+      {
+         if ( (NULL != pbDefault24Used) || (! (*pbDefault24Used)) )
+         {
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY;
+            if ( NULL != pbDefault24Used )
+               *pbDefault24Used = true;
+         }
+         else if ( (NULL != pbDefault24_2Used) || (! (*pbDefault24_2Used)) )
+         {
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_2;
+            if ( NULL != pbDefault24_2Used )
+               *pbDefault24_2Used = true;
+         }
+         else
+            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_3;
+      }
+   }
+   else if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
+   {
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK;
+
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_433 )
+         radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_433;
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_868 )
+         radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_868;
+      if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
+         radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_915;
+
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK;
+
+      radioLinksParams.link_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
+      radioLinksParams.link_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
+      radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
+      radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
+   }
+   else if ( pRadioHWInfo->isSerialRadio )
+   {
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      if ( pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+         radioInterfacesParams.interface_capabilities_flags[iRadioInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+      radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+      if ( pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+         radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+
+      radioLinksParams.link_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      radioLinksParams.link_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
+      radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SERIAL_AIR;       
+   
+      radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = pRadioHWInfo->uCurrentFrequencyKhz;
+   }
+   else
+   {
+      log_softerror_and_alarm("Adding a new radio link, can't complete: Unknow radio type on model's radio interface %d (%s).", iRadioInterfaceIndex+1, pRadioHWInfo->szName);
+   }
+   radioInterfacesParams.interface_current_frequency_khz[iRadioInterfaceIndex] = radioLinksParams.link_frequency_khz[radioLinksParams.links_count];
+
+   radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_video_bps[radioLinksParams.links_count];
+   radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_data_bps[radioLinksParams.links_count];
+   log_line("Model: Added a new radio link (link %d) on %s for radio interface %d (%s)",
+      radioLinksParams.links_count+1, str_format_frequency(radioLinksParams.link_frequency_khz[radioLinksParams.links_count]), iRadioInterfaceIndex+1, pRadioHWInfo->szName);
+}
+
+// Model's radio interfaces are populated here and on hw_config_check.cpp
+
 void Model::populateRadioInterfacesInfoFromHardware()
 {
    log_line("Model: Populate default radio interfaces info from radio hardware.");
@@ -2912,6 +3030,18 @@ void Model::populateRadioInterfacesInfoFromHardware()
          radioInterfacesParams.interface_current_frequency_khz[i] = pRadioHWInfo->uCurrentFrequencyKhz;
          radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
          radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+         radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+         radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK;
+      }
+      else if ( pRadioHWInfo->isSerialRadio )
+      {
+         radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+         radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+         radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK;
+         if ( pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS )
+            radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS;
+         
+         radioInterfacesParams.interface_current_frequency_khz[i] = pRadioHWInfo->uCurrentFrequencyKhz;
       }
    }
 
@@ -2919,6 +3049,8 @@ void Model::populateRadioInterfacesInfoFromHardware()
    populateDefaultRadioLinksInfoFromRadioInterfaces();
    validate_settings();
 }
+
+// Radio links are added from here, or on vehicle start from hw_config_check.cpp
 
 void Model::populateDefaultRadioLinksInfoFromRadioInterfaces()
 {
@@ -2948,73 +3080,7 @@ void Model::populateDefaultRadioLinksInfoFromRadioInterfaces()
       if ( radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
          continue;
 
-      radioInterfacesParams.interface_link_id[i] = radioLinksParams.links_count;
-
-      if ( hardware_radio_is_wifi_radio(pRadioHWInfo) )
-      {
-         radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-         radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-
-         radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY;
-         if ( radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_58 )
-         {
-            if ( ! bDefault58Used )
-            {
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58;
-               bDefault58Used = true;
-            }
-            else if ( ! bDefault58_2Used )
-            {
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58_2;
-               bDefault58_2Used = true;
-            }
-            else
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY58_3;
-         }
-         else
-         {
-            if ( ! bDefault24Used )
-            {
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY;
-               bDefault24Used = true;
-            }
-            else if ( ! bDefault24_2Used )
-            {
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_2;
-               bDefault24_2Used = true;
-            }
-            else
-               radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_3;
-         }
-      }
-      else if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-      {
-         radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-         radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-         
-         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_433 )
-            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_433;
-         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_868 )
-            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_868;
-         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
-            radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_915;
-
-         radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-         radioLinksParams.link_capabilities_flags[radioLinksParams.links_count] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-         radioLinksParams.link_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.link_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-      }
-      else
-      {
-         log_softerror_and_alarm("Unknow radio type on model.");
-      }
-      radioInterfacesParams.interface_current_frequency_khz[i] = radioLinksParams.link_frequency_khz[radioLinksParams.links_count];
-
-      radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_video_bps[i];
-      radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_data_bps[i];
-      
+      addNewRadioLinkForRadioInterface(i, &bDefault24Used, &bDefault24_2Used, &bDefault58Used, &bDefault58_2Used);
       radioLinksParams.links_count++;
    }
 
@@ -3089,6 +3155,7 @@ bool Model::check_update_radio_links()
          if ( radioInterfacesParams.interface_link_id[k] != iRadioLink )
             continue;
          bAssignedCard = true;
+         if ( ! (radioInterfacesParams.interface_capabilities_flags[k] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS) )
          if ( ! isFrequencyInBands(radioLinksParams.link_frequency_khz[iRadioLink], radioInterfacesParams.interface_supported_bands[k]) )
          {
             bLinkOk = false;
@@ -3165,25 +3232,17 @@ bool Model::check_update_radio_links()
          continue;
       }
       
-      log_line("Model: Radio interfaces %d is not used on any radio links. Creating a radio link for it...", iInterface+1);
+      log_line("Model: Radio interface %d is not used on any radio links. Creating a radio link for it...", iInterface+1);
 
       // Add a new radio link
 
-      int iRadioLink = radioLinksParams.links_count;
-   
-      if ( (iRadioLink < 0) || (iRadioLink >= MAX_RADIO_INTERFACES) )
-         continue;
-        
-      resetRadioLinkParams(iRadioLink);
+      addNewRadioLinkForRadioInterface(iInterface, &bDefault24Used, &bDefault24_2Used, &bDefault58Used, &bDefault58_2Used);
 
-      if ( radioInterfacesParams.interface_capabilities_flags[iInterface] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY )
-         radioLinksParams.link_capabilities_flags[iRadioLink] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-      else
-         radioLinksParams.link_capabilities_flags[iRadioLink] &= (~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY);
+      radioInterfacesParams.interface_current_radio_flags[iInterface] = radioLinksParams.link_radio_flags[radioLinksParams.links_count];
 
-      if ( 0 == iRadioLink )
+      if ( 0 == radioLinksParams.links_count )
       {
-         log_line("Model: Make sure radio link 1 (first one in the model) has all required capabilities flags. Enable them on radio link 1.");
+         log_line("Model: Making sure radio link 1 (first one in the model) has all required capabilities flags. Enable them on radio link 1.");
          radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
          if ( (radioInterfacesParams.interface_type_and_driver[iInterface] & 0xFF) != RADIO_TYPE_SIK )
             radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
@@ -3191,73 +3250,7 @@ bool Model::check_update_radio_links()
          radioLinksParams.link_capabilities_flags[0] &= (~RADIO_HW_CAPABILITY_FLAG_DISABLED);
       }
 
-      if ( (radioInterfacesParams.interface_type_and_driver[iInterface] & 0xFF) == RADIO_TYPE_SIK )
-      {
-         radioInterfacesParams.interface_capabilities_flags[iInterface] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-         radioInterfacesParams.interface_capabilities_flags[iInterface] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-
-         if ( radioInterfacesParams.interface_supported_bands[iInterface] & RADIO_HW_SUPPORTED_BAND_433 )
-            radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_433;
-         if ( radioInterfacesParams.interface_supported_bands[iInterface] & RADIO_HW_SUPPORTED_BAND_868 )
-            radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_868;
-         if ( radioInterfacesParams.interface_supported_bands[iInterface] & RADIO_HW_SUPPORTED_BAND_915 )
-            radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_915;
-
-         radioLinksParams.link_capabilities_flags[iRadioLink] &= ~RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
-         radioLinksParams.link_capabilities_flags[iRadioLink] &= ~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-         radioLinksParams.link_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.link_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.uplink_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-         radioLinksParams.uplink_datarate_data_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_SIK_AIR;
-      }
-
-      // Assign the radio link to the radio interface
-
-      radioInterfacesParams.interface_link_id[iInterface] = iRadioLink;
-      radioInterfacesParams.interface_current_radio_flags[iInterface] = radioLinksParams.link_radio_flags[iRadioLink];
-      
-      // Assign a frequency to the new radio link and the radio interface
-
-      if ( (radioInterfacesParams.interface_type_and_driver[iInterface] & 0xFF) != RADIO_TYPE_SIK )
-      {
-         if ( radioInterfacesParams.interface_supported_bands[iInterface] & RADIO_HW_SUPPORTED_BAND_58 )
-         {
-            if ( ! bDefault58Used )
-            {
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY58;
-               bDefault58Used = true;
-            }
-            else if ( ! bDefault58_2Used )
-            {
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY58_2;
-               bDefault58_2Used = true;
-            }
-            else
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY58_3;
-         }
-         else
-         {
-            if ( bDefault24Used )
-            {
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY;
-               bDefault24Used = true;
-            }
-            if ( ! bDefault24_2Used )
-            {
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_2;
-               bDefault24_2Used = true;
-            }
-            else
-               radioLinksParams.link_frequency_khz[iRadioLink] = DEFAULT_FREQUENCY_3;         
-         }            
-         
-         radioInterfacesParams.interface_current_frequency_khz[iInterface] = radioLinksParams.link_frequency_khz[iRadioLink];
-      }
       radioLinksParams.links_count++;
-      log_line("Model: Added a new model radio link (radio link %d) for radio interface %d [%s], on %s", 
-         radioLinksParams.links_count,
-         iInterface+1, radioInterfacesParams.interface_szMAC[iInterface], str_format_frequency(radioLinksParams.link_frequency_khz[radioLinksParams.links_count-1]));
-
       bAnyLinkAdded = true;
    }
 
@@ -4580,6 +4573,28 @@ bool Model::rotateRadioLinksOrder()
    return true;
 }
 
+bool Model::radioLinkIsWiFiRadio(int iRadioLinkIndex)
+{
+   if ( iRadioLinkIndex < 0 || iRadioLinkIndex >= radioLinksParams.links_count )
+      return false;
+
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( radioInterfacesParams.interface_link_id[i] != iRadioLinkIndex )
+         continue;
+
+      if ( ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) ||
+           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) ||
+           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_REALTEK) ||
+           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_MEDIATEK) )
+         return true;
+      else
+         return false;
+   }
+   return false;
+}
+
+
 bool Model::radioLinkIsSiKRadio(int iRadioLinkIndex)
 {
    if ( iRadioLinkIndex < 0 || iRadioLinkIndex >= radioLinksParams.links_count )
@@ -4591,6 +4606,25 @@ bool Model::radioLinkIsSiKRadio(int iRadioLinkIndex)
          continue;
 
       if ( (radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
+         return true;
+      else
+         return false;
+   }
+   return false;
+}
+
+bool Model::radioLinkIsELRSRadio(int iRadioLinkIndex)
+{
+   if ( iRadioLinkIndex < 0 || iRadioLinkIndex >= radioLinksParams.links_count )
+      return false;
+
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( radioInterfacesParams.interface_link_id[i] != iRadioLinkIndex )
+         continue;
+
+      if ( ( (radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_SERIAL ) &&
+           ( radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS) )
          return true;
       else
          return false;

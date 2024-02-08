@@ -822,7 +822,7 @@ void reload_model(u8 changeType)
       return;
    }
 
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
 
    _compute_telemetry_intervals();
 
@@ -2178,7 +2178,7 @@ int main (int argc, char *argv[])
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
 
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
 
    hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry);
 

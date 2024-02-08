@@ -235,10 +235,10 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, u8* pData, i
                {
                   if ( modelTemp.iCurrentCamera != g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera )
                      bCameraChanged = true;
-                  if ( (modelTemp.iCurrentCamera >= 0) && (modelTemp.iCameraCount > 0) &&
-                       (g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera >= 0 ) &&
-                       (g_VehiclesRuntimeInfo[i].pModel->iCameraCount > 0) && 
-                       (modelTemp.camera_params[modelTemp.iCurrentCamera].iCameraType != g_VehiclesRuntimeInfo[i].pModel->camera_params[g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera].iCameraType ) ||
+                  if ( (modelTemp.iCurrentCamera >= 0) && (modelTemp.iCameraCount > 0) )
+                  if ( (g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera >= 0 ) &&
+                       (g_VehiclesRuntimeInfo[i].pModel->iCameraCount > 0) )
+                  if ( (modelTemp.camera_params[modelTemp.iCurrentCamera].iCameraType != g_VehiclesRuntimeInfo[i].pModel->camera_params[g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera].iCameraType ) ||
                        (modelTemp.camera_params[modelTemp.iCurrentCamera].iForcedCameraType != g_VehiclesRuntimeInfo[i].pModel->camera_params[g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera].iForcedCameraType ) )
                      bCameraChanged = true;
 
@@ -347,7 +347,7 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
       return;
    }
 
-   if ( (iSegmentSize < 0) || (iSegmentSize > iDataLength - 4 * sizeof(u8)) )
+   if ( (iSegmentSize < 0) || (iSegmentSize > iDataLength - 4 * (int)sizeof(u8)) )
    {
       log_softerror_and_alarm("[Commands] Received invalid small segment size (%d bytes, expected %d bytes) for segment %d for model settings. Ignoring it.", iSegmentSize, iDataLength - 4*sizeof(u8), iSegmentIndex);
       return;
@@ -387,7 +387,7 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
 
    for( int i=0; i<iTotalSegments; i++ )
    {
-      if ( g_VehiclesRuntimeInfo[iRuntimeIndex].uSegmentsModelSettingsIds[i] != iSegmentUniqueId )
+      if ( (int)g_VehiclesRuntimeInfo[iRuntimeIndex].uSegmentsModelSettingsIds[i] != iSegmentUniqueId )
       {
          bHasAll = false;
          continue;                   
@@ -598,7 +598,7 @@ void _handle_download_file_segment_response()
    if ( s_uFileToDownloadState != 1 )
       return;
 
-   if ( (uFileSegment != s_uCountFileSegmentsToDownload) && (length != s_uFileToDownloadSegmentSize) )
+   if ( (uFileSegment != s_uCountFileSegmentsToDownload) && (length != (int)s_uFileToDownloadSegmentSize) )
       log_softerror_and_alarm("Received file segment of unexpected size. Expected %d bytes segment.", s_uFileToDownloadSegmentSize );
 
    if ( uFileSegment < s_uCountFileSegmentsToDownload )
@@ -662,13 +662,13 @@ void _handle_download_file_segment_response()
       char szBuff[256];
 
       sprintf(szFolder, FOLDER_MEDIA_VEHICLE_DATA, g_pCurrentModel->vehicle_id);
-      sprintf(szComm, "mkdir -p %s", szFolder);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s", szFolder);
       hw_execute_bash_command(szComm, NULL);
       sprintf(szBuff, "logs_%s_%u_%u.zip", g_pCurrentModel->getShortName(), g_pCurrentModel->m_Stats.uTotalFlights, g_pCurrentModel->m_Stats.uTotalOnTime);
-      for( int i=0; i<strlen(szBuff); i++ )
+      for( int i=0; i<(int)strlen(szBuff); i++ )
          if ( szBuff[i] == ' ' )
             szBuff[i] = '-';
-      sprintf(szComm, "mv -f tmp/vehicle_logs.zip %s/%s", szFolder, szBuff);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mv -f tmp/vehicle_logs.zip %s/%s", szFolder, szBuff);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -708,33 +708,17 @@ bool handle_last_command_result()
    }
 
    t_packet_header* pPH = NULL;
-   t_packet_header_command_response* pPHCR = NULL;
    pPH = (t_packet_header*)s_CommandReplyBuffer;
-   pPHCR = (t_packet_header_command_response*)(s_CommandReplyBuffer + sizeof(t_packet_header));   
 
    char szBuff[1500];
-   char szBuff2[64];
-   char szBuff3[64];
-   int tmp = 0, tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0;
-   u32 tmp32 = 0;
-   int tmpCard;
-   u32 tmpCtrlId = 0;
+   int tmp = 0, tmp1 = 0, tmp2 = 0;
    u32 *pTmp32 = NULL;
-   bool tmpb = false;
    u8* pBuffer = NULL;
-   FILE* fd = NULL;
-   Menu* pMenu = NULL;
-   radio_hw_info_t* pNIC = NULL;
-   osd_parameters_t osd_params;
-   rc_parameters_t rc_params_temp;
-   sem_t* pSem = NULL;
    Model modelTemp;
 
    int iDataLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command_response);
    const char* szTokens = "+";
    char* szWord = NULL;
-
-   ControllerSettings* pcs = get_ControllerSettings();
 
    switch ( s_CommandType )
    {
@@ -1014,13 +998,13 @@ bool handle_last_command_result()
          }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
          pTmp32 = (u32*)pBuffer;
-         if ( iDataLength >= 2*sizeof(u32) )
+         if ( iDataLength >= 2*(int)sizeof(u32) )
          {
             sprintf(szBuff, "Memory: %d Mb free out of %d Mb total", *(pTmp32+1), *pTmp32);
             s_pMenuVehicleHWInfo->addTopLine(" ");
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
          }
-         if ( iDataLength > 2*sizeof(u32) )
+         if ( iDataLength > 2*(int)sizeof(u32) )
          {
             *(pBuffer + iDataLength-1) = 0;
             sprintf(szBuff, "Logs: %s", pBuffer + 2*sizeof(32));
@@ -1408,16 +1392,17 @@ bool handle_last_command_result()
             u32 tmpLink = (s_CommandParam>>24) & 0x7F;
             u32 tmpFreq = (s_CommandParam & 0xFFFFFF);
             log_line("[Commands] Received response Ok from vehicle to the link frequency change (new format). Vehicle radio link %u new freq: %s", tmpLink+1, str_format_frequency(tmpFreq));
-            if ( tmpLink < g_pCurrentModel->radioLinksParams.links_count )
+            if ( (int)tmpLink < g_pCurrentModel->radioLinksParams.links_count )
             {
                u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
                if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] == uMainConnectFrequency )
                   set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, tmpFreq);
                g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] = tmpFreq;
                for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-                  if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] == tmpLink )
+               {
+                  if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] == (int)tmpLink )
                      g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i] = tmpFreq;
-               
+               }
                saveControllerModel(g_pCurrentModel);
                u32 data[2];
                data[0] = tmpLink;
@@ -1430,16 +1415,17 @@ bool handle_last_command_result()
             u32 tmpLink = (s_CommandParam>>16);
             u32 tmpFreq = (s_CommandParam & 0xFFFF);
             log_line("[Commands] Received response Ok from vehicle to the link frequency change (old format). Vehicle radio link %u new freq: %s", tmpLink+1, str_format_frequency(tmpFreq));
-            if ( tmpLink < g_pCurrentModel->radioLinksParams.links_count )
+            if ( (int)tmpLink < g_pCurrentModel->radioLinksParams.links_count )
             {
                u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
                if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] == uMainConnectFrequency )
                   set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, tmpFreq*1000);
                g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] = tmpFreq*1000;
                for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-                  if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] == tmpLink )
+               {
+                  if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] == (int)tmpLink )
                      g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i] = tmpFreq;
-               
+               }
                saveControllerModel(g_pCurrentModel);
                u32 data[2];
                data[0] = tmpLink;
@@ -1517,19 +1503,27 @@ bool handle_last_command_result()
             u32* p = (u32*)&(s_CommandBuffer[0]);
             u32 linkIndex = *p;
             p++;
-            u32 linkRadioFlags = *p;
+            //u32 linkRadioFlags = *p;
             p++;
             int* pi = (int*)p;
-            int datarateVideo = *pi;
+            //int datarateVideo = *pi;
             pi++;
-            int datarateData = *pi;
+            //int datarateData = *pi;
 
-            if ( linkIndex >= g_pCurrentModel->radioLinksParams.links_count )
+            if ( (int)linkIndex >= g_pCurrentModel->radioLinksParams.links_count )
             {
                log_softerror_and_alarm("[Commands] Received command response from vehicle to set radio link flags, but radio link id is invalid (%d). Only %d radio links present.", linkIndex, g_pCurrentModel->radioLinksParams.links_count);
                break;
             }
-            warnings_add_configuring_radio_link_line("Waiting for confirmation from vehicle");
+            if ( g_pCurrentModel->radioLinkIsELRSRadio(linkIndex) )
+            {
+               warnings_remove_configuring_radio_link(true);
+               link_reset_reconfiguring_radiolink();
+               send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+               return false;
+            }
+            else
+               warnings_add_configuring_radio_link_line("Waiting for confirmation from vehicle");
             return true;
          }
 
@@ -2527,7 +2521,7 @@ void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName)
       }
    }
 
-   if ( lSize > g_CurrentUploadingFile.uTotalSegments*lSegmentSize )
+   if ( lSize > (long)g_CurrentUploadingFile.uTotalSegments*lSegmentSize )
    {
       g_CurrentUploadingFile.uSegmentsSize[g_CurrentUploadingFile.uTotalSegments] = lSize - g_CurrentUploadingFile.uTotalSegments*lSegmentSize ;
       g_CurrentUploadingFile.bSegmentsUploaded[g_CurrentUploadingFile.uTotalSegments] = false;
@@ -2555,7 +2549,7 @@ void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName)
    for( u32 u=0; u<g_CurrentUploadingFile.uTotalSegments; u++ )
    {
       int nRes = fread(g_CurrentUploadingFile.pSegments[u], 1, g_CurrentUploadingFile.uSegmentsSize[u], fd);
-      if ( nRes != g_CurrentUploadingFile.uSegmentsSize[u] )
+      if ( nRes != (int)g_CurrentUploadingFile.uSegmentsSize[u] )
       {
          log_softerror_and_alarm("[Commands] Failed to read file segment %u for uploading file to vehicle.", u);
          g_CurrentUploadingFile.szFileName[0] = 0;
@@ -2584,7 +2578,6 @@ bool handle_commands_send_developer_flags()
    if ( NULL == g_pCurrentModel )
       return false;
 
-   Preferences* pP = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
 
    u8 buffer[32];

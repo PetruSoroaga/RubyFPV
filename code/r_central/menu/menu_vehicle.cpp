@@ -208,8 +208,6 @@ void MenuVehicle::Render()
    if ( m_bInvalidated )
       addTopDescription();
 
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-
    float yTop = RenderFrameAndTitle();
    float y = yTop;
 

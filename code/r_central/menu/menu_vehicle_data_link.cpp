@@ -57,7 +57,7 @@ MenuVehicleDataLink::MenuVehicleDataLink(void)
    for( int i=0; i<hardware_get_serial_baud_rates_count(); i++ )
    {
       char szBuff[32];
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[i]);
+      sprintf(szBuff, "%d bps", hardware_get_serial_baud_rates()[i]);
       m_pItemsSelect[1]->addSelection(szBuff);
    }
    m_pItemsSelect[1]->setIsEditable();
@@ -98,17 +98,18 @@ void MenuVehicleDataLink::valuesToUI()
    }
    bool bSpeedFound = false;
    for(int i=0; i<m_pItemsSelect[1]->getSelectionsCount(); i++ )
-      if ( hardware_get_serial_baud_rates()[i] == uCurrentSerialPortSpeed )
+   {
+      if ( hardware_get_serial_baud_rates()[i] == (int)uCurrentSerialPortSpeed )
       {
          m_pItemsSelect[1]->setSelection(i);
          bSpeedFound = true;
          break;
       }
-
+   }
    if ( ! bSpeedFound )
    {
       char szBuff[256];
-      sprintf(szBuff, "Info: You are using a custom baud rate (%ld) for the auxiliary data link.", uCurrentSerialPortSpeed);
+      sprintf(szBuff, "Info: You are using a custom baud rate (%d) for the auxiliary data link.", (int)uCurrentSerialPortSpeed);
       addTopLine(szBuff);
    }
 }
@@ -137,7 +138,7 @@ void MenuVehicleDataLink::onSelectItem()
 
 
    int iCurrentSerialPortIndex = -1;
-   u32 uCurrentSerialPortSpeed = 0;
+
    for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
    {
        
@@ -145,7 +146,6 @@ void MenuVehicleDataLink::onSelectItem()
        if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           iCurrentSerialPortIndex = i;
-          uCurrentSerialPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
           break;
        }
    }

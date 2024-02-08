@@ -223,7 +223,6 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
 
    float xEnd = xPos + m_pMenu->getUsableWidth() - m_fMarginX;
    float x0 = xEnd;
-   float y0 = yPos;
 
    float dxPaddings = Menu::getSelectionPaddingX();
    float dyPaddings = 0.6*Menu::getSelectionPaddingY();

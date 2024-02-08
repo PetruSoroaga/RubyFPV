@@ -589,7 +589,7 @@ int _hardware_enumerate_wifi_radios()
       sRadioInfo[s_iHwRadiosCount].isEnabled = 1;
       sRadioInfo[s_iHwRadiosCount].isTxCapable = 1;
       sRadioInfo[s_iHwRadiosCount].isHighCapacityInterface = 1;
-      sRadioInfo[s_iHwRadiosCount].iCurrentDataRate = 0;
+      sRadioInfo[s_iHwRadiosCount].iCurrentDataRateBPS = 0;
       sRadioInfo[s_iHwRadiosCount].uCurrentFrequencyKhz = 0;
       sRadioInfo[s_iHwRadiosCount].lastFrequencySetFailed = 0;
       sRadioInfo[s_iHwRadiosCount].uFailedFrequencyKhz = 0;
@@ -925,6 +925,36 @@ int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo)
    return 0;
 }
 
+int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo)
+{
+   if ( NULL == pRadioInfo )
+      return 0;
+
+   if ( ! hardware_radio_is_serial_radio(pRadioInfo) )
+      return 0;
+   if ( pRadioInfo->iCardModel != CARD_MODEL_SERIAL_RADIO_ELRS )
+      return 0;
+     
+   return 1;
+}
+
+int hardware_radio_index_is_serial_radio(int iHWInterfaceIndex)
+{
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iHWInterfaceIndex);
+   if ( NULL == pRadioHWInfo )
+      return 0;
+     
+   return hardware_radio_is_serial_radio(pRadioHWInfo);
+}
+
+int hardware_radio_index_is_elrs_radio(int iHWInterfaceIndex)
+{
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iHWInterfaceIndex);
+   if ( NULL == pRadioHWInfo )
+      return 0;
+     
+   return hardware_radio_is_elrs_radio(pRadioHWInfo);
+}
 
 int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex)
 {
@@ -953,6 +983,11 @@ int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freqKhz)
       hardware_enumerate_radio_interfaces();
    if ( iRadioIndex < 0 || iRadioIndex >= s_iHwRadiosCount )
       return 0;
+
+   if ( sRadioInfo[iRadioIndex].isSerialRadio )
+   if ( ! sRadioInfo[iRadioIndex].isConfigurable )
+   if ( sRadioInfo[iRadioIndex].uCurrentFrequencyKhz == freqKhz )
+      return 1;
    int band = getBand(freqKhz);
    
    if ( band & sRadioInfo[iRadioIndex].supportedBands )

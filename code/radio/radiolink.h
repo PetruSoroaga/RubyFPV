@@ -74,6 +74,7 @@ int get_last_processing_error_code();
 u32 radio_get_next_radio_link_packet_index(int iLocalRadioLinkId);
 int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacketData, int nInputLength, int portNb, int bEncrypt, int iExtraData, u8* pExtraData);
 int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength);
+int radio_write_serial_packet(int interfaceIndex, u8* pData, int dataLength, u32 uTimeNow);
 int radio_write_sik_packet(int interfaceIndex, u8* pData, int dataLength, u32 uTimeNow);
 
 #ifdef __cplusplus

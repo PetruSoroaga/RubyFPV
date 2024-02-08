@@ -1,7 +1,7 @@
 
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -lwiringPi -Wl,--gc-sections
-_CFLAGS := $(CFLAGS) -Wall -O2 -fdata-sections -ffunction-sections
-_CPPFLAGS := -Wall -O2 -fdata-sections -ffunction-sections
+_CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
+_CPPFLAGS := -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 
 
 INCLUDE_CENTRAL := -Imenu -Iosd -I../menu -I../osd -Icode/r_central/menu -Icode/r_central/osd -I../openvg -I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/usr/include/freetype2
@@ -115,7 +115,7 @@ core_plugins_utils.o: code/public/utils/core_plugins_utils.c
 osd_plugins_utils.o: code/public/utils/osd_plugins_utils.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/enc.o $(FOLDER_BASE)/commands.o
+MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/enc.o $(FOLDER_BASE)/commands.o
 MODULE_BASE2 := $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_BASE)/controller_utils.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o
 MODULE_COMMON := $(FOLDER_COMMON)/string_utils.o $(FOLDER_COMMON)/relay_utils.o
 MODULE_MODELS := $(FOLDER_BASE)/models.o $(FOLDER_BASE)/models_list.o
@@ -131,7 +131,7 @@ CENTRAL_MENU_ALL3 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_management.o $(FOLDER_C
 CENTRAL_MENU_ALL4 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_data_link.o $(FOLDER_CENTRAL_MENU)/menu_controller_network.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_instruments_general.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_elements.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugin.o $(FOLDER_CENTRAL_MENU)/menu_controller_plugins.o $(FOLDER_CENTRAL_MENU)/menu_controller_encryption.o $(FOLDER_CENTRAL_MENU)/menu_search_connect.o $(FOLDER_CENTRAL_MENU)/menu_system_hardware.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_hdmi.o $(FOLDER_CENTRAL_MENU)/menu_controller_recording.o $(FOLDER_CENTRAL_MENU)/menu_system_video_profiles.o $(FOLDER_CENTRAL_MENU)/menu_info_booster.o $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface.o
 CENTRAL_MENU_ALL5 := $(FOLDER_CENTRAL_MENU)/menu_system_dev_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_interface.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_management_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_peripherals.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_delete_logs.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio.o
 CENTRAL_MENU_RC := $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_failsafe.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_channels.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_expo.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_camera.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_input.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_functions.o
-CENTRAL_MENU_RADIO := $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface_sik.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_sik.o $(FOLDER_CENTRAL_MENU)/menu_diagnose_radio_link.o
+CENTRAL_MENU_RADIO := $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface_sik.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_sik.o $(FOLDER_CENTRAL_MENU)/menu_diagnose_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_elrs.o
 CENTRAL_POPUP_ALL := $(FOLDER_CENTRAL)/popup.o $(FOLDER_CENTRAL)/popup_log.o $(FOLDER_CENTRAL)/popup_commands.o $(FOLDER_CENTRAL)/popup_camera_params.o
 CENTRAL_RENDER_ALL := $(FOLDER_CENTRAL)/colors.o $(FOLDER_CENTRAL)/render_commands.o $(FOLDER_CENTRAL)/render_joysticks.o $(FOLDER_CENTRAL)/process_router_messages.o
 CENTRAL_RENDER_RAW := $(FOLDER_CENTRAL_RENDERER)/lodepng.o $(FOLDER_CENTRAL_RENDERER)/nanojpeg.o $(FOLDER_CENTRAL_RENDERER)/fbgraphics.o $(FOLDER_CENTRAL_RENDERER)/render_engine.o $(FOLDER_CENTRAL_RENDERER)/render_engine_raw.o $(FOLDER_CENTRAL_RENDERER)/render_engine_ui.o $(FOLDER_CENTRAL_RENDERER)/fbg_dispmanx.o
@@ -139,7 +139,7 @@ CENTRAL_OSD_ALL := $(FOLDER_CENTRAL_OSD)/osd_common.o $(FOLDER_CENTRAL_OSD)/osd.
 CENTRAL_ALL := $(FOLDER_CENTRAL)/notifications.o $(FOLDER_CENTRAL)/launchers_controller.o $(FOLDER_CENTRAL)/local_stats.o $(FOLDER_CENTRAL)/rx_scope.o $(FOLDER_CENTRAL)/forward_watch.o $(FOLDER_CENTRAL)/timers.o $(FOLDER_CENTRAL)/ui_alarms.o $(FOLDER_CENTRAL)/media.o $(FOLDER_CENTRAL)/pairing.o $(FOLDER_CENTRAL)/link_watch.o $(FOLDER_CENTRAL)/warnings.o $(FOLDER_CENTRAL)/handle_commands.o $(FOLDER_CENTRAL)/events.o $(FOLDER_CENTRAL)/shared_vars_ipc.o $(FOLDER_CENTRAL)/shared_vars_state.o $(FOLDER_CENTRAL)/shared_vars_osd.o $(FOLDER_CENTRAL)/fonts.o $(FOLDER_CENTRAL)/keyboard.o $(FOLDER_CENTRAL)/quickactions.o $(FOLDER_CENTRAL)/shared_vars.o
 CENTRAL_RADIO := $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopackets_short.o $(FOLDER_RADIO)/radiolink.o $(FOLDER_RADIO)/radiotap.o 
 
-all: vehicle controller ruby_i2c ruby_central ruby_plugins
+all: vehicle controller ruby_i2c ruby_plugins ruby_central
 
 vehicle: ruby_start ruby_utils ruby_vehicle ruby_rx_rc ruby_rx_commands ruby_tx_telemetry ruby_rt_vehicle
 
@@ -219,19 +219,19 @@ ruby_rt_station: $(FOLDER_STATION)/ruby_rt_station.o $(MODULE_BASE) $(MODULE_BAS
 ruby_plugins: ruby_plugin_osd_ahi ruby_plugin_gauge_speed ruby_plugin_gauge_altitude ruby_plugin_gauge_ahi ruby_plugin_gauge_heading
 
 ruby_plugin_osd_ahi: $(FOLDER_PLUGINS_OSD)/ruby_plugin_osd_ahi.o osd_plugins_utils.o core_plugins_utils.o
-	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_osd_ahi.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_osd_ahi.so.1 -o ruby_plugin_osd_ahi.so.1.0.1 -lc
+	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_osd_ahi.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_osd_ahi2.so.1 -o ruby_plugin_osd_ahi2.so.1.0.1 -lc
 
 ruby_plugin_gauge_speed: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_speed.o osd_plugins_utils.o core_plugins_utils.o
-	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_speed.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_speed.so.1 -o ruby_plugin_gauge_speed.so.1.0.1 -lc
+	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_speed.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_speed2.so.1 -o ruby_plugin_gauge_speed2.so.1.0.1 -lc
 
 ruby_plugin_gauge_altitude: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_altitude.o osd_plugins_utils.o core_plugins_utils.o
-	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_altitude.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_altitude.so.1 -o ruby_plugin_gauge_altitude.so.1.0.1 -lc
+	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_altitude.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_altitude2.so.1 -o ruby_plugin_gauge_altitude2.so.1.0.1 -lc
 
 ruby_plugin_gauge_ahi: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_ahi.o osd_plugins_utils.o core_plugins_utils.o
-	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_ahi.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_ahi.so.1 -o ruby_plugin_gauge_ahi.so.1.0.1 -lc
+	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_ahi.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_ahi2.so.1 -o ruby_plugin_gauge_ahi2.so.1.0.1 -lc
 
 ruby_plugin_gauge_heading: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd_plugins_utils.o core_plugins_utils.o
-	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_heading.so.1 -o ruby_plugin_gauge_heading.so.1.0.1 -lc
+	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_heading2.so.1 -o ruby_plugin_gauge_heading2.so.1.0.1 -lc
 
 tests: test_log
 

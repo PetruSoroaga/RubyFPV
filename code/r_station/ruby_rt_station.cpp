@@ -148,6 +148,7 @@ void _compute_radio_interfaces_assignment()
       g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId = -1;
    }
 
+   //---------------------------------------------------------------
    // See how many active radio links the vehicle has
 
    u32 uStoredMainFrequencyForModel = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
@@ -159,7 +160,7 @@ void _compute_radio_interfaces_assignment()
    u32 uConnectFirstUsableFrequency = 0;
    int iConnectFirstUsableRadioLinkId = 0;
 
-   log_line("Computing radio interfaces assignment to radio links...");
+   log_line("Computing local radio interfaces assignment to vehicle radio links...");
    log_line("Vehicle (%u, %s) main 'connect to' frequency: %s, vehicle has a total of %d radio links.",
       g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName(), str_format_frequency(uStoredMainFrequencyForModel), g_pCurrentModel->radioLinksParams.links_count);
 
@@ -207,68 +208,23 @@ void _compute_radio_interfaces_assignment()
       return;
    }
 
-   // Begin - Model with a single active radio link
-
-   if ( 1 == iCountVehicleActiveUsableRadioLinks )
-   {
-      log_line("Computing controller's radio interfaces assignment to vehicle's radio link %d (vehicle has a single active (enabled and not relay) radio link on %s)", iConnectFirstUsableRadioLinkId+1, str_format_frequency(uConnectFirstUsableFrequency));
-      
-      int iCountInterfacesAssigned = 0;
-
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
-         {
-            log_line("  * Radio interface %d is disabled, do not assign it.", i+1);
-            continue;
-         }
-         if ( ! hardware_radio_supports_frequency(pRadioHWInfo, uConnectFirstUsableFrequency) )
-         {
-            log_line("  * Radio interface %d does not support %s, do not assign it.", i+1, str_format_frequency(uConnectFirstUsableFrequency));
-            continue;
-         }
-         g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId = 0;
-         g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId = iConnectFirstUsableRadioLinkId;
-         g_SM_RadioStats.radio_links[0].matchingVehicleRadioLinkId = iConnectFirstUsableRadioLinkId;
-         iCountInterfacesAssigned++;
-         t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-         if ( NULL != pCardInfo )  
-            log_line("  * Assigned radio interface %d (%s) to vehicle radio link %d", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), iConnectFirstUsableRadioLinkId+1);
-         else
-            log_line("  * Assigned radio interface %d (%s) to vehicle radio link %d", i+1, "Unknown Type", iConnectFirstUsableRadioLinkId+1);
-      }
-      iCountAssignedVehicleRadioLinks = 1;
-      g_SM_RadioStats.countLocalRadioLinks = 1;
-      if ( NULL != g_pSM_RadioStats )
-         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-      if ( 0 == iCountAssignedVehicleRadioLinks )
-         send_alarm_to_central(ALARM_ID_CONTROLLER_NO_INTERFACES_FOR_RADIO_LINK,iConnectFirstUsableRadioLinkId, 0);
-      
-      log_line("Controller will have %d radio links to vehicle.", iCountAssignedVehicleRadioLinks);
-      log_line("Done computing radio interfaces assignment to radio links.");
-      log_line("------------------------------------------------------------------");
-      return;
-   }
-
-   // End - Model with a single active radio link
-
-
-   // Begin - Model with a multiple active radio links
-
-   log_line("Computing controller's radio interfaces assignment to vehicle's radio links (vehicle has %d active radio links (enabled and not relay), main controller connect frequency is: %s)", iCountVehicleActiveUsableRadioLinks, str_format_frequency(uStoredMainFrequencyForModel));
-
-   if ( uStoredMainFrequencyForModel <= 0 )
-      uStoredMainFrequencyForModel = uConnectFirstUsableFrequency;
-
-   // Check what vehicle radio links are supported by each radio interface.
+   //--------------------------------------------------------------------------
+   // Begin - Check what vehicle radio links are supported by each radio interface.
 
    bool bInterfaceSupportsVehicleLink[MAX_RADIO_INTERFACES][MAX_RADIO_INTERFACES];
    bool bInterfaceSupportsMainConnectLink[MAX_RADIO_INTERFACES];
    int iInterfaceSupportedLinksCount[MAX_RADIO_INTERFACES];
    
+   bool bCtrlInterfaceWasAssigned[MAX_RADIO_INTERFACES];
+   bool bVehicleLinkWasAssigned[MAX_RADIO_INTERFACES];
+   int  iVehicleLinkWasAssignedToControllerLinkIndex[MAX_RADIO_INTERFACES];
+
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
+      bCtrlInterfaceWasAssigned[i] = false;
+      bVehicleLinkWasAssigned[i] = false;
+      iVehicleLinkWasAssignedToControllerLinkIndex[i] = -1;
+
       bInterfaceSupportsMainConnectLink[i] = false;
       iInterfaceSupportedLinksCount[i] = 0;
       for( int k=0; k<MAX_RADIO_INTERFACES; k++ )
@@ -313,7 +269,20 @@ void _compute_radio_interfaces_assignment()
          if ( ! (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
             continue;
 
-         if ( hardware_radio_supports_frequency(pRadioHWInfo, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLink]) )
+         bool bDoesMatch = false;
+
+         // Match ELRS serial radio links
+         if ( (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS ) ||
+              (pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS) )
+         {
+            if ( (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLink] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS ) &&
+                 (pRadioHWInfo->iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS) )
+               bDoesMatch = true;
+         }
+         else if ( hardware_radio_supports_frequency(pRadioHWInfo, g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLink]) )
+            bDoesMatch = true;
+
+         if ( bDoesMatch )
          {
             log_line("Controller's radio interface %d does support vehicle's radio link %d (%s).", i+1, iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLink]));
             bInterfaceSupportsVehicleLink[i][iRadioLink] = true;
@@ -325,24 +294,73 @@ void _compute_radio_interfaces_assignment()
       }
    }
 
+   // End - Check what vehicle radio links are supported by each radio interface.
+   //--------------------------------------------------------------------------
 
-   bool bCtrlInterfaceWasAssigned[MAX_RADIO_INTERFACES];
-   bool bVehicleLinkWasAssigned[MAX_RADIO_INTERFACES];
-   int  iVehicleLinkWasAssignedToControllerLinkIndex[MAX_RADIO_INTERFACES];
+   //---------------------------------------------------------------
+   // Begin - Model with a single active radio link
 
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   if ( 1 == iCountVehicleActiveUsableRadioLinks )
    {
-      bCtrlInterfaceWasAssigned[i] = false;
-      bVehicleLinkWasAssigned[i] = false;
-      iVehicleLinkWasAssignedToControllerLinkIndex[i] = -1;
+      log_line("Computing controller's radio interfaces assignment to vehicle's radio link %d (vehicle has a single active (enabled and not relay) radio link on %s)", iConnectFirstUsableRadioLinkId+1, str_format_frequency(uConnectFirstUsableFrequency));
+      
+      int iCountInterfacesAssigned = 0;
+
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+         {
+            log_line("  * Radio interface %d is disabled, do not assign it.", i+1);
+            continue;
+         }
+         if ( ! hardware_radio_supports_frequency(pRadioHWInfo, uConnectFirstUsableFrequency) )
+         {
+            log_line("  * Radio interface %d does not support %s, do not assign it.", i+1, str_format_frequency(uConnectFirstUsableFrequency));
+            continue;
+         }
+         g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId = 0;
+         g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId = iConnectFirstUsableRadioLinkId;
+         g_SM_RadioStats.radio_links[0].matchingVehicleRadioLinkId = iConnectFirstUsableRadioLinkId;
+         iCountInterfacesAssigned++;
+         t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL != pCardInfo )  
+            log_line("  * Assigned radio interface %d (%s) to vehicle radio link %d", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), iConnectFirstUsableRadioLinkId+1);
+         else
+            log_line("  * Assigned radio interface %d (%s) to vehicle radio link %d", i+1, "Unknown Type", iConnectFirstUsableRadioLinkId+1);
+      }
+      iCountAssignedVehicleRadioLinks = 1;
+      g_SM_RadioStats.countLocalRadioLinks = 1;
+      if ( NULL != g_pSM_RadioStats )
+         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
+      if ( 0 == iCountAssignedVehicleRadioLinks )
+         send_alarm_to_central(ALARM_ID_CONTROLLER_NO_INTERFACES_FOR_RADIO_LINK,iConnectFirstUsableRadioLinkId, 0);
+      
+      log_line("Controller will have %d radio links active/connected to vehicle.", iCountAssignedVehicleRadioLinks);
+      log_line("Done computing radio interfaces assignment to radio links.");
+      log_line("------------------------------------------------------------------");
+      return;
    }
 
+   // End - Model with a single active radio link
+   //---------------------------------------------------------------
+
+
+   //---------------------------------------------------------------
+   // Begin - Model with a multiple active radio links
+
+   log_line("Computing controller's radio interfaces assignment to vehicle's radio links (vehicle has %d active radio links (enabled and not relay), main controller connect frequency is: %s)", iCountVehicleActiveUsableRadioLinks, str_format_frequency(uStoredMainFrequencyForModel));
+
+   if ( uStoredMainFrequencyForModel <= 0 )
+      uStoredMainFrequencyForModel = uConnectFirstUsableFrequency;
+
+   //---------------------------------------------------------------
    // Begin - First, assign the radio interfaces that supports only a single radio link
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+      if ( (NULL == pRadioHWInfo) || (controllerIsCardDisabled(pRadioHWInfo->szMAC)) )
          continue;
       if ( iInterfaceSupportedLinksCount[i] != 1 )
          continue;
@@ -373,13 +391,15 @@ void _compute_radio_interfaces_assignment()
 
       t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
       if ( NULL != pCardInfo )  
-         log_line("  * Step A) Assigned controller's radio interface %d (%s) to controller radio link %d, vehicle's radio link %d, %s, as it supports a single radio link from vehicle.", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iSupportedVehicleLinkByInterface+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iSupportedVehicleLinkByInterface]));
+         log_line("  * Step A) Assigned controller's radio interface %d (%s) to controller local radio link %d, vehicle's radio link %d, %s, as it supports a single radio link from vehicle.", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iSupportedVehicleLinkByInterface+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iSupportedVehicleLinkByInterface]));
       else
-         log_line("  * Step A) Assigned controller's radio interface %d (%s) to controller radio link %d, vehicle's radio link %d, %s, as it supports a single radio link from vehicle.", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iSupportedVehicleLinkByInterface+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iSupportedVehicleLinkByInterface]));
+         log_line("  * Step A) Assigned controller's radio interface %d (%s) to controller local radio link %d, vehicle's radio link %d, %s, as it supports a single radio link from vehicle.", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iSupportedVehicleLinkByInterface+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iSupportedVehicleLinkByInterface]));
    }
 
+   //---------------------------------------------------------------
    // End - First, assign the radio interfaces that supports only a single radio link
 
+   //---------------------------------------------------------------
    // Assign at least one radio interface to the main connect radio link
 
    if ( (iStoredMainRadioLinkForModel != -1) && (! bVehicleLinkWasAssigned[iStoredMainRadioLinkForModel]) )
@@ -408,13 +428,14 @@ void _compute_radio_interfaces_assignment()
 
          t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
          if ( NULL != pCardInfo )  
-            log_line("  * Step B) Assigned controller's radio interface %d (%s) to controller radio link %d, vehicle's main connect radio link %d, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iStoredMainRadioLinkForModel+1, str_format_frequency(uStoredMainFrequencyForModel));
+            log_line("  * Step B) Assigned controller's radio interface %d (%s) to controller local radio link %d, vehicle's main connect radio link %d, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iStoredMainRadioLinkForModel+1, str_format_frequency(uStoredMainFrequencyForModel));
          else
-            log_line("  * Step B) Assigned controller's radio interface %d (%s) to controller radio link %d, vehicle's main connect radio link %d, %s", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iStoredMainRadioLinkForModel+1, str_format_frequency(uStoredMainFrequencyForModel));
+            log_line("  * Step B) Assigned controller's radio interface %d (%s) to controller local radio link %d, vehicle's main connect radio link %d, %s", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iStoredMainRadioLinkForModel+1, str_format_frequency(uStoredMainFrequencyForModel));
          break;
       }
    }
 
+   //---------------------------------------------------------------
    // Assign alternativelly each remaining radio interfaces to one radio link
 
    // Assign to the first vehicle's radio link that has no cards assigned to
@@ -464,9 +485,9 @@ void _compute_radio_interfaces_assignment()
 
             t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
             if ( NULL != pCardInfo )  
-               log_line("  * C) Assigned controller's radio interface %d (%s) to controller radio link %d, radio link %d, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iVehicleRadioLinkIdToAssign+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkIdToAssign]));
+               log_line("  * C) Assigned controller's radio interface %d (%s) to controller local radio link %d, radio link %d, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iVehicleRadioLinkIdToAssign+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkIdToAssign]));
             else
-               log_line("  * C) Assigned controller's radio interface %d (%s) to controller radio link %d, radio link %d, %s", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iVehicleRadioLinkIdToAssign+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkIdToAssign]));
+               log_line("  * C) Assigned controller's radio interface %d (%s) to controller local radio link %d, radio link %d, %s", i+1, "Unknown Type", g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId+1, iVehicleRadioLinkIdToAssign+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkIdToAssign]));
          }
          k++;
          iVehicleRadioLinkIdToAssign++;
@@ -477,11 +498,12 @@ void _compute_radio_interfaces_assignment()
    }
 
    g_SM_RadioStats.countLocalRadioLinks = iCountAssignedVehicleRadioLinks;
-   log_line("Assigned %d controller radio links to controller links (vehicle has %d active radio links)", iCountAssignedVehicleRadioLinks, iCountVehicleActiveUsableRadioLinks);
+   log_line("Assigned %d controller local radio links to vehicle radio links (vehicle has %d active radio links)", iCountAssignedVehicleRadioLinks, iCountVehicleActiveUsableRadioLinks);
    
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
 
+   //---------------------------------------------------------------
    // Log errors
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -516,7 +538,7 @@ void _compute_radio_interfaces_assignment()
             send_alarm_to_central(ALARM_ID_CONTROLLER_NO_INTERFACES_FOR_RADIO_LINK, (u32)i, 0);
       }
    }
-   log_line("Radio links mapping (%d controller links to %d vehicle links:", g_SM_RadioStats.countLocalRadioLinks, g_pCurrentModel->radioLinksParams.links_count);
+   log_line("Radio links mapping (%d controller local radio links to %d vehicle radio links:", g_SM_RadioStats.countLocalRadioLinks, g_pCurrentModel->radioLinksParams.links_count);
    for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
       log_line("* Local radio link %d mapped to vehicle radio link %d;", i+1, g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId+1);
 
@@ -553,12 +575,19 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
          str_getDataRateDescription(pRadioInfo->datarateBPSMCS, szDatarate);
       str_get_radio_capabilities_description(flags, szFlags);
          
-      log_line("Checking controller interface %d settings: MAC: [%s], custom datarate: %s, flags: %s",
-            i, pRadioHWInfo->szMAC, szDatarate, szFlags );
+      log_line("Checking controller radio interface %d (%s) settings: MAC: [%s], custom datarate: %s, flags: %s",
+            i+1, pRadioHWInfo->szName, pRadioHWInfo->szMAC, szDatarate, szFlags );
 
       if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       {
          log_line("Links: Radio interface %d is disabled. Skipping it.", i+1);
+         continue;
+      }
+
+      if ( ! pRadioHWInfo->isConfigurable )
+      {
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioHWInfo->uCurrentFrequencyKhz);
+         log_line("Links: Radio interface %d is not configurable. Skipping it.", i+1);
          continue;
       }
 
@@ -664,6 +693,12 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
       if ( NULL == pRadioHWInfo )
          continue;
       
+      if ( ! pRadioHWInfo->isConfigurable )
+      {
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioHWInfo->uCurrentFrequencyKhz);
+         log_line("Links: Radio interface %d is not configurable. Skipping it.", i+1);
+         continue;
+      }
       if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       {
          log_line("Links: Radio interface %d is disabled. Skipping it.", i+1);
@@ -1981,6 +2016,8 @@ int main (int argc, char *argv[])
             continue;
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
          if ( NULL == pRadioHWInfo )
+            continue;
+         if ( ! pRadioHWInfo->isConfigurable )
             continue;
          if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
            ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )

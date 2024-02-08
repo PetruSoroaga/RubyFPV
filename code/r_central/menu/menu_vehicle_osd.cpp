@@ -140,8 +140,6 @@ MenuVehicleOSD::~MenuVehicleOSD()
 
 void MenuVehicleOSD::valuesToUI()
 {
-   Preferences* p = get_Preferences();
-
    int layoutIndex = g_pCurrentModel->osd_params.layout;
    
    m_pItemsSelect[0]->setSelectedIndex(layoutIndex);
@@ -259,7 +257,6 @@ void MenuVehicleOSD::onSelectItem()
    bool sendToVehicle = false;
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-   Preferences* p = get_Preferences();
    int layoutIndex = g_pCurrentModel->osd_params.layout;
 
    if ( m_IndexOSDLayout == m_SelectedIndex )

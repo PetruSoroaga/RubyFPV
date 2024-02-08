@@ -57,6 +57,7 @@
 //#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
+#include "../base/hardware_radio_serial.h"
 #include "../radio/radiolink.h"
 #include "../base/controller_utils.h"
 #include "../base/ruby_ipc.h"
@@ -105,6 +106,9 @@ void power_leds(int onoff)
 void initLogFiles()
 {
    char szCom[256];
+
+   sprintf(szCom, "rm -rf %s", LOG_FILE_LOGGER);
+   hw_execute_bash_command_silent(szCom, NULL);
 
    sprintf(szCom, "mv logs/log_system.txt logs/log_system_%d.txt", s_iBootCount-1 );
    if( access( LOG_FILE_SYSTEM, R_OK ) != -1 )
@@ -638,6 +642,7 @@ int main (int argc, char *argv[])
    hw_execute_bash_command_silent("./ruby_timeinit", NULL);
 
    if( access( LOG_USE_PROCESS, R_OK ) != -1 )
+   if ( ! hw_process_exists("ruby_logger") )
    {
       hw_execute_bash_command("./ruby_logger&", NULL);
       hardware_sleep_ms(300);
@@ -1019,6 +1024,23 @@ int main (int argc, char *argv[])
       printf("Ruby: %d SiK radio interfaces found.\n", hardware_radio_has_sik_radios());
       log_line("Ruby: %d SiK radio interfaces found.", hardware_radio_has_sik_radios());
       fflush(stdout);    
+   }
+
+   printf("Ruby: Finding serial radio interfaces...\n");
+   log_line("Ruby: Finding serial radio interfaces...");
+   fflush(stdout);
+
+   int iCountAdded = hardware_radio_serial_parse_and_add_from_serial_ports_config();
+
+   if ( 0 == iCountAdded )
+   {
+      printf("Ruby: No serial radio interfaces found.\n");
+      log_line("Ruby: No serial radio interfaces found.");
+   }
+   else
+   {
+      printf("\nRuby: %d serial radio interfaces found.\n\n", iCountAdded);
+      log_line("Ruby: %d serial radio interfaces found.", iCountAdded);
    }
    printf("Ruby: Done finding radio interfaces.\n");
    log_line("Ruby: Done finding radio interfaces.");
@@ -1478,6 +1500,10 @@ int main (int argc, char *argv[])
          }
          fflush(stdout);
          iCheckCount++;
+
+         if ( g_bDebug )
+            break;
+           
          for( int i=0; i<3; i++ )
             hardware_sleep_ms(5000);
       }

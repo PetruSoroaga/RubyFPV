@@ -49,11 +49,7 @@ MenuControllerRadioInterfaceSiK::MenuControllerRadioInterfaceSiK(int iInterfaceI
    m_pPopupProgress = NULL;
    m_iInterfaceIndex = iInterfaceIndex;
    
-   ControllerSettings* pCS = get_ControllerSettings();
-
    load_ControllerInterfacesSettings();
-
-   char szBuff[1024];
 
    m_IndexName = -1;
 
@@ -82,9 +78,6 @@ MenuControllerRadioInterfaceSiK::MenuControllerRadioInterfaceSiK(int iInterfaceI
 
 void MenuControllerRadioInterfaceSiK::valuesToUI()
 {
-   ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
-   ControllerSettings* pCS = get_ControllerSettings();
-
    if ( 0 == hardware_get_radio_interfaces_count() || m_iInterfaceIndex < 0 || m_iInterfaceIndex >= hardware_get_radio_interfaces_count() )
        return;
 
@@ -94,8 +87,6 @@ void MenuControllerRadioInterfaceSiK::valuesToUI()
       
    if ( NULL == pCardInfo )
       return;
-
-   int iRadioLinkId = g_SM_RadioStats.radio_interfaces[m_iInterfaceIndex].assignedLocalRadioLinkId;
 
    m_pItemsSelect[2]->setEnabled(true);
    m_pItemsSelect[2]->setSelection(1);
@@ -159,8 +150,6 @@ bool MenuControllerRadioInterfaceSiK::checkFlagsConsistency()
    radio_hw_info_t* pNIC = hardware_get_radio_info(m_iInterfaceIndex);
    if ( NULL == pNIC )
       return false;
-
-   u32 cardFlags = controllerGetCardFlags(pNIC->szMAC);
 
    int enabled = m_pItemsSelect[2]->getSelectedIndex();
 
@@ -261,8 +250,6 @@ void MenuControllerRadioInterfaceSiK::onSelectItem()
 
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
-
-   char szBuff[256];
 
    radio_hw_info_t* pNIC = hardware_get_radio_info(m_iInterfaceIndex);
    if ( NULL == pNIC )

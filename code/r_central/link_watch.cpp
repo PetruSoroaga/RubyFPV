@@ -218,7 +218,7 @@ void link_watch_loop_popup_looking()
             strcat(szFreq, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));
          }
       }
-      sprintf(szText, "Looking for default vehicle on %s frequencies...", szFreq);
+      snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Looking for default vehicle on %s frequencies...", szFreq);
    }
    else
    {
@@ -354,7 +354,7 @@ void link_watch_loop_unexpected_vehicles()
       char szFreq2[64];
       strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
       strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
-      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getLongName());
    }
    else
    {
@@ -364,7 +364,7 @@ void link_watch_loop_unexpected_vehicles()
       strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
       strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
       strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[2]));
-      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getLongName());
    }
 
    float yPos = 0.36;
@@ -700,13 +700,13 @@ void link_watch_loop_processes()
 
          if ( g_bVideoProcessing )
             failureCountMax = 8;
-         if ( s_CountProcessRouterFailures > failureCountMax )
+         if ( (int)s_CountProcessRouterFailures > failureCountMax )
          {
             log_softerror_and_alarm("Router process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rt_station"));
             warnings_add(0, "Controller router process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
-         if ( s_CountProcessTelemetryFailures > failureCountMax )
+         if ( (int)s_CountProcessTelemetryFailures > failureCountMax )
          {
             log_softerror_and_alarm("Telemetry process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rx_telemetry"));
             warnings_add(0, "Controller telemetry process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());

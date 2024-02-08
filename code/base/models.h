@@ -510,6 +510,7 @@ class Model
       void populateHWInfo();
       bool populateVehicleSerialPorts();
       void resetRadioLinkParams(int iRadioLink);
+      void addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbDefault24Used, bool* pbDefault24_2Used, bool* pbDefault58Used, bool* pbDefault58_2Used);
       void populateRadioInterfacesInfoFromHardware();
       void populateDefaultRadioLinksInfoFromRadioInterfaces();
       bool check_update_radio_links();
@@ -540,7 +541,9 @@ class Model
       int getLastSwappedRadioInterface2();
       bool rotateRadioLinksOrder();
 
+      bool radioLinkIsWiFiRadio(int iRadioLinkIndex);
       bool radioLinkIsSiKRadio(int iRadioLinkIndex);
+      bool radioLinkIsELRSRadio(int iRadioLinkIndex);
 
       bool hasCamera();
       char* getCameraName(int iCameraIndex);

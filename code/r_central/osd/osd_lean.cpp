@@ -53,7 +53,6 @@ void render_osd_layout_lean()
    Preferences* pP = get_Preferences();
 
    char szBuff[64];
-   char szBuff2[64];
    char szTmp[64];
 
    float height_text_big = osd_getFontHeightBig();
@@ -403,7 +402,7 @@ void render_osd_layout_lean()
    if ( s_bDebugOSDShowAll || (g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_TOTAL_DISTANCE) )
    {
    strcpy(szBuff, "0");
-   sprintf(szBuff, "%u", (unsigned long)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%d", (int)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
 
    osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff, g_idFontOSDBig);
    if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
@@ -445,7 +444,7 @@ void render_osd_layout_lean_extended()
 
    float xCellWidth = (1.0-2.0*osd_getMarginX())/12.0;
    if ( bShowBothSpeeds )
-      float xCellWidth = (1.0-2.0*osd_getMarginX()-height_text)/12.0;
+      xCellWidth = (1.0-2.0*osd_getMarginX()-height_text)/12.0;
 
    if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BGBARS )
    {

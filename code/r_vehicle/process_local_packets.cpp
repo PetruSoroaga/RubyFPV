@@ -57,6 +57,7 @@
 #include "ruby_rt_vehicle.h"
 #include "utils_vehicle.h"
 #include "launchers_vehicle.h"
+#include "radio_links.h"
 #include "processor_tx_video.h"
 #include "video_link_stats_overwrites.h"
 #include "video_link_check_bitrate.h"
@@ -268,7 +269,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
          log_error_and_alarm("Can't load current model vehicle.");
-      hardware_reload_serial_ports();
+      hardware_reload_serial_ports_settings();
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return;
@@ -471,8 +472,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       return;
       
       /*
-      close_radio_interfaces();
-
+      radio_links_close_rxtx_radio_interfaces();
       if ( NULL != g_pProcessStats )
       {
          g_TimeNow = get_current_timestamp_ms();
@@ -482,7 +482,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
       configure_radio_interfaces_for_current_model(g_pCurrentModel, g_pProcessStats);
 
-      open_radio_interfaces();
+      radio_links_open_rxtx_radio_interfaces();
 
       if ( NULL != g_pProcessStats )
       {
@@ -795,6 +795,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
                flag_update_sik_interface(i);
          }
       }
+      else if( g_pCurrentModel->radioLinkIsELRSRadio(iLink) )
+      {
+         log_line("Radio datarates changed on a ELRS radio link (link %d).", iLink+1);
+      }
       else
       {
          log_line("Radio link %d is regular 2.4/5.8 link.", iLink+1);
@@ -1035,7 +1039,7 @@ void process_local_control_packet(t_packet_header* pPH)
          g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
 
-      close_radio_interfaces();
+      radio_links_close_rxtx_radio_interfaces();
 
       if ( NULL != g_pProcessStats )
       {
@@ -1044,7 +1048,7 @@ void process_local_control_packet(t_packet_header* pPH)
          g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
 
-      open_radio_interfaces();
+      radio_links_open_rxtx_radio_interfaces();
 
       if ( NULL != g_pProcessStats )
       {

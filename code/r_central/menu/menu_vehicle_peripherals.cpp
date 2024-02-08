@@ -49,7 +49,7 @@
 MenuVehiclePeripherals::MenuVehiclePeripherals(void)
 :Menu(MENU_ID_VEHICLE_PERIPHERALS, "Vehicle Peripherals Settings", NULL)
 {
-   m_Width = 0.26;
+   m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width);
    m_yPos = 0.4;
    m_bWaitingForVehicleInfo = false;
@@ -88,7 +88,11 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
             m_pItemsSelect[i*2]->addSelection("MSP OSD PitLab", false);
             #endif
             m_pItemsSelect[i*2]->addSelection("Custom Data Link");
-            m_IndexStartPortUsagePluginsStartIndex[i] = 4;
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24));
+            m_IndexStartPortUsagePluginsStartIndex[i] = 8;
 
             for( int n=0; n<g_iVehicleCorePluginsCount; n++ )
             {
@@ -109,7 +113,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       m_pItemsSelect[i*2+1] = new MenuItemSelect(szBuff, "Sets the baud rate of this serial port.");
       for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
       {
-         sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%d bps", hardware_get_serial_baud_rates()[n]);
          m_pItemsSelect[i*2+1]->addSelection(szBuff);
       }
       m_pItemsSelect[i*2+1]->setIsEditable();
@@ -162,8 +166,16 @@ void MenuVehiclePeripherals::valuesToUI()
             m_pItemsSelect[i*2]->setSelectedIndex(2);
          if ( uUsage == SERIAL_PORT_USAGE_DATA_LINK )
             m_pItemsSelect[i*2]->setSelectedIndex(3);
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
+            m_pItemsSelect[i*2]->setSelectedIndex(4);
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
+            m_pItemsSelect[i*2]->setSelectedIndex(5);
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
+            m_pItemsSelect[i*2]->setSelectedIndex(6);
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
+            m_pItemsSelect[i*2]->setSelectedIndex(7);
       }
-      else if ( uUsage - 20 > g_iVehicleCorePluginsCount )
+      else if ( (int)uUsage - 20 > g_iVehicleCorePluginsCount )
          m_pItemsSelect[i*2]->setSelectedIndex(0);
       else
       {
@@ -246,6 +258,14 @@ void MenuVehiclePeripherals::onSelectItem()
                newUsage = SERIAL_PORT_USAGE_MSP_OSD_PITLAB;
             if ( 3 == m_pItemsSelect[i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_DATA_LINK;
+            if ( 4 == m_pItemsSelect[i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433;
+            if ( 5 == m_pItemsSelect[i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868;
+            if ( 6 == m_pItemsSelect[i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
+            if ( 7 == m_pItemsSelect[i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24;
             if ( newUsage == (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) )
                return;
          }

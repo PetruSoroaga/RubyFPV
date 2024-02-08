@@ -95,8 +95,6 @@ int load_PluginsSettings()
    }
 
    int failed = 0;
-   int tmp1 = 0;
-   int tmp2 = 0;
    char szBuff[256];
    szBuff[0] = 0;
    if ( 1 != fscanf(fd, "%s", szBuff) )

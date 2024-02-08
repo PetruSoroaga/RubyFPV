@@ -1,6 +1,7 @@
 #pragma once
 
 #define LOG_USE_PROCESS "config/use_log_process"
+#define LOG_FILE_LOGGER "logs/log_logger.log"
 #define LOG_FILE_START "logs/log_start.txt"
 #define LOG_FILE_SYSTEM "logs/log_system.txt"
 #define LOG_FILE_ERRORS "logs/log_errors.txt"

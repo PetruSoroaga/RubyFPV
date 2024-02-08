@@ -44,7 +44,6 @@ MenuVehicleRCChannels::MenuVehicleRCChannels(void)
    m_bDisableStacking = true;
    
    setColumnsCount(8);
-   float fSliderWidth = 0.14 * Menu::getScaleFactor();
    char szBuff[128];
 
    m_iCurrentChannelToAssign = -1;

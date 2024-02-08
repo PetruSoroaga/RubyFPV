@@ -48,8 +48,6 @@ MenuTXPowerMax::MenuTXPowerMax()
    m_bVehicleHas24OnlyCards = false;
    m_bVehicleHas58Cards = false;
 
-   ControllerSettings* pCS = get_ControllerSettings();
-
    for( int n=0; n<hardware_get_radio_interfaces_count(); n++ )
    {
       radio_hw_info_t* pNIC = hardware_get_radio_info(n);
@@ -109,7 +107,7 @@ MenuTXPowerMax::MenuTXPowerMax()
              strcat(szCards, " RaLink");
        }
 
-      sprintf(szBuff, "Vehicle Max Tx Power (2.4Ghz%s)", szCards);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Vehicle Max Tx Power (2.4Ghz%s)", szCards);
        
       m_pItemsSlider[1] = new MenuItemSlider(szBuff, "Sets the maximum allowed TX power on current vehicle.", 1,MAX_TX_POWER,40, fSliderWidth);
       m_IndexPowerMaxVehicleAtheros = addMenuItem(m_pItemsSlider[1]);
@@ -139,7 +137,7 @@ MenuTXPowerMax::MenuTXPowerMax()
             strcat(szCards, " RaLink");
       }
 
-      sprintf(szBuff, "Controller Max Tx Power (2.4Ghz%s)", szCards);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Controller Max Tx Power (2.4Ghz%s)", szCards);
          
       m_pItemsSlider[6] = new MenuItemSlider(szBuff, "Sets the maximum allowed TX power on the controller.", 1,MAX_TX_POWER,40, fSliderWidth);
       m_IndexPowerMaxControllerAtheros = addMenuItem(m_pItemsSlider[6]);
@@ -219,8 +217,6 @@ void MenuTXPowerMax::sendMaxPowerToVehicle(int txMax, int txMaxAtheros, int txMa
 void MenuTXPowerMax::onSelectItem()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   char szBuff[1024];
-
    Menu::onSelectItem();
    
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )

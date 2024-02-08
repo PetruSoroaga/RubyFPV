@@ -767,7 +767,6 @@ void Popup::Render()
       return;
 
    float height_text = g_pRenderEngine->textHeight(m_idFont);
-   float height_text_small = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    float alfaOrg = g_pRenderEngine->getGlobalAlfa();
    float alfa = alfaOrg;

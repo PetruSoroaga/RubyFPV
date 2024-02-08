@@ -59,8 +59,6 @@ MenuController::MenuController(void)
    m_bShownHDMIChangeNotif = false;
    m_bWaitingForUserFinishUpdateConfirmation = false;
    m_iMustStartUpdate = 0;
-   Preferences* pp = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
    
    m_IndexPorts = addMenuItem(new MenuItem("Peripherals / Ports", "Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)"));
    //m_pMenuItems[m_IndexPorts]->showArrow();

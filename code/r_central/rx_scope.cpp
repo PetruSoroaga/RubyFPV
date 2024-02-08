@@ -66,14 +66,6 @@ static u32 s_RXScopeRenderFramesCount = 0;
 static u32 s_RXScopeDataFPS = 0;
 static u32 s_RXScopeRenderFPS = 0;
 
-static int s_RXScopeRenderMarginXStart = 150;
-static int s_RXScopeRenderMarginXEnd = 80;
-static int s_RXScopeRenderMarginYStart = 150;
-static int s_RXScopeRenderMarginYEnd = 180;
-static int s_RXScopeRenderBottomBand = 60;
-
-
-static int s_RXScopeYMax = 5000; // in bytes
 static int s_RXScopeSliceInterval = 1000; // in microseconds
 static int s_RXScopeSlicesCount = 1000;
 static int s_RXScopeCurrentSliceIndex = -1;
@@ -459,7 +451,7 @@ void rx_scope_loop()
    s_RXScopeTimeNowMicroSeconds = get_current_timestamp_micros();
    s_RXScopeTimeNowMiliSeconds = get_current_timestamp_ms();
 
-   if ( s_RXScopeLastTimeHardwareLoop < s_RXScopeTimeNowMiliSeconds - 20 )
+   if ( s_RXScopeLastTimeHardwareLoop < (int)s_RXScopeTimeNowMiliSeconds - 20 )
    {
       s_RXScopeLastTimeHardwareLoop = s_RXScopeTimeNowMiliSeconds;
    }
@@ -494,7 +486,7 @@ void rx_scope_loop()
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
       rx_scope_stop();
 
-   if ( s_RXScopeLastTimeZoomChange > s_RXScopeTimeNowMiliSeconds - 100 )
+   if ( s_RXScopeLastTimeZoomChange > (int)s_RXScopeTimeNowMiliSeconds - 100 )
       return;
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )

@@ -2060,7 +2060,7 @@ bool process_command(u8* pBuffer, int length)
       str_get_radio_frame_flags_description(linkFlags, szBuffR); 
       log_line("Received new radio link flags for radio link %d: %s, datarates: %d/%d", (int)linkIndex+1, szBuffR, datarateVideo, datarateData);
 
-      if ( ! g_pCurrentModel->radioLinkIsSiKRadio(linkIndex) )
+      if ( g_pCurrentModel->radioLinkIsWiFiRadio(linkIndex) )
       {
          g_TimeLastSetRadioLinkFlagsStartOperation = g_TimeNow;
          s_bWaitForRadioFlagsChangeConfirmation = true;
@@ -3484,7 +3484,7 @@ int main(int argc, char *argv[])
       return -1;
  
    load_VehicleSettings();
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
    hardware_enumerate_radio_interfaces();
 
    loadAllModels();

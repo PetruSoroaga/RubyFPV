@@ -222,7 +222,6 @@ void MenuVehicleOSDPlugins::importFromUSB()
       if ( NULL == g_pCurrentModel )
          break;
       int layoutIndex = g_pCurrentModel->osd_params.layout;
-      u32 flags = g_pCurrentModel->osd_params.instruments_flags[layoutIndex];
       g_pCurrentModel->osd_params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
    }
    readPlugins();

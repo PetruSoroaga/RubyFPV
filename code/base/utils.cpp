@@ -916,6 +916,12 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          continue;
       }
 
+      if ( ! pRadioInfo->isConfigurable )
+      {
+         log_line("Radio interface %d (%s, %s) is not configurable. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver));
+         continue;
+      }
+
       if ( hardware_radio_is_sik_radio(pRadioInfo) )
       {
          if ( ! hardware_radio_sik_set_frequency(pRadioInfo, uFrequencyKhz, pProcessStats) )
@@ -1027,7 +1033,7 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
       delayMs = (pModel->uDeveloperFlags >> 8) & 0xFF; 
 
    delayMs += 20;
-   log_line("Setting global datarate for Atheros/RaLink radio interface %d to: %d (guard interval: %d ms)", iCard+1, dataRate_bps, (int)delayMs);
+   log_line("Setting global datarate for Atheros/RaLink radio interface %d to: %d bps (guard interval: %d ms)", iCard+1, dataRate_bps, (int)delayMs);
    
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iCard);
    if ( NULL == pRadioHWInfo )
@@ -1036,9 +1042,9 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
       return false;
    }
 
-   if ( pRadioHWInfo->iCurrentDataRate == dataRate_bps )
+   if ( pRadioHWInfo->iCurrentDataRateBPS == dataRate_bps )
    {
-      log_line("Atheros/RaLink radio interface %d already on datarate: %d. Done.", iCard+1, dataRate_bps);
+      log_line("Atheros/RaLink radio interface %d already on datarate: %d bps. Done.", iCard+1, dataRate_bps);
       return true;
    }
 
@@ -1075,9 +1081,9 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   pRadioHWInfo->iCurrentDataRate = dataRate_bps;
+   pRadioHWInfo->iCurrentDataRateBPS = dataRate_bps;
    hardware_save_radio_info();
-   log_line("Setting datarate on Atheros/RaLink radio interface %d to: %d completed.", iCard+1, dataRate_bps);
+   log_line("Setting datarate on Atheros/RaLink radio interface %d to: %d bps completed.", iCard+1, dataRate_bps);
    return true;
 }
 

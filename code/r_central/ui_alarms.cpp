@@ -171,7 +171,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
 
    char szAlarmDesc[2048];
    alarms_to_string(uAlarms, uFlags1, uFlags2, szAlarmDesc);
-   sprintf(szAlarmText, "%s Generated alarm (%s)", szAlarmPrefix, szAlarmDesc);
+   snprintf(szAlarmText, sizeof(szAlarmText)/sizeof(szAlarmText[0]), "%s Generated alarm (%s)", szAlarmPrefix, szAlarmDesc);
    szAlarmText2[0] = 0;
    szAlarmText3[0] = 0;
 
@@ -232,7 +232,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
 
    if ( uAlarms & ALARM_ID_RADIO_INTERFACE_DOWN )
    {
-       if ( (NULL != g_pCurrentModel) && (uFlags1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+       if ( (NULL != g_pCurrentModel) && ((int)uFlags1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
        {
           const char* szCardModel = str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[uFlags1]);
           if ( (NULL != szCardModel) && (0 != szCardModel[0]) )
@@ -247,7 +247,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
 
    if ( uAlarms & ALARM_ID_RADIO_INTERFACE_REINITIALIZED )
    {
-       if ( (NULL != g_pCurrentModel) && (uFlags1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+       if ( (NULL != g_pCurrentModel) && ((int)uFlags1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
        {
           const char* szCardModel = str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[uFlags1]);
           if ( (NULL != szCardModel) && (0 != szCardModel[0]) )
@@ -370,7 +370,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
       int ms = (int)(uFlags1 & 0xFFFF);
       int msMax = (int)(uFlags1 >> 16);
 
-      if ( uFlags2 && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[0] < 0) || ((g_pCurrentModel->radioLinksParams.links_count > 1) && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[1] < 0)) )
+      if ( (uFlags2 && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[0] < 0)) || ((g_pCurrentModel->radioLinksParams.links_count > 1) && (g_pCurrentModel->radioLinksParams.link_datarate_video_bps[1] < 0)) )
       {
          sprintf(szAlarmText, "%s Video link transmission is overloaded. Switch to default radio data rates or decrease video bitrate and radio data rate.", szAlarmPrefix);
          strcpy(szAlarmText2, "Not all radio cards do support MCS data rates properly.");
@@ -481,9 +481,9 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 
    char szAlarmDesc[2048];
    alarms_to_string(uAlarms, uFlags1, uFlags2, szAlarmDesc);
-   sprintf(szAlarmText, "Received alarm (%s) from the vehicle", szAlarmDesc);
+   snprintf(szAlarmText, sizeof(szAlarmText)/sizeof(szAlarmText[0]), "Received alarm (%s) from the vehicle", szAlarmDesc);
 
-   sprintf(szAlarmText, "Triggered alarm(%s) on the controller", szAlarmDesc);
+   snprintf(szAlarmText, sizeof(szAlarmText)/sizeof(szAlarmText[0]), "Triggered alarm(%s) on the controller", szAlarmDesc);
    szAlarmText2[0] = 0;
 
    if ( g_bUpdateInProgress )
@@ -558,7 +558,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 
    if ( uAlarms & ALARM_ID_RADIO_INTERFACE_DOWN )
    {  
-       if ( uFlags1 < hardware_get_radio_interfaces_count() )
+       if ( (int)uFlags1 < hardware_get_radio_interfaces_count() )
        {
           radio_hw_info_t* pRadioInfo = hardware_get_radio_info(uFlags1);
           
@@ -579,7 +579,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 
    if ( uAlarms & ALARM_ID_RADIO_INTERFACE_REINITIALIZED )
    {  
-       if ( uFlags1 < hardware_get_radio_interfaces_count() )
+       if ( (int)uFlags1 < hardware_get_radio_interfaces_count() )
        {
           radio_hw_info_t* pRadioInfo = hardware_get_radio_info(uFlags1);
           
@@ -705,7 +705,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
             bShow = true;
       }
 
-      if ( g_TimeNow > s_TimeLastCPUOverloadAlarmController + 10000 )
+      if ( bShow && ( g_TimeNow > s_TimeLastCPUOverloadAlarmController + 10000 ) )
       {
          s_TimeLastCPUOverloadAlarmController = g_TimeNow;
          u32 timeAvg = uFlags1 & 0xFFFF;

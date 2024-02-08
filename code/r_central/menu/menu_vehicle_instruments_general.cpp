@@ -38,7 +38,6 @@ MenuVehicleInstrumentsGeneral::MenuVehicleInstrumentsGeneral(void)
 {
    m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
-   float fSliderWidth = 0.10;
 
    for( int i=0; i<20; i++ )
       m_pItemsSelect[i] = NULL;

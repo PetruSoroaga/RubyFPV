@@ -47,7 +47,6 @@
 
 float _osd_get_radio_link_new_height()
 {
-   float height_text = osd_getFontHeight();
    float height_text_small = osd_getFontHeightSmall();
 
    float fHeightLink = osd_get_link_bars_height(1.0);
@@ -145,17 +144,18 @@ float _osd_show_radio_bars_info(float xPos, float yPos, int iLastRxDeltaTime, in
    if ( ! bShowBars )
       return 0.0;
 
-   float height_text = osd_getFontHeight();
    float height_text_small = osd_getFontHeightSmall();
 
    float fTotalWidth = 0.0;
    float fTotalHeight = osd_get_link_bars_height(1.0);
 
+   /*
    bool bShowRed = false;
    if ( iLastRxDeltaTime > 1000 )
       bShowRed = true;
    if ( iMaxRxQuality <= 0 )
       bShowRed = true;
+   */
 
    if ( bShowBars )
    {
@@ -723,7 +723,7 @@ float osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLinkI
                controllerGetCardUserDefinedNameOrType(pRadioHWInfo, szCardName);
           
                if ( NULL != pRadioHWInfo )
-                  sprintf(szLine1, "%s%s", (controllerIsCardInternal(pRadioHWInfo->szMAC)?"":"(Ext) "), szCardName );
+                  snprintf(szLine1, sizeof(szLine1)/sizeof(szLine1[0]), "%s%s", (controllerIsCardInternal(pRadioHWInfo->szMAC)?"":"(Ext) "), szCardName );
                else
                   strcpy(szLine1, szCardName);
                  

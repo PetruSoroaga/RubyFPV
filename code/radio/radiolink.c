@@ -37,6 +37,7 @@
 #include "../base/base.h"
 #include "../base/encr.h"
 #include "../base/hardware.h"
+#include "../base/hardware_radio_serial.h"
 #include "../base/hw_procs.h"
 #include "../common/string_utils.h"
 #include "radiotap.h"
@@ -1516,6 +1517,64 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    #endif
 
    return 1;
+}
+
+
+// Returns the number of bytes written or -1 for error, -2 for write error
+
+int radio_write_serial_packet(int interfaceIndex, u8* pData, int dataLength, u32 uTimeNow)
+{
+   if ( (interfaceIndex < 0) || (interfaceIndex >= MAX_RADIO_INTERFACES) )
+   {
+      log_softerror_and_alarm("RadioError: Tried to write a serial radio message to an invalid interface index %d.", interfaceIndex+1);
+      return -1;    
+   }
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceIndex);
+   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->monitor_interface_write.selectable_fd < 0 ) )
+   {
+      log_softerror_and_alarm("RadioError: Tried to write a serial radio message to an invalid interface (%d).", interfaceIndex+1);
+      return -1;
+   }
+   if ( ! hardware_radio_is_serial_radio(pRadioHWInfo) )
+   {
+      log_softerror_and_alarm("RadioError: Tried to write a serial radio message to an interface that is not a serial radio (%d).", interfaceIndex+1);
+      return -1;    
+   }
+   if ( (NULL == pData) || (dataLength <= 0) )
+   {
+      log_softerror_and_alarm("RadioError: Tried to send an empty radio message.");
+      return -1;
+   }
+
+   #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+   if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
+      pthread_mutex_lock(&s_pMutexRadioSyncRxTxThreads);
+   #endif
+
+   if ( ! hardware_radio_serial_write_packet(interfaceIndex, pData, dataLength) )
+   {
+      log_softerror_and_alarm("RadioError: Failed to write a serial radio message (%d bytes) to serial radio interface %d.", dataLength, interfaceIndex+1);
+      #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+      if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
+         pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
+      #endif
+      return (-2);
+   }
+
+   s_uIndexLastLowDataLinkPackets[interfaceIndex]++;
+   if ( s_uIndexLastLowDataLinkPackets[interfaceIndex] >= MAX_LOW_DATALINK_PACKETS_HISTORY )
+      s_uIndexLastLowDataLinkPackets[interfaceIndex] = 0;
+
+   s_uTimesLastLowDataLinkPacketsOnInterfaces[interfaceIndex][s_uIndexLastLowDataLinkPackets[interfaceIndex]] = uTimeNow;
+   s_uSizesLastLowDataLinkPacketsOnInterfaces[interfaceIndex][s_uIndexLastLowDataLinkPackets[interfaceIndex]] = dataLength;
+
+   #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+   if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
+      pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
+   #endif
+
+   return dataLength;
 }
 
 // Returns the number of bytes written or -1 for error, -2 for write error

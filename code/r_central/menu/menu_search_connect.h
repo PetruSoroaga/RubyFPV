@@ -3,8 +3,6 @@
 #include "../../base/models.h"
 #include "menu_item_select.h"
 
-#define MAX_MENU_CHANNELS 100
-
 class MenuSearchConnect: public Menu
 {
    public:

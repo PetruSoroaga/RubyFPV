@@ -693,7 +693,7 @@ void init_serial_ports()
 
 void checkTelemetrySettingsOnControllerChanged()
 {
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
    load_ControllerSettings();
    ControllerSettings* pCS = get_ControllerSettings();
 

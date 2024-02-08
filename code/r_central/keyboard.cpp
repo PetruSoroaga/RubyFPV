@@ -319,10 +319,10 @@ int _read_keyboard_input_events()
          _close_remove_input_device_info(i);
          return iRead;
       }
-      if ( iRead < sizeof(struct input_event) )
+      if ( iRead < (int)sizeof(struct input_event) )
          continue;
 
-      for( int k=0; k < iRead/sizeof(struct input_event); k++)
+      for( int k=0; k < iRead/(int)sizeof(struct input_event); k++)
       {
          if ( events[k].value == 2 )
             log_line("[Keyboard] Autorepeat key %d", events[k].code);
@@ -364,7 +364,6 @@ static void * _thread_keyboard(void *argument)
 
    
    bool* pbInitialized = (bool*) argument;
-   u32 uTimeLastCheck = 0;
    
    while ( (*pbInitialized) )
    {
@@ -397,7 +396,9 @@ static void * _thread_keyboard(void *argument)
          s_iKeyboardDetectTryCount++;
          if ( s_iKeyboardDetectTryCount < 3 )
             s_uNextKeyboardDetectTime = g_TimeNow+1000 * s_iKeyboardDetectTryCount;
-            s_uNextKeyboardDetectTime = g_TimeNow+3000;
+         else
+            s_uNextKeyboardDetectTime = g_TimeNow + 3000;
+
          if ( _keyboard_try_detect() )
          {
             s_iKeyboardDetectTryCount = 0;

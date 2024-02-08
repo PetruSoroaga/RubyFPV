@@ -608,7 +608,7 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
       bool* pB = (bool*)argument;
       bVeYe = *pB;
    }
-   log_line("Started background thread to adjust processes affinities...");
+   log_line("Started background thread to adjust processes affinities (arg: %p, veye: %d)...", argument, (int)bVeYe);
    
    if ( s_iCPUCoresCount < 1 )
    {
@@ -662,7 +662,8 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
 
 void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
 {
-   log_line("Adjust processes affinities. Use thread: %s", (bUseThread?"Yes":"No"));
+   log_line("Adjust processes affinities. Use thread: %s, veye camera: %s",
+      (bUseThread?"Yes":"No"), (bVeYe?"Yes":"No"));
 
    if ( ! bUseThread )
    {
@@ -684,5 +685,5 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
       return;
    }
 
-   log_line("Created thread for adjusting processes affinities");
+   log_line("Created thread for adjusting processes affinities (veye: %s)", (bVeYe?"Yes":"No"));
 }

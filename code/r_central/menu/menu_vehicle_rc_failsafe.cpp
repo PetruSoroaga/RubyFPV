@@ -39,7 +39,6 @@ MenuVehicleRCFailsafe::MenuVehicleRCFailsafe(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.26;
    m_bDisableStacking = true;
    setColumnsCount(3);
-   float fSliderWidth = 0.10 * Menu::getScaleFactor();
    char szBuff[128];
 
    m_ChannelCount = g_pCurrentModel->rc_params.channelsCount; 
@@ -97,7 +96,6 @@ void MenuVehicleRCFailsafe::Render()
    float y = yTop;
    float fFirstItemWidth = 0.08*Menu::getScaleFactor();
    float fSecItemWidth = 0.12*Menu::getScaleFactor();
-   float fSelWidth = 0.04*Menu::getScaleFactor();
    for( int i=0; i<m_ItemsCount; i++ )
    {
       m_pMenuItems[i]->invalidate();

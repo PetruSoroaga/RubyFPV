@@ -121,7 +121,6 @@ void MenuStorage::onShow()
       m_pMenuItems[m_StaticMenuItemsCount-2]->setEnabled(false);
    }
 
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    /*
    m_ExtraItemsHeight = 0.5*height_text;
    m_ExtraItemsHeight += 2.4 * height_text *(1.0+MENU_ITEM_SPACING);
@@ -513,7 +512,7 @@ void MenuStorage::onSelectItem()
       pairing_stop();
       m_bWasPairingStarted = true;
    }
-   sprintf(szBuff, "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   snprintf(szBuff, 1023, "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
    hw_execute_bash_command(szBuff,NULL);
    g_bVideoPlaying = true;
    g_uVideoPlayingStartTime = get_current_timestamp_ms();
@@ -630,11 +629,9 @@ void MenuStorage::buildFilesListVideo()
 
 void MenuStorage::movePictures(bool bDelete)
 {
-   char szUSB[1024];
    char szBuff[1024];
    char szSrcFile[1024];
    char szCommand[1024];
-   char szInfo[256];
 
    log_line("Moving pictures media files...");
 
@@ -648,7 +645,7 @@ void MenuStorage::movePictures(bool bDelete)
    buildFilesListPictures();
 
    sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szCommand, "mkdir -p %s", szBuff );
+   snprintf(szCommand, 1023, "mkdir -p %s", szBuff );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_PicturesFilesCount; i++ )
@@ -668,9 +665,9 @@ void MenuStorage::movePictures(bool bDelete)
       hw_execute_bash_command(szCommand, NULL);
 
       if ( bDelete )
-         sprintf(szCommand, "mv %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, 1023, "mv %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       else
-         sprintf(szCommand, "cp %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, 1023, "cp %s %s/%s/Ruby/%s", szSrcFile, FOLDER_RUBY, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       hw_execute_bash_command(szCommand, NULL);
    }
 
@@ -680,7 +677,6 @@ void MenuStorage::movePictures(bool bDelete)
 
 void MenuStorage::moveVideos(bool bDelete)
 {
-   char szUSB[1024];
    char szBuff[1024];
    char szSrcFile[1024];
    char szOutFile[1024];
@@ -702,7 +698,7 @@ void MenuStorage::moveVideos(bool bDelete)
    buildFilesListVideo();
 
    sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szCommand, "mkdir -p %s", szBuff );
+   snprintf(szCommand, 1023, "mkdir -p %s", szBuff );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_VideoInfoFilesCount; i++ )
@@ -731,10 +727,10 @@ void MenuStorage::moveVideos(bool bDelete)
       szOutFile[strlen(szOutFile)-3] = 'p';
       szOutFile[strlen(szOutFile)-2] = '4';
       szOutFile[strlen(szOutFile)-1] = 0;
-      sprintf(szCommand, "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %s/%s/Ruby/%s", FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
 
-      sprintf(szCommand, "./ruby_video_proc %s%s %s/%s/Ruby/%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, 1023, "./ruby_video_proc %s%s %s/%s/Ruby/%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY, FOLDER_USB_MOUNT, szOutFile);
       log_line("Executing: %s", szCommand);
       hw_execute_bash_command(szCommand, NULL);
       //system(szCommand);

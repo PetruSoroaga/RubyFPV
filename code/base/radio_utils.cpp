@@ -40,7 +40,7 @@
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
 
-void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataRate, shared_mem_process_stats* pProcessStats)
+void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataRateBPS, shared_mem_process_stats* pProcessStats)
 {
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
    if ( NULL == pRadioHWInfo )
@@ -49,12 +49,12 @@ void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataR
         ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
       return;
 
-   if ( pRadioHWInfo->iCurrentDataRate == iDataRate )
+   if ( pRadioHWInfo->iCurrentDataRateBPS == iDataRateBPS )
    {
-      log_line("Atheros/RaLink radio interface %d datarate is already at %d.", iInterfaceIndex+1, pRadioHWInfo->iCurrentDataRate );
+      log_line("Atheros/RaLink radio interface %d datarate is already at %d bps.", iInterfaceIndex+1, pRadioHWInfo->iCurrentDataRateBPS );
       return;
    }
-   log_line("Must update Atheros/RaLink radio interface %d datarate from %d to %d.", iInterfaceIndex+1, pRadioHWInfo->iCurrentDataRate, iDataRate );
+   log_line("Must update Atheros/RaLink radio interface %d datarate from %d to %d bps.", iInterfaceIndex+1, pRadioHWInfo->iCurrentDataRateBPS, iDataRateBPS );
    
    radio_rx_pause_interface(iInterfaceIndex);
    radio_tx_pause_radio_interface(iInterfaceIndex);
@@ -78,7 +78,7 @@ void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataR
       pProcessStats->lastIPCIncomingTime = uTimeNow;
    }
 
-   radio_utils_set_datarate_atheros(pModel, iInterfaceIndex, iDataRate, 0);
+   radio_utils_set_datarate_atheros(pModel, iInterfaceIndex, iDataRateBPS, 0);
 
    uTimeNow = get_current_timestamp_ms();
    if ( NULL != pProcessStats )

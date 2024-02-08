@@ -97,8 +97,6 @@ void MenuSearchConnect::Render()
 
    char szBuff[128];
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float iconHeight = 3.0*height_text;
-   float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
 
    float xPos = m_xPos + 3*m_sfMenuPaddingX + getSelectionWidth();
    float fMaxWidth = getUsableWidth() - 3*m_sfMenuPaddingX - getSelectionWidth();
@@ -169,7 +167,7 @@ void MenuSearchConnect::Render()
 
    if ( iCountLinks > 1 )
    {
-      sprintf(szBuff, "Vehicle has %d radio links on: %s", iCountLinks, szLinks);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Vehicle has %d radio links on: %s", iCountLinks, szLinks);
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += g_pRenderEngine->getMessageHeight(szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text * MENU_ITEM_SPACING;    
@@ -182,7 +180,7 @@ void MenuSearchConnect::Render()
       vMaj = vMaj >> 4;
       vMin = vMin & 0x0F;
       //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
-      sprintf(szBuff,"Version: %d.%d", vMaj, vMin);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Version: %d.%d", vMaj, vMin);
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text *(1.0+MENU_ITEM_SPACING);
    }

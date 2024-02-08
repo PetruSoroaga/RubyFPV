@@ -2,8 +2,6 @@
 
 void close_and_mark_sik_interfaces_to_reopen();
 void reopen_marked_sik_interfaces();
-void close_radio_interfaces();
-int open_radio_interfaces();
 void flag_need_video_capture_restart();
 void flag_update_sik_interface(int iInterfaceIndex);
 void flag_reinit_sik_interface(int iInterfaceIndex);

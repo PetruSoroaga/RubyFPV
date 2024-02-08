@@ -97,6 +97,8 @@ MenuSearch::MenuSearch(void)
          log_line("Not using radio interface %d for search as it's not supported.", i+1 );
          continue;
       }
+      if ( ! pRadioHWInfo->isConfigurable )
+         continue;
       if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       {
          log_line("Not using radio interface %d for search as it's disabled.", i+1 );
@@ -205,6 +207,7 @@ int MenuSearch::_populate_search_frequencies()
           for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
           {
             radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+            if ( pRadioHWInfo->isConfigurable )
             if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_58 )
                currentFreqKhz = DEFAULT_FREQUENCY58;
           }
@@ -216,6 +219,7 @@ int MenuSearch::_populate_search_frequencies()
       {
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
          u32 cardFlags = controllerGetCardFlags(pRadioHWInfo->szMAC);
+         if ( pRadioHWInfo->isConfigurable )
          if ( ! controllerIsCardDisabled(pRadioHWInfo->szMAC) )
          if ( ! controllerIsCardTXOnly(pRadioHWInfo->szMAC) )
          if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
@@ -539,7 +543,7 @@ void MenuSearch::startSearch()
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       char szTmp[128];
       str_get_supported_bands_string(pRadioHWInfo->supportedBands, szTmp);
-      log_line("MenuSearch: Radio interface %d supported bands: %s", i+1, szTmp);
+      log_line("MenuSearch: Radio interface %d (%s) supported bands: %s", i+1, pRadioHWInfo->szName, szTmp);
    }
 
    if ( NULL != m_pPopupSearch )
@@ -563,6 +567,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_433 )
         {
            bFoundSupportedRadioInterface = true;
@@ -579,6 +584,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_868 )
         {
            bFoundSupportedRadioInterface = true;
@@ -595,6 +601,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_915 )
         {
            bFoundSupportedRadioInterface = true;
@@ -611,6 +618,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_23 )
         {
            bFoundSupportedRadioInterface = true;
@@ -625,6 +633,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_24 )
         {
            bFoundSupportedRadioInterface = true;
@@ -639,6 +648,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_25 )
         {
            bFoundSupportedRadioInterface = true;
@@ -653,6 +663,7 @@ void MenuSearch::startSearch()
      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
      {
         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+        if ( pRadioHWInfo->isConfigurable )
         if ( pRadioHWInfo->supportedBands & RADIO_HW_SUPPORTED_BAND_58 )
         {
            bFoundSupportedRadioInterface = true;

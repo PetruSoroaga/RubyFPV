@@ -59,6 +59,7 @@
 #include "../base/ruby_ipc.h"
 #include "../base/camera_utils.h"
 #include "../base/vehicle_settings.h"
+#include "../base/hardware_radio_serial.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
 #include "../common/relay_utils.h"
@@ -82,6 +83,7 @@
 #include "../radio/fec.h" 
 #include "packets_utils.h"
 #include "ruby_rt_vehicle.h"
+#include "radio_links.h"
 #include "events.h"
 #include "process_local_packets.h"
 #include "video_link_auto_keyframe.h"
@@ -166,6 +168,13 @@ bool links_set_cards_frequencies_and_params(int iLinkId)
 
       if ( ( iLinkId >= 0 ) && (nRadioLinkId != iLinkId) )
         continue;
+
+      if ( ! pRadioHWInfo->isConfigurable )
+      {
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioHWInfo->uCurrentFrequencyKhz);
+         log_line("Links: Radio interface %d is not configurable. Skipping it.", i+1);
+         continue;
+      }
 
       u32 uRadioLinkFrequency = g_pCurrentModel->radioLinksParams.link_frequency_khz[nRadioLinkId];
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId == nRadioLinkId )
@@ -295,243 +304,6 @@ void reopen_marked_sik_interfaces()
    log_line("[Router] Reopened SiK radio interfaces (%d reopened).", iCount);
 }
 
-void close_radio_interfaces()
-{
-   log_line("Closing all radio interfaces (rx/tx).");
-
-   radio_tx_mark_quit();
-   hardware_sleep_ms(10);
-   radio_tx_stop_tx_thread();
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         hardware_radio_sik_close(i);
-   }
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
-      if ( pRadioInfo->openedForWrite )
-         radio_close_interface_for_write(i);
-   }
-
-   radio_close_interfaces_for_read(); 
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-   }
-   log_line("Closed all radio interfaces (rx/tx).");
-}
-
-int open_radio_interfaces()
-{
-   log_line("OPENING INTERFACES BEGIN =========================================================");
-   log_line("Opening RX/TX radio interfaces...");
-   if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
-      log_line("Relaying is enabled on radio link %d on frequency: %s.", g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId+1, str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequencyKhz));
-
-   //init_radio_in_packets_state();
-
-   int countOpenedForRead = 0;
-   int countOpenedForWrite = 0;
-   int iCountSikInterfacesOpened = 0;
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[i];
-      g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId = iRadioLinkId;
-      g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId = iRadioLinkId;
-      g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
-      g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-   }
-
-   // Init RX interfaces
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      if ( pRadioHWInfo->lastFrequencySetFailed )
-         continue;
-      int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[i];
-      if ( iRadioLinkId < 0 )
-      {
-         log_softerror_and_alarm("No radio link is assigned to radio interface %d", i+1);
-         continue;
-      }
-      if ( iRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count )
-      {
-         log_softerror_and_alarm("Invalid radio link (%d of %d) is assigned to radio interface %d", iRadioLinkId+1, g_pCurrentModel->radioLinksParams.links_count, i+1);
-         continue;
-      }
-
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-      if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
-         continue;
-
-      if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-      if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
-         continue;
-
-      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId == iRadioLinkId )
-         log_line("Open radio interface %d for radio link %d in relay mode ...", i+1, iRadioLinkId);
-      else
-         log_line("Open radio interface %d for radio link %d ...", i+1, iRadioLinkId);
-
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
-      {
-         int nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLinkId];
-         if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] )
-         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]) < getRealDataRateFromRadioDataRate(nRateTx) )
-            nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i];
-         radio_utils_set_datarate_atheros(g_pCurrentModel, i, nRateTx, 0);
-      }
-
-      if ( (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
-           (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
-      {
-         if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         {
-            if ( hardware_radio_sik_open_for_read_write(i) > 0 )
-            {
-               g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
-               countOpenedForRead++;
-               iCountSikInterfacesOpened++;
-            }
-         }
-         else
-         {
-            if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-               radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
-            else
-               radio_open_interface_for_read(i, RADIO_PORT_ROUTER_UPLINK);
-
-            g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;      
-            countOpenedForRead++;
-         }
-      }
-   }
-
-   if ( countOpenedForRead == 0 )
-   {
-      log_error_and_alarm("Failed to find or open any RX interface for receiving data.");
-      close_radio_interfaces();
-      return -1;
-   }
-
-
-   // Init TX interfaces
-
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( pRadioHWInfo->lastFrequencySetFailed )
-         continue;
-      int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[i];
-      if ( iRadioLinkId < 0 )
-      {
-         log_softerror_and_alarm("No radio link is assigned to radio interface %d", i+1);
-         continue;
-      }
-      if ( iRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count )
-      {
-         log_softerror_and_alarm("Invalid radio link (%d of %d) is assigned to radio interface %d", iRadioLinkId+1, g_pCurrentModel->radioLinksParams.links_count, i+1);
-         continue;
-      }
-
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-      if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
-         continue;
-
-      if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-         continue;
-      if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
-         continue;
-
-      if ( (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
-           (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
-      {
-         if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
-         {
-            if ( ! g_SM_RadioStats.radio_interfaces[i].openedForRead )
-            {
-               if ( hardware_radio_sik_open_for_read_write(i) > 0 )
-               {
-                 g_SM_RadioStats.radio_interfaces[i].openedForWrite= 1;
-                 countOpenedForWrite++;
-                 iCountSikInterfacesOpened++;
-               }
-            }
-            else
-            {
-               g_SM_RadioStats.radio_interfaces[i].openedForWrite= 1;
-               countOpenedForWrite++;
-            }
-         }
-         else
-         {
-            radio_open_interface_for_write(i);
-            g_SM_RadioStats.radio_interfaces[i].openedForWrite = 1;
-            countOpenedForWrite++;
-         }
-      }
-   }
-
-   if ( 0 < iCountSikInterfacesOpened )
-   {
-      radio_tx_set_sik_packet_size(g_pCurrentModel->radioLinksParams.iSiKPacketSize);
-      radio_tx_start_tx_thread();
-   }
-
-   if ( 0 == countOpenedForWrite )
-   {
-      log_error_and_alarm("Can't find any TX interfaces for video/data or failed to init it.");
-      close_radio_interfaces();
-      return -1;
-   }
-
-   log_line("Opening RX/TX radio interfaces complete. %d interfaces for RX, %d interfaces for TX :", countOpenedForRead, countOpenedForWrite);
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      char szFlags[128];
-      szFlags[0] = 0;
-      str_get_radio_capabilities_description(g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i], szFlags);
-
-      if ( pRadioHWInfo->openedForRead && pRadioHWInfo->openedForWrite )
-         log_line(" * Interface %s, %s, %s opened for read/write, flags: %s", pRadioHWInfo->szName, pRadioHWInfo->szDriver, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFlags );
-      else if ( pRadioHWInfo->openedForRead )
-         log_line(" * Interface %s, %s, %s opened for read, flags: %s", pRadioHWInfo->szName, pRadioHWInfo->szDriver, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFlags );
-      else if ( pRadioHWInfo->openedForWrite )
-         log_line(" * Interface %s, %s, %s opened for write, flags: %s", pRadioHWInfo->szName, pRadioHWInfo->szDriver, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFlags );
-      else
-         log_line(" * Interface %s, %s, %s not used. Flags: %s", pRadioHWInfo->szName, pRadioHWInfo->szDriver, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFlags );
-   }
-   log_line("OPENING INTERFACES END ============================================================");
-
-   g_pCurrentModel->logVehicleRadioInfo();
-
-   if ( ! process_data_tx_video_init() )
-   {
-      log_error_and_alarm("Failed to initialize video data tx processor.");
-      close_radio_interfaces();
-      return -1;
-   }
-
-   send_radio_config_to_controller();
-   return 0;
-}
 
 void send_radio_config_to_controller()
 {
@@ -808,7 +580,7 @@ void reinit_radio_interfaces()
 
    u32 uTimeStart = get_current_timestamp_ms();
 
-   close_radio_interfaces();
+   radio_links_close_rxtx_radio_interfaces();
    if ( g_bQuit )
    {
       g_bReinitializeRadioInProgress = false;
@@ -951,7 +723,7 @@ void reinit_radio_interfaces()
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   open_radio_interfaces();
+   radio_links_open_rxtx_radio_interfaces();
 
    log_line("Reinit radio interfaces: completed.");
 
@@ -2143,7 +1915,7 @@ void _check_router_state()
 
 void cleanUp()
 {
-   close_radio_interfaces();
+   radio_links_close_rxtx_radio_interfaces();
 
    if ( NULL != g_pProcessorTxAudio )
       g_pProcessorTxAudio->closeAudioStream();
@@ -2587,7 +2359,7 @@ int main (int argc, char *argv[])
    if ( NULL != pVS )
       radio_rx_set_timeout_interval(pVS->iDevRxLoopTimeout);
    
-   hardware_reload_serial_ports();
+   hardware_reload_serial_ports_settings();
 
    hardware_enumerate_radio_interfaces(); 
 
@@ -2687,7 +2459,7 @@ int main (int argc, char *argv[])
    links_set_cards_frequencies_and_params(-1);
    log_line("Start sequence: Done setting radio interface frequencies.");
 
-   if ( open_radio_interfaces() < 0 )
+   if ( radio_links_open_rxtx_radio_interfaces() < 0 )
    {
       shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, g_pProcessStats);
       radio_link_cleanup();
@@ -2786,6 +2558,8 @@ int main (int argc, char *argv[])
    radio_duplicate_detection_init();
    radio_rx_start_rx_thread(&g_SM_RadioStats, NULL, 0, g_pCurrentModel->getVehicleFirmwareType());
    
+   send_radio_config_to_controller();
+
    g_uRouterState = ROUTER_STATE_RUNNING;
 
    log_line("");
@@ -3003,6 +2777,8 @@ int main (int argc, char *argv[])
 
    radio_rx_stop_rx_thread();
    radio_link_cleanup();
+
+radio_links_close_rxtx_radio_interfaces();
 
    cleanUp();
    delete g_pProcessorTxVideo;

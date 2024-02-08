@@ -1065,6 +1065,38 @@ void do_update_to_62()
    }
 }
 
+void do_generic_update()
+{
+   log_line("Doing generic update step");
+   hw_execute_bash_command("chmod 777 ruby*", NULL);
+
+   if( access( "ruby_capture_raspi", R_OK ) != -1 )
+      hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);
+   else
+      hw_execute_bash_command("cp -rf /opt/vc/bin/raspivid ruby_capture_raspi", NULL);
+
+   if( access( "ruby_capture_veye", R_OK ) != -1 )
+      hw_execute_bash_command("cp -rf ruby_capture_veye /usr/local/bin/veye_raspivid", NULL);
+   else
+      hw_execute_bash_command("cp -rf /usr/local/bin/veye_raspivid ruby_capture_veye", NULL);
+
+   if( access( "ruby_capture_veye307", R_OK ) != -1 )
+      hw_execute_bash_command("cp -rf ruby_capture_veye307 /usr/local/bin/307/veye_raspivid", NULL);
+   else
+      hw_execute_bash_command("cp -rf /usr/local/bin/307/veye_raspivid ruby_capture_veye307", NULL);
+
+   hw_execute_bash_command("chmod 777 ruby*", NULL);
+   hw_execute_bash_command("chown root:root ruby_*", NULL);
+   hw_execute_bash_command("cp -rf ruby_update.log /boot/", NULL);
+
+   // Remove old unsuported plugins formats
+
+   hw_execute_bash_command("rm -rf plugins/osd/ruby_ahi*", NULL);
+   hw_execute_bash_command("rm -rf plugins/osd/ruby_plugin_gauge_speed.so*", NULL);
+   hw_execute_bash_command("rm -rf plugins/osd/ruby_plugin_gauge_altitude.so*", NULL);
+   hw_execute_bash_command("rm -rf plugins/osd/ruby_plugin_gauge_ahi.so*", NULL);
+   hw_execute_bash_command("rm -rf plugins/osd/ruby_plugin_gauge_heading.so*", NULL);
+}
 
 void handle_sigint(int sig) 
 { 
@@ -1170,27 +1202,8 @@ int main(int argc, char *argv[])
    log_line("Applying update on existing version: %d.%d (b%d)", iMajor, iMinor, iBuild);
    log_line("Updating to version: %d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
 
-   hw_execute_bash_command("chmod 777 ruby*", NULL);
+   do_generic_update();
 
-   if( access( "ruby_capture_raspi", R_OK ) != -1 )
-      hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);
-   else
-      hw_execute_bash_command("cp -rf /opt/vc/bin/raspivid ruby_capture_raspi", NULL);
-
-   if( access( "ruby_capture_veye", R_OK ) != -1 )
-      hw_execute_bash_command("cp -rf ruby_capture_veye /usr/local/bin/veye_raspivid", NULL);
-   else
-      hw_execute_bash_command("cp -rf /usr/local/bin/veye_raspivid ruby_capture_veye", NULL);
-
-   if( access( "ruby_capture_veye307", R_OK ) != -1 )
-      hw_execute_bash_command("cp -rf ruby_capture_veye307 /usr/local/bin/307/veye_raspivid", NULL);
-   else
-      hw_execute_bash_command("cp -rf /usr/local/bin/307/veye_raspivid ruby_capture_veye307", NULL);
-
-   hw_execute_bash_command("chmod 777 ruby*", NULL);
-   hw_execute_bash_command("chown root:root ruby_*", NULL);
-   hw_execute_bash_command("cp -rf ruby_update.log /boot/", NULL);
-   
    loadAllModels();
 
    if ( (iMajor < 6) || (iMajor == 6 && iMinor < 2) )

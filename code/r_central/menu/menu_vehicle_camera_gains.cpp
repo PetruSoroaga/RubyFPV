@@ -39,7 +39,6 @@ MenuVehicleCameraGains::MenuVehicleCameraGains(void)
 {
    m_Width = 0.20;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.40;
-   float fSliderWidth = 0.10;
 
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile]);

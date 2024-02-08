@@ -119,13 +119,11 @@ void MenuRoot::RenderVehicleInfo()
    float lineSpacing = 0.2*m_sfMenuPaddingY;
    float hText1 = 0;
    float hText2 = 0;
-   float hText3 = 0;
    float hText4 = 0;
    float hText5 = 0;
    char szBuff[256];
    char szLine1[128];
    char szLine2[128];
-   char szLine3[128];
    char szLine4[128];
    char szLine5[128];
    char szRunType[32];
@@ -326,8 +324,6 @@ void MenuRoot::createHWInfo(Menu* pm)
    char szBuff[256];
    char szTemp[256];
    char szFileName[256];
-   char szBoard[256];
-   szBoard[0] = 0;
    int boardType = 0;
    int wifiType = 0;
 
@@ -370,8 +366,6 @@ void MenuRoot::createHWInfo(Menu* pm)
    strcat(szBuff, szTemp);
    pm->addTopLine(szBuff);
 
-   u16 flags = hardware_get_flags();
-   
    pm->addTopLine(" ");
    pm->addTopLine(" ");
 }
@@ -379,7 +373,6 @@ void MenuRoot::createHWInfo(Menu* pm)
 
 void MenuRoot::show_MenuInfo()
 {
-   char szTitle[256];
    char szBuff[1024];
    char szOutput[1024];
 

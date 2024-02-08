@@ -481,7 +481,7 @@ void _process_received_model_settings(u8* pPacketBuffer)
             
          for( int i=0; i<iTotalSegments; i++ )
          {
-            if ( pRuntimeInfo->uSegmentsModelSettingsIds[i] != iSegmentId )
+            if ( (int)pRuntimeInfo->uSegmentsModelSettingsIds[i] != iSegmentId )
             {
                bHasAll = false;
                break;
@@ -688,7 +688,6 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_SIK_CONFIG )
    {
-       u8 uVehicleLinkId = *(pPacketBuffer + sizeof(t_packet_header));
        u8 uCommandId = *(pPacketBuffer + sizeof(t_packet_header) + sizeof(u8));
        if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
           log_line("Received from router local response to SiK config command %d", (int)uCommandId);
@@ -1023,7 +1022,6 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       if ( g_bOSDPluginsNeedTelemetryStreams )
       {
          t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-         t_packet_header_telemetry_raw* pPHTR = (t_packet_header_telemetry_raw*)(pPacketBuffer + sizeof(t_packet_header));
          int len = pPH->total_length - sizeof(t_packet_header)-sizeof(t_packet_header_telemetry_raw);
          if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
          {

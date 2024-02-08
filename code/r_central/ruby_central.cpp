@@ -326,8 +326,6 @@ void render_router_pachets_history()
    if ( NULL == g_pDebugSMRPST )
       return;
 
-   ControllerSettings* pCS = get_ControllerSettings();
-
    int totalCountRC = 0;
    int totalCountRCIn = 0;
    int totalCountPing = 0;
@@ -410,9 +408,9 @@ void render_router_pachets_history()
          u16 val = g_pDebugSMRPST->txHistoryPackets[i];
          u16 countRe = val & 0x07;
          u16 countPing = (val>>6) & 0x03;
-         u16 countCom = (val>>3) & 0x07;
+         //u16 countCom = (val>>3) & 0x07;
          u16 countRc = (val>>8) & 0x07;
-         u16 cRateTx = (val>>13) & 0x07;
+         //u16 cRateTx = (val>>13) & 0x07;
 
          totalCountRC += countRc;
          totalCountPing += countPing;
@@ -557,10 +555,8 @@ void _render_video_player(u32 timeNow)
    else
       sprintf(szBuff, "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
 
-   float text_scale = 0.017;
    g_pRenderEngine->drawText(0.03, 0.05, g_idFontMenu, szBuff);      
    sprintf(szBuff, "Press [Menu] or [Back] button to close");
-   text_scale = 0.012;
    g_pRenderEngine->drawText(0.18, 0.042, g_idFontMenu, szBuff);  
        
    g_pRenderEngine->endFrame();
@@ -1620,7 +1616,7 @@ void start_loop()
       ruby_load_models();
       
       if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
-           (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount)) )
+           (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
       {
          if ( 0 == getControllerModelsCount() )
          {
@@ -1735,7 +1731,6 @@ void start_loop()
    if ( s_StartSequence == START_SEQ_START_PROCESSES )
    {
       log_line("Start sequence: START_SEQ_START_PROCESSES");
-      ControllerSettings* pCS = get_ControllerSettings();
       
       link_watch_init();
       osd_plugins_load();
@@ -2209,6 +2204,7 @@ int main(int argc, char *argv[])
    }
    
    setlocale(LC_ALL, "en_GB.UTF-8");
+
    log_init("Central");
 
    check_licences();

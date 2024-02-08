@@ -61,6 +61,9 @@
 #define RADIO_HW_CAPABILITY_FLAG_CAN_TX ((u32)(((u32)0x01)<<6))
 #define RADIO_HW_CAPABILITY_FLAG_DISABLED ((u32)(((u32)0x01)<<7))
 #define RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY ((u32)(((u32)0x01)<<9))
+#define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK ((u32)(((u32)0x01)<<10))
+#define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK ((u32)(((u32)0x01)<<11))
+#define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS ((u32)(((u32)0x01)<<12))
 
 #define RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD ((u32)(((u32)0x01)))
 
@@ -103,7 +106,7 @@ typedef struct
    int isSerialRadio;
    int isConfigurable;
    int isTxCapable;
-   int iCurrentDataRate;
+   int iCurrentDataRateBPS;
    u32 uCurrentFrequencyKhz;
    int lastFrequencySetFailed;
    u32 uFailedFrequencyKhz;
@@ -165,7 +168,10 @@ const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_index_is_serial_radio(int iHWInterfaceIndex);
+int hardware_radio_index_is_elrs_radio(int iHWInterfaceIndex);
 int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex);
 
 int hardware_radioindex_supports_frequency(int iRadioIndex, u32 freqKhz);

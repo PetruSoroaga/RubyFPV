@@ -40,7 +40,7 @@
 #include "../../base/ctrl_settings.h"
 
 MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
-:Menu(MENU_ID_VEHICLE_RADIO_LINK_SIK, "Vehicle Radio SiK Link Parameters", NULL)
+:Menu(MENU_ID_VEHICLE_RADIO_LINK_SIK, "Vehicle SiK Radio Link Parameters", NULL)
 {
    m_Width = 0.3;
    m_xPos = 0.08;
@@ -55,7 +55,7 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
     
    char szBuff[256];
 
-   sprintf(szBuff, "Vehicle Radio SiK Link %d Parameters", m_iRadioLink+1);
+   sprintf(szBuff, "Vehicle SiK Radio Link %d Parameters", m_iRadioLink+1);
    setTitle(szBuff);
 
    char szBands[128];
@@ -130,7 +130,11 @@ MenuVehicleRadioLinkSiK::MenuVehicleRadioLinkSiK(int iRadioLink)
    m_pItemsSelect[2] = new MenuItemSelect("Radio Data Rate", "Sets the physical radio air data rate to use on this radio link. Lower radio data rates gives longer radio range.");
    for( int i=0; i<getSiKAirDataRatesCount(); i++ )
    {
-      sprintf(szBuff, "%d kbps", (getSiKAirDataRates()[i])/1000);
+      int iAirRate = getSiKAirDataRates()[i];
+      if ( iAirRate < 10000 )
+         sprintf(szBuff, "%d bps", iAirRate);
+      else
+         sprintf(szBuff, "%d kbps", (iAirRate)/1000);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    
@@ -198,6 +202,7 @@ void MenuVehicleRadioLinkSiK::valuesToUI()
       m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[4]->setEnabled(false);
       m_pItemsSelect[5]->setEnabled(false);
+      m_pItemsSlider[0]->setEnabled(false);
       return;
    }
 
@@ -207,6 +212,7 @@ void MenuVehicleRadioLinkSiK::valuesToUI()
    m_pItemsSelect[3]->setEnabled(true);
    m_pItemsSelect[4]->setEnabled(true);
    m_pItemsSelect[5]->setEnabled(true);
+   m_pItemsSlider[0]->setEnabled(true);
 
    m_pItemsSelect[0]->setSelectedIndex(1);
 
@@ -220,6 +226,7 @@ void MenuVehicleRadioLinkSiK::valuesToUI()
       m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[4]->setEnabled(false);
       m_pItemsSelect[5]->setEnabled(false);
+      m_pItemsSlider[0]->setEnabled(false);
    }
    
    log_line("Menu: Radio Sik link %d current frequency: %s", m_iRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[m_iRadioLink]));
@@ -233,7 +240,7 @@ void MenuVehicleRadioLinkSiK::valuesToUI()
 
    m_pItemsSelect[1]->setSelection(selectedIndex);
 
-   log_line("Menu: Radio SiK link %d current data rates: %d/%d", m_iRadioLink+1, g_pCurrentModel->radioLinksParams.link_datarate_video_bps[m_iRadioLink], g_pCurrentModel->radioLinksParams.link_datarate_data_bps[m_iRadioLink]);
+   log_line("Menu: Radio SiK link %d current air data rates: %d/%d", m_iRadioLink+1, g_pCurrentModel->radioLinksParams.link_datarate_video_bps[m_iRadioLink], g_pCurrentModel->radioLinksParams.link_datarate_data_bps[m_iRadioLink]);
    selectedIndex = 0;
    for( int i=0; i<getSiKAirDataRatesCount(); i++ )
    {

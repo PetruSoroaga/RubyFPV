@@ -497,9 +497,6 @@ int MenuVehicleRelay::onBack()
 
 bool MenuVehicleRelay::_check_if_vehicle_can_be_relayed(u32 uVehicleId)
 {
-   char szBuff[256];
-   char szBuff2[256];
-
    m_szRelayError[0] = 0;
    m_szRelayError2[0] = 0;
 
@@ -677,7 +674,7 @@ bool MenuVehicleRelay::_check_if_vehicle_can_be_relayed(u32 uVehicleId)
       else if ( ! bSupportsFrequency )
          sprintf(m_szRelayError2, "No radio links on current vehicle supports the relayed vehicle radio frequency of %s", str_format_frequency(uFrequencyRelayedVehicle));
       else if ( bFrequencyConflict )
-         sprintf(m_szRelayError2, "There would be a conflict of frequencies (both vehicles would use the same frequency %s) if relay would be enabled to vehicle %s", uFrequencyRelayedVehicle, pRelayedModel->getLongName());
+         sprintf(m_szRelayError2, "There would be a conflict of frequencies (both vehicles would use the same frequency %s) if relay would be enabled to vehicle %s", str_format_frequency(uFrequencyRelayedVehicle), pRelayedModel->getLongName());
       else
          sprintf(m_szRelayError2, "The remaining vehicle's radio links would not be able to connect to controller anymore.");
       return false;
@@ -691,7 +688,6 @@ bool MenuVehicleRelay::_check_if_vehicle_can_be_relayed(u32 uVehicleId)
 
 void MenuVehicleRelay::onSelectItem()
 {
-   char szBuff[256];
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();
    

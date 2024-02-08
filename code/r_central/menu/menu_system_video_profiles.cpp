@@ -301,7 +301,6 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
 
 void MenuSystemVideoProfiles::valuesToUI()
 {
-   Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
 
    if ( NULL == g_pCurrentModel )
@@ -615,7 +614,6 @@ void MenuSystemVideoProfiles::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
 
    

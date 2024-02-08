@@ -1808,7 +1808,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
 
    u32 blockSize = 1100;
    u32 nPackets = ((u32)lSize) / blockSize;
-   if ( lSize > nPackets * blockSize )
+   if ( lSize > (int)(nPackets * blockSize) )
       nPackets++;
 
    u8** pPackets = (u8**) malloc(nPackets*sizeof(u8*));
@@ -1867,7 +1867,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
    int iLastAcknowledgedPacket = -1;
    int iPacketToSend = 0;
    int iCountMaxRetriesForCurrentSegments = 10;
-   while ( iPacketToSend < nTotalPackets )
+   while ( iPacketToSend < (int)nTotalPackets )
    {
       u8* pPacket = pPackets[iPacketToSend];
       command_packet_sw_package* pcpsp = (command_packet_sw_package*)pPacket;
@@ -1899,7 +1899,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
 
       // Send packet and wait for acknoledge
 
-      if ( iPacketToSend == nTotalPackets - 1 )
+      if ( iPacketToSend == (int)nTotalPackets - 1 )
          log_line("Send last sw package with ack, segment %d of %d", iPacketToSend + 1, nTotalPackets);
       else
          log_line("Send sw package with ack, segment %d of %d", iPacketToSend + 1, nTotalPackets);
@@ -2124,7 +2124,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    str_format_bitrate(pModel->video_link_profiles[iProfile].bitrate_fixed_bps, szBRVideo);
    str_format_bitrate(uMaxVideoRate, szBRRadio);
    str_format_bitrate(uMaxVideoRadioDataRate, szMaxRadioVideo);
-   sprintf(szLine1, "Your current video bitrate of %s is bigger than %d%% of your maximum current radio links datarates capacity of %s.",
+   snprintf(szLine1, 255, "Your current video bitrate of %s is bigger than %d%% of your maximum current radio links datarates capacity of %s.",
        szBRVideo, DEFAULT_VIDEO_LINK_LOAD_PERCENT,szMaxRadioVideo);
    strcpy(szLine2, "Lower your set video bitrate or increase the radio datarates on your radio links, otherways you will experience delays in the video stream.");
    
@@ -2137,8 +2137,8 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
       if ( uMaxVideoRate < pModel->video_link_profiles[iProfile].bitrate_fixed_bps )
       {
           str_format_bitrate(uMaxVideoRate, szBRRadio);
-          sprintf(szLine1, "You set a custom radio datarate for this video profile of %s which is smaller than what is optimum for your desired video bitrate %s.", szBRRadio, szBRVideo );
-          sprintf(szLine2, "Disable the custom radio datarate for this video profile or decrease the desired video bitrate. Should be lower than %d%% of the set radio datarate.", DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT);
+          snprintf(szLine1, 255, "You set a custom radio datarate for this video profile of %s which is smaller than what is optimum for your desired video bitrate %s.", szBRRadio, szBRVideo );
+          snprintf(szLine2, 255, "Disable the custom radio datarate for this video profile or decrease the desired video bitrate. Should be lower than %d%% of the set radio datarate.", DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT);
           strcpy(s_szMenuObjectsVideoBitrateWarning, szLine1);
       }
    }

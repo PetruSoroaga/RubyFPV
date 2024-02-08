@@ -288,7 +288,7 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
    return nRateTx;
 }
 
-bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterfaceIndex, u8* pPacketData, int nPacketLength)
+bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInterfaceIndex, u8* pPacketData, int nPacketLength)
 {
    if ( (NULL == pPacketData) || (nPacketLength <= 0) || (NULL == g_pCurrentModel) )
       return false;
@@ -301,6 +301,11 @@ bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterf
    if ( (iVehicleRadioLinkId < 0) || (iVehicleRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count) )
       return false;
      
+   // Do not send packet if the link is overloaded
+   int iAirRate = 9600/8;
+   if ( hardware_radio_index_is_sik_radio(iRadioInterfaceIndex) )
+      iAirRate = hardware_radio_sik_get_air_baudrate_in_bytes(iRadioInterfaceIndex);
+
    bool bPacketsSent = true;
 
    u8* pData = pPacketData;
@@ -314,7 +319,21 @@ bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterf
          pData += pPH->total_length;
          continue;
       }
-      
+      if ( iAirRate > 0 )
+      if ( g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec >= (DEFAULT_RADIO_SERIAL_MAX_TX_LOAD * (u32)iAirRate) / 100 )
+      {
+         static u32 sl_uLastTimeInterfaceTxOverloaded = 0;
+         if ( g_TimeNow > sl_uLastTimeInterfaceTxOverloaded + 20000 )
+         {
+            sl_uLastTimeInterfaceTxOverloaded = g_TimeNow;
+            log_line("Radio interface %d is tx overloaded: sending %d bytes/sec and air data rate is %d bytes/sec", iRadioInterfaceIndex+1, (int)g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec, iAirRate);
+            send_alarm_to_central(ALARM_ID_RADIO_LINK_DATA_OVERLOAD, (g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec & 0xFFFFFF) | (((u32)iRadioInterfaceIndex)<<24), (u32)iAirRate);
+         }
+         nLength -= pPH->total_length;
+         pData += pPH->total_length;
+         continue;
+      }
+
       if ( (iLocalRadioLinkId < 0) || (iLocalRadioLinkId >= MAX_RADIO_INTERFACES) )
          iLocalRadioLinkId = 0;
       u16 uRadioLinkPacketIndex = radio_get_next_radio_link_packet_index(iLocalRadioLinkId);
@@ -327,7 +346,7 @@ bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterf
 
       if ( pRadioHWInfo->openedForWrite )
       {
-         int iWriteResult = radio_tx_send_sik_packet(iRadioInterfaceIndex, (u8*)pPH, pPH->total_length);
+         int iWriteResult = radio_tx_send_serial_radio_packet(iRadioInterfaceIndex, (u8*)pPH, pPH->total_length);
          if ( iWriteResult > 0 )
          {
             int iTotalSent = pPH->total_length;
@@ -336,27 +355,15 @@ bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterf
             u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
             radio_stats_update_on_packet_sent_on_radio_interface(&g_SM_RadioStats, g_TimeNow, iRadioInterfaceIndex, iTotalSent);
             radio_stats_update_on_packet_sent_on_radio_link(&g_SM_RadioStats, g_TimeNow, iLocalRadioLinkId, (int)uStreamId, pPH->total_length, 1);
-                   
-            int iAirRate = hardware_radio_sik_get_air_baudrate_in_bytes(iRadioInterfaceIndex);
-            if ( iAirRate > 0 )
-            if ( g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec >= (DEFAULT_RADIO_SIK_MAX_TX_LOAD * (u32)iAirRate) / 100 )
-            {
-               static u32 sl_uLastTimeInterfaceTxOverloaded = 0;
-               if ( g_TimeNow > sl_uLastTimeInterfaceTxOverloaded + 20000 )
-               {
-                  sl_uLastTimeInterfaceTxOverloaded = g_TimeNow;
-                  log_line("Radio interface %d is tx overloaded: sending %d bytes/sec and air data rate is %d bytes/sec", iRadioInterfaceIndex+1, (int)g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec, iAirRate);
-                  send_alarm_to_central(ALARM_ID_RADIO_LINK_DATA_OVERLOAD, (g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec & 0xFFFFFF) | (((u32)iRadioInterfaceIndex)<<24), (u32)iAirRate);
-               }
-            }
          }
          else
          {
             bPacketsSent = false;
-            log_softerror_and_alarm("Failed to write to SiK radio interface %d.", iRadioInterfaceIndex+1);
+            log_softerror_and_alarm("Failed to write to serial radio interface %d.", iRadioInterfaceIndex+1);
             if ( iWriteResult == -2 )
             {
-               radio_links_flag_reinit_sik_interface(iRadioInterfaceIndex);
+               if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
+                  radio_links_flag_reinit_sik_interface(iRadioInterfaceIndex);
                nLength = 0;
                break;
             }
@@ -365,7 +372,7 @@ bool _send_packet_to_sik_radio_interface(int iLocalRadioLinkId, int iRadioInterf
       else
       {
          bPacketsSent = false;
-         log_softerror_and_alarm("Radio Sik interface %d is not opened for write. Can't send packet on it.", iRadioInterfaceIndex+1);
+         log_softerror_and_alarm("Radio serial interface %d is not opened for write. Can't send packet on it.", iRadioInterfaceIndex+1);
       }
       nLength -= pPH->total_length;
       pData += pPH->total_length;
@@ -594,11 +601,11 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
 
       radio_stats_set_tx_card_for_radio_link(&g_SM_RadioStats, iLocalRadioLinkId, iRadioInterfaceIndex);
 
-      if ( hardware_radio_index_is_sik_radio(iRadioInterfaceIndex) )
+      if ( hardware_radio_index_is_serial_radio(iRadioInterfaceIndex) )
       {
          if ( g_bUpdateInProgress )
             continue;
-         bPacketSent |= _send_packet_to_sik_radio_interface(iLocalRadioLinkId, iRadioInterfaceIndex, pPacketData, nPacketLength);
+         bPacketSent |= _send_packet_to_serial_radio_interface(iLocalRadioLinkId, iRadioInterfaceIndex, pPacketData, nPacketLength);
       }
       else
          bPacketSent |= _send_packet_to_wifi_radio_interface(iLocalRadioLinkId, iRadioInterfaceIndex, pPacketData, nPacketLength);

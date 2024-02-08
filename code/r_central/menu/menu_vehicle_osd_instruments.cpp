@@ -45,7 +45,6 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
 {
    m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
-   float fSliderWidth = 0.10;
 
    char szBuff[256];
    sprintf(szBuff, "Instruments/Gauges Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
@@ -109,7 +108,6 @@ MenuVehicleOSDInstruments::~MenuVehicleOSDInstruments()
 
 void MenuVehicleOSDInstruments::valuesToUI()
 {
-   Preferences* p = get_Preferences();
    int layoutIndex = g_pCurrentModel->osd_params.layout;
 
    //log_dword("start: osd flags", g_pCurrentModel->osd_params.osd_flags[layoutIndex]);
@@ -176,7 +174,6 @@ void MenuVehicleOSDInstruments::onSelectItem()
       return;
    }
 
-   Preferences* p = get_Preferences();
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    bool sendToVehicle = false;
@@ -226,7 +223,6 @@ void MenuVehicleOSDInstruments::onSelectItem()
       if ( m_IndexPlugins[20+i] != -1 )
       if ( m_SelectedIndex == m_IndexPlugins[20+i] )
       {
-         u32 flags = g_pCurrentModel->osd_params.instruments_flags[layoutIndex];
          if ( m_pItemsSelect[20+i]->getSelectedIndex() == 1 )
             params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
          else

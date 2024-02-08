@@ -40,7 +40,6 @@ MenuVehicleExpert::MenuVehicleExpert(void)
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.13;
    float fSliderWidth = 0.10;
-   char szBuff[32];
    setSubTitle("Change advanced vehicle settings, for expert users.");
    
    addTopInfo();

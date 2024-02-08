@@ -96,9 +96,11 @@
 #define MENU_ID_PREFERENCES_BUTTONS 108
 #define MENU_ID_TEXT 110
 #define MENU_ID_TXINFO 111
+#define MENU_ID_VEHICLE_RADIO_LINK_ELRS 112
 
 
 #define MAX_MENU_ITEMS 150
+#define MAX_MENU_CHANNELS 100
 
 extern float MENU_TEXTLINE_SPACING; // percent of item text height
 extern float MENU_ITEM_SPACING;  // percent of item text height

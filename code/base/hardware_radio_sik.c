@@ -1660,12 +1660,12 @@ int hardware_radio_sik_close(int iHWRadioInterfaceIndex)
    radio_hw_info_t* pRadioInfo = hardware_get_radio_info(iHWRadioInterfaceIndex);
    if ( NULL == pRadioInfo )
    {
-      log_softerror_and_alarm("[HardwareRadio] Open: Failed to get SiK radio hardware info for hardware radio interface %d.", iHWRadioInterfaceIndex+1);
+      log_softerror_and_alarm("[HardwareRadio] Close: Failed to get SiK radio hardware info for hardware radio interface %d.", iHWRadioInterfaceIndex+1);
       return 0;
    }
    if ( ! hardware_radio_is_sik_radio(pRadioInfo) )
    {
-      log_softerror_and_alarm("[HardwareRadio] Open: Tried to open hardware radio interface %d which is not a Sik radio.", iHWRadioInterfaceIndex+1);
+      log_softerror_and_alarm("[HardwareRadio] Close: Tried to close hardware radio interface %d which is not a Sik radio.", iHWRadioInterfaceIndex+1);
       return 0;
    }
 
@@ -1703,7 +1703,7 @@ int hardware_radio_sik_write_packet(int iHWRadioInterfaceIndex, u8* pData, int i
    }
    if ( ! hardware_radio_is_sik_radio(pRadioInfo) )
    {
-      log_softerror_and_alarm("[HardwareRadio] Write: Tried to open hardware radio interface %d which is not a Sik radio.", iHWRadioInterfaceIndex+1);
+      log_softerror_and_alarm("[HardwareRadio] Write: Tried to write to hardware radio interface %d which is not a Sik radio.", iHWRadioInterfaceIndex+1);
       return 0;
    }
 

@@ -47,7 +47,7 @@ u32 channels58[] = { 5180000, 5200000, 5220000, 5240000, 5260000, 5280000, 53000
 
 // in 1 Mb increments, in bps
 int s_WiFidataRates[] = {2000000, 6000000, 9000000, 12000000, 18000000, 24000000, 36000000, 48000000, 54000000};
-int s_SiKdataRates[] = {2000, 4000, 8000, 16000, 19000, 24000, 32000, 48000, 64000, 96000, 128000, 192000, 250000};
+int s_SiKAirDataRates[] = {2000, 4000, 8000, 16000, 19000, 24000, 32000, 48000, 64000, 96000, 128000, 192000, 250000};
 
 u32* getChannels433() { return channels433; }
 int getChannels433Count() { return sizeof(channels433)/sizeof(channels433[0]); }
@@ -68,12 +68,12 @@ int getChannels58Count() { return sizeof(channels58)/sizeof(channels58[0]); }
 
 int* getSiKAirDataRates()
 {
-   return s_SiKdataRates;
+   return s_SiKAirDataRates;
 }
 
 int getSiKAirDataRatesCount()
 {
-   return sizeof(s_SiKdataRates)/sizeof(s_SiKdataRates[0]);
+   return sizeof(s_SiKAirDataRates)/sizeof(s_SiKAirDataRates[0]);
 }
 
 

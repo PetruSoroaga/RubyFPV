@@ -45,9 +45,6 @@ MenuControllerTelemetry::MenuControllerTelemetry(void)
    m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.25;
    load_ControllerSettings();
-   ControllerSettings* pCS = get_ControllerSettings();
-   ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
-   Preferences* pp = get_Preferences();
 
    m_pItemsSelect[0] = new MenuItemSelect("Telemetry Input/Output", "Enables or disables the telemetry output on controller's serial ports");
    m_pItemsSelect[0]->addSelection("None");
@@ -73,7 +70,7 @@ MenuControllerTelemetry::MenuControllerTelemetry(void)
    for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
    {
       char szBuff[32];
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+      sprintf(szBuff, "%d bps", hardware_get_serial_baud_rates()[n]);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    m_pItemsSelect[2]->setIsEditable();
@@ -106,7 +103,6 @@ void MenuControllerTelemetry::valuesToUI()
    ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    Preferences* pp = get_Preferences();
-   char szBuff[256];
 
    m_pItemsSelect[0]->setSelectedIndex(0);
    m_pItemsSelect[1]->setSelectedIndex(0);
@@ -310,7 +306,6 @@ void MenuControllerTelemetry::onSelectItem()
    if ( m_IndexSerialPort == m_SelectedIndex )
    {
       int idx = m_pItemsSelect[1]->getSelectedIndex();
-      bool bTelemetryChanged = false;
       if ( 0 == idx )
       {
          for( int i=0; i<hardware_get_serial_ports_count(); i++ )

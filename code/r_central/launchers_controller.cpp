@@ -71,7 +71,6 @@ void controller_launch_router(bool bSearchMode, int iFirmwareType)
    }
    ControllerSettings* pcs = get_ControllerSettings();
    char szComm[1024];
-   char szPlayer[1024];
 
    if ( NULL == pcs )
       log_line("NNN");
@@ -185,7 +184,6 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
    if ( NULL != pModel && pModel->radioInterfacesParams.interfaces_count > 1 )
    if ( NULL != pVehicleNICFreq )
    {
-      bool bDuplicate = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count-1; i++ )
       {
          for( int k=i+1; k<pModel->radioInterfacesParams.interfaces_count; k++ )
@@ -202,7 +200,6 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
 
             if ( uFreq1 == uFreq2 )
             {
-               bDuplicate = true;
                sprintf(s_szControllerCardError, s_szControllerCardErrorFrequency, str_format_frequency(uFreq1));
                return s_szControllerCardError;
             }
@@ -213,7 +210,6 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
             if ( pModel->relay_params.uRelayFrequencyKhz != 0 )
             if ( uFreq1 == pModel->relay_params.uRelayFrequencyKhz )
             {
-               bDuplicate = true;
                sprintf(s_szControllerCardError, "You can't set frequency %s, it's used for relaying.", str_format_frequency(uFreq1));
                return s_szControllerCardError;
             }        
@@ -241,7 +237,6 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
 
    if ( NULL != pModel && NULL != pVehicleNICFlags )
    {
-      bool bHasVideo = false;
       bool bHasData = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
       {

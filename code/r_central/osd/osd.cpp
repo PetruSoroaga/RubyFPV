@@ -104,8 +104,6 @@ void osd_add_stats_total_flights()
 
 void osd_show_voltage(float x, float y, float voltage, bool bRightAlign)
 {
-   Preferences* p = get_Preferences();
-
    osd_set_colors();
 
    bool bMultiLine = false;
@@ -174,7 +172,7 @@ void osd_show_voltage(float x, float y, float voltage, bool bRightAlign)
          x = x0;
          y += osd_getFontHeightBig();
       }
-      snprintf(szBuff, 31, "%.2f", 31, voltage/(float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].iComputedBatteryCellCount);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%.2f", voltage/(float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].iComputedBatteryCellCount);
 
       double* pC = get_Color_OSDText();
       if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bWarningBatteryVoltage )
@@ -289,7 +287,6 @@ float _osd_show_gps(float x, float y, bool bMultiLine)
    }
 
    u16 hdop2 = (((u16)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[3])<<8) + ((u16)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[4]);
-   u8 satelites2 = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[1];
    
    bool bShowMore = false;
    //if ( (g_pCurrentModel->iGPSCount > 1) || ((hdop2 != 0xFFFF) && (hdop2 != 0)) || ((satelites2 != 0xFF)&&(satelites2 != 0)) )
@@ -548,7 +545,6 @@ float osd_show_home(float xPos, float yPos, bool showHeading, float fScale)
    if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
       return 0.0;
 
-   char szBuff[32];
    float height_text = osd_getFontHeight() * fScale;
    float height_text_big = osd_getFontHeightBig() * fScale;
 
@@ -672,8 +668,6 @@ float _osd_show_rc_rssi(float xPos, float yPos, float fScale)
  
    osd_set_colors();
 
-   float height_text = osd_getFontHeight() * fScale;
-
    float x = xPos;
    float y = yPos;
 
@@ -748,15 +742,13 @@ float osd_get_link_bars_height(float fScale)
    float height_text = osd_getFontHeight();
    float height_text_small = osd_getFontHeightSmall();
    float iconHeight = height_text*0.92 + height_text_small - 4.0*g_pRenderEngine->getPixelHeight();
-   float iconWidth = 1.5*iconHeight/g_pRenderEngine->getAspectRatio();
    return iconHeight*fScale;
 }
 
 float osd_show_link_bars(float xPos, float yPos, int iLastRxDeltaTime, float fQuality, float fScale)
 {
-   float iconWidth = osd_get_link_bars_width(fScale);
    float iconHeight = osd_get_link_bars_height(fScale);
-
+   float iconWidth = 1.5*iconHeight/g_pRenderEngine->getAspectRatio();
    bool bShowRed = false;
    if ( iLastRxDeltaTime > 1000 )
       bShowRed = true;
@@ -1016,7 +1008,7 @@ float osd_show_gps_pos(float xPos, float yPos, float fScale)
    if ( NULL != g_pCurrentModel && ((g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()]) & OSD_FLAG_SCRAMBLE_GPS) )
    {
       int index = 0;
-      while ( index < strlen(szBuff) )
+      while ( index < (int)strlen(szBuff) )
       {
          if ( szBuff[index] == '.' )
             break;
@@ -1038,7 +1030,7 @@ float osd_show_gps_pos(float xPos, float yPos, float fScale)
    if ( NULL != g_pCurrentModel && ((g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()]) & OSD_FLAG_SCRAMBLE_GPS) )
    {
       int index = 0;
-      while ( index < strlen(szBuff) )
+      while ( index < (int)strlen(szBuff) )
       {
          if ( szBuff[index] == '.' )
             break;
@@ -1065,16 +1057,16 @@ float osd_show_total_distance(float xPos, float yPos, float fScale)
    if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
    {
       if ( _osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0) > 1.0 )
-         sprintf(szBuff, "%s %u mi", szPrefix, (unsigned long)_osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %d mi", szPrefix, (int)_osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0));
       else
-         sprintf(szBuff, "%s %u ft", szPrefix, (unsigned long)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %d ft", szPrefix, (int)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
    }
    else
    {
       if ( _osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0) > 1.0 )
-         sprintf(szBuff, "%s %u km", szPrefix, (unsigned long)_osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %d km", szPrefix, (int)_osd_convertKm(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100.0/1000.0));
       else
-         sprintf(szBuff, "%s %u m", szPrefix, (unsigned long)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %d m", szPrefix, (int)_osd_convertMeters(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.total_distance/100));
    }
    osd_set_colors();
    float w = osd_show_value(xPos,yPos, szBuff, g_idFontOSDSmall);
@@ -1103,8 +1095,6 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
 {
    float height_text = osd_getFontHeight();
    float height_text_small = osd_getFontHeightSmall();
-   char szBuff[32];
-
    float w = 0.03*osd_getScaleOSD();
 
    static long s_lMemDiskOSDFree = 0;
@@ -1187,7 +1177,7 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
          long lu;
          sscanf(szBuff, "%s %ld %ld %ld", szTemp, &s_lMemDiskOSDTotal, &lu, &s_lMemDiskOSDFree);
       }
-      sprintf(szTime, "%d/%d", s_lMemDiskOSDTotal/1000-s_lMemDiskOSDFree/1000, s_lMemDiskOSDTotal/1000);
+      sprintf(szTime, "%d/%d", (int)(s_lMemDiskOSDTotal/1000-s_lMemDiskOSDFree/1000), (int)(s_lMemDiskOSDTotal/1000));
    }
 
    if ( p->iShowBigRecordButton )
@@ -1391,15 +1381,15 @@ void osd_show_signal_bars()
          strcpy(szCardName, pNICInfo->szUSBPort);
 
       if ( -1 == iRadioLinkId )
-         sprintf(szBuff, "%s: N/A", szCardName);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: N/A", szCardName);
       else if ( pNICInfo->openedForWrite && pNICInfo->openedForRead )
-         sprintf(szBuff, "%s: RX/TX, %d %%", szCardName, (int)(fPercent*100.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: RX/TX, %d %%", szCardName, (int)(fPercent*100.0));
       else if ( pNICInfo->openedForWrite )
-         sprintf(szBuff, "%s: TX, %d %%", szCardName, (int)(fPercent*100.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: TX, %d %%", szCardName, (int)(fPercent*100.0));
       else if ( pNICInfo->openedForRead )
-         sprintf(szBuff, "%s: RX, %d %%", szCardName, (int)(fPercent*100.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: RX, %d %%", szCardName, (int)(fPercent*100.0));
       else
-         sprintf(szBuff, "%s: N/A, %d %%", szCardName, (int)(fPercent*100.0));
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: N/A, %d %%", szCardName, (int)(fPercent*100.0));
 
       osd_set_colors();
       if ( position == 0 || position == 1 )
@@ -1617,7 +1607,7 @@ void _render_osd_left_right()
            strcpy(szBuff,"0");
       }
       if ( bShowBothSpeeds )
-         sprintf(szBuff2,"G: %s", szBuff);
+         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "G: %s", szBuff);
       else
          strcpy(szBuff2, szBuff);
 
@@ -1646,7 +1636,7 @@ void _render_osd_left_right()
            strcpy(szBuff,"0");
       }
       if ( bShowBothSpeeds )
-         sprintf(szBuff2,"A: %s", szBuff);
+         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "A: %s", szBuff);
       else
          strcpy(szBuff2, szBuff);
 
@@ -1910,8 +1900,6 @@ void osd_debug()
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags |= FC_TELE_FLAGS_POS_HOME;     
    }
 
-   u32 tm = g_TimeNow;
-
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.satelites++;
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.satelites > 24 )
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.satelites = 0;
@@ -2008,7 +1996,7 @@ void osd_render_elements()
    float height_text = osd_getFontHeight();
    float height_text_big = osd_getFontHeightBig();
    float height_text_small = osd_getFontHeightSmall();
-   float x,x0,y,y0,w;
+   float x,y,y0;
 
    Preferences* p = get_Preferences();
    set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);
@@ -2236,8 +2224,7 @@ void osd_render_elements()
    x = osd_getMarginX() + osd_getSpacingH()*0.6;
    y = 1.0 - osd_getMarginY()-osd_getBarHeight()+osd_getSpacingV();
    y0 = 1.0 - osd_getMarginY()-osd_getBarHeight() - osd_getSecondBarHeight() + osd_getSpacingV();
-   x0 = x;
-
+   
    if ( s_bDebugOSDShowAll || ((pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_DISTANCE) && (g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE) ) )
    if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bHomeSet && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bFCTelemetrySourcePresent) || ((g_TimeNow/500)%2) )
    {
@@ -2287,7 +2274,7 @@ void osd_render_elements()
       }
 
       if ( bShowBothSpeeds )
-         sprintf(szBuff2, "G: %s", szBuff);
+         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "G: %s", szBuff);
       else
          strcpy(szBuff2, szBuff);
 
@@ -2318,7 +2305,7 @@ void osd_render_elements()
       }
 
       if ( bShowBothSpeeds )
-         sprintf(szBuff2, "A: %s", szBuff);
+         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "A: %s", szBuff);
       else
          strcpy(szBuff2, szBuff);
 
@@ -2498,9 +2485,7 @@ void osd_render_elements()
    float xEnd1 = x;
    float xEnd2 = x;
    float xEnd3 = x;
-   bool bShownThrottle = false;
-   bool bShownPitch = false;
-   bool bShownTemp = false;
+
    float yTemp = y;
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_THROTTLE ) )
    {
@@ -2508,7 +2493,6 @@ void osd_render_elements()
       xEnd1 -= osd_show_throttle(xStart,yTemp,true);
       xEnd1 -= osd_getSpacingH();
       yTemp -= height_text*0.9;
-      bShownThrottle = true;
    }
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_PITCH ) )
@@ -2526,7 +2510,6 @@ void osd_render_elements()
       xEnd2 -= osd_show_value_left(xEnd2,yTemp + (height_text-height_text_small)*0.5, "Pitch: ", g_idFontOSDSmall);
       xEnd2 -= osd_getSpacingH();
       yTemp -= height_text*0.9;
-      bShownPitch = true;
    }
    
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_FC_TEMPERATURE ) )
@@ -2544,7 +2527,6 @@ void osd_render_elements()
       xEnd3 -= height_text*0.15;
       xEnd3 -= osd_show_value_left(xEnd3,yTemp + (height_text-height_text_small)*0.5, "Temp: ", g_idFontOSDSmall);
       xEnd3 -= osd_getSpacingH();
-      bShownTemp = true;
    }
 
    x = xEnd1;

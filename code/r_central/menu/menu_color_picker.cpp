@@ -101,11 +101,9 @@ void MenuColorPicker::valuesToUI()
 void MenuColorPicker::Render()
 {
    RenderPrepare();
-   float height_text = MENU_FONT_SIZE_TOPLINE;
    float sizeRectV = m_RenderHeight - m_RenderHeaderHeight - 2*m_sfMenuPaddingY;
    float sizeRectH = sizeRectV/g_pRenderEngine->getAspectRatio();
 
-   float w = m_RenderWidth;
    m_RenderWidth += sizeRectH + m_sfMenuPaddingX;
    float yTop = RenderFrameAndTitle();
    float y = yTop;

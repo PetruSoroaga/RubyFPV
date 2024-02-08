@@ -59,7 +59,6 @@ float MenuItemLegend::getItemHeight(float maxWidth)
       getValueWidth(maxWidth-m_RenderTitleWidth-Menu::getMenuPaddingX());
    else
       getValueWidth(0);
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float h = g_pRenderEngine->getMessageHeight(m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, g_idFontMenu);
    if ( h > m_RenderHeight )
       m_RenderHeight = h;
@@ -86,7 +85,6 @@ void MenuItemLegend::Render(float xPos, float yPos, bool bSelected, float fWidth
 {
    m_RenderLastY = yPos;
    m_RenderLastX = xPos;
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
       
    g_pRenderEngine->setColors(get_Color_MenuText());
 

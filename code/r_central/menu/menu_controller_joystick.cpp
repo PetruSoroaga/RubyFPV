@@ -66,7 +66,6 @@ MenuControllerJoystick::MenuControllerJoystick(int joystickIndex)
 
    m_IndexCalibrate = addMenuItem(new MenuItem("Calibrate", "Starts a calibration of the center position and travel ranges for all sticks, pots and joysticks."));
 
-   ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    m_pJoystick = controllerInterfacesGetAt(m_JoystickIndex);
    hardware_open_joystick( m_pJoystick->currentHardwareIndex );
 

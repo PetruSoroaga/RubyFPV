@@ -47,12 +47,11 @@ MenuControllerNetwork::MenuControllerNetwork(void)
    m_Width = 0.29;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
    
-   Preferences* pp = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
    char szBuff[128];
    char szOutput[1024];
    hw_execute_bash_command_raw("hostname -I", szOutput);
-   sprintf(szBuff, "Current IP: %s", szOutput);
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Current IP: %s", szOutput);
    addMenuItem(new MenuItemText(szBuff));
 
    m_pItemsSelect[0] = new MenuItemSelect("Enable ETH and DHCP", "Enables the wired network connection.");
@@ -68,7 +67,7 @@ MenuControllerNetwork::MenuControllerNetwork(void)
    m_IndexFixedIP = addMenuItem(m_pItemsSelect[1]);
 
    m_pItemsRange[0] = new MenuItemRange("IP", "Sets the fixed IP to assign to the controller.", 0, 255, 20, 1 );
-   sprintf(szBuff, "%d.%d.%d.", pCS->uFixedIP >> 24, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF );
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%d.%d.%d.", pCS->uFixedIP >> 24, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF );
    m_pItemsRange[0]->setPrefix(szBuff);
    m_IndexIP = addMenuItem(m_pItemsRange[0]);
    addMenuItem(new MenuItemText("Note: Changing network settings requires a restart."));
@@ -79,7 +78,6 @@ MenuControllerNetwork::MenuControllerNetwork(void)
 void MenuControllerNetwork::valuesToUI()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   Preferences* pp = get_Preferences();
    
    if( access( "/boot/nodhcp", R_OK ) == -1 )
       m_pItemsSelect[0]->setSelection(1);

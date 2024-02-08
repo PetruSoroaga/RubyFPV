@@ -94,17 +94,17 @@ void _media_remove_invalid_files()
 
          szFile[pos] = 0;
          strcat(szFile, "h264");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          szFile[pos] = 0;
          strcat(szFile, "info");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          szFile[pos] = 0;
          strcat(szFile, "png");
-         sprintf(szComm, "rm -rf %s%s", FOLDER_MEDIA, szFile);
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
          ruby_signal_alive();
@@ -145,7 +145,6 @@ bool media_init_and_scan()
 
 void media_scan_files()
 {
-   char szFile[1024];
    char szOutBuff[1024];
 
    _media_remove_invalid_files();

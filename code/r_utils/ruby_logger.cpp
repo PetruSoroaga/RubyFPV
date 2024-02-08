@@ -42,6 +42,19 @@
 #include <sys/msg.h>
 
 bool g_bQuit = false;
+int s_iCounter = 0;
+char s_szLogMsg[256];
+
+void _log_logger_message(const char* szMsg)
+{
+   s_iCounter++;
+   FILE* fd = fopen(LOG_FILE_LOGGER, "ab");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%d: %s\n", s_iCounter, szMsg);
+      fclose(fd);
+   }
+}
 
 void handle_sigint(int sig) 
 { 
@@ -51,6 +64,42 @@ void handle_sigint(int sig)
    g_bQuit = true;
 } 
 
+int _open_msg_queue()
+{
+   key_t key;
+   int iLogMsgQueue = -1;
+   type_log_message_buffer logMessage;
+
+   key = ftok("ruby_logger", LOGGER_MESSAGE_QUEUE_ID);
+   iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
+   if ( iLogMsgQueue < 0 )
+   {
+      log_softerror_and_alarm("Failed to create logger message queue");
+      _log_logger_message("Failed to create logger message queue");
+      iLogMsgQueue = msgget(key, 0444);
+      if ( iLogMsgQueue >= 0 )
+      {
+         log_softerror_and_alarm("Queue already exists. Closing and recreating it.");
+         _log_logger_message("Queue already exists. Closing and recreating it.");
+         msgctl(iLogMsgQueue,IPC_RMID,NULL);
+         iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
+         if ( iLogMsgQueue < 0 )
+         {
+            log_softerror_and_alarm("Failed to recreate logger message queue");
+            _log_logger_message("Failed to recreate logger message queue");
+         }
+      }
+      log_softerror_and_alarm("Failed to open existing logger message queue");
+      _log_logger_message("Failed to open existing logger message queue");
+   }
+   else
+   {
+      sprintf(s_szLogMsg, "Created logger message queue, key id: %x, msgqueue id: %d", key, iLogMsgQueue);
+      log_line(s_szLogMsg);
+      _log_logger_message(s_szLogMsg);
+   }
+   return iLogMsgQueue;
+}
 
 int main(int argc, char *argv[])
 {
@@ -61,30 +110,9 @@ int main(int argc, char *argv[])
    log_enable_stdout();
    log_init_local_only("RubyLogger");
    
-   key_t key;
-   int iLogMsgQueue = -1;
    type_log_message_buffer logMessage;
 
-   key = ftok("ruby_logger", LOGGER_MESSAGE_QUEUE_ID);
-   iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
-   if ( iLogMsgQueue < 0 )
-   {
-      log_softerror_and_alarm("Failed to create logger message queue");
-      iLogMsgQueue = msgget(key, 0444);
-      if ( iLogMsgQueue >= 0 )
-      {
-         log_softerror_and_alarm("Queue already exists. Closing and recreating it.");
-         msgctl(iLogMsgQueue,IPC_RMID,NULL);
-         iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
-         if ( iLogMsgQueue < 0 )
-         {
-            log_softerror_and_alarm("Failed to recreate logger message queue");
-         }
-      }
-      log_softerror_and_alarm("Failed to open existing logger message queue");
-   }
-   else
-      log_line("Created logger message queue, key id: %x, msgqueue id: %d", key, iLogMsgQueue);
+   int iLogMsgQueue = _open_msg_queue();
 
    if ( iLogMsgQueue < 0 )
    {
@@ -94,18 +122,30 @@ int main(int argc, char *argv[])
 
    log_line("Started logger main loop");
 
+   _log_logger_message("Started");
+
    while ( !g_bQuit )
    {
       // This is blocking
       int len = msgrcv(iLogMsgQueue, &logMessage, MAX_SERVICE_LOG_ENTRY_LENGTH, 0, 0);
       if ( len <= 0 )
       {
-          log_line("Failed to read log message queue. Exiting...");
-          g_bQuit = true;
-          break;
+          sprintf(s_szLogMsg, "Failed to read log message queue. Error code: %d, (%s)", errno, strerror(errno));
+          log_line(s_szLogMsg);
+          _log_logger_message(s_szLogMsg);
+          iLogMsgQueue = _open_msg_queue();
+          if ( iLogMsgQueue < 0 )
+          {
+             g_bQuit = true;
+             break;
+          }
+          else
+             continue;
       }
-
       logMessage.text[len-1] = 0;
+      //sprintf(szTmp, "len %d", len);
+      //_log_logger_message(szTmp);
+      //_log_logger_message(logMessage.text);
       //log_line("Received message type: %d, length: %d bytes", logMessage.type, len);
 
       //if ( logMessage.type == 1 )

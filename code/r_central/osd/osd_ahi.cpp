@@ -136,9 +136,7 @@ void osd_show_ahi_heading(float yTop, float fWidth)
    char szBuff[64];
    int headingValues = 100;
 
-   float fScaleText = 0.65;
    float height_text = osd_getFontHeight();
-   float height_text_small = osd_getFontHeightSmall();
 
    float lineHeight = 0.016*ahi_fScale;
    float yBottom = yTop + lineHeight*2.0 + height_text;
@@ -156,7 +154,6 @@ void osd_show_ahi_heading(float yTop, float fWidth)
       float xPos = 0.5 + (i - heading) * fWidth/headingValues;
       if ( (i%5) == 0 )
       {         
-         float scale = 1.0;
          szBuff[0] = 0; szBuff[1] = 0;
          if ( hdng == 0 || hdng == 360 )
             strcpy(szBuff, "N");
@@ -175,12 +172,6 @@ void osd_show_ahi_heading(float yTop, float fWidth)
             strcpy(szBuff, "SW");
          if ( hdng == 315 )
             strcpy(szBuff, "NW");
-
-         if ( szBuff[1] != 0 )
-            scale = 1.1;
-    
-         else if ( szBuff[0] != 0 )
-            scale = 1.2;
 
          if ( 0 != szBuff[0] )
          {
@@ -234,15 +225,16 @@ void osd_show_ahi_heading(float yTop, float fWidth)
 
 void osd_ahi_show_horizont_ladder(float roll, float pitch)
 {
+   /*
    bool bUseWarningColor = false;
 
    if ( g_pCurrentModel->osd_params.ahi_warning_angle > 1 )
    if ( fabs(roll) >= g_pCurrentModel->osd_params.ahi_warning_angle ||
         fabs(pitch) >= g_pCurrentModel->osd_params.ahi_warning_angle )
       bUseWarningColor = true;
+   */
 
    char szBuff[64];
-   float ahiAlpha = 1.0;   
 
    float xCenter = 0.5;
    float yCenter = 0.5;
@@ -263,7 +255,6 @@ void osd_ahi_show_horizont_ladder(float roll, float pitch)
    g_pRenderEngine->drawPolyLine(xt, yt, 3);   
    g_pRenderEngine->fillPolygon(xt, yt, 3);
 
-   float fFontScale = 0.8;
    float height_text = osd_getFontHeight();
 
    float height_ladder = 0.32 * ahi_fScale;
@@ -445,7 +436,6 @@ void osd_ahi_draw_panels()
    }
 
    float len = ahi_fMaxWidth * ahi_GradationAspect;
-   float lenSmall = ahi_fMaxWidth * ahi_smallGradationAspect;
  
    float xLeft = ahi_xs+wBar-len;
    float xRight = ahi_xe-wBar+len;
@@ -620,8 +610,6 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
       }
    }
 
-   float fScaleText = 0.88;
- 
    char szSpeed[32];
    int dxSpeed = 0.0;
    strcpy(szSpeed, "SPD");
@@ -653,8 +641,6 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
          osd_show_value_left(xRight+wBar*2.4-lenSmall,yMid+height_text*0.01, "ALT", g_idFontOSD);
    }
 
-   fScaleText = 0.6;
-   
    char szSpeedUnits[32];
    char szAltUnits[32];
    sprintf(szSpeedUnits, "(km/h)");
@@ -691,8 +677,6 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
       if ( s_ahi_show_altitude )
          osd_show_value_left(xRight+wBar*2.4-lenSmall*1.2,yMid-0.5*hBar+height_text*0.2, szAltUnits, g_idFontOSDSmall);
    }
-
-   fScaleText = 0.7;
 
    float dyStep = ahi_fMaxHeight / 20.0;
    int iValueStep = 2;
@@ -939,13 +923,8 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
 {
    Preferences* p = get_Preferences();
    char szBuff[1024];
-   float fSpeed = 0.0;
-   float fAltitude = 0.0;
 
    float wBar = ahi_fMaxHeight/ahi_fBarAspect/g_pRenderEngine->getAspectRatio();
-   float hBar = 0.6*ahi_fMaxHeight/ahi_fBarAspect;
-   float len = ahi_fMaxWidth * ahi_GradationAspect;
-   float lenSmall = ahi_fMaxWidth * ahi_smallGradationAspect;
    float xLeft = ahi_xs+wBar;
    float xRight = ahi_xe-wBar;
    bool bAlignLeft = true;
@@ -1357,9 +1336,6 @@ void osd_show_ahi(float roll, float pitch)
    }
    s_ahi_lastRoll = s_ahi_lastRoll * 0.6 + 0.4 * roll;
    s_ahi_lastPitch = s_ahi_lastPitch * 0.6 + 0.4 * pitch;
-
-   char szBuff[64];
-   float ahiAlpha = 0.6;   
 
    /*
    if ( s_bDebugAHIShowAll || (g_pCurrentModel->osd_params.instruments_flags[osd_get_current_layout_index()] & INSTRUMENTS_FLAG_SHOW_HORIZONT) )

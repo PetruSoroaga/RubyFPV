@@ -81,7 +81,7 @@ MenuVehicleTelemetry::MenuVehicleTelemetry(void)
    m_pItemsSelect[2] = new MenuItemSelect("Vehicle Serial Baudrate", "Sets the baud rate between flight controller and Ruby on the vehicle side. Should match the serial speed that the flight controller generates. Higher is better.");
    for( int i=0; i<hardware_get_serial_baud_rates_count(); i++ )
    {
-      sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[i]);
+      sprintf(szBuff, "%d bps", hardware_get_serial_baud_rates()[i]);
       m_pItemsSelect[2]->addSelection(szBuff);
    }
    m_pItemsSelect[2]->setIsEditable();
@@ -210,7 +210,7 @@ void MenuVehicleTelemetry::valuesToUI()
       m_pItemsSelect[2]->setEnabled(true);
       bool bSpeedFound = false;
       for(int i=0; i<m_pItemsSelect[2]->getSelectionsCount(); i++ )
-         if ( hardware_get_serial_baud_rates()[i] == uCurrentSerialPortSpeed )
+         if ( hardware_get_serial_baud_rates()[i] == (int)uCurrentSerialPortSpeed )
          {
             m_pItemsSelect[2]->setSelection(i);
             bSpeedFound = true;
@@ -219,7 +219,7 @@ void MenuVehicleTelemetry::valuesToUI()
 
       if ( ! bSpeedFound )
       {
-         sprintf(szBuff, "Info: You are using a custom telemetry baud rate (%ld) on this %s.", uCurrentSerialPortSpeed, g_pCurrentModel->getVehicleTypeString());
+         sprintf(szBuff, "Info: You are using a custom telemetry baud rate (%d) on this %s.", uCurrentSerialPortSpeed, g_pCurrentModel->getVehicleTypeString());
          addTopLine(szBuff);
       }
    }
@@ -280,7 +280,6 @@ void MenuVehicleTelemetry::onSelectItem()
       return;
 
    int iCurrentSerialPortIndex = -1;
-   u32 uCurrentSerialPortSpeed = 0;
    for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
    {
        
@@ -288,7 +287,6 @@ void MenuVehicleTelemetry::onSelectItem()
        if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_TELEMETRY )
        {
           iCurrentSerialPortIndex = i;
-          uCurrentSerialPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
           break;
        }
    }

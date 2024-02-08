@@ -199,7 +199,6 @@ void MenuVehicleImport::buildSettingsFileList()
 {
    DIR *d;
    struct dirent *dir;
-   char szBuff[1024];
    char szFolder[1024];
 
    for( int i=0; i<m_TempFilesCount; i++ )

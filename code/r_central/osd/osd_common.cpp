@@ -373,7 +373,6 @@ float osd_course_to(double lat1, double long1, double lat2, double long2)
 
 float osd_show_value(float x, float y, const char* szValue, u32 fontId)
 {
-   float height_text = g_pRenderEngine->textHeight(fontId);
    float w = 0;
    g_pRenderEngine->drawText(x,y, fontId, szValue);
    w += g_pRenderEngine->textWidth(fontId, szValue);
@@ -412,7 +411,6 @@ float osd_show_value_sufix_left(float x, float y, const char* szValue, const cha
 
 float osd_show_value_left(float x, float y, const char* szValue, u32 fontId)
 {
-   float height_text = g_pRenderEngine->textHeight(fontId);
    float w = g_pRenderEngine->textWidth(fontId, szValue);
    g_pRenderEngine->drawText(x-w,y, fontId, szValue);
    return w;
@@ -421,8 +419,6 @@ float osd_show_value_left(float x, float y, const char* szValue, u32 fontId)
 
 float osd_show_value_centered(float x, float y, const char* szValue, u32 fontId)
 {
-   float height_text = g_pRenderEngine->textHeight(fontId);
-
    float w = g_pRenderEngine->textWidth(fontId, szValue);
 
    g_pRenderEngine->drawText(x-0.5*w,y, fontId, szValue);
@@ -549,9 +545,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    g_pRenderEngine->setStroke(pc1[0], pc1[1], pc1[2], pc1[3]);
    g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness);
 
-   char szBuff[256];
    float height_text = osd_getFontHeight();
-   float height_text_big = osd_getFontHeightBig();
    float height_text_small = osd_getFontHeightSmall();
 
    float fPaddingY = height_text_small*0.4;

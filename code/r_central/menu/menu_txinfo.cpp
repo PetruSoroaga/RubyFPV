@@ -41,13 +41,10 @@ MenuTXInfo::MenuTXInfo()
    m_Height = 0.61;
    m_xPos = 0.05;
    m_yPos = 0.16;
-   float fSliderWidth = 0.18;
 
    m_xTable = m_RenderXPos + m_sfMenuPaddingY;
    m_xTable += 0.15*m_sfScaleFactor;
    m_xTableCellWidth = 0.05*m_sfScaleFactor;
-
-   ControllerSettings* pCS = get_ControllerSettings();
 
    m_bSelectSecond = false;
    m_bShowThinLine = false;
@@ -153,7 +150,7 @@ void MenuTXInfo::onShow()
                strcat(szCards, " RaLink");
          }
 
-         sprintf(szBuff, "Vehicle Tx Power (2.4Ghz%s)", szCards);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Vehicle Tx Power (2.4Ghz%s)", szCards);
          m_pItemsSlider[1] = new MenuItemSlider(szBuff, "Sets the radio TX power used on the vehicle for Atheros/RaLink cards. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros/2, fSliderWidth);
          m_IndexPowerVehicleAtheros = addMenuItem(m_pItemsSlider[1]);
          m_pItemsSlider[2] = new MenuItemSlider("Vehicle Tx Power (5.8Ghz)", "Sets the radio TX power used on the vehicle for RTL cards. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL/2, fSliderWidth);
@@ -188,7 +185,7 @@ void MenuTXInfo::onShow()
                strcat(szCards, " RaLink");
          }
 
-         sprintf(szBuff, "Controller Tx Power (2.4Ghz%s)", szCards);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Controller Tx Power (2.4Ghz%s)", szCards);
          m_pItemsSlider[6] = new MenuItemSlider(szBuff, "Sets the radio TX power used on the controller for Atheros/RaLink cards. Requires a reboot of the controller after change.", 1, pCS->iMaxTXPowerAtheros, pCS->iMaxTXPowerAtheros/2, fSliderWidth);
          m_IndexPowerControllerAtheros = addMenuItem(m_pItemsSlider[6]);
          m_pItemsSlider[7] = new MenuItemSlider("Controller Tx Power (5.8Ghz)", "Sets the radio TX power used on the controller for RTL cards. Requires a reboot of the controller after change.", 1, pCS->iMaxTXPowerRTL, pCS->iMaxTXPowerRTL/2, fSliderWidth);
@@ -484,7 +481,7 @@ void MenuTXInfo::Render()
    const char* sz722N2W[11] =     {  "6 mW", "20 mW", "70 mW",  "205 mW", "650 mW", "900 mW",    "1 W",    "1.9 W",    "2 W",   "2 W",      "2 W"};
    const char* sz722N4W[11] =     { "10 mW", "60 mW", "200 mW", "450 mW",  "1.2 W",  "1.9 W",  "2.1 W",    "2.1 W",  "2.1 W", "2.1 W",    "2.1 W"};
    const char* szBlueStick[11]  = {  "2 mW",  "4 mW",  "8 mW",   "28 mW",  "80 mW", "110 mW", "280 mW",      "1 W",   "? mW",    "? mW",   "? mW"};
-   const char* szGreenStick[11] = {  "2 mW",  "5 mW", "15 mW",   "60 mW",  "75 mW",  "75 mW",   "- mW",     "- mW",   "- mW",    "- mW",   "- mW"};
+   //const char* szGreenStick[11] = {  "2 mW",  "5 mW", "15 mW",   "60 mW",  "75 mW",  "75 mW",   "- mW",     "- mW",   "- mW",    "- mW",   "- mW"};
    const char* szAWUS036NH[11] =  { "10 mW", "20 mW", "30 mW",   "40 mW",  "60 mW",   "- mW",   "- mW",     "- mW",   "- mW",  "- mW",     "- mW"};
    const char* szAWUS036NHA[11] = {"0.5 mW",  "2 mW",  "6 mW",   "17 mW", "120 mW", "180 mW", "215 mW",   "310 mW", "460 mW",  "- mW",     "- mW"};
    
@@ -533,7 +530,6 @@ void MenuTXInfo::Render()
    }
 
    height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
-   float xPos = m_xPos + 1.1*m_sfMenuPaddingX;
 
    if ( (NULL != g_pCurrentModel) && m_bShowVehicle )
    {
@@ -674,7 +670,6 @@ void MenuTXInfo::onSelectItem()
 
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();
-   char szBuff[1024];
 
    if ( m_IndexShowAllCards == m_SelectedIndex )
    {

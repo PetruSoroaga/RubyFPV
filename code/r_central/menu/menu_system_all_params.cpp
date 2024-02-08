@@ -68,7 +68,6 @@ void MenuSystemAllParams::Render()
    char szOutput[1024];
 
    int boardType = 0;
-   int wifiType = 0;
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);   
 
@@ -108,7 +107,7 @@ void MenuSystemAllParams::Render()
       log_line("Out: [%s]", szOutput);
       int cSpaces = 0;
       int cOther = 0;
-      for( int i=0; i<strlen(szOutput); i++ )
+      for( int i=0; i<(int)strlen(szOutput); i++ )
       {
          if ( szOutput[i] != ' ' )
             cOther++;
@@ -134,7 +133,7 @@ void MenuSystemAllParams::Render()
          strcpy(m_szIP, "No ETH");
       m_bGotIP = true;
    }
-   sprintf(szBuff, "Controller IP: %s", m_szIP);
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Controller IP: %s", m_szIP);
    g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
    yPos += 2.0*height_text;
 
@@ -191,14 +190,14 @@ float MenuSystemAllParams::renderVehicleCamera(float xPos, float yPos, float wid
    if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_USER )
       strcpy(szTemp, "[USR]");
 
-   sprintf(szBuff, "S: %s/%d/%d/%d", szTemp, 
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "S: %s/%d/%d/%d", szTemp, 
               (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS)?1:0,
               0,
               (((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags)>>8)&0xFF)*5);
    yPos += g_pRenderEngine->drawMessageLines(xPos+ 0.16*m_sfScaleFactor, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   sprintf(szBuff, "H264: %d/%d/%d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level);
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "H264: %d/%d/%d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
@@ -216,7 +215,6 @@ float MenuSystemAllParams::renderVehicleRC(float xPos, float yPos, float width, 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    char szBuff[1024];
-   char szTemp[1024];
 
    sprintf(szBuff, "RC: %s, ch %d / fps %d / output enabled: %d / fs %d ms", g_pCurrentModel->rc_params.rc_enabled?"Enabled":"Disabled", g_pCurrentModel->rc_params.channelsCount, g_pCurrentModel->rc_params.rc_frames_per_second, (g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED), g_pCurrentModel->rc_params.rc_failsafe_timeout_ms);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
@@ -496,9 +494,7 @@ float MenuSystemAllParams::renderProcesses(float xPos, float yPos, float width, 
 
 
 float MenuSystemAllParams::renderSoftware(float xPos, float yPos, float width, float fScale)
-{
-   ControllerSettings* pCS = get_ControllerSettings();
-   
+{   
    float y0 = yPos;
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
@@ -529,13 +525,10 @@ float MenuSystemAllParams::renderSoftware(float xPos, float yPos, float width, f
 
 float MenuSystemAllParams::renderDeveloperFlags(float xPos, float yPos, float width, float fScale)
 {
-   ControllerSettings* pCS = get_ControllerSettings();
-   
    float y0 = yPos;
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);   
 
    char szBuff[1024];
-   char szTemp[1024];
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.6);
@@ -575,7 +568,6 @@ float MenuSystemAllParams::renderControllerParams(float xPos, float yPos, float 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    char szBuff[1024];
-   char szTemp[1024];
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.6);
@@ -603,7 +595,6 @@ float MenuSystemAllParams::renderCPUParams(float xPos, float yPos, float width, 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    char szBuff[1024];
-   char szTemp[1024];
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.6);

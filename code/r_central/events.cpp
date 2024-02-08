@@ -685,9 +685,9 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
          str_get_hardware_camera_type_string(pModel->camera_params[i].iCameraType, szBuff1);
          str_get_hardware_camera_type_string(pModel->camera_params[i].iForcedCameraType, szBuff2);
          if ( pModel->iCameraCount > 1 )
-            sprintf(szBuff, "Your camera %d is autodetected as %s but you forced to work as %s", i+1, szBuff1, szBuff2);
+            snprintf(szBuff, 255, "Your camera %d is autodetected as %s but you forced to work as %s", i+1, szBuff1, szBuff2);
          else
-            sprintf(szBuff, "Your camera is autodetected as %s but you forced to work as %s", szBuff1, szBuff2);
+            snprintf(szBuff, 255, "Your camera is autodetected as %s but you forced to work as %s", szBuff1, szBuff2);
          warnings_add(pModel->vehicle_id, szBuff, g_idIconCamera, get_Color_IconWarning() );
       }
    }

@@ -48,7 +48,6 @@ extern u32 s_idFontStatsSmall;
 float osd_render_stats_adaptive_video_get_height()
 {
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
-   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    float hGraph = height_text * 2.0;
    
    float height = 2.0 *s_fOSDStatsMargin*1.1 + 0.9*height_text*s_OSDStatsLineSpacing;
@@ -101,15 +100,11 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    float hGraph = height_text * 2.0;
-   float wPixel = g_pRenderEngine->getPixelWidth();
-   float fStroke = OSD_STRIKE_WIDTH;
 
    float width = osd_render_stats_adaptive_video_get_width();
    float height = osd_render_stats_adaptive_video_get_height();
 
    char szBuff[128];
-   char szBuff1[64];
-   char szBuff2[64];
 
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
    g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
@@ -135,7 +130,6 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    int iIntervalsAdaptiveUp = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 >> 16) & 0xFFFF;
 
    float y = yPos + height_text*1.3*s_OSDStatsLineSpacing;
-   float yTop = y;
 
    double* pc = get_Color_Dev();
    g_pRenderEngine->setColors(get_Color_Dev());
@@ -579,18 +573,13 @@ void osd_render_stats_adaptive_video_graph(float xPos, float yPos)
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    float hGraph = height_text * 12.0;
    float wPixel = g_pRenderEngine->getPixelWidth();
-   float fStroke = OSD_STRIKE_WIDTH;
 
    float width = osd_render_stats_video_stats_get_width();
-   float height = osd_render_stats_video_stats_get_height();
    float y = yPos;
    width -= 2*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
    float widthMax = width;
-   float rightMargin = xPos + width;
 
    char szBuff[128];
-   char szBuff1[64];
-   char szBuff2[64];
 
    float dxGraph = g_pRenderEngine->textWidth(s_idFontStatsSmall, "8878");
    dxGraph += g_pRenderEngine->textWidth(s_idFontStatsSmall, "8878");
@@ -717,7 +706,6 @@ void osd_render_stats_adaptive_video_graph(float xPos, float yPos)
 float osd_render_stats_video_stats_get_height()
 {
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
-   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    
    float height = 2.0 *s_fOSDStatsMargin*1.1 + 0.9*height_text*s_OSDStatsLineSpacing;
 
@@ -745,14 +733,9 @@ float osd_render_stats_video_stats_get_width()
 }
 
 void osd_render_stats_video_stats(float xPos, float yPos)
-{
-   bool useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
-   
+{   
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
-   float hGraph = height_text * 5.0;
-   float wPixel = g_pRenderEngine->getPixelWidth();
-   float fStroke = OSD_STRIKE_WIDTH;
 
    float width = osd_render_stats_video_stats_get_width();
    float height = osd_render_stats_video_stats_get_height();
@@ -769,13 +752,11 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    xPos += s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
    yPos += s_fOSDStatsMargin*0.7;
    width -= 2*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
-   float widthMax = width;
    float rightMargin = xPos + width;
 
    g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "Video Link Stats");
    
    float y = yPos + height_text*1.3*s_OSDStatsLineSpacing;
-   float yTop = y;
 
    osd_set_colors();
    g_pRenderEngine->setColors(get_Color_Dev());
@@ -797,7 +778,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    strcpy(szBuff2, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) );
    //if ( (NULL != g_pSM_VideoDecodeStats) && (g_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
    //   strcat(szBuff2, "-");
-   sprintf(szBuff, "%s / %s", szBuff1, szBuff2 );
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szBuff1, szBuff2 );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -1600,7 +1581,6 @@ void osd_render_stats_video_graphs(float xPos, float yPos)
 float osd_render_stats_graphs_vehicle_tx_gap_get_height()
 {
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
-   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    float hGraph = height_text * 4.0;
    float hGraph2 = height_text * 3.0;
 
@@ -2006,11 +1986,9 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
    float hGraph2 = height_text * 2.0;
    float wPixel = g_pRenderEngine->getPixelWidth();
    float hPixel = g_pRenderEngine->getPixelHeight();
-   float fStroke = OSD_STRIKE_WIDTH;
 
    float width = osd_render_stats_video_bitrate_history_get_width();
    float height = osd_render_stats_video_bitrate_history_get_height();
-
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
@@ -2047,13 +2025,6 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
    osd_show_value_left(rightMargin,yPos, szBuff, s_idFontStatsSmall);
 
    float y = yPos + height_text*2.0*s_OSDStatsLineSpacing;
-   float yTop = y;
-   
-   //double* pc = get_Color_Dev();
-   //g_pRenderEngine->setColors(get_Color_Dev());
-   
-   char szBuff1[64];
-   char szBuff2[64];
 
    if ( ! g_bGotStatsVideoBitrate )
    {

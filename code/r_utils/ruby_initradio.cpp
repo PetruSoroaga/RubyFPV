@@ -99,9 +99,14 @@ int init_Radios()
          log_error_and_alarm("Failed to get radio info for interface %d.", i+1);
          continue;
       }
+      if ( ! pRadioHWInfo->isConfigurable )
+      {
+         log_line("Configuring radio interface %d (%s): radio interface is not configurable. Skipping it.", i+1, pRadioHWInfo->szName);
+         continue;
+      }
       if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
       {
-         log_line("Configuring radio interface %d: radio interface is SiK radio. Skipping it.", i+1);
+         log_line("Configuring radio interface %d (%s): radio interface is SiK radio. Skipping it.", i+1, pRadioHWInfo->szName);
          continue;
       }
       if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
@@ -116,7 +121,7 @@ int init_Radios()
          continue;
       }
 
-      pRadioHWInfo->iCurrentDataRate = 0;
+      pRadioHWInfo->iCurrentDataRateBPS = 0;
       sprintf(szBuff, "ifconfig %s mtu 2304 2>&1", pRadioHWInfo->szName );
       hw_execute_bash_command(szBuff, szOutput);
       if ( 0 != szOutput[0] )
@@ -154,7 +159,7 @@ int init_Radios()
             }
          }
          if ( dataRateMb == 0 )
-            dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO;
+            dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO/1000/1000;
          if ( dataRateMb > 0 )
             sprintf(szBuff, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, dataRateMb );
          else
@@ -183,7 +188,7 @@ int init_Radios()
          //execute_bash_command(szBuff, NULL);
          //hardware_sleep_ms(delayMs);
 
-         pRadioHWInfo->iCurrentDataRate = dataRateMb;
+         pRadioHWInfo->iCurrentDataRateBPS = dataRateMb*1000*1000;
       }
       //if ( ((pRadioHWInfo->type) & 0xFF) == RADIO_TYPE_RALINK )
       else

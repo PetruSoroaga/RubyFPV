@@ -381,6 +381,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       {
          bTriedAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
+         
          // Go directly to next video profile down
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift < iLevelsHQ )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift = iLevelsHQ;
@@ -401,17 +402,6 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
          
-         // Skip data:fec == 1:1 levels (last level on each video profile, if it has more than one level)
-         if ( iLevelsHQ > 1 )
-         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == iLevelsHQ -1 )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
-         if ( iLevelsMQ > 1 )
-         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == iLevelsHQ + iLevelsMQ -1 )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
-         if ( iLevelsLQ > 1 )
-         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == iLevelsHQ + iLevelsMQ + iLevelsLQ -1 )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
-
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift >= iMaxLevels )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift = iMaxLevels - 1;
       }

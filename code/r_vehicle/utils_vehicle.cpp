@@ -240,7 +240,14 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
 
    for( int iLink=0; iLink<pModel->radioLinksParams.links_count; iLink++ )
    {
+      if ( pModel->radioLinksParams.link_capabilities_flags[iLink] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+      {
+         log_softerror_and_alarm("Radio Link %d is disabled!", iLink+1 );
+         continue;
+      }
+
       u32 uRadioLinkFrequency = pModel->radioLinksParams.link_frequency_khz[iLink];
+
       if ( pModel->relay_params.isRelayEnabledOnRadioLinkId == iLink )
       {
          uRadioLinkFrequency = pModel->relay_params.uRelayFrequencyKhz;
@@ -258,14 +265,8 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
          }
          else log_line("Radio link %d is a relay link on %s", iLink+1, str_format_frequency(uRadioLinkFrequency));
       }
-      else
-         log_line("Radio link %d must be set to %s", iLink+1, str_format_frequency(uRadioLinkFrequency));
-
-      if ( pModel->radioLinksParams.link_capabilities_flags[iLink] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
-      {
-         log_softerror_and_alarm("Radio Link %d is disabled!", iLink+1 );
-         continue;
-      }
+   
+      log_line("Radio link %d must be set to %s", iLink+1, str_format_frequency(uRadioLinkFrequency));
 
       int iLinkConfiguredInterfacesCount = 0;
 
@@ -278,6 +279,7 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
             log_softerror_and_alarm("Radio Interface %d (assigned to radio link %d) is disabled!", iInterface+1, iLink+1 );
             continue;
          }
+
          if ( ! hardware_radioindex_supports_frequency(iInterface, uRadioLinkFrequency ) )
          {
             log_softerror_and_alarm("Radio interface %d (assigned to radio link %d) does not support radio link frequency %s!", iInterface+1, iLink+1, str_format_frequency(uRadioLinkFrequency) );
@@ -302,6 +304,10 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
                (u32)((pModel->radioLinksParams.link_radio_flags[iLink] & RADIO_FLAGS_SIK_MCSTR)?1:0),
                pProcessStats);
             iLinkConfiguredInterfacesCount++;
+         }
+         else if ( hardware_radio_index_is_serial_radio(iInterface) )
+         {
+            iLinkConfiguredInterfacesCount++;          
          }
          else
          {

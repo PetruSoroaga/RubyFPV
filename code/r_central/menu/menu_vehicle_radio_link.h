@@ -2,8 +2,8 @@
 #include "menu_objects.h"
 #include "menu_item_select.h"
 #include "menu_item_slider.h"
-
-#define MAX_MENU_CHANNELS 100
+#include "menu_vehicle_radio_link_sik.h"
+#include "menu_vehicle_radio_link_elrs.h"
 
 class MenuVehicleRadioLink: public Menu
 {

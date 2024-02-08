@@ -174,12 +174,8 @@ void PopupCameraParams::Render()
    g_pRenderEngine->drawText(x+dx+fw + 0.02, y-0.2*height_text, g_idFontMenu, szBuff);
    y += height_text*1.4;
 
-   float padding = Menu::getSelectionPaddingX();
-   float paddingH = Menu::getSelectionPaddingY();
-
    float sliderHeight = 0.4 * height_text;
    float sliderWidth = m_RenderWidth - m_fIconSize/g_pRenderEngine->getAspectRatio() - 2*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
-   float valueWidth = 1.1 * g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
    float xPosSlider = x + dx;
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText());

@@ -266,7 +266,7 @@ void MenuControllerExpert::addTopInfo()
    int speed = hardware_get_cpu_speed();
    sprintf(szOutput2, "%d Mhz", speed);
 
-   sprintf(szBuffer, "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
+   snprintf(szBuffer, sizeof(szBuffer)/sizeof(szBuffer[0]), "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
    addTopLine(szBuffer);
 
    hw_execute_bash_command_raw("vcgencmd measure_clock core", szOutput);
@@ -301,13 +301,13 @@ void MenuControllerExpert::addTopInfo()
    szBuffer[strlen(szBuffer)-1] = 0;
    hw_execute_bash_command_raw("vcgencmd measure_volts sdram_i", szOutput);
 
-   sprintf(szTmp, ", I%s", szOutput);
+   snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), ", I%s", szOutput);
    strcat(szBuffer, szTmp);
    szBuffer[strlen(szBuffer)-1] = 0;
    ruby_signal_alive();
 
    hw_execute_bash_command_raw("vcgencmd measure_volts sdram_p", szOutput);
-   sprintf(szTmp, ", P%s", szOutput);
+   snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), ", P%s", szOutput);
    strcat(szBuffer, szTmp);
    addTopLine(szBuffer);
 
@@ -369,7 +369,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "renice -n %d -p %s", pcs->iNiceRouter, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRouter, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -383,7 +383,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -415,9 +415,9 @@ void MenuControllerExpert::onSelectItem()
       if ( strlen(szPids) > 2 )
       {
          if ( pcs->ioNiceRouter > 0 )
-            sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
          else
-            sprintf(szBuff, "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
       valuesToUI();
@@ -443,9 +443,9 @@ void MenuControllerExpert::onSelectItem()
       if ( strlen(szPids) > 2 )
       {
          if ( pcs->ioNiceRXVideo > 0 )
-            sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          else
-            sprintf(szBuff, "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
       valuesToUI();
@@ -459,7 +459,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }
@@ -474,7 +474,7 @@ void MenuControllerExpert::onSelectItem()
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
-         sprintf(szBuff, "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }

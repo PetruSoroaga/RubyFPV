@@ -412,7 +412,6 @@ void menu_loop()
    s_uMenuLoopCounter++;
 
    ControllerSettings* pCS = get_ControllerSettings();
-   ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
    for( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
@@ -439,20 +438,18 @@ void menu_loop()
    bool bRotaryRotatedCCW = false;
    bool bRotaryRotatedFastCW = false;
    bool bRotaryRotatedFastCCW = false;
-   bool bRotaryEvents = false;
-
+   
    bool bRotary2Select = false;
    bool bRotary2Cancel = false;
    bool bRotary2RotatedCW = false;
    bool bRotary2RotatedCCW = false;
    bool bRotary2RotatedFastCW = false;
    bool bRotary2RotatedFastCCW = false;
-   bool bRotary2Events = false;
    
    _menu_check_rotary_encoders_buttons(&bRotarySelect, &bRotaryCancel, &bRotaryRotatedCW, &bRotaryRotatedCCW, &bRotaryRotatedFastCW, &bRotaryRotatedFastCCW, &bRotary2Select, &bRotary2Cancel, &bRotary2RotatedCW, &bRotary2RotatedCCW, &bRotary2RotatedFastCW, &bRotary2RotatedFastCCW);
 
    bool bRotaryRotated = bRotaryRotatedCW | bRotaryRotatedCCW | bRotaryRotatedFastCW | bRotaryRotatedFastCCW;
-   bool bRotary2Rotated = bRotary2RotatedCW | bRotary2RotatedCCW | bRotary2RotatedFastCW | bRotary2RotatedFastCCW;
+   //bool bRotary2Rotated = bRotary2RotatedCW | bRotary2RotatedCCW | bRotary2RotatedFastCW | bRotary2RotatedFastCCW;
 
    if ( pCS->nRotaryEncoderSpeed == 1 )
    {
@@ -503,13 +500,11 @@ void menu_loop()
       bRotaryRotatedFastCW = false;
       bRotaryRotatedFastCCW = false;
       bRotaryRotated = false;
-      bRotaryEvents = false;
    }
    else
    {
       hardware_override_keys(bRotarySelect?1:0, bRotaryCancel?1:0, bRotaryRotatedCCW?1:0, bRotaryRotatedCW?1:0, 0, 0,0,0);
       keyboard_add_triggered_gpio_input_events();
-      bRotaryEvents = bRotarySelect | bRotaryCancel | bRotaryRotatedCW | bRotaryRotatedCCW | bRotaryRotatedFastCW | bRotaryRotatedFastCCW | bRotaryRotated;
    }
 
    if ( (NULL == pCS) || (pCS->nRotaryEncoderFunction2 != 1) )
@@ -520,14 +515,11 @@ void menu_loop()
       bRotary2RotatedCCW = false;
       bRotary2RotatedFastCW = false;
       bRotary2RotatedFastCCW = false;
-      bRotary2Rotated = false;
-      bRotary2Events = false;
    }
    else
    {
       hardware_override_keys(bRotary2Select?1:0, bRotary2Cancel?1:0, bRotary2RotatedCCW?1:0, bRotary2RotatedCW?1:0, 0, 0,0,0);
       keyboard_add_triggered_gpio_input_events();
-      bRotary2Events = bRotary2Select | bRotary2Cancel | bRotary2RotatedCW | bRotary2RotatedCCW | bRotary2RotatedFastCW | bRotary2RotatedFastCCW | bRotary2Rotated;
    }
 
    if ( (NULL != pCS) && (pCS->nRotaryEncoderFunction == 1) && (pCS->nRotaryEncoderFunction2 == 1) )

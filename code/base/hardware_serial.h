@@ -15,8 +15,11 @@ extern "C" {
 #define SERIAL_PORT_USAGE_MSP_OSD_PITLAB 6
 #define SERIAL_PORT_USAGE_DATA_LINK 10
 #define SERIAL_PORT_USAGE_SIK_RADIO 11
-#define SERIAL_PORT_USAGE_SERIAL_RADIO 12
-#define SERIAL_PORT_USAGE_CORE_PLUGIN 20
+#define SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 12
+#define SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 13
+#define SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 14
+#define SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 15
+#define SERIAL_PORT_USAGE_CORE_PLUGIN 200
 
 typedef struct
 {
@@ -32,7 +35,7 @@ int* hardware_get_serial_baud_rates();
 int hardware_get_serial_baud_rates_count();
 
 int hardware_init_serial_ports();
-void hardware_reload_serial_ports();
+int hardware_reload_serial_ports_settings();
 void hardware_serial_save_configuration();
 
 int hardware_has_unsupported_serial_ports();

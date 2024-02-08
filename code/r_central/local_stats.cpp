@@ -176,7 +176,7 @@ bool load_temp_local_stats()
          g_VehiclesRuntimeInfo[i].bHomeSet = tmp2;
       }
 
-      if ( (!failed) && (4 != fscanf(fd, "%f %f %f %f", &g_VehiclesRuntimeInfo[i].fHomeLat, &g_VehiclesRuntimeInfo[i].fHomeLon, &g_VehiclesRuntimeInfo[i].fHomeLastLat, &g_VehiclesRuntimeInfo[i].fHomeLastLon)) )
+      if ( (!failed) && (4 != fscanf(fd, "%lf %lf %lf %lf", &g_VehiclesRuntimeInfo[i].fHomeLat, &g_VehiclesRuntimeInfo[i].fHomeLon, &g_VehiclesRuntimeInfo[i].fHomeLastLat, &g_VehiclesRuntimeInfo[i].fHomeLastLon)) )
          failed = 1;
 
       Model* pModel = findModelWithId(uVehicleId, 12);

@@ -688,6 +688,7 @@ int main (int argc, char *argv[])
       if ( g_TimeNow > uTimeToAdjustAffinities )
       {
          uTimeToAdjustAffinities = 0;
+         log_line("Current vehicle has veye camera: %s, camera type: %d", modelVehicle.isActiveCameraVeye()?"Yes":"No", (int)modelVehicle.getActiveCameraType());
          vehicle_check_update_processes_affinities(true, modelVehicle.isActiveCameraVeye());
       }
       if ( access( FILE_TMP_UPDATE_IN_PROGRESS, R_OK ) != -1 )

@@ -204,7 +204,6 @@ void MenuPreferencesUI::Render()
          float ws = hs;
          float ho = hs;
          float wo = ws;
-         float dy = h*0.2;
          float x = m_xPos+m_RenderWidth-2*m_sfMenuPaddingX-ws;
          x -= 0.04*m_sfScaleFactor;
          if ( NULL != p && p->iOSDScreenSize == 1 )

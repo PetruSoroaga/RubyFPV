@@ -52,8 +52,6 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.25;
    
-   Preferences* pp = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
    char szBuff[64];
 
    m_hdmigroupOrg = hdmi_get_current_resolution_group();
@@ -157,7 +155,6 @@ MenuControllerVideo::~MenuControllerVideo(void)
 void MenuControllerVideo::valuesToUI()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   Preferences* pp = get_Preferences();
    char szBuff[64];
 
    m_pItemsSlider[0]->setCurrentValue(pCS->iHDMIBoost);
@@ -252,7 +249,7 @@ void MenuControllerVideo::onSelectItem()
       hardware_mount_boot();
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
-      sprintf(szBuff, "sed -i 's/config_hdmi_boost=[0-9]*/config_hdmi_boost=%d/g' config.txt", hdmi_boost);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "sed -i 's/config_hdmi_boost=[0-9]*/config_hdmi_boost=%d/g' config.txt", hdmi_boost);
       hw_execute_bash_command(szBuff, NULL);
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       
@@ -261,7 +258,6 @@ void MenuControllerVideo::onSelectItem()
 
    if ( m_IndexHDMIRes == m_SelectedIndex )
    {
-      char szBuff[128];
       int index = m_pItemsSelect[0]->getSelectedIndex();
       hdmi_set_current_resolution(hdmi_get_resolution_width(index), hdmi_get_resolution_height(index), hdmi_get_resolution_refresh_rate(index,0));
       valuesToUI();

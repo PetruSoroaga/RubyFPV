@@ -528,7 +528,7 @@ void MenuRadioConfig::onItemEndEdit(int itemIndex)
    {
       int iSelection = m_pItemSiKTxPower->getSelectedIndex();
       int iTxPower = 0;
-      if ( iSelection >= 0 && (iSelection < sizeof(s_iListSiKPowers)/sizeof(s_iListSiKPowers[0])) )
+      if ( iSelection >= 0 && (iSelection < (int)sizeof(s_iListSiKPowers)/(int)sizeof(s_iListSiKPowers[0])) )
          iTxPower = s_iListSiKPowers[iSelection];
       log_line("Changed SiK Tx power to index: %d, power: %d", iSelection, iTxPower);
       removeMenuItem(m_pItemSiKTxPower);
@@ -614,7 +614,7 @@ void MenuRadioConfig::onClickSiKTxPower(bool bVehicle)
    
    // 1 2 5 8 11 14 17 20
    int iSelectedIndex = -1;
-   for( int i=0; i<sizeof(s_iListSiKPowers)/sizeof(s_iListSiKPowers[0]); i++ )
+   for( int i=0; i<(int)sizeof(s_iListSiKPowers)/(int)sizeof(s_iListSiKPowers[0]); i++ )
    {
       char szBuff[256];
       sprintf(szBuff, "%d", s_iListSiKPowers[i]);
@@ -801,6 +801,8 @@ void MenuRadioConfig::onSelectItem()
       Menu* pMenu = NULL;
       if ( g_pCurrentModel->radioLinkIsSiKRadio(iVehicleRadioLinkId) )
          pMenu = new MenuVehicleRadioLinkSiK(iVehicleRadioLinkId);
+      else if ( g_pCurrentModel->radioLinkIsELRSRadio(iVehicleRadioLinkId) )
+         pMenu = new MenuVehicleRadioLinkELRS(iVehicleRadioLinkId);
       else
          pMenu = new MenuVehicleRadioLink(iVehicleRadioLinkId);
         
@@ -829,6 +831,11 @@ void MenuRadioConfig::onSelectItem()
       int iRadioInterface = (int)(m_uCommandsIds[m_iIndexCurrentItem] >> 8);
       log_line("MenuRadioConfig: Configuring controller radio interface %d", iRadioInterface+1);
       Menu* pMenu = NULL;
+      if ( hardware_radio_index_is_elrs_radio(iRadioInterface) )
+      {
+         addMessage(0, "You need to use ELRS configurator to configure your ELRS radio module.");
+         return;
+      }
       if ( hardware_radio_index_is_sik_radio(iRadioInterface) )
          pMenu = new MenuControllerRadioInterfaceSiK(iRadioInterface);
       else
@@ -1126,21 +1133,14 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
    float height_text_large = g_pRenderEngine->textHeight(m_iIdFontLarge);
-   float hIconBig = height_text*3.0;
-   float hIcon = height_text*2.0;
    float fMarginY = 0.04;
-   float fMarginX = fMarginY/g_pRenderEngine->getAspectRatio();
    float fPaddingY = 0.042;
    float fPaddingX = fPaddingY/g_pRenderEngine->getAspectRatio();
-   float fPaddingInnerY = 0.02;
-   float fPaddingInnerX = fPaddingInnerY/g_pRenderEngine->getAspectRatio();
    float yStart = fMarginY + fPaddingY;
    float yEnd = 1.0 - fMarginY - fPaddingY;
    float fWidth = (xEnd - xStart);
-   float fHeight = (yEnd-yStart);
    float fXMid = xStart + fWidth*0.5;
    
-   char szBuff[128];
    double pColor[4];
    memcpy(pColor,get_Color_MenuBg(), 4*sizeof(double));
    pColor[3] = 0.94; 
@@ -1306,8 +1306,6 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
    float height_text_large = g_pRenderEngine->textHeight(m_iIdFontLarge);
    float hIconBig = height_text*3.0;
-   float hIcon = height_text*2.0;
-   float fWidth = xEnd - xStart;
    float yPos = yStart;
    float xMid = (xStart+xEnd)*0.5;
    float xMidMargin = 0.1/g_pRenderEngine->getAspectRatio();
@@ -1538,7 +1536,8 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
 
    char szTmpRadioLink[256];
    strcpy(szTmpRadioLink, szCapabilities);
-   bool bDataOnly = false;
+
+   bool bDataOnlyRadioLink = false;
    if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
    if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
       strcat(szCapabilities, "Video Only,");
@@ -1546,7 +1545,7 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
    if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
    if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) )
    {
-      bDataOnly = true;
+      bDataOnlyRadioLink = true;
       strcat(szCapabilities, "Data Only,");
    }
 
@@ -1554,15 +1553,18 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
    str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLink], szDRDataD);
    str_getDataRateDescription(g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iVehicleRadioLink], szDRDataU);
 
-   if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-      str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
-   if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-      str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
-   if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-      str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataD);
-   if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-      str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataU);
-   
+   if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY )
+   {
+      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
+         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
+      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
+         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
+      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataD);
+      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataU);
+   }
+
    szAuto[0] = 0;
    if ( (NULL != g_pCurrentModel) && ( ! g_pCurrentModel->radioLinkIsSiKRadio(iVehicleRadioLink) ) )
    {
@@ -1577,21 +1579,25 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
 
    if ( 0 == iCountInterfacesAssignedToThisLink )
    {
+      szDescription[0] = 0;
+      szDescriptionSmall[0] = 0;
+      if ( bDataOnlyRadioLink )
+         strcpy(szDescription, "Data Only. ");
       if ( !bIsLinkActive )
       {
-         strcpy(szDescription, "This radio link is disabled.");
+         strcat(szDescription, "This radio link is disabled.");
          bShowLinkRed = true;
       }
       else if ( bIsRelayLink )
-         strcpy(szDescription, "This is a relay radio link.");
+         strcat(szDescription, "This is a relay radio link.");
       else if ( 0 < iCountInterfacesAssignableToThisLink )
       {
-         strcpy(szDescription, "Not connected. ");
+         strcat(szDescription, "Not connected.");
          strcpy(szDescriptionSmall, "Ready to connect to this link.");
       }
       else
       {
-         strcpy(szDescription, "Not connected. ");
+         strcat(szDescription, "Not connected.");
          strcpy(szDescriptionSmall, "No controller interfaces can connect to this link.");
       }
    }
@@ -1603,14 +1609,25 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
          str_format_bitrate(hardware_radio_sik_get_air_baudrate_in_bytes(iRadioInterfaceIndex)*8, szTmp);
 
          if ( 0 != szCapabilities[0] )
-            sprintf(szDescription, "%s Data Rate: %s", szCapabilities, szTmp);
+            snprintf(szDescription, sizeof(szDescription)/sizeof(szDescription[0]), "%s Data Rate: %s", szCapabilities, szTmp);
          else
-            sprintf(szDescription, "Data Rate: %s", szTmp);
+            snprintf(szDescription, sizeof(szDescription)/sizeof(szDescription[0]), "Data Rate: %s", szTmp);
       }
-      else if ( 0 != szCapabilities[0] )
-         sprintf(szDescription, "%s Data Rates: Video: %s%s, Data: %s, Uplink: %s", szCapabilities, szDRVideo, szAuto, szDRDataD, szDRDataU);
       else
-         sprintf(szDescription, "Data Rates: Video: %s%s, Data: %s, Uplink: %s", szDRVideo, szAuto, szDRDataD, szDRDataU);
+      {
+         szDescription[0] = 0;
+         if ( 0 != szCapabilities[0] )
+         {
+            strcat(szDescription, szCapabilities);
+            strcat(szDescription, " ");
+         }
+         char szTmp[256];
+         if ( bDataOnlyRadioLink )
+            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Data: %s, Uplink: %s", szDRDataD, szDRDataU);
+         else
+            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Video: %s%s, Data: %s, Uplink: %s", szDRVideo, szAuto, szDRDataD, szDRDataU);
+         strcat(szDescription, szTmp);
+      }
    }
 
    if ( bShowLinkRed )
@@ -1619,16 +1636,14 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
    }
 
-   float fwt = g_pRenderEngine->textWidth(m_iIdFontRegular, szDescription);
-
    g_pRenderEngine->drawText(xStart, yStart, m_iIdFontRegular, szDescription);
    if ( 0 != szDescriptionSmall[0] )
-      g_pRenderEngine->drawText(xStart+fwt, yStart + 0.8*(g_pRenderEngine->textHeight(m_iIdFontRegular) - g_pRenderEngine->textHeight(m_iIdFontSmall)), m_iIdFontSmall, szDescriptionSmall);
+      g_pRenderEngine->drawText(xStart, yStart + 0.94*(g_pRenderEngine->textHeight(m_iIdFontRegular)), m_iIdFontSmall, szDescriptionSmall);
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
 
-   if ( bDataOnly )
+   if ( bDataOnlyRadioLink )
    {
       double cY[4] = {255,240,100,1.0};
 
@@ -1649,8 +1664,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    float fPaddingInnerX = fPaddingInnerY/g_pRenderEngine->getAspectRatio();
    
    bool bBBox = false;
-   bool bRadioLinkHasUplink = false;
-   bool bRadioLinkHasDownlink = false;
    bool bShowLinkRed = false;
    bool bShowRed = false;
    bool bHasAutoTxOption = false;
@@ -1662,7 +1675,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    char szError[128];
    
    float xLeftMax[MAX_RADIO_INTERFACES];
-   float xRightMin = 1.0;
    float yMidVehicle = 0.0;
    float yMidController[MAX_RADIO_INTERFACES];
    float fWidth = xEnd - xStart;
@@ -1711,7 +1723,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
 
    bool bIsLinkActive = true;
    bool bIsRelayLink = false;
-   bool bDataOnly = false;
    
    if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
    {
@@ -1753,6 +1764,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    }
    else
    {
+      /*
       if ( ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX ) &&
            ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX ) )
       {
@@ -1769,6 +1781,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       {
          bRadioLinkHasUplink = true;
       }
+      */
    }
 
    if ( ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ) &&
@@ -1787,7 +1800,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    }
    else if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
    {
-      bDataOnly = true;
+      //bDataOnlyRadioLink = true;
       if ( bIsLinkActive )
          m_bTmpHasDataStreamsEnabled = true;
    }
@@ -1910,7 +1923,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
 
    int iVehicleRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(iVehicleRadioLink);
       
-   float yStartVehicle = yPos;
    yMidVehicle = yPos + height_text*1.5;
    szTmp[0] = 0;
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
@@ -1956,10 +1968,13 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
    if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_RX ) )
       strcat(szBuff, "Downlink Only");
+
    if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
    if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX ) )
       strcat(szBuff, "Uplink Only");
-   else
+
+   if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
+   if ( ! (g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iVehicleRadioInterfaceId] & RADIO_HW_CAPABILITY_FLAG_CAN_RX ) )
    {
       bShowRed = true;
       strcat(szTmp, " Disabled");
@@ -2275,11 +2290,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
 float MenuRadioConfig::drawRadioInterfaceController(float xStart, float xEnd, float yStart, int iRadioLink, int iRadioInterface)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
-   float fPaddingInnerY = 0.02;
-   float fPaddingInnerX = fPaddingInnerY/g_pRenderEngine->getAspectRatio();
-
-   char szBuff[128];
-   char szError[128];
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
@@ -2373,9 +2383,9 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
 
    char szBands[128];
    str_get_supported_bands_string(pRadioHWInfo->supportedBands, szBands);
-   sprintf(szBuff, "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
    if ( strlen(str_get_radio_card_model_string(pCardInfo->cardModel)) > 10 )
-      sprintf(szBuff, "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
    g_pRenderEngine->drawTextLeft(xTextLeft, yPos, m_iIdFontSmall, szBuff);
    if ( g_pRenderEngine->textWidth(m_iIdFontSmall, szBuff) > fMaxWidth )
       fMaxWidth = g_pRenderEngine->textWidth(m_iIdFontSmall, szBuff);
@@ -2412,7 +2422,7 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
          strcat(szBuff, ", ");
       char szTmp[64], szTmp2[64];
       str_getDataRateDescription(controllerGetCardDataRate(pRadioHWInfo->szMAC), szTmp2);
-      sprintf(szTmp, "Datarate: %s", szTmp2);
+      snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Datarate: %s", szTmp2);
       strcat(szBuff, szTmp);
    }
 

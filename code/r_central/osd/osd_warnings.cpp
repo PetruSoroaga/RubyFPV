@@ -136,7 +136,6 @@ void osd_warnings_render()
       xAlarm += osd_getVerticalBarWidth();
       xAlarmIcon += osd_getVerticalBarWidth();
    }
-   float fTextScale = 0.9;
 
    if ( g_bVideoProcessing || s_bDebugOSDShowAll )
    if ( ( g_TimeNow / 500 ) % 2 )

@@ -142,7 +142,6 @@ float MenuItemRange::getValueWidth(float maxWidth)
       strcat(szBuff, " ");
       strcat(szBuff, m_szSufix);
    }
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    m_RenderValueWidth = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
    return m_RenderValueWidth;
 }
@@ -179,7 +178,6 @@ void MenuItemRange::Render(float xPos, float yPos, bool bSelected, float fWidthS
    }
 
    m_RenderValueWidth = getValueWidth(m_pMenu->getUsableWidth());
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float width = m_RenderValueWidth + 2.0*paddingX;
    
    if ( m_bIsEditing )
@@ -221,7 +219,6 @@ void MenuItemRange::RenderCondensed(float xPos, float yPos, bool bSelected, floa
 
    if ( m_bIsEditing )
       m_RenderValueWidth = getValueWidth(m_pMenu->getUsableWidth());
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float width = m_RenderValueWidth + 2.0*paddingX;
    
    if ( m_bIsEditing )

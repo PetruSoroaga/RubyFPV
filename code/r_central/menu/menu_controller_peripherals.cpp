@@ -58,7 +58,7 @@ static int s_nMenuControllerI2CDevices[256];
 MenuControllerPeripherals::MenuControllerPeripherals(void)
 :Menu(MENU_ID_CONTROLLER_PERIPHERALS, "Controller Peripherals Settings", NULL)
 {
-   m_Width = 0.31;
+   m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
 
    m_pItemWait = NULL;
@@ -103,7 +103,7 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
 
       u32 uUsage = (u32)pInfo->iPortUsage;
       
-      sprintf( szBuff, "%s Usage", pInfo->szName );
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s Usage", pInfo->szName );
       m_pItemsSelect[10+i*2] = new MenuItemSelect(szBuff, "Enables this serial port on the controller for a particular use.");
       
       if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
@@ -121,7 +121,11 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_MSP_OSD_PITLAB), false);
          #endif
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_DATA_LINK));
-         m_iSerialBuiltInOptionsCount = 4;
+         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433));
+         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868));
+         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915));
+         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24));
+         m_iSerialBuiltInOptionsCount = 8;
          
          for( int n=0; n<get_CorePluginsCount(); n++ )
          {
@@ -141,11 +145,11 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
       }
       m_IndexSerialType[i] = addMenuItem(m_pItemsSelect[10+i*2]);
 
-      sprintf( szBuff, "%s Baudrate", pInfo->szName );
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s Baudrate", pInfo->szName );
       m_pItemsSelect[11+i*2] = new MenuItemSelect(szBuff, "Sets the baud rate of this serial port on the controller.");
       for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
       {
-         sprintf(szBuff, "%ld bps", hardware_get_serial_baud_rates()[n]);
+         sprintf(szBuff, "%d bps", hardware_get_serial_baud_rates()[n]);
          m_pItemsSelect[11+i*2]->addSelection(szBuff);
       }
       m_pItemsSelect[11+i*2]->setIsEditable();
@@ -224,6 +228,14 @@ void MenuControllerPeripherals::valuesToUI()
             m_pItemsSelect[10+i*2]->setSelectedIndex(2);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_DATA_LINK )
             m_pItemsSelect[10+i*2]->setSelectedIndex(3);
+         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
+            m_pItemsSelect[10+i*2]->setSelectedIndex(4);
+         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
+            m_pItemsSelect[10+i*2]->setSelectedIndex(5);
+         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
+            m_pItemsSelect[10+i*2]->setSelectedIndex(6);
+         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
+            m_pItemsSelect[10+i*2]->setSelectedIndex(7);
       }
       else if ( pInfo->iPortUsage - 20 > get_CorePluginsCount() )
          m_pItemsSelect[10+i*2]->setSelectedIndex(0);
@@ -438,6 +450,14 @@ void MenuControllerPeripherals::onSelectItem()
                newUsage = SERIAL_PORT_USAGE_MSP_OSD_PITLAB;
             if ( 3 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_DATA_LINK;
+            if ( 4 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433;
+            if ( 5 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868;
+            if ( 6 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
+            if ( 7 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24;
             if ( newUsage == pPortInfo->iPortUsage )
                return;
          }
@@ -468,14 +488,8 @@ void MenuControllerPeripherals::onSelectItem()
             return;
 
          bool bTelemetryChanged = false;
-         bool bHadTelemetryOutput = false;
-         bool bHadTelemetryInput = false;
          if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY)
          {
-            if ( pCS->iTelemetryOutputSerialPortIndex != -1 )
-               bHadTelemetryOutput = true;
-            if ( pCS->iTelemetryInputSerialPortIndex != -1 )
-               bHadTelemetryInput = true;
             pCS->iTelemetryOutputSerialPortIndex = -1;
             pCS->iTelemetryInputSerialPortIndex = -1;
             bTelemetryChanged = true;
@@ -573,7 +587,6 @@ void MenuControllerPeripherals::onSelectItem()
 
    for( int j=0; j<pCI->inputInterfacesCount; j++ )
    {
-      t_ControllerInputInterface* pCII = controllerInterfacesGetAt(j);
       if ( m_SelectedIndex == m_IndexJoysticks[j] )
       {
          add_menu_to_stack(new MenuControllerJoystick(j));

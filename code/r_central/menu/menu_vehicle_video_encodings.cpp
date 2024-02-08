@@ -230,12 +230,15 @@ void MenuVehicleVideoEncodings::valuesToUI()
 
    int selectedIndex = 0;
    for( int i=0; i<getDataRatesCount(); i++ )
+   {
       if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps == getDataRatesBPS()[i] )
          selectedIndex = i+1-iLowRatesToSkip;
-      for( int i=0; i<=MAX_MCS_INDEX; i++ )
-         if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps == -1-i )
-            selectedIndex = i+getDataRatesCount()+1 - iLowRatesToSkip;
-
+   }
+   for( int i=0; i<=MAX_MCS_INDEX; i++ )
+   {
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps == -1-i )
+         selectedIndex = i+getDataRatesCount()+1 - iLowRatesToSkip;
+   }
    m_pItemsSelect[16]->setSelection(selectedIndex);
 
 
@@ -353,11 +356,8 @@ void MenuVehicleVideoEncodings::onShow()
 void MenuVehicleVideoEncodings::Render()
 {
    RenderPrepare();
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float y0 = RenderFrameAndTitle();
    float y = y0;
-
-   float maxWidth = m_RenderWidth - 2*m_sfMenuPaddingX;
 
    float x = m_xPos + m_sfMenuPaddingX;
    

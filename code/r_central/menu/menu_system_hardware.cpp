@@ -122,8 +122,6 @@ void MenuSystemHardware::Render()
    float xPos = m_xPos+fMargin;
    float yPos = y;
    float usableWidth = m_RenderWidth-2*fMargin;
-   float height = m_RenderHeight-2*m_sfMenuPaddingY;
-
    
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.3);
@@ -284,8 +282,6 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
    float xPad = 0.02*m_sfScaleFactor;
 
    char szBuff[256];
-   char szTemp[256];
-   ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, "CONTROLLER:", MENU_TEXTLINE_SPACING, width, g_idFontMenu);
@@ -445,7 +441,6 @@ void MenuSystemHardware::onSelectItem()
       hw_execute_bash_command_raw("lsusb", szBuff);
       hw_execute_bash_command_raw("lsusb -t", szBuff2);
       int iLen1 = strlen(szBuff);
-      int iLen2 = strlen(szBuff2);
       if ( iLen1 > 3000 )
          iLen1 = 3000;
       strcat(szBuff, "\nTree:\n");

@@ -80,7 +80,6 @@ float MenuItemCheckbox::getTitleWidth(float maxWidth)
    if ( m_RenderTitleWidth > 0.001 )
       return m_RenderTitleWidth;
 
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    m_RenderTitleWidth = g_pRenderEngine->textWidth(g_idFontMenu, m_pszTitle);
    
    return m_RenderTitleWidth;
@@ -107,7 +106,6 @@ void MenuItemCheckbox::RenderCondensed(float xPos, float yPos, bool bSelected, f
    m_RenderLastY = yPos;
    m_RenderLastX = xPos;
    
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float paddingV = Menu::getSelectionPaddingY();
    float paddingH = Menu::getSelectionPaddingX();
    float width = m_RenderTitleHeight/g_pRenderEngine->getAspectRatio();

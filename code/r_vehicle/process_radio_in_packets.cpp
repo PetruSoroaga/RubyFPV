@@ -209,7 +209,7 @@ void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
          continue;
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] != (int)linkIndex )
          continue;
-      if ( datarateVideoBPS == pRadioInfo->iCurrentDataRate )
+      if ( datarateVideoBPS == pRadioInfo->iCurrentDataRateBPS )
          continue;
 
       radio_rx_pause_interface(i);
@@ -237,7 +237,7 @@ void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
 
       radio_utils_set_datarate_atheros(g_pCurrentModel, i, datarateVideoBPS, 0);
       
-      pRadioInfo->iCurrentDataRate = datarateVideoBPS;
+      pRadioInfo->iCurrentDataRateBPS = datarateVideoBPS;
 
       g_TimeNow = get_current_timestamp_ms();
       if ( NULL != g_pProcessStats )

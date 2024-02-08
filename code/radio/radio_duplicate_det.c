@@ -202,7 +202,7 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
    static u32 s_TimeLastLogAlarmStreamPacketsVariation = 0;
 
    u32 uMaxDeltaForDataStream = 50;
-   if ( hardware_radio_index_is_sik_radio(iRadioInterfaceIndex) )
+   if ( hardware_radio_index_is_serial_radio(iRadioInterfaceIndex) )
       uMaxDeltaForDataStream = 200;
 
    if ((pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex > uMaxDeltaForDataStream ) && 

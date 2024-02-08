@@ -172,8 +172,6 @@ MenuVehicleRC::MenuVehicleRC(void)
    m_IndexRCCamera = addMenuItem(new MenuItem("Camera Control", "Assign and configure RC channels for camera control."));
    m_pMenuItems[m_IndexRCCamera]->showArrow();
 
-   char szBuff[256];
-   
    addMenuItem(new MenuItemSection("Failsafe Settings"));
 
    m_pItemsSlider[0] = new MenuItemSlider("Failsafe trigger time (ms)", "Sets the timeout (in miliseconds) for triggering a RC failsafe when link is lost.", 50,3000,1000, fSliderWidth);
@@ -790,7 +788,7 @@ void MenuVehicleRC::renderLiveValues()
       char szTmp[32];
       strcpy(szTmp, szBuff);
       int iPos = -1;
-      for( int i=0; i<strlen(szBuff); i++ )
+      for( int i=0; i<(int)strlen(szBuff); i++ )
       {
          if ( szBuff[i] == '[' )
          {
@@ -1129,7 +1127,7 @@ void MenuVehicleRC::onSelectItem()
       int index = m_pItemsSelect[4]->getSelectedIndex();
       if ( index == 3 )
          index = RC_FAILSAFE_CUSTOM;
-      if ( index == (g_pCurrentModel->rc_params.failsafeFlags & 0xFF) )
+      if ( index == (int)(g_pCurrentModel->rc_params.failsafeFlags & 0xFF) )
          return;
       rc_parameters_t params;
       memcpy(&params, &g_pCurrentModel->rc_params, sizeof(rc_parameters_t));

@@ -34,6 +34,7 @@
 #include "../base/ctrl_preferences.h"
 #include "../base/hardware_radio.h"
 #include "../base/hardware_radio_sik.h"
+#include "../base/hardware_radio_serial.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #include "../common/string_utils.h"
@@ -155,6 +156,8 @@ void radio_links_close_rxtx_radio_interfaces()
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
          hardware_radio_sik_close(i);
+      else if ( hardware_radio_is_serial_radio(pRadioHWInfo) )
+         hardware_radio_serial_close(i);
    }
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -208,6 +211,7 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
       if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
          continue;
 
+      if ( ! hardware_radio_is_elrs_radio(pRadioHWInfo) )
       if ( 0 == hardware_radio_supports_frequency(pRadioHWInfo, uSearchFreq ) )
          continue;
 
@@ -224,6 +228,17 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
                iCountOpenRead++;
                iCountSikInterfacesOpened++;
             }
+         }
+         else if ( hardware_radio_is_elrs_radio(pRadioHWInfo) )
+         {
+            if ( hardware_radio_serial_open_for_read_write(i) <= 0 )
+               s_iFailedInitRadioInterface = i;
+            else
+            {
+               g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
+               iCountOpenRead++;
+               iCountSikInterfacesOpened++;
+            }          
          }
          else
          {
@@ -368,6 +383,23 @@ void radio_links_open_rxtx_radio_interfaces()
                iCountSikInterfacesOpened++;
             }
          }
+         else if ( hardware_radio_is_elrs_radio(pRadioHWInfo) )
+         {
+            if ( hardware_radio_serial_open_for_read_write(i) <= 0 )
+               s_iFailedInitRadioInterface = i;
+            else
+            {
+               g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
+               countOpenedForReadForRadioLink[nVehicleRadioLinkId]++;
+               totalCountForRead++;
+
+               g_SM_RadioStats.radio_interfaces[i].openedForWrite = 1;
+               countOpenedForWriteForRadioLink[nVehicleRadioLinkId]++;
+               totalCountForWrite++;
+               iCountSikInterfacesOpened++;
+            }
+            radio_tx_set_serial_packet_size(i, DEFAULT_RADIO_SERIAL_AIR_PACKET_SIZE);
+         }
          else
          {
             int iRes = 0;
@@ -394,6 +426,7 @@ void radio_links_open_rxtx_radio_interfaces()
       if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
       if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) ||
            (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
+      if ( ! hardware_radio_is_serial_radio(pRadioHWInfo) )
       if ( ! hardware_radio_is_sik_radio(pRadioHWInfo) )
       {
          if ( radio_open_interface_for_write(i) > 0 )

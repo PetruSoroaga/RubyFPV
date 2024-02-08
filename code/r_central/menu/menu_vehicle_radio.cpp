@@ -134,7 +134,13 @@ void MenuVehicleRadioConfig::populate()
       log_line("MenuVehicleRadio: Vehicle radio interface %d (used on vehicle radio link %d) supported bands: %s", 
          iRadioInterfaceId+1, iRadioLinkId+1, szBuff);
 
-      m_SupportedChannelsCount[iRadioLinkId] = getSupportedChannels( uControllerAllSupportedBands & g_pCurrentModel->radioInterfacesParams.interface_supported_bands[iRadioInterfaceId], 1, &(m_SupportedChannels[iRadioLinkId][0]), 100);
+      if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId] == CARD_MODEL_SERIAL_RADIO_ELRS )
+      {
+         m_SupportedChannelsCount[iRadioLinkId] = 1;
+         m_SupportedChannels[iRadioLinkId][0] = g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLinkId];
+      }
+      else
+         m_SupportedChannelsCount[iRadioLinkId] = getSupportedChannels( uControllerAllSupportedBands & g_pCurrentModel->radioInterfacesParams.interface_supported_bands[iRadioInterfaceId], 1, &(m_SupportedChannels[iRadioLinkId][0]), 100);
 
       log_line("MenuVehicleRadio: Suported channels count by controller and vehicle radio interface %d: %d",
           iRadioInterfaceId+1, m_SupportedChannelsCount[iRadioLinkId]);
@@ -145,7 +151,7 @@ void MenuVehicleRadioConfig::populate()
          sprintf(szTmp, "Radio Link %d Frequency", iRadioLinkId+1 );
 
       strcpy(szTooltip, "Sets the radio link frequency for this radio link.");
-      sprintf(szBuff, " Radio type: %s.", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId]));
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), " Radio type: %s.", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId]));
       strcat(szTooltip, szBuff);
       
       int iCountInterfacesAssignedToThisLink = 0;
@@ -157,12 +163,12 @@ void MenuVehicleRadioConfig::populate()
 
       if ( 0 == iCountInterfacesAssignedToThisLink )
       {
-         sprintf(szTitle, "(D) %s", szTmp);
+         snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(D) %s", szTmp);
          strcat(szTooltip, " This radio link is not connected to the controller.");
       }
       else
       {
-         sprintf(szTitle, "(C) %s", szTmp);
+         snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(C) %s", szTmp);
          strcat(szTooltip, " This radio link is connected to the controller.");
       }
 
@@ -212,6 +218,8 @@ void MenuVehicleRadioConfig::populate()
          m_pItemsSelect[20+iRadioLinkId]->setIsEditable();
          //if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
          //   m_pItemsSelect[20+iRadioLinkId]->setEnabled(false);
+         if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId] == CARD_MODEL_SERIAL_RADIO_ELRS )
+            m_pItemsSelect[20+iRadioLinkId]->setEnabled(false);
       }
       m_IndexFreq[iRadioLinkId] = addMenuItem(m_pItemsSelect[20+iRadioLinkId]);
    }
@@ -451,6 +459,8 @@ void MenuVehicleRadioConfig::onSelectItem()
       Menu* pMenu = NULL;
       if ( g_pCurrentModel->radioLinkIsSiKRadio(n) )
          pMenu = new MenuVehicleRadioLinkSiK(n);
+      else if ( g_pCurrentModel->radioLinkIsELRSRadio(n) )
+         pMenu = new MenuVehicleRadioLinkELRS(n);
       else
          pMenu = new MenuVehicleRadioLink(n);
 

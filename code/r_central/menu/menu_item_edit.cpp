@@ -228,7 +228,6 @@ float MenuItemEdit::getValueWidth(float maxWidth)
    if ( m_RenderValueWidth > 0.01 )
       return m_RenderValueWidth;
 
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    m_RenderValueWidth = g_pRenderEngine->textWidth(g_idFontMenu, m_szValue);
    return m_RenderValueWidth;
 }
@@ -237,7 +236,6 @@ void MenuItemEdit::Render(float xPos, float yPos, bool bSelected, float fWidthSe
 {
    RenderBaseTitle(xPos, yPos, bSelected, fWidthSelection);
    getValueWidth(0);
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float padding = Menu::getSelectionPaddingY();
    float paddingH = Menu::getSelectionPaddingX();
 
@@ -259,7 +257,6 @@ void MenuItemEdit::Render(float xPos, float yPos, bool bSelected, float fWidthSe
    if ( (timeNow/400)%2 )
       flash = true;
 
-   float w = 0;
    float x = xPos + m_pMenu->getUsableWidth()-m_RenderValueWidth;
    char szBuff[16];
    double cInv[4] = { 255,255,255,0.8 };

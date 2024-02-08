@@ -4,8 +4,6 @@
 #include "menu_item_select.h"
 #include "../popup.h"
 
-#define MAX_MENU_CHANNELS 100
-
 class MenuSearch: public Menu
 {
    public:

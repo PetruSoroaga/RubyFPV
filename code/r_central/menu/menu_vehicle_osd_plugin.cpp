@@ -89,7 +89,7 @@ void MenuVehicleOSDPlugin::readPlugin()
    {
       int type = osd_plugin_get_setting_type(m_nPluginIndex, i);
       char* szName = osd_plugin_get_setting_name(m_nPluginIndex,i);
-      if ( strlen(szName) > iMaxStringLenght )
+      if ( (int)strlen(szName) > iMaxStringLenght )
          iMaxStringLenght = strlen(szName);
       if ( type == PLUGIN_SETTING_TYPE_BOOL )
       {
@@ -109,7 +109,7 @@ void MenuVehicleOSDPlugin::readPlugin()
             char* szOptName = osd_plugin_get_setting_option_name(m_nPluginIndex, i, k);
             if ( NULL != szOptName )
             {
-               if ( strlen(szOptName) > iMaxStringLenght2 )
+               if ( (int)strlen(szOptName) > iMaxStringLenght2 )
                   iMaxStringLenght2 = strlen(szOptName);
                m_pItemsSelect[i+1]->addSelection(szOptName);
             }
@@ -154,8 +154,6 @@ void MenuVehicleOSDPlugin::readPlugin()
 
 void MenuVehicleOSDPlugin::valuesToUI()
 {
-   PluginsSettings* pPS = get_PluginsSettings();
-
    char* szUID = osd_plugins_get_uid(m_nPluginIndex);
    SinglePluginSettings* pPlugin = pluginsGetByUID(szUID);
    if ( NULL == pPlugin )

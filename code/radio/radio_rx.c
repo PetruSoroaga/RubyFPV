@@ -237,7 +237,7 @@ void _radio_rx_check_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadio
 }
 
 
-int _radio_rx_process_sik_short_packet(int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength)
+int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength)
 {
    static u8 s_uLastRxShortPacketsIds[MAX_RADIO_INTERFACES];
    static u8 s_uBuffersFullMessages[MAX_RADIO_INTERFACES][MAX_PACKET_TOTAL_SIZE*2];
@@ -316,17 +316,17 @@ int _radio_rx_process_sik_short_packet(int iInterfaceIndex, u8* pPacketBuffer, i
 
 // return 0 on success, -1 if the interface is now invalid or broken
 
-int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
+int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
 {
-   static u8 s_uBuffersSiKMessages[MAX_RADIO_INTERFACES][512];
-   static int s_uBuffersSiKMessagesReadPos[MAX_RADIO_INTERFACES];
-   static int s_bInitializedBuffersSiKMessages = 0;
+   static u8 s_uBuffersSerialMessages[MAX_RADIO_INTERFACES][512];
+   static int s_uBuffersSerialMessagesReadPos[MAX_RADIO_INTERFACES];
+   static int s_bInitializedBuffersSerialMessages = 0;
 
-   if ( ! s_bInitializedBuffersSiKMessages )
+   if ( ! s_bInitializedBuffersSerialMessages )
    {
-      s_bInitializedBuffersSiKMessages = 1;
+      s_bInitializedBuffersSerialMessages = 1;
       for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-         s_uBuffersSiKMessagesReadPos[i] = 0;
+         s_uBuffersSerialMessagesReadPos[i] = 0;
    }
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
@@ -335,20 +335,20 @@ int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
       log_softerror_and_alarm("[RadioRxThread] Tried to process a received short radio packet on radio interface (%d) that is not opened for read.", iInterfaceIndex+1);
       return -1;
    }
-   if ( ! hardware_radio_index_is_sik_radio(iInterfaceIndex) )
+   if ( ! hardware_radio_index_is_serial_radio(iInterfaceIndex) )
    {
-      log_softerror_and_alarm("[RadioRxThread] Tried to process a received short radio packet on radio interface (%d) that is not a SiK radio.", iInterfaceIndex+1);
+      log_softerror_and_alarm("[RadioRxThread] Tried to process a received short radio packet on radio interface (%d) that is not a serial radio.", iInterfaceIndex+1);
       return 0;
    }
 
-   int iMaxRead = 512 - s_uBuffersSiKMessagesReadPos[iInterfaceIndex];
+   int iMaxRead = 512 - s_uBuffersSerialMessagesReadPos[iInterfaceIndex];
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
       pthread_mutex_lock(&s_pMutexRadioSyncRxTxThreads);
    #endif
 
-   int iRead = read(pRadioHWInfo->monitor_interface_read.selectable_fd, &(s_uBuffersSiKMessages[iInterfaceIndex][s_uBuffersSiKMessagesReadPos[iInterfaceIndex]]), iMaxRead);
+   int iRead = read(pRadioHWInfo->monitor_interface_read.selectable_fd, &(s_uBuffersSerialMessages[iInterfaceIndex][s_uBuffersSerialMessagesReadPos[iInterfaceIndex]]), iMaxRead);
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
@@ -357,12 +357,12 @@ int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
 
    if ( iRead < 0 )
    {
-      log_softerror_and_alarm("[RadioRxThread] Failed to read received short radio packet on SiK radio interface (%d).", iInterfaceIndex+1);
+      log_softerror_and_alarm("[RadioRxThread] Failed to read received short radio packet on serial radio interface (%d).", iInterfaceIndex+1);
       return -1;
    }
 
-   s_uBuffersSiKMessagesReadPos[iInterfaceIndex] += iRead;
-   int iBufferLength = s_uBuffersSiKMessagesReadPos[iInterfaceIndex];
+   s_uBuffersSerialMessagesReadPos[iInterfaceIndex] += iRead;
+   int iBufferLength = s_uBuffersSerialMessagesReadPos[iInterfaceIndex];
    
    // Received at least the full header?
    if ( iBufferLength < (int)sizeof(t_packet_header_short) )
@@ -373,7 +373,7 @@ int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
    int iPacketPos = -1;
    do
    {
-      u8* pData = (u8*)&(s_uBuffersSiKMessages[iInterfaceIndex][0]);
+      u8* pData = (u8*)&(s_uBuffersSerialMessages[iInterfaceIndex][0]);
       iPacketPos = -1;
       for( int i=0; i<iBufferLength-sizeof(t_packet_header_short); i++ )
       {
@@ -391,10 +391,10 @@ int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
             int iBytesToDiscard = iBufferLength - 256;
             // Keep only the last 255 bytes in the buffer
             for( int i=0; i<(iBufferLength-iBytesToDiscard); i++ )
-               s_uBuffersSiKMessages[iInterfaceIndex][i] = s_uBuffersSiKMessages[iInterfaceIndex][i+iBytesToDiscard];
-            s_uBuffersSiKMessagesReadPos[iInterfaceIndex] -= iBytesToDiscard;
+               s_uBuffersSerialMessages[iInterfaceIndex][i] = s_uBuffersSerialMessages[iInterfaceIndex][i+iBytesToDiscard];
+            s_uBuffersSerialMessagesReadPos[iInterfaceIndex] -= iBytesToDiscard;
 
-            _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSiKMessages[iInterfaceIndex], iBytesToDiscard, 0);
+            _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSerialMessages[iInterfaceIndex], iBytesToDiscard, 0);
             radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, NULL, iInterfaceIndex);
          }
          return 0;
@@ -402,20 +402,20 @@ int _radio_rx_parse_received_sik_radio_data(int iInterfaceIndex)
 
       if ( iPacketPos > 0 )
       {
-         _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSiKMessages[iInterfaceIndex], iPacketPos, 0);
+         _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSerialMessages[iInterfaceIndex], iPacketPos, 0);
          radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, NULL, iInterfaceIndex);
       }
       t_packet_header_short* pPHS = (t_packet_header_short*)(pData+iPacketPos);
       int iShortTotalPacketSize = (int)(pPHS->data_length + sizeof(t_packet_header_short));
       
-      _radio_rx_process_sik_short_packet(iInterfaceIndex, pData+iPacketPos, iShortTotalPacketSize);
+      _radio_rx_process_serial_short_packet(iInterfaceIndex, pData+iPacketPos, iShortTotalPacketSize);
 
       iShortTotalPacketSize += iPacketPos;
       if ( iShortTotalPacketSize > iBufferLength )
          iShortTotalPacketSize = iBufferLength;
       for( int i=0; i<iBufferLength - iShortTotalPacketSize; i++ )
-         s_uBuffersSiKMessages[iInterfaceIndex][i] = s_uBuffersSiKMessages[iInterfaceIndex][i+iShortTotalPacketSize];
-      s_uBuffersSiKMessagesReadPos[iInterfaceIndex] -= iShortTotalPacketSize;
+         s_uBuffersSerialMessages[iInterfaceIndex][i] = s_uBuffersSerialMessages[iInterfaceIndex][i+iShortTotalPacketSize];
+      s_uBuffersSerialMessagesReadPos[iInterfaceIndex] -= iShortTotalPacketSize;
       iBufferLength -= iShortTotalPacketSize;
    } while ( (iPacketPos >= 0) && (iBufferLength >= (int)sizeof(t_packet_header_short)) );
    return 0;
@@ -945,9 +945,9 @@ static void * _thread_radio_rx(void *argument)
          if( (NULL == pRadioHWInfo) || (s_iRadioRxPausedInterfaces[iInterfaceIndex]) || (0 == FD_ISSET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet)) )
             continue;
 
-         if ( hardware_radio_index_is_sik_radio(iInterfaceIndex) )
+         if ( hardware_radio_index_is_serial_radio(iInterfaceIndex) )
          {
-            int iResult = _radio_rx_parse_received_sik_radio_data(iInterfaceIndex);
+            int iResult = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
             if ( iResult < 0 )
             {
                s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;

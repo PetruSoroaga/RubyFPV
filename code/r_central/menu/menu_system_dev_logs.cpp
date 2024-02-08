@@ -54,8 +54,6 @@ MenuSystemDevLogs::MenuSystemDevLogs(void)
    m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.16;
    
-   float fSliderWidth = 0.14;
-
    m_pItemsSelect[0] = new MenuItemSelect("Log System (Controller)", "Sets the type of log system to use: directly to files or using a service. Requires a reboot after the change.");
    m_pItemsSelect[0]->addSelection("Files");
    m_pItemsSelect[0]->addSelection("Service");
@@ -102,7 +100,6 @@ MenuSystemDevLogs::MenuSystemDevLogs(void)
 void MenuSystemDevLogs::valuesToUI()
 {
    Preferences* pP = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
 
    if ( access( LOG_USE_PROCESS, R_OK ) != -1 )
       m_pItemsSelect[0]->setSelectedIndex(1);
@@ -177,7 +174,7 @@ void MenuSystemDevLogs::exportVehicleLogs(char* szVehicleFolder)
          sprintf(szComm, "mkdir -p %s/%s/Ruby/%s/", FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder);
          hw_execute_bash_command(szComm, NULL);
 
-         sprintf(szComm, "cp -rf %s/%s %s/%s/Ruby/%s/%s", szFolder, dir->d_name, FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder, dir->d_name);
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s/%s %s/%s/Ruby/%s/%s", szFolder, dir->d_name, FOLDER_RUBY, FOLDER_USB_MOUNT, szVehicleFolder, dir->d_name);
          hw_execute_bash_command(szComm, NULL);
       }
       closedir(d);
@@ -221,10 +218,10 @@ void MenuSystemDevLogs::exportAllLogs()
    hw_execute_bash_command(szComm, NULL);
 
    sprintf(szBuff, "%s/%s/Ruby", FOLDER_RUBY, FOLDER_USB_MOUNT);
-   sprintf(szComm, "mkdir -p %s", szBuff );
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s", szBuff );
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip %s/%s/Ruby/ruby_controller_logs_controller_id_%u_%d.zip", g_uControllerId, g_iBootCount, FOLDER_RUBY, FOLDER_USB_MOUNT, g_uControllerId, g_iBootCount);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf tmp/exportcontrollerlogs/ruby_controller_logs_controller_id_%u_%d.zip %s/%s/Ruby/ruby_controller_logs_controller_id_%u_%d.zip", g_uControllerId, g_iBootCount, FOLDER_RUBY, FOLDER_USB_MOUNT, g_uControllerId, g_iBootCount);
    hw_execute_bash_command(szComm, NULL);
    hw_execute_bash_command("rm -rf tmp/exportcontrollerlogs 2>/dev/null", NULL);
 
@@ -293,7 +290,6 @@ void MenuSystemDevLogs::onSelectItem()
       return;
 
    Preferences* pP = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
 
    if ( m_IndexLogServiceController == m_SelectedIndex )
    {

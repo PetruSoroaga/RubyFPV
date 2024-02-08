@@ -251,7 +251,7 @@ void log_current_runtime_vehicles_info()
       else
          strcat(szBuff, ", ");
       char szTmp[128];
-      sprintf(szTmp, "%d: %u (%s, %s, Model: %X, model VID: %u)", i, g_VehiclesRuntimeInfo[i].uVehicleId,
+      snprintf(szTmp, 127, "%d: %u (%s, %s, Model: %p, model VID: %u)", i, g_VehiclesRuntimeInfo[i].uVehicleId,
          (g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo)?"RT":"no RT",
          (g_VehiclesRuntimeInfo[i].bGotFCTelemetry)?"FCT":"no FCT",
          g_VehiclesRuntimeInfo[i].pModel,

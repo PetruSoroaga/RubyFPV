@@ -38,6 +38,7 @@
 #include "../radio/radio_rx.h"
 #include "processor_relay.h"
 #include "ruby_rt_vehicle.h"
+#include "radio_links.h"
 #include "shared_vars.h"
 #include "timers.h"
 #include "video_link_auto_keyframe.h"
@@ -233,7 +234,7 @@ void relay_on_relay_params_changed()
    }
 
    radio_rx_stop_rx_thread();
-   close_radio_interfaces();
+   radio_links_close_rxtx_radio_interfaces();
 
    if ( NULL != g_pProcessStats )
    {
@@ -284,7 +285,7 @@ void relay_on_relay_params_changed()
 
    configure_radio_interfaces_for_current_model(g_pCurrentModel, g_pProcessStats);
    
-   open_radio_interfaces();
+   radio_links_open_rxtx_radio_interfaces();
 
    if ( NULL != g_pProcessStats )
    {

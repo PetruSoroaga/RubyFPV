@@ -233,7 +233,6 @@ void MenuItemSelectBase::Render(float xPos, float yPos, bool bSelected, float fW
    }
    
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float width_title = g_pRenderEngine->textWidth(g_idFontMenu, m_pszTitle);
    float width_value = g_pRenderEngine->textWidth(g_idFontMenu, m_szSelections[m_SelectedIndex]);
    float paddingH = Menu::getSelectionPaddingX();
    float paddingV = Menu::getSelectionPaddingY();

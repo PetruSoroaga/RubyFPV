@@ -232,7 +232,7 @@ void MenuDiagnoseRadioLink::onReceivedControllerData(u8* pData, int iDataLength)
       if ( m_uDataFromVehicle[iPosV] != '\n' )
          iPosV++;
       char szBuff[64];
-      sprintf(szBuff, "%s / %s", szParamC, szParamV);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szParamC, szParamV);
       addTopLine(szBuff);
    }
 

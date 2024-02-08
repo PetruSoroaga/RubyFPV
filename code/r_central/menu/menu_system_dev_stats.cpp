@@ -107,7 +107,6 @@ MenuSystemDevStats::MenuSystemDevStats(void)
 void MenuSystemDevStats::valuesToUI()
 {
    Preferences* pP = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
 
    int layoutIndex = 0;
    if ( NULL != g_pCurrentModel )
@@ -166,7 +165,6 @@ void MenuSystemDevStats::onSelectItem()
       return;
 
    Preferences* pP = get_Preferences();
-   ControllerSettings* pCS = get_ControllerSettings();
 
    if ( m_IndexDevStatsVideo == m_SelectedIndex )
    {
