@@ -38,8 +38,10 @@
 #include "video_link_check_bitrate.h"
 #include "video_link_auto_keyframe.h"
 #include "processor_tx_video.h"
+#include "ruby_rt_vehicle.h"
 #include "utils_vehicle.h"
 #include "packets_utils.h"
+#include "video_source_csi.h"
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
@@ -284,7 +286,10 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
       video_link_quantization_shift(2);
    }
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   
    if ( NULL != g_pProcessorTxVideo )
       g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
          
@@ -373,7 +378,10 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   
    if ( NULL != g_pProcessorTxVideo )
       g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
          
@@ -386,7 +394,9 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
       s_iLastTargetVideoFPS = nTargetFPS;
       
       log_line("[Video Link Overwrites]: Setting the video capture FPS rate to: %d", nTargetFPS);
-      send_control_message_to_raspivid(RASPIVID_COMMAND_ID_FPS, nTargetFPS);
+      if ( g_pCurrentModel->hasCamera() )
+      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         video_source_csi_send_control_message(RASPIVID_COMMAND_ID_FPS, nTargetFPS);
    }
    
    // Prevent video bitrate changes due to overload or underload right after a profile change;
@@ -424,7 +434,10 @@ void _video_stats_overwrites_apply_ec_bitrate_changes(bool bDownDirection)
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   
    if ( NULL != g_pProcessorTxVideo )
       g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
          
@@ -1013,7 +1026,7 @@ void video_stats_overwrites_periodic_loop()
    float fParamsChangeStrength = (float)g_pCurrentModel->video_params.videoAdjustmentStrength / 10.0;
    iThresholdControllerLinkMs = 500 + (1.0 - fParamsChangeStrength)*1000.0;
    if ( g_TimeNow > g_TimeStart + 5000 )
-   if ( g_TimeNow > g_TimeStartRaspiVid + 3000 )
+   if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
    if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
    if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
    if ( (g_TimeNow > g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs) ||
@@ -1092,7 +1105,10 @@ bool video_stats_overwrites_increase_videobitrate_overwrite(u32 uCurrentTotalBit
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   
    if ( NULL != g_pProcessorTxVideo )
       g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
    return true;
@@ -1132,7 +1148,9 @@ bool video_stats_overwrites_decrease_videobitrate_overwrite()
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    if ( NULL != g_pProcessorTxVideo )
       g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
    return true;

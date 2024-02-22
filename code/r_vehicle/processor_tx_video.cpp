@@ -42,6 +42,7 @@
 #include "processor_relay.h"
 #include "packets_utils.h"
 #include "utils_vehicle.h"
+#include "video_source_csi.h"
 #include <semaphore.h>
 
 #define PACKET_FLAG_EMPTY 0
@@ -722,7 +723,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
       pHeader->packet_flags = PACKET_COMPONENT_VIDEO;
       pHeader->packet_flags &= (~PACKET_FLAGS_BIT_CAN_START_TX);
 
-      if ( isLastBlockToSend && packetIndex == s_BlocksTxBuffers[bufferIndex].block_packets+s_BlocksTxBuffers[bufferIndex].block_fecs-1 )
+      if ( isLastBlockToSend && (packetIndex == s_BlocksTxBuffers[bufferIndex].block_packets+s_BlocksTxBuffers[bufferIndex].block_fecs-1) )
          pHeader->packet_flags |= PACKET_FLAGS_BIT_CAN_START_TX;
 
       if ( g_pCurrentModel->rxtx_sync_type != RXTX_SYNC_TYPE_ADV )
@@ -911,10 +912,27 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
       }
 
       if ( ! bUseLegacyScheme )
+      if ( s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs > 0 )
       {
-         int iECPacketsPerSlice = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/4 + 1;
+         int iBlocksSpread = 3;
+         int iECPacketsPerSlice = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/iBlocksSpread;
+         if ( iECPacketsPerSlice < 1 )
+            iECPacketsPerSlice = 1;
+
+         int iDeltaBlocks = s_iCurrentBlockPacketIndexToSend/iECPacketsPerSlice;
+         if ( iDeltaBlocks >= iBlocksSpread )
+            iDeltaBlocks = iBlocksSpread-1;
+
+         int iPrevBlockToSend = s_iCurrentBufferIndexToSend - iDeltaBlocks - 1;
+         if ( iPrevBlockToSend < 0 )
+            iPrevBlockToSend += s_CurrentMaxBlocksInBuffers;
+
+         if ( s_iCurrentBlockPacketIndexToSend < s_BlocksTxBuffers[iPrevBlockToSend].block_fecs )
+         if ( s_BlocksTxBuffers[iPrevBlockToSend].packetsInfo[s_BlocksTxBuffers[iPrevBlockToSend].block_packets + s_iCurrentBlockPacketIndexToSend].flags & PACKET_FLAG_READ )
+            _send_packet(iPrevBlockToSend, s_BlocksTxBuffers[iPrevBlockToSend].block_packets + s_iCurrentBlockPacketIndexToSend, false, false, true);
+
+         /*
          int iECSlices = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/iECPacketsPerSlice + 1;
-         //log_line("DEBUG ec %d/%d, ec slices: %d, ec packets/slice: %d", s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets, s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs, iECSlices, iECPacketsPerSlice);
          if ( s_iCurrentBlockPacketIndexToSend < iECSlices )
          {         
             int iPrevBlockToCheck = s_iCurrentBufferIndexToSend-s_iCurrentBlockPacketIndexToSend-1;
@@ -928,6 +946,7 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
                   _send_packet(iPrevBlockToCheck, s_BlocksTxBuffers[iPrevBlockToCheck].block_packets + k, false, false, true);
             }
          }
+         */
       }
       s_iCurrentBlockPacketIndexToSend++;
       if ( s_iCurrentBlockPacketIndexToSend >= s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets )
@@ -1124,6 +1143,7 @@ bool _onNewCompletePacketReadFromInput()
 
 bool process_data_tx_video_init()
 {
+   log_line("[VideoTx] Allocating tx buffers (%d blocks, max %d packets/block)...", MAX_RXTX_BLOCKS_BUFFER, MAX_TOTAL_PACKETS_IN_BLOCK);
    for( int i=0; i<MAX_RXTX_BLOCKS_BUFFER; i++ )
    for( int k=0; k<MAX_TOTAL_PACKETS_IN_BLOCK; k++ )
    {
@@ -1134,6 +1154,7 @@ bool process_data_tx_video_init()
          return false;
       }
    }
+   log_line("[VideoTx] Allocated tx buffers (%d blocks, max %d packets/block).", MAX_RXTX_BLOCKS_BUFFER, MAX_TOTAL_PACKETS_IN_BLOCK);
 
    s_uParseNALStartSequence = MAX_U32;
    s_uParseNALStartSequenceRadioOut = MAX_U32;
@@ -1484,141 +1505,163 @@ int process_data_tx_video_get_current_buffer_to_read_size()
    return s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length - s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition;
 }
 
-// Returns true if a block is complete
-
-bool process_data_tx_video_on_data_read_complete(int countRead)
+void _parse_h264_data(u8* pData, int iDataSize)
 {
-   if ( countRead <= 0 )
-      return false;
+   if ( (NULL == g_pCurrentModel) || (NULL == pData) || (iDataSize <= 0) )
+      return;
 
    static u32 s_uLastTimeReceivedNALUKeyframe = 0;
 
-   if ( NULL != g_pCurrentModel )
-   //if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO)
+   int iFoundNALVideoFrame = 0;
+   int iFoundPosition = -1;
+
+   for( int k=0; k<iDataSize; k++ )
    {
-      int iFoundNALVideoFrame = 0;
-      int iFoundPosition = -1;
+       s_uParseNALStartSequence = (s_uParseNALStartSequence<<8) | (*pData);
+       pData++;
 
-      u8* pTmp = process_data_tx_video_get_current_buffer_to_read_pointer();
-      for( int k=0; k<countRead; k++ )
-      {
-          s_uParseNALStartSequence = (s_uParseNALStartSequence<<8) | (*pTmp);
-          pTmp++;
-
-          if ( (s_uParseNALStartSequence & 0xFFFFFF00) == 0x0100 )
+       if ( (s_uParseNALStartSequence & 0xFFFFFF00) == 0x0100 )
+       {
+          u32 uNALTag = s_uParseNALStartSequence & 0b11111;
+          if ( uNALTag == 1 || uNALTag == 5 )
           {
-             u32 uNALTag = s_uParseNALStartSequence & 0b11111;
-             if ( uNALTag == 1 || uNALTag == 5 )
+             s_uParseNALCurrentSlices++;
+             if ( (int)s_uParseNALCurrentSlices >= camera_get_active_camera_h264_slices(g_pCurrentModel) )
              {
-                s_uParseNALCurrentSlices++;
-                if ( (int)s_uParseNALCurrentSlices >= camera_get_active_camera_h264_slices(g_pCurrentModel) )
+                s_uParseNALCurrentSlices = 0;
+                iFoundNALVideoFrame = uNALTag;
+                g_VideoInfoStats.uTmpCurrentFrameSize += k;
+                iFoundPosition = k;
+                if ( g_iShowVideoKeyframesAfterRelaySwitch > 0 )
                 {
-                   s_uParseNALCurrentSlices = 0;
-                   iFoundNALVideoFrame = uNALTag;
-                   g_VideoInfoStats.uTmpCurrentFrameSize += k;
-                   iFoundPosition = k;
-                   if ( g_iShowVideoKeyframesAfterRelaySwitch > 0 )
-                   {
-                      log_line("[Debug] Read video keyframe after relay switch.");
-                      g_iShowVideoKeyframesAfterRelaySwitch--;
-                   }
-                }
-             }
-             //if ((s_uParseVideoTag == 0x0121) || (s_uParseVideoTag == 0x0127))
-          }
-      }
-
-      if ( iFoundNALVideoFrame )
-      {
-          u32 delta = g_TimeNow - s_uLastVideoFrameTime;
-          if ( delta > 254 )
-             delta = 254;
-          if ( delta == 0 )
-             delta = 1;
-
-          g_VideoInfoStats.uTmpCurrentFrameSize = g_VideoInfoStats.uTmpCurrentFrameSize / 1000;
-          if ( g_VideoInfoStats.uTmpCurrentFrameSize > 127 )
-             g_VideoInfoStats.uTmpCurrentFrameSize = 127;
-
-          g_VideoInfoStats.uLastIndex = (g_VideoInfoStats.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-          g_VideoInfoStats.uFramesTimes[g_VideoInfoStats.uLastIndex] = delta;
-          g_VideoInfoStats.uFramesTypesAndSizes[g_VideoInfoStats.uLastIndex] = (g_VideoInfoStats.uFramesTypesAndSizes[g_VideoInfoStats.uLastIndex] & 0x80) | ((u8)g_VideoInfoStats.uTmpCurrentFrameSize);
-          
-          u32 uNextIndex = (g_VideoInfoStats.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-          if ( iFoundNALVideoFrame == 5 )
-          {
-             // Keyframe
-
-             g_VideoInfoStats.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
-             g_VideoInfoStats.uKeyframeIntervalMs = g_TimeNow - s_uLastTimeReceivedNALUKeyframe;
-             s_uLastTimeReceivedNALUKeyframe = g_TimeNow;
-             if ( s_iCurrentKeyFrameIntervalMs == -1 )
-             if ( g_iFramesSinceLastH264KeyFrame > 0 )
-                s_iCurrentKeyFrameIntervalMs = 1;
-             g_iFramesSinceLastH264KeyFrame = 0;
-          }
-          else
-          {
-             g_VideoInfoStats.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
-             g_iFramesSinceLastH264KeyFrame++;
-
-             if ( s_iPendingSetKeyframeIntervalMs != s_iCurrentKeyFrameIntervalMs )
-             if ( s_iPendingSetKeyframeIntervalMs > 0 && s_iCurrentKeyFrameIntervalMs > 0 )
-             {
-                bool bUpdate = false;
-                if ( s_iPendingSetKeyframeIntervalMs > s_iCurrentKeyFrameIntervalMs )
-                if ( ((s_iCurrentKeyFrameIntervalMs < 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iCurrentKeyFrameIntervalMs/2)) || 
-                     ((s_iCurrentKeyFrameIntervalMs >= 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + (s_iCurrentKeyFrameIntervalMs*4)/5)) )
-                   bUpdate = true;
-                if ( s_iPendingSetKeyframeIntervalMs < s_iCurrentKeyFrameIntervalMs )
-                if ( ((s_iCurrentKeyFrameIntervalMs < 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iPendingSetKeyframeIntervalMs*3/4)) || 
-                     ((s_iCurrentKeyFrameIntervalMs >= 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iPendingSetKeyframeIntervalMs*4/5)) )
-                   bUpdate = true;
-
-                if ( bUpdate )
-                {
-                   s_iCurrentKeyFrameIntervalMs = s_iPendingSetKeyframeIntervalMs;
-                   int iCurrentFPS = 30;
-                   if ( NULL != g_pCurrentModel )
-                     iCurrentFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
-      
-                   int iKeyFrameCountValue = (iCurrentFPS * s_iCurrentKeyFrameIntervalMs) / 1000; 
-                   u32 uKeyframeCount = iKeyFrameCountValue;
-
-                   if ( iKeyFrameCountValue < 200 )
-                      uKeyframeCount = iKeyFrameCountValue;
-                   else
-                   {
-                      uKeyframeCount = 200 + iKeyFrameCountValue/20;
-                      if ( uKeyframeCount > 254 )
-                         uKeyframeCount = 254;
-                   }
-                   log_line("[KeyFrame] Sending keyframe count %d to the video capture program (for current fps %d and keyframe interval: %d ms)", uKeyframeCount, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
-                   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_KEYFRAME, uKeyframeCount);
+                   log_line("[Debug] Read video keyframe after relay switch.");
+                   g_iShowVideoKeyframesAfterRelaySwitch--;
                 }
              }
           }
-
-          g_VideoInfoStats.uTmpKeframeDeltaFrames++;
-          if ( iFoundNALVideoFrame == 5 )
-          {
-             g_VideoInfoStats.uTmpKeframeDeltaFrames = 0; 
-          }
-
-          s_uLastVideoFrameTime = g_TimeNow;
-          g_VideoInfoStats.uTmpCurrentFrameSize = countRead-iFoundPosition;
-      }
-      else
-         g_VideoInfoStats.uTmpCurrentFrameSize += countRead;
+       }
    }
 
-   s_lCountBytesVideoIn += countRead;
+   if ( ! iFoundNALVideoFrame )
+   {
+      g_VideoInfoStats.uTmpCurrentFrameSize += iDataSize;
+      return;
+   }
 
-   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition += countRead;
+   u32 delta = g_TimeNow - s_uLastVideoFrameTime;
+   if ( delta > 254 )
+      delta = 254;
+   if ( delta == 0 )
+      delta = 1;
 
-   if ( s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition < s_BlocksTxBuffers[s_currentReadBufferIndex].video_data_length )
+   g_VideoInfoStats.uTmpCurrentFrameSize = g_VideoInfoStats.uTmpCurrentFrameSize / 1000;
+   if ( g_VideoInfoStats.uTmpCurrentFrameSize > 127 )
+      g_VideoInfoStats.uTmpCurrentFrameSize = 127;
+
+   g_VideoInfoStats.uLastIndex = (g_VideoInfoStats.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+   g_VideoInfoStats.uFramesTimes[g_VideoInfoStats.uLastIndex] = delta;
+   g_VideoInfoStats.uFramesTypesAndSizes[g_VideoInfoStats.uLastIndex] = (g_VideoInfoStats.uFramesTypesAndSizes[g_VideoInfoStats.uLastIndex] & 0x80) | ((u8)g_VideoInfoStats.uTmpCurrentFrameSize);
+   
+   u32 uNextIndex = (g_VideoInfoStats.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+   if ( iFoundNALVideoFrame == 5 )
+   {
+      // Keyframe
+
+      g_VideoInfoStats.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
+      g_VideoInfoStats.uKeyframeIntervalMs = g_TimeNow - s_uLastTimeReceivedNALUKeyframe;
+      s_uLastTimeReceivedNALUKeyframe = g_TimeNow;
+      if ( s_iCurrentKeyFrameIntervalMs == -1 )
+      if ( g_iFramesSinceLastH264KeyFrame > 0 )
+         s_iCurrentKeyFrameIntervalMs = 1;
+      g_iFramesSinceLastH264KeyFrame = 0;
+   }
+   else
+   {
+      g_VideoInfoStats.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
+      g_iFramesSinceLastH264KeyFrame++;
+
+      if ( s_iPendingSetKeyframeIntervalMs != s_iCurrentKeyFrameIntervalMs )
+      if ( s_iPendingSetKeyframeIntervalMs > 0 && s_iCurrentKeyFrameIntervalMs > 0 )
+      {
+         bool bUpdate = false;
+         if ( s_iPendingSetKeyframeIntervalMs > s_iCurrentKeyFrameIntervalMs )
+         if ( ((s_iCurrentKeyFrameIntervalMs < 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iCurrentKeyFrameIntervalMs/2)) || 
+              ((s_iCurrentKeyFrameIntervalMs >= 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + (s_iCurrentKeyFrameIntervalMs*4)/5)) )
+            bUpdate = true;
+         if ( s_iPendingSetKeyframeIntervalMs < s_iCurrentKeyFrameIntervalMs )
+         if ( ((s_iCurrentKeyFrameIntervalMs < 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iPendingSetKeyframeIntervalMs*3/4)) || 
+              ((s_iCurrentKeyFrameIntervalMs >= 500 ) && (g_TimeNow >= s_uLastTimeReceivedNALUKeyframe + s_iPendingSetKeyframeIntervalMs*4/5)) )
+            bUpdate = true;
+
+         if ( bUpdate )
+         {
+            s_iCurrentKeyFrameIntervalMs = s_iPendingSetKeyframeIntervalMs;
+            int iCurrentFPS = 30;
+            if ( NULL != g_pCurrentModel )
+              iCurrentFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
+
+            int iKeyFrameCountValue = (iCurrentFPS * s_iCurrentKeyFrameIntervalMs) / 1000; 
+            u32 uKeyframeCount = iKeyFrameCountValue;
+
+            if ( iKeyFrameCountValue < 200 )
+               uKeyframeCount = iKeyFrameCountValue;
+            else
+            {
+               uKeyframeCount = 200 + iKeyFrameCountValue/20;
+               if ( uKeyframeCount > 254 )
+                  uKeyframeCount = 254;
+            }
+            if ( g_pCurrentModel->hasCamera() )
+            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+            {
+               log_line("[KeyFrame] Sending keyframe count %d to the video capture program (for current fps %d and keyframe interval: %d ms)", uKeyframeCount, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
+               video_source_csi_send_control_message(RASPIVID_COMMAND_ID_KEYFRAME, uKeyframeCount);
+            }
+         }
+      }
+   }
+
+   g_VideoInfoStats.uTmpKeframeDeltaFrames++;
+   if ( iFoundNALVideoFrame == 5 )
+      g_VideoInfoStats.uTmpKeframeDeltaFrames = 0; 
+
+   s_uLastVideoFrameTime = g_TimeNow;
+   g_VideoInfoStats.uTmpCurrentFrameSize = iDataSize-iFoundPosition;
+}
+
+bool process_data_tx_video_on_new_data(u8* pData, int iDataSize)
+{
+   if ( (NULL == pData) || (iDataSize <= 0) )
       return false;
-   return _onNewCompletePacketReadFromInput();
+
+   bool bCompleteBlock = false;
+
+   _parse_h264_data(pData, iDataSize);
+
+   s_lCountBytesVideoIn += iDataSize;
+
+   while ( iDataSize > 0 )
+   {
+      int iBytesLeftInCurrentVideoPacket =  process_data_tx_video_get_current_buffer_to_read_size();
+      u8* pVideoPacket = process_data_tx_video_get_current_buffer_to_read_pointer();
+
+      int iBytesToCopy = iDataSize;
+      if ( iBytesToCopy > iBytesLeftInCurrentVideoPacket )
+         iBytesToCopy = iBytesLeftInCurrentVideoPacket;
+
+      memcpy(pVideoPacket, pData, iBytesToCopy);
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition += iBytesToCopy;
+
+      iDataSize -= iBytesToCopy;
+      pData += iBytesToCopy;
+
+      // We have a new complete video packet
+      if ( iBytesToCopy == iBytesLeftInCurrentVideoPacket )
+      {
+         bCompleteBlock |= _onNewCompletePacketReadFromInput();
+      }
+   }
+   return bCompleteBlock;
 }
 
 void process_data_tx_video_signal_encoding_changed()

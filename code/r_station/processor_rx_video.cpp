@@ -54,6 +54,7 @@
 #include "../base/hw_procs.h"
 #include "../common/string_utils.h"
 #include "../common/relay_utils.h"
+#include "../common/radio_stats.h"
 #include "../radio/radiolink.h"
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopacketsqueue.h"
@@ -239,17 +240,6 @@ bool ProcessorRxVideo::init()
       m_SM_VideoDecodeStats.keyframe_ms = 0;
       m_SM_VideoDecodeStats.width = 1280;
       m_SM_VideoDecodeStats.height = 720;   
-   }
-
-   if ( m_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
-   {
-      log_line("[VideoRx] Set retransmissions flag in video stats as it's enabled on current vehicle.");
-      m_SM_VideoDecodeStats.isRetransmissionsOn = 1;
-   }
-   else
-   {
-      log_line("[VideoRx] Unset retransmissions flag in video stats as it's disabled on current vehicle.");
-      m_SM_VideoDecodeStats.isRetransmissionsOn = 0;    
    }
 
    memset((u8*)&m_SM_VideoDecodeStatsHistory, 0, sizeof(shared_mem_video_stream_stats_history));
@@ -617,7 +607,7 @@ void ProcessorRxVideo::sendPacketToOutput(int rx_buffer_block_index, int block_p
    u8* pBuffer = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].pData;
    int length = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].packet_length;
 
-   processor_rx_video_forward_video_data(m_uVehicleId, m_SM_VideoDecodeStats.width, m_SM_VideoDecodeStats.height, pBuffer, length);
+   rx_video_output_video_data(m_uVehicleId, m_SM_VideoDecodeStats.width, m_SM_VideoDecodeStats.height, pBuffer, length);
 }
 
 void ProcessorRxVideo::pushIncompleteBlocksOut(int countToPush, bool bTooOld)
@@ -979,36 +969,6 @@ void ProcessorRxVideo::periodicLoop(u32 uTimeNow)
 
       m_SM_VideoDecodeStats.frames_type = radio_get_received_frames_type();
       m_SM_VideoDecodeStats.iCurrentRxTxSyncType = g_pCurrentModel->rxtx_sync_type;
-
-      bool bDisableRetransmissionOnLinkLost = false;
-      if ( g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds != 0 )
-      if ( uTimeNow > g_uTimeLastReceivedResponseToAMessage + g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds )
-         bDisableRetransmissionOnLinkLost = true;
-
-      if ( bDisableRetransmissionOnLinkLost )
-      {
-         if ( m_SM_VideoDecodeStats.isRetransmissionsOn )
-         {
-            log_line("[VideoRx] Unset retransmissions flag in video stats as link to vehicle is lost for %u ms", uTimeNow - g_uTimeLastReceivedResponseToAMessage);
-            m_SM_VideoDecodeStats.isRetransmissionsOn = 0;
-         }
-      }
-      else if ( m_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
-      {
-         if ( 0 == m_SM_VideoDecodeStats.isRetransmissionsOn )
-         {
-            log_line("[VideoRx] Set retransmissions flag in video stats as it's enabled on received video profile and link to vehicle is not lost (last link from vehicle %u ms ago)", uTimeNow - g_uTimeLastReceivedResponseToAMessage);
-            m_SM_VideoDecodeStats.isRetransmissionsOn = 1;
-         }
-      }
-      else
-      {
-         if ( 1 == m_SM_VideoDecodeStats.isRetransmissionsOn )
-         {
-            log_line("[VideoRx] Unset retransmissions flag in video stats au it's disabled on received video profile.");
-            m_SM_VideoDecodeStats.isRetransmissionsOn = 0;
-         }
-      }
    }
 
    updateHistoryStats(uTimeNow);
@@ -1059,6 +1019,8 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    block_packets = pPHVFNew->block_packets;
    block_fecs = pPHVFNew->block_fecs;
 
+   //log_line("DEBUG recv (%d/%d) [%u/%u]", block_packets, block_fecs, video_block_index, video_block_packet_index);
+   
    #ifdef PROFILE_RX
    u32 dTime1 = get_current_timestamp_ms() - uTimeStart;
    if ( dTime1 >= PROFILE_RX_MAX_TIME )
@@ -1567,18 +1529,20 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
 
    if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
       return;
-   if ( -1 == m_iRXBlocksStackTopIndex )
+
+   if ( m_iRXBlocksStackTopIndex <= 0 )
       return;
 
    // If link is lost, do not request retransmissions
 
    if ( m_LastReceivedVideoPacketInfo.receive_time != 0 )
    {
-      int iDelta = 1000;
       if ( 0 != g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds )
-         iDelta = g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds;
-      if ( g_TimeNow > m_LastReceivedVideoPacketInfo.receive_time + iDelta )
-         return;
+      {
+         u32 uDelta = (u32)g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds;
+         if ( g_TimeNow > g_SM_RadioStats.uTimeLastReceivedAResponseFromVehicle + uDelta )
+            return;
+      }
    }
 
    // Remove pending active retransmissions that are for video blocks already outputed or discarded
@@ -1606,16 +1570,11 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
    //   optional: serialized minimized t_packet_data_controller_link_stats - link stats (video and radio)
 
 
-
-   // Request missing packets from the first block in stack up to the last one (including the last one)
+   // Request missing packets from the first block (oldest) in stack up to the last one (most recent one)
    // Max requested packets count is limited to 200, due to max radio packet size
 
    int iBlockStartIndex = 0;
-   int iBlockEndIndex = m_iRXBlocksStackTopIndex;
-
-   // If not aggressive video retransmissions, request missing packets only up to the last 2 received blocks;
-   if ( ! (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_RETRANSMISSIONS_FAST) )
-      iBlockEndIndex = m_iRXBlocksStackTopIndex-3;
+   int iBlockEndIndex = m_iRXBlocksStackTopIndex-1;
 
    int totalCountRequested = 0;
    int totalCountRequestedNew = 0;
@@ -1633,6 +1592,17 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
       if ( m_pRXBlocksStack[i]->received_data_packets + m_pRXBlocksStack[i]->received_fec_packets >= m_pRXBlocksStack[i]->data_packets )
          continue;
       
+      // If not aggressive video retransmissions, do not request missing packets from most recent 3 blocks if they have most packets received already
+      if ( ! (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_RETRANSMISSIONS_FAST) )
+      if ( i >= iBlockEndIndex-2 )
+      {
+         // Skip this recent video block if it has many received video data packets, more than enough for EC
+         if ( m_pRXBlocksStack[iBlockEndIndex]->received_data_packets >= m_pRXBlocksStack[iBlockEndIndex]->data_packets - m_pRXBlocksStack[iBlockEndIndex]->fec_packets/2 )
+            continue;
+      }
+
+
+      ////////////
       int countToRequestForBlock = 0;
 
       // For last block, request only missing packets up untill the last received data packet in the block
@@ -2230,7 +2200,7 @@ int ProcessorRxVideo::preProcessRetransmittedVideoPacket(int interfaceNb, u8* pB
    uIdRetransmissionRequest = pPHVFNew->uLastRecvVideoRetransmissionId;
 
    g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
- 
+   radio_stats_set_received_response_from_vehicle_now(&g_SM_RadioStats, g_TimeNow);
    int iRetransmissionIndex = -1;
    controller_single_retransmission_state* pRetransmissionInfo = NULL;
    
@@ -2333,6 +2303,7 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
 
    if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
    {
+      g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
       return preProcessRetransmittedVideoPacket(interfaceNb, pBuffer, length );
    }
 
@@ -2377,24 +2348,29 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
    
    // Regular video packets that will be processed further
 
-   // Compute gap (in packets) between this and last video packet received
+   // Compute gap (in packets) between this and last video packet received;
+   // Ignore EC packets as they can be out of order;
    // Used only for history reporting purposes
 
    int gap = 0;
-   if ( video_block_index == prevRecvVideoBlockIndex )
-   if ( video_block_packet_index > prevRecvVideoBlockPacketIndex )
-      gap = video_block_packet_index - prevRecvVideoBlockPacketIndex-1;
-
-   if ( video_block_index > prevRecvVideoBlockIndex )
+   if ( video_block_packet_index < block_packets )
+   if ( prevRecvVideoBlockPacketIndex < block_packets )
    {
-       gap = block_packets + block_fecs - prevRecvVideoBlockPacketIndex - 1;
-       gap += video_block_packet_index;
+      if ( video_block_index == prevRecvVideoBlockIndex )
+      if ( video_block_packet_index > prevRecvVideoBlockPacketIndex )
+         gap = video_block_packet_index - prevRecvVideoBlockPacketIndex-1;
 
-       gap += (block_packets + block_fecs) * (video_block_index - prevRecvVideoBlockIndex - 1);
+      if ( video_block_index > prevRecvVideoBlockIndex )
+      {
+          gap = block_packets - prevRecvVideoBlockPacketIndex - 1;
+          gap += video_block_packet_index;
+
+          gap += (block_packets) * (video_block_index - prevRecvVideoBlockIndex - 1);
+      }
+      //log_line("DEBUG [%u/%u] (%u, %u) gap: %d", video_block_index, video_block_packet_index, prevRecvVideoBlockIndex, prevRecvVideoBlockPacketIndex, gap);
+      if ( gap > m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] )
+         m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] = (gap>255) ? 255:gap;
    }
-   if ( gap > m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] )
-      m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] = (gap>255) ? 255:gap;
-
    // Check video resolution change
 
    int width = 0;
@@ -2511,8 +2487,8 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
       log_line("[VideoRx] Video encoding extra flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.encoding_extra_flags));
       log_line("[VideoRx] Video encoding extra flags new: [%s]", str_format_video_encoding_flags(encoding_extra_flags));
    } 
-   m_SM_VideoDecodeStats.encoding_extra_flags = encoding_extra_flags;
 
+   m_SM_VideoDecodeStats.encoding_extra_flags = encoding_extra_flags;
    m_SM_VideoDecodeStats.video_stream_and_type = video_stream_and_type;
    m_SM_VideoDecodeStats.keyframe_ms = keyframe_ms;
    m_SM_VideoDecodeStats.fps = video_fps;

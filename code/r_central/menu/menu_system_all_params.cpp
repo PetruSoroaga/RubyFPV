@@ -86,7 +86,7 @@ void MenuSystemAllParams::Render()
          
    sprintf(szBuff, "Controller board: %s, no vehicle selected.", str_get_hardware_board_name(boardType));
    if ( NULL != g_pCurrentModel )
-      sprintf(szBuff, "Controller board: %s, vehicle board: %s, vehicle name: %s, %s", str_get_hardware_board_name(boardType), str_get_hardware_board_name(g_pCurrentModel->board_type), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"(Spectator Mode)":"(Control Mode)");
+      sprintf(szBuff, "Controller board: %s, vehicle board: %s, vehicle name: %s, %s", str_get_hardware_board_name(boardType), str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"(Spectator Mode)":"(Control Mode)");
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.3);

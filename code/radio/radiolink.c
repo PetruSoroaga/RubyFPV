@@ -1158,7 +1158,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
             //u8 flags = rti.this_arg[1];
             u8 mcs = rti.this_arg[2];
             //log_line("recv MCS, %d, %d, %d", (int)known, (int)flags, (int)mcs);
-            pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = -mcs;
+            pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = -mcs-1;
             break;
             }
 

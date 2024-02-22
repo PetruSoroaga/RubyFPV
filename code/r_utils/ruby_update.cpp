@@ -528,14 +528,14 @@ void do_update_to_72()
       //   pModel->osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
 
 
-      if ( 0 < pModel->hardware_info.serial_bus_count )
+      if ( 0 < pModel->hardwareInterfacesInfo.serial_bus_count )
       if ( hardware_get_serial_ports_count() > 0 )
       {
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(0);
          if ( NULL != pPortInfo )
          {
-            pPortInfo->lPortSpeed = pModel->hardware_info.serial_bus_speed[0];
-            pPortInfo->iPortUsage = (int)(pModel->hardware_info.serial_bus_supported_and_usage[0] & 0xFF);
+            pPortInfo->lPortSpeed = pModel->hardwareInterfacesInfo.serial_bus_speed[0];
+            pPortInfo->iPortUsage = (int)(pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] & 0xFF);
             hardware_serial_save_configuration();
          }
       }
@@ -638,11 +638,11 @@ void do_update_to_70()
       validate_camera(pModel);
 
       pModel->populateVehicleSerialPorts();
-      if ( 0 < pModel->hardware_info.serial_bus_count )
+      if ( 0 < pModel->hardwareInterfacesInfo.serial_bus_count )
       {
-         pModel->hardware_info.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-         pModel->hardware_info.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
-         pModel->hardware_info.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
+         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
+         pModel->hardwareInterfacesInfo.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
       }
    }
    else

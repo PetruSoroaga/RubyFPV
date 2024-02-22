@@ -175,14 +175,15 @@ void populate_model_settings_buffer()
    g_pCurrentModel->saveToFile("tmp/tmp_download_model.mdl", false);
 
    char szBuff[128];
-   hw_execute_bash_command("rm -rf tmp/model.tar 2>/dev/null", NULL);
+   hw_execute_bash_command("rm -rf tmp/model.tar* 2>/dev/null", NULL);
    hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
    sprintf(szBuff, "cp -rf tmp/tmp_download_model.mdl tmp/model.mdl 2>/dev/null");
    hw_execute_bash_command(szBuff, NULL);
-   hw_execute_bash_command("tar -czf tmp/model.tar tmp/model.mdl 2>&1", NULL);
+   hw_execute_bash_command("tar -cf tmp/model.tar tmp/model.mdl 2>&1", NULL);
+   hw_execute_bash_command("gzip tmp/model.tar 2>&1", NULL);
 
    s_bufferModelSettingsLength = 0;
-   FILE* fd = fopen("tmp/model.tar", "rb");
+   FILE* fd = fopen("tmp/model.tar.gz", "rb");
    if ( NULL != fd )
    {
       s_bufferModelSettingsLength = fread(s_bufferModelSettings, 1, 2000, fd);
@@ -192,7 +193,7 @@ void populate_model_settings_buffer()
    else
       log_error_and_alarm("Failed to load vehicle configuration from file: model.tar");
 
-   hw_execute_bash_command("rm -rf tmp/model.tar", NULL);
+   hw_execute_bash_command("rm -rf tmp/model.tar*", NULL);
    hw_execute_bash_command("rm -rf tmp/model.mdl", NULL); 
 }
 
@@ -212,7 +213,7 @@ void send_model_settings_to_controller()
 
    static u32 s_uCommandsSettingsParamsUniqueCounter = 0;
    s_uCommandsSettingsParamsUniqueCounter++;
-   u32 uStartFlag = 0xFFFFFFFF;
+   u32 uStartFlag = 0xFFFFFFF0; // tar gzip format
    u8 uFlags = 0;
 
    t_packet_header PH;
@@ -484,7 +485,7 @@ void setCommandReplyBufferExtra(u8* pData, int length, u8* pExtra, int extra)
 }
 
  
-void sendCommandReply(u8 responseFlags, int delayMiliSec)
+void sendCommandReply(u8 responseFlags, int iResponseExtraParam, int delayMiliSec)
 {
    if ( lastRecvCommandType & COMMAND_TYPE_FLAG_NO_RESPONSE_NEEDED )
       return;
@@ -504,7 +505,7 @@ void sendCommandReply(u8 responseFlags, int delayMiliSec)
    PHCR.origin_command_counter = lastRecvCommandNumber;
    PHCR.origin_command_resend_counter = lastRecvCommandResendCounter;
    PHCR.command_response_flags = lastRecvCommandResponseFlags;
-   PHCR.command_response_param = 0;
+   PHCR.command_response_param = iResponseExtraParam;
    PHCR.response_counter = s_CurrentResponseCounter;
    
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -608,7 +609,7 @@ bool _process_file_download_request( u8* pBuffer, int length)
    }
 
    setCommandReplyBuffer((u8*)&PHDFInfo, sizeof(PHDFInfo));
-   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
    return true;
 }
 
@@ -645,7 +646,7 @@ bool _process_file_segment_download_request( u8* pBuffer, int length)
 
    lastRecvCommandType &= ~COMMAND_TYPE_FLAG_NO_RESPONSE_NEEDED;
    setCommandReplyBuffer(buffer, 1117+sizeof(u32));
-   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
    return true;
 }
 
@@ -694,7 +695,7 @@ bool _process_file_segment_upload_request( u8* pBuffer, int length)
    if ( lastRecvCommandNumber <= s_InfoLastFileUploaded.uLastCommandIdForThisFile )
    {
       setCommandReplyBuffer(NULL, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
@@ -727,7 +728,7 @@ bool _process_file_segment_upload_request( u8* pBuffer, int length)
          {
             s_InfoLastFileUploaded.uLastFileId = MAX_U32;
             setCommandReplyBuffer(NULL, 0);
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
             return true;
          }
 
@@ -740,7 +741,7 @@ bool _process_file_segment_upload_request( u8* pBuffer, int length)
    {
       s_InfoLastFileUploaded.uLastFileId = MAX_U32;
       setCommandReplyBuffer(NULL, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return true;
    }
 
@@ -777,7 +778,7 @@ bool _process_file_segment_upload_request( u8* pBuffer, int length)
    }
 
    setCommandReplyBuffer(NULL, 0);
-   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+   sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
    return true;
 }
 
@@ -810,7 +811,7 @@ bool process_command(u8* pBuffer, int length)
          sprintf(szComm, "rm -rf %s", FILE_ENCRYPTION_PASS);
          hw_execute_bash_command(szComm, NULL);
          rpp(); 
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
          g_pCurrentModel->enc_flags = flags;
          saveCurrentModel();
@@ -821,13 +822,13 @@ bool process_command(u8* pBuffer, int length)
       FILE* fd = fopen(FILE_ENCRYPTION_PASS, "w");
       if ( NULL == fd )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
       fwrite(pData, 1, len, fd);
       fclose(fd);
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       g_pCurrentModel->enc_flags = flags;
       saveCurrentModel();
@@ -839,7 +840,7 @@ bool process_command(u8* pBuffer, int length)
    {
       for( int i=0; i<5; i++ )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
          hardware_sleep_ms(50);
       }
       hardware_sleep_ms(200);
@@ -874,7 +875,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_CLEAR_LOGS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       //hw_execute_bash_command_raw("rm -rf logs/* &", NULL);
       system("rm -rf logs/* &");
       log_line("Deleted all logs. Parameter: %d", (int)uCommandParam);
@@ -885,7 +886,7 @@ bool process_command(u8* pBuffer, int length)
    {
       if ( iParamsLength != sizeof(type_relay_parameters) )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
       type_relay_parameters* params = (type_relay_parameters*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
@@ -893,7 +894,7 @@ bool process_command(u8* pBuffer, int length)
 
       saveCurrentModel();
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 10);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 10);
       signalReloadModel(MODEL_CHANGED_RELAY_PARAMS, 0);
       return true;
    }
@@ -904,7 +905,7 @@ bool process_command(u8* pBuffer, int length)
       strcpy(szBuff, "Done info");
       log_line("Sending back SiK info, %d bytes", strlen(szBuff)+1);
       setCommandReplyBuffer((u8*)szBuff, strlen(szBuff)+1);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, replyDelay);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, replyDelay);
       return true;
    }
 
@@ -958,14 +959,14 @@ bool process_command(u8* pBuffer, int length)
          log_line("Core plugin %d: [%s]-[%s]: [%s]-[%s], enabled: %d", i+1, szName, szGUID, pSettings->szName, pSettings->szGUID, pSettings->iEnabled);
       }
       setCommandReplyBuffer((u8*)&response, sizeof(command_packet_core_plugins_response));
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_OVERCLOCKING_PARAMS )
    {
       command_packet_overclocking_params* params = (command_packet_overclocking_params*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->iFreqARM = params->freq_arm;
       g_pCurrentModel->iFreqGPU = params->freq_gpu;
       g_pCurrentModel->iOverVoltage = params->overvoltage;
@@ -977,7 +978,8 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_RESET_CPU_SPEED )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      #ifdef HW_PLATFORM_RASPBERRY
       int board_type = hardware_detectBoardType();
       g_pCurrentModel->iFreqARM = 900;
       if ( board_type == BOARD_TYPE_PIZERO2 )
@@ -994,6 +996,7 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->iOverVoltage = 3;
       saveCurrentModel();
       save_config_file();
+      #endif
       return true;
    }
 
@@ -1003,112 +1006,140 @@ bool process_command(u8* pBuffer, int length)
       char szOutput[1500];
       szBuffer[0] = 0;
 
-      strcpy(szBuffer, "Modules versions: #");
-
-      hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, "ruby_start: ");
-      strcat(szBuffer, szOutput);
-
-      hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_vehicle: ");
-      strcat(szBuffer, szOutput);
-
-      hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rt_vehicle: ");
-      strcat(szBuffer, szOutput);
-
-      hw_execute_bash_command_raw_silent("./ruby_rx_commands -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rx_commands: ");
-      strcat(szBuffer, szOutput);
-      
-      hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_tx_telemetry: ");
-      strcat(szBuffer, szOutput);
-
-      hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_rx_rc: ");
-      strcat(szBuffer, szOutput);
-
-
-      hw_execute_bash_command_raw_silent("./ruby_capture_raspi -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_capture_csi: ");
-      strcat(szBuffer, szOutput);
-
-      hw_execute_bash_command_raw_silent("./ruby_capture_veye -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      strcat(szBuffer, ", ruby_capture_veye: ");
-      strcat(szBuffer, szOutput);
-
-
-      strcat(szBuffer, " #");     
-
-      strcat(szBuffer, "USB Devices: #");
-      hw_execute_bash_command_raw("lsusb", szOutput);
-      strcat(szBuffer, szOutput);
-      /*
-      strcat(szBuffer, " #Loaded Modules: #");
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-
-      hw_execute_bash_command_raw("lsmod", szOutput);
-      int len = strlen(szOutput);
-      for( int i=0; i<len; i++ )
+      if ( 1 == uCommandParam )
       {
-         if ( szOutput[i] == 10 )
-            szOutput[i] = '#';
-         if ( szOutput[i] == 13 )
-            szOutput[i] = ' ';
+         #ifdef HW_PLATFORM_RASPBERRY
+         strcpy(szBuffer, "Platform: Raspberry Pi#");
+         #endif
+         #ifdef HW_PLATFORM_OPENIPC
+         strcpy(szBuffer, "Platform: OpenIPC#");
+         #endif
+
+         hw_execute_bash_command_raw("cat /proc/device-tree/model", szOutput);
+         strcat(szBuffer, "CPU: ");
+         strcat(szBuffer, szOutput);
+         strcat(szBuffer, "#"); 
+
+         hw_execute_bash_command_raw("free -m  | grep Mem", szOutput);
+         char szTemp[1024];
+         long lt, lu, lf;
+         sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
+         sprintf(szOutput, "%ld Mb Total, %ld Mb Used, %ld Mb Free", lt, lu, lf);
+         strcat(szBuffer, "Memory: ");
+         strcat(szBuffer, szOutput);
+         strcat(szBuffer, "#");
       }
-      strcat(szBuffer, szOutput);
-      */
+
+      if ( 0 == uCommandParam )
+      {
+         strcpy(szBuffer, "Modules versions: #");
+
+         hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, "ruby_start: ");
+         strcat(szBuffer, szOutput);
+
+         hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_vehicle: ");
+         strcat(szBuffer, szOutput);
+
+         hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_rt_vehicle: ");
+         strcat(szBuffer, szOutput);
+
+         hw_execute_bash_command_raw_silent("./ruby_rx_commands -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_rx_commands: ");
+         strcat(szBuffer, szOutput);
+         
+         hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_tx_telemetry: ");
+         strcat(szBuffer, szOutput);
+
+         hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_rx_rc: ");
+         strcat(szBuffer, szOutput);
+
+
+         hw_execute_bash_command_raw_silent("./ruby_capture_raspi -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_capture_csi: ");
+         strcat(szBuffer, szOutput);
+
+         hw_execute_bash_command_raw_silent("./ruby_capture_veye -ver", szOutput);
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         if ( strlen(szOutput)> 0 )
+         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+            szOutput[strlen(szOutput)-1] = 0;
+         strcat(szBuffer, ", ruby_capture_veye: ");
+         strcat(szBuffer, szOutput);
+
+
+         strcat(szBuffer, " #");     
+
+         strcat(szBuffer, "USB Devices: #");
+         hw_execute_bash_command_raw("lsusb", szOutput);
+         strcat(szBuffer, szOutput);
+         /*
+         strcat(szBuffer, " #Loaded Modules: #");
+
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
+
+         hw_execute_bash_command_raw("lsmod", szOutput);
+         int len = strlen(szOutput);
+         for( int i=0; i<len; i++ )
+         {
+            if ( szOutput[i] == 10 )
+               szOutput[i] = '#';
+            if ( szOutput[i] == 13 )
+               szOutput[i] = ' ';
+         }
+         strcat(szBuffer, szOutput);
+         */
+      }
+
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
@@ -1119,7 +1150,7 @@ bool process_command(u8* pBuffer, int length)
       }
       log_line("Sending back modules info, %d bytes", strlen(szBuffer)+1);
       setCommandReplyBuffer((u8*)szBuffer, strlen(szBuffer)+1);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, replyDelay);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, replyDelay);
       return true;
 
    }
@@ -1146,20 +1177,21 @@ bool process_command(u8* pBuffer, int length)
       FILE* fd = fopen("tmp/tmp_usb_info.txt", "wb");
       if ( NULL == fd )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
           return true;
       }
       fwrite(szBuff, 1, iLen1, fd );
       fclose(fd);
 
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-      hw_execute_bash_command("tar -czf tmp/tmp_usb_info.tar tmp/tmp_usb_info.txt 2>&1", NULL);
+      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
+      hw_execute_bash_command("tar -cf tmp/tmp_usb_info.tar tmp/tmp_usb_info.txt 2>&1", NULL);
+      hw_execute_bash_command("gzip tmp/tmp_usb_info.tar 2>&1", NULL);
 
-      fd = fopen("tmp/tmp_usb_info.tar", "rb");
+      fd = fopen("tmp/tmp_usb_info.tar.gz", "rb");
       if ( NULL == fd )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
           hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
           return true;       
       }
@@ -1169,17 +1201,15 @@ bool process_command(u8* pBuffer, int length)
 
       if ( iLen2 <= 0 )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
           hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
           return true;
       }
 
       log_line("Send reply of %d bytes to get USB info command.", iLen2);
       setCommandReplyBuffer((u8*)szBuff2, iLen2);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
-      //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-      //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 0);
       return true;       
    }
 
@@ -1288,20 +1318,21 @@ bool process_command(u8* pBuffer, int length)
       FILE* fd = fopen("tmp/tmp_usb_info2.txt", "wb");
       if ( NULL == fd )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
           return true;
       }
       fwrite(szBuff, 1, iLen, fd );
       fclose(fd);
 
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar 2>/dev/null", NULL);
-      hw_execute_bash_command("tar -czf tmp/tmp_usb_info2.tar tmp/tmp_usb_info2.txt 2>&1", NULL);
+      hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
+      hw_execute_bash_command("tar -cf tmp/tmp_usb_info2.tar tmp/tmp_usb_info2.txt 2>&1", NULL);
+      hw_execute_bash_command("gzip tmp/tmp_usb_info2.tar 2>&1", NULL);
 
-      fd = fopen("tmp/tmp_usb_info2.tar", "rb");
+      fd = fopen("tmp/tmp_usb_info2.tar.gz", "rb");
       if ( NULL == fd )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar 2>/dev/null", NULL);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
           hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.txt 2>/dev/null", NULL);
           return true;       
       }
@@ -1311,17 +1342,15 @@ bool process_command(u8* pBuffer, int length)
 
       if ( iLen <= 0 )
       {
-          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar 2>/dev/null", NULL);
+          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
           hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.txt 2>/dev/null", NULL);
           return true;
       }
 
       log_line("Send reply of %d bytes to get USB info command.", iLen);
       setCommandReplyBuffer((u8*)szBuff, iLen);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
-      //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-      //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 0);
       return true;       
    }
 
@@ -1351,11 +1380,11 @@ bool process_command(u8* pBuffer, int length)
          int iSize = strlen(szTemp)+1;
          memcpy((u8*)&resp[2], szTemp, iSize);
          setCommandReplyBuffer((u8*)resp, 2*sizeof(u32) + iSize);
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, replyDelay);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, replyDelay);
       }
       else
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       }
       return true;
    }
@@ -1460,6 +1489,7 @@ bool process_command(u8* pBuffer, int length)
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
+      #ifdef HW_PLATFORM_RASPBERRY
       int speed = hardware_get_cpu_speed();
       sprintf(szOutput, "%d Mhz; ", speed);
       strcat(szBuffer, szOutput);
@@ -1529,6 +1559,7 @@ bool process_command(u8* pBuffer, int length)
       strcat(szBuffer, "P: ");
       strcat(szBuffer, szOutput);
       strcat(szBuffer, "+");
+      #endif
 
       sprintf(szOutput, "TxPower Atheros: %d; ", hardware_get_radio_tx_power_atheros());
       strcat(szBuffer, szOutput);
@@ -1581,7 +1612,7 @@ bool process_command(u8* pBuffer, int length)
 
       log_line("Sending back CPU info, %d bytes", strlen(szBuffer)+1);
       setCommandReplyBuffer((u8*)szBuffer, strlen(szBuffer)+1);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, replyDelay);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, replyDelay);
       return true;
    }
 
@@ -1590,7 +1621,7 @@ bool process_command(u8* pBuffer, int length)
       log_line("Received command to rotate radio links");
 
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 10);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 10);
 
       // Tell router to reload model and do the model changes
       signalReloadModel(MODEL_CHANGED_ROTATED_RADIO_LINKS, 0);
@@ -1603,12 +1634,12 @@ bool process_command(u8* pBuffer, int length)
       if ( ! g_pCurrentModel->canSwapEnabledHighCapacityRadioInterfaces() )
       {
          for( int i=0; i<10; i++ )
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 10);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 10);
       }
       else
       {
          for( int i=0; i<20; i++ )
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 30);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 30);
 
          // Tell router to reload model and do the model changes
          signalReloadModel(MODEL_CHANGED_SWAPED_RADIO_INTERFACES, 0);
@@ -1622,13 +1653,13 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->vehicle_type |= pPHC->command_param & MODEL_TYPE_MASK;
       saveCurrentModel();
       signalReloadModel(0, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PARAMETERS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       int nCamera = uCommandParam;
       type_camera_parameters* pcpt = (type_camera_parameters*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       if ( (nCamera < 0) || (nCamera >= g_pCurrentModel->iCameraCount) )
@@ -1673,11 +1704,11 @@ bool process_command(u8* pBuffer, int length)
          return true;
 
       if ( g_pCurrentModel->isActiveCameraVeye307() && (fabs(oldParams.awbGainR - pCamParams->awbGainR) > 0.1 ) )
-         vehicle_update_camera_params(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
+         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->isActiveCameraVeye327290() )
-         vehicle_update_camera_params(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
+         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->isActiveCameraVeye307() )
-         vehicle_update_camera_params(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
+         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->hasCamera() )
       {
          if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags) & CAMERA_FLAG_AWB_MODE_OLD) )
@@ -1698,10 +1729,10 @@ bool process_command(u8* pBuffer, int length)
       memcpy(&oldCamParamsCheck, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
       if ( (pPHC->command_param < 0) || (pPHC->command_param >= MODEL_CAMERA_PROFILES) )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = pPHC->command_param;
       log_line("Switched camera %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
       saveCurrentModel();
@@ -1741,7 +1772,7 @@ bool process_command(u8* pBuffer, int length)
 
          if ( g_pCurrentModel->isActiveCameraVeye() )
          {
-            vehicle_update_camera_params(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
+            vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
             bSentUsingPipe = true;
          }
          else
@@ -1778,7 +1809,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_CURRENT_CAMERA )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       int iCam = (int)pPHC->command_param;
       if ( iCam >= 0 && iCam < g_pCurrentModel->iCameraCount )
       {
@@ -1790,16 +1821,17 @@ bool process_command(u8* pBuffer, int length)
             sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
       }
       else
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_FORCE_CAMERA_TYPE )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       int iCamT = (int)pPHC->command_param;
       if ( g_pCurrentModel->hasCamera() )
-         vehicle_stop_video_capture(g_pCurrentModel); 
+      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         vehicle_stop_video_capture_csi(g_pCurrentModel); 
       
       g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = iCamT;
       saveCurrentModel();
@@ -1835,7 +1867,7 @@ bool process_command(u8* pBuffer, int length)
       if ( ! freqIsOk )
       {
          for( int i=0; i<20; i++ )
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, i+5);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, i+5);
          log_line("Can't do the change.");
          log_current_full_radio_configuration(g_pCurrentModel);
          return true;
@@ -1845,7 +1877,7 @@ bool process_command(u8* pBuffer, int length)
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       for( int i=0; i<20; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, i+5);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, i+5);
 
       hardware_sleep_ms(40);
 
@@ -1881,7 +1913,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_RC_CAMERA_PARAMS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->camera_rc_channels = pPHC->command_param;
       saveCurrentModel();
       signalReloadModel(0, 0);
@@ -1891,7 +1923,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_FUNCTIONS_TRIGGERS_PARAMS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       type_functions_parameters* params = (type_functions_parameters*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       memcpy(&(g_pCurrentModel->functions_params), params, sizeof(type_functions_parameters));
 
@@ -1902,7 +1934,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_SIK_PACKET_SIZE )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioLinksParams.iSiKPacketSize = (int)pPHC->command_param;
       signalReloadModel(MODEL_CHANGED_SIK_PACKET_SIZE, (u8) g_pCurrentModel->radioLinksParams.iSiKPacketSize);
       return true;
@@ -1914,10 +1946,10 @@ bool process_command(u8* pBuffer, int length)
       int cardType = ((int)(((pPHC->command_param) >> 8) & 0xFF)) - 128;
       if ( cardIndex < 0 || cardIndex >= g_pCurrentModel->radioInterfacesParams.interfaces_count )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioInterfacesParams.interface_card_model[cardIndex] = cardType;
       saveCurrentModel();
       signalReloadModel(0, 0);
@@ -1934,10 +1966,10 @@ bool process_command(u8* pBuffer, int length)
       log_line("Set radio link nb.%d capabilities flags to %d: %s", linkIndex+1, flags, szBuffC);
       if ( linkIndex < 0 || linkIndex >= g_pCurrentModel->radioLinksParams.links_count )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       bool bOnlyVideoDataChanged = false;
       if ( (flags & (~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA)) ) ==
@@ -1956,7 +1988,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_MODEL_FLAGS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       bool bHadServiceLog = (g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE)?true:false;
       g_pCurrentModel->uModelFlags = pPHC->command_param;
       if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE )
@@ -1985,7 +2017,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_RXTX_SYNC_TYPE )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->rxtx_sync_type = pPHC->command_param;
       saveCurrentModel();
       signalReloadModel(0, 0);
@@ -1998,7 +2030,7 @@ bool process_command(u8* pBuffer, int length)
       if ( (linkIndex < 0) || (linkIndex >= (u32)g_pCurrentModel->radioLinksParams.links_count) )
       {
          log_error_and_alarm("Invalid link index received in command: link %d (%d radio links on vehicle)", (int)linkIndex+1, g_pCurrentModel->radioLinksParams.links_count);
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
 
@@ -2023,9 +2055,9 @@ bool process_command(u8* pBuffer, int length)
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_RESET_RADIO_LINK, linkIndex);
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 2);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 2);
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 5);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 5);
       return true;
    }
    
@@ -2033,7 +2065,7 @@ bool process_command(u8* pBuffer, int length)
    {
       if ( iParamsLength != (int)(2*sizeof(u32)+2*sizeof(int)) )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0, 0);
          return true;
       }
       u32* pData = (u32*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
@@ -2049,7 +2081,7 @@ bool process_command(u8* pBuffer, int length)
       if ( (linkIndex < 0) || (linkIndex >= (u32)g_pCurrentModel->radioLinksParams.links_count) )
       {
          log_error_and_alarm("Invalid link index received in command: link %d (%d radio links on vehicle)", (int)linkIndex+1, g_pCurrentModel->radioLinksParams.links_count);
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
 
@@ -2078,9 +2110,9 @@ bool process_command(u8* pBuffer, int length)
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS, linkIndex);
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 2);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 2);
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 5);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 5);
 
       return true;
    }
@@ -2090,7 +2122,7 @@ bool process_command(u8* pBuffer, int length)
       int linkId = (int)(pPHC->command_param);
       log_line("Received radio link flags change confirmation from controller for link %d.", linkId+1);
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       g_TimeLastSetRadioLinkFlagsStartOperation = 0;
       s_bWaitForRadioFlagsChangeConfirmation = false;
@@ -2105,14 +2137,14 @@ bool process_command(u8* pBuffer, int length)
    {
       if ( iParamsLength != (int)(sizeof(type_radio_links_parameters)) )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0, 0);
          return true;
       }
       int iRadioLink = pPHC->command_param;
       u32* pData = (u32*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       log_line("Received command that radio datarates have been modified for radio link %d.", iRadioLink+1);
       memcpy(&g_pCurrentModel->radioLinksParams, pData, sizeof(type_radio_links_parameters));
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       log_line("Received new radio data rates for link %d: v: %d, d: %d/%d, u: %d/%d",
             iRadioLink+1, g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink],
@@ -2132,7 +2164,7 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_RESET_ALL_TO_DEFAULTS )
    {
       for( int i=0; i<20; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 10+i);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 10+i);
       for( int i=0; i<5; i++ )
          hardware_sleep_ms(400);
 
@@ -2167,7 +2199,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->telemetry_params.bControllerHasOutputTelemetry = (pPHC->command_param & 0x01)?true:false;
       g_pCurrentModel->telemetry_params.bControllerHasInputTelemetry = (pPHC->command_param & 0x02)?true:false;
       saveCurrentModel();
@@ -2177,7 +2209,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_GPS_INFO )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->iGPSCount = (int) pPHC->command_param;
       saveCurrentModel();
       signalReloadModel(0, 0);
@@ -2186,7 +2218,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_AUDIO_PARAMS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       audio_parameters_t* params = (audio_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       bool bHasAudioDevice = g_pCurrentModel->audio_params.has_audio_device;
       memcpy(&(g_pCurrentModel->audio_params), params, sizeof(audio_parameters_t));
@@ -2199,7 +2231,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_VIDEO_PARAMS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       video_parameters_t* params = (video_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       video_parameters_t oldParams;
@@ -2335,7 +2367,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_RESET_VIDEO_LINK_PROFILE )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->resetVideoLinkProfiles(g_pCurrentModel->video_params.user_selected_video_link_profile);
       saveCurrentModel();
       signalTXVideoEncodingChanged();
@@ -2344,7 +2376,7 @@ bool process_command(u8* pBuffer, int length)
    
    if ( uCommandType == COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       type_video_link_profile oldVideoProfiles[MAX_VIDEO_LINK_PROFILES];
       memcpy(&(oldVideoProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
@@ -2484,7 +2516,7 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization = - g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization;
       log_line("Received command to set h264 quantization to: %d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization);
       saveCurrentModel();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalReloadModel(MODEL_CHANGED_VIDEO_H264_QUANTIZATION, 0);
       return true;
    }
@@ -2500,7 +2532,7 @@ bool process_command(u8* pBuffer, int length)
 
       saveCurrentModel();
       log_line("Saved new OSD params, current layout: %d, enabled: %s", nOSDIndex, (g_pCurrentModel->osd_params.osd_flags2[nOSDIndex] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalReloadModel(MODEL_CHANGED_OSD_PARAMS, 0);
       return true;
    }
@@ -2515,7 +2547,7 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->alarms_params.uAlarmMotorCurrentThreshold & 0x7F );
 
       saveCurrentModel();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalReloadModel(0, 0);
       return true;
    }
@@ -2541,16 +2573,16 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_SERIAL_PORTS_INFO )
    {
       log_line("Received new serial ports info");
-      model_hardware_info_t* pNewInfo = (model_hardware_info_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      g_pCurrentModel->hardware_info.serial_bus_count = pNewInfo->serial_bus_count;
+      type_vehicle_hardware_interfaces_info* pNewInfo = (type_vehicle_hardware_interfaces_info*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
+      g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count = pNewInfo->serial_bus_count;
       for( int i=0; i<pNewInfo->serial_bus_count; i++ )
       {
-         strcpy(g_pCurrentModel->hardware_info.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
-         g_pCurrentModel->hardware_info.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
-         g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
+         strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
+         g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
+         g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
       }
 
-      int iCount = g_pCurrentModel->hardware_info.serial_bus_count;
+      int iCount = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count;
       if ( iCount > hardware_get_serial_ports_count() )
          iCount = hardware_get_serial_ports_count();
 
@@ -2563,25 +2595,25 @@ bool process_command(u8* pBuffer, int length)
             continue;
 
          if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
-         if ( pPortInfo->lPortSpeed != g_pCurrentModel->hardware_info.serial_bus_speed[i] )
+         if ( pPortInfo->lPortSpeed != g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] )
          if ( hardware_serial_is_sik_radio(pPortInfo->szPortDeviceName) )
          {
             // Changed the serial speed of a SiK radio interface
             log_line("Received command to change the serial speed of a SiK radio interface. Serial port: [%s], old speed: %ld bps, new speed: %d bps",
                pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed,
-               g_pCurrentModel->hardware_info.serial_bus_speed[i] );
+               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] );
             iSikPortSpeedToUse = (int)pPortInfo->lPortSpeed;
             iSiKPortToUpdate = i;
          }
 
-         pPortInfo->lPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
-         pPortInfo->iPortUsage = (int)(g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF);
+         pPortInfo->lPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
+         pPortInfo->iPortUsage = (int)(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF);
       }
       hardware_serial_save_configuration();
 
       saveCurrentModel();
       for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 20);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 20);
 
       signalReloadModel(MODEL_CHANGED_SERIAL_PORTS, 0);
       
@@ -2628,7 +2660,7 @@ bool process_command(u8* pBuffer, int length)
       log_line("Received telemetry params %d bytes, expected %d bytes", iParamsLength, sizeof(telemetry_parameters_t));
       memcpy(&g_pCurrentModel->telemetry_params, params, sizeof(telemetry_parameters_t));
       saveCurrentModel();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       //vehicle_stop_tx_telemetry();
       //vehicle_launch_tx_telemetry(g_pCurrentModel);
       signalReloadModel(0, 0);
@@ -2639,7 +2671,7 @@ bool process_command(u8* pBuffer, int length)
    {
       for( int i=0; i<10; i++ )
       {
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
          hardware_sleep_ms(10);
       }
       hardware_sleep_ms(400);
@@ -2653,7 +2685,7 @@ bool process_command(u8* pBuffer, int length)
       strcpy(g_pCurrentModel->vehicle_name, szName);
       saveCurrentModel();
       signalReloadModel(0, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
@@ -2674,13 +2706,13 @@ bool process_command(u8* pBuffer, int length)
       else
       {
          log_error_and_alarm("Failed to save received vehicle configuration to file: %s", FILE_CURRENT_VEHICLE_MODEL);
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
          
       u32 vid = g_pCurrentModel->vehicle_id;
       u32 ctrlId = g_pCurrentModel->controller_id;
-      int boardType = g_pCurrentModel->board_type;
+      int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
       bool bDev = g_pCurrentModel->bDeveloperMode;
       u8 cameraType = g_pCurrentModel->camera_type;
 
@@ -2717,13 +2749,13 @@ bool process_command(u8* pBuffer, int length)
       }
       g_pCurrentModel->vehicle_id = vid;
       g_pCurrentModel->controller_id = ctrlId;
-      g_pCurrentModel->board_type = boardType;
+      g_pCurrentModel->hwCapabilities.iBoardType = boardType;
       g_pCurrentModel->bDeveloperMode = bDev;
       g_pCurrentModel->camera_type = cameraType;
 
       g_pCurrentModel->audio_params.has_audio_device = bHasAudioDevice;
 
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
 
@@ -2915,35 +2947,36 @@ bool process_command(u8* pBuffer, int length)
 
       if ( bNewZIPCommand )
       {
-         hw_execute_bash_command("rm -rf tmp/model.tar 2>/dev/null", NULL);
+         hw_execute_bash_command("rm -rf tmp/model.tar* 2>/dev/null", NULL);
          hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
          sprintf(szBuff, "cp -rf %s tmp/model.mdl 2>/dev/null", FILE_CURRENT_VEHICLE_MODEL);
          hw_execute_bash_command(szBuff, NULL);
-         hw_execute_bash_command("tar -czf tmp/model.tar tmp/model.mdl 2>&1", NULL);
+         hw_execute_bash_command("tar -cf tmp/model.tar tmp/model.mdl 2>&1", NULL);
+         hw_execute_bash_command("gzip tmp/model.tar 2>&1", NULL);
 
          s_ZIPParams_Model_BufferLength = 0;
-         FILE* fd = fopen("tmp/model.tar", "rb");
+         FILE* fd = fopen("tmp/model.tar.gz", "rb");
          if ( NULL != fd )
          {
             s_ZIPParams_Model_BufferLength = fread(s_ZIPParams_Model_Buffer, 1, 2500, fd);
             fclose(fd);
          }
          else
-            log_error_and_alarm("Failed to load current vehicle configuration from file: model.tar");
+            log_error_and_alarm("Failed to load current vehicle configuration from file: model.tar.gz");
 
-         hw_execute_bash_command("rm -rf tmp/model.tar", NULL);
+         hw_execute_bash_command("rm -rf tmp/model.tar*", NULL);
          hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
 
          if ( 0 == s_ZIPParams_Model_BufferLength || s_ZIPParams_Model_BufferLength > MAX_PACKET_PAYLOAD )
          {
             log_softerror_and_alarm("Invalid compressed model file size (%d). Skipping sending it to controller.", s_ZIPParams_Model_BufferLength); 
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
             return true;
          }
       }
 
       setCommandReplyBuffer(s_ZIPParams_Model_Buffer, s_ZIPParams_Model_BufferLength);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 20);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 20);
       log_line("Sent back to router all model settings in one single command response. Total compressed size: %d bytes", s_ZIPParams_Model_BufferLength);
       
       if ( bSendBackSmallSegments )
@@ -2970,7 +3003,7 @@ bool process_command(u8* pBuffer, int length)
             uSegment[3] = iSize;
             memcpy( &(uSegment[4]), s_ZIPParams_Model_Buffer + iPos, iSize);
             setCommandReplyBuffer(uSegment, iSize+4);
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 20);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 20);
             log_line("Sent back to router model settings command response as small segment (%d of %d) size: %d bytes",
                iSegment+1, iCountSegments, iSize);             
             iSegment++;
@@ -3004,14 +3037,14 @@ bool process_command(u8* pBuffer, int length)
       length++;
 
       setCommandReplyBuffer(buffer, length);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
 
    if ( uCommandType == COMMAND_ID_SET_TX_POWERS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
       u8 txPowerGlobal = *pData;
       pData++;
@@ -3145,7 +3178,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_RADIO_SLOTTIME )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioInterfacesParams.slotTime = pPHC->command_param;
       saveCurrentModel();
       //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/slottime=[0-9]*/slottime=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
@@ -3155,7 +3188,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_RADIO_THRESH62 )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioInterfacesParams.thresh62 = pPHC->command_param;
       saveCurrentModel();
       //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/thresh62=[0-9]*/thresh62=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
@@ -3165,7 +3198,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_ENABLE_DHCP)
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->enableDHCP = (bool)(pPHC->command_param);
       saveCurrentModel();
       hardware_mount_boot();
@@ -3185,7 +3218,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_RC_PARAMS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       rc_parameters_t* params = (rc_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       memcpy(&g_pCurrentModel->rc_params, params, sizeof(rc_parameters_t));
       log_dword("Received RC flags: ", g_pCurrentModel->rc_params.flags);
@@ -3197,7 +3230,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_NICE_VALUE_TELEMETRY )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->niceTelemetry = ((int)((pPHC->command_param) % 256))-20;
       if ( g_pCurrentModel->niceTelemetry < -16 )
          g_pCurrentModel->niceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
@@ -3211,7 +3244,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_NICE_VALUES )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->niceVideo = ((int)((pPHC->command_param) % 256))-20;
       g_pCurrentModel->niceOthers = ((int)(((pPHC->command_param)>>8) % 256))-20;
       g_pCurrentModel->niceRouter = ((int)(((pPHC->command_param)>>16) % 256))-20;
@@ -3228,7 +3261,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_IONICE_VALUES )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->ioNiceVideo = ((int)((pPHC->command_param)%256))-20;
       g_pCurrentModel->ioNiceRouter = ((int)(((pPHC->command_param)>>8)%256))-20;
       log_line("Received io nice values: video: %d, router: %d", g_pCurrentModel->ioNiceVideo, g_pCurrentModel->ioNiceRouter);
@@ -3243,13 +3276,13 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command_raw("top -bn1 | grep -A 1 'CPU\\|ruby\\|raspi'", szOutput);
       log_line("TOP output: %s", szOutput);
       setCommandReplyBuffer((u8*)szOutput, strlen(szOutput)+1);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_ENABLE_DEBUG )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->bDeveloperMode = (bool)(pPHC->command_param);
       saveCurrentModel();
       hardware_sleep_ms(50);
@@ -3260,7 +3293,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_DEVELOPER_FLAGS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->uDeveloperFlags = pPHC->command_param;
 
       u8* pExtraData = (pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
@@ -3284,7 +3317,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_ENABLE_LIVE_LOG )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       if ( 0 != pPHC->command_param )
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LIVE_LOG;
       else
@@ -3303,7 +3336,7 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS )
    {
       for( int i=0; i<20; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 20);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 20);
 
       g_pCurrentModel->uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
 
@@ -3327,28 +3360,28 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalForceVideoProfile(VIDEO_PROFILE_LQ);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalForceVideoProfile(VIDEO_PROFILE_MQ);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_NORMAL )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalForceVideoProfile(0xFF);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       signalForceVideoProfile(0xFF);
       return true;
    }
@@ -3393,7 +3426,7 @@ void on_received_command(u8* pBuffer, int length)
          {
             log_line("Resending command response, for command id: %d", lastRecvCommandNumber);
             lastRecvCommandResendCounter = pPHC->command_resend_counter;
-            sendCommandReply(lastRecvCommandResponseFlags, 0);
+            sendCommandReply(lastRecvCommandResponseFlags, 0, 0);
          }
       }
       else if (pPHC->command_counter > 1 )
@@ -3416,7 +3449,7 @@ void on_received_command(u8* pBuffer, int length)
    //log_line_commands("Received command (current vehicle UID: %u) nb.%d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->vehicle_id, pPHC->command_counter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
    if ( ! process_command(pBuffer, length) )
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_UNKNOWN_COMMAND, 0); 
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_UNKNOWN_COMMAND, 0, 0); 
    //log_line("Finished processing command.");   
 }
 

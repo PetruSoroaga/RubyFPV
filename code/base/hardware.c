@@ -2024,6 +2024,25 @@ void hardware_mount_boot()
    #endif
 }
 
+int hardware_get_free_space_kb()
+{
+   char szOutput[2048];
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
+      return -1;
+   #else
+   if ( 1 != hw_execute_bash_command_raw("df .", szOutput) )
+      return -1;
+   #endif
+
+   char szTemp[1024];
+   long lb = 0, lu = 0, lf = 0;
+   sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
+
+   return (int)lf;
+}
+
 int hardware_has_eth()
 {
    int nHasETH = 1;

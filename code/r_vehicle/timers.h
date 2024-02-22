@@ -37,8 +37,6 @@ extern u32 g_TimeRadioReinitialized;
 extern u32 g_TimeLastPacketsOutPerSecCalculation;
 extern u32 g_TimeLastVideoCaptureProgramStartCheck;
 extern u32 g_TimeLastVideoCaptureProgramRunningCheck;
-extern u32 g_TimeStartRaspiVid;
-extern u32 g_TimeToRestartVideoCapture;
 
 extern u32 g_InterfacesTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
 extern u32 g_InterfacesVideoTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
@@ -56,3 +54,5 @@ extern u32 g_TimeLastNotificationRelayParamsChanged;
 extern u32 g_uTimeLastCommandSowftwareUpload;
 
 extern u32 g_uTimeLastVideoTxOverload;
+
+extern u32 g_uTimeToSaveCameraParams;

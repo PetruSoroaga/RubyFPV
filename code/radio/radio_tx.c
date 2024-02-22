@@ -196,8 +196,8 @@ static void * _thread_radio_tx(void *argument)
    while ( 1 )
    {
       hardware_sleep_ms(uWaitTime);
-      if ( uWaitTime < 50 )
-         uWaitTime += 10;
+      if ( uWaitTime < 30 )
+         uWaitTime += 5;
       
       if ( (NULL != piQuit) && (*piQuit != 0 ) )
       {
@@ -212,8 +212,6 @@ static void * _thread_radio_tx(void *argument)
       if ( iIPCLength <= 2 )
          continue;
       
-      uWaitTime = 1;
-
       if ( iIPCLength > MAX_PACKET_TOTAL_SIZE )
       {
          log_softerror_and_alarm("[RadioTx] Read IPC message too big (%d bytes), skipping it.", iIPCLength);
@@ -234,6 +232,8 @@ static void * _thread_radio_tx(void *argument)
          log_softerror_and_alarm("[RadioTx] Read IPC message for radio interface %d which is not a serial radio, skipping it.", ipcMessage.type+1);
          continue;
       }
+
+      uWaitTime = 1;
 
       _radio_tx_send_msg(ipcMessage.type, (u8*)ipcMessage.data, iIPCLength);
       
@@ -324,7 +324,9 @@ void radio_tx_resume_radio_interface(int iRadioInterfaceIndex)
 {
    if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
-   s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]--;
+
+   if ( s_iRadioTxInterfacesPaused[iRadioInterfaceIndex] > 0 )
+      s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]--;
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
 

@@ -161,6 +161,12 @@ long compute_file_sizes()
 
    lTotalSize += lSize;
 
+   lSize = get_filesize("ruby_update");
+   if ( -1 == lSize )
+      return -1;    
+
+   lTotalSize += lSize;
+
    lSize = get_filesize("ruby_rt_vehicle");
    if ( -1 == lSize )
       return -1;    
@@ -304,6 +310,12 @@ int main(int argc, char *argv[])
    }
    if ( ! bValidZip )
    {
+      char szOutput[4096];
+      szOutput[0] = 0;
+      sprintf(szComm, "ls %s/tmpUpdate/", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, szOutput);
+      log_line("Content of tmp update folder:");
+      log_line("[%s]", szOutput);
       log_line("Found zip archive with no valid update info file (missing update file: [%s]). Ignoring it.", szFile);
       _write_return_code(-10);
       return -1;
@@ -382,16 +394,9 @@ int main(int argc, char *argv[])
       _write_return_code(-3);
       return -1;    
    }
-
+   
    log_line("Files updated. Before files size: %d bytes, after files size: %d bytes", lSizeBefore, lSizeAfter);
 
-   if ( lSizeBefore == lSizeAfter )
-   {
-      log_error_and_alarm("Failed to do update: can't write files: files sizes before is the same as after.");
-      _write_return_code(-4);
-      return -1;    
-   }
-   
    if( access( "ruby_update", R_OK ) != -1 )
    {
       hw_execute_bash_command("./ruby_update -pre", NULL);
@@ -408,6 +413,13 @@ int main(int argc, char *argv[])
       log_line("Update controller finished.");
    else
       log_line("Update vehicle finished.");
+
+   if ( lSizeBefore == lSizeAfter )
+   {
+      log_error_and_alarm("Failed to do update: can't write files: files sizes before is the same as after.");
+      _write_return_code(-4);
+      return -1;    
+   }
      
    _write_return_code(0);
    return (0);

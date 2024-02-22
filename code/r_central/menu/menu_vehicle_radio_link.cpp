@@ -672,17 +672,58 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
    PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
-   PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(type_radio_links_parameters);
+   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
 
    u8 buffer[1024];
+   static int s_iMenuRadioLinkTestNumberCount = 0;
+   s_iMenuRadioLinkTestNumberCount++;
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = 1;
-   buffer[sizeof(t_packet_header)+1] = (u8)iRadioLink;
-   memcpy(buffer + sizeof(t_packet_header) + 2*sizeof(u8), &newRadioLinkParams, sizeof(type_radio_links_parameters));
+   buffer[sizeof(t_packet_header)] = (u8)iRadioLink;
+   buffer[sizeof(t_packet_header)+1] = (u8)s_iMenuRadioLinkTestNumberCount;
+   buffer[sizeof(t_packet_header)+2] = 1;
+   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8), &newRadioLinkParams, sizeof(type_radio_links_parameters));
    send_packet_to_router(buffer, PH.total_length);
 
    link_set_is_reconfiguring_radiolink(m_iRadioLink);
    warnings_add_configuring_radio_link(m_iRadioLink, "Updating Radio Link");
+}
+
+void MenuVehicleRadioLink::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz)
+{
+   if ( (iVehicleLinkIndex < 0) || (iVehicleLinkIndex >= MAX_RADIO_INTERFACES) )
+      return;
+
+   log_line("MenuVehicleRadioLink: Changing radio link %d frequency to %u khz (%s)", iVehicleLinkIndex+1, uNewFreqKhz, str_format_frequency(uNewFreqKhz));
+
+   type_radio_links_parameters newRadioLinkParams;
+   memcpy((u8*)&newRadioLinkParams, (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
+   
+   newRadioLinkParams.link_frequency_khz[iVehicleLinkIndex] = uNewFreqKhz;
+   
+   if ( 0 == memcmp((u8*)&newRadioLinkParams, (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters)) )
+   {
+      log_line("MenuVehicleRadioLink: No change in radio link frequency. Do not send command.");
+      return;
+   }
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
+
+   u8 buffer[1024];
+   static int s_iMenuRadioLinkTestNumberCount2 = 0;
+   s_iMenuRadioLinkTestNumberCount2++;
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = (u8)iVehicleLinkIndex;
+   buffer[sizeof(t_packet_header)+1] = (u8)s_iMenuRadioLinkTestNumberCount2;
+   buffer[sizeof(t_packet_header)+2] = 1;
+   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8), &newRadioLinkParams, sizeof(type_radio_links_parameters));
+   send_packet_to_router(buffer, PH.total_length);
+
+   link_set_is_reconfiguring_radiolink(iVehicleLinkIndex);
+   warnings_add_configuring_radio_link(iVehicleLinkIndex, "Changing Frequency");
 }
 
 void MenuVehicleRadioLink::onSelectItem()
@@ -771,15 +812,21 @@ void MenuVehicleRadioLink::onSelectItem()
          add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 0, true));
       }
 
-      u32 param = freq & 0xFFFFFF;
-      param = param | (((u32)m_iRadioLink)<<24) | 0x80000000; // Highest bit set to 1 to mark the new format of the param
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_FREQUENCY, param, NULL, 0) )
-         valuesToUI();
-      else
+      if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) < 8) ||
+           ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && ((g_pCurrentModel->sw_version & 0xFF) <= 20) ) )
       {
-         link_set_is_reconfiguring_radiolink(m_iRadioLink, false, false, false);
-         warnings_add_configuring_radio_link(m_iRadioLink, "Changing frequency");
+         u32 param = freq & 0xFFFFFF;
+         param = param | (((u32)m_iRadioLink)<<24) | 0x80000000; // Highest bit set to 1 to mark the new format of the param
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_FREQUENCY, param, NULL, 0) )
+            valuesToUI();
+         else
+         {
+            link_set_is_reconfiguring_radiolink(m_iRadioLink, false, false, false);
+            warnings_add_configuring_radio_link(m_iRadioLink, "Changing frequency");
+         }
       }
+      else
+         sendNewRadioLinkFrequency(m_iRadioLink, freq);
       return;
    }
 

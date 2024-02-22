@@ -683,7 +683,7 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
          iMaxRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
    }
 
-   // If the user selected video profile has a set radio datarate, use it
+   // If the user's selected video profile has a set radio datarate, use it
 
    if ( 0 != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
    {
@@ -691,6 +691,7 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
       iMaxRadioDataRate = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
    }
 
+   // If the MQ video profile has a fixed datarate instead of auto, return it.
    int iDataRate = pModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps;
    if ( iDataRate != 0 )
    {
@@ -699,6 +700,7 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
       return iDataRate;
    }
 
+   // For legacy radio data rates, return a lower legacy radio data rate
    if ( iMaxRadioDataRate > 0 )
    {
       if ( getRealDataRateFromRadioDataRate(iMaxRadioDataRate) > 12000000 )
@@ -707,6 +709,8 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
          return 9000000;
       return 6000000;
    }
+
+   // For MCS data rates, return a lower MCS data rate
    iDataRate = iMaxRadioDataRate;
    if ( iDataRate < -1 )
       iDataRate++;
@@ -735,7 +739,7 @@ int utils_get_video_profile_lq_radio_datarate(Model* pModel)
          iMaxRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
    }
 
-   // If the user selected video profile has a set radio datarate, use it
+   // If the user's selected video profile has a set radio datarate, use it
 
    if ( 0 != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
    {
@@ -743,6 +747,7 @@ int utils_get_video_profile_lq_radio_datarate(Model* pModel)
       iMaxRadioDataRate = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
    }
 
+   // If the LQ video profile has a fixed datarate instead of auto, return it.
    int iDataRate = pModel->video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps;
    if ( iDataRate != 0 )
    {
@@ -751,8 +756,11 @@ int utils_get_video_profile_lq_radio_datarate(Model* pModel)
       return iDataRate;
    }
 
+   // For legacy radio data rates, return the lowest legacy radio data rate
    if ( iMaxRadioDataRate > 0 )
       return 6000000;
+
+   // For MCS data rates, return the lowest MCS data rate (MCS-0 = -1)
    return -1;
 }
 
@@ -862,7 +870,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 {
    if ( uFrequencyKhz <= 0 )
    {
-      log_softerror_and_alarm("Skipping setting card (%d) due to invalid uFrequencyKhz 0.", iRadioIndex);
+      log_softerror_and_alarm("Skipping setting card (%d) due to invalid uFrequencyKhz 0.", iRadioIndex+1);
       return false;
    }
 
@@ -884,13 +892,13 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 
    if ( -1 == iRadioIndex )
    {
-      log_line("Setting all radio interfaces to frequency %s (guard interval: %d ms) for model radio link %d", str_format_frequency(uFrequencyKhz), (int)delayMs, iAssignedModelRadioLink);
+      log_line("Setting all radio interfaces to frequency %s (guard interval: %d ms) for model radio link %d", str_format_frequency(uFrequencyKhz), (int)delayMs, iAssignedModelRadioLink+1);
       strcpy(szInfo, "all radio interfaces");
    }
    else
    {
       radio_hw_info_t* pRadioInfo2 = hardware_get_radio_info(iRadioIndex);
-      log_line("Setting radio interface %d (%s, %s) to frequency %s (freq for wifi: %u) (guard interval: %d ms) for model radio link %d", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver), str_format_frequency(uFrequencyKhz), uFreqWifi, (int)delayMs, iAssignedModelRadioLink);
+      log_line("Setting radio interface %d (%s, %s) to frequency %s (freq for wifi: %u) (guard interval: %d ms) for model radio link %d", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver), str_format_frequency(uFrequencyKhz), uFreqWifi, (int)delayMs, iAssignedModelRadioLink+1);
       sprintf(szInfo, "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver));
       iStartIndex = iRadioIndex;
       iEndIndex = iRadioIndex;

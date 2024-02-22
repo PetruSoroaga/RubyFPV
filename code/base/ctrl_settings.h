@@ -57,7 +57,6 @@ typedef struct
    int nGraphVideoRefreshInterval;
    int iDisableRetransmissionsAfterControllerLinkLostMiliseconds; // 0 to disable functionality
    int iVideoDecodeStatsSnapshotClosesOnTimeout;
-   int iQAButtonRelaySwitching;
    int iFreezeOSD;
    int iDevSwitchVideoProfileUsingQAButton;
    int iShowControllerAdaptiveInfoStats;

@@ -207,15 +207,15 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    // ----------------------
    // Serial ports
 
-   sprintf(szBuff, "Serial Ports: %d found", g_pCurrentModel->hardware_info.serial_bus_count);
+   sprintf(szBuff, "Serial Ports: %d found", g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count);
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      sprintf( szBuff, "%d. %s, Usage: %s, %d bps", i+1, g_pCurrentModel->hardware_info.serial_bus_names[i], str_get_serial_port_usage((int)(g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF)), g_pCurrentModel->hardware_info.serial_bus_speed[i]);
-      if ( ( g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) ) == 0 )
-         sprintf( szBuff, "%d. %s, Unsupported!", i+1, g_pCurrentModel->hardware_info.serial_bus_names[i]);
+      sprintf( szBuff, "%d. %s, Usage: %s, %d bps", i+1, g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], str_get_serial_port_usage((int)(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF)), g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i]);
+      if ( ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) ) == 0 )
+         sprintf( szBuff, "%d. %s, Unsupported!", i+1, g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i]);
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += MENU_TEXTLINE_SPACING * height_text;
    }
@@ -232,13 +232,13 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   for( int i=0; i<g_pCurrentModel->hardware_info.i2c_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.i2c_bus_count; i++ )
    {
-      int nBusNumber = g_pCurrentModel->hardware_info.i2c_bus_numbers[i];
+      int nBusNumber = g_pCurrentModel->hardwareInterfacesInfo.i2c_bus_numbers[i];
       int count = 0;
-      for( int k=0; k<g_pCurrentModel->hardware_info.i2c_device_count; k++ )
+      for( int k=0; k<g_pCurrentModel->hardwareInterfacesInfo.i2c_device_count; k++ )
       {
-         if ( g_pCurrentModel->hardware_info.i2c_devices_bus[k] != nBusNumber )
+         if ( g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_bus[k] != nBusNumber )
             continue;
          count++;
       }
@@ -251,17 +251,17 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
       yPos += MENU_TEXTLINE_SPACING * height_text;
       
       count = 0;
-      for( int k=0; k<g_pCurrentModel->hardware_info.i2c_device_count; k++ )
+      for( int k=0; k<g_pCurrentModel->hardwareInterfacesInfo.i2c_device_count; k++ )
       {
-         if ( g_pCurrentModel->hardware_info.i2c_devices_bus[k] != nBusNumber )
+         if ( g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_bus[k] != nBusNumber )
             continue;
          char szName[128];
          szName[0] = 0;
-         hardware_get_i2c_device_name(g_pCurrentModel->hardware_info.i2c_devices_address[k], szName);
-         if ( hardware_is_known_i2c_device(g_pCurrentModel->hardware_info.i2c_devices_address[k]) )
-            sprintf(szBuff, "Address 0x%02X - %s", g_pCurrentModel->hardware_info.i2c_devices_address[k], szName);
+         hardware_get_i2c_device_name(g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_address[k], szName);
+         if ( hardware_is_known_i2c_device(g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_address[k]) )
+            sprintf(szBuff, "Address 0x%02X - %s", g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_address[k], szName);
          else
-            sprintf(szBuff, "Address 0x%02X - Unknown", g_pCurrentModel->hardware_info.i2c_devices_address[k]);
+            sprintf(szBuff, "Address 0x%02X - Unknown", g_pCurrentModel->hardwareInterfacesInfo.i2c_devices_address[k]);
          yPos += g_pRenderEngine->drawMessageLines(xPos+2*xPad, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
          count++;
       }

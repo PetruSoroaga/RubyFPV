@@ -452,21 +452,24 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
    {
       u8* pBuffer = (u8*)pPH;
-      int iMsgType = pBuffer[sizeof(t_packet_header)];
-      log_line("[TestLink] Received test link message from central. Message type: %s", str_get_packet_test_link_command(iMsgType));
-      if ( pPH->total_length != sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(type_radio_links_parameters) )
+      u8 uLink = pBuffer[sizeof(t_packet_header)];
+      int iTestNb = pBuffer[sizeof(t_packet_header)+1];
+      int iMsgType = pBuffer[sizeof(t_packet_header)+2];
+      log_line("[TestLink] Received test link message from central, run %d, link %d. Message type: %s", iTestNb, (int)uLink+1, str_get_packet_test_link_command(iMsgType));
+      if ( pPH->total_length != sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters) )
       {
          test_link_send_status_message_to_central("Invalid radio parameters.");
          test_link_send_end_message_to_central(false);
-         test_link_end_flow(false);
+         test_link_switch_to_end_flow_state(false);
+         test_link_reset_state();
          return;
       }
-      u8 uLink = pBuffer[sizeof(t_packet_header)+1];
-      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->vehicle_id, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 2*sizeof(u8)) ) )
+      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->vehicle_id, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 3*sizeof(u8)) ) )
       {
          test_link_send_status_message_to_central("Invalid radio parameters.");
          test_link_send_end_message_to_central(false);
-         test_link_end_flow(false);
+         test_link_switch_to_end_flow_state(false);
+         test_link_reset_state();
       }
       return;
    }
@@ -799,9 +802,8 @@ void process_local_control_packet(t_packet_header* pPH)
          memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
 
       if ( g_pCurrentModel->hasCamera() )
-      {
-         processor_rx_video_forward_check_controller_settings_changed();
-      }
+         rx_video_output_on_controller_settings_changed();
+
       for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
       {
          if ( NULL == g_pVideoProcessorRxList[i] )

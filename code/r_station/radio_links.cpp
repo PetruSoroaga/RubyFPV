@@ -38,6 +38,7 @@
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #include "../common/string_utils.h"
+#include "../common/radio_stats.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
 
@@ -590,23 +591,35 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
    if ( (iRadioLink < 0) || (iRadioLink >= pModel->radioLinksParams.links_count) )
       return false;
 
+   // Update frequencies if needed
    // Update HT20/HT40 if needed
 
+   bool bUpdateFreq = false;
+   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParams->link_frequency_khz[iRadioLink] )
+      bUpdateFreq = true;
    if ( (pRadioLinkParamsOld->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_CONTROLLER) != 
         (pRadioLinkParams->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_CONTROLLER) )
+      bUpdateFreq = true;
+
+   if ( bUpdateFreq )
    {
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
          if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != iRadioLink )
             continue;
-         if ( iRadioLink != pModel->radioInterfacesParams.interface_link_id[i] )
-            continue;
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
          if ( NULL == pRadioHWInfo )
             continue;
 
-         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pModel->radioLinksParams.link_frequency_khz[iRadioLink], g_pProcessStats, 0);
+         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParams->link_frequency_khz[iRadioLink]) )
+            continue;
+         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pRadioLinkParams->link_frequency_khz[iRadioLink], g_pProcessStats, 0);
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParams->link_frequency_khz[iRadioLink]);
       }
+
+      hardware_save_radio_info();
+      if ( NULL != g_pSM_RadioStats )
+         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
    }
 
    // Apply data rates

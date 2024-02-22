@@ -200,6 +200,7 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
    pSMRS->uMaxCommandRoundtripMiliseconds = MAX_U32;
    pSMRS->uMinCommandRoundtripMiliseconds = MAX_U32;
 
+   pSMRS->uTimeLastReceivedAResponseFromVehicle = 0;
    pSMRS->iMaxRxQuality = 0;
 
    // Init streams
@@ -352,10 +353,10 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
 
    if ( sl_iEnableRadioStatsLogTx )
    {
-      strcpy(szBuff, "Radio Interf total tx packets/bytes: ");
+      strcpy(szBuff, "Radio Interfaces total tx packets/bytes: ");
       for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
       {
-         sprintf(szBuff2, "%u/%u, ", pSMRS->radio_interfaces[i].totalTxPackets, pSMRS->radio_interfaces[i].totalTxBytes);
+         sprintf(szBuff2, "i%d: %u/%u, ", i+1, pSMRS->radio_interfaces[i].totalTxPackets, pSMRS->radio_interfaces[i].totalTxBytes);
          strcat(szBuff, szBuff2);
       }
       log_line(szBuff);
@@ -1267,6 +1268,14 @@ void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS,
       pSMRS->radio_interfaces[iInterfaceIndex].lastSentDataRateData = iDataRate;
       pSMRS->radio_links[iLocalRadioLinkIndex].lastSentDataRateData = iDataRate;    
    }
+}
+
+void radio_stats_set_received_response_from_vehicle_now(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
+{
+   if ( NULL == pSMRS )
+      return;
+
+  pSMRS->uTimeLastReceivedAResponseFromVehicle = uTimeNow;
 }
 
 void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats)

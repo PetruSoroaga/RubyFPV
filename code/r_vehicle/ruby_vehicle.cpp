@@ -46,6 +46,7 @@
 #include <dirent.h>
 
 #include "../base/base.h"
+#include "../base/config.h"
 #include "../base/shared_mem.h"
 #include "../base/encr.h"
 #include "../base/models.h"
@@ -322,6 +323,7 @@ void try_open_process_stats()
 
 bool read_config_file()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    int f = config_file_get_value("arm_freq");
    int g = config_file_get_value("gpu_freq");
    int v = config_file_get_value("over_voltage");
@@ -336,6 +338,8 @@ bool read_config_file()
       return true;
    }
    return false;
+   #endif
+   return true;
 }
 
 
@@ -456,9 +460,9 @@ int main (int argc, char *argv[])
    }
 
    int board_type = hardware_getBoardType();
-   if ( board_type != modelVehicle.board_type )
+   if ( board_type != modelVehicle.hwCapabilities.iBoardType )
    {
-      modelVehicle.board_type = board_type;
+      modelVehicle.hwCapabilities.iBoardType = board_type;
       bMustSave = true;
    }
 
@@ -507,6 +511,13 @@ int main (int argc, char *argv[])
    if ( hardware_has_unsupported_serial_ports() )
       modelVehicle.alarms |= ALARM_ID_UNSUPORTED_USB_SERIAL;
    
+   if ( 0 == hardware_get_serial_ports_count() )
+   {
+      if ( modelVehicle.telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
+         bMustSave = true;
+      modelVehicle.telemetry_params.fc_telemetry_type = TELEMETRY_TYPE_NONE;
+   }
+   
    log_line("Start sequence: Rechecking model serial ports for changes based on current hardware serial ports...");
    if ( modelVehicle.populateVehicleSerialPorts() )
       bMustSave = true;
@@ -522,6 +533,7 @@ int main (int argc, char *argv[])
    log_line("Start sequence: Detecting audio devices...");
    bool bHadAudioDevice = modelVehicle.audio_params.has_audio_device;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command_raw( "arecord -l 2>&1 | grep card | grep USB", szBuff );
    if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "USB") )
       modelVehicle.audio_params.has_audio_device = true;
@@ -530,6 +542,12 @@ int main (int argc, char *argv[])
       modelVehicle.audio_params.has_audio_device = false;
       modelVehicle.audio_params.enabled = false;
    }
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC
+   modelVehicle.audio_params.has_audio_device = false;
+   modelVehicle.audio_params.enabled = false;
+   #endif
 
    log_line("Start sequence: Finished detecting audio device. %s", modelVehicle.audio_params.has_audio_device?"Audio capture device found.":"No audio capture devices found.");
 
@@ -591,25 +609,25 @@ int main (int argc, char *argv[])
       modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
    }
 
-   for( int i=0; i<modelVehicle.hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<modelVehicle.hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      if ( modelVehicle.hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-      if ( (modelVehicle.hardware_info.serial_bus_supported_and_usage[i] & 0xFF) != SERIAL_PORT_USAGE_NONE )
+      if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+      if ( (modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) != SERIAL_PORT_USAGE_NONE )
       {
-         int iPortId = ( modelVehicle.hardware_info.serial_bus_supported_and_usage[i] >> 8 ) & 0x0F;
+         int iPortId = ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] >> 8 ) & 0x0F;
          // USB serial
-         if ( modelVehicle.hardware_info.serial_bus_supported_and_usage[i] & ((1<<4)<<8) )
+         if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<4)<<8) )
          {
             char szPort[32];
             sprintf(szPort, "/dev/ttyUSB%d", iPortId);
-            hardware_configure_serial(szPort, (long)modelVehicle.hardware_info.serial_bus_speed[i]);
+            hardware_configure_serial(szPort, (long)modelVehicle.hardwareInterfacesInfo.serial_bus_speed[i]);
          }
          // Hardware serial
          else
          {
             char szPort[32];
             sprintf(szPort, "/dev/serial%d", iPortId);
-            hardware_configure_serial(szPort, (long)modelVehicle.hardware_info.serial_bus_speed[i]);
+            hardware_configure_serial(szPort, (long)modelVehicle.hardwareInterfacesInfo.serial_bus_speed[i]);
          }
       }
    }
@@ -628,18 +646,7 @@ int main (int argc, char *argv[])
 
    vehicle_launch_tx_router(&modelVehicle);
 
-   log_line("Start sequence: Done launching router/video pipeline");
-
-   /*
-   if ( modelVehicle.hasCamera() )
-   if ( ! modelVehicle.isActiveCameraHDMI() )
-   {
-      for( int i=0; i<7; i++ )
-         hardware_sleep_ms(900);
-      vehicle_stop_video_capture(&modelVehicle);
-      vehicle_launch_video_capture(&modelVehicle, NULL);
-   }
-   */
+   log_line("Start sequence: Done launching router.");
 
    log_line("");
    log_line("----------------------------------------------------------");
@@ -854,7 +861,8 @@ int main (int argc, char *argv[])
          vehicle_stop_tx_router();
          
          if ( modelVehicle.hasCamera() )
-            vehicle_stop_video_capture(&modelVehicle);
+         if ( modelVehicle.isActiveCameraCSICompatible() || modelVehicle.isActiveCameraVeye() ) 
+            vehicle_stop_video_capture_csi(&modelVehicle);
          hw_stop_process("ruby_rx_commands");
          vehicle_stop_tx_telemetry();
          vehicle_stop_rx_rc();
@@ -868,9 +876,6 @@ int main (int argc, char *argv[])
          vehicle_launch_rx_rc(&modelVehicle);
          hardware_sleep_ms(20);
 
-         //if ( modelVehicle.hasCamera() )
-         //   vehicle_launch_video_capture(&modelVehicle, NULL);
-         
          vehicle_launch_tx_router(&modelVehicle);
 
          log_line("Restarting processes. Done.");

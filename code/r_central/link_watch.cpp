@@ -534,7 +534,8 @@ void link_watch_loop_telemetry()
          u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
          if ( (NULL != g_VehiclesRuntimeInfo[i].pModel) && (g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10) )
             uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
-
+         if ( link_is_reconfiguring_radiolink() )
+            uMaxLostTime += 2000;
          g_VehiclesRuntimeInfo[i].bLinkLost = false;
          if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry + uMaxLostTime )
          if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryExtended + uMaxLostTime )
@@ -618,6 +619,8 @@ void link_watch_loop_telemetry()
          u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
          if ( (NULL != g_VehiclesRuntimeInfo[i].pModel) && (g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10) )
             uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
+         if ( link_is_reconfiguring_radiolink() )
+            uMaxLostTime += 2000;
          bool bOk = true;
          if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry + uMaxLostTime )
          if ( g_TimeNow > g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetryExtended + uMaxLostTime )

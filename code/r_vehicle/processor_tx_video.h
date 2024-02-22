@@ -69,8 +69,7 @@ bool process_data_tx_video_loop();
 
 u8* process_data_tx_video_get_current_buffer_to_read_pointer();
 int process_data_tx_video_get_current_buffer_to_read_size();
-
-bool process_data_tx_video_on_data_read_complete(int countRead);
+bool process_data_tx_video_on_new_data(u8* pData, int iDataSize);
 
 int process_data_tx_video_has_packets_ready_to_send();
 int process_data_tx_video_send_packets_ready_to_send(int howMany);

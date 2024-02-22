@@ -1161,10 +1161,6 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
          send_count = 5;
         
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
-      if ( pPH->packet_type == COMMAND_ID_SET_CAMERA_PARAMETERS )
-         video_link_adaptive_switch_to_med_level(pPH->vehicle_id_dest);
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
          countComm = 1;
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
          countRC = 1;
@@ -1189,6 +1185,30 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
          countComm = 1;
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
          countRC = 1;
+
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
+      if ( pPH->packet_type == PACKET_TYPE_COMMAND )
+      {
+         t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketBuffer + sizeof(t_packet_header));
+         if ( (pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_CAMERA_PARAMETERS )
+         {
+            type_camera_parameters* pPHCamP = (type_camera_parameters*)(pPacketBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
+
+            int iProfile = pPHCamP->iCurrentProfile;
+            
+            log_line("Sending cam params: br: %d, co: %d, sa: %d, sh: %d, exp: %d, drc: %d",
+               (int)pPHCamP->profiles[iProfile].brightness,
+               (int)pPHCamP->profiles[iProfile].contrast,
+               (int)pPHCamP->profiles[iProfile].saturation,
+               (int)pPHCamP->profiles[iProfile].sharpness,
+               (int)pPHCamP->profiles[iProfile].exposure,
+               (int)pPHCamP->profiles[iProfile].drc );
+            //log_line("Sending cam params2: %f",
+            //   (float)(pPHCamP->profiles[iProfile].awbGainR) );
+            // Avoid spike in video bitrate? don't remember
+            // video_link_adaptive_switch_to_med_level(pPH->vehicle_id_dest);
+         }
+      }
 
       for( int i=0; i<send_count; i++ )
       {
@@ -2112,15 +2132,9 @@ int main (int argc, char *argv[])
       {
          uCountMemoryChecks++;
          uTimeLastMemoryCheck = g_TimeNow;
-         char szOutput[2048];
-         if ( 1 == hw_execute_bash_command_raw("df -m /home/pi/ruby | grep root", szOutput) )
-         {
-            char szTemp[1024];
-            long lb, lu, lMemoryFreeMb;
-            sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lMemoryFreeMb);
-            if ( lMemoryFreeMb < 200 )
-               send_alarm_to_central(ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE, (u32)lMemoryFreeMb, 0);
-         }
+         int iFreeSpaceKb = hardware_get_free_space_kb();
+         if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < 200*1000) )
+            send_alarm_to_central(ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, 0);
       }
 
       _router_periodic_loop();
@@ -2171,7 +2185,7 @@ int main (int argc, char *argv[])
       
       if ( (!g_bSearching) && (NULL != g_pCurrentModel) && g_pCurrentModel->hasCamera() )
       {
-         processor_rx_video_forward_loop();
+         rx_video_output_periodic_loop();
          video_link_adaptive_periodic_loop();
       }
 
@@ -2318,7 +2332,6 @@ void video_processors_init()
       init_processing_audio();
    }
 
-   processor_rx_video_forware_prepare_video_stream_write();
    if ( ! g_bSearching )
    {
       video_link_adaptive_init(g_pCurrentModel->vehicle_id);

@@ -58,7 +58,8 @@ void MenuVehicleManagement::onShow()
    m_Height = 0.0;
    removeAllItems();
 
-   m_IndexConfig = addMenuItem(new MenuItem("Get Config Info", "Gets the hardware capabilities and current configuration of the vehicle."));
+   m_IndexHWInfo = addMenuItem(new MenuItem("Get Hardware Info", "Gets the hardware capabilities of the vehicle."));
+   m_IndexConfig = addMenuItem(new MenuItem("Get Config Info", "Gets the current configuration of the vehicle."));
    m_IndexModules = addMenuItem(new MenuItem("Get Modules Info", "Gets the current detected and loaded modules on the vehicle."));
    m_IndexPlugins = addMenuItem(new MenuItem("Core Plugins", "Manage the core plugins on this vehicle."));
    m_IndexExport = addMenuItem(new MenuItem("Export Model Settings","Exports the model settings to a USB stick."));
@@ -78,6 +79,7 @@ void MenuVehicleManagement::onShow()
 
    if ( ! bConnected )
    {
+      m_pMenuItems[m_IndexHWInfo]->setEnabled(false);
       m_pMenuItems[m_IndexConfig]->setEnabled(false);
       m_pMenuItems[m_IndexModules]->setEnabled(false);
       m_pMenuItems[m_IndexImport]->setEnabled(false);
@@ -224,23 +226,24 @@ void MenuVehicleManagement::onSelectItem()
       return;
    }
 
+   if ( handle_commands_is_command_in_progress() )
+   {
+      handle_commands_show_popup_progress();
+      return;
+   }
+
+   if ( m_IndexHWInfo == m_SelectedIndex )
+   {
+      handle_commands_send_to_vehicle(COMMAND_ID_GET_MODULES_INFO, 1, NULL, 0);
+   }
+
    if ( m_IndexConfig == m_SelectedIndex )
    {
-      if ( handle_commands_is_command_in_progress() )
-      {
-         handle_commands_show_popup_progress();
-         return;
-      }
       handle_commands_send_to_vehicle(COMMAND_ID_GET_CURRENT_VIDEO_CONFIG, 0, NULL, 0);
    }
 
    if ( m_IndexModules == m_SelectedIndex )
    {
-      if ( handle_commands_is_command_in_progress() )
-      {
-         handle_commands_show_popup_progress();
-         return;
-      }
       handle_commands_send_to_vehicle(COMMAND_ID_GET_MODULES_INFO, 0, NULL, 0);
    }
 

@@ -86,9 +86,11 @@ void controller_launch_router(bool bSearchMode, int iFirmwareType)
    }
    else
    {
+      #ifdef HW_CAPABILITY_IONICE
       if ( pcs->ioNiceRouter > 0 )
          sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_rt_station &", pcs->ioNiceRouter, pcs->iNiceRouter);
       else
+      #endif
          sprintf(szComm, "nice -n %d ./ruby_rt_station &", pcs->iNiceRouter);
    }
    hw_execute_bash_command(szComm, NULL);
@@ -101,36 +103,6 @@ void controller_launch_router(bool bSearchMode, int iFirmwareType)
 void controller_stop_router()
 {
    hw_stop_process("ruby_rt_station");
-}
-
-
-void controller_launch_video_player()
-{
-   log_line("Starting video player");
-   if ( hw_process_exists(VIDEO_PLAYER_PIPE) )
-   {
-      log_line("Video player process already running. Do nothing.");
-      return;
-   }
-
-   ControllerSettings* pcs = get_ControllerSettings();
-   char szPlayer[1024];
-
-   if ( pcs->ioNiceRXVideo > 0 )
-      sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s > /dev/null 2>&1&", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, VIDEO_PLAYER_PIPE);
-   else
-      sprintf(szPlayer, "nice -n %d ./%s > /dev/null 2>&1&", pcs->iNiceRXVideo, VIDEO_PLAYER_PIPE);
-
-   hw_execute_bash_command(szPlayer, NULL);
-
-   hw_set_proc_priority( VIDEO_PLAYER_PIPE, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
-}
-
-void controller_stop_video_player()
-{
-   char szComm[1024];
-   sprintf(szComm, "ps -ef | nice grep '%s' | nice grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null", VIDEO_PLAYER_PIPE);
-   hw_execute_bash_command(szComm, NULL);
 }
 
 void controller_launch_rx_telemetry()
@@ -156,13 +128,23 @@ void controller_launch_tx_rc()
       return;
    }
 
-   char szComm[256];
+   char szComm[128];
+
+   #ifdef HW_CAPABILITY_IONICE
    if ( g_bSearching )
       sprintf(szComm, "./ruby_tx_rc -search &");
    else if ( NULL != g_pCurrentModel )
       sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_tx_rc &", DEFAULT_IO_PRIORITY_RC, g_pCurrentModel->niceRC);
    else
       sprintf(szComm, "./ruby_tx_rc &");
+   #else
+   if ( g_bSearching )
+      sprintf(szComm, "./ruby_tx_rc -search &");
+   else if ( NULL != g_pCurrentModel )
+      sprintf(szComm, "nice -n %d ./ruby_tx_rc &", g_pCurrentModel->niceRC);
+   else
+      sprintf(szComm, "./ruby_tx_rc &");
+   #endif
    hw_execute_bash_command(szComm, NULL);
 }
 

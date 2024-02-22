@@ -33,6 +33,7 @@ void radio_stats_update_on_packet_sent_on_radio_link(shared_mem_radio_stats* pSM
 void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* pSMRS, u32 timeNow, u32 uVehicleId, int iStreamIndex, int iPacketLength);
 
 void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS, int iInterfaceIndex, int iLocalRadioLinkIndex, int iDataRate, int iIsVideoPacket);
+void radio_stats_set_received_response_from_vehicle_now(shared_mem_radio_stats* pSMRS, u32 uTimeNow);
 
 void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats);
 void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_stats* pControllerStats, u32 timeNow);

@@ -209,7 +209,7 @@ typedef struct
    u32 uAverageCommandRoundtripMiliseconds;
    u32 uMaxCommandRoundtripMiliseconds;
    u32 uMinCommandRoundtripMiliseconds;
-
+   u32 uTimeLastReceivedAResponseFromVehicle;
    u32 timeLastRxPacket;
    
    int iMaxRxQuality;

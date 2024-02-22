@@ -299,7 +299,7 @@ void _create_default_model()
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-      m.board_type = board_type;
+      m.hwCapabilities.iBoardType = board_type;
       m.iFreqARM = 900;
       if ( board_type == BOARD_TYPE_PIZERO2 )
          m.iFreqARM = 1000;
@@ -1066,6 +1066,13 @@ int main (int argc, char *argv[])
    {
       hardware_serial_save_configuration();
    }
+
+#ifdef HW_PLATFORM_RASPBERRY
+   log_line("Running on Raspberry Pi hardware");
+#endif
+#ifdef HW_PLATFORM_OPENIPC
+   log_line("Running on OpenIPC hardware");
+#endif
 
 #ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
    log_line("Feature to concatenate small radio packets is: On.");

@@ -636,10 +636,11 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       float wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( ! pVDS->isRetransmissionsOn )
+      if ( ! (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
       {
+         strcpy(szBuff, "Off");
          g_pRenderEngine->setColors(get_Color_IconWarning());
-         g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, "Off");
+         g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff);
          osd_set_colors();
       }
       else
@@ -647,6 +648,18 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          char szBuff3[64];
          strcpy(szBuff3, "On");
          g_pRenderEngine->setColors(get_Color_IconSucces());
+
+         ControllerSettings* pCS = get_ControllerSettings();
+         if ( (NULL != g_pSM_RadioStats) && (NULL != pCS) && (0 != pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds) )
+         {
+            u32 uDelta = (u32)pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds;
+            if ( g_TimeNow > g_pSM_RadioStats->uTimeLastReceivedAResponseFromVehicle + uDelta )
+            {
+               sprintf(szBuff3, "Off (Link Lost %u ms)", g_TimeNow - g_pSM_RadioStats->uTimeLastReceivedAResponseFromVehicle);
+               g_pRenderEngine->setColors(get_Color_IconWarning());
+            }
+         }
+
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff3);
          osd_set_colors();

@@ -14,6 +14,7 @@
 // First 8 bytes can be 0xFF or 0x00 for no changes in those params
 // Byte 9,10,11 (if present, optional): 0x81 then tx power Sik, then 0x81
 
+// deprecated starting in 8.3, using now test link functionality to change frequency for 2.4/5.8ghz. still using this command for 433/868 bands
 #define COMMAND_ID_SET_RADIO_LINK_FREQUENCY 5
 // lower 3 bytes: frequency (new format, in khz), 4-th byte: link index, most significat bit set to 1 to signal new format for this parameter
 
@@ -85,7 +86,7 @@ typedef struct
 // param is radio link id
 
 #define COMMAND_ID_SET_SERIAL_PORTS_INFO 28
-// contains a model_hardware_info_t structure
+// contains a type_vehicle_hardware_interfaces_info structure
 
 #define COMMAND_ID_SET_SIK_PACKET_SIZE 29
 // parameter is the sik packet size
@@ -181,6 +182,8 @@ typedef struct
 
 #define COMMAND_ID_GET_CURRENT_VIDEO_CONFIG 101
 #define COMMAND_ID_GET_MODULES_INFO 103
+// 1 byte param: 0 - get modules, 1 - get hardware info
+
 #define COMMAND_ID_GET_MEMORY_INFO 104
 #define COMMAND_ID_GET_CPU_INFO 105
 #define COMMAND_ID_SET_OVERCLOCKING_PARAMS 107

@@ -34,11 +34,9 @@ u32 g_TimeLastSetRadioLinkFlagsStartOperation = 0;
 u32 g_TimeRadioReinitialized = 0;
 u32 g_TimeLastPacketsOutPerSecCalculation = 0;
 
-u32 g_TimeToRestartVideoCapture = 0;
-
 u32 g_TimeLastVideoCaptureProgramStartCheck = 0;
 u32 g_TimeLastVideoCaptureProgramRunningCheck = 0;
-u32 g_TimeStartRaspiVid = 0;
+
 u32 g_InterfacesTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
 u32 g_InterfacesVideoTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
 u32 g_TimeLastOverwriteBitrateDownOnTxOverload = 0;
@@ -54,3 +52,5 @@ u32 g_TimeLastNotificationRelayParamsChanged = 0;
 u32 g_uTimeLastCommandSowftwareUpload = 0;
 
 u32 g_uTimeLastVideoTxOverload = 0;
+
+u32 g_uTimeToSaveCameraParams = 0;

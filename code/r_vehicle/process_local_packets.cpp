@@ -64,7 +64,7 @@
 #include "video_link_auto_keyframe.h"
 #include "processor_relay.h"
 #include "events.h"
-
+#include "video_source_csi.h"
 
 u32 _get_previous_frequency_switch(int nLink)
 {
@@ -264,6 +264,13 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
       return;
    }
+
+   if ( changeType == MODEL_CHANGED_CAMERA_PARAMS )
+   {
+      log_line("Received local notification that camera parameters have changed.");
+      g_uTimeToSaveCameraParams = g_TimeNow + 5000;
+   }
+
 
    if ( changeType == MODEL_CHANGED_SERIAL_PORTS )
    {
@@ -566,7 +573,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          else
          {
             g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
-            flag_need_video_capture_restart();
+            mark_needs_video_source_capture_restart();
          }
       }
       else
@@ -577,7 +584,9 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
             {
                g_SM_VideoLinkStats.overwrites.currentH264QUantization = (u8)iQuant;
                video_link_set_last_quantization_set(g_SM_VideoLinkStats.overwrites.currentH264QUantization);
-               send_control_message_to_raspivid( RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
+               if ( g_pCurrentModel->hasCamera() )
+               if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+                  video_source_csi_send_control_message( RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
             }
          } 
       }
@@ -963,8 +972,8 @@ void process_local_control_packet(t_packet_header* pPH)
       {
          if ( g_pCurrentModel->isActiveCameraHDMI() )
             hardware_sleep_ms(800);
-         vehicle_launch_video_capture(g_pCurrentModel, &(g_SM_VideoLinkStats.overwrites));
-         vehicle_check_update_processes_affinities(true, g_pCurrentModel->isActiveCameraVeye());
+         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+            video_source_csi_request_restart_program();
       }
       else
          log_line("Vehicle has no camera. No video capture started.");
@@ -976,7 +985,7 @@ void process_local_control_packet(t_packet_header* pPH)
       log_line("Received controll message to restart video capture program. Parameter: %u", pPH->vehicle_id_dest);
       if ( g_pCurrentModel->hasCamera() )
       {
-         flag_need_video_capture_restart();
+         mark_needs_video_source_capture_restart();
       } 
       return;
    }
@@ -1088,7 +1097,9 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM )
    {
       log_line("Router received message to change camera params.");
-      send_control_message_to_raspivid( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFF) );
+      if ( g_pCurrentModel->hasCamera() )
+      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         video_source_csi_send_control_message( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFF) );
       return;
    }
 

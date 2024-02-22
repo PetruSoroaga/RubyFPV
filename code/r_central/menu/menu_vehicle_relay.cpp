@@ -284,8 +284,13 @@ void MenuVehicleRelay::valuesToUI()
    }
 
    m_pItemsSelect[3]->setSelection(0);
-   if ( pCS->iQAButtonRelaySwitching > 0 )
-       m_pItemsSelect[3]->setSelectedIndex(pCS->iQAButtonRelaySwitching);
+
+   if ( pP->iActionQuickButton1 == quickActionRelaySwitch )
+       m_pItemsSelect[3]->setSelectedIndex(1);
+   if ( pP->iActionQuickButton2 == quickActionRelaySwitch )
+       m_pItemsSelect[3]->setSelectedIndex(2);
+   if ( pP->iActionQuickButton3 == quickActionRelaySwitch )
+       m_pItemsSelect[3]->setSelectedIndex(3);
 
    m_pItemsSelect[4]->setSelectedIndex(0);
    if ( g_pCurrentModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_SWITCH_OSD )
@@ -484,10 +489,8 @@ void MenuVehicleRelay::_drawHeader(float yPos)
 
 int MenuVehicleRelay::onBack()
 {
-   ControllerSettings* pCS = get_ControllerSettings();
-   
    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
-   if ( pCS->iQAButtonRelaySwitching <= 0 )
+   if ( m_pItemsSelect[3]->getSelectedIndex() <= 0 )
    {
       addMessage("You have not assigned a Quick Action button to do relay switching. You will have no way to switch between vehicles.");
       return 1;
@@ -854,31 +857,27 @@ void MenuVehicleRelay::onSelectItem()
 
    if ( m_IndexQAButton == m_SelectedIndex )
    {
-      int iOldButton = pCS->iQAButtonRelaySwitching;
-      pCS->iQAButtonRelaySwitching = m_pItemsSelect[3]->getSelectedIndex();
+      int iIndex = m_pItemsSelect[3]->getSelectedIndex();
 
-      if ( iOldButton == pCS->iQAButtonRelaySwitching )
-         return;
+      if ( iIndex == 1 )
+         pP->iActionQuickButton1 = quickActionRelaySwitch;
+      else if ( iIndex == 2 )
+         pP->iActionQuickButton2 = quickActionRelaySwitch;
+      else if ( iIndex == 3 )
+         pP->iActionQuickButton3 = quickActionRelaySwitch;
 
-      if ( iOldButton > 0 )
-      {
-         if ( iOldButton == 1 )
-            pP->iActionQuickButton1 = quickActionVideoRecord;
-         if ( iOldButton == 2 )
-            pP->iActionQuickButton2 = quickActionCycleOSD;
-         if ( iOldButton == 3 )
-            pP->iActionQuickButton3 = quickActionTakePicture;
-      }
+      if ( pP->iActionQuickButton1 == quickActionRelaySwitch )
+      if ( iIndex != 1 )
+         pP->iActionQuickButton1 = quickActionVideoRecord;
 
-      if ( pCS->iQAButtonRelaySwitching > 0 )
-      {
-         if ( pCS->iQAButtonRelaySwitching == 1 )
-            pP->iActionQuickButton1 = quickActionRelaySwitch;
-         if ( pCS->iQAButtonRelaySwitching == 2 )
-            pP->iActionQuickButton2 = quickActionRelaySwitch;
-         if ( pCS->iQAButtonRelaySwitching == 3 )
-            pP->iActionQuickButton3 = quickActionRelaySwitch;
-      }
+      if ( pP->iActionQuickButton2 == quickActionRelaySwitch )
+      if ( iIndex != 1 )
+         pP->iActionQuickButton2 = quickActionCycleOSD;
+
+      if ( pP->iActionQuickButton3 == quickActionRelaySwitch )
+      if ( iIndex != 1 )
+         pP->iActionQuickButton3 = quickActionTakePicture;
+
       
       save_ControllerSettings();
       save_Preferences();

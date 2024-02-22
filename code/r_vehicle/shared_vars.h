@@ -30,7 +30,6 @@ extern bool g_bDebug;
 
 extern Model* g_pCurrentModel;
 extern shared_mem_process_stats* g_pProcessStats;
-extern u8* g_pSharedMemRaspiVidComm;
 extern int g_iBoardType;
 
 extern t_packet_queue s_QueueControlPackets;
@@ -52,11 +51,14 @@ extern u16 s_countTXDataPacketsOutTemp;
 extern u16 s_countTXCompactedPacketsOutTemp;
 
 // Router
-extern u32 g_uRouterState;
 
+extern u32 s_debugVideoBlocksInCount;
+
+extern t_packet_queue g_QueueRadioPacketsOut;
 extern ProcessorTxVideo* g_pProcessorTxVideo;
 extern ProcessorTxAudio* g_pProcessorTxAudio;
 
+extern bool g_bRadioReinitialized;
 extern shared_mem_radio_stats g_SM_RadioStats;
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
@@ -75,7 +77,6 @@ extern u32 g_uControllerId;
 extern int s_iPendingFrequencyChangeLinkId;
 extern u32 s_uPendingFrequencyChangeTo;
 extern u32 s_uTimeFrequencyChangeRequest;
-extern bool g_bDidSentRaspividBitrateRefresh;
 
 extern int g_iFramesSinceLastH264KeyFrame;
 extern u32 g_uTotalRadioTxTimePerSec;

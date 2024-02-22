@@ -52,8 +52,6 @@
 #include "shared_vars.h"
 #include "timers.h"
 
-extern t_packet_queue s_QueueRadioPacketsOut;
-
 fd_set s_ReadSetRXRadio;
 
 bool s_bRCLinkDetected = false;
@@ -481,7 +479,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
          u8 packet[MAX_PACKET_TOTAL_SIZE];
          memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
          memcpy(packet+sizeof(t_packet_header), &uAdaptiveLevelResponse, sizeof(u32));
-         packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
          int iAdaptiveLevel = uAdaptiveLevel;
 
@@ -533,7 +531,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             u8 packet[MAX_PACKET_TOTAL_SIZE];
             memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
             memcpy(packet+sizeof(t_packet_header), &uNewKeyframeValueMs, sizeof(u32));
-            packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+            packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
          }
 
          video_link_auto_keyframe_set_controller_requested_value((int) uVideoStreamIndex, (int)uNewKeyframeValueMs);

@@ -241,6 +241,7 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    sprintf(szComm, "renice -n %d -p %s", nice, szPids);
    hw_execute_bash_command(szComm, NULL);
 
+   #ifdef HW_CAPABILITY_IONICE
    if ( ionice > 0 )
    {
       sprintf(szComm, "ionice -c 1 -n %d -p %s", ionice, szPids);
@@ -248,6 +249,7 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    }
    //else
    //   sprintf(szComm, "ionice -c 2 -n 5 -p %s", szPids);
+   #endif
 }
 
 void hw_get_proc_priority(const char* szProgName, char* szOutput)
@@ -282,6 +284,8 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
       szCommOut[strlen(szCommOut)-1] = 0;
    strcat(szOutput, "pri.");
    strcat(szOutput, szCommOut+8);
+
+   #ifdef HW_CAPABILITY_IONICE
    strcat(szOutput, ", io priority: ");
 
    sprintf(szComm, "ionice -p %s", szPids);
@@ -289,6 +293,7 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
    if ( 0 < strlen(szCommOut) )
       szCommOut[strlen(szCommOut)-1] = 0;
    strcat(szOutput, szCommOut);
+   #endif
    strcat(szOutput, ";");
 }
 

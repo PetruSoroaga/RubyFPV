@@ -290,7 +290,9 @@ int radio_links_check_reinit_sik_interfaces()
    g_SiKRadiosState.uTimeIntervalSiKReinitCheck += 200;
 
    g_SiKRadiosState.bConfiguringSiKThreadWorking = true;
-   if ( 0 != pthread_create(&g_SiKRadiosState.pThreadSiKReinit, NULL, &_reinit_sik_thread_func, NULL) )
+   static pthread_t pThreadSiKReinit;
+
+   if ( 0 != pthread_create(&pThreadSiKReinit, NULL, &_reinit_sik_thread_func, NULL) )
    {
       log_softerror_and_alarm("[Router] Failed to create worker thread to reinit SiK radio interfaces.");
       g_SiKRadiosState.bConfiguringSiKThreadWorking = false;

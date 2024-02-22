@@ -20,7 +20,7 @@ class MenuTXInfo: public Menu
       bool m_bShowVehicle;
 
    private:
-      void RenderTableLine(int iCardModel, const char* szText, const char** szValues, bool header);
+      void RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine);
       void drawPowerLine(const char* szText, float yPos, int value);
       void sendPowerToVehicle(int tx, int txAtheros, int txRTL);
 
@@ -52,6 +52,7 @@ class MenuTXInfo: public Menu
       int m_IndexPowerControllerRTL;
       int m_IndexPowerMax;
       int m_IndexShowAllCards;
+      int m_IndexShowBoosters;
 
       bool m_bValuesChangedVehicle;
       bool m_bValuesChangedController;

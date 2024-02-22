@@ -151,7 +151,7 @@ void MenuRoot::RenderVehicleInfo()
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
       {
          sprintf(szLine1, "Connected to %s", g_pCurrentModel->getLongName() );
-         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->board_type));
+         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->hwCapabilities.iBoardType));
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }
       else
@@ -256,7 +256,7 @@ void MenuRoot::RenderVehicleInfo()
 
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
       {
-         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->board_type));
+         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->hwCapabilities.iBoardType));
          g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
          yPos += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }
@@ -335,6 +335,7 @@ void MenuRoot::createHWInfo(Menu* pm)
    {
       fscanf(fp,"%d", &boardType);
       fclose(fp);
+      fp = NULL;
    }
          
    sprintf(szBuff, "Board: %s, ", str_get_hardware_board_name(boardType));
@@ -345,6 +346,7 @@ void MenuRoot::createHWInfo(Menu* pm)
    {
       fscanf(fp,"%d",&wifiType);
       fclose(fp);
+      fp = NULL;
    }
    if ( wifiType != 0 )
    {
@@ -358,9 +360,12 @@ void MenuRoot::createHWInfo(Menu* pm)
 
    int temp = 0;
    fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   fscanf(fp, "%d", &temp);
-   fclose(fp);
-
+   if ( NULL != fp )
+   {
+      fscanf(fp, "%d", &temp);
+      fclose(fp);
+      fp = NULL;
+   }
    int speed = hardware_get_cpu_speed();
    sprintf(szTemp, "CPU: %d Mhz, Temp: %d C", speed, temp/1000); 
    strcat(szBuff, szTemp);

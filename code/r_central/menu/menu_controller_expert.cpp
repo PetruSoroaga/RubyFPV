@@ -409,6 +409,7 @@ void MenuControllerExpert::onSelectItem()
 
       pcs->ioNiceRouter = ioNice;
 
+      #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
@@ -420,6 +421,7 @@ void MenuControllerExpert::onSelectItem()
             snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
       valuesToUI();
    }
 
@@ -436,6 +438,7 @@ void MenuControllerExpert::onSelectItem()
 
       pcs->ioNiceRXVideo = ioNice;
 
+      #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
       sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
@@ -448,12 +451,14 @@ void MenuControllerExpert::onSelectItem()
             snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
       valuesToUI();
    }
 
    if ( m_IndexIONiceRouterValue == m_SelectedIndex )
    {
       pcs->ioNiceRouter = m_pItemsSlider[1]->getCurrentValue();
+      #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
       hw_execute_bash_command("pidof ruby_rt_station", szPids);
@@ -462,12 +467,14 @@ void MenuControllerExpert::onSelectItem()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
    }
 
 
    if ( m_IndexIONiceValueRXVideo == m_SelectedIndex )
    {
       pcs->ioNiceRXVideo = m_pItemsSlider[3]->getCurrentValue();
+      #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
       sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
@@ -477,6 +484,7 @@ void MenuControllerExpert::onSelectItem()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
    }
 
    if ( m_IndexReboot == m_SelectedIndex )

@@ -66,7 +66,6 @@ typedef struct
    u32 uVehicleId;
    u8 uVideoStreamIndex;
    int isRecording;
-   int isRetransmissionsOn;
    int iCurrentRxTxSyncType;
    u32 frames_type;
    u32 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc

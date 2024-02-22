@@ -1061,6 +1061,7 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
    {
       height += 5 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
       height += height_text_small*s_OSDStatsLineSpacing; // Ping frequency
+      height += height_text_small*s_OSDStatsLineSpacing; // Last response recv from vehicle
    }
 
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
@@ -1268,6 +1269,10 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    {
       g_pRenderEngine->setColors(get_Color_Dev());
 
+      sprintf(szBuff, "%u ms ago", g_TimeNow - pRadioStats->uTimeLastReceivedAResponseFromVehicle);
+      _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
+      y += height_text_small*s_OSDStatsLineSpacing;
+
       if ( pRadioStats->uAverageCommandRoundtripMiliseconds == MAX_U32 )
          strcpy(szBuff, "N/A");
       else
@@ -1321,7 +1326,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       y += height_text*s_OSDStatsLineSpacing;
 
       int iMaxTxTime = DEFAULT_TX_TIME_OVERLOAD;
-      if ( (pActiveModel->board_type == BOARD_TYPE_PIZERO) || (pActiveModel->board_type == BOARD_TYPE_PIZEROW) )
+      if ( (pActiveModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZERO) || (pActiveModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZEROW) )
          iMaxTxTime += 200;
 
       if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.txTimePerSec > iMaxTxTime) )

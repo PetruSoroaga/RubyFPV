@@ -13,7 +13,6 @@ typedef struct
 {
    // Worker thead info
    bool bConfiguringSiKThreadWorking; // reinitialization worker thread is active
-   pthread_t  pThreadSiKReinit;
    int iThreadRetryCounter;
    bool bMustReinitSiKInterfaces; // true if SiK interfaces must be reinitialized (using a worker thread)
    int iMustReconfigureSiKInterfaceIndex; // 0 or positive if SiK interface must be reconfigured and reinitialized (using a worker thread)

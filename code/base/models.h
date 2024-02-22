@@ -30,7 +30,7 @@ typedef struct
    u8 exposure;
    u8 whitebalance;
    u8 metering;
-   u8 drc; // stands for AGC for IMX327 camera
+   u8 drc; // stands for AGC (gain) for IMX327 camera (0 to 0xF, 0xC default)
    float analogGain;
    float awbGainB;
    float awbGainR; // stands for HUE for IMX307 camera
@@ -81,7 +81,7 @@ typedef struct
 
    // byte 0:
    //    bit 0..2  - scramble blocks count
-   //    bit 3     - enables feature: restransmission of missing packets
+   //    bit 3     - enables restransmission of missing packets
    //    bit 4     - signals that current video is on reduced video bitrate due to tx time overload on vehicle
    //    bit 5     - enable adaptive video link params
    //    bit 6     - use controller info too when adjusting video link params
@@ -276,7 +276,7 @@ typedef struct
      //         bits 4 : 0 - hardware builtin, 1 - on usb
      //         bits 5 : supported 0/1
    int serial_bus_speed[MAX_MODEL_SERIAL_BUSSES];
-} model_hardware_info_t;
+} type_vehicle_hardware_interfaces_info;
 
 
 typedef struct
@@ -409,6 +409,17 @@ typedef struct
    u32 uDummy;
 } type_logging_parameters;
 
+
+// This is all readonly:
+typedef struct 
+{
+   int iBoardType;//board_type;
+   int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
+   int iMaxTxVideoBlockPackets; // max packets in a video block
+   int dummyhwc[3];
+   u32 dummyhwc2[3];
+} type_hardware_capabilities;
+
 class Model
 {
    public:
@@ -438,7 +449,8 @@ class Model
         //   bit 0: prioritize uplink
         //   bit 1: use logger service instead of files
 
-      int board_type;
+      type_hardware_capabilities hwCapabilities;
+      
       char vehicle_name[MAX_VEHICLE_NAME_LENGTH];
       u32 vehicle_id;
       u32 controller_id;
@@ -453,7 +465,7 @@ class Model
       int m_iRadioInterfacesGraphRefreshInterval;
          // 0...5, same translation to miliseconds as for nGraphRadioRefreshInterval: 10,20,50,100,200,500 ms
 
-      model_hardware_info_t hardware_info;
+      type_vehicle_hardware_interfaces_info hardwareInterfacesInfo;
 
       
       // Radio interfaces order is given by physical order. Can't be changed.
@@ -515,6 +527,7 @@ class Model
       void populateDefaultRadioLinksInfoFromRadioInterfaces();
       bool check_update_radio_links();
       void resetToDefaults(bool generateId);
+      void resetHWCapabilities();
       void resetRadioLinksParams();
       void resetOSDFlags();
       void resetTelemetryParams();
@@ -527,7 +540,7 @@ class Model
       void resetRelayParamsToDefaults(type_relay_parameters* pRelayParams);
 
       void logVehicleRadioInfo();
-      bool logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2);
+      int logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2);
       
       bool validate_camera_settings();
       bool validate_settings();

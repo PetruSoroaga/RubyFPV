@@ -65,7 +65,8 @@ int main(int argc, char *argv[])
    memset(&server_addr, 0, sizeof(server_addr));
     
    server_addr.sin_family = AF_INET;
-   server_addr.sin_addr.s_addr = inet_addr("192.168.42.129");
+   //server_addr.sin_addr.s_addr = inet_addr("192.168.42.129");
+   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
    server_addr.sin_port = htons( port );
 	
    log_line("Sending data on port %d ...", port);

@@ -106,6 +106,7 @@ typedef struct
    int iShowCPULoad;
    u32 uEnabledAlarms;
    int iShowOnlyPresentTxPowerCards;
+   int iShowTxBoosters;
 } Preferences;
 
 int save_Preferences();

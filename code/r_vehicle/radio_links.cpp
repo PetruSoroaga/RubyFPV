@@ -33,6 +33,7 @@
 #include "../base/hardware_radio_serial.h"
 #include "../base/radio_utils.h"
 #include "../common/string_utils.h"
+#include "../common/radio_stats.h"
 #include "../radio/radio_tx.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -261,12 +262,14 @@ int radio_links_open_rxtx_radio_interfaces()
 
    g_pCurrentModel->logVehicleRadioInfo();
 
+   log_line("Initializing video data tx...");
    if ( ! process_data_tx_video_init() )
    {
       log_error_and_alarm("Failed to initialize video data tx processor.");
       radio_links_close_rxtx_radio_interfaces();
       return -1;
    }
+   log_line("Initialized video data tx.");
    return 0;
 }
 
@@ -313,10 +316,17 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
    if ( (iRadioLink < 0) || (iRadioLink >= pModel->radioLinksParams.links_count) )
       return false;
 
+   // Update frequencies if needed
    // Update HT20/HT40 if needed
-     
+
+   bool bUpdateFreq = false;
+   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParams->link_frequency_khz[iRadioLink] )
+      bUpdateFreq = true;
    if ( (pRadioLinkParamsOld->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE) != 
         (pRadioLinkParams->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE) )
+      bUpdateFreq = true;
+
+   if ( bUpdateFreq )     
    {
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
@@ -328,8 +338,13 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
          if ( NULL == pRadioHWInfo )
             continue;
 
+         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParams->link_frequency_khz[iRadioLink]) )
+            continue;
          radio_utils_set_interface_frequency(pModel, i, iRadioLink, pModel->radioLinksParams.link_frequency_khz[iRadioLink], g_pProcessStats, 0);
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParams->link_frequency_khz[iRadioLink]);
       }
+
+      hardware_save_radio_info();
    }
 
    // Apply data rates

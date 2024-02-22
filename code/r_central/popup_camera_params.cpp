@@ -47,8 +47,18 @@ PopupCameraParams::PopupCameraParams()
    m_fFixedWidth = 0.2;
    m_bCentered = true;
    m_bInvalidated = true;
-   m_nParamToAdjust = 0;
    m_bCanAdjust = false;
+   m_bHasSharpness = false;
+   m_bHasHue = false;
+   m_bHasAGC = false;
+   m_iIndexParamBrightness = 0;
+   m_iIndexParamContrast = 1;
+   m_iIndexParamSaturation = 2;
+   m_iIndexParamSharpness = -1;
+   m_iIndexParamHue = -1;
+   m_iIndexParamAGC = -1;
+   m_iTotalParams = 3;
+   m_iParamToAdjust = 0;
    setIconId(g_idIconCamera, get_Color_PopupText());
 }
 
@@ -61,8 +71,17 @@ void PopupCameraParams::onShow()
    log_line("Popup Camera Params: Show");
 
    setTimeout(5);
-   
    removeAllLines();
+
+   m_bHasSharpness = false;
+   m_bHasHue = false;
+   m_bHasAGC = false;
+   m_iIndexParamSharpness = -1;
+   m_iIndexParamHue = -1;
+   m_iIndexParamAGC = -1;
+   m_iTotalParams = 3;
+   m_iParamToAdjust = 0;
+
    if ( (NULL == g_pCurrentModel) || (!pairing_isStarted()) ||
         ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry < g_TimeNow-2000) ) )
    {
@@ -74,6 +93,7 @@ void PopupCameraParams::onShow()
       m_bCanAdjust = false;
       return;
    }
+
    if ( !g_pCurrentModel->hasCamera() )
    {
       m_fFixedWidth = 0.3;
@@ -85,6 +105,27 @@ void PopupCameraParams::onShow()
       return;
    }
 
+   if ( g_pCurrentModel->isActiveCameraVeye327290() || g_pCurrentModel->isActiveCameraCSICompatible() )
+   {
+      m_bHasSharpness = true;
+      m_iIndexParamSharpness = m_iTotalParams;
+      m_iTotalParams++;
+   }
+
+   if ( g_pCurrentModel->isActiveCameraVeye307() || g_pCurrentModel->isActiveCameraCSICompatible() )
+   {
+      m_bHasHue = true;
+      m_iIndexParamHue = m_iTotalParams;
+      m_iTotalParams++;
+   }
+
+   if ( g_pCurrentModel->isActiveCameraVeye327290() )
+   {
+      m_bHasAGC = true;
+      m_iIndexParamAGC = m_iTotalParams;
+      m_iTotalParams++;
+   }
+
    if ( g_pCurrentModel->isActiveCameraHDMI() )
    {
       m_fFixedWidth = 0.3;
@@ -93,11 +134,12 @@ void PopupCameraParams::onShow()
       Popup::onShow();
       log_line("Popup Camera Params: Show");
       m_bCanAdjust = false;
+      m_iTotalParams = 3;
       return;
    }
+
    m_fFixedWidth = 0.2;
    m_bCanAdjust = true;
-   m_nParamToAdjust = 0;
    Popup::onShow();
    invalidate();
 }
@@ -129,41 +171,54 @@ void PopupCameraParams::Render()
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile]);
 
-   if ( m_nParamToAdjust == 0 )
+   if ( m_iParamToAdjust == m_iIndexParamBrightness )
    {
       value = pCamProfile->brightness;
       value_min = 0;
       value_max = 100;
       strcpy(szText, "Brightness");
    }
-   if ( m_nParamToAdjust == 1 )
+   if ( m_iParamToAdjust == m_iIndexParamContrast )
    {
       value = pCamProfile->contrast;
       value_min = 0;
       value_max = 100;
       strcpy(szText, "Contrast");
    }
-   if ( m_nParamToAdjust == 2 )
+   if ( m_iParamToAdjust == m_iIndexParamSaturation )
    {
       value = pCamProfile->saturation-100;
       value_min = -100;
       value_max = 100;
       strcpy(szText, "Saturation");
    }
-   if ( m_nParamToAdjust == 3 )
+   if ( m_iParamToAdjust == m_iIndexParamSharpness )
    {
       value = pCamProfile->sharpness-100;
       value_min = -100;
       value_max = 100;
+      if ( g_pCurrentModel->isActiveCameraVeye327290() )
+      {
+         value_min = 0;
+         value_max = 10;
+      }
       strcpy(szText, "Sharpness");
    }
-   if ( m_nParamToAdjust == 4 )
+   if ( m_iParamToAdjust == m_iIndexParamHue )
    {
       value = pCamProfile->awbGainR;
       value_min = 0;
       value_max = 100;
       strcpy(szText, "Hue");
    }
+   if ( m_iParamToAdjust == m_iIndexParamAGC )
+   {
+      value = pCamProfile->drc;
+      value_min = 0;
+      value_max = 15;
+      strcpy(szText, "Automatic Gain Control");
+   }
+
    sprintf(szBuff, "%d", value);
    strcat(szText, ":");
    //strcat(szText, szBuff);
@@ -228,19 +283,14 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
       return;
    }
 
+   if ( (NULL == g_pCurrentModel) || (!pairing_isStarted()) )
+      return;
+
    if ( bSelect )
    {
-       m_nParamToAdjust++;
-       if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->isActiveCameraVeye307()) )
-       {
-          if (  m_nParamToAdjust > 4 )
-             m_nParamToAdjust = 0;
-       }
-       else
-       {
-          if (  m_nParamToAdjust > 3 )
-             m_nParamToAdjust = 0;
-       }
+       m_iParamToAdjust++;
+       if ( m_iParamToAdjust >= m_iTotalParams )
+          m_iParamToAdjust = 0;
    }
 
    bool bHasMoved = false;
@@ -259,7 +309,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
    memcpy(&cparams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
 
-   if ( m_nParamToAdjust == 0 )
+   if ( m_iParamToAdjust == m_iIndexParamBrightness )
    {
       if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].brightness > 0 )
          cparams.profiles[iProfile].brightness--;
@@ -275,7 +325,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          bToSend = true;
    }
 
-   if ( m_nParamToAdjust == 1 )
+   if ( m_iParamToAdjust == m_iIndexParamContrast )
    {
       if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].contrast > 0 )
          cparams.profiles[iProfile].contrast--;
@@ -291,7 +341,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          bToSend = true;
    }
 
-   if ( m_nParamToAdjust == 2 )
+   if ( m_iParamToAdjust == m_iIndexParamSaturation )
    {
       if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].saturation > 0 )
          cparams.profiles[iProfile].saturation--;
@@ -307,23 +357,33 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          bToSend = true;
    }
 
-   if ( m_nParamToAdjust == 3 )
+   if ( m_iParamToAdjust == m_iIndexParamSharpness )
    {
-      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].sharpness > 0 )
+      int value_min = -100;
+      int value_max = 100;
+      if ( g_pCurrentModel->isActiveCameraVeye327290() )
+      {
+         value_min = 0;
+         value_max = 10;
+      }
+
+      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].sharpness > 100-value_min )
          cparams.profiles[iProfile].sharpness--;
-      if ( bFastCCW && cparams.profiles[iProfile].sharpness > 0 )
+      if ( bFastCCW && cparams.profiles[iProfile].sharpness > 100-value_min )
          cparams.profiles[iProfile].sharpness--;
 
-      if ( (bCW || bFastCW) && cparams.profiles[iProfile].sharpness < 200 )
+      if ( (bCW || bFastCW) && cparams.profiles[iProfile].sharpness < 100 + value_max )
          cparams.profiles[iProfile].sharpness++;
-      if ( bFastCW && cparams.profiles[iProfile].sharpness < 200 )
+      if ( bFastCW && cparams.profiles[iProfile].sharpness < 100 + value_max )
          cparams.profiles[iProfile].sharpness++;
+
+      log_line("PopupCamera: sharpness changed to: %d", cparams.profiles[iProfile].sharpness);
 
       if ( cparams.profiles[iProfile].sharpness != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].sharpness )
          bToSend = true;
    }
 
-   if ( m_nParamToAdjust == 4 )
+   if ( m_iParamToAdjust == m_iIndexParamHue )
    {
       if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].awbGainR > 0 )
          cparams.profiles[iProfile].awbGainR -= 1;
@@ -335,7 +395,25 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
       if ( bFastCW && cparams.profiles[iProfile].awbGainR < 100 )
          cparams.profiles[iProfile].awbGainR += 1;
 
+      log_line("PopupCamera: hue (R) changed to: %f", cparams.profiles[iProfile].awbGainR);
+
       if ( fabs(cparams.profiles[iProfile].awbGainR - g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].awbGainR) >= 1.0 )
+         bToSend = true;
+   }
+
+   if ( m_iParamToAdjust == m_iIndexParamAGC )
+   {
+      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].drc > 0 )
+         cparams.profiles[iProfile].drc -= 1;
+      if ( bFastCCW && cparams.profiles[iProfile].drc > 0 )
+         cparams.profiles[iProfile].drc -= 1;
+
+      if ( (bCW || bFastCW) && cparams.profiles[iProfile].drc < 16 )
+         cparams.profiles[iProfile].drc += 1;
+      if ( bFastCW && cparams.profiles[iProfile].drc < 16 )
+         cparams.profiles[iProfile].drc += 1;
+
+      if ( cparams.profiles[iProfile].drc != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].drc )
          bToSend = true;
    }
 

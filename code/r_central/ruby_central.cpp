@@ -164,8 +164,16 @@ void load_resources()
       }
       else
       {
-         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.png");
+         if ( (access("res/ruby_bg4.png", R_OK) != -1) &&  (access("res/ruby_bg5.png", R_OK) != -1) )
+         {
+            s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg4.png");
+            s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg5.png");
+         }
+         else
+         {
+            s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
+            s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.png");
+         }
       }
    }
    else
@@ -177,8 +185,8 @@ void load_resources()
       }
       else
       {
-         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.jpg");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.jpg");
+         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
+         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.png");
       }
    }
 
@@ -208,14 +216,20 @@ void _draw_background()
         (g_bFirstModelPairingDone && (0 == g_uActiveControllerModelVID) ) )
       bNoModel = true;
 
-   double c[4] = {0,0,0,1};
    g_pRenderEngine->setGlobalAlfa(1.0);
+   //double c[4] = {0,0,0,1};
+   //g_pRenderEngine->setColors(c);
+   //sprintf(szBuff, "Welcome to %s", SYSTEM_NAME);
+   //g_pRenderEngine->drawText(0.42, 0.2, g_idFontMenuLarge, szBuff);
+   //g_pRenderEngine->drawText(0.42, 0.24, g_idFontMenuLarge, "Digital FPV System");
+
+   double c[4] = {40,40,40,1};
    g_pRenderEngine->setColors(c);
+   sprintf(szBuff, "Welcome to %s Digital FPV System", SYSTEM_NAME);
+   g_pRenderEngine->drawText(0.35, 0.1, g_idFontMenuLarge, szBuff);
 
-   sprintf(szBuff, "Welcome to %s", SYSTEM_NAME);
-
-   g_pRenderEngine->drawText(0.42, 0.2, g_idFontMenuLarge, szBuff);
-   g_pRenderEngine->drawText(0.42, 0.24, g_idFontMenuLarge, "Digital FPV System");
+   double c2[4] = {0,0,0,1};
+   g_pRenderEngine->setColors(c2);
 
    if ( s_StartSequence == START_SEQ_COMPLETED )
    if ( bNoModel )
@@ -639,7 +653,10 @@ void _render_video_background()
    {
       static u32 sl_uLastTimeLogWaitVideo = 0;
       if ( g_TimeNow > sl_uLastTimeLogWaitVideo + 4000 )
+      {
+         sl_uLastTimeLogWaitVideo = g_TimeNow;
          log_line("Waiting for video feed from VID %u", uVehicleIdFullVideo);
+      }
    }
    float width_text = g_pRenderEngine->textWidth(g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
@@ -647,7 +664,7 @@ void _render_video_background()
 }
 
 void _render_background_and_paddings(bool bForceBackground)
-{
+{ 
    bool showBg = true;
 
    if ( ! g_bSearching )
@@ -832,11 +849,18 @@ void compute_cpu_load(u32 timeNow)
    static unsigned long long valgcpu[4] = {0,0,0,0};
    unsigned long long tmp[4];
    unsigned long long total;
-   int temp = 0;
 
    fd = fopen("/proc/stat", "r");
-   fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
-   fclose(fd);
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
+      fclose(fd);
+      fd = NULL;
+   }
+   else
+   {
+       tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0;
+   }
    //printf("\n%llu, %llu, %llu, %llu", tmp[0], tmp[1], tmp[2], tmp[3] );
    
    if ( tmp[0] < valgcpu[0] || tmp[1] < valgcpu[1] || tmp[2] < valgcpu[2] || tmp[3] < valgcpu[3] )
@@ -857,9 +881,14 @@ void compute_cpu_load(u32 timeNow)
    
    s_TimeLastCPUSpeed = timeNow;
 
+   int temp = 0;
    fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   fscanf(fd, "%d", &temp);
-   fclose(fd);
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%d", &temp);
+      fclose(fd);
+      fd = NULL;
+   }
    g_ControllerTemp = temp/1000;
 
    g_ControllerCPUSpeed = hardware_get_cpu_speed();
@@ -995,16 +1024,6 @@ void executeQuickActions()
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
       return;
-   }
-
-   if ( pCS->iQAButtonRelaySwitching > 0 )
-   {
-      if ( pCS->iQAButtonRelaySwitching == 1 )
-         p->iActionQuickButton1 = quickActionRelaySwitch;
-      if ( pCS->iQAButtonRelaySwitching == 2 )
-         p->iActionQuickButton2 = quickActionRelaySwitch;
-      if ( pCS->iQAButtonRelaySwitching == 3 )
-         p->iActionQuickButton3 = quickActionRelaySwitch;
    }
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1  )

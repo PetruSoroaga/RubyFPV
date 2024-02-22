@@ -105,6 +105,7 @@ void reset_Preferences()
    s_Preferences.iShowCPULoad = 0;
    s_Preferences.uEnabledAlarms = 0xFFFFFFFF & (~ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD) & (~ALARM_ID_CPU_RX_LOOP_OVERLOAD);
    s_Preferences.iShowOnlyPresentTxPowerCards = 1;
+   s_Preferences.iShowTxBoosters = 0;
 }
 
 int save_Preferences()
@@ -161,7 +162,8 @@ int save_Preferences()
 
    fprintf(fd, "%u\n", s_Preferences.uEnabledAlarms);
 
-   fprintf(fd, "%d %d\n", s_Preferences.iShowCPULoad, s_Preferences.iShowOnlyPresentTxPowerCards);
+   fprintf(fd, "%d \n", s_Preferences.iShowCPULoad);
+   fprintf(fd, "%d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters);
 
    fclose(fd);
    log_line("Saved preferences to file: %s", FILE_PREFERENCES);
@@ -319,8 +321,11 @@ int load_Preferences()
    if ( bOk && 1 != fscanf(fd, "%u", &s_Preferences.uEnabledAlarms) )
       s_Preferences.uEnabledAlarms = 0xFFFFFFFF;
 
-   if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iShowCPULoad, &s_Preferences.iShowOnlyPresentTxPowerCards) )
+   if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iShowCPULoad) )
       s_Preferences.iShowCPULoad = 0;
+
+   if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iShowOnlyPresentTxPowerCards, &s_Preferences.iShowTxBoosters) )
+      s_Preferences.iShowTxBoosters = 0;
 
    // End reading file;
    // Validate settings

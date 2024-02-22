@@ -4,8 +4,8 @@
 
 #include <time.h>
 #include <sys/resource.h>
-#include<stdio.h>
-#include<sys/socket.h> 
+#include <stdio.h>
+#include <sys/socket.h> 
 
 
 bool bQuit = false;
@@ -27,10 +27,14 @@ int main(int argc, char *argv[])
    log_line("\nStarted.\n");
 
    int port = 5600;
-
+   bool bSummary = false;
 
    if ( argc >= 2 )
       port = atoi(argv[1]);
+
+   if ( argc >= 3 )
+   if ( strcmp(argv[argc-1], "-summary") == 0 )
+      bSummary = true;
 
    int socket_server, socket_client;
    struct sockaddr_in server_addr, client_addr;
@@ -49,6 +53,10 @@ int main(int argc, char *argv[])
    server_addr.sin_addr.s_addr = INADDR_ANY;
    server_addr.sin_port = htons( port );
 	
+   client_addr.sin_family = AF_INET;
+   client_addr.sin_addr.s_addr = INADDR_ANY;
+   client_addr.sin_port = htons( port );
+
    if( bind(socket_server,(struct sockaddr *)&server_addr, sizeof(server_addr)) < 0 )
    {
       log_line("Failed to bind socket.");
@@ -58,48 +66,40 @@ int main(int argc, char *argv[])
 
    log_line("Waiting for clients on port %d ...", port);
 
+   u32 uLastTimeSecond = get_current_timestamp_ms();
+   u32 uLastSecondbps = 0;
+   int iCountPackets = 0;
    while (!bQuit)
    {
-      char szBuff[1025];
+      char szBuff[2025];
       socklen_t len = sizeof(client_addr);
-      int nRecv = recvfrom(socket_server, szBuff, 1024, 
+      int nRecv = recvfrom(socket_server, szBuff, 1600, 
                 MSG_WAITALL, ( struct sockaddr *) &client_addr,
                 &len);
+      //int nRecv = recv(socket_server, szBuff, 1024, )
       if ( nRecv > 0 )
       {
-         szBuff[nRecv] = '\0';
-         log_line("Received from client: [%s]", szBuff);
+         uLastSecondbps += nRecv;
+         iCountPackets++;
+         if ( ! bSummary )
+         {
+            szBuff[nRecv] = '\0';
+            log_line("Recv %d bytes", nRecv);
+         }
       }
       else
          log_line("Failed to receive from client.");
-   }
 
-   /*
-   listen(socket_desc , 5);
-
-   log_line("Socket created and binded on port: %d", port);
-   log_line("Waiting for clients.");
-   while (!bQuit)
-   {
-      int c = sizeof(struct sockaddr_in);
-      socket_client = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-      if (socket_client<0)
-         log_line("Failed to connect client socket.");
-      log_line("Client connected.");
-      while( !bQuit )
+      u32 uTimeNow = get_current_timestamp_ms();
+      if ( uTimeNow >= uLastTimeSecond + 1000 )
       {
-         char szBuff[1025];
-         int read_size = recv(socket_client, szBuff, 1024 , 0);
-         if ( read_size > 0 )
-         {
-             szBuff[read_size] = 0;
-             log_line("Recv: [%s]", szBuff);
-         }
-
+          log_line("Recv %u bytes/sec, %u bps, %d pack/sec", uLastSecondbps, uLastSecondbps*8, iCountPackets);
+          uLastTimeSecond = uTimeNow;
+          uLastSecondbps = 0;
+          iCountPackets = 0;
       }
    }
 
-   */
    close(socket_server);
    log_line("\nEnded\n");
    exit(0);

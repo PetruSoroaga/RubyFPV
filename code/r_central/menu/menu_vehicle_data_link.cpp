@@ -47,8 +47,8 @@ MenuVehicleDataLink::MenuVehicleDataLink(void)
 
    m_pItemsSelect[0] = new MenuItemSelect("Vehicle Serial Port", "The vehicle serial port to use for the auxiliary data link.");
    m_pItemsSelect[0]->addSelection("None");
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
-      m_pItemsSelect[0]->addSelection(g_pCurrentModel->hardware_info.serial_bus_names[i]);
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+      m_pItemsSelect[0]->addSelection(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i]);
 
    m_pItemsSelect[0]->setIsEditable();
    m_IndexPort = addMenuItem(m_pItemsSelect[0]);
@@ -74,14 +74,14 @@ void MenuVehicleDataLink::valuesToUI()
 {
    int iCurrentSerialPortIndex = -1;
    u32 uCurrentSerialPortSpeed = 0;
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
        
-       if ( g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           iCurrentSerialPortIndex = i;
-          uCurrentSerialPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
+          uCurrentSerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
           break;
        }
    }
@@ -139,11 +139,11 @@ void MenuVehicleDataLink::onSelectItem()
 
    int iCurrentSerialPortIndex = -1;
 
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
        
-       if ( g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           iCurrentSerialPortIndex = i;
           break;
@@ -155,7 +155,7 @@ void MenuVehicleDataLink::onSelectItem()
    {
       int iSerialPort = m_pItemsSelect[0]->getSelectedIndex();
       if ( iSerialPort != 0 )
-      if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[iSerialPort-1] & 0xFF) == SERIAL_PORT_USAGE_SIK_RADIO )
+      if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iSerialPort-1] & 0xFF) == SERIAL_PORT_USAGE_SIK_RADIO )
       {
          MenuConfirmation* pMC = new MenuConfirmation("Can't use serial port", "The serial port you selected can't be used for a custom data link as it's used for a SiK radio interface.",1, true);
          pMC->m_yPos = 0.3;
@@ -168,13 +168,13 @@ void MenuVehicleDataLink::onSelectItem()
       {
          if ( iCurrentSerialPortIndex != -1 )
          {
-            model_hardware_info_t new_info;
-            memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardware_info), sizeof(model_hardware_info_t));
+            type_vehicle_hardware_interfaces_info new_info;
+            memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
             new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] &= 0xFFFFFF00;
             new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] |= SERIAL_PORT_USAGE_NONE;
             
             log_line("Sending disabling data link serial port selection to vehicle.");
-            if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(model_hardware_info_t)) )
+            if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
                valuesToUI();
 
             return;
@@ -182,8 +182,8 @@ void MenuVehicleDataLink::onSelectItem()
       }
       else
       {
-         model_hardware_info_t new_info;
-         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardware_info), sizeof(model_hardware_info_t));
+         type_vehicle_hardware_interfaces_info new_info;
+         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
 
          u8 uCurrentUsage = new_info.serial_bus_supported_and_usage[iSerialPort-1] & 0xFF;
          if ( uCurrentUsage != SERIAL_PORT_USAGE_DATA_LINK )
@@ -205,7 +205,7 @@ void MenuVehicleDataLink::onSelectItem()
          new_info.serial_bus_supported_and_usage[iSerialPort-1] |= SERIAL_PORT_USAGE_DATA_LINK;
          
          log_line("Sending new serial port to be used for data link to vehicle.");
-         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(model_hardware_info_t)) )
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();
          return;
       }
@@ -217,14 +217,14 @@ void MenuVehicleDataLink::onSelectItem()
          return;
 
       long val = hardware_get_serial_baud_rates()[m_pItemsSelect[1]->getSelectedIndex()];
-      if ( val == g_pCurrentModel->hardware_info.serial_bus_speed[iCurrentSerialPortIndex] )
+      if ( val == g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndex] )
          return;
 
-      model_hardware_info_t new_info;
-      memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardware_info), sizeof(model_hardware_info_t));
+      type_vehicle_hardware_interfaces_info new_info;
+      memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
       new_info.serial_bus_speed[iCurrentSerialPortIndex] = (u32)val;
       log_line("Sending new serial port speed for data link to vehicle.");
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(model_hardware_info_t)) )
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
          valuesToUI();
       return;
    }

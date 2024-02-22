@@ -44,8 +44,6 @@
 #include "../radio/radiolink.h"
 #include "../radio/radio_tx.h"
 
-extern t_packet_queue s_QueueRadioPacketsOut;
-
 u8 s_RadioRawPacket[MAX_PACKET_TOTAL_SIZE];
 
 u32 s_StreamsTxPacketIndex[MAX_RADIO_STREAMS];
@@ -235,7 +233,7 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
       return false;
    
    // Do not send packet if the link is overloaded
-   int iAirRate = 9600/8;
+   int iAirRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLinkId] /8;
    if ( hardware_radio_index_is_sik_radio(iRadioInterfaceIndex) )
       iAirRate = hardware_radio_sik_get_air_baudrate_in_bytes(iRadioInterfaceIndex);
 
@@ -819,7 +817,7 @@ void send_packet_vehicle_log(u8* pBuffer, int length)
    memcpy(packet + sizeof(t_packet_header), (u8*)&PHFS, sizeof(t_packet_header_file_segment));
    memcpy(packet + sizeof(t_packet_header) + sizeof(t_packet_header_file_segment), pBuffer, length);
 
-   packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+   packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 }
 
 void _send_alarm_packet_to_router(u32 uAlarmIndex, u32 uAlarm, u32 uFlags1, u32 uFlags2, u32 uRepeatCount)
@@ -836,7 +834,7 @@ void _send_alarm_packet_to_router(u32 uAlarmIndex, u32 uAlarm, u32 uFlags1, u32 
    memcpy(packet+sizeof(t_packet_header)+sizeof(u32), &uAlarm, sizeof(u32));
    memcpy(packet+sizeof(t_packet_header)+2*sizeof(u32), &uFlags1, sizeof(u32));
    memcpy(packet+sizeof(t_packet_header)+3*sizeof(u32), &uFlags2, sizeof(u32));
-   packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+   packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
    char szBuff[128];
    alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);

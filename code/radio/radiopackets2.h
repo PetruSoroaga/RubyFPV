@@ -17,11 +17,17 @@ Code written by: Petru Soroaga, 2021-2023
 #include "radiopackets_short.h"
 #include "radiopackets_wfbohd.h"
 
+#ifdef HW_PLATFORM_RASPBERRY
 #define MAX_RXTX_BLOCKS_BUFFER 200
-
+#define MAX_TOTAL_PACKETS_IN_BLOCK 64
 #define MAX_DATA_PACKETS_IN_BLOCK 32
 #define MAX_FECS_PACKETS_IN_BLOCK 32
-#define MAX_TOTAL_PACKETS_IN_BLOCK 64
+#else
+#define MAX_RXTX_BLOCKS_BUFFER 100
+#define MAX_TOTAL_PACKETS_IN_BLOCK 32
+#define MAX_DATA_PACKETS_IN_BLOCK 16
+#define MAX_FECS_PACKETS_IN_BLOCK 16
+#endif
 
 #define MAX_PACKET_RADIO_HEADERS 100
 #define MAX_PACKET_PAYLOAD 1250
@@ -138,7 +144,7 @@ typedef struct
    u32 encoding_extra_flags; // same as video_params.encoding_extra_flags;
       // byte 0:
       //    bit 0..2  - scramble blocks count
-      //    bit 3     - enables feature: restransmission of missing packets
+      //    bit 3     - enables restransmission of missing packets
       //    bit 4     - signals that current video is on reduced video bitrate due to tx time overload on vehicle
       //    bit 5     - enable adaptive video link params
       //    bit 6     - use controller info too when adjusting video link params
@@ -195,6 +201,7 @@ typedef struct
 // Updated in v7.7
 // Params:
 // u32 startflags 0xFFFFFFFF
+//                0xFFFFFFF0 added in 8.3 for tar+gzip format file
 // u32 uUniqueSendCounter;
 // u8 uSendAsSmallSegments: 0 - big segments / 1 - small segments
 
@@ -669,18 +676,19 @@ byte 0: command type:
 #define PACKET_TYPE_TEST_RADIO_LINK 51
 /*
 byte 0: vehicle radio link id to test
-byte 1: command type:
+byte 1: test number; // added in 8.3
+byte 2: command type:
    0 - status message;
-         byte 2: length of string including end byte;
-         byte 3+: has zero terminated string after that;
+         byte 3: length of string including end byte;
+         byte 4+: has zero terminated string after that;
    1 - start test link: (from controller to vehicle and vicevera for confirmation)
-         byte 2+: radio_link_params structure;
+         byte 3+: radio_link_params structure;
    2 - ping (from controller to vehicle and viceversa)
-         byte 2: u32: pings count sent;
-         byte 3: u32: pings count received from the other side;
+         byte 3..6:  u32: pings count sent by sender of the message;
+         byte 7..10: u32: pings count received so far by the sender of the message from the other side;
 
    3 - end test link (from controller to vehicle and viceversa)
-         byte 2: succes (0/1)
+         byte 3: succes (0/1)
 */
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS 0
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START  1

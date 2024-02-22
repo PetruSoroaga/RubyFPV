@@ -124,7 +124,9 @@ void _process_upload_apply()
        fclose(s_pFileSoftware);
    s_pFileSoftware = NULL;
 
-   vehicle_stop_video_capture(g_pCurrentModel);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      vehicle_stop_video_capture_csi(g_pCurrentModel);
 
    if ( 0 == s_iUpdateType )
    {
@@ -257,7 +259,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Received SW Upload packet of invalid minimum size: %d bytes", length);
       _sw_update_close_remove_temp_files();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return;             
    }
 
@@ -280,7 +282,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    if ( (params->file_block_index == MAX_U32) || (0 == params->total_size) )
    {
       log_line("Upload canceled");
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       _sw_update_close_remove_temp_files();
       return;
    }
@@ -289,7 +291,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Received SW Upload packet of invalid size: %d bytes, total length: %d bytes.", params->block_length, params->total_size);
       _sw_update_close_remove_temp_files();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return;             
    }
 
@@ -337,7 +339,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Received SW Upload packet index %d out of bounds (%u)", params->file_block_index, s_uSWPacketsCount);
       _sw_update_close_remove_temp_files();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return;
    }
 
@@ -347,7 +349,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Received SW Upload packet index %d too big (%u bytes, max allowed: %u)", params->file_block_index, s_pSWPacketsSize[params->file_block_index], s_uSWPacketsMaxSize);
       _sw_update_close_remove_temp_files();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return;
    }
 
@@ -397,12 +399,12 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    if ( bAllPrevOk )
    {
       for( int i=0; i<nRepeat; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 2);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 2);
    }
    else
    {
       for( int i=0; i<nRepeat; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 2);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 2);
    }
    if ( ! bAllPrevOk )
    {

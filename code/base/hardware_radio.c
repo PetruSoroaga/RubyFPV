@@ -1052,6 +1052,7 @@ radio_hw_info_t* hardware_get_radio_info_from_mac(const char* szMAC)
 
 int hardware_get_radio_tx_power_atheros()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( access( "/etc/modprobe.d/ath9k_hw.conf", R_OK ) == -1 )
    {
       log_softerror_and_alarm("Hardware: There are no Atheros radio interfaces configuration files to read radio config from in /etc/modprobe.d");
@@ -1098,10 +1099,13 @@ int hardware_get_radio_tx_power_atheros()
    }
    log_line("Hardware: Read Atheros radio configuration ok. Atheros radio config tx power: %d", iTxPower);
    return iTxPower;
+   #endif
+   return DEFAULT_RADIO_TX_POWER;
 }
 
 int hardware_get_radio_tx_power_rtl()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( access( "/etc/modprobe.d/rtl8812au.conf", R_OK ) == -1 )
    {
       log_softerror_and_alarm("Hardware: There are no RTL radio interfaces configuration files to read radio config from in /etc/modprobe.d");
@@ -1148,6 +1152,8 @@ int hardware_get_radio_tx_power_rtl()
    }
    log_line("Hardware: Read RTL radio configuration ok. RTL radio config tx power: %d", iTxPower);
    return iTxPower;
+   #endif
+   return DEFAULT_RADIO_TX_POWER;
 }
 
 
@@ -1157,6 +1163,7 @@ int hardware_set_radio_tx_power_atheros(int txPower)
    if ( txPower < 1 || txPower > MAX_TX_POWER )
       txPower = DEFAULT_RADIO_TX_POWER;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    int iHasOrgFile = 0;
    if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) != -1 )
       iHasOrgFile = 1;
@@ -1196,7 +1203,7 @@ int hardware_set_radio_tx_power_atheros(int txPower)
       sprintf(szBuff, "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
       hw_execute_bash_command(szBuff, NULL);
    }
-
+   #endif
    int val = hardware_get_radio_tx_power_atheros();
    log_line("Atheros TX Power changed to: %d", val);
    return val;
@@ -1208,6 +1215,7 @@ int hardware_set_radio_tx_power_rtl(int txPower)
    if ( txPower < 1 || txPower > MAX_TX_POWER )
       txPower = DEFAULT_RADIO_TX_POWER;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    int iHasOrgFile = 0;
    if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) != -1 )
       iHasOrgFile = 1;
@@ -1248,6 +1256,7 @@ int hardware_set_radio_tx_power_rtl(int txPower)
 
    if ( 0 != szBuff[0] )
       hw_execute_bash_command(szBuff, NULL);
+   #endif
 
    int val = hardware_get_radio_tx_power_rtl();
    log_line("RTL TX Power changed to: %d", val);

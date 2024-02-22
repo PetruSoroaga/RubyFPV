@@ -41,7 +41,7 @@
 #include "../radio/radiopackets2.h"
 #include "../radio/radiolink.h"
 
-#define MODEL_FILE_STAMP_ID "vVII.6stamp"
+#define MODEL_FILE_STAMP_ID "vVIII.3stamp"
 
 static const char* s_szModelFlightModeNONE = "NONE";
 static const char* s_szModelFlightModeMAN  = "MAN";
@@ -172,7 +172,7 @@ Model::Model(void)
    memset((u8*)&audio_params, 0, sizeof(audio_parameters_t));
    memset((u8*)&functions_params, 0, sizeof(type_functions_parameters));
 
-   memset((u8*)&hardware_info, 0, sizeof(model_hardware_info_t));
+   memset((u8*)&hardwareInterfacesInfo, 0, sizeof(type_vehicle_hardware_interfaces_info));
    memset((u8*)&radioInterfacesParams, 0, sizeof(type_radio_interfaces_parameters));
    memset((u8*)&radioLinksParams, 0, sizeof(type_radio_links_parameters));
 
@@ -388,7 +388,7 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &board_type) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -699,33 +699,33 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
    //----------------------------------------
    // Hardware info
 
-   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardware_info.radio_interface_count, &hardware_info.i2c_bus_count, &hardware_info.i2c_device_count, &hardware_info.serial_bus_count) )
+   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardwareInterfacesInfo.radio_interface_count, &hardwareInterfacesInfo.i2c_bus_count, &hardwareInterfacesInfo.i2c_device_count, &hardwareInterfacesInfo.serial_bus_count) )
    {
-      if ( hardware_info.i2c_bus_count < 0 || hardware_info.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
+      if ( hardwareInterfacesInfo.i2c_bus_count < 0 || hardwareInterfacesInfo.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info1"); return false; }
-      if ( hardware_info.i2c_device_count < 0 || hardware_info.i2c_device_count > MAX_MODEL_I2C_DEVICES )
+      if ( hardwareInterfacesInfo.i2c_device_count < 0 || hardwareInterfacesInfo.i2c_device_count > MAX_MODEL_I2C_DEVICES )
          { log_softerror_and_alarm("Load model8: Error on hw info2"); return false; }
-      if ( hardware_info.serial_bus_count < 0 || hardware_info.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
+      if ( hardwareInterfacesInfo.serial_bus_count < 0 || hardwareInterfacesInfo.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info3"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardware_info.i2c_bus_numbers[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
+         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.i2c_bus_numbers[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info4"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_device_count; i++ )
-         if ( 2 != fscanf(fd, "%d %d", &(hardware_info.i2c_devices_bus[i]), &(hardware_info.i2c_devices_address[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
+         if ( 2 != fscanf(fd, "%d %d", &(hardwareInterfacesInfo.i2c_devices_bus[i]), &(hardwareInterfacesInfo.i2c_devices_address[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info5"); return false; }
 
-      for( int i=0; i<hardware_info.serial_bus_count; i++ )
-         if ( 2 != fscanf(fd, "%u %s", &(hardware_info.serial_bus_supported_and_usage[i]), &(hardware_info.serial_bus_names[i][0])) )
+      for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
+         if ( 2 != fscanf(fd, "%u %s", &(hardwareInterfacesInfo.serial_bus_supported_and_usage[i]), &(hardwareInterfacesInfo.serial_bus_names[i][0])) )
             { log_softerror_and_alarm("Load model8: Error on hw info6"); return false; }
    }
    else
    {
-      hardware_info.radio_interface_count = 0;
-      hardware_info.i2c_bus_count = 0;
-      hardware_info.i2c_device_count = 0;
-      hardware_info.serial_bus_count = 0;
+      hardwareInterfacesInfo.radio_interface_count = 0;
+      hardwareInterfacesInfo.i2c_bus_count = 0;
+      hardwareInterfacesInfo.i2c_device_count = 0;
+      hardwareInterfacesInfo.serial_bus_count = 0;
       bOk = false;
    }
 
@@ -903,11 +903,11 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
 
    if ( bOk )
    {
-      for( int i=0; i<hardware_info.serial_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardware_info.serial_bus_speed[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
+         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.serial_bus_speed[i])) )
          {
-            for( int k=0; k<hardware_info.serial_bus_count; k++ )
-               hardware_info.serial_bus_speed[k] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+            for( int k=0; k<hardwareInterfacesInfo.serial_bus_count; k++ )
+               hardwareInterfacesInfo.serial_bus_speed[k] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
             break;
          }
    }
@@ -992,7 +992,7 @@ bool Model::loadVersion9(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &board_type) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1299,33 +1299,33 @@ bool Model::loadVersion9(const char* szFile, FILE* fd)
    //----------------------------------------
    // Hardware info
 
-   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardware_info.radio_interface_count, &hardware_info.i2c_bus_count, &hardware_info.i2c_device_count, &hardware_info.serial_bus_count) )
+   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardwareInterfacesInfo.radio_interface_count, &hardwareInterfacesInfo.i2c_bus_count, &hardwareInterfacesInfo.i2c_device_count, &hardwareInterfacesInfo.serial_bus_count) )
    {
-      if ( hardware_info.i2c_bus_count < 0 || hardware_info.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
+      if ( hardwareInterfacesInfo.i2c_bus_count < 0 || hardwareInterfacesInfo.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info1"); return false; }
-      if ( hardware_info.i2c_device_count < 0 || hardware_info.i2c_device_count > MAX_MODEL_I2C_DEVICES )
+      if ( hardwareInterfacesInfo.i2c_device_count < 0 || hardwareInterfacesInfo.i2c_device_count > MAX_MODEL_I2C_DEVICES )
          { log_softerror_and_alarm("Load model8: Error on hw info2"); return false; }
-      if ( hardware_info.serial_bus_count < 0 || hardware_info.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
+      if ( hardwareInterfacesInfo.serial_bus_count < 0 || hardwareInterfacesInfo.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info3"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardware_info.i2c_bus_numbers[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
+         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.i2c_bus_numbers[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info4"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_device_count; i++ )
-         if ( 2 != fscanf(fd, "%d %d", &(hardware_info.i2c_devices_bus[i]), &(hardware_info.i2c_devices_address[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
+         if ( 2 != fscanf(fd, "%d %d", &(hardwareInterfacesInfo.i2c_devices_bus[i]), &(hardwareInterfacesInfo.i2c_devices_address[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info5"); return false; }
 
-      for( int i=0; i<hardware_info.serial_bus_count; i++ )
-         if ( 3 != fscanf(fd, "%d %u %s", &(hardware_info.serial_bus_speed[i]), &(hardware_info.serial_bus_supported_and_usage[i]), &(hardware_info.serial_bus_names[i][0])) )
+      for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
+         if ( 3 != fscanf(fd, "%d %u %s", &(hardwareInterfacesInfo.serial_bus_speed[i]), &(hardwareInterfacesInfo.serial_bus_supported_and_usage[i]), &(hardwareInterfacesInfo.serial_bus_names[i][0])) )
             { log_softerror_and_alarm("Load model8: Error on hw info6"); return false; }
    }
    else
    {
-      hardware_info.radio_interface_count = 0;
-      hardware_info.i2c_bus_count = 0;
-      hardware_info.i2c_device_count = 0;
-      hardware_info.serial_bus_count = 0;
+      hardwareInterfacesInfo.radio_interface_count = 0;
+      hardwareInterfacesInfo.i2c_bus_count = 0;
+      hardwareInterfacesInfo.i2c_device_count = 0;
+      hardwareInterfacesInfo.serial_bus_count = 0;
       bOk = false;
    }
 
@@ -1564,7 +1564,7 @@ bool Model::loadVersion10(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &board_type) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1886,33 +1886,33 @@ bool Model::loadVersion10(const char* szFile, FILE* fd)
    //----------------------------------------
    // Hardware info
 
-   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardware_info.radio_interface_count, &hardware_info.i2c_bus_count, &hardware_info.i2c_device_count, &hardware_info.serial_bus_count) )
+   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardwareInterfacesInfo.radio_interface_count, &hardwareInterfacesInfo.i2c_bus_count, &hardwareInterfacesInfo.i2c_device_count, &hardwareInterfacesInfo.serial_bus_count) )
    {
-      if ( hardware_info.i2c_bus_count < 0 || hardware_info.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
+      if ( hardwareInterfacesInfo.i2c_bus_count < 0 || hardwareInterfacesInfo.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info1"); return false; }
-      if ( hardware_info.i2c_device_count < 0 || hardware_info.i2c_device_count > MAX_MODEL_I2C_DEVICES )
+      if ( hardwareInterfacesInfo.i2c_device_count < 0 || hardwareInterfacesInfo.i2c_device_count > MAX_MODEL_I2C_DEVICES )
          { log_softerror_and_alarm("Load model8: Error on hw info2"); return false; }
-      if ( hardware_info.serial_bus_count < 0 || hardware_info.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
+      if ( hardwareInterfacesInfo.serial_bus_count < 0 || hardwareInterfacesInfo.serial_bus_count > MAX_MODEL_SERIAL_BUSSES )
          { log_softerror_and_alarm("Load model8: Error on hw info3"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardware_info.i2c_bus_numbers[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
+         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.i2c_bus_numbers[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info4"); return false; }
 
-      for( int i=0; i<hardware_info.i2c_device_count; i++ )
-         if ( 2 != fscanf(fd, "%d %d", &(hardware_info.i2c_devices_bus[i]), &(hardware_info.i2c_devices_address[i])) )
+      for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
+         if ( 2 != fscanf(fd, "%d %d", &(hardwareInterfacesInfo.i2c_devices_bus[i]), &(hardwareInterfacesInfo.i2c_devices_address[i])) )
             { log_softerror_and_alarm("Load model8: Error on hw info5"); return false; }
 
-      for( int i=0; i<hardware_info.serial_bus_count; i++ )
-         if ( 3 != fscanf(fd, "%d %u %s", &(hardware_info.serial_bus_speed[i]), &(hardware_info.serial_bus_supported_and_usage[i]), &(hardware_info.serial_bus_names[i][0])) )
+      for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
+         if ( 3 != fscanf(fd, "%d %u %s", &(hardwareInterfacesInfo.serial_bus_speed[i]), &(hardwareInterfacesInfo.serial_bus_supported_and_usage[i]), &(hardwareInterfacesInfo.serial_bus_names[i][0])) )
             { log_softerror_and_alarm("Load model8: Error on hw info6"); return false; }
    }
    else
    {
-      hardware_info.radio_interface_count = 0;
-      hardware_info.i2c_bus_count = 0;
-      hardware_info.i2c_device_count = 0;
-      hardware_info.serial_bus_count = 0;
+      hardwareInterfacesInfo.radio_interface_count = 0;
+      hardwareInterfacesInfo.i2c_bus_count = 0;
+      hardwareInterfacesInfo.i2c_device_count = 0;
+      hardwareInterfacesInfo.serial_bus_count = 0;
       bOk = false;
    }
 
@@ -2092,6 +2092,17 @@ bool Model::loadVersion10(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%d", &m_iRadioInterfacesGraphRefreshInterval) )
       m_iRadioInterfacesGraphRefreshInterval = 3;
 
+   if ( 2 != fscanf(fd, "%d %d", &hwCapabilities.iMaxTxVideoBlocksBuffer, &hwCapabilities.iMaxTxVideoBlockPackets) )
+      resetHWCapabilities();
+
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
+      if ( bOk && (1 != fscanf(fd, "%d", &(hwCapabilities.dummyhwc[i]))) )
+         { bOk = false; }
+
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc2)/sizeof(hwCapabilities.dummyhwc2[0])); i++ )
+      if ( bOk && (1 != fscanf(fd, "%u", &(hwCapabilities.dummyhwc2[i]))) )
+         { bOk = false; }
+
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
@@ -2230,7 +2241,7 @@ bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
    strcat(szModel, szSetting);
    sprintf(szSetting, "savecounter: %d\n", iSaveCount);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, vehicle_id, controller_id, board_type); 
+   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, vehicle_id, controller_id, hwCapabilities.iBoardType); 
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "%u\n", uModelFlags);
@@ -2439,26 +2450,26 @@ bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
    //----------------------------------------
    // Hardware Info
 
-   sprintf(szSetting, "hw_info: %d %d %d %d\n", hardware_info.radio_interface_count, hardware_info.i2c_bus_count, hardware_info.i2c_device_count, hardware_info.serial_bus_count);
+   sprintf(szSetting, "hw_info: %d %d %d %d\n", hardwareInterfacesInfo.radio_interface_count, hardwareInterfacesInfo.i2c_bus_count, hardwareInterfacesInfo.i2c_device_count, hardwareInterfacesInfo.serial_bus_count);
    strcat(szModel, szSetting);
 
-   for( int i=0; i<hardware_info.i2c_bus_count; i++ )
+   for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
    {
-      sprintf(szSetting, " %d", hardware_info.i2c_bus_numbers[i]);
+      sprintf(szSetting, " %d", hardwareInterfacesInfo.i2c_bus_numbers[i]);
       strcat(szModel, szSetting);
    }
    sprintf(szSetting, "\n");
    strcat(szModel, szSetting);
 
-   for( int i=0; i<hardware_info.i2c_device_count; i++ )
+   for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
    {
-      sprintf(szSetting, " %d %d\n", hardware_info.i2c_devices_bus[i], hardware_info.i2c_devices_address[i]);
+      sprintf(szSetting, " %d %d\n", hardwareInterfacesInfo.i2c_devices_bus[i], hardwareInterfacesInfo.i2c_devices_address[i]);
       strcat(szModel, szSetting);
    }
 
-   for( int i=0; i<hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      sprintf(szSetting, " %d %u %s\n", hardware_info.serial_bus_speed[i], hardware_info.serial_bus_supported_and_usage[i], hardware_info.serial_bus_names[i]);
+      sprintf(szSetting, " %d %u %s\n", hardwareInterfacesInfo.serial_bus_speed[i], hardwareInterfacesInfo.serial_bus_supported_and_usage[i], hardwareInterfacesInfo.serial_bus_names[i]);
       strcat(szModel, szSetting);
    }
 
@@ -2560,6 +2571,20 @@ bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
    sprintf(szSetting, "%d\n", (int)m_iRadioInterfacesGraphRefreshInterval);
    strcat(szModel, szSetting);
    
+   sprintf(szSetting, "%d %d\n", hwCapabilities.iMaxTxVideoBlocksBuffer, hwCapabilities.iMaxTxVideoBlockPackets);
+   strcat(szModel, szSetting);
+
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
+   {
+      sprintf(szSetting, " %d", hwCapabilities.dummyhwc[i]);
+      strcat(szModel, szSetting);
+   }
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc2)/sizeof(hwCapabilities.dummyhwc2[0])); i++ )
+   {
+      sprintf(szSetting, " %u", hwCapabilities.dummyhwc2[i]);
+      strcat(szModel, szSetting);
+   }
+
    // End writing values to file
    // ---------------------------------------------------
 
@@ -2769,31 +2794,31 @@ void Model::generateUID()
 
 void Model::populateHWInfo()
 {
-   hardware_info.radio_interface_count = hardware_get_radio_interfaces_count();
-   hardware_info.i2c_bus_count = 0;
-   hardware_info.i2c_device_count = 0;
-   hardware_info.serial_bus_count = 0;
+   hardwareInterfacesInfo.radio_interface_count = hardware_get_radio_interfaces_count();
+   hardwareInterfacesInfo.i2c_bus_count = 0;
+   hardwareInterfacesInfo.i2c_device_count = 0;
+   hardwareInterfacesInfo.serial_bus_count = 0;
 
    hardware_enumerate_i2c_busses();
 
-   hardware_info.i2c_bus_count = hardware_get_i2c_busses_count();
+   hardwareInterfacesInfo.i2c_bus_count = hardware_get_i2c_busses_count();
 
    for( int i=0; i<hardware_get_i2c_busses_count(); i++ )
    {
       hw_i2c_bus_info_t* pBus = hardware_get_i2c_bus_info(i);
       if ( NULL != pBus && i < MAX_MODEL_I2C_BUSSES )
-         hardware_info.i2c_bus_numbers[i] = pBus->nBusNumber;
+         hardwareInterfacesInfo.i2c_bus_numbers[i] = pBus->nBusNumber;
    }
 
-   hardware_info.i2c_device_count = 0;
+   hardwareInterfacesInfo.i2c_device_count = 0;
    for( int i=1; i<128; i++ )
    {
       if ( ! hardware_has_i2c_device_id(i) )
          continue;
-      hardware_info.i2c_devices_address[hardware_info.i2c_device_count] = i;
-      hardware_info.i2c_devices_bus[hardware_info.i2c_device_count] = hardware_get_i2c_device_bus_number(i);
-      hardware_info.i2c_device_count++;
-      if ( hardware_info.i2c_device_count >= MAX_MODEL_I2C_DEVICES )
+      hardwareInterfacesInfo.i2c_devices_address[hardwareInterfacesInfo.i2c_device_count] = i;
+      hardwareInterfacesInfo.i2c_devices_bus[hardwareInterfacesInfo.i2c_device_count] = hardware_get_i2c_device_bus_number(i);
+      hardwareInterfacesInfo.i2c_device_count++;
+      if ( hardwareInterfacesInfo.i2c_device_count >= MAX_MODEL_I2C_DEVICES )
          break;
    }
 
@@ -2802,18 +2827,18 @@ void Model::populateHWInfo()
 
 bool Model::populateVehicleSerialPorts()
 {
-   hardware_info.serial_bus_count = hardware_get_serial_ports_count();
+   hardwareInterfacesInfo.serial_bus_count = hardware_get_serial_ports_count();
 
-   for( int i=0; i<hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
    {
       hw_serial_port_info_t* pInfo = hardware_get_serial_port_info(i);
       if ( NULL == pInfo )
       {
-         hardware_info.serial_bus_count = i;
+         hardwareInterfacesInfo.serial_bus_count = i;
          break;
       }
-      strcpy(hardware_info.serial_bus_names[i], pInfo->szName);
-      hardware_info.serial_bus_speed[i] = pInfo->lPortSpeed;
+      strcpy(hardwareInterfacesInfo.serial_bus_names[i], pInfo->szName);
+      hardwareInterfacesInfo.serial_bus_speed[i] = pInfo->lPortSpeed;
       
       int iIndex = atoi(&(pInfo->szName[strlen(pInfo->szName)-1]));
       u32 uPortFlags = 0;
@@ -2824,19 +2849,19 @@ bool Model::populateVehicleSerialPorts()
       if ( (NULL != strstr(pInfo->szName, "USB")) ||
            (NULL != strstr(pInfo->szPortDeviceName, "USB")) )
          uPortFlags |= (1<<4);
-      hardware_info.serial_bus_supported_and_usage[i] = (((u32)(pInfo->iPortUsage)) & 0xFF) | (uPortFlags<<8);
+      hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = (((u32)(pInfo->iPortUsage)) & 0xFF) | (uPortFlags<<8);
    }
 
-   log_line("Model: Populated %d serial ports:", hardware_info.serial_bus_count);
-   for( int i=0; i<hardware_info.serial_bus_count; i++ )
+   log_line("Model: Populated %d serial ports:", hardwareInterfacesInfo.serial_bus_count);
+   for( int i=0; i<hardwareInterfacesInfo.serial_bus_count; i++ )
    {
       log_line("Model: Serial Port: %s, type: %s, supported: %s, usage: %d (%s); speed: %d bps;",
-          hardware_info.serial_bus_names[i],
-         (hardware_info.serial_bus_supported_and_usage[i] & (1<<4<<8))?"USB":"HW",
-         (hardware_info.serial_bus_supported_and_usage[i] & (1<<5<<8))?"yes":"no",
-          hardware_info.serial_bus_supported_and_usage[i] & 0xFF,
-          str_get_serial_port_usage(hardware_info.serial_bus_supported_and_usage[i] & 0xFF),
-          hardware_info.serial_bus_speed[i] );
+          hardwareInterfacesInfo.serial_bus_names[i],
+         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & (1<<4<<8))?"USB":"HW",
+         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & (1<<5<<8))?"yes":"no",
+          hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF,
+          str_get_serial_port_usage(hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF),
+          hardwareInterfacesInfo.serial_bus_speed[i] );
    }
 
    return true;
@@ -3362,15 +3387,16 @@ void Model::logVehicleRadioInfo()
    log_line("------------------------------------------------------");
 }
 
-bool Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2)
+// Returns the number of differences
+int Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2)
 {
    if ( (NULL == pData1) || (NULL == pData2) )
    {
       log_softerror_and_alarm("Invalid params in detecting radio links params differences.");
-      return false;
+      return 0;
    }
 
-   bool bDifferent = false;
+   int iDifferences = 0;
    char szTmp[64];
    char szBuff1[256];
    char szBuff2[256];
@@ -3378,7 +3404,7 @@ bool Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, 
    if ( pData1->links_count != pData2->links_count )
    {
       log_line("Radio Links count changed from %d to %d", pData1->links_count, pData2->links_count);
-      bDifferent = true;
+      iDifferences++;
    }
 
    for( int i=0; i<pData1->links_count; i++ )
@@ -3386,71 +3412,71 @@ bool Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, 
       if ( pData1->link_frequency_khz[i] != pData2->link_frequency_khz[i] )
       {
          strcpy(szTmp, str_format_frequency(pData1->link_frequency_khz[i]));
-         log_line("Radio Link %d freq changed from %s to %s", i+1, szTmp, str_format_frequency(pData2->link_frequency_khz[i]));
-         bDifferent = true;
+         log_line("* Radio Link %d freq changed from %s to %s", i+1, szTmp, str_format_frequency(pData2->link_frequency_khz[i]));
+         iDifferences++;
       }
 
       if ( pData1->link_capabilities_flags[i] != pData2->link_capabilities_flags[i] )
       {
          str_get_radio_capabilities_description(pData1->link_capabilities_flags[i], szBuff1);
          str_get_radio_capabilities_description(pData2->link_capabilities_flags[i], szBuff2);
-         log_line("Radio Link %d capabilities changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d capabilities changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
 
       if ( pData1->link_radio_flags[i] != pData2->link_radio_flags[i] )
       {
          str_get_radio_frame_flags_description(pData1->link_radio_flags[i], szBuff1);
          str_get_radio_frame_flags_description(pData2->link_radio_flags[i], szBuff2);
-         log_line("Radio Link %d radio flags changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d radio flags changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
 
       if ( pData1->link_datarate_video_bps[i] != pData2->link_datarate_video_bps[i] )
       {
          str_format_bitrate(pData1->link_datarate_video_bps[i], szBuff1);
          str_format_bitrate(pData2->link_datarate_video_bps[i], szBuff2);
-         log_line("Radio Link %d video data rate changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d video data rate changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
       if ( pData1->link_datarate_data_bps[i] != pData2->link_datarate_data_bps[i] )
       {
          str_format_bitrate(pData1->link_datarate_data_bps[i], szBuff1);
          str_format_bitrate(pData2->link_datarate_data_bps[i], szBuff2);
-         log_line("Radio Link %d data data rate changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d data data rate changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
 
       if ( pData1->uplink_datarate_video_bps[i] != pData2->uplink_datarate_video_bps[i] )
       {
          str_format_bitrate(pData1->uplink_datarate_video_bps[i], szBuff1);
          str_format_bitrate(pData2->uplink_datarate_video_bps[i], szBuff2);
-         log_line("Radio Link %d uplink video data rate changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d uplink video data rate changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
       if ( pData1->uplink_datarate_data_bps[i] != pData2->uplink_datarate_data_bps[i] )
       {
          str_format_bitrate(pData1->uplink_datarate_data_bps[i], szBuff1);
          str_format_bitrate(pData2->uplink_datarate_data_bps[i], szBuff2);
-         log_line("Radio Link %d uplink data data rate changed from %s to %s", i+1, szBuff1, szBuff2);
-         bDifferent = true;
+         log_line("* Radio Link %d uplink data data rate changed from %s to %s", i+1, szBuff1, szBuff2);
+         iDifferences++;
       }
 
       if ( pData1->uDownlinkDataDataRateType[i] != pData2->uDownlinkDataDataRateType[i] )
       {
-         log_line("Radio Link %d downlink data rate type changed from %d to %d", i+1, pData1->uDownlinkDataDataRateType[i], pData2->uDownlinkDataDataRateType[i]);
-         bDifferent = true;
+         log_line("* Radio Link %d downlink data rate type changed from %d to %d", i+1, pData1->uDownlinkDataDataRateType[i], pData2->uDownlinkDataDataRateType[i]);
+         iDifferences++;
       }
       if ( pData1->uUplinkDataDataRateType[i] != pData2->uUplinkDataDataRateType[i] )
       {
-         log_line("Radio Link %d uplink data rate type changed from %d to %d", i+1, pData1->uUplinkDataDataRateType[i], pData2->uUplinkDataDataRateType[i]);
-         bDifferent = true;
+         log_line("* Radio Link %d uplink data rate type changed from %d to %d", i+1, pData1->uUplinkDataDataRateType[i], pData2->uUplinkDataDataRateType[i]);
+         iDifferences++;
       }
    }
 
-   if ( ! bDifferent )
-      log_line("There are no differences in the radio links params.");
-   return bDifferent;
+   if ( 0 == iDifferences )
+      log_line("* There are no differences in the radio links params.");
+   return iDifferences;
 }
 
 bool Model::validate_camera_settings()
@@ -3516,7 +3542,9 @@ bool Model::validate_camera_settings()
    }
    if ( camera_params[iCurrentCamera].iCameraType != camera_now )
    {
-      log_line("Validating camera info: hardware camera has changed. New camera_%d type: %u", iCurrentCamera, camera_now);
+      char szTmp[64];
+      str_get_hardware_camera_type_string(camera_now, szTmp);
+      log_line("Validating camera info: hardware camera has changed. New camera_%d type: %u, %s", iCurrentCamera, camera_now, szTmp);
       resetCameraToDefaults(iCurrentCamera);
       camera_params[iCurrentCamera].iCameraType = camera_now;
 
@@ -3532,11 +3560,21 @@ bool Model::validate_camera_settings()
             video_link_profiles[i].fps = 30;
          }
       }
+      if ( hardware_isCameraVeye() )
+      {
+         resetCameraToDefaults(iCurrentCamera);
+         camera_params[iCurrentCamera].iCurrentProfile = 0;
+         for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
+            resetCameraProfileToDefaults(&(camera_params[iCurrentCamera].profiles[i]));
+      }
       bUpdated = true;
    }
    else
-      log_line("Validating camera info: camera has not changed. Camera type: %d", camera_now);
-
+   {
+      char szTmp[64];
+      str_get_hardware_camera_type_string(camera_now, szTmp);
+      log_line("Validating camera info: camera has not changed. Camera type: %d, %s", camera_now, szTmp);
+   }
    // Force valid resolution for:
    // * always for Veye cameras
    // * when a HDMI camera is first plugged in
@@ -3545,30 +3583,30 @@ bool Model::validate_camera_settings()
    {
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-      int fps = video_link_profiles[i].fps;
-      int width = video_link_profiles[i].width;
-      int height = video_link_profiles[i].height;
+         int fps = video_link_profiles[i].fps;
+         int width = video_link_profiles[i].width;
+         int height = video_link_profiles[i].height;
 
-      if ( width == 1280 && height == 720 )
-      {
-         if ( fps > 60 )
-            { fps = 60; bUpdated = true; }
-      }
-      else if ( width == 1920 && height == 1080 )
-      {
-         if ( fps > 30 )
-            { fps = 30; bUpdated = true; }
-      }
-      else
-      {
-         width = 1280;
-         height = 720;
-         fps = 30;
-         bUpdated = true;
-      }
-      video_link_profiles[i].width = width;
-      video_link_profiles[i].height = height;
-      video_link_profiles[i].fps = fps;
+         if ( width == 1280 && height == 720 )
+         {
+            if ( fps > 60 )
+               { fps = 60; bUpdated = true; }
+         }
+         else if ( width == 1920 && height == 1080 )
+         {
+            if ( fps > 30 )
+               { fps = 30; bUpdated = true; }
+         }
+         else
+         {
+            width = 1280;
+            height = 720;
+            fps = 30;
+            bUpdated = true;
+         }
+         video_link_profiles[i].width = width;
+         video_link_profiles[i].height = height;
+         video_link_profiles[i].fps = fps;
       }
    }
    log_line("Validating camera info: camera was updated: %s", bUpdated?"yes":"no");
@@ -3737,6 +3775,11 @@ bool Model::validate_settings()
 
    validate_relay_links_flags();
 
+   if ( (hwCapabilities.iMaxTxVideoBlocksBuffer < 2) || (hwCapabilities.iMaxTxVideoBlocksBuffer > MAX_RXTX_BLOCKS_BUFFER) )
+      hwCapabilities.iMaxTxVideoBlocksBuffer = MAX_RXTX_BLOCKS_BUFFER;
+   if ( (hwCapabilities.iMaxTxVideoBlockPackets < 2) || (hwCapabilities.iMaxTxVideoBlockPackets > MAX_TOTAL_PACKETS_IN_BLOCK) )
+      hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
+
    return true;
 }
 
@@ -3860,7 +3903,9 @@ void Model::resetToDefaults(bool generateId)
    else
       log_line("Reusing the same unique vehicle ID (%u).", vehicle_id);
 
-   board_type = 0;
+   hwCapabilities.iBoardType = 0;
+   resetHWCapabilities();
+
    controller_id = 0;
    sw_version = (SYSTEM_SW_VERSION_MAJOR * 256 + SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16);
    log_line("SW Version: %d.%d (b%d)", (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version >> 16);
@@ -3878,10 +3923,10 @@ void Model::resetToDefaults(bool generateId)
 
    if ( hardware_is_station() )
    {
-      hardware_info.radio_interface_count = 0;
-      hardware_info.i2c_bus_count = 0;
-      hardware_info.i2c_device_count = 0;
-      hardware_info.serial_bus_count = 0;
+      hardwareInterfacesInfo.radio_interface_count = 0;
+      hardwareInterfacesInfo.i2c_bus_count = 0;
+      hardwareInterfacesInfo.i2c_device_count = 0;
+      hardwareInterfacesInfo.serial_bus_count = 0;
 
       radioInterfacesParams.interfaces_count = 0;
       radioLinksParams.links_count = 0;
@@ -3936,6 +3981,12 @@ void Model::resetToDefaults(bool generateId)
    resetTelemetryParams();
 
    resetFunctionsParamsToDefaults();
+}
+
+void Model::resetHWCapabilities()
+{
+   hwCapabilities.iMaxTxVideoBlocksBuffer = MAX_RXTX_BLOCKS_BUFFER;
+   hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
 }
 
 void Model::resetRadioLinksParams()
@@ -4082,11 +4133,11 @@ void Model::resetTelemetryParams()
 
    telemetry_params.flags = TELEMETRY_FLAGS_RXTX | TELEMETRY_FLAGS_REQUEST_DATA_STREAMS | TELEMETRY_FLAGS_SPECTATOR_ENABLE;
 
-   if ( 0 < hardware_info.serial_bus_count )
+   if ( 0 < hardwareInterfacesInfo.serial_bus_count )
    {
-      hardware_info.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-      hardware_info.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
-      hardware_info.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+      hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
+      hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
+      hardwareInterfacesInfo.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
 
       if ( hardware_is_vehicle() )
       if ( hardware_get_serial_ports_count() > 0 )
@@ -4167,8 +4218,10 @@ void Model::resetCameraToDefaults(int iCameraIndex)
             camera_params[k].profiles[i].whitebalance = 1; //auto
             camera_params[k].profiles[i].shutterspeed = 0; //auto
             camera_params[k].profiles[i].awbGainR = 40; // hue for imx307 camera
-            if ( hardware_getCameraType() == CAMERA_TYPE_VEYE327 || hardware_getCameraType() == CAMERA_TYPE_VEYE290 )
+            if ( (hardware_getCameraType() == CAMERA_TYPE_VEYE307) || (hardware_getCameraType() == CAMERA_TYPE_VEYE290) )
                camera_params[k].profiles[i].drc = 0;
+            if ( hardware_getCameraType() == CAMERA_TYPE_VEYE327 )
+               camera_params[k].profiles[i].drc = 0x0C;
          }
       }
       // HDMI profile defaults:
@@ -4181,9 +4234,13 @@ void Model::resetCameraToDefaults(int iCameraIndex)
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].sharpness = 100;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].analogGain = 2.0;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainB = 1.5;
+      if ( hardware_isCameraVeye() )
+         camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainR = 40; // hue for imx307 camera
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainR = 1.4;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].vstab = 0;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].drc = 0;
+      if ( hardware_getCameraType() == CAMERA_TYPE_VEYE327 )
+         camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].drc = 0x0C;
    }
 }
 
@@ -4919,14 +4976,16 @@ void Model::getCameraFlags(char* szCameraFlags)
       strcat(szCameraFlags, szBuff);
    }
 
-   switch ( pParams->drc )
+   if ( ! isActiveCameraVeye() )
    {
-      case 0: strcat(szCameraFlags, " -drc off"); break;
-      case 1: strcat(szCameraFlags, " -drc low"); break;
-      case 2: strcat(szCameraFlags, " -drc med"); break;
-      case 3: strcat(szCameraFlags, " -drc high"); break;
+      switch ( pParams->drc )
+      {
+         case 0: strcat(szCameraFlags, " -drc off"); break;
+         case 1: strcat(szCameraFlags, " -drc low"); break;
+         case 2: strcat(szCameraFlags, " -drc med"); break;
+         case 3: strcat(szCameraFlags, " -drc high"); break;
+      }
    }
-
    switch ( pParams->exposure )
    {
       case 0: strcat(szCameraFlags, " -ex auto"); break;

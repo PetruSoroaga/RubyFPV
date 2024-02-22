@@ -3,4 +3,4 @@
 
 void signalReboot();
 void sendControlMessage(u8 packet_type, u32 extraParam);
-void sendCommandReply(u8 responseFlags, int delayMiliSec);
+void sendCommandReply(u8 responseFlags, int iResponseExtraParam, int delayMiliSec);

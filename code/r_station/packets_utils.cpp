@@ -302,7 +302,7 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
       return false;
      
    // Do not send packet if the link is overloaded
-   int iAirRate = 9600/8;
+   int iAirRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLinkId]/8;
    if ( hardware_radio_index_is_sik_radio(iRadioInterfaceIndex) )
       iAirRate = hardware_radio_sik_get_air_baudrate_in_bytes(iRadioInterfaceIndex);
 

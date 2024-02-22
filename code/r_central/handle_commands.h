@@ -6,7 +6,7 @@
 bool handle_commands_start_on_pairing();
 bool handle_commands_stop_on_pairing();
 
-int handle_commands_on_full_model_settings_received(u32 uVehicleId, u8* pData, int iLength);
+int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iResponseParam, u8* pData, int iLength);
 u8* handle_commands_get_last_command_response();
 
 void handle_commands_loop();

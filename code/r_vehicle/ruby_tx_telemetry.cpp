@@ -253,12 +253,18 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
    FILE* fd = NULL;
    unsigned long long tmp[4];
    unsigned long long total;
-   int temp = 0;
 
    fd = fopen("/proc/stat", "r");
-   fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
-   fclose(fd);
-
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
+      fclose(fd);
+      fd = NULL;
+   }
+   else
+   {
+      tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0;
+   }
    if ( tmp[0] < s_val_cpu[0] || tmp[1] < s_val_cpu[1] || tmp[2] < s_val_cpu[2] || tmp[3] < s_val_cpu[3] )
       pPHRTE->cpu_load = 0;
    else
@@ -273,9 +279,16 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
 
    s_time_tx_telemetry_cpu = g_TimeNow;
 
+   int temp = 0;
+   #ifdef HW_PLATFORM_RASPBERRY
    fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   fscanf(fd, "%d", &temp);
-   fclose(fd);
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%d", &temp);
+      fclose(fd);
+      fd = NULL;
+   }
+   #endif
    pPHRTE->temperature = temp/1000;
 
    pPHRTE->throttled = hardware_get_flags();
@@ -900,7 +913,9 @@ void onRebootRequest()
 
    vehicle_stop_tx_router();
    if ( g_pCurrentModel->hasCamera() ) 
-      vehicle_stop_video_capture(g_pCurrentModel);
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      vehicle_stop_video_capture_csi(g_pCurrentModel);
+
    hw_stop_process("ruby_rx_commands");
    hw_stop_process("ruby_rx_rc");
    hardware_sleep_ms(100);
@@ -945,8 +960,9 @@ bool try_read_messages_from_router()
    {
       log_line("Received notification that router is ready.");
       _open_pipes(false, true);
-   
+      log_line("Opened pipes. Mark router as read.");   
       s_bRouterReady = true;
+      return true;
    }
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
@@ -960,6 +976,7 @@ bool try_read_messages_from_router()
          if ( (uOldVideoProfile == VIDEO_PROFILE_LQ) || (s_uCurrentVideoProfile == VIDEO_PROFILE_LQ) )
             _compute_telemetry_intervals();
       }
+      return true;
    }
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
@@ -973,6 +990,7 @@ bool try_read_messages_from_router()
          if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
             g_pCurrentModel->relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
       }
+      return true;
    }
  
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
@@ -1055,6 +1073,7 @@ bool try_read_messages_from_router()
          log_softerror_and_alarm("[Raw_Telem] No serial port opened to FC to send data to.");
       else if ( len != write(s_fSerialToFC, pTelemetryData, len) )
          log_softerror_and_alarm("Failed to write to serial port for telemetry output to FC.");
+      return true;
    }
 
    if (pPH->packet_type == PACKET_TYPE_AUX_DATA_LINK_UPLOAD )
@@ -1087,6 +1106,8 @@ bool try_read_messages_from_router()
       if ( -1 != s_iSerialDataLinkHandle )
       if ( len != write(s_iSerialDataLinkHandle, pDataLinkData, len) )
          log_softerror_and_alarm("Failed to write to serial port for auxiliary data link output.");
+
+      return true;
    }
    return true;
 }
@@ -2213,19 +2234,19 @@ int main (int argc, char *argv[])
    s_iCurrentTelemetrySerialPortIndex = -1;
    s_iCurrentDataLinkSerialPortIndex = -1;
    
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-       if ( g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_TELEMETRY )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_TELEMETRY )
        {
           s_iCurrentTelemetrySerialPortIndex = i;
-          s_uCurrentTelemetrySerialPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
+          s_uCurrentTelemetrySerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
        }
-       if ( g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           s_iCurrentDataLinkSerialPortIndex = i;
-          s_uCurrentDataLinkSerialPortSpeed = g_pCurrentModel->hardware_info.serial_bus_speed[i];
+          s_uCurrentDataLinkSerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
        }
    }
 

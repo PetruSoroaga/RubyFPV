@@ -45,8 +45,6 @@
 #include "events.h"
 #include "test_link_params.h"
 
-extern t_packet_queue s_QueueRadioPacketsOut;
-
 u32 s_uResendPairingConfirmationCounter = 0;
 
 int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
@@ -80,8 +78,8 @@ int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet+sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), &uSenderLocalRadioLinkId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &uLocalRadioLinkId, sizeof(u8));
 
-      //packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
-      packets_queue_inject_packet_first(&s_QueueRadioPacketsOut, packet);
+      //packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+      packets_queue_inject_packet_first(&g_QueueRadioPacketsOut, packet);
 
       if ( g_pCurrentModel->relay_params.uCurrentRelayMode != uTargetRelayMode )
       {
@@ -141,7 +139,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet+sizeof(t_packet_header), &s_uResendPairingConfirmationCounter, sizeof(u32));
-      packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+      packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
       g_bReceivedPairingRequest = true;
       g_uControllerId = pPH->vehicle_id_src;
@@ -208,7 +206,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
          memcpy(packet+sizeof(t_packet_header), &uVehicleLinkId, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
-         packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
          return 0;
       }
 
@@ -247,7 +245,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet+sizeof(t_packet_header), &uVehicleLinkId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
-      packets_queue_add_packet(&s_QueueRadioPacketsOut, packet);
+      packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
       return 0;
    }

@@ -138,6 +138,7 @@ void hardware_recording_led_set_blinking();
 
 void hardware_mount_root();
 void hardware_mount_boot();
+int hardware_get_free_space_kb();
 
 int hardware_has_eth();
 

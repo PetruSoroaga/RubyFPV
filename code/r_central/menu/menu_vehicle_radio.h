@@ -27,4 +27,6 @@ class MenuVehicleRadioConfig: public Menu
 
       bool m_bControllerHasKey;
       void populate();
+      void sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz);
+
 };

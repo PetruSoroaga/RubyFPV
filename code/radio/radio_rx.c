@@ -817,7 +817,7 @@ static void * _thread_radio_rx(void *argument)
       if ( s_iRadioRxAllInterfacesPaused )
       {
          log_line("[RadioRxThread] All interfaces paused. Pause Rx.");
-         hardware_sleep_ms(400);
+         hardware_sleep_ms(100);
          uTimeLastLoopCheck = get_current_timestamp_ms();
          continue;
       }
@@ -1153,8 +1153,12 @@ void radio_rx_resume_interface(int iInterfaceIndex)
    else
    {
       pthread_mutex_lock(&s_pThreadRadioRxMutex);
-      s_iRadioRxPausedInterfaces[iInterfaceIndex]--;
-      s_iRadioRxAllInterfacesPaused = 0;
+      if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] > 0 )
+      {
+         s_iRadioRxPausedInterfaces[iInterfaceIndex]--;
+         if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] == 0 )
+            s_iRadioRxAllInterfacesPaused = 0;
+      }
       pthread_mutex_unlock(&s_pThreadRadioRxMutex);
    }
 

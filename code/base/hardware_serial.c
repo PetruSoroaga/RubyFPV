@@ -66,13 +66,15 @@ void _hardware_enumerate_serial_ports()
 {
    s_iCountHardwareSerialPorts = 0;
 
+   #ifdef HW_PLATFORM_RASPBERRY
    strcpy(s_HardwareSerialPortsInfo[0].szName, "Serial-0");
    strcpy(s_HardwareSerialPortsInfo[0].szPortDeviceName, "/dev/serial0");
    s_HardwareSerialPortsInfo[0].iSupported = 1;
    s_HardwareSerialPortsInfo[0].lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
    s_HardwareSerialPortsInfo[0].iPortUsage = SERIAL_PORT_USAGE_NONE;
    s_iCountHardwareSerialPorts = 1;
-
+   #endif
+   
    for( int i=0; i<MAX_SERIAL_PORTS-4; i++ )
    {
       char szBuff[128];

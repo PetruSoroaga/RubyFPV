@@ -430,8 +430,10 @@ void _process_received_model_settings(u8* pPacketBuffer)
       iDataSize -= size;
    }
 
+   u32 uStartFlag = MAX_U32;
    if ( (pRuntimeInfo->pModel->sw_version >> 16) > 79 ) // v 7.7
    {
+      memcpy((u8*)&uStartFlag, pData, sizeof(u32));
       pData += 2*sizeof(u32) + sizeof(u8);
       iDataSize -= 2*sizeof(u32) - sizeof(u8);
       log_line("Received model settings packet: vehicle is new mode (7.7)");
@@ -450,7 +452,10 @@ void _process_received_model_settings(u8* pPacketBuffer)
       }
       else
          log_line("Received legacy model settings from router in a single packet with full zip model settings from vehicle %u (%d bytes).", pPH->vehicle_id_src, iDataSize);
-      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, pData, iDataSize);
+      int iResponseParam = 0;
+      if ( uStartFlag != MAX_U32 )
+         iResponseParam = 1;
+      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, iResponseParam, pData, iDataSize);
       return;
    }
 
@@ -497,7 +502,7 @@ void _process_received_model_settings(u8* pPacketBuffer)
          if ( bHasAll )
          {
             log_line("Got all model settings segments. Total size: %d bytes", iTotalSize);
-            handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, bufferAll, iTotalSize);
+            handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, 0, bufferAll, iTotalSize);
          }
       }
       return;
@@ -551,8 +556,11 @@ void _process_received_model_settings(u8* pPacketBuffer)
       }
       if ( bHasAll )
       {
+         int iResponseParam = 0;
+         if ( uStartFlag != MAX_U32 )
+            iResponseParam = 1;
          log_line("Got all model settings segments. Total size: %d bytes. Process it.", iTotalSize);
-         handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, bufferAll, iTotalSize);
+         handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, iResponseParam, bufferAll, iTotalSize);
       }
       else
          log_line("Still has not received all small segments. Received segments so far: [%s]", szBufferReceived);
@@ -649,22 +657,24 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    {
 
       int iRadioLinkId = pPacketBuffer[sizeof(t_packet_header)];
-      int iCmdId = pPacketBuffer[sizeof(t_packet_header)+1];
-      int iMsgLen = pPH->total_length - sizeof(t_packet_header)-2*sizeof(u8);
-      log_line("Processing received test link message type %s from router, %d data bytes for radio link %d",
-      str_get_packet_test_link_command(iCmdId), iMsgLen, iRadioLinkId+1);
+      int iTestNb = pPacketBuffer[sizeof(t_packet_header)+1]; 
+      int iCmdId = pPacketBuffer[sizeof(t_packet_header)+2];
+      int iMsgLen = pPH->total_length - sizeof(t_packet_header)-4*sizeof(u8);
+      log_line("Processing received test link (run %d) message type %s from router, %d data bytes for radio link %d",
+         iTestNb, str_get_packet_test_link_command(iCmdId), iMsgLen, iRadioLinkId+1);
 
       if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS )
       {
          char szBuff[256];
-         strcpy(szBuff, (char*)(pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8)));
+         strcpy(szBuff, (char*)(pPacketBuffer + sizeof(t_packet_header) + 4*sizeof(u8)));
+         log_line("Received test link status: %s", szBuff);
          warnings_add_configuring_radio_link_line(szBuff);
       }
 
       if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
       {
          bool bSucceeded = false;
-         if ( pPacketBuffer[sizeof(t_packet_header)+2*sizeof(u8)] )
+         if ( pPacketBuffer[sizeof(t_packet_header)+3*sizeof(u8)] )
             bSucceeded = true;
          log_line("Radio link params update succeeded? %s", bSucceeded?"Yes":"No");
 

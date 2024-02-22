@@ -72,7 +72,11 @@ void vehicle_launch_rx_rc(Model* pModel)
       return;
    }
    char szBuff[256];
+   #ifdef HW_CAPABILITY_IONICE
    sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rx_rc &", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
+   #else
+   sprintf(szBuff, "nice -n %d ./ruby_rx_rc &", pModel->niceRC);
+   #endif
    hw_execute_bash_command(szBuff, NULL);
 }
 
@@ -106,10 +110,12 @@ void vehicle_launch_tx_router(Model* pModel)
 
    hardware_sleep_ms(20);
 
-   char szBuff[1024];
+   char szBuff[128];
+   #ifdef HW_CAPABILITY_IONICE
    if ( pModel->ioNiceRouter > 0 )
       sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rt_vehicle &", pModel->ioNiceRouter, pModel->niceRouter );
    else
+   #endif
       sprintf(szBuff, "nice -n %d ./ruby_rt_vehicle &", pModel->niceRouter);
 
    hw_execute_bash_command(szBuff, NULL);
@@ -120,7 +126,7 @@ void vehicle_stop_tx_router()
    hw_stop_process("ruby_rt_vehicle");
 }
 
-bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites)
+bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites)
 {
    if ( NULL == pModel )
    {
@@ -153,7 +159,7 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       hw_execute_bash_command_raw(szComm, szOutput);
       log_line("VEYE Camera HW Ver output: %s", szOutput);
 
-      vehicle_update_camera_params(pModel, pModel->iCurrentCamera);
+      vehicle_update_camera_params_csi(pModel, pModel->iCurrentCamera);
       hardware_sleep_ms(200);
    }
 
@@ -172,10 +178,11 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
    pModel->getCameraFlags(szCameraFlags);
    pModel->getVideoFlags(szVideoFlags, pModel->video_params.user_selected_video_link_profile, pVideoOverwrites);
 
-
+   #ifdef HW_CAPABILITY_IONICE
    if ( pModel->ioNiceVideo > 0 )
       sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
    else
+   #endif
       sprintf(szPriority, "nice -n %d", pModel->niceVideo );
 
    if ( pModel->isActiveCameraVeye() )
@@ -223,14 +230,10 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
       else
          hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, pModel->niceVideo, pModel->ioNiceVideo, 1 );
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, pModel->niceVideo, pModel->ioNiceVideo, 1 );
-      g_TimeStartRaspiVid = g_TimeNow;
-      g_bDidSentRaspividBitrateRefresh = false;
    }
    else
    {
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND, pModel->niceVideo, pModel->ioNiceVideo, 1 );
-      g_TimeStartRaspiVid = g_TimeNow;
-      g_bDidSentRaspividBitrateRefresh = false;
    }
    #endif
    
@@ -238,7 +241,7 @@ bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrite
    return bResult;
 }
 
-void vehicle_stop_video_capture(Model* pModel)
+void vehicle_stop_video_capture_csi(Model* pModel)
 {
    g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 0;
 
@@ -253,13 +256,11 @@ void vehicle_stop_video_capture(Model* pModel)
       hw_stop_process(VIDEO_RECORDER_COMMAND);
    #endif
 
-   g_TimeStartRaspiVid = 0;
-   g_bDidSentRaspividBitrateRefresh = true;
    log_line("Stopped video capture process.");
 }
 
 
-void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
+void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex)
 {
    if ( ! pModel->isActiveCameraVeye() )
       return;
@@ -282,6 +283,13 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
       memset((u8*)&s_LastAppliedVeyeCameraParams, 0, sizeof(type_camera_parameters));
       memset((u8*)&s_LastAppliedVeyeVideoParams, 0, sizeof(video_parameters_t));
       s_bIsFirstCameraParamsUpdate = false;
+
+      if ( pModel->isActiveCameraVeye327290() )
+      {
+         int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f  videofmt -p1 NTSC -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
+         hw_execute_bash_command(szComm, NULL);
+      }
       bApplyAll = true;
    }
 
@@ -398,7 +406,7 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
 
       if ( bApplyAll || s_LastAppliedVeyeCameraParams.profiles[s_LastAppliedVeyeCameraParams.iCurrentProfile].contrast != pModel->camera_params[iCameraIndex].profiles[iProfile].contrast )
       {
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f contrast -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(2.5*pModel->camera_params[iCameraIndex].profiles[iProfile].contrast), nBus);
+         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f contrast -p1 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, (int)(2.5*(float)(pModel->camera_params[iCameraIndex].profiles[iProfile].contrast)), nBus);
          hw_execute_bash_command(szComm, NULL);
       }
 
@@ -467,7 +475,7 @@ void vehicle_update_camera_params(Model* pModel, int iCameraIndex)
             if ( pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness == 100 )
                sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x0 -p2 0x0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
             else
-               sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x1 -p2 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness - 100, nBus);
+               sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f sharppen -p1 0x1 -p2 0x%02X -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, pModel->camera_params[iCameraIndex].profiles[iProfile].sharpness - 101, nBus);
             hw_execute_bash_command(szComm, NULL);
          }
       }
@@ -530,9 +538,11 @@ static void * _thread_audio_capture(void *argument)
    strcpy(szRate, "44100");
 
    szPriority[0] = 0;
+   #ifdef HW_CAPABILITY_IONICE
    if ( pModel->ioNiceVideo > 0 )
       sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
    else
+   #endif
       sprintf(szPriority, "nice -n %d", pModel->niceVideo );
 
    sprintf(szCommCapture, "%s arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 -d %d -q >> %s",

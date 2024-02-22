@@ -34,6 +34,25 @@
 #include "menu_confirmation.h"
 #include "menu_tx_power_max.h"
 
+#define TX_POWER_TABLE_COLUMNS 11
+
+static const int s_iTxPowerLevelValues[TX_POWER_TABLE_COLUMNS] = { 10,  20,   30,   40,   50,   54,   56,   60,   63,   68,   72};
+
+static int s_iTxBoosterGainTable4W[][2] =
+{
+   {2, 100},
+   {5, 230},
+   {10, 420},
+   {20, 800},
+   {30, 1100},
+   {40, 1300},
+   {50, 1400},
+   {60, 1500},
+   {70, 1600},
+   {80, 1700},
+   {100, 4000}
+};
+
 MenuTXInfo::MenuTXInfo()
 :Menu(MENU_ID_TXINFO, "Radio Output Power Levels", NULL)
 {
@@ -201,6 +220,13 @@ void MenuTXInfo::onShow()
    m_pItemsSelect[0]->setIsEditable();
    m_IndexShowAllCards = addMenuItem(m_pItemsSelect[0]);
 
+   m_pItemsSelect[1] = new MenuItemSelect("Show 2W/4W Boosters", "Shows the power output for current radio interfaces when connected to 2W or 4W power boosters.");  
+   m_pItemsSelect[1]->addSelection("No");
+   m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1]->setIsEditable();
+   m_IndexShowBoosters = addMenuItem(m_pItemsSelect[1]);
+
+
    addMenuItem( new MenuItemText("Here is a table with aproximative ouput power levels for different cards:"));
 
    bool bFirstShow = m_bFirstShow;
@@ -216,6 +242,7 @@ void MenuTXInfo::valuesToUI()
    Preferences* pP = get_Preferences();
 
    m_pItemsSelect[0]->setSelectedIndex(1 - pP->iShowOnlyPresentTxPowerCards);
+   m_pItemsSelect[1]->setSelectedIndex(pP->iShowTxBoosters);
 
    if ( m_bShowController )
    {
@@ -249,29 +276,28 @@ void MenuTXInfo::valuesToUI()
 }
 
 
-void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char** szValues, bool header)
+void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine)
 {
    Preferences* pP = get_Preferences();
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float x = m_RenderXPos + m_sfMenuPaddingX;
    float y = m_yTemp;
+   float hItem = (1.0 + MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
-   bool bShowCard = true;
    bool bIsPresentOnVehicle = false;
    bool bIsPresentOnController = false;
 
-   if ( (!header) && (0 != iCardModel) && pP->iShowOnlyPresentTxPowerCards )
+   if ( 0 != iCardModel )
    {
-      bShowCard = false;
       if ( m_bShowVehicle && (NULL != g_pCurrentModel) )
       {
          for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
             if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[i] == iCardModel )
-               bShowCard = true;
+               bIsPresentOnVehicle = true;
             if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[i] == -iCardModel )
-               bShowCard = true;
+               bIsPresentOnVehicle = true;
          }
       }
 
@@ -287,50 +313,23 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
             if ( NULL == pCardInfo )
                continue;
             if ( iCardModel == pCardInfo->cardModel )
-               bShowCard = true;
+               bIsPresentOnController = true;
             if ( iCardModel == -(pCardInfo->cardModel) )
-               bShowCard = true;
+               bIsPresentOnController = true;
          }
       }
    }
 
-   if ( (! bShowCard) && (!header) )
-      return;
-
-   if ( (0 != iCardModel) && (!pP->iShowOnlyPresentTxPowerCards) )
+   if ( (!bIsHeader) && pP->iShowOnlyPresentTxPowerCards )
    {
-      if ( m_bShowVehicle && (NULL != g_pCurrentModel) )
-      {
-         for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-         {
-            if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[i] == iCardModel )
-               bIsPresentOnVehicle = true;
-            if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[i] == -iCardModel )
-               bIsPresentOnVehicle = true;
-         }
-      }
-
-      if ( m_bShowController )
-      {
-         for( int n=0; n<hardware_get_radio_interfaces_count(); n++ )
-         {
-            radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(n);
-            if ( NULL == pRadioHWInfo )
-               continue;
-
-            t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-            if ( NULL == pCardInfo )
-               continue;
-            if ( iCardModel == pCardInfo->cardModel )
-               bIsPresentOnController = true;
-            if ( iCardModel == -(pCardInfo->cardModel) )
-               bIsPresentOnController = true;
-         }
-      }
+      if ( m_bShowVehicle && (! bIsPresentOnVehicle) )
+         return;
+      if ( m_bShowController && (! bIsPresentOnController) )
+         return;
    }
 
    if ( 0 != iCardModel )
-   if ( ! pP->iShowOnlyPresentTxPowerCards )
+   if ( (!bIsHeader) && (! pP->iShowOnlyPresentTxPowerCards) )
    if ( bIsPresentOnController || bIsPresentOnVehicle )
    {
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
@@ -338,7 +337,12 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
       g_pRenderEngine->setStroke(get_Color_MenuBorder());
       g_pRenderEngine->setStrokeSize(1);
       
-      g_pRenderEngine->drawRoundRect(x - m_sfMenuPaddingX*0.4, y - m_sfMenuPaddingY*0.2, m_RenderWidth - 2.0*m_sfMenuPaddingX + 0.8 * m_sfMenuPaddingX, height_text + 0.4*m_sfMenuPaddingY, MENU_ROUND_MARGIN * m_sfMenuPaddingY);
+      float h = hItem + 0.4 * m_sfMenuPaddingY;
+      if ( pP->iShowTxBoosters )
+      if ( ! bIsBoosterLine )
+      if ( bIsPresentOnController || bIsPresentOnVehicle )
+         h += hItem;
+      g_pRenderEngine->drawRoundRect(x - m_sfMenuPaddingX*0.4, y - m_sfMenuPaddingY*0.2, m_RenderWidth - 2.0*m_sfMenuPaddingX + 0.8 * m_sfMenuPaddingX, h, MENU_ROUND_MARGIN * m_sfMenuPaddingY);
 
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStroke(get_Color_MenuBorder());
@@ -348,19 +352,29 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
    g_pRenderEngine->drawText(x, y, g_idFontMenuSmall, const_cast<char*>(szText));
 
    x = m_xTable;
-   if ( header )
+   if ( bIsHeader )
       x += 0.008*m_sfScaleFactor;
 
    char szLevel[128];
-
+   char szValue[32];
    float yTop = m_yTemp - height_text*2.0;
    float yBottom = m_yPos+m_RenderHeight - 3.0*m_sfMenuPaddingY - 1.2*height_text;
-   for( int i=0; i<11; i++ )
+   for( int i=0; i<TX_POWER_TABLE_COLUMNS; i++ )
    {
-      g_pRenderEngine->drawText(x, y, g_idFontMenuSmall, const_cast<char*>(szValues[i]));
+      if ( bIsHeader )
+         sprintf(szValue, "%d", piValues[i]);
+      else if ( piValues[i] <= 0 )
+         sprintf(szValue, "  -");
+      else if ( piValues[i] >= 1000000 )
+         sprintf(szValue, " !!!");
+      else if ( piValues[i] < 1000 )
+         sprintf(szValue, "%d mW", piValues[i]);
+      else
+         sprintf(szValue, "%.1f W", ((float)piValues[i])/1000.0);
+      g_pRenderEngine->drawText(x, y, g_idFontMenuSmall, szValue);
       x += m_xTableCellWidth;
 
-      if ( header )
+      if ( bIsHeader )
       if ( i == 2 || i == 5 || i == 7 || i == 10 )
       {
          g_pRenderEngine->setColors(get_Color_MenuText(), 0.5);
@@ -371,7 +385,7 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
          g_pRenderEngine->setStrokeSize(0);
       }
 
-      if ( header )
+      if ( bIsHeader )
       {
          szLevel[0] = 0;
          if ( i == 2 )
@@ -387,8 +401,8 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
       }
    }
       
-   m_yTemp += (1.0 + MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall);
-   if ( header )
+   m_yTemp += hItem;
+   if ( bIsHeader )
    {         
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
       g_pRenderEngine->setStrokeSize(1);
@@ -411,11 +425,35 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const char*
    }
    m_bShowThinLine = false;
    m_iLine++;
+
+   if ( ! bIsHeader )
+   if ( ! bIsBoosterLine )
+   if ( pP->iShowTxBoosters )
+   if ( bIsPresentOnController || bIsPresentOnVehicle )
+   {
+      int iTotalPowerValues[TX_POWER_TABLE_COLUMNS];
+      for( int i=0; i<TX_POWER_TABLE_COLUMNS; i++ )
+      {
+         if ( piValues[i] <= s_iTxBoosterGainTable4W[0][0] )
+            iTotalPowerValues[i] = s_iTxBoosterGainTable4W[0][1] * piValues[i] / s_iTxBoosterGainTable4W[0][0];
+         if ( piValues[i] > 100 )
+            iTotalPowerValues[i] = 1000000;
+         else for( int k=0; k<(int)(sizeof(s_iTxBoosterGainTable4W)/sizeof(s_iTxBoosterGainTable4W[0][0])/2)-1; k++ )
+         {
+            if ( piValues[i] >= s_iTxBoosterGainTable4W[k][0] )
+            if ( piValues[i] <= s_iTxBoosterGainTable4W[k+1][0] )
+            {
+               iTotalPowerValues[i] = s_iTxBoosterGainTable4W[k][1] + (s_iTxBoosterGainTable4W[k+1][1] - s_iTxBoosterGainTable4W[k][1]) * (float)((float)(piValues[i] - s_iTxBoosterGainTable4W[k][0])/(float)(s_iTxBoosterGainTable4W[k+1][0] - s_iTxBoosterGainTable4W[k][0]));
+               break;
+            }
+         }
+      }
+      RenderTableLine(iCardModel, " + 4W booster", iTotalPowerValues, false, true);
+   }
 }
 
 void MenuTXInfo::drawPowerLine(const char* szText, float yPos, int value)
 {
-   const char* szH[11] =          {    "10",    "20",    "30",     "40",     "50",     "54",     "56",       "60",     "63",    "68",       "72"};
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float xPos = m_RenderXPos + m_sfMenuPaddingX;
    char szBuff[64];
@@ -424,12 +462,12 @@ void MenuTXInfo::drawPowerLine(const char* szText, float yPos, int value)
 
    float x = m_xTable;
    float xEnd = x;
-   for( int i=0; i<11; i++ )
+   for( int i=0; i<TX_POWER_TABLE_COLUMNS; i++ )
    {
-      if ( value <= atoi(szH[i]) )
+      if ( value <= s_iTxPowerLevelValues[i] )
          break;
       float width = m_xTableCellWidth;
-      if ( i<10 && value < atoi(szH[i+1]) )
+      if ( (i < TX_POWER_TABLE_COLUMNS-1) && (value < s_iTxPowerLevelValues[i+1]) )
          width *= 0.5;
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
       g_pRenderEngine->setStrokeSize(1);
@@ -459,7 +497,7 @@ void MenuTXInfo::Render()
    m_xTable += 0.15*m_sfScaleFactor;
    m_xTableCellWidth = 0.05*m_sfScaleFactor;
    
-   for( int i=0; i<=m_IndexPowerMax+1; i++ )
+   for( int i=0; i<=m_IndexPowerMax+2; i++ )
       y += RenderItem(i,y);
    
    y += 1.0*height_text;
@@ -475,26 +513,28 @@ void MenuTXInfo::Render()
    if ( m_bShowController && m_bShowBothOnController )
       m_yTemp += 1.4*height_text;
 
-   const char* szH[11] =          {    "10",    "20",    "30",      "40",     "50",     "54",     "56",       "60",     "63",    "68",       "72"};
-   //const char* sz722N[11] =     {"0.5 mW",  "2 mW",  "5 mW",   "17 mW",  "50 mW",  "80 mW", "115 mW",  " 310 mW",   "- mW",  "- mW",     "- mW"};
-   const char* sz722N[11] =       {"0.3 mW",  "1 mW","2.5 mW",   "10 mW",  "35 mW",  "60 mW",  "80 mW",   " 90 mW",   "- mW",  "- mW",     "- mW"};
-   const char* sz722N2W[11] =     {  "6 mW", "20 mW", "70 mW",  "205 mW", "650 mW", "900 mW",    "1 W",    "1.9 W",    "2 W",   "2 W",      "2 W"};
-   const char* sz722N4W[11] =     { "10 mW", "60 mW", "200 mW", "450 mW",  "1.2 W",  "1.9 W",  "2.1 W",    "2.1 W",  "2.1 W", "2.1 W",    "2.1 W"};
-   const char* szBlueStick[11]  = {  "2 mW",  "4 mW",  "8 mW",   "28 mW",  "80 mW", "110 mW", "280 mW",      "1 W",   "? mW",    "? mW",   "? mW"};
-   //const char* szGreenStick[11] = {  "2 mW",  "5 mW", "15 mW",   "60 mW",  "75 mW",  "75 mW",   "- mW",     "- mW",   "- mW",    "- mW",   "- mW"};
-   const char* szAWUS036NH[11] =  { "10 mW", "20 mW", "30 mW",   "40 mW",  "60 mW",   "- mW",   "- mW",     "- mW",   "- mW",  "- mW",     "- mW"};
-   const char* szAWUS036NHA[11] = {"0.5 mW",  "2 mW",  "6 mW",   "17 mW", "120 mW", "180 mW", "215 mW",   "310 mW", "460 mW",  "- mW",     "- mW"};
+   //nst int infoH[TX_POWER_TABLE_COLUMNS] =          { 10,  20,   30,   40,   50,   54,   56,   60,   63,   68,   72};
+
+   const int info722N[TX_POWER_TABLE_COLUMNS] =       {  1,   2,    3,   10,   35,   60,   80,   90,    0,    0,    0};
+   const int info722N2W[TX_POWER_TABLE_COLUMNS] =     {  6,  20,   70,  205,  650,  900, 1000, 1900, 2000, 2000, 2000};
+   const int info722N4W[TX_POWER_TABLE_COLUMNS] =     { 10,  60,  200,  450, 1200, 1900, 2100, 2100, 2100, 2100, 2100};
+   const int infoBlueStick[TX_POWER_TABLE_COLUMNS]  = {  2,   4,    8,   28,   80,  110,  280, 1000,   0,     0,    0};
+   //nst int infoGreenStick[TX_POWER_TABLE_COLUMNS] = {  2,   5,    5,   60,   75,   75,    0,    0,    0,    0,    0};
+   const int infoAWUS036NH[TX_POWER_TABLE_COLUMNS] =  { 10,  20,   30,   40,   60,    0,    0,    0,    0,    0,    0};
+   const int infoAWUS036NHA[TX_POWER_TABLE_COLUMNS] = {  1,   2,    6,   17,  120,  180,  215,  310,  460,    0,    0};
    
-   //const char* szH[11] =        {    "10",    "20",    "30",      "40",     "50",     "54",     "56",       "60",     "63",    "68",       "72"};
-   const char* szGeneric[11] =    {"0.3 mW",  "1 mW","2.5 mW",   "10 mW",  "35 mW",  "60 mW",  "80 mW",   " 90 mW",   "- mW",  "- mW",     "- mW"};
-   const char* szAWUS036ACH[11] = {  "2 mW",  "5 mW", "20 mW",   "50 mW", "160 mW", "250 mW", "300 mW",   "420 mW", "500 mW",  "- mW",     "- mW"};
-   const char* szASUSUSB56[11]  = {  "2 mW",  "9 mW", "30 mW",   "80 mW", "200 mW", "250 mW", "300 mW",   "340 mW", "370 mW",  "370 mW", "150 mW"};
-   const char* szRTLDualAnt[11] = {  "5 mW", "17 mW", "50 mW",  "150 mW", "190 mW", "210 mW", "261 mW",   "310 mW", "310 mW",  "310 mW", "310 mW"};
-   const char* szAli1W[11]  =     {  "1 mW",  "2 mW",  "5 mW",   "10 mW",  "30 mW",  "50 mW",  "100 mW",   "300 mW", "450 mW",  "450 mW", "450 mW"};
-   const char* szA6100[11] =      {  "1 mW",  "3 mW",  "9 mW",   "17 mW",  "30 mW",  "30 mW",  "35 mW",   " 40 mW",   "- mW",  "- mW",     "- mW"};
-   const char* szAWUS036ACS[11] = {"0.1 mW",  "1 mW",  "3 mW",   "10 mW",  "35 mW",  "50 mW",  "60 mW",   " 90 mW",   "110 mW",  "- mW",     "- mW"};
+   //const int infoH[TX_POWER_TABLE_COLUMNS] =        { 10,  20,   30,   40,   50,   54,   56,   60,   63,   68,   72};
+
+   const int infoGeneric[TX_POWER_TABLE_COLUMNS] =    {  1,   2,    3,   10,   35,   60,   80,   90,    0,    0,    0};
+   const int infoAWUS036ACH[TX_POWER_TABLE_COLUMNS] = {  2,   5,   20,   50,  160,  250,  300,  420,  500,    0,    0};
+   const int infoASUSUSB56[TX_POWER_TABLE_COLUMNS]  = {  2,   9,   30,   80,  200,  250,  300,  340,  370,  370,  150};
+   const int infoRTLDualAnt[TX_POWER_TABLE_COLUMNS] = {  5,  17,   50,  150,  190,  210,  261,  310,  310,  310,  310};
+   const int infoAli1W[TX_POWER_TABLE_COLUMNS]  =     {  1,   2,    5,   10,   30,   50,  100,  300,  450,  450,  450};
+   const int infoA6100[TX_POWER_TABLE_COLUMNS] =      {  1,   3,    9,   17,   30,   30,   35,   40,    0,    0,    0};
+   const int infoAWUS036ACS[TX_POWER_TABLE_COLUMNS] = {  1,   2,    3,   10,   35,   50,   60,   90,  110,    0,    0};
+   const int infoArcherT2UP[TX_POWER_TABLE_COLUMNS] = {  3,  10,   25,   55,  110,  120,  140,  150,    0,    0,    0};
    
-   RenderTableLine(0, "Card / Power Level", szH, true);
+   RenderTableLine(0, "Card / Power Level", s_iTxPowerLevelValues, true, false);
    
    m_yTemp += 0.3 * height_text;
    if ( pP->iShowOnlyPresentTxPowerCards )
@@ -504,13 +544,13 @@ void MenuTXInfo::Render()
 
    if ( m_bDisplay24Cards )
    {
-      RenderTableLine(CARD_MODEL_TPLINK722N, "TPLink WN722N", sz722N, false);
-      RenderTableLine(CARD_MODEL_TPLINK722N, "WN722N + 2W Booster", sz722N2W, false);
-      RenderTableLine(CARD_MODEL_TPLINK722N, "WN722N + 4W Booster", sz722N4W, false);
-      RenderTableLine(CARD_MODEL_BLUE_STICK, "Blue Stick 2.4Ghz AR9271", szBlueStick, false);
-      //RenderTableLine(CARD_MODEL_TPLINK722N, "Green Stick 2.4Ghz AR9271", szGreenStick, false);
-      RenderTableLine(CARD_MODEL_ALFA_AWUS036NH, "Alfa AWUS036NH", szAWUS036NH, false);
-      RenderTableLine(CARD_MODEL_ALFA_AWUS036NHA, "Alfa AWUS036NHA", szAWUS036NHA, false);
+      RenderTableLine(CARD_MODEL_TPLINK722N, "TPLink WN722N", info722N, false, false);
+      RenderTableLine(CARD_MODEL_TPLINK722N, "WN722N + 2W Booster", info722N2W, false, false);
+      RenderTableLine(CARD_MODEL_TPLINK722N, "WN722N + 4W Booster", info722N4W, false, false);
+      RenderTableLine(CARD_MODEL_BLUE_STICK, "Blue Stick 2.4Ghz AR9271", infoBlueStick, false, false);
+      //RenderTableLine(CARD_MODEL_TPLINK722N, "Green Stick 2.4Ghz AR9271", infoGreenStick, false, false);
+      RenderTableLine(CARD_MODEL_ALFA_AWUS036NH, "Alfa AWUS036NH", infoAWUS036NH, false, false);
+      RenderTableLine(CARD_MODEL_ALFA_AWUS036NHA, "Alfa AWUS036NHA", infoAWUS036NHA, false, false);
    }
    if ( m_iLine != 0 )
    if ( m_bDisplay24Cards && m_bDisplay58Cards )
@@ -518,15 +558,15 @@ void MenuTXInfo::Render()
    
    if ( m_bDisplay58Cards )
    {
-      RenderTableLine(CARD_MODEL_RTL8812AU_DUAL_ANTENNA, "RTLDualAntenna 5.8Ghz", szRTLDualAnt, false);
-      RenderTableLine(CARD_MODEL_ASUS_AC56, "ASUS AC-56", szASUSUSB56, false);
-      RenderTableLine(CARD_MODEL_ALFA_AWUS036ACH, "Alfa AWUS036ACH", szAWUS036ACH, false);
-      RenderTableLine(CARD_MODEL_ALFA_AWUS036ACS, "Alfa AWUS036ACS", szAWUS036ACS, false);
-      RenderTableLine(CARD_MODEL_ZIPRAY, "1 Watt 5.8Ghz", szAli1W, false);
-      RenderTableLine(CARD_MODEL_NETGEAR_A6100, "Netgear A6100", szA6100, false);
-      RenderTableLine(CARD_MODEL_TENDA_U12, "Tenda U12", szGeneric, false);
-      RenderTableLine(CARD_MODEL_ARCHER_T2UPLUS, "Archer T2U Plus", szGeneric, false);
-      RenderTableLine(CARD_MODEL_RTL8814AU, "RTL8814AU", szGeneric, false);
+      RenderTableLine(CARD_MODEL_RTL8812AU_DUAL_ANTENNA, "RTLDualAntenna 5.8Ghz", infoRTLDualAnt, false, false);
+      RenderTableLine(CARD_MODEL_ASUS_AC56, "ASUS AC-56", infoASUSUSB56, false, false);
+      RenderTableLine(CARD_MODEL_ALFA_AWUS036ACH, "Alfa AWUS036ACH", infoAWUS036ACH, false, false);
+      RenderTableLine(CARD_MODEL_ALFA_AWUS036ACS, "Alfa AWUS036ACS", infoAWUS036ACS, false, false);
+      RenderTableLine(CARD_MODEL_ZIPRAY, "1 Watt 5.8Ghz", infoAli1W, false, false);
+      RenderTableLine(CARD_MODEL_NETGEAR_A6100, "Netgear A6100", infoA6100, false, false);
+      RenderTableLine(CARD_MODEL_TENDA_U12, "Tenda U12", infoGeneric, false, false);
+      RenderTableLine(CARD_MODEL_ARCHER_T2UPLUS, "Archer T2U Plus", infoArcherT2UP, false, false);
+      RenderTableLine(CARD_MODEL_RTL8814AU, "RTL8814AU", infoGeneric, false, false);
    }
 
    height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
@@ -674,6 +714,15 @@ void MenuTXInfo::onSelectItem()
    if ( m_IndexShowAllCards == m_SelectedIndex )
    {
       pP->iShowOnlyPresentTxPowerCards = 1- m_pItemsSelect[0]->getSelectedIndex();
+      save_Preferences();
+      valuesToUI();
+      invalidate();
+      return;
+   }
+
+   if ( m_IndexShowBoosters == m_SelectedIndex )
+   {
+      pP->iShowTxBoosters = m_pItemsSelect[1]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
       invalidate();

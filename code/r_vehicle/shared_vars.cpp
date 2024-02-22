@@ -5,7 +5,6 @@ bool g_bDebug = false;
 Model* g_pCurrentModel = NULL;
 
 shared_mem_process_stats* g_pProcessStats = NULL;
-u8* g_pSharedMemRaspiVidComm = NULL;
 int g_iBoardType = 0;
 
 t_packet_queue s_QueueControlPackets;
@@ -28,10 +27,13 @@ u16 s_countTXCompactedPacketsOutTemp = 0;
 
 // Router
 
-u32 g_uRouterState = 0;
+u32 s_debugVideoBlocksInCount = 0;
 
+t_packet_queue g_QueueRadioPacketsOut;
 ProcessorTxVideo* g_pProcessorTxVideo = NULL;
 ProcessorTxAudio* g_pProcessorTxAudio = NULL;
+bool g_bRadioReinitialized = false;
+
 shared_mem_radio_stats g_SM_RadioStats;
 shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
@@ -49,7 +51,6 @@ u32  g_uControllerId = 0;
 int s_iPendingFrequencyChangeLinkId = -1;
 u32 s_uPendingFrequencyChangeTo = 0;
 u32 s_uTimeFrequencyChangeRequest = 0;
-bool g_bDidSentRaspividBitrateRefresh = false;
 
 int g_iFramesSinceLastH264KeyFrame = 0;
 u32 g_uTotalRadioTxTimePerSec = 0;

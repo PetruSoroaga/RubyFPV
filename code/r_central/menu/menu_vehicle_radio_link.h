@@ -19,6 +19,7 @@ class MenuVehicleRadioLink: public Menu
    private:
       void sendRadioLinkCapabilities(int iRadioLink);
       void sendRadioLinkConfig(int linkIndex);
+      void sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz);
 
       int m_iRadioLink;
 

@@ -58,15 +58,15 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
 
    addMenuItem(new MenuItemSection("Serial Ports"));
 
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
       if ( i != 0 )
          addSeparator();
-      u32 uUsage = g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF;
-      sprintf( szBuff, "%s Usage:", g_pCurrentModel->hardware_info.serial_bus_names[i] );
+      u32 uUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+      sprintf( szBuff, "%s Usage:", g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i] );
       
       m_pItemsSelect[i*2] = new MenuItemSelect(szBuff);
-      if ( ! (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
+      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
       {
          m_pItemsSelect[i*2]->addSelection("Not Supported");
          m_pItemsSelect[i*2]->setEnabled(false);
@@ -109,7 +109,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       }
       m_IndexSerialPortsUsage[i] = addMenuItem(m_pItemsSelect[i*2]);
 
-      sprintf( szBuff, "%s Baudrate", g_pCurrentModel->hardware_info.serial_bus_names[i] );
+      sprintf( szBuff, "%s Baudrate", g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i] );
       m_pItemsSelect[i*2+1] = new MenuItemSelect(szBuff, "Sets the baud rate of this serial port.");
       for( int n=0; n<hardware_get_serial_baud_rates_count(); n++ )
       {
@@ -139,9 +139,9 @@ void MenuVehiclePeripherals::onShow()
 
 void MenuVehiclePeripherals::valuesToUI()
 {
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      if ( ! (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
+      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
       {
          m_pItemsSelect[i*2]->setSelectedIndex(0);
          m_pItemsSelect[i*2]->setEnabled(false);
@@ -150,7 +150,7 @@ void MenuVehiclePeripherals::valuesToUI()
 
       m_pItemsSelect[i*2]->setEnabled(true);
       
-      u32 uUsage = g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF;
+      u32 uUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
       if ( uUsage == SERIAL_PORT_USAGE_SIK_RADIO )
       {
          m_pItemsSelect[i*2]->setSelectedIndex(1);
@@ -203,7 +203,7 @@ void MenuVehiclePeripherals::valuesToUI()
          else
             m_pItemsSelect[i*2+1]->setSelectionIndexEnabled(n);
 
-         if ( hardware_get_serial_baud_rates()[n] == g_pCurrentModel->hardware_info.serial_bus_speed[i] )
+         if ( hardware_get_serial_baud_rates()[n] == g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] )
          {
             m_pItemsSelect[i*2+1]->setSelection(n);
             bFoundSpeed = true;
@@ -242,7 +242,7 @@ void MenuVehiclePeripherals::onSelectItem()
       return;
    }
 
-   for( int i=0; i<g_pCurrentModel->hardware_info.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
       if ( m_IndexSerialPortsUsage[i] == m_SelectedIndex )
       {
@@ -266,7 +266,7 @@ void MenuVehiclePeripherals::onSelectItem()
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
             if ( 7 == m_pItemsSelect[i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24;
-            if ( newUsage == (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) )
+            if ( newUsage == (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) )
                return;
          }
          else
@@ -285,15 +285,15 @@ void MenuVehiclePeripherals::onSelectItem()
                }
             }
          }
-         if ( newUsage == (g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] & 0xFF) )
+         if ( newUsage == (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) )
             return;
 
-         model_hardware_info_t new_info;
-         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardware_info), sizeof(model_hardware_info_t));
+         type_vehicle_hardware_interfaces_info new_info;
+         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
          new_info.serial_bus_supported_and_usage[i] &= 0xFFFFFF00;
          new_info.serial_bus_supported_and_usage[i] |= (u8)newUsage;
          log_line("Sending new serial ports usage to vehicle.");
-         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(model_hardware_info_t)) )
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();
          return;
       }
@@ -301,14 +301,14 @@ void MenuVehiclePeripherals::onSelectItem()
       if ( m_IndexSerialPortsBaudRate[i] == m_SelectedIndex )
       {
          long val = hardware_get_serial_baud_rates()[m_pItemsSelect[i*2+1]->getSelectedIndex()];
-         if ( val == g_pCurrentModel->hardware_info.serial_bus_speed[i] )
+         if ( val == g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] )
             return;
 
-         model_hardware_info_t new_info;
-         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardware_info), sizeof(model_hardware_info_t));
+         type_vehicle_hardware_interfaces_info new_info;
+         memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
          new_info.serial_bus_speed[i] = val;
          log_line("Sending new serial ports info to vehicle.");
-         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(model_hardware_info_t)) )
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();
          return;
       }

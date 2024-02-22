@@ -118,12 +118,12 @@ void update_processes_priorities()
    hw_set_proc_priority("ruby_central", pCS->iNiceCentral, 0, 1 );
 }
 
-int handle_commands_on_full_model_settings_received(u32 uVehicleId, u8* pData, int iLength)
+int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iResponseParam, u8* pData, int iLength)
 {
    if ( (NULL == pData) || (iLength <= 0) )
       return -1;
 
-   log_line("[Commands] Handling received full model settings, %d bytes, from VID %u", iLength, uVehicleId);
+   log_line("[Commands] Handling received full model settings, %d bytes, from VID %u, response param: %d", iLength, uVehicleId, iResponseParam);
 
    int iIndexRuntime = -1;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -171,10 +171,15 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, u8* pData, i
    }
 
    hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
-   FILE* fd = fopen("tmp/last_recv_model.tar", "wb");
+   char szRecvFile[128];
+   strcpy(szRecvFile, "tmp/last_recv_model.tar");
+   if ( iResponseParam != 0 )
+      strcpy(szRecvFile, "tmp/last_recv_model.tar.gz");
+
+   FILE* fd = fopen(szRecvFile, "wb");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to write received model settings to temporary model file.");
+      log_softerror_and_alarm("Failed to write received model settings to temporary model file [%s].", szRecvFile);
       return -1;
    }
 
@@ -182,8 +187,13 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, u8* pData, i
    fclose(fd);
    fd = NULL;
 
-   hw_execute_bash_command("tar -zxf tmp/last_recv_model.tar 2>&1", NULL);
-
+   if ( 0 == iResponseParam )
+      hw_execute_bash_command("tar -zxf tmp/last_recv_model.tar 2>&1", NULL);
+   else
+   {
+      hw_execute_bash_command("gzip -df tmp/last_recv_model.tar.gz 2>&1", NULL);
+      hw_execute_bash_command("tar -xf tmp/last_recv_model.tar 2>&1", NULL);    
+   }
    fd = fopen("tmp/model.mdl", "rb");
    if ( NULL == fd )
    {
@@ -305,6 +315,8 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
    s_iCountRetriesToGetModelSettingsCommand = 0;
 
    t_packet_header* pPH = (t_packet_header*)pPacket;
+   t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(pPacket + sizeof(t_packet_header));
+
    u8* pDataBuffer = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
    int iDataLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command_response);
 
@@ -318,8 +330,8 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
    // Did we a full, complete, single zip response?
    if ( iDataLength > 500 )
    {
-      log_line("[Commands] Received model settings response (from VID %u) as full single compressed file. Model file size (compressed): %d", pPH->vehicle_id_src, iDataLength);
-      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, pDataBuffer, iDataLength);
+      log_line("[Commands] Received model settings response (from VID %u) as full single compressed file. Model file size (compressed): %d, command response param: %d", pPH->vehicle_id_src, iDataLength, pPHCR->command_response_param);
+      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, pPHCR->command_response_param, pDataBuffer, iDataLength);
       return;
    }
    
@@ -408,8 +420,8 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
    }
    if ( bHasAll )
    {
-      log_line("[Commands] Got all model settings segments. Total size: %d bytes", iTotalSize);
-      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, bufferAll, iTotalSize);
+      log_line("[Commands] Got all model settings segments. Total size: %d bytes, response param: %d", iTotalSize, pPHCR->command_response_param);
+      handle_commands_on_full_model_settings_received(pPH->vehicle_id_src, pPHCR->command_response_param, bufferAll, iTotalSize);
    }
    else
       log_line("[Commands] Still hasn't all %d segments. Has these segments: [%s]", iTotalSegments, szSegments);
@@ -707,8 +719,8 @@ bool handle_last_command_result()
       return false;
    }
 
-   t_packet_header* pPH = NULL;
-   pPH = (t_packet_header*)s_CommandReplyBuffer;
+   t_packet_header* pPH = (t_packet_header*)s_CommandReplyBuffer;
+   t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(s_CommandReplyBuffer + sizeof(t_packet_header));
 
    char szBuff[1500];
    int tmp = 0, tmp1 = 0, tmp2 = 0;
@@ -899,23 +911,48 @@ bool handle_last_command_result()
             iDataLength -= size;
          }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
-         s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Modules Info",NULL);
-         s_pMenuVehicleHWInfo->m_xPos = 0.18; s_pMenuVehicleHWInfo->m_yPos = 0.16;
-         s_pMenuVehicleHWInfo->m_Width = 0.6;
-         s_pMenuVehicleHWInfo->addTopLine(" ");         
-         add_menu_to_stack(s_pMenuVehicleHWInfo);
-
-         strcpy(szBuff, (const char*)pBuffer);
-
-         szWord = strtok(szBuff, "#");
-         while( NULL != szWord )
+         
+         if ( 0 == s_CommandParam )
          {
-            int len = strlen(szWord);
-            for( int i=0; i<len; i++ )
-               if ( szWord[i] == 10 || szWord[i] == 13 )
-                  szWord[i] = ' ';
-            s_pMenuVehicleHWInfo->addTopLine(szWord);
-            szWord = strtok(NULL, "#");
+            s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Modules Info",NULL);
+            s_pMenuVehicleHWInfo->m_xPos = 0.18; s_pMenuVehicleHWInfo->m_yPos = 0.16;
+            s_pMenuVehicleHWInfo->m_Width = 0.6;
+            s_pMenuVehicleHWInfo->addTopLine(" ");         
+            add_menu_to_stack(s_pMenuVehicleHWInfo);
+
+            strcpy(szBuff, (const char*)pBuffer);
+
+            szWord = strtok(szBuff, "#");
+            while( NULL != szWord )
+            {
+               int len = strlen(szWord);
+               for( int i=0; i<len; i++ )
+                  if ( szWord[i] == 10 || szWord[i] == 13 )
+                     szWord[i] = ' ';
+               s_pMenuVehicleHWInfo->addTopLine(szWord);
+               szWord = strtok(NULL, "#");
+            }
+         }
+         if ( 1 == s_CommandParam )
+         {
+            s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
+            s_pMenuVehicleHWInfo->m_xPos = 0.18; s_pMenuVehicleHWInfo->m_yPos = 0.16;
+            s_pMenuVehicleHWInfo->m_Width = 0.42;
+            s_pMenuVehicleHWInfo->addTopLine(" ");         
+            add_menu_to_stack(s_pMenuVehicleHWInfo);
+
+            strcpy(szBuff, (const char*)pBuffer);
+
+            szWord = strtok(szBuff, "#");
+            while( NULL != szWord )
+            {
+               int len = strlen(szWord);
+               for( int i=0; i<len; i++ )
+                  if ( szWord[i] == 10 || szWord[i] == 13 )
+                     szWord[i] = ' ';
+               s_pMenuVehicleHWInfo->addTopLine(szWord);
+               szWord = strtok(NULL, "#");
+            }          
          }
          break;
 
@@ -929,7 +966,7 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->board_type), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
@@ -1056,13 +1093,28 @@ bool handle_last_command_result()
         }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info.", iDataLength);
+        char szFileUSB[64];
+        strcpy(szFileUSB, "tmp/tmp_usb_info.tar");
+        if ( pPHCR->command_response_param != 0 )
+           strcpy(szFileUSB, "tmp/tmp_usb_info.tar.gz");
+        log_line("Storing received USB info to file: [%s]", szFileUSB);
         char szText[3000];
-        FILE* fd = fopen("tmp/tmp_usb_info.tar", "wb");
+        FILE* fd = fopen(szFileUSB, "wb");
         if ( NULL != fd )
         {
            fwrite(pBuffer, 1, iDataLength, fd);
            fclose(fd);
-           hw_execute_bash_command("tar -zxf tmp/tmp_usb_info.tar 2>&1", NULL);
+           if ( pPHCR->command_response_param == 0 )
+           {
+              sprintf(szBuff, "tar -zxf %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szBuff, NULL);
+           }
+           else
+           {
+              sprintf(szBuff, "gzip -df %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szBuff, NULL);
+              hw_execute_bash_command("tar -xf tmp/tmp_usb_info.tar 2>&1", NULL);
+           }
            iDataLength = 0;
            fd = fopen("tmp/tmp_usb_info.txt", "rb");
            if ( NULL != fd )
@@ -1076,8 +1128,6 @@ bool handle_last_command_result()
            log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info. tmp/tmp_usb_info.tar");
            iDataLength = 0;
         }
-        //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-        //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
 
         if ( iDataLength <= 0 )
            s_pMenuUSBInfoVehicle->addTopLine("Received invalid info.");
@@ -1119,13 +1169,31 @@ bool handle_last_command_result()
         }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info2.", iDataLength);
+        char szFileUSB[64];
+        strcpy(szFileUSB, "tmp/tmp_usb_info2.tar");
+        if ( pPHCR->command_response_param != 0 )
+           strcpy(szFileUSB, "tmp/tmp_usb_info2.tar.gz");
+        log_line("Storing received USB2 info to file: [%s]", szFileUSB);
+
         char szText[3000];
-        FILE* fd = fopen("tmp/tmp_usb_info2.tar", "wb");
+        FILE* fd = fopen(szFileUSB, "wb");
         if ( NULL != fd )
         {
            fwrite(pBuffer, 1, iDataLength, fd);
            fclose(fd);
-           hw_execute_bash_command("tar -zxf tmp/tmp_usb_info2.tar 2>&1", NULL);
+
+           if ( pPHCR->command_response_param == 0 )
+           {
+              sprintf(szBuff, "tar -zxf %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szBuff, NULL);
+           }
+           else
+           {
+              sprintf(szBuff, "gzip -df %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szBuff, NULL);
+              hw_execute_bash_command("tar -xf tmp/tmp_usb_info2.tar 2>&1", NULL);
+           }
+
            iDataLength = 0;
            fd = fopen("tmp/tmp_usb_info2.txt", "rb");
            if ( NULL != fd )
@@ -1139,8 +1207,6 @@ bool handle_last_command_result()
            log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info2. tmp/tmp_usb_info2.tar");
            iDataLength = 0;
         }
-        //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-        //hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
 
         if ( iDataLength <= 0 )
            s_pMenuUSBInfoVehicle->addTopLine("Received invalid info 2.");
@@ -1290,7 +1356,7 @@ bool handle_last_command_result()
          {
             u32 vid = g_pCurrentModel->vehicle_id;
             u32 ctrlId = g_pCurrentModel->controller_id;
-            int boardType = g_pCurrentModel->board_type;
+            int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
             int forcedCameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType;
@@ -1311,7 +1377,7 @@ bool handle_last_command_result()
 
             g_pCurrentModel->vehicle_id = vid;
             g_pCurrentModel->controller_id = ctrlId;
-            g_pCurrentModel->board_type = boardType;
+            g_pCurrentModel->hwCapabilities.iBoardType = boardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = forcedCameraType;
@@ -1327,7 +1393,7 @@ bool handle_last_command_result()
          {
             u32 vid = g_pCurrentModel->vehicle_id;
             u32 ctrlId = g_pCurrentModel->controller_id;
-            int boardType = g_pCurrentModel->board_type;
+            int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
             int forcedCameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType;
@@ -1348,7 +1414,7 @@ bool handle_last_command_result()
 
             g_pCurrentModel->vehicle_id = vid;
             g_pCurrentModel->controller_id = ctrlId;
-            g_pCurrentModel->board_type = boardType;
+            g_pCurrentModel->hwCapabilities.iBoardType = boardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = forcedCameraType;
@@ -1617,13 +1683,13 @@ bool handle_last_command_result()
 
       case COMMAND_ID_SET_SERIAL_PORTS_INFO:
          {
-            model_hardware_info_t* pNewInfo = (model_hardware_info_t*)s_CommandBuffer;
-            g_pCurrentModel->hardware_info.serial_bus_count = pNewInfo->serial_bus_count;
+            type_vehicle_hardware_interfaces_info* pNewInfo = (type_vehicle_hardware_interfaces_info*)s_CommandBuffer;
+            g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count = pNewInfo->serial_bus_count;
             for( int i=0; i<pNewInfo->serial_bus_count; i++ )
             {
-               strcpy(g_pCurrentModel->hardware_info.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
-               g_pCurrentModel->hardware_info.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
-               g_pCurrentModel->hardware_info.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
+               strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
+               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
+               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
             }
             saveControllerModel(g_pCurrentModel);
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);

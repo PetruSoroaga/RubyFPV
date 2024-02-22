@@ -207,6 +207,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
    {
       g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
+      radio_stats_set_received_response_from_vehicle_now(&g_SM_RadioStats, g_TimeNow);
 
       u32 uResendCount = 0;
       if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) )
@@ -338,6 +339,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
    if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
    {
       g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
+      radio_stats_set_received_response_from_vehicle_now(&g_SM_RadioStats, g_TimeNow);
       u8 uPingId = 0;
       u32 vehicleTime = 0;
       u8 uOriginalLocalRadioLinkId = 0;
@@ -1006,6 +1008,8 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
          return 0;
 
       t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(pData + sizeof(t_packet_header));
+      g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
+      radio_stats_set_received_response_from_vehicle_now(&g_SM_RadioStats, g_TimeNow);
 
       if ( pPHCR->origin_command_type == COMMAND_ID_GET_ALL_PARAMS_ZIP )
       {

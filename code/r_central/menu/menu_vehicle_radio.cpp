@@ -306,6 +306,46 @@ void MenuVehicleRadioConfig::Render()
    RenderEnd(yTop);
 }
 
+
+void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz)
+{
+   if ( (iVehicleLinkIndex < 0) || (iVehicleLinkIndex >= MAX_RADIO_INTERFACES) )
+      return;
+
+   log_line("MenuVehicleRadio: Changing radio link %d frequency to %u khz (%s)", iVehicleLinkIndex+1, uNewFreqKhz, str_format_frequency(uNewFreqKhz));
+
+   type_radio_links_parameters newRadioLinkParams;
+   memcpy((u8*)&newRadioLinkParams, (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
+   
+   newRadioLinkParams.link_frequency_khz[iVehicleLinkIndex] = uNewFreqKhz;
+   
+   if ( 0 == memcmp((u8*)&newRadioLinkParams, (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters)) )
+   {
+      log_line("MenuVehicleRadio: No change in radio link frequency. Do not send command.");
+      return;
+   }
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
+
+   u8 buffer[1024];
+   static int s_iMenuRadioTestNumberCount = 0;
+   s_iMenuRadioTestNumberCount++;
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = (u8)iVehicleLinkIndex;
+   buffer[sizeof(t_packet_header)+1] = (u8)s_iMenuRadioTestNumberCount;
+   buffer[sizeof(t_packet_header)+2] = 1;
+   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8), &newRadioLinkParams, sizeof(type_radio_links_parameters));
+   send_packet_to_router(buffer, PH.total_length);
+
+   link_set_is_reconfiguring_radiolink(iVehicleLinkIndex);
+   warnings_add_configuring_radio_link(iVehicleLinkIndex, "Changing Frequency");
+}
+
+
 void MenuVehicleRadioConfig::onSelectItem()
 {
    if ( handle_commands_is_command_in_progress() )
@@ -403,8 +443,8 @@ void MenuVehicleRadioConfig::onSelectItem()
       nicFreq[iRadioInterfaceId] = freq;
 
       int nicFlags[MAX_RADIO_INTERFACES];
-         for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-            nicFlags[i] = g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i];
+      for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+         nicFlags[i] = g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i];
 
       const char* szError = controller_validate_radio_settings( g_pCurrentModel, nicFreq, nicFlags, NULL, NULL, NULL);
       
@@ -442,15 +482,22 @@ void MenuVehicleRadioConfig::onSelectItem()
             sprintf(szBuff, "Not all radio interfaces on your controller support %s frequency. Some radio interfaces on the controller will not be used to communicate with this vehicle.", str_format_frequency(freq));
             add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 0, true));
          }
-      u32 param = freq & 0xFFFFFF;
-      param = param | (((u32)n)<<24) | 0x80000000; // Highest bit set to 1 to mark the new format of the param
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_FREQUENCY, param, NULL, 0) )
-         valuesToUI();
-      else
+
+      if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) < 8) ||
+           ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && ((g_pCurrentModel->sw_version & 0xFF) <= 20) ) )
       {
-         link_set_is_reconfiguring_radiolink(n, false, g_pCurrentModel->radioLinkIsSiKRadio(n), g_pCurrentModel->radioLinkIsSiKRadio(n)); 
-         warnings_add_configuring_radio_link(n, "Changing frequency");
+         u32 param = freq & 0xFFFFFF;
+         param = param | (((u32)n)<<24) | 0x80000000; // Highest bit set to 1 to mark the new format of the param
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_FREQUENCY, param, NULL, 0) )
+            valuesToUI();
+         else
+         {
+            link_set_is_reconfiguring_radiolink(n, false, g_pCurrentModel->radioLinkIsSiKRadio(n), g_pCurrentModel->radioLinkIsSiKRadio(n)); 
+            warnings_add_configuring_radio_link(n, "Changing frequency");
+         }
       }
+      else
+         sendNewRadioLinkFrequency(n, freq);
    }
 
    for( int n=0; n<g_pCurrentModel->radioLinksParams.links_count; n++ )

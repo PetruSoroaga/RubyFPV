@@ -128,10 +128,23 @@ u32 s_TimeLastPeriodicChecksUSBForward = 0;
 
 u32 s_uLastVideoFrameTime = MAX_U32;
 
+int s_iLocalUDPVideoOutput = -1;
+
 
 void _rx_video_output_launch_video_player()
 {
    log_line("RxVideoOutput: Starting video player");
+
+   // TO FIX
+   /*
+   if ( hw_process_exists("gst-launch-1.0") )
+   {
+      log_line("Video gst player process already running. Do nothing.");
+      return;
+   }
+   hw_execute_bash_command("gst-launch-1.0 udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! 'video/x-h264,stream-format=byte-stream' ! fdsink | ./ruby_player_s &", NULL);
+   */
+
    if ( hw_process_exists(VIDEO_PLAYER_PIPE) )
    {
       log_line("Video player process already running. Do nothing.");
@@ -141,9 +154,11 @@ void _rx_video_output_launch_video_player()
    ControllerSettings* pcs = get_ControllerSettings();
    char szPlayer[1024];
 
+   #ifdef HW_CAPABILITY_IONICE
    if ( pcs->ioNiceRXVideo > 0 )
       sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s > /dev/null 2>&1&", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, VIDEO_PLAYER_PIPE);
    else
+   #endif
       sprintf(szPlayer, "nice -n %d ./%s > /dev/null 2>&1&", pcs->iNiceRXVideo, VIDEO_PLAYER_PIPE);
 
    hw_execute_bash_command(szPlayer, NULL);
@@ -171,6 +186,11 @@ void _rx_video_output_launch_video_player()
 
 void _rx_video_output_stop_video_player()
 {
+   // TO FIX
+   //hw_stop_process("gst-launch-1.0");
+   //hw_stop_process(VIDEO_PLAYER_STDIN);
+   //return;
+
    char szComm[512];
       
    if ( s_iPIDVideoPlayer > 0 )
@@ -179,24 +199,6 @@ void _rx_video_output_stop_video_player()
       int iRet = kill(s_iPIDVideoPlayer, SIGTERM);
       if ( iRet < 0 )
          log_line("RxVideoOutput: Failed to stop video player, error number: %d, [%s]", errno, strerror(errno));
-      
-      /*
-      char szPids[128];
-      sprintf(szComm, "pidof %s", VIDEO_PLAYER_PIPE);
-      szPids[0] = 0;
-      int count = 0;
-      hw_execute_bash_command_silent(szComm, szPids);
-      while ( (strlen(szPids) > 2 ) && (count < 1000) )
-      {
-         if ( strlen(szPids) < 2 )
-            break;
-         log_line("RxVideoOutput: Waiting for video player process to terminate, PID: [%s]", szPids);
-         hardware_sleep_ms(2);
-         szPids[0] = 0;
-         hw_execute_bash_command_silent(szComm, szPids);
-         count++;
-      }
-      */
    }
    else
    {
@@ -228,14 +230,14 @@ static void * _thread_rx_video_output_player(void *argument)
    while ( ! s_bRxVideoOutputPlayerThreadMustStop )
    {
       hardware_sleep_ms(50);
+      if ( s_bRxVideoOutputPlayerThreadMustStop )
+         break;
       tWait.tv_nsec = 100*1000*1000;
       int iRet = sem_timedwait(pSemaphore, &tWait);
       if ( ETIMEDOUT == iRet )
       {
          continue;
       }
-      if ( s_bRxVideoOutputPlayerThreadMustStop )
-         break;
 
       if ( (0 != iRet) && (!s_bRxVideoOutputPlayerReinitializing) )
          continue;
@@ -271,7 +273,11 @@ void _processor_rx_video_forward_open_eth_pipe()
 {
    log_line("Creating ETH pipes for video forward...");
    char szComm[1024];
+   #ifdef HW_CAPABILITY_IONICE
    sprintf(szComm, "ionice -c 1 -n 4 nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
+   #else
+   sprintf(szComm, "nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
+   #endif
    hw_execute_bash_command(szComm, NULL);
 
    log_line("Opening video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
@@ -498,8 +504,27 @@ void rx_video_output_init()
       _processor_rx_video_forward_create_eth_socket();
    }
 
-   _rx_video_output_launch_video_player();
+   // Local UDP video output
+   struct sockaddr_in saddr;
+   s_iLocalUDPVideoOutput = socket(AF_INET, SOCK_DGRAM, 0);
+   if ( s_iLocalUDPVideoOutput < 0 )
+   {
+      log_error_and_alarm("Failed to create local UDP video output socket.");
+      return;
+   }
+   bzero((char *) &saddr, sizeof(saddr));
+   saddr.sin_family = AF_INET;
+   saddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+   saddr.sin_port = htons((unsigned short)5600);
 
+   if (connect(s_iLocalUDPVideoOutput, (struct sockaddr *) &saddr, sizeof(saddr)) < 0)
+   {
+      log_error_and_alarm("Failed to connect local UDP video output socket.");
+      s_iLocalUDPVideoOutput = -1;
+   }
+
+   _rx_video_output_launch_video_player();
+   
    log_line("Opening video output pipe write endpoint: %s", FIFO_RUBY_STATION_VIDEO_STREAM);
    s_fPipeVideoOutToPlayer = open(FIFO_RUBY_STATION_VIDEO_STREAM, O_CREAT | O_WRONLY);
    if ( s_fPipeVideoOutToPlayer < 0 )
@@ -554,6 +579,12 @@ void rx_video_output_uninit()
    log_line("RxVideoOutput: Uninit start...");
    _stop_recording();
 
+   if ( -1 != s_iLocalUDPVideoOutput )
+   {
+      close(s_iLocalUDPVideoOutput);
+      s_iLocalUDPVideoOutput = -1;
+   }
+
    s_bRxVideoOutputPlayerThreadMustStop = true;
    s_bRxVideoOutputPlayerReinitializing = true;
    if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
@@ -603,11 +634,6 @@ void rx_video_output_uninit()
       sem_close(s_pSemaphoreStopRecord);
 
    log_line("RxVideoOutput: Uninit complete.");
-}
-
-void processor_rx_video_forware_prepare_video_stream_write()
-{
-
 }
 
 void _processor_rx_video_forward_parse_h264_stream(u8* pBuffer, int length)
@@ -779,10 +805,24 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
    }
 }
 
-void processor_rx_video_forward_video_data(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
+void rx_video_output_video_data(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
 {
    if ( g_bSearching )
       return;
+
+   /*
+   if ( -1 != s_iLocalUDPVideoOutput )
+   {
+      send(s_iLocalUDPVideoOutput, pBuffer, length, MSG_DONTWAIT); 
+      //log_line("DEBUG output %d bytes", length);
+      static bool bStartedGST = false;
+      if ( ! bStartedGST )
+      {
+         bStartedGST = true;
+         hw_execute_bash_command("gst-launch-1.0 udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! 'video/x-h264,stream-format=byte-stream' ! fdsink | ./ruby_player_s &", NULL);
+      }
+   }
+   */
 
    if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO)
@@ -897,7 +937,7 @@ void processor_rx_video_forward_video_data(u32 uVehicleId, int width, int height
 }
 
 
-void processor_rx_video_forward_check_controller_settings_changed()
+void rx_video_output_on_controller_settings_changed()
 {
    if ( s_iLastUSBVideoForwardPort != g_pControllerSettings->iVideoForwardUSBPort ||
         s_iLastUSBVideoForwardPacketSize != g_pControllerSettings->iVideoForwardUSBPacketSize )
@@ -953,14 +993,14 @@ void processor_rx_video_forward_check_controller_settings_changed()
 }
 
 
-void processor_rx_video_forward_loop()
+void rx_video_output_periodic_loop()
 {
    if ( g_TimeNow > s_TimeLastPeriodicChecksUSBForward + 50 )
    {
       s_TimeLastPeriodicChecksUSBForward = g_TimeNow;
 
       // Stopped USB forward?
-      if ( s_VideoUSBOutputInfo.bVideoUSBTethering && g_pControllerSettings->iVideoForwardUSBType == 0 )
+      if ( s_VideoUSBOutputInfo.bVideoUSBTethering && (g_pControllerSettings->iVideoForwardUSBType == 0) )
       {
          if ( -1 != s_VideoUSBOutputInfo.socketUSBOutput )
             close(s_VideoUSBOutputInfo.socketUSBOutput);
@@ -1022,14 +1062,14 @@ void processor_rx_video_forward_loop()
       if ( 0 < val )
       if ( EAGAIN != sem_trywait(s_pSemaphoreStartRecord) )
       {
-      log_line("Event to start recording is set.");
-      if ( ! s_bRecording )
-      {
-         _start_recording();
-         log_line("Recording started.");
-      }
-      else
-         log_softerror_and_alarm("Recording is already started.");
+         log_line("Event to start recording is set.");
+         if ( ! s_bRecording )
+         {
+            _start_recording();
+            log_line("Recording started.");
+         }
+         else
+            log_softerror_and_alarm("Recording is already started.");
       }
    
       val = 0;
@@ -1038,14 +1078,14 @@ void processor_rx_video_forward_loop()
       if ( 0 < val )
       if ( EAGAIN != sem_trywait(s_pSemaphoreStopRecord) )
       {
-      log_line("Event to stop recording is set.");
-      if ( s_bRecording )
-      {
-         _stop_recording();
-         log_line("Recording stopped.");
-      }
-      else
-         log_softerror_and_alarm("Recording is already stopped.");
+         log_line("Event to stop recording is set.");
+         if ( s_bRecording )
+         {
+            _stop_recording();
+            log_line("Recording stopped.");
+         }
+         else
+            log_softerror_and_alarm("Recording is already stopped.");
       }
    }
 }

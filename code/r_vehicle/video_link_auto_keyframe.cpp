@@ -35,6 +35,7 @@
 
 #include "processor_tx_video.h"
 #include "utils_vehicle.h"
+#include "ruby_rt_vehicle.h"
 #include "packets_utils.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -74,7 +75,7 @@ void video_link_auto_keyframe_periodic_loop()
       return;
 
    if ( (g_TimeNow < g_TimeStart + 5000) ||
-        (g_TimeNow < g_TimeStartRaspiVid + 3000) )
+        (g_TimeNow < get_video_capture_start_program_time() + 3000) )
       return;
    
    static u32 s_uTimeLastVideoAutoKeyFrameCheck = 0;
@@ -133,7 +134,7 @@ void video_link_auto_keyframe_periodic_loop()
 
    int iThresholdControllerLinkMs = 1000;
    if ( g_TimeNow > g_TimeStart + 5000 )
-   if ( g_TimeNow > g_TimeStartRaspiVid + 3000 )
+   if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
    if ( g_TimeLastReceivedRadioPacketFromController > g_TimeNow - iThresholdControllerLinkMs )
    if ( iHighestRXQuality >= 20 )
    {

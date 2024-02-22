@@ -36,11 +36,6 @@
 #include "utils_vehicle.h"
 #include "shared_vars.h"
 
-u32 s_lastCameraCommandModifyCounter = 0;
-u8 s_CameraCommandNumber = 0;
-u32 s_uCameraCommandsBuffer[8];
-
-
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
 {
    if ( NULL == pOldProfile || NULL == pNewProfile )
@@ -136,73 +131,6 @@ void video_overwrites_init(shared_mem_video_link_overwrites* pSMLVO, Model* pMod
    pSMLVO->hasEverSwitchedToLQMode = 0;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       pSMLVO->profilesTopVideoBitrateOverwritesDownward[i] = 0;
-}
-
-void send_control_message_to_raspivid(u8 parameter, u8 value)
-{
-   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->hasCamera()) )
-      return;
-
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   if ( (! g_pCurrentModel->isActiveCameraCSICompatible()) && (! g_pCurrentModel->isActiveCameraVeye()) )
-   {
-      log_softerror_and_alarm("Can't signal on the fly video capture parameter change. Capture camera is not raspi or veye.");
-      return;
-   }
-
-   if ( g_uRouterState & ROUTER_STATE_NEEDS_RESTART_VIDEO_CAPTURE )
-   {
-      log_line("Video capture is restarting, do not send command (%d) to video capture program.", parameter);
-      return;
-   }
-
-   if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
-   {
-      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = ((u32)value) * 100000;
-      g_bDidSentRaspividBitrateRefresh = true;
-      //log_line("Setting video capture bitrate to: %u", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate );
-   }
-   if ( NULL == g_pSharedMemRaspiVidComm )
-   {
-      log_line("Opening video capture program commands pipe write endpoint...");
-      g_pSharedMemRaspiVidComm = (u8*)open_shared_mem_for_write(SHARED_MEM_RASPIVIDEO_COMMAND, SIZE_OF_SHARED_MEM_RASPIVID_COMM);
-      if ( NULL == g_pSharedMemRaspiVidComm )
-         log_error_and_alarm("Failed to open video capture program commands pipe write endpoint!");
-      else
-         log_line("Opened video capture program commands pipe write endpoint.");
-   }
-
-   if ( NULL == g_pSharedMemRaspiVidComm )
-   {
-      log_softerror_and_alarm("Can't send video/camera command to video capture programm, no pipe.");
-      return;
-   }
-
-   if ( 0 == s_lastCameraCommandModifyCounter )
-      memset( (u8*)&s_uCameraCommandsBuffer[0], 0, 8*sizeof(u32));
-
-   s_lastCameraCommandModifyCounter++;
-   s_CameraCommandNumber++;
-   if ( 0 == s_CameraCommandNumber )
-    s_CameraCommandNumber++;
-   
-   // u32 0: command modify stamp (must match u32 7)
-   // u32 1: byte 0: command counter;
-   //        byte 1: command type;
-   //        byte 2: command parameter 1;
-   //        byte 3: command parameter 2;
-   // u32 2-6: history of previous commands (after current one from u32-1)
-   // u32 7: command modify stamp (must match u32 0)
-
-   s_uCameraCommandsBuffer[0] = s_lastCameraCommandModifyCounter;
-   s_uCameraCommandsBuffer[7] = s_lastCameraCommandModifyCounter;
-   for( int i=6; i>1; i-- )
-      s_uCameraCommandsBuffer[i] = s_uCameraCommandsBuffer[i-1];
-   s_uCameraCommandsBuffer[1] = ((u32)s_CameraCommandNumber) | (((u32)parameter)<<8) | (((u32)value)<<16);
-
-   memcpy(g_pSharedMemRaspiVidComm, (u8*)&(s_uCameraCommandsBuffer[0]), 8*sizeof(u32));
-   #endif
 }
 
 // Returns true if configuration has been updated

@@ -15,9 +15,9 @@ void vehicle_stop_rx_commands();
 void vehicle_launch_tx_router(Model* pModel);
 void vehicle_stop_tx_router();
 
-bool vehicle_launch_video_capture(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites);
-void vehicle_stop_video_capture(Model* pModel);
-void vehicle_update_camera_params(Model* pModel, int iCameraIndex);
+bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites);
+void vehicle_stop_video_capture_csi(Model* pModel);
+void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex);
 
 
 void vehicle_launch_audio_capture(Model* pModel);

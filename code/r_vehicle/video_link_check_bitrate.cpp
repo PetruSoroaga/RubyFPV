@@ -35,8 +35,10 @@
 #include "video_link_stats_overwrites.h"
 #include "video_link_check_bitrate.h"
 #include "processor_tx_video.h"
+#include "ruby_rt_vehicle.h"
 #include "utils_vehicle.h"
 #include "packets_utils.h"
+#include "video_source_csi.h"
 #include "timers.h"
 #include "shared_vars.h"
 
@@ -55,8 +57,12 @@ void video_link_set_fixed_quantization_values(u8 uQuantValue)
 {
    g_SM_VideoLinkStats.overwrites.currentH264QUantization = uQuantValue;
    video_link_set_last_quantization_set(g_SM_VideoLinkStats.overwrites.currentH264QUantization);
-   send_control_message_to_raspivid( RASPIVID_COMMAND_ID_QUANTIZATION_INIT, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
-   send_control_message_to_raspivid( RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+   {
+      video_source_csi_send_control_message( RASPIVID_COMMAND_ID_QUANTIZATION_INIT, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
+      video_source_csi_send_control_message( RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
+   }
    s_uLastQuantizationSet = uQuantValue;
    s_uTimeLastQuantizationChangeTime = g_TimeNow;
 }
@@ -106,7 +112,9 @@ void video_link_quantization_shift(int iDelta)
    
    s_uLastQuantizationSet = g_SM_VideoLinkStats.overwrites.currentH264QUantization;
    s_uTimeLastQuantizationChangeTime = g_TimeNow;
-   send_control_message_to_raspivid(RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization);
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization);
 }
 
 
@@ -116,7 +124,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
       return;
    if ( g_bVideoPaused )
       return;
-   if ( (0 == g_TimeStartRaspiVid) || (g_TimeNow < g_TimeStartRaspiVid + 4000) )
+   if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 4000) )
       return;
    
    if ( g_TimeNow < s_uTimeLastQuantizationChangeTime + 200 )
@@ -298,7 +306,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
 
 void video_link_check_adjust_bitrate_for_overload()
 {
-   if ( (0 == g_TimeStartRaspiVid) || (g_TimeNow < g_TimeStartRaspiVid + 5000) )
+   if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 5000) )
       return;
 
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK )
@@ -314,7 +322,7 @@ void video_link_check_adjust_bitrate_for_overload()
    u32 uTotalSentVideoBitRateAverage = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage();
    u32 uTotalSentVideoBitRateFast = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(250);
    u32 uMaxTxTime = DEFAULT_TX_TIME_OVERLOAD;
-   if ( (g_pCurrentModel->board_type == BOARD_TYPE_PIZERO) || (g_pCurrentModel->board_type == BOARD_TYPE_PIZEROW) )
+   if ( (g_pCurrentModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZERO) || (g_pCurrentModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZEROW) )
          uMaxTxTime += 200;
    uMaxTxTime += (uTotalSentVideoBitRateFast/1000/1000)*20;
 

@@ -89,7 +89,6 @@ void reset_ControllerSettings()
    s_CtrlSettings.nGraphVideoRefreshInterval = 100;
    s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
    s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout = 1;
-   s_CtrlSettings.iQAButtonRelaySwitching = -1;
    s_CtrlSettings.iFreezeOSD = 0;
    s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton = -1;
    s_CtrlSettings.iShowControllerAdaptiveInfoStats = 0;
@@ -147,7 +146,7 @@ int save_ControllerSettings()
 
    fprintf(fd, "%d %d\n", s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds, s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout);
    fprintf(fd, "%d %d\n", s_CtrlSettings.nRotaryEncoderFunction2, s_CtrlSettings.nRotaryEncoderSpeed2);
-   fprintf(fd, "%d %d\n", s_CtrlSettings.iQAButtonRelaySwitching, s_CtrlSettings.iFreezeOSD);
+   fprintf(fd, "%d %d\n", -1, s_CtrlSettings.iFreezeOSD);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton, s_CtrlSettings.iShowControllerAdaptiveInfoStats);
    fprintf(fd, "%d\n", s_CtrlSettings.iShowVideoStreamInfoCompact);
    fprintf(fd, "%d\n", s_CtrlSettings.iTXPowerSiK);
@@ -174,6 +173,7 @@ int load_ControllerSettings()
       return 0;
    }
 
+   int iDummy = 0;
    int failed = 0;
    char szBuff[256];
    szBuff[0] = 0;
@@ -299,8 +299,8 @@ int load_ControllerSettings()
       s_CtrlSettings.nRotaryEncoderSpeed2 = 0;
    }
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iQAButtonRelaySwitching)) )
-      s_CtrlSettings.iQAButtonRelaySwitching = -1;
+   if ( (!failed) && ( 1 != fscanf(fd, "%d", &iDummy)) )
+      iDummy = -1;
      
    if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iFreezeOSD)) )
       s_CtrlSettings.iFreezeOSD = 0;
