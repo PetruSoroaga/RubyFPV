@@ -350,7 +350,7 @@ void _test_link_send_ping_to_vehicle()
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + 2*sizeof(u32);
 
    u8 buffer[1024];
@@ -369,7 +369,7 @@ void _test_link_send_end_message_to_vehicle(bool bSucceeded)
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
 
    u8 buffer[1024];

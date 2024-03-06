@@ -534,7 +534,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
 {
    if ( NULL == g_pCurrentModel || ( g_pCurrentModel->is_spectator) )
       return 0.0;
-   if ( (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0) || (g_pCurrentModel->relay_params.uRelayedVehicleId == 0) || (g_pCurrentModel->relay_params.uRelayedVehicleId == g_pCurrentModel->vehicle_id) )
+   if ( (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0) || (g_pCurrentModel->relay_params.uRelayedVehicleId == 0) || (g_pCurrentModel->relay_params.uRelayedVehicleId == g_pCurrentModel->uVehicleId) )
       return 0.0;
 
    const char* szTextMain = "Main Vehicle";
@@ -555,7 +555,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    float yPos = yBottom-fHeight;
    
    Model *pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 30);
-   if ( NULL == pModel || ( pModel->vehicle_id == g_pCurrentModel->vehicle_id ) )
+   if ( NULL == pModel || ( pModel->uVehicleId == g_pCurrentModel->uVehicleId ) )
    {
       fHeight = height_text + 2.0*fPaddingY;
       yPos = yBottom - fHeight;
@@ -757,10 +757,10 @@ u32 osd_get_current_data_source_vehicle_id()
 {
    u32 uVehicleId = 0;
    if ( NULL != g_pCurrentModel )
-      uVehicleId = g_pCurrentModel->vehicle_id;
+      uVehicleId = g_pCurrentModel->uVehicleId;
    if ( (s_iCurrentOSDVehicleDataSourceRuntimeIndex >= 0) && (s_iCurrentOSDVehicleDataSourceRuntimeIndex <MAX_CONCURENT_VEHICLES) )
    if ( NULL != g_VehiclesRuntimeInfo[s_iCurrentOSDVehicleDataSourceRuntimeIndex].pModel )
-      uVehicleId = g_VehiclesRuntimeInfo[s_iCurrentOSDVehicleDataSourceRuntimeIndex].pModel->vehicle_id;
+      uVehicleId = g_VehiclesRuntimeInfo[s_iCurrentOSDVehicleDataSourceRuntimeIndex].pModel->uVehicleId;
    return uVehicleId;
 }
 

@@ -45,10 +45,13 @@ void reset_PluginsSettings()
 
 int save_PluginsSettings()
 {
-   FILE* fd = fopen(FILE_OSD_PLUGINS_SETTINGS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_OSD_PLUGINS_SETTINGS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save plugins settings to file: %s",FILE_OSD_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to save plugins settings to file: %s", szFile);
       return 0;
    }
 
@@ -78,19 +81,23 @@ int save_PluginsSettings()
    }
    fclose(fd);
 
-   log_line("Saved plugins settings (%d plugins) to file: %s", s_PluginsSettings.nPluginsCount, FILE_OSD_PLUGINS_SETTINGS);
+   log_line("Saved plugins settings (%d plugins) to file: %s", s_PluginsSettings.nPluginsCount, szFile);
    return 1;
 }
 
 int load_PluginsSettings()
 {
-   log_line("Loading plugin settings from file: %s", FILE_OSD_PLUGINS_SETTINGS);
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_OSD_PLUGINS_SETTINGS);
+
+   log_line("Loading plugin settings from file: %s", szFile);
    s_PluginsSettingsLoaded = 1;
-   FILE* fd = fopen(FILE_OSD_PLUGINS_SETTINGS, "r");
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
       reset_PluginsSettings();
-      log_softerror_and_alarm("Failed to load plugins settings from file: %s (missing file)",FILE_OSD_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to load plugins settings from file: %s (missing file)", szFile);
       return 0;
    }
 
@@ -105,7 +112,7 @@ int load_PluginsSettings()
    if ( failed )
    {
       reset_PluginsSettings();
-      log_softerror_and_alarm("Failed to load plugins settings from file: %s (invalid config file version)",FILE_OSD_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to load plugins settings from file: %s (invalid config file version)", szFile);
       fclose(fd);
       return 0;
    }
@@ -203,9 +210,9 @@ int load_PluginsSettings()
    fclose(fd);
 
    if ( failed )
-      log_softerror_and_alarm("Incomplete/Invalid plugins settings file %s", FILE_OSD_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Incomplete/Invalid plugins settings file %s", szFile);
    else
-      log_line("Loaded plugins settings from file: %s", FILE_OSD_PLUGINS_SETTINGS);
+      log_line("Loaded plugins settings from file: %s", szFile);
    return 1;
 }
 
@@ -282,7 +289,7 @@ int doesPluginHasModelSettings(SinglePluginSettings* pPlugin, Model* pModel)
       return 0;
 
    for( int i=0; i<pPlugin->nModels; i++ )
-      if ( pPlugin->uModelsIds[i] == pModel->vehicle_id )
+      if ( pPlugin->uModelsIds[i] == pModel->uVehicleId )
          return 1;
 
    return 0;
@@ -294,7 +301,7 @@ int getPluginModelSettingsIndex(SinglePluginSettings* pPlugin, Model* pModel)
       return 0;
 
    for( int i=0; i<pPlugin->nModels; i++ )
-      if ( pPlugin->uModelsIds[i] == pModel->vehicle_id )
+      if ( pPlugin->uModelsIds[i] == pModel->uVehicleId )
          return i;
 
    if ( pPlugin->nModels >= MAX_MODELS )
@@ -318,7 +325,7 @@ int getPluginModelSettingsIndex(SinglePluginSettings* pPlugin, Model* pModel)
 
    // Add the new vehicle in the list
 
-   pPlugin->uModelsIds[pPlugin->nModels] = pModel->vehicle_id;
+   pPlugin->uModelsIds[pPlugin->nModels] = pModel->uVehicleId;
 
    if ( pPlugin->nModels > 0 )
    {

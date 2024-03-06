@@ -18,6 +18,7 @@ class MenuVehicleRadioConfig: public Menu
       MenuItemSlider* m_pItemsSlider[10];
       
       int m_IndexPrioritizeUplink;
+      int m_IndexDisableUplink;
       int m_IndexEncryption;
       int m_IndexPower;
       int m_IndexFreq[MAX_RADIO_INTERFACES];

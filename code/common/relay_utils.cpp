@@ -37,7 +37,7 @@ bool relay_controller_is_vehicle_id_relayed_vehicle(Model* pMainModel, u32 uVehi
    if ( (NULL == pMainModel) || (0 == uVehicleId) )
       return false;
 
-   if ( pMainModel->vehicle_id == uVehicleId )
+   if ( pMainModel->uVehicleId == uVehicleId )
       return false;
    if ( (pMainModel->relay_params.isRelayEnabledOnRadioLinkId < 0) || ( pMainModel->relay_params.uRelayedVehicleId != uVehicleId) )
       return false;
@@ -53,13 +53,13 @@ bool relay_controller_must_display_video_from(Model* pMainModel, u32 uVehicleId)
    bool bHasValidRelayedVehicle = false;
 
    if ( (pMainModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) && (pMainModel->relay_params.uRelayedVehicleId != 0) )
-   if ( pMainModel->relay_params.uRelayedVehicleId != pMainModel->vehicle_id )
+   if ( pMainModel->relay_params.uRelayedVehicleId != pMainModel->uVehicleId )
       bHasValidRelayedVehicle = true;
 
    if ( ! bHasValidRelayedVehicle )
       return true;
 
-   if ( uVehicleId != pMainModel->vehicle_id )
+   if ( uVehicleId != pMainModel->uVehicleId )
    if ( ! (pMainModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_TRANSPORT_VIDEO) )
       return false;
 
@@ -72,7 +72,7 @@ bool relay_controller_must_display_video_from(Model* pMainModel, u32 uVehicleId)
       return true;
 
    if ( pMainModel->relay_params.uCurrentRelayMode & RELAY_MODE_MAIN )
-   if ( uVehicleId == pMainModel->vehicle_id )
+   if ( uVehicleId == pMainModel->uVehicleId )
       return true;
 
    return false;
@@ -89,7 +89,7 @@ bool relay_controller_must_display_main_video(Model* pMainModel)
 {
    if ( NULL == pMainModel )
       return true;
-   return relay_controller_must_display_video_from(pMainModel, pMainModel->vehicle_id);
+   return relay_controller_must_display_video_from(pMainModel, pMainModel->uVehicleId);
 }
 
 Model* relay_controller_get_relayed_vehicle_model(Model* pMainModel)
@@ -99,7 +99,7 @@ Model* relay_controller_get_relayed_vehicle_model(Model* pMainModel)
 
    if ( (pMainModel->relay_params.isRelayEnabledOnRadioLinkId < 0) || (0 == pMainModel->relay_params.uRelayedVehicleId) )
       return NULL;
-   if ( pMainModel->relay_params.uRelayedVehicleId == pMainModel->vehicle_id )
+   if ( pMainModel->relay_params.uRelayedVehicleId == pMainModel->uVehicleId )
       return NULL;
 
    Model* pModel = findModelWithId(pMainModel->relay_params.uRelayedVehicleId, 2);
@@ -112,7 +112,7 @@ bool relay_controller_must_forward_telemetry_from(Model* pMainModel, u32 uVehicl
    if ( (NULL == pMainModel) || (0 == uVehicleId) )
       return false;
 
-   if ( pMainModel->vehicle_id == uVehicleId )
+   if ( pMainModel->uVehicleId == uVehicleId )
       return true;
 
    if ( (pMainModel->relay_params.isRelayEnabledOnRadioLinkId < 0) || (pMainModel->relay_params.uRelayedVehicleId == 0) )

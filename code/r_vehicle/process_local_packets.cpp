@@ -259,7 +259,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( (changeType == MODEL_CHANGED_STATS) && (fromComponentId == PACKET_COMPONENT_TELEMETRY) )
    {
       log_line("Received event from telemetry component that model stats where updated. Updating local copy. Signal other components too.");
-      if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
          log_error_and_alarm("Can't load current model vehicle.");
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
       return;
@@ -274,7 +277,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
    if ( changeType == MODEL_CHANGED_SERIAL_PORTS )
    {
-      if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
          log_error_and_alarm("Can't load current model vehicle.");
       hardware_reload_serial_ports_settings();
       if ( NULL != g_pProcessStats )
@@ -313,7 +319,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( NULL != pVS )
       radio_rx_set_timeout_interval(pVS->iDevRxLoopTimeout);
      
-   if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
       log_error_and_alarm("Can't load current model vehicle.");
 
    if ( iPreviousRadioGraphsRefreshInterval != g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )
@@ -682,8 +691,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          
          send_alarm_to_controller(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0, 10);
 
-         char szCommand[256];
-         sprintf(szCommand, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+         char szCommand[128];
+         sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
          hw_execute_bash_command(szCommand, NULL);
 
          sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", g_pCurrentModel->radioInterfacesParams.txPowerSiK);
@@ -949,8 +958,8 @@ void process_local_control_packet(t_packet_header* pPH)
       
       send_alarm_to_controller(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0, 10);
 
-      char szCommand[256];
-      sprintf(szCommand, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+      char szCommand[128];
+      sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
       hw_execute_bash_command(szCommand, NULL);
 
       sprintf(szCommand, "./ruby_sik_config %s %d -serialspeed %d &", pRadioHWInfo->szDriver, iBaudRate, (int)pSerialPort->lPortSpeed);
@@ -1039,7 +1048,10 @@ void process_local_control_packet(t_packet_header* pPH)
    {
       log_line("Received local request to reinitialize radio interfaces from a controller command...");
 
-      if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
          log_error_and_alarm("Can't load current model vehicle.");
       if ( NULL != g_pProcessStats )
       {
@@ -1088,7 +1100,10 @@ void process_local_control_packet(t_packet_header* pPH)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED )
    {
-      if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
          log_error_and_alarm("Can't load current model vehicle.");
       process_data_tx_video_signal_encoding_changed();
       s_InputBufferVideoBytesRead = 0;

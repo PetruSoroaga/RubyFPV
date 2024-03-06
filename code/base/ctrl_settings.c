@@ -34,6 +34,8 @@
 #include "hw_procs.h"
 #include "flags.h"
 
+#ifdef HW_PLATFORM_RASPBERRY
+
 ControllerSettings s_CtrlSettings;
 int s_CtrlSettingsLoaded = 0;
 
@@ -111,10 +113,13 @@ void reset_ControllerSettings()
 
 int save_ControllerSettings()
 {
-   FILE* fd = fopen(FILE_CONTROLLER_SETTINGS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_SETTINGS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save controller settings to file: %s",FILE_CONTROLLER_SETTINGS);
+      log_softerror_and_alarm("Failed to save controller settings to file: %s", szFile);
       return 0;
    }
    fprintf(fd, "%s\n", CONTROLLER_SETTINGS_STAMP_ID);
@@ -157,17 +162,21 @@ int save_ControllerSettings()
    fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
    fclose(fd);
 
-   log_line("Saved controller settings to file: %s", FILE_CONTROLLER_SETTINGS);
+   log_line("Saved controller settings to file: %s", szFile);
    return 1;
 }
 
 int load_ControllerSettings()
 {
    s_CtrlSettingsLoaded = 1;
-   FILE* fd = fopen(FILE_CONTROLLER_SETTINGS, "r");
+
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_SETTINGS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to load controller settings from file: %s (missing file). Resetted controller settings to default.",FILE_CONTROLLER_SETTINGS);
+      log_softerror_and_alarm("Failed to load controller settings from file: %s (missing file). Resetted controller settings to default.", szFile);
       reset_ControllerSettings();
       save_ControllerSettings();
       return 0;
@@ -185,7 +194,7 @@ int load_ControllerSettings()
    if ( failed )
    {
       fclose(fd);
-      log_softerror_and_alarm("Failed to load controller settings from file: %s (invalid config file version)",FILE_CONTROLLER_SETTINGS);
+      log_softerror_and_alarm("Failed to load controller settings from file: %s (invalid config file version)", szFile);
       reset_ControllerSettings();
       save_ControllerSettings();
       return 0;
@@ -381,12 +390,12 @@ int load_ControllerSettings()
       s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
    if ( failed )
    {
-      log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", FILE_CONTROLLER_SETTINGS, failed);
+      log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);
       reset_ControllerSettings();
       save_ControllerSettings();
    }
    else
-      log_line("Loaded controller settings from file: %s", FILE_CONTROLLER_SETTINGS);
+      log_line("Loaded controller settings from file: %s", szFile);
    return 1;
 }
 
@@ -420,3 +429,12 @@ u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVid
    #endif
    return ping_interval_ms;
 }
+
+#else
+int save_ControllerSettings() { return 0; }
+int load_ControllerSettings() { return 0; }
+void reset_ControllerSettings() {}
+ControllerSettings* get_ControllerSettings() { return NULL; }
+
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags) { return 200000; }
+#endif

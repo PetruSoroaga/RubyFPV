@@ -25,6 +25,7 @@
 #define BOARD_TYPE_PI4B     20
 
 #define BOARD_TYPE_OPENIPC_GOKE 30
+#define BOARD_TYPE_OPENIPC_SIGMASTER 31
 
 
 #define CAMERA_TYPE_NONE 0
@@ -36,6 +37,7 @@
 #define CAMERA_TYPE_USB   8
 #define CAMERA_TYPE_IP    9
 #define CAMERA_TYPE_OPENIPC_GOKE 20
+#define CAMERA_TYPE_OPENIPC_SIGMASTER335 21
 
 
 #define MAX_JOYSTICK_INTERFACE_NAME 128
@@ -129,8 +131,8 @@ u32 hardware_getCameraType();
 int hardware_getCameraI2CBus();
 
 
-int hardware_sleep_ms(u32 miliSeconds);
-int hardware_sleep_micros(u32 microSeconds);
+void hardware_sleep_ms(u32 miliSeconds);
+void hardware_sleep_micros(u32 microSeconds);
 
 void hardware_recording_led_set_off();
 void hardware_recording_led_set_on();

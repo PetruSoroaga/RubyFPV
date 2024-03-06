@@ -178,7 +178,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       }
       if ( NULL == g_pCurrentModel )
          return 0;
-      if ( g_pCurrentModel->vehicle_id == pPH->vehicle_id_src )
+      if ( g_pCurrentModel->uVehicleId == pPH->vehicle_id_src )
       {
          type_radio_interfaces_parameters radioInt;
          type_radio_links_parameters radioLinks;
@@ -391,8 +391,12 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       if ( pPHFS->file_id == FILE_ID_VEHICLE_LOG )
       {
          char szFile[128];
-         snprintf(szFile, 127, LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());
-         FILE* fd = fopen(szFile, "ab");
+         snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());      
+         char szPath[256];
+         strcpy(szPath, FOLDER_LOGS);
+         strcat(szPath, szFile);
+
+         FILE* fd = fopen(szPath, "ab");
          if ( NULL != fd )
          {
             u8* pData = pPacketBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_file_segment);
@@ -442,7 +446,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             strcpy(szFreq2, str_format_frequency(pPHRTE->radio_frequencies[1] & 0x7FFF));
             strcpy(szFreq3, str_format_frequency(pPHRTE->radio_frequencies[2] & 0x7FFF));
             log_line("Received a Ruby telemetry packet (version 1) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
-             pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
+             pPHRTE->uVehicleId, vMaj, vMin, pPHRTE->radio_links_count, 
              szFreq1, szFreq2, szFreq3 );
          }
          if ( -1 != g_fIPCToCentral )
@@ -469,7 +473,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             strcpy(szFreq2, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[1]));
             strcpy(szFreq3, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[2]));
             log_line("Received a Ruby telemetry packet (version 2) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
-             pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
+             pPHRTE->uVehicleId, vMaj, vMin, pPHRTE->radio_links_count, 
              szFreq1, szFreq2, szFreq3 );
          }
          if ( -1 != g_fIPCToCentral )
@@ -503,7 +507,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             strcpy(szFreq2, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[1]));
             strcpy(szFreq3, str_format_frequency(pPHRTE->uRadioFrequenciesKhz[2]));
             log_line("Received a Ruby telemetry packet (version 3) while searching: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
-             pPHRTE->vehicle_id, vMaj, vMin, pPHRTE->radio_links_count, 
+             pPHRTE->uVehicleId, vMaj, vMin, pPHRTE->radio_links_count, 
              szFreq1, szFreq2, szFreq3 );
          }
          if ( -1 != g_fIPCToCentral )
@@ -636,10 +640,10 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, t_packet_he
       log_line("Received first radio packet (packet index %u) (from VID %u) on radio interface %d and first pairing was not done. Do first pairing now.", pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->vehicle_id_src, iInterfaceIndex+1);
 
    log_line("Current router local model VID: %u, ptr: %X, models current model: VID: %u, ptr: %X",
-      g_pCurrentModel->vehicle_id, g_pCurrentModel,
-      getCurrentModel()->vehicle_id, getCurrentModel());
+      g_pCurrentModel->uVehicleId, g_pCurrentModel,
+      getCurrentModel()->uVehicleId, getCurrentModel());
    g_bFirstModelPairingDone = true;
-   g_pCurrentModel->vehicle_id = pPH->vehicle_id_src;
+   g_pCurrentModel->uVehicleId = pPH->vehicle_id_src;
    g_pCurrentModel->b_mustSyncFromVehicle = true;
    g_pCurrentModel->is_spectator = false;
    deleteAllModels();
@@ -647,7 +651,7 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, t_packet_he
    replaceModel(0, g_pCurrentModel);
    saveControllerModel(g_pCurrentModel);
    logControllerModels();
-   set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, uCurrentFrequencyKhz);
+   set_model_main_connect_frequency(g_pCurrentModel->uVehicleId, uCurrentFrequencyKhz);
    ruby_set_is_first_pairing_done();
 
    resetVehicleRuntimeInfo(0);
@@ -657,7 +661,7 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, t_packet_he
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_FIRST_PAIRING_DONE, STREAM_ID_DATA);
    PH.vehicle_id_src = 0;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header);
 
    u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -688,6 +692,8 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
 
    t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacket+sizeof(t_packet_header));
    u8 uVideoStreamIndexAndType = pPHVFNew->video_stream_and_type;
+   u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0x0F) >> 4);
+
    int iRuntimeIndex = -1;
    int iFirstFreeSlot = -1;
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
@@ -715,7 +721,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
       }
       u32 uVideoBlockIndex = pPHVFNew->video_block_index;
 
-      log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %u, at packet index: %u, video block index: %u", uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()), (u32)(uVideoStreamIndexAndType & 0x0F), pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
+      log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %d, video stream type: %d, at radio packet index: %u, video block index: %u", uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()), (int)(uVideoStreamIndexAndType & 0x0F), (int)uVideoStreamType, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
       if ( pModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
          g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideoWFBOHD(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
       else
@@ -726,6 +732,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    }
 
    if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+   if ( uVideoStreamType == VIDEO_TYPE_H264 )
    if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
    if ( pModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
@@ -780,6 +787,23 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
    u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
    if ( uStreamId >= MAX_RADIO_STREAMS )
       uStreamId = 0;
+
+   /*   
+   if ( g_bDebug )
+   {
+      if ( ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) &&
+           ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL ) )
+         {
+             t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));
+             u8 uVideoStreamIndexAndType = pPHVFNew->video_stream_and_type;
+             u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0x0F) >> 4);
+             log_line("DEBUG recv radio video packet %d bytes, radio packet index: %u: video type: %d, video block/packet: [%u/%d]",
+               pPH->total_length, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX,  (int)uVideoStreamType, pPHVFNew->video_block_index, pPHVFNew->video_block_packet_index);
+         }
+      else
+         log_line("DEBUG recv radio packet %d bytes: %s", pPH->total_length, str_get_packet_type(pPH->packet_type));
+   }
+   */
 
    bool bNewVehicleId = true;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -873,7 +897,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
 
    // Received packet from different vehicle ?
 
-   if ( (NULL != g_pCurrentModel) && (pPH->vehicle_id_src != g_pCurrentModel->vehicle_id) )
+   if ( (NULL != g_pCurrentModel) && (pPH->vehicle_id_src != g_pCurrentModel->uVehicleId) )
    {
       // Relayed packet?
       if ( !g_bSearching )

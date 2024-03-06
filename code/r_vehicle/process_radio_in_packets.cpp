@@ -61,8 +61,6 @@ u32 s_uLastCommandChangeDataRateCounter = MAX_U32;
 
 u32 s_uTotalBadPacketsReceived = 0;
 
-//u32 s_StreamsMaxReceivedPacketIndex[MAX_RADIO_STREAMS];
-
 void _mark_link_from_controller_present()
 {
    g_bHadEverLinkToController = true;
@@ -77,15 +75,6 @@ void _mark_link_from_controller_present()
          send_alarm_to_controller(ALARM_ID_LINK_TO_CONTROLLER_RECOVERED, 0, 0, 10);
    }
 }
-
-
-/*
-void init_radio_in_packets_state()
-{
-   for( int i=0; i<MAX_RADIO_STREAMS; i++ )
-      s_StreamsMaxReceivedPacketIndex[i] = MAX_U32;
-}
-*/
 
 void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetLength)
 {
@@ -390,8 +379,8 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    {
       if ( ! s_bRCLinkDetected )
       {
-         char szBuff[64];
-         snprintf(szBuff, 63, "touch %s", FILE_TMP_RC_DETECTED);
+         char szBuff[128];
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_RC_DETECTED);
          hw_execute_bash_command(szBuff, NULL);
       }
       s_bRCLinkDetected = true;
@@ -399,7 +388,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
    {
-      if ( pPH->vehicle_id_dest == g_pCurrentModel->vehicle_id )
+      if ( pPH->vehicle_id_dest == g_pCurrentModel->uVehicleId )
          process_received_ruby_message(iRadioInterface, pData);
       return;
    }
@@ -473,7 +462,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
 
          t_packet_header PH;
          radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          PH.vehicle_id_dest = pPH->vehicle_id_src;
          PH.total_length = sizeof(t_packet_header) + sizeof(u32);
          u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -525,7 +514,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK, STREAM_ID_DATA);
             PH.packet_flags = PACKET_COMPONENT_VIDEO;
             PH.packet_type =  PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK;
-            PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+            PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
             PH.vehicle_id_dest = pPH->vehicle_id_src;
             PH.total_length = sizeof(t_packet_header) + sizeof(u32);
             u8 packet[MAX_PACKET_TOTAL_SIZE];

@@ -49,7 +49,7 @@
 //#define DEBUG_PACKET_RECEIVED
 //#define DEBUG_PACKET_SENT
 
-//#define USE_PCAP_FOR_TX
+#define USE_PCAP_FOR_TX 1
 
 int s_bRadioDebugFlag = 0;
 int s_iRadioInterfacesBroken = 0;
@@ -129,6 +129,7 @@ u8 s_uIEEEHeaderData_short[] = {
 	0xff // port =  1st byte of IEEE802.11 RA (mac) must be something odd (wifi hardware determines broadcast/multicast through odd/even check)
 };
 
+uint16_t uIEEEE80211SeqNb = 0; 
 
 int _radio_encode_port(int port)
 {
@@ -666,7 +667,7 @@ int radio_open_interface_for_write(int interfaceIndex)
       log_error_and_alarm("Failed to get ppcap for write");
       return -1;
    }
-   if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 2046) !=0) log_line("set_snaplen failed");
+   if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 4096) !=0) log_line("set_snaplen failed");
    if (pcap_set_promisc(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("set_promisc failed");
    if (pcap_set_timeout(pRadioHWInfo->monitor_interface_write.ppcap, -1) !=0) log_line("set_timeout failed");
    if (pcap_set_immediate_mode(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("pcap_set_immediate_mode failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
@@ -727,6 +728,7 @@ int radio_open_interface_for_write(int interfaceIndex)
        log_error_and_alarm("Error:\tCannot open socket.\tInfo: Must be root with an 802.11 card with RFMON enabled");
        return -1;
    }
+   log_line("Opened socket for write fd=%d.", pRadioHWInfo->monitor_interface_write.selectable_fd);
    #endif
 
    pRadioHWInfo->openedForWrite = 1;
@@ -1333,7 +1335,10 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    s_uIEEEHeaderData_short[4] = _radio_encode_port(portNb);
    s_uIEEEHeaderData[4] = _radio_encode_port(portNb);
    s_uIEEEHeaderRTS[4] = _radio_encode_port(portNb);
-
+   s_uIEEEHeaderData[22] = uIEEEE80211SeqNb & 0xff;
+   s_uIEEEHeaderData[23] = (uIEEEE80211SeqNb >> 8) & 0xff;
+   uIEEEE80211SeqNb += 16;
+   
    if ( (sRadioFrameFlags & RADIO_FLAGS_MCS_MASK) || (sRadioDataRate_bps < 0) )
    {
       memcpy(pRawPacket, s_uRadiotapHeaderMCS, sizeof(s_uRadiotapHeaderMCS));
@@ -1472,7 +1477,9 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    s_uPacketsSentUsingCurrent_RadioFlags++;
 
    int len = 0;
+
    #ifdef USE_PCAP_FOR_TX
+
    len = pcap_inject(pRadioHWInfo->monitor_interface_write.ppcap, pData, dataLength);
    if ( len < dataLength )
    {
@@ -1486,7 +1493,9 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    }
    else
       pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+
    #else
+
    len = write(pRadioHWInfo->monitor_interface_write.selectable_fd, pData, dataLength);
    if ( len < dataLength )
    {
@@ -1501,6 +1510,7 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    }
    else
       pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+
    #endif
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS

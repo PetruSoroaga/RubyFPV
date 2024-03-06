@@ -69,6 +69,12 @@ MenuVehicleTelemetry::MenuVehicleTelemetry(void)
    m_pItemsSelect[9]->setIsEditable();
    m_IndexRemoveDuplicateMsg = addMenuItem(m_pItemsSelect[9]);
    
+   m_pItemsSelect[11] = new MenuItemSelect("Force Always Armed", "Force the Armed state, permanently, for flight controllers that do not have an arm/disarm state or for custom MAVLink streams.");
+   m_pItemsSelect[11]->addSelection("No");
+   m_pItemsSelect[11]->addSelection("Yes");
+   m_pItemsSelect[11]->setIsEditable();
+   m_IndexAlwaysArmed = addMenuItem(m_pItemsSelect[11]);
+
    addSeparator();
 
    m_pItemsSelect[1] = new MenuItemSelect("Vehicle Serial Port", "The Ruby vehicle port at which the flight controller connects to.");
@@ -152,6 +158,8 @@ void MenuVehicleTelemetry::valuesToUI()
    
    m_pItemsSelect[5]->setSelection((g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE)?1:0);
    m_pItemsSelect[8]->setSelection(g_pCurrentModel->iGPSCount);
+
+   m_pItemsSelect[11]->setSelection((g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_FORCE_ARMED)?1:0);
 
    m_pItemsRange[0]->setCurrentValue(g_pCurrentModel->telemetry_params.controller_mavlink_id);
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
@@ -361,6 +369,20 @@ void MenuVehicleTelemetry::onSelectItem()
   
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TELEMETRY_PARAMETERS, 0, (u8*)&params, sizeof(telemetry_parameters_t)) )
          valuesToUI();
+   }
+
+   if ( m_IndexAlwaysArmed == m_SelectedIndex )
+   {
+      telemetry_parameters_t params;
+      memcpy(&params, &g_pCurrentModel->telemetry_params, sizeof(telemetry_parameters_t));
+   
+      if ( 0 == m_pItemsSelect[11]->getSelectedIndex() )
+         params.flags &= (~TELEMETRY_FLAGS_FORCE_ARMED);
+      else
+         params.flags |= TELEMETRY_FLAGS_FORCE_ARMED;
+  
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TELEMETRY_PARAMETERS, 0, (u8*)&params, sizeof(telemetry_parameters_t)) )
+         valuesToUI();    
    }
 
    if ( m_IndexTelemetryNoFCMessages == m_SelectedIndex )

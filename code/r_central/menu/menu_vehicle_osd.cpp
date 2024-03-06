@@ -33,13 +33,13 @@
 #include "menu_item_range.h"
 #include "menu_item_section.h"
 
-#include "menu_vehicle_osd_instruments.h"
 #include "menu_vehicle_osd_plugins.h"
 #include "menu_vehicle_osd_widgets.h"
 #include "menu_vehicle_osd_stats.h"
 #include "menu_vehicle_osd_elements.h"
 #include "menu_vehicle_instruments_general.h"
 #include "menu_vehicle_alarms.h"
+#include "menu_preferences_ui.h"
 
 #include "../osd/osd_common.h"
 
@@ -47,19 +47,17 @@
 MenuVehicleOSD::MenuVehicleOSD(void)
 :Menu(MENU_ID_VEHICLE_OSD, "OSD / Instruments Settings", NULL)
 {
-   m_Width = 0.28;
+   m_Width = 0.30;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.15;
 
-   m_IndexSettings = addMenuItem(new MenuItem("General OSD Settings", "Set global settings for all OSD/instruments/gauges"));
+   m_IndexSettings = addMenuItem(new MenuItem("General OSD Settings", "Sets global settings for all OSD/instruments/gauges"));
    m_pMenuItems[m_IndexSettings]->showArrow();
 
-   //m_IndexAlarms = addMenuItem(new MenuItem("Warnings/Alarms","Change which alarms and warnings to enable/disable."));
-   //m_pMenuItems[m_IndexAlarms]->showArrow();
-   m_IndexAlarms = -1;
+   m_IndexOSDController = addMenuItem( new MenuItem("Controller OSD Settings", "Sets global OSD settings for this controller."));
+   m_pMenuItems[m_IndexOSDController]->showArrow();
 
+   m_IndexAlarms = -1;
    m_IndexPlugins = -1;
-   //m_IndexPlugins = addMenuItem(new MenuItem("Plugins Settings", "Configure the instruments/gauges plugins"));
-   //m_pMenuItems[m_IndexPlugins]->showArrow();
 
    addMenuItem(new MenuItemSection("OSD Layouts and Settings")); 
 
@@ -93,19 +91,20 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[2]->setIsEditable();
    m_IndexOSDFontSize = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSelect[3] = new MenuItemSelect("Transparency", "Change how transparent the OSD is for current screen.");  
+   m_pItemsSelect[4] = new MenuItemSelect("Background Type", "Change if and how the background behind OSD elements is shown.");  
+   m_pItemsSelect[4]->addSelection("None");
+   m_pItemsSelect[4]->addSelection("On text only");
+   m_pItemsSelect[4]->addSelection("As Bars");
+   m_pItemsSelect[4]->setIsEditable();
+   m_IndexBgOnTexts = addMenuItem(m_pItemsSelect[4]);
+
+   m_pItemsSelect[3] = new MenuItemSelect("Background Transparency", "Change how transparent the OSD background is for current screen.");  
    m_pItemsSelect[3]->addSelection("Max");
    m_pItemsSelect[3]->addSelection("Medium");
    m_pItemsSelect[3]->addSelection("Normal");
    m_pItemsSelect[3]->addSelection("Minimum");
    m_pItemsSelect[3]->setIsEditable();
    m_IndexOSDTransparency = addMenuItem(m_pItemsSelect[3]);
-
-   m_pItemsSelect[4] = new MenuItemSelect("Background Type", "Change how the background behind OSD elements is shown.");  
-   m_pItemsSelect[4]->addSelection("Bars");
-   m_pItemsSelect[4]->addSelection("On text only");
-   m_pItemsSelect[4]->setIsEditable();
-   m_IndexBgOnTexts = addMenuItem(m_pItemsSelect[4]);
 
    m_pItemsSelect[5] = new MenuItemSelect("Highlight Changing Elements", "Highlight when important OSD elements change (i.e. radio modulation schemes).");  
    m_pItemsSelect[5]->addSelection("No");
@@ -124,13 +123,13 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexOSDElements = addMenuItem(new MenuItem("Layout OSD Elements", "Configure which OSD elements show up on current screen"));
    m_pMenuItems[m_IndexOSDElements]->showArrow();
 
-   m_IndexOSDWidgets = addMenuItem(new MenuItem("Layout OSD Widgets", "Configure which OSD widgets show up on current screen and where to show them."));
+   m_IndexOSDWidgets = addMenuItem(new MenuItem("Layout OSD Widgets & Gauges", "Configure which OSD widgets and gauges show up on current screen and where to show them."));
    m_pMenuItems[m_IndexOSDWidgets]->showArrow();
 
-   m_IndexOSDInstruments = addMenuItem(new MenuItem("Layout Instruments", "Configure which instruments/gauges show up on current screen"));
-   m_pMenuItems[m_IndexOSDInstruments]->showArrow();
+   m_IndexOSDPlugins = addMenuItem(new MenuItem("Layout OSD Plugins", "Show/Hide/Configure the custom OSD plugins that are installed on the controller."));
+   m_pMenuItems[m_IndexOSDPlugins]->showArrow();
 
-   m_IndexOSDStats = addMenuItem(new MenuItem("Layout Stats Windows", "Configure which statistics windows show up on current screen"));
+   m_IndexOSDStats = addMenuItem(new MenuItem("Layout OSD Stats Windows", "Configure which statistics windows show up on current screen"));
    m_pMenuItems[m_IndexOSDStats]->showArrow();
 }
 
@@ -145,7 +144,13 @@ void MenuVehicleOSD::valuesToUI()
    m_pItemsSelect[0]->setSelectedIndex(layoutIndex);
    m_pItemsSelect[2]->setSelectedIndex(g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & 0xFF);
    m_pItemsSelect[3]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex])>>8) & 0xFF);
-   m_pItemsSelect[4]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY) ? 1:0);
+   
+   m_pItemsSelect[4]->setSelectedIndex(0);
+   if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
+      m_pItemsSelect[4]->setSelectedIndex(1);
+   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_BARS )
+      m_pItemsSelect[4]->setSelectedIndex(2);
+   
    m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ? 1:0);
    m_pItemsSelect[6]->setSelectedIndex((g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES) ? 1:0);
    
@@ -153,24 +158,30 @@ void MenuVehicleOSD::valuesToUI()
    {
       m_pItemsSelect[1]->setSelectedIndex(1);
       m_pItemsSelect[2]->setEnabled(true);
-      m_pItemsSelect[3]->setEnabled(true);
       m_pItemsSelect[4]->setEnabled(true);
+      if ( m_pItemsSelect[4]->getSelectedIndex() != 0 )
+         m_pItemsSelect[3]->setEnabled(true);
+      else
+         m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[5]->setEnabled(true);
       m_pMenuItems[m_IndexOSDElements]->setEnabled(true);
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
-      m_pMenuItems[m_IndexOSDInstruments]->setEnabled(true);
+      m_pMenuItems[m_IndexOSDPlugins]->setEnabled(true);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(true);
    }
    else if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY )
    {
       m_pItemsSelect[1]->setSelectedIndex(2);
       m_pItemsSelect[2]->setEnabled(true);
-      m_pItemsSelect[3]->setEnabled(true);
       m_pItemsSelect[4]->setEnabled(true);
+      if ( m_pItemsSelect[4]->getSelectedIndex() != 0 )
+         m_pItemsSelect[3]->setEnabled(true);
+      else
+         m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[5]->setEnabled(false);
       m_pMenuItems[m_IndexOSDElements]->setEnabled(false);
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
-      m_pMenuItems[m_IndexOSDInstruments]->setEnabled(true);
+      m_pMenuItems[m_IndexOSDPlugins]->setEnabled(true);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(false);
    }
    else
@@ -182,7 +193,7 @@ void MenuVehicleOSD::valuesToUI()
       m_pItemsSelect[5]->setEnabled(true);
       m_pMenuItems[m_IndexOSDElements]->setEnabled(false);
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(false);
-      m_pMenuItems[m_IndexOSDInstruments]->setEnabled(false);
+      m_pMenuItems[m_IndexOSDPlugins]->setEnabled(false);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(false);
    }
 }
@@ -215,6 +226,12 @@ void MenuVehicleOSD::onSelectItem()
       return;
    }
 
+   if ( m_IndexOSDController == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuPreferencesUI(true));
+      return;
+   }
+
    if ( m_IndexAlarms == m_SelectedIndex )
    {
       //add_menu_to_stack(new MenuVehicleAlarms());
@@ -241,9 +258,9 @@ void MenuVehicleOSD::onSelectItem()
       return;
    }
 
-   if ( m_IndexOSDInstruments == m_SelectedIndex )
+   if ( m_IndexOSDPlugins == m_SelectedIndex )
    {
-      add_menu_to_stack(new MenuVehicleOSDInstruments());
+      add_menu_to_stack(new MenuVehicleOSDPlugins());
       return;
    }
 
@@ -309,10 +326,12 @@ void MenuVehicleOSD::onSelectItem()
 
    if ( m_IndexBgOnTexts == m_SelectedIndex )
    {
-      if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
-      else
+      params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+      params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_BARS;
+      if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
          params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+      if ( 2 == m_pItemsSelect[4]->getSelectedIndex() )
+         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BACKGROUND_BARS;
       sendToVehicle = true;
    }
 

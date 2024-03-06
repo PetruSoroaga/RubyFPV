@@ -491,3 +491,70 @@ int hw_execute_bash_command_silent(const char* command, char* outBuffer)
    pclose(fp);
    return 1;
 }
+
+
+void hw_execute_ruby_process(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput)
+{
+   hw_execute_ruby_process_wait(szPrefixes, szProcess, szParams, szOutput, 0);
+}
+
+void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput, int iWait)
+{
+   if ( (NULL == szProcess) || (0 == szProcess[0]) )
+      return;
+   if ( (NULL != szPrefixes) && (0 != szPrefixes[0]) )
+      log_line("Executing Ruby process: [%s], prefixes: [%s], wait: %s", szProcess, szPrefixes, (iWait?"yes":"no"));
+   else
+      log_line("Executing Ruby process: [%s], no prefixes.: wait: %s", szProcess, (iWait?"yes":"no"));
+
+   if ( NULL != szOutput )
+      szOutput[0] = 0;
+   
+   char szFullPath[256];
+   strcpy(szFullPath, szProcess);
+   if ( access(szFullPath, R_OK) == -1 )
+      sprintf(szFullPath, "%s%s", FOLDER_BINARIES, szProcess);
+
+   if ( access(szFullPath, R_OK) == -1 )
+   {
+      log_error_and_alarm("Can't execute Ruby process. Not found here: [%s] or here: [%s]", szProcess, szFullPath );
+      return;
+   }
+
+   char szCommand[256];
+   if ( (NULL != szPrefixes) && (0 != szPrefixes[0]) )
+      sprintf(szCommand, "%s ./%s", szPrefixes, szProcess);
+   else
+      sprintf(szCommand, "./%s", szProcess);
+
+   if ( (NULL != szParams) && (0 != szParams[0]) )
+   {
+      strcat(szCommand, " ");
+      strcat(szCommand, szParams);
+   }
+
+   if ( ! iWait )
+      strcat(szCommand, "&");
+
+   FILE* fp = popen( szCommand, "r" );
+   if ( NULL == fp )
+   {
+      log_error_and_alarm("Failed to execute Ruby process: [%s]", szCommand);
+      return;
+   }
+   if ( NULL != szOutput )
+   {
+      // Ruby processes output very little info (version only)
+      char szBuff[128];
+      if ( fgets(szBuff, 123, fp) != NULL)
+      {
+         szBuff[123] = 0;
+         sscanf(szBuff, "%s", szOutput);
+      }
+      else
+         log_line("Empty response from Ruby process.");
+   }
+   if ( -1 == pclose(fp) )
+      log_softerror_and_alarm("Failed to close Ruby process: [%s]", szCommand);
+   log_line("Launched Ruby process: [%s]", szCommand);
+}

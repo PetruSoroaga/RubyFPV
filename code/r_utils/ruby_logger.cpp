@@ -48,7 +48,10 @@ char s_szLogMsg[256];
 void _log_logger_message(const char* szMsg)
 {
    s_iCounter++;
-   FILE* fd = fopen(LOG_FILE_LOGGER, "ab");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_LOGGER);
+   FILE* fd = fopen(szFile, "ab");
    if ( NULL != fd )
    {
       fprintf(fd, "%d: %s\n", s_iCounter, szMsg);
@@ -109,7 +112,8 @@ int main(int argc, char *argv[])
 
    log_enable_stdout();
    log_init_local_only("RubyLogger");
-   
+   log_arguments(argc, argv);
+
    type_log_message_buffer logMessage;
 
    int iLogMsgQueue = _open_msg_queue();
@@ -124,10 +128,22 @@ int main(int argc, char *argv[])
 
    _log_logger_message("Started");
 
+   char szFileLog[256];
+   strcpy(szFileLog, FOLDER_LOGS);
+   strcat(szFileLog, LOG_FILE_SYSTEM);
+   char szFileErrors[256];
+   strcpy(szFileErrors, FOLDER_LOGS);
+   strcat(szFileErrors, LOG_FILE_ERRORS);
+   char szFileSoft[256];
+   strcpy(szFileSoft, FOLDER_LOGS);
+   strcat(szFileSoft, LOG_FILE_ERRORS_SOFT);
+
    while ( !g_bQuit )
    {
       // This is blocking
       int len = msgrcv(iLogMsgQueue, &logMessage, MAX_SERVICE_LOG_ENTRY_LENGTH, 0, 0);
+      if ( g_bQuit )
+         break;
       if ( len <= 0 )
       {
           sprintf(s_szLogMsg, "Failed to read log message queue. Error code: %d, (%s)", errno, strerror(errno));
@@ -151,7 +167,7 @@ int main(int argc, char *argv[])
       //if ( logMessage.type == 1 )
       if ( 1 )
       {
-         FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
+         FILE* fd = fopen(szFileLog, "a+");
          if ( NULL != fd )
          {
             fprintf(fd, "%s\n", logMessage.text);
@@ -161,7 +177,7 @@ int main(int argc, char *argv[])
 
       if ( logMessage.type == 2 )
       {
-         FILE* fd = fopen(LOG_FILE_ERRORS_SOFT, "a+");
+         FILE* fd = fopen(szFileSoft, "a+");
          if ( NULL != fd )
          {
             fprintf(fd, "%s\n", logMessage.text);
@@ -171,15 +187,13 @@ int main(int argc, char *argv[])
 
       if ( logMessage.type == 3 )
       {
-         FILE* fd = fopen(LOG_FILE_ERRORS, "a+");
+         FILE* fd = fopen(szFileErrors, "a+");
          if ( NULL != fd )
          {
             fprintf(fd, "%s\n", logMessage.text);
             fclose(fd);
          }
       }
-
-      //hardware_sleep_ms(5);
    }
 
    if ( iLogMsgQueue >= 0 )

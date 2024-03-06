@@ -46,8 +46,6 @@ int radio_links_open_rxtx_radio_interfaces()
    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       log_line("Relaying is enabled on radio link %d on frequency: %s.", g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId+1, str_format_frequency(g_pCurrentModel->relay_params.uRelayFrequencyKhz));
 
-   //init_radio_in_packets_state();
-
    int countOpenedForRead = 0;
    int countOpenedForWrite = 0;
    int iCountSikInterfacesOpened = 0;

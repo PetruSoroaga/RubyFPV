@@ -102,7 +102,7 @@ int s_iSearchSikECC = -1;
 int s_iSearchSikLBT = -1;
 int s_iSearchSikMCSTR = -1;
 
-u32 s_uTimeLastReadIPCMessages = 0;
+u32 s_uTimeLastTryReadIPCMessages = 0;
 
 void _broadcast_radio_interface_init_failed(int iInterfaceIndex)
 {
@@ -151,7 +151,7 @@ void _compute_radio_interfaces_assignment()
    //---------------------------------------------------------------
    // See how many active radio links the vehicle has
 
-   u32 uStoredMainFrequencyForModel = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
+   u32 uStoredMainFrequencyForModel = get_model_main_connect_frequency(g_pCurrentModel->uVehicleId);
    int iStoredMainRadioLinkForModel = -1;
 
    int iCountAssignedVehicleRadioLinks = 0;
@@ -162,7 +162,7 @@ void _compute_radio_interfaces_assignment()
 
    log_line("Computing local radio interfaces assignment to vehicle radio links...");
    log_line("Vehicle (%u, %s) main 'connect to' frequency: %s, vehicle has a total of %d radio links.",
-      g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName(), str_format_frequency(uStoredMainFrequencyForModel), g_pCurrentModel->radioLinksParams.links_count);
+      g_pCurrentModel->uVehicleId, g_pCurrentModel->getLongName(), str_format_frequency(uStoredMainFrequencyForModel), g_pCurrentModel->radioLinksParams.links_count);
 
    for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
    {
@@ -880,6 +880,10 @@ int _must_inject_ping_now()
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY) )
       return 0;
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+      return 0;
+
    u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags);
 
    //if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
@@ -946,7 +950,7 @@ bool _check_send_or_queue_ping()
    u8 uDestinationRelayMode = 0;
 
    if ( 0 == s_uPingToSendVehicleIndex )
-      uDestinationVehicleId = g_pCurrentModel->vehicle_id;
+      uDestinationVehicleId = g_pCurrentModel->uVehicleId;
 
    if ( 1 == s_uPingToSendVehicleIndex )
       uDestinationVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
@@ -1260,12 +1264,12 @@ void _preprocess_radio_out_packet(u8* pPacketBuffer)
 
 void _read_ipc_pipes(u32 uTimeNow)
 {
-   s_uTimeLastReadIPCMessages = uTimeNow;
+   s_uTimeLastTryReadIPCMessages = uTimeNow;
    int maxToRead = 10;
    int maxPacketsToRead = maxToRead;
 
    maxPacketsToRead += DEFAULT_UPLOAD_PACKET_CONFIRMATION_FREQUENCY;
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(g_fIPCFromCentral, 50, s_PipeBufferCommands, &s_PipeBufferCommandsPos, s_BufferCommands) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(g_fIPCFromCentral, s_PipeBufferCommands, &s_PipeBufferCommandsPos, s_BufferCommands)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferCommands;      
@@ -1281,7 +1285,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       log_line("Read %d messages from central msgqueue.", maxToRead - maxPacketsToRead);
 
    maxPacketsToRead = maxToRead;
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(g_fIPCFromTelemetry, 50, s_PipeBufferTelemetryUplink, &s_PipeBufferTelemetryUplinkPos, s_BufferMessageFromTelemetry) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(g_fIPCFromTelemetry, s_PipeBufferTelemetryUplink, &s_PipeBufferTelemetryUplinkPos, s_BufferMessageFromTelemetry)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferMessageFromTelemetry;      
@@ -1297,7 +1301,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       log_line("Read %d messages from telemetry msgqueue.", maxToRead - maxPacketsToRead);
 
    maxPacketsToRead = maxToRead;
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(g_fIPCFromRC, 50, s_PipeBufferRCUplink, &s_PipeBufferRCUplinkPos, s_BufferRCUplink) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(g_fIPCFromRC, s_PipeBufferRCUplink, &s_PipeBufferRCUplinkPos, s_BufferRCUplink)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferRCUplink;      
@@ -1427,7 +1431,7 @@ void init_shared_memory_objects()
       resetVehicleRuntimeInfo(i);
 
    if ( NULL != g_pCurrentModel )
-      g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[0] = g_pCurrentModel->vehicle_id;
+      g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[0] = g_pCurrentModel->uVehicleId;
 
    if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
       memcpy( (u8*)g_pSM_RouterVehiclesRuntimeInfo, (u8*)&g_SM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
@@ -1640,9 +1644,9 @@ void _consume_radio_rx_packets()
          uTimeStart = uTime;
          _read_ipc_pipes(uTime);
       }
-      if ( uTime > s_uTimeLastReadIPCMessages + 500 )
+      if ( uTime > s_uTimeLastTryReadIPCMessages + 500 )
       {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastReadIPCMessages);
+         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
          uTimeStart = uTime;
          _read_ipc_pipes(uTime);
       }
@@ -1674,11 +1678,11 @@ void _check_send_pairing_requests()
          continue;
 
       bool bExpectedVehicle = false;
-      if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+      if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
          bExpectedVehicle = true;
 
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
-      if ( g_pCurrentModel->relay_params.uRelayedVehicleId == pModel->vehicle_id )
+      if ( g_pCurrentModel->relay_params.uRelayedVehicleId == pModel->uVehicleId )
          bExpectedVehicle = true;
         
       if ( ! bExpectedVehicle )
@@ -1695,7 +1699,7 @@ void _check_send_pairing_requests()
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_PAIRING_REQUEST, STREAM_ID_DATA);
       PH.vehicle_id_src = g_uControllerId;
-      PH.vehicle_id_dest = pModel->vehicle_id;
+      PH.vehicle_id_dest = pModel->uVehicleId;
       PH.total_length = sizeof(t_packet_header) + sizeof(u32);
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -1937,15 +1941,17 @@ int main (int argc, char *argv[])
          s_iSearchSikAirRate, s_iSearchSikECC, s_iSearchSikLBT, s_iSearchSikMCSTR);
    }
 
-   g_bDebug = false;
+   g_bDebugState = false;
 
    if ( argc >= 1 )
    if ( strcmp(argv[argc-1], "-debug") == 0 )
-      g_bDebug = true;
+      g_bDebugState = true;
 
-   if ( g_bDebug )
-      log_enable_stdout();
- 
+   if ( access(CONFIG_FILENAME_DEBUG, R_OK) != -1 )
+      g_bDebugState = true;
+   if ( g_bDebugState )
+      log_line("Starting in debug mode.");
+
    if ( g_bSearching )
       log_line("Launched router in search mode, search frequency: %s, search firmware type: %s", str_format_frequency(g_uSearchFrequency), str_format_firmware_type(g_uAcceptedFirmwareType));
 
@@ -2070,7 +2076,10 @@ int main (int argc, char *argv[])
    }
 
    g_bFirstModelPairingDone = false;
-   if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) != -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
+   if ( access(szFile, R_OK) != -1 )
       g_bFirstModelPairingDone = true;
 
    if ( g_bSearching )
@@ -2328,14 +2337,16 @@ void video_processors_init()
       if ( g_uAcceptedFirmwareType != MODEL_FIRMWARE_TYPE_OPENIPC )
          rx_video_output_init();
    
+      rx_video_output_enable_pipe_output();
+
       ProcessorRxVideo::oneTimeInit();
       init_processing_audio();
    }
 
    if ( ! g_bSearching )
    {
-      video_link_adaptive_init(g_pCurrentModel->vehicle_id);
-      video_link_keyframe_init(g_pCurrentModel->vehicle_id);
+      video_link_adaptive_init(g_pCurrentModel->uVehicleId);
+      video_link_keyframe_init(g_pCurrentModel->uVehicleId);
    }
 }
 

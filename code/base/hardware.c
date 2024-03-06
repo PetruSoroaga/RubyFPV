@@ -136,7 +136,10 @@ int init_hardware()
    int failed = 0;
 
    #ifdef HW_CAPABILITY_GPIO
-   if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) != -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+   if ( access(szFile, R_OK ) != -1 )
    {
       int failedButtons = GPIOInitButtons();
       if ( failedButtons )
@@ -376,8 +379,16 @@ int hardware_getBoardType()
    if ( strcmp(szBuff, "2a22042") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV12;}
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+
    s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
+   hw_execute_bash_command("ipctool -c 2>/dev/null", szBuff);
+   log_line("Detected board type: %s", szBuff);
+   if ( NULL != strstr(szBuff, "gk72") )
+      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
+   if ( NULL != strstr(szBuff, "ssc335") )
+      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_SIGMASTER;
+
    #endif
 
    strncpy(szBuff, str_get_hardware_board_name(s_iHardwareLastDetectedBoardType), 255);
@@ -496,9 +507,13 @@ int hardware_detectBoardType()
    hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
    log_line("Board description string: %s", szBuff);
    log_line("");
-   FILE* fd = fopen("config/board.txt", "w");
+
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save board configuration to file: config/board.txt");
+      log_softerror_and_alarm("Failed to save board configuration to file: %s", szFile);
    else
    {
       fprintf(fd, "%d %s\n", board_type, szBuff);
@@ -531,7 +546,10 @@ int hardware_detectBoardType()
 
    hw_execute_bash_command("cat /proc/device-tree/model > /boot/ruby_board_desc.txt", NULL);
    #endif
-   hw_execute_bash_command("cat /proc/device-tree/model > config/ruby_board_desc.txt", NULL);
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   hw_execute_bash_command("cat /proc/device-tree/model > /root/ruby/config/ruby_board_desc.txt", NULL);
+   #endif
 
    return board_type;
 }
@@ -775,7 +793,10 @@ void gpio_read_buttons_loop()
    int iForceBackPressed = 0;
    int iForceQA1Pressed = 0;
 
-   if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+   if ( access(szFile, R_OK ) == -1 )
    {
       sKeyMenuPressed = 0;
       keyMenuDownStartTime = 0;
@@ -813,7 +834,7 @@ void gpio_read_buttons_loop()
    
    if ( (0 == s_iButtonsWhereInited) && s_hwWasSetup )
    {
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "rb");
+      FILE* fp = fopen(szFile, "rb");
       int i1,i2,i3;
       i3 = 0;
       if ( NULL != fp )
@@ -827,18 +848,18 @@ void gpio_read_buttons_loop()
             else if ( i3 == GPIO_PIN_QACTION1 )
                iForceQA1Pressed = 1;
             else
-              log_softerror_and_alarm("[Hardware] File [%s] has invalid first state of first button pressed. Button pin: %d", FILE_CONTROLLER_BUTTONS, i3);
+              log_softerror_and_alarm("[Hardware] File [%s] has invalid first state of first button pressed. Button pin: %d", szFile, i3);
             log_line("[Hardware] Detection done: %s, pull direction: %s, first state of first button pressed detected. Button pin: %d",
                (i1==1)?"yes":"no",
                (i2==1)?"pullup":"pulldown",
                 i3);
          }
          else
-            log_softerror_and_alarm("[Hardware] Can't read file [%s] to read first state of first button pressed.", FILE_CONTROLLER_BUTTONS);
+            log_softerror_and_alarm("[Hardware] Can't read file [%s] to read first state of first button pressed.", szFile);
          fclose(fp);
       }
       else
-         log_softerror_and_alarm("[Hardware] Can't access file [%s] to read first state of first button pressed.", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("[Hardware] Can't access file [%s] to read first state of first button pressed.", szFile);
 
       GPIOInitButtons();
       s_iButtonsWhereInited = 1;
@@ -1651,28 +1672,21 @@ int _hardware_get_camera_hardware_version_from_string(char* szHardwareId)
 
 u32 _hardware_detect_camera_type()
 {
-   char szBuff[1024];
+   char szBuff[256];
 
    s_bHardwareHasCamera = 0;
    s_uHardwareCameraType = CAMERA_TYPE_NONE;
    s_iHardwareCameraI2CBus = -1;
+   char szOutput[512];
 
    #ifdef HW_PLATFORM_RASPBERRY
-   char szComm[1024];
-   char szOutput[2048];
+   char szComm[256];
 
    int retryCount = 3;
- 
-   sprintf(szBuff, "/boot/%s", FILE_FORCE_VEHICLE_NO_CAMERA);
-   
+    
    if ( access(FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
    {
       log_line("File %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
-      retryCount = 0;
-   }
-   if ( access(szBuff, R_OK ) != -1 )
-   {
-      log_line("/boot file %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
       retryCount = 0;
    }
 
@@ -1764,10 +1778,19 @@ u32 _hardware_detect_camera_type()
    }
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+
    s_bHardwareHasCamera = 1;
    s_iHardwareCameraI2CBus = -1;
    s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
+
+   hw_execute_bash_command("ipctool -c 2>/dev/null", szOutput);
+   log_line("Detected board type: %s", szOutput);
+   if ( NULL != strstr(szOutput, "gk72") )
+      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
+   if ( NULL != strstr(szOutput, "ssc335") )
+      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_SIGMASTER335;
+
    #endif
 
    if ( s_bHardwareHasCamera == 0 )
@@ -1809,9 +1832,7 @@ int hardware_detectSystemType()
 
    _hardware_detect_camera_type();
 
-   char szBuff[256];
-   sprintf(szBuff, "/boot/%s", FILE_FORCE_VEHICLE_NO_CAMERA);
-   if( (access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1) || (access( szBuff, R_OK ) != -1) )
+   if( access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
    {
       log_line("Hardware: Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
       s_iHardwareSystemIsVehicle = 1;
@@ -1842,7 +1863,11 @@ int hardware_detectSystemType()
    else
       log_line("Hardware: Detected system as controller.");
 
-   FILE* fd = fopen(FILE_SYSTEM_TYPE, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
+
+   FILE* fd = fopen(szFile, "w");
    if ( NULL != fd )
    {
       fprintf(fd, "%d %d %u %d %d %d\n", s_iHardwareSystemIsVehicle, s_bHardwareHasCamera, s_uHardwareCameraType, s_iHardwareCameraI2CBus, s_iHardwareCameraDevId, s_iHardwareCameraHWVer);
@@ -1861,7 +1886,10 @@ void _hardware_load_system_type()
       return;
 
    log_line("Hardware: Loading system type config...");
-   FILE* fd = fopen(FILE_SYSTEM_TYPE, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 6 != fscanf(fd, "%d %d %u %d %d %d", &s_iHardwareSystemIsVehicle, &s_bHardwareHasCamera, &s_uHardwareCameraType, &s_iHardwareCameraI2CBus, &s_iHardwareCameraDevId, &s_iHardwareCameraHWVer) )
@@ -1962,22 +1990,18 @@ int hardware_isCameraHDMI()
    return 0;
 }
 
-int hardware_sleep_ms(u32 miliSeconds)
+void hardware_sleep_ms(u32 miliSeconds)
 {
-   return usleep(miliSeconds*1000);
-
-   //struct timespec to_sleep = { 0, miliSeconds*1000*1000 };
-   //while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-   //return 0;
+   //usleep(miliSeconds*1000);
+   struct timespec to_sleep = { 0, miliSeconds*1000*1000 };
+   nanosleep(&to_sleep, NULL);
 }
 
-int hardware_sleep_micros(u32 microSeconds)
+void hardware_sleep_micros(u32 microSeconds)
 {
-   return usleep(microSeconds);
-
-   //struct timespec to_sleep = { 0, microSeconds*1000 };
-   //while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-   //return 0;
+   //usleep(microSeconds);
+   struct timespec to_sleep = { 0, microSeconds*1000 };
+   nanosleep(&to_sleep, NULL);
 }
 
 void hardware_recording_led_set_off()
@@ -2032,7 +2056,7 @@ int hardware_get_free_space_kb()
    if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
       return -1;
    #else
-   if ( 1 != hw_execute_bash_command_raw("df .", szOutput) )
+   if ( 1 != hw_execute_bash_command_raw("df . | grep -e 'overlay|tmpfp", szOutput) )
       return -1;
    #endif
 

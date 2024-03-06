@@ -97,6 +97,8 @@
 #define MENU_ID_TEXT 110
 #define MENU_ID_TXINFO 111
 #define MENU_ID_VEHICLE_RADIO_LINK_ELRS 112
+#define MENU_ID_OSD_PLUGINS 113
+#define MENU_ID_VEHICLE_OSD_WIDGET 114
 
 
 #define MAX_MENU_ITEMS 150
@@ -206,6 +208,9 @@ class Menu
      void addMessage2(int iId, const char* szMessage, const char* szLine2);
      void addMessageNeedsVehcile(const char* szMessage, int iConfirmationId);
      char* addMessageVideoBitrate(Model* pModel);
+     void addUnsupportedMessageOpenIPC(const char* szMessage);
+     void addUnsupportedMessageOpenIPCGoke(const char* szMessage);
+     void addUnsupportedMessageOpenIPCSigmaster(const char* szMessage);
      bool uploadSoftware();
      bool _uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload);
      bool checkCancelUpload();

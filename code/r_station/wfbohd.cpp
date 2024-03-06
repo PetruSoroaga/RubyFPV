@@ -121,7 +121,7 @@ void _send_fc_wfbohd_telemetry_to_central()
    // Send FC telemetry
 
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    
    PHFCTelem_WFBOHD.fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
 
@@ -176,7 +176,7 @@ void _send_fc_wfbohd_telemetry_to_central()
    PHFCTelem_WFBOHD.flags = PHFCTelem_WFBOHD.flags & (~FC_TELE_FLAGS_RC_FAILSAFE);
 
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_fc_telemetry);
    if ( bSendFCMessage )
    {

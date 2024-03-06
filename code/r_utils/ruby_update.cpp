@@ -135,7 +135,7 @@ void do_update_to_82()
       pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
    }
 
-   log_line("Updated model VID %u (%s) to v8.2", pModel->vehicle_id, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v8.2", pModel->uVehicleId, pModel->getLongName());
 }
 
 void do_update_to_81()
@@ -156,7 +156,7 @@ void do_update_to_81()
 
    pModel->rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
    
-   log_line("Updated model VID %u (%s) to v8.1", pModel->vehicle_id, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v8.1", pModel->uVehicleId, pModel->getLongName());
 }
 
 void do_update_to_80()
@@ -174,7 +174,7 @@ void do_update_to_80()
    Model* pModel = getCurrentModel();
    if ( NULL == pModel )
       return;
-   log_line("Updated model VID %u (%s) to v8.0", pModel->vehicle_id, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v8.0", pModel->uVehicleId, pModel->getLongName());
 }
 
 
@@ -245,7 +245,7 @@ void do_update_to_78()
       }
    }   
 
-   log_line("Updated model VID %u (%s) to v7.8", pModel->vehicle_id, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v7.8", pModel->uVehicleId, pModel->getLongName());
 }
 
 
@@ -275,7 +275,10 @@ void do_update_to_77()
    }
    else
    {
-      unlink(FILE_CONTROLLER_BUTTONS);
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+      unlink(szFile);
       load_ControllerSettings();
       get_ControllerSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
       save_ControllerSettings(); 
@@ -1010,7 +1013,7 @@ void do_update_to_62()
    log_line("Doing update to 6.2");
 
    char szBuff[256];
-   sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+   sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
    hw_execute_bash_command(szBuff,NULL);
 
    if ( s_isVehicle )
@@ -1131,7 +1134,10 @@ int main(int argc, char *argv[])
    getSystemType();
 
    u32 uCurrentVersion = 0;
-   FILE* fd = fopen(FILE_CONFIG_CURRENT_VERSION, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VERSION);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%u", &uCurrentVersion) )
@@ -1148,7 +1154,9 @@ int main(int argc, char *argv[])
    {
       char szVersionPresent[32];
       szVersionPresent[0] = 0;
-      fd = fopen(FILE_INFO_LAST_UPDATE, "r");
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_INFO_LAST_UPDATE);
+      fd = fopen(szFile, "r");
       if ( NULL != fd )
       {
          if ( 1 != fscanf(fd, "%s", szVersionPresent) )
@@ -1157,7 +1165,9 @@ int main(int argc, char *argv[])
       }
       if ( 0 == szVersionPresent[0] )
       {
-         fd = fopen(FILE_INFO_VERSION, "r");
+         strcpy(szFile, FOLDER_BINARIES);
+         strcat(szFile, FILE_INFO_VERSION);
+         fd = fopen(szFile, "r");
          if ( NULL == fd )
             fd = fopen("ruby_ver.txt", "r");
 

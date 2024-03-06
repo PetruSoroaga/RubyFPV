@@ -31,13 +31,14 @@
 #include "config.h"
 #include "hardware.h"
 #include "hw_procs.h"
-#include "../radio/radiopackets2.h"
 #include "ctrl_preferences.h"
 #include <ctype.h>
 
 #define PREFERENCES_SETTINGS_STAMP_ID "vIV.3"
-Preferences s_Preferences;
 
+#ifdef HW_PLATFORM_RASPBERRY
+
+Preferences s_Preferences;
 
 void reset_Preferences()
 {
@@ -110,10 +111,13 @@ void reset_Preferences()
 
 int save_Preferences()
 {
-   FILE* fd = fopen(FILE_PREFERENCES, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_UI_PREFERENCES);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save preferences to file: %s",FILE_PREFERENCES);
+      log_softerror_and_alarm("Failed to save preferences to file: %s", szFile);
       return 0;
    }
 
@@ -166,17 +170,20 @@ int save_Preferences()
    fprintf(fd, "%d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters);
 
    fclose(fd);
-   log_line("Saved preferences to file: %s", FILE_PREFERENCES);
+   log_line("Saved preferences to file: %s", szFile);
    return 1;
 }
 
 int load_Preferences()
 {
-   FILE* fd = fopen(FILE_PREFERENCES, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_UI_PREFERENCES);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
       reset_Preferences();
-      log_softerror_and_alarm("Failed to load preferences from file: %s (missing file)",FILE_PREFERENCES);
+      log_softerror_and_alarm("Failed to load preferences from file: %s (missing file)", szFile);
       return 0;
    }
 
@@ -192,7 +199,7 @@ int load_Preferences()
    if ( failed )
    {
       reset_Preferences();
-      log_softerror_and_alarm("Failed to load preferences from file: %s (invalid config file version)",FILE_PREFERENCES);
+      log_softerror_and_alarm("Failed to load preferences from file: %s (invalid config file version)", szFile);
       fclose(fd);
       return 0;
    }
@@ -363,12 +370,12 @@ int load_Preferences()
 
    if ( failed )
    {
-      log_softerror_and_alarm("Failed to load preferences from file: %s (invalid config file)",FILE_PREFERENCES);
+      log_softerror_and_alarm("Failed to load preferences from file: %s (invalid config file)", szFile);
       fclose(fd);
       return 0;
    }
    fclose(fd);
-   log_line("Loaded preferences from file: %s", FILE_PREFERENCES);
+   log_line("Loaded preferences from file: %s", szFile);
    return 1;
 }
 
@@ -377,3 +384,10 @@ Preferences* get_Preferences()
    return &s_Preferences;
 }
 
+#else
+
+int save_Preferences() { return 0; }
+int load_Preferences() { return 0; }
+void reset_Preferences() {}
+Preferences* get_Preferences() { return NULL; }
+#endif

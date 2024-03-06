@@ -32,14 +32,14 @@
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
-#include "../base/models.h"
+#ifdef HW_PLATFORM_RASPBERRY
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
+#endif
 #include "../common/string_utils.h"
 
-Model* g_pModelVehicle = NULL;
-
 bool configure_radios_succeeded = false;
+int giDataRateMbAtheros = 0;
 
 int init_Radios()
 {
@@ -61,6 +61,8 @@ int init_Radios()
    u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
    bool isStation = hardware_is_station();
 
+   #ifdef HW_PLATFORM_RASPBERRY
+
    if ( isStation )
    {
       log_line("Configuring radios: we are station.");
@@ -78,6 +80,9 @@ int init_Radios()
       log_line("Configuring radios: we are vehicle.");
       reset_ControllerInterfacesSettings();
    }
+
+   #endif
+
    //system("iw reg set DE");
    //hw_execute_bash_command("iw reg set DE", NULL);
 
@@ -143,21 +148,15 @@ int init_Radios()
          int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
          if ( isStation )
          {
+            #ifdef HW_PLATFORM_RASPBERRY
             dataRateMb = controllerGetCardDataRate(pRadioHWInfo->szMAC);
             if ( dataRateMb > 0 )
                dataRateMb = dataRateMb / 1000 / 1000;
+            #endif
          }
-         else if ( NULL != g_pModelVehicle )
-         {
-            if ( g_pModelVehicle->radioInterfacesParams.interface_link_id[i] >= 0 )
-            if ( g_pModelVehicle->radioInterfacesParams.interface_link_id[i] < g_pModelVehicle->radioLinksParams.links_count )
-            {
-
-               dataRateMb = g_pModelVehicle->radioLinksParams.link_datarate_video_bps[g_pModelVehicle->radioInterfacesParams.interface_link_id[i]];
-               if ( dataRateMb > 0 )
-                  dataRateMb = dataRateMb / 1000 / 1000;
-            }
-         }
+         else if ( giDataRateMbAtheros > 0 )
+            dataRateMb = giDataRateMbAtheros;
+         
          if ( dataRateMb == 0 )
             dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO/1000/1000;
          if ( dataRateMb > 0 )
@@ -293,8 +292,11 @@ int main(int argc, char *argv[])
       return 0;
    }
    
+   if ( argc >= 2 )
+      giDataRateMbAtheros = atoi(argv[argc-1]);
 
    log_init("RubyRadioInit");
+   log_arguments(argc, argv);
 
    char szOutput[1024];
    hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
@@ -307,7 +309,7 @@ int main(int argc, char *argv[])
    {
       hardware_sleep_ms(200);
       char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+      sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
       hardware_enumerate_radio_interfaces();
@@ -319,13 +321,6 @@ int main(int argc, char *argv[])
       log_error_and_alarm("There are no radio interfaces (2.4/5.8 wlans) on this device.");
       return -1;
    }    
-
-   g_pModelVehicle = new Model();
-   if ( ! g_pModelVehicle->loadFromFile(FILE_CURRENT_VEHICLE_MODEL) )
-   {
-      log_softerror_and_alarm("Can't load current model vehicle.");
-      g_pModelVehicle = NULL;
-   }
    
    init_Radios();
 

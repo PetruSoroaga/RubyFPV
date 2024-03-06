@@ -296,7 +296,7 @@ void MenuVehicle::onSelectItem()
       return;
    }
 
-   if ( (!pairing_isStarted()) || (NULL == g_pCurrentModel) || (!link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)) )
+   if ( (!pairing_isStarted()) || (NULL == g_pCurrentModel) || (!link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
    {
       Popup* p = new Popup(true, "Can't change settings when not connected to the vehicle.", 5 );
       p->setIconId(g_idIconError, get_Color_IconError());

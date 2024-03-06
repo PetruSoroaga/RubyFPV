@@ -255,7 +255,7 @@ void log_current_runtime_vehicles_info()
          (g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo)?"RT":"no RT",
          (g_VehiclesRuntimeInfo[i].bGotFCTelemetry)?"FCT":"no FCT",
          g_VehiclesRuntimeInfo[i].pModel,
-         (g_VehiclesRuntimeInfo[i].pModel != NULL)?(g_VehiclesRuntimeInfo[i].pModel->vehicle_id):0);
+         (g_VehiclesRuntimeInfo[i].pModel != NULL)?(g_VehiclesRuntimeInfo[i].pModel->uVehicleId):0);
       strcat(szBuff, szTmp);
       iCount++;
    }

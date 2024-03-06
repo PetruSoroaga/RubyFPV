@@ -192,8 +192,8 @@ void _output_audio_block(u32 uBlockIndex, u32 uPacketIndex, u32 uAudioSize)
    
       #ifdef FEATURE_LOCAL_AUDIO_RECORDING
       s_iAudioRecordingSegment++;
-      char szBuff[256];
-      sprintf(szBuff, "%s%d", FILE_TMP_AUDIO_RECORDING, s_iAudioRecordingSegment);
+      char szBuff[128];
+      sprintf(szBuff, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, s_iAudioRecordingSegment);
       s_pFileAudioRecording = fopen(szBuff, "wb");
 
       if ( NULL != s_pFileAudioRecording )

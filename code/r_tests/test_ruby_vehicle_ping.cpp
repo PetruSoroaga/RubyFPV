@@ -16,7 +16,7 @@ void process_data(u8* buffer, int length)
    if ( (dph.packetType == PACKET_TYPE_RUBY_TELEMETRY) && radio_validate_crc((data_packet_header*)buffer) )
    {
       //log_line("CRC valid for a telemetry packet");
-      //log_line("Found a vehicle. Name: %s, Id: %u", pdpvt->vehicle_name, pdpvt->vehicle_id);
+      //log_line("Found a vehicle. Name: %s, Id: %u", pdpvt->vehicle_name, pdpvt->uVehicleId);
       printf("1\n");
       exit(1);
    }
@@ -30,7 +30,7 @@ void process_all_data(u8* buffer, int length)
    if ( (dph.packetType == PACKET_TYPE_TELEMETRY_ALL) && radio_validate_crc((data_packet_header*)buffer) )
    {
       //log_line("CRC valid for a telemetry packet");
-      //log_line("Found a vehicle. Name: %s, Id: %u", pdpvt->vehicle_name, pdpvt->vehicle_id);
+      //log_line("Found a vehicle. Name: %s, Id: %u", pdpvt->vehicle_name, pdpvt->uVehicleId);
       printf("1\n");
       exit(1);
    }

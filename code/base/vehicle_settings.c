@@ -47,27 +47,33 @@ void reset_VehicleSettings()
 
 int save_VehicleSettings()
 {
-   FILE* fd = fopen(FILE_VEHICLE_SETTINGS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_VEHICLE_SETTINGS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save vehicle settings to file: %s",FILE_VEHICLE_SETTINGS);
+      log_softerror_and_alarm("Failed to save vehicle settings to file: %s",szFile);
       return 0;
    }
    fprintf(fd, "%s\n", VEHICLE_SETTINGS_STAMP_ID);
    fprintf(fd, "%d\n", s_VehicleSettings.iDevRxLoopTimeout);
    fclose(fd);
 
-   log_line("Saved vehicle settings to file: %s", FILE_VEHICLE_SETTINGS);
+   log_line("Saved vehicle settings to file: %s", szFile);
    return 1;
 }
 
 int load_VehicleSettings()
 {
    s_VehicleSettingsLoaded = 1;
-   FILE* fd = fopen(FILE_VEHICLE_SETTINGS, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_VEHICLE_SETTINGS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to load vehicle settings from file: %s (missing file). Resetted vehicle settings to default.",FILE_VEHICLE_SETTINGS);
+      log_softerror_and_alarm("Failed to load vehicle settings from file: %s (missing file). Resetted vehicle settings to default.", szFile);
       reset_VehicleSettings();
       save_VehicleSettings();
       return 0;
@@ -84,7 +90,7 @@ int load_VehicleSettings()
    if ( failed )
    {
       fclose(fd);
-      log_softerror_and_alarm("Failed to load vehicle settings from file: %s (invalid config file version)",FILE_VEHICLE_SETTINGS);
+      log_softerror_and_alarm("Failed to load vehicle settings from file: %s (invalid config file version)", szFile);
       reset_VehicleSettings();
       save_VehicleSettings();
       return 0;
@@ -101,12 +107,12 @@ int load_VehicleSettings()
 
    if ( failed )
    {
-      log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", FILE_VEHICLE_SETTINGS, failed);
+      log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);
       reset_VehicleSettings();
       save_VehicleSettings();
    }
    else
-      log_line("Loaded vehicle settings from file: %s", FILE_VEHICLE_SETTINGS);
+      log_line("Loaded vehicle settings from file: %s", szFile);
    return 1;
 }
 

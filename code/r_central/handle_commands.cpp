@@ -215,12 +215,12 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
       hw_execute_bash_command("cp -rf tmp/model.mdl tmp/last_error_model.mdl", NULL);
       return -1;
    }
-   log_line("[Commands] Received full model settings for vehicle id %u.", modelTemp.vehicle_id);
+   log_line("[Commands] Received full model settings for vehicle id %u.", modelTemp.uVehicleId);
 
    bool bFoundVehicle = false;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( g_VehiclesRuntimeInfo[i].uVehicleId == modelTemp.vehicle_id )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == modelTemp.uVehicleId )
       {
          bFoundVehicle = true;
          if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings == MAX_U32 )
@@ -237,7 +237,7 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
                 &(g_VehiclesRuntimeInfo[i].pModel->radioInterfacesParams));
 
             if ( bRadioConfigChanged )
-               log_line("[Commands] Was not waiting for model settings for vehicle id %u, but it's radio configuration changed.", modelTemp.vehicle_id);
+               log_line("[Commands] Was not waiting for model settings for vehicle id %u, but it's radio configuration changed.", modelTemp.uVehicleId);
             else
             {
                bool bCameraChanged = false;
@@ -253,10 +253,10 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
                      bCameraChanged = true;
 
                   if ( bCameraChanged )
-                     log_line("[Commands] Was not waiting for model settings for vehicle id %u, but it's active camera changed.", modelTemp.vehicle_id);
+                     log_line("[Commands] Was not waiting for model settings for vehicle id %u, but it's active camera changed.", modelTemp.uVehicleId);
                   else
                   {
-                     log_line("[Commands] Was not waiting for model settings for vehicle id %u and radio config did not changed. Ignoring it.", modelTemp.vehicle_id);
+                     log_line("[Commands] Was not waiting for model settings for vehicle id %u and radio config did not changed. Ignoring it.", modelTemp.uVehicleId);
                      return 0;
                   }
                }
@@ -275,7 +275,7 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
          if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings != MAX_U32 )
          if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings > g_TimeNow-5000 )
          {
-            log_line("[Commands] Already has up to date model settings for vehicle id %u. Ignoring it.", modelTemp.vehicle_id);
+            log_line("[Commands] Already has up to date model settings for vehicle id %u. Ignoring it.", modelTemp.uVehicleId);
             return 0;
          }
          g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings = g_TimeNow;
@@ -284,12 +284,12 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    }
    if ( ! bFoundVehicle )
    {
-      log_softerror_and_alarm("[Commands] Received model settings for unknown vehicle id %u. Skipping it.", modelTemp.vehicle_id);
+      log_softerror_and_alarm("[Commands] Received model settings for unknown vehicle id %u. Skipping it.", modelTemp.uVehicleId);
       return -1;
    }
 
-   if ( (NULL != g_pCurrentModel) && (modelTemp.vehicle_id != g_pCurrentModel->vehicle_id) )
-      log_line("[Commands] Received model settings for a different vehicle (%u) than the current model (%u)", modelTemp.vehicle_id, g_pCurrentModel->vehicle_id);
+   if ( (NULL != g_pCurrentModel) && (modelTemp.uVehicleId != g_pCurrentModel->uVehicleId) )
+      log_line("[Commands] Received model settings for a different vehicle (%u) than the current model (%u)", modelTemp.uVehicleId, g_pCurrentModel->uVehicleId);
 
    fd = fopen("tmp/model.mdl", "rb");
    if ( NULL == fd )
@@ -302,7 +302,7 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    int length = fread(uBuffer, 1, 5000, fd);
    fclose(fd);
    
-   onEventReceivedModelSettings(modelTemp.vehicle_id, uBuffer, length, false);
+   onEventReceivedModelSettings(modelTemp.uVehicleId, uBuffer, length, false);
    hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
 
    s_CommandType = 0;
@@ -440,7 +440,7 @@ void handle_commands_send_current_command()
 
    radio_packet_init(&PH, PACKET_COMPONENT_COMMANDS, PACKET_TYPE_COMMAND, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_command) + s_CommandBufferLength;
    
 
@@ -456,7 +456,7 @@ void handle_commands_send_current_command()
    
    send_packet_to_router(buffer, PH.total_length);
  
-   log_line_commands("[Commands] [Sent] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u, buff len: %d]", g_pCurrentModel->vehicle_id, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, s_CommandBufferLength);
+   log_line_commands("[Commands] [Sent] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u, buff len: %d]", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, s_CommandBufferLength);
 }
 
 
@@ -464,7 +464,7 @@ bool handle_commands_start_on_pairing()
 {
    log_line("[Commands] Handle start pairing...");
    if ( NULL != g_pCurrentModel )
-      reset_model_settings_download_buffers(g_pCurrentModel->vehicle_id);
+      reset_model_settings_download_buffers(g_pCurrentModel->uVehicleId);
 
    s_iCountRetriesToGetModelSettingsCommand = 0;
    s_RetryGetCorePluginsCounter = 0;
@@ -673,7 +673,7 @@ void _handle_download_file_segment_response()
       char szFolder[256];
       char szBuff[256];
 
-      sprintf(szFolder, FOLDER_MEDIA_VEHICLE_DATA, g_pCurrentModel->vehicle_id);
+      sprintf(szFolder, FOLDER_MEDIA_VEHICLE_DATA, g_pCurrentModel->uVehicleId);
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s", szFolder);
       hw_execute_bash_command(szComm, NULL);
       sprintf(szBuff, "logs_%s_%u_%u.zip", g_pCurrentModel->getShortName(), g_pCurrentModel->m_Stats.uTotalFlights, g_pCurrentModel->m_Stats.uTotalOnTime);
@@ -706,7 +706,7 @@ bool handle_last_command_result()
    if ( NULL == g_pCurrentModel )
       return false;
 
-   log_line_commands( "[Commands] [Handling Response] from VID %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->vehicle_id, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
+   log_line_commands( "[Commands] [Handling Response] from VID %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
 
    if ( NULL != g_pCurrentModel )
       popup_log_add_entry("Received response from vehicle to command %s.", commands_get_description(s_CommandType));
@@ -858,7 +858,7 @@ bool handle_last_command_result()
         {
            pairing_stop();
            deleteModel(g_pCurrentModel);
-           deletePluginModelSettings(g_pCurrentModel->vehicle_id);
+           deletePluginModelSettings(g_pCurrentModel->uVehicleId);
            g_pCurrentModel = NULL;
            save_PluginsSettings();
            log_line("[Commands] Command response factory reset: Deleted model 1/3.");
@@ -1252,6 +1252,12 @@ bool handle_last_command_result()
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          break;
 
+      case COMMAND_ID_SET_RADIO_LINKS_FLAGS:
+         g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags = s_CommandParam;
+         saveControllerModel(g_pCurrentModel);
+         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+         break;
+
       case COMMAND_ID_SET_OVERCLOCKING_PARAMS:
          {
             command_packet_overclocking_params params;
@@ -1354,8 +1360,8 @@ bool handle_last_command_result()
 
       case COMMAND_ID_RESET_ALL_TO_DEFAULTS:
          {
-            u32 vid = g_pCurrentModel->vehicle_id;
-            u32 ctrlId = g_pCurrentModel->controller_id;
+            u32 vid = g_pCurrentModel->uVehicleId;
+            u32 ctrlId = g_pCurrentModel->uControllerId;
             int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
@@ -1375,8 +1381,8 @@ bool handle_last_command_result()
             memcpy(&g_pCurrentModel->radioLinksParams, &radio_links, sizeof(type_radio_links_parameters) );
             memcpy(&g_pCurrentModel->radioInterfacesParams, &radio_interfaces, sizeof(type_radio_interfaces_parameters) );
 
-            g_pCurrentModel->vehicle_id = vid;
-            g_pCurrentModel->controller_id = ctrlId;
+            g_pCurrentModel->uVehicleId = vid;
+            g_pCurrentModel->uControllerId = ctrlId;
             g_pCurrentModel->hwCapabilities.iBoardType = boardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
@@ -1391,8 +1397,8 @@ bool handle_last_command_result()
 
       case COMMAND_ID_SET_ALL_PARAMS:
          {
-            u32 vid = g_pCurrentModel->vehicle_id;
-            u32 ctrlId = g_pCurrentModel->controller_id;
+            u32 vid = g_pCurrentModel->uVehicleId;
+            u32 ctrlId = g_pCurrentModel->uControllerId;
             int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
@@ -1412,8 +1418,8 @@ bool handle_last_command_result()
             memcpy(&g_pCurrentModel->radioLinksParams, &radio_links, sizeof(type_radio_links_parameters) );
             memcpy(&g_pCurrentModel->radioInterfacesParams, &radio_interfaces, sizeof(type_radio_interfaces_parameters) );
 
-            g_pCurrentModel->vehicle_id = vid;
-            g_pCurrentModel->controller_id = ctrlId;
+            g_pCurrentModel->uVehicleId = vid;
+            g_pCurrentModel->uControllerId = ctrlId;
             g_pCurrentModel->hwCapabilities.iBoardType = boardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
@@ -1460,9 +1466,9 @@ bool handle_last_command_result()
             log_line("[Commands] Received response Ok from vehicle to the link frequency change (new format). Vehicle radio link %u new freq: %s", tmpLink+1, str_format_frequency(tmpFreq));
             if ( (int)tmpLink < g_pCurrentModel->radioLinksParams.links_count )
             {
-               u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
+               u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->uVehicleId);
                if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] == uMainConnectFrequency )
-                  set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, tmpFreq);
+                  set_model_main_connect_frequency(g_pCurrentModel->uVehicleId, tmpFreq);
                g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] = tmpFreq;
                for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
                {
@@ -1483,9 +1489,9 @@ bool handle_last_command_result()
             log_line("[Commands] Received response Ok from vehicle to the link frequency change (old format). Vehicle radio link %u new freq: %s", tmpLink+1, str_format_frequency(tmpFreq));
             if ( (int)tmpLink < g_pCurrentModel->radioLinksParams.links_count )
             {
-               u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->vehicle_id);
+               u32 uMainConnectFrequency = get_model_main_connect_frequency(g_pCurrentModel->uVehicleId);
                if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] == uMainConnectFrequency )
-                  set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, tmpFreq*1000);
+                  set_model_main_connect_frequency(g_pCurrentModel->uVehicleId, tmpFreq*1000);
                g_pCurrentModel->radioLinksParams.link_frequency_khz[tmpLink] = tmpFreq*1000;
                for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
                {
@@ -1862,6 +1868,13 @@ bool _commands_check_send_get_settings()
    if ( ! g_bFirstModelPairingDone )
       return true;
 
+   if ( g_bDebugState )
+   {
+      if ( NULL != g_pCurrentModel )
+         g_pCurrentModel->b_mustSyncFromVehicle = false;
+      return false;
+   }
+   
    //log_line("%d, %d, %d, %d, %u, %u, %d", s_bHasCommandInProgress, g_pCurrentModel->b_mustSyncFromVehicle, g_pCurrentModel->is_spectator, g_bSearching,
    //           g_TimeNow, g_RouterIsReadyTimestamp, s_iCountRetriesToGetModelSettingsCommand);
 
@@ -1870,7 +1883,7 @@ bool _commands_check_send_get_settings()
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
    if ( ! g_bSearching )
-   if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+   if ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
    if ( g_VehiclesRuntimeInfo[0].bPairedConfirmed )
    if ( g_TimeNow > g_RouterIsReadyTimestamp + 500  )
    if ( s_iCountRetriesToGetModelSettingsCommand < 5 )
@@ -1917,10 +1930,10 @@ bool _commands_check_send_get_settings()
 
       flags |= ((uRefreshGraphIntervalIndex & 0x0F) + 1) << 24;
 
-      warnings_add(g_pCurrentModel->vehicle_id, "Synchronizing vehicle settings...");
+      warnings_add(g_pCurrentModel->uVehicleId, "Synchronizing vehicle settings...");
 
       log_line("[Commands] Send request to router to request model settings from vehicle.");
-      reset_model_settings_download_buffers(g_pCurrentModel->vehicle_id);
+      reset_model_settings_download_buffers(g_pCurrentModel->uVehicleId);
       return handle_commands_send_to_vehicle(COMMAND_ID_GET_ALL_PARAMS_ZIP, flags, NULL, 0);
    }
 
@@ -1936,8 +1949,8 @@ bool _commands_check_send_get_settings()
             g_bSearching?"yes":"no",
             g_bIsReinit?"yes":"no",
             link_has_received_main_vehicle_ruby_telemetry()?"yes":"no",
-            link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)?"yes":"no",
-            g_pCurrentModel->vehicle_id,
+            link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)?"yes":"no",
+            g_pCurrentModel->uVehicleId,
             s_iCountRetriesToGetModelSettingsCommand,
             (g_TimeNow > g_RouterIsReadyTimestamp + 500)?"yes":"no",
             g_VehiclesRuntimeInfo[0].bPairedConfirmed?"yes":"no"
@@ -1960,13 +1973,13 @@ bool _commands_check_send_get_settings()
    if ( NULL != g_pCurrentModel && (!g_pCurrentModel->is_spectator))
    if ( ! g_pCurrentModel->b_mustSyncFromVehicle )
    if ( ! g_bSearching )
-   if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+   if ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
    if ( g_bIsRouterReady )
    if ( g_TimeNow > g_RouterIsReadyTimestamp + 500  )
    if ( s_RetryGetCorePluginsCounter < 10 )
    {
       s_RetryGetCorePluginsCounter++;
-      warnings_add(g_pCurrentModel->vehicle_id, "Synchronizing vehicle plugins...");
+      warnings_add(g_pCurrentModel->uVehicleId, "Synchronizing vehicle plugins...");
       handle_commands_send_to_vehicle(COMMAND_ID_GET_CORE_PLUGINS_INFO, 0, NULL, 0);
    }
    
@@ -2094,7 +2107,7 @@ void _handle_commands_on_command_timeout()
       menu_invalidate_all();
    }
    else if ( s_CommandType == COMMAND_ID_GET_ALL_PARAMS_ZIP )
-      warnings_add(g_pCurrentModel->vehicle_id, "Could not get vehicle settings.");
+      warnings_add(g_pCurrentModel->uVehicleId, "Could not get vehicle settings.");
    else
    {
       Popup* p = new Popup("No response from vehicle. Command not applied.",0.25,0.4, 0.5, 4);
@@ -2139,7 +2152,7 @@ void handle_commands_loop()
       }
 
       if ( NULL != g_pCurrentModel )
-         reset_model_settings_download_buffers(g_pCurrentModel->vehicle_id);
+         reset_model_settings_download_buffers(g_pCurrentModel->uVehicleId);
 
       if ( s_CommandTimeout < 300 )
          s_CommandTimeout += 10;
@@ -2181,7 +2194,7 @@ void handle_commands_on_response_received(u8* pPacketBuffer, int iLength)
    if ( s_CommandLastProcessedResponseToCommandCounter == s_CommandCounter )
    if ( s_CommandType != COMMAND_ID_GET_ALL_PARAMS_ZIP )
    {
-      log_line_commands( "[Commands] [Ignoring duplicate response] of vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->vehicle_id, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
+      log_line_commands( "[Commands] [Ignoring duplicate response] of vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
       return;
    }
    s_CommandLastProcessedResponseToCommandCounter = s_CommandCounter;
@@ -2278,7 +2291,7 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
 
    if ( s_bHasCommandInProgress )
    {
-      log_line_commands( "[Commands] [Send] to vId %u, cmd nb. %d, retry: %d, type [%s], param: %u] Tried to send a new command while another one (nb %d) was in progress.", g_pCurrentModel->vehicle_id, s_CommandCounter+1, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, s_CommandCounter);
+      log_line_commands( "[Commands] [Send] to vId %u, cmd nb. %d, retry: %d, type [%s], param: %u] Tried to send a new command while another one (nb %d) was in progress.", g_pCurrentModel->uVehicleId, s_CommandCounter+1, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, s_CommandCounter);
       handle_commands_show_popup_progress();
       return false;
    }
@@ -2286,7 +2299,7 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
    if ( ! link_has_received_main_vehicle_ruby_telemetry() )
       return false;
 
-   s_CommandTargetVehicleId = g_pCurrentModel->vehicle_id;
+   s_CommandTargetVehicleId = g_pCurrentModel->uVehicleId;
    s_CommandBufferLength = length;
    if ( NULL != pBuffer )
    {
@@ -2300,9 +2313,9 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
 
    s_CommandReplyLength = 0;
    //if ( length > 0 )
-   //   log_line_commands( "[Commands] [Sending] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u, extra length: %d", g_pCurrentModel->vehicle_id, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, length);
+   //   log_line_commands( "[Commands] [Sending] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u, extra length: %d", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam, length);
    //else
-   //   log_line_commands( "[Commands] [Sending] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u", g_pCurrentModel->vehicle_id, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
+   //   log_line_commands( "[Commands] [Sending] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
    popup_log_add_entry("Sending command %s to vehicle...", commands_get_description(s_CommandType));
 
    s_CommandTimeout = 50;
@@ -2325,7 +2338,7 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
    {
       s_CommandTimeout = 1000;
       if ( NULL != g_pCurrentModel )
-         reset_model_settings_download_buffers(g_pCurrentModel->vehicle_id);
+         reset_model_settings_download_buffers(g_pCurrentModel->uVehicleId);
    }
    if ( s_CommandType == COMMAND_ID_DOWNLOAD_FILE )
    {
@@ -2394,13 +2407,13 @@ bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCount
 
    if ( s_bHasCommandInProgress )
    {
-      log_line_commands( "[Commands] [Send] to vId %u, cmd nb. %d, retry: %d, type [%s], param: %u] Tried to send a new command while another one (nb %d) was in progress.", g_pCurrentModel->vehicle_id, s_CommandCounter+1, resendCounter, commands_get_description(commandType), param, s_CommandCounter);
+      log_line_commands( "[Commands] [Send] to vId %u, cmd nb. %d, retry: %d, type [%s], param: %u] Tried to send a new command while another one (nb %d) was in progress.", g_pCurrentModel->uVehicleId, s_CommandCounter+1, resendCounter, commands_get_description(commandType), param, s_CommandCounter);
       handle_commands_show_popup_progress();
       return false;
    }
 
 
-   s_CommandTargetVehicleId = g_pCurrentModel->vehicle_id;
+   s_CommandTargetVehicleId = g_pCurrentModel->uVehicleId;
    s_CommandBufferLength = length;
    if ( NULL != pBuffer )
       memcpy(s_CommandBuffer, pBuffer, s_CommandBufferLength );
@@ -2418,7 +2431,7 @@ bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCount
 
    radio_packet_init(&PH, PACKET_COMPONENT_COMMANDS, PACKET_TYPE_COMMAND, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_command) + length;
 
    PHC.command_type = commandType;
@@ -2433,7 +2446,7 @@ bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCount
    
    send_packet_to_router(buffer, PH.total_length);
  
-   log_line_commands("[CommandsTh] [Sent] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->vehicle_id, s_CommandCounter, resendCounter, commands_get_description(commandType), param);
+   log_line_commands("[CommandsTh] [Sent] to vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, resendCounter, commands_get_description(commandType), param);
    return true;
 }
 
@@ -2446,7 +2459,7 @@ bool handle_commands_send_single_oneway_command(u8 resendCounter, u8 commandType
 {
    if ( NULL == g_pCurrentModel )
       return false;
-   return handle_commands_send_single_oneway_command_to_vehicle(g_pCurrentModel->vehicle_id, resendCounter, commandType, param, pBuffer, length, delayMs);
+   return handle_commands_send_single_oneway_command_to_vehicle(g_pCurrentModel->uVehicleId, resendCounter, commandType, param, pBuffer, length, delayMs);
 }
 
 bool handle_commands_send_single_oneway_command_to_vehicle(u32 uVehicleId, u8 resendCounter, u8 commandType, u32 param, u8* pBuffer, int length, int delayMs)
@@ -2486,7 +2499,7 @@ bool handle_commands_send_single_oneway_command_to_vehicle(u32 uVehicleId, u8 re
       if ( 0 < delayMs )
          hardware_sleep_ms(delayMs);
    }
-   //log_line_commands("[Commands] [Sent] oneway to vId %u, cmd nb. %d, repeat count: %d, type [%s], param: %u]", g_pCurrentModel->vehicle_id, s_CommandCounter, resendCounter, commands_get_description(commandType), param);
+   //log_line_commands("[Commands] [Sent] oneway to vId %u, cmd nb. %d, repeat count: %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, resendCounter, commands_get_description(commandType), param);
    return true;
 }
 
@@ -2499,7 +2512,7 @@ bool handle_commands_send_ruby_message(t_packet_header* pPH, u8* pBuffer, int le
       return false;
 
    pPH->vehicle_id_src = g_uControllerId;
-   pPH->vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   pPH->vehicle_id_dest = g_pCurrentModel->uVehicleId;
    pPH->total_length = sizeof(t_packet_header)+length;
    
    u8 buffer[MAX_PACKET_TOTAL_SIZE];

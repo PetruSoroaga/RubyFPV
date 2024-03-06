@@ -30,7 +30,7 @@ int ruby_close_ipc_channel(int iChannelUniqueId);
 
 
 int ruby_ipc_channel_send_message(int iChannelUniqueId, u8* pMessage, int iLength);
-u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer);
+u8* ruby_ipc_try_read_message(int iChannelUniqueId, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer);
 
 int ruby_ipc_get_read_continous_error_count();
 

@@ -380,7 +380,7 @@ uint8_t* radiopackets_wfbohd_generate_fake_ruby_telemetry_header(uint32_t uTimeN
    memset(&s_FakeRubyTelemetryPacket, 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
    s_FakeRubyTelemetryPacket.flags = FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA | FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
    s_FakeRubyTelemetryPacket.version = (8<<4);
-   s_FakeRubyTelemetryPacket.vehicle_id = wfbohd_radio_generate_vehicle_id(uFreqKhz);
+   s_FakeRubyTelemetryPacket.uVehicleId = wfbohd_radio_generate_vehicle_id(uFreqKhz);
    s_FakeRubyTelemetryPacket.vehicle_type = MODEL_TYPE_GENERIC | (MODEL_FIRMWARE_TYPE_OPENIPC<<5);
    strcpy((char*)s_FakeRubyTelemetryPacket.vehicle_name, "OpenIPC");
    s_FakeRubyTelemetryPacket.radio_links_count = 1;

@@ -364,14 +364,19 @@ int main (int argc, char *argv[])
    }
 
    log_init("Vehicle");
+   log_arguments(argc, argv);
 
    bool noWatchDog = false;
    if ( argc > 1 )
    if ( 0 == strcmp(argv[1], "-nowd") )
       noWatchDog = true;
 
-   char szBuff[2048];
 
+   char szRouter[64];
+   strcpy(szRouter, "ruby_rt_vehicle");
+
+   char szBuff[2048];
+   char szFile[128];
    check_licences();
 
    hardware_enumerate_radio_interfaces();
@@ -393,7 +398,9 @@ int main (int argc, char *argv[])
 
    g_iBoardType = 0;
    char szBoardId[256];
-   FILE* fd = fopen("config/board.txt", "r");
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       fscanf(fd, "%d %s", &g_iBoardType, szBoardId);
@@ -402,12 +409,14 @@ int main (int argc, char *argv[])
    log_line("Start sequence: Board type: %d -> %s", g_iBoardType, str_get_hardware_board_name(g_iBoardType));
 
 
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_ALARM_ON);
+   sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
    hw_execute_bash_command_silent(szBuff, NULL);
  
    bool bMustSave = false;
 
-   if ( ! modelVehicle.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( ! modelVehicle.loadFromFile(szFile, true) )
    {
       modelVehicle.resetToDefaults(true);
       modelVehicle.is_spectator = false;
@@ -422,7 +431,9 @@ int main (int argc, char *argv[])
    log_line("Start sequence: Model has vehicle developer video link stats flag on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no");
    log_line("Start sequence: Model has vehicle developer video link stats graphs on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
 
-   if ( access( FILE_VEHICLE_REBOOT_CACHE, R_OK ) == -1 )
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_VEHICLE_REBOOT_CACHE);
+   if ( access(szFile, R_OK) == -1 )
    {
       log_line("Start sequence: No cached telemetry info, reset current vehicle stats.");
       modelVehicle.m_Stats.uCurrentOnTime = 0;
@@ -544,7 +555,7 @@ int main (int argc, char *argv[])
    }
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
    modelVehicle.audio_params.has_audio_device = false;
    modelVehicle.audio_params.enabled = false;
    #endif
@@ -570,8 +581,10 @@ int main (int argc, char *argv[])
    }
 
    // Check logger service flag change
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, LOG_USE_PROCESS);
 
-   if( access( LOG_USE_PROCESS, R_OK ) != -1 )
+   if ( access(szFile, R_OK) != -1 )
    {
       if ( ! (modelVehicle.uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE) )
       {
@@ -606,7 +619,9 @@ int main (int argc, char *argv[])
    if ( bMustSave )
    {
       log_line("Start sequence: Updating local model file.");
-      modelVehicle.saveToFile(FILE_CURRENT_VEHICLE_MODEL, false);
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      modelVehicle.saveToFile(szFile, false);
    }
 
    for( int i=0; i<modelVehicle.hardwareInterfacesInfo.serial_bus_count; i++ )
@@ -631,7 +646,10 @@ int main (int argc, char *argv[])
          }
       }
    }
+
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_launch_process("./ruby_alive");
+   #endif
    
    hardware_sleep_ms(100);
    vehicle_launch_tx_telemetry(&modelVehicle);
@@ -680,6 +698,18 @@ int main (int argc, char *argv[])
    u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
    u32 uTimeLoopLog = g_TimeStart;
 
+   char szFileUpdate[128];
+   strcpy(szFileUpdate, FOLDER_RUBY_TEMP);
+   strcat(szFileUpdate, FILE_TEMP_UPDATE_IN_PROGRESS);
+
+   char szFileReinitRadio[128];
+   strcpy(szFileReinitRadio, FOLDER_RUBY_TEMP);
+   strcat(szFileReinitRadio, FILE_TEMP_REINIT_RADIO_IN_PROGRESS);
+
+   char szFileArmed[128];
+   strcpy(szFileArmed, FOLDER_RUBY_TEMP);
+   strcat(szFileArmed, FILE_TEMP_ARMED);
+
    while ( ! g_bQuit )
    {
       sleep(maxTimeForProcess);
@@ -698,7 +728,7 @@ int main (int argc, char *argv[])
          log_line("Current vehicle has veye camera: %s, camera type: %d", modelVehicle.isActiveCameraVeye()?"Yes":"No", (int)modelVehicle.getActiveCameraType());
          vehicle_check_update_processes_affinities(true, modelVehicle.isActiveCameraVeye());
       }
-      if ( access( FILE_TMP_UPDATE_IN_PROGRESS, R_OK ) != -1 )
+      if ( access(szFileUpdate, R_OK) != -1 )
       {
          while (! g_bQuit )
          {
@@ -726,28 +756,25 @@ int main (int argc, char *argv[])
          bool bCheckRadioFailSafe = false;
          //if ( modelVehicle.bDeveloperMode )
          if ( modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE )
-         if ( access( FILE_TMP_ARMED, R_OK ) != -1 ) 
+         if ( access(szFileArmed, R_OK) != -1 ) 
             bCheckRadioFailSafe = true;
-
-         //if ( access( FILE_TMP_RC_DETECTED, R_OK ) != -1 ) 
-         //   bCheckRadioFailSafe = true;
 
          if ( bCheckRadioFailSafe )
          if ( s_pProcessStatsRouter->lastRadioRxTime > 0 )
          if ( (s_pProcessStatsRouter->lastRadioRxTime < g_TimeNow-10000) ||
               (s_pProcessStatsRouter->lastRadioRxTime < g_TimeNow-10000) )
          {
-            char szComm[64];
-            sprintf(szComm, "touch %s", FILE_TMP_ALARM_ON);
+            char szComm[128];
+            sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
             hw_execute_bash_command_silent(szComm, NULL);
 
             log_line("Radio silence failsafe is enabled and radio timeout has triggered. Signal router to reinit radio interfaces.");
-            if( access( FILE_TMP_REINIT_RADIO_IN_PROGRESS, R_OK ) == -1 )
+            if( access(szFileReinitRadio, R_OK) == -1 )
             {
                if ( 0 == s_iRadioSilenceFailsafeTimeoutCounts )
                {
                   char szComm[64];
-                  sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_REQUEST);
+                  sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_REQUEST);
                   hw_execute_bash_command_silent(szComm, NULL);
                   s_iRadioSilenceFailsafeTimeoutCounts++;
                }
@@ -771,7 +798,7 @@ int main (int argc, char *argv[])
       
       bMustRestart = false;
 
-      if ( access( FILE_TMP_REINIT_RADIO_IN_PROGRESS, R_OK ) != -1 )
+      if ( access(szFileReinitRadio, R_OK) != -1 )
          continue;
 
       if ( NULL != s_pProcessStatsRouter )
@@ -786,7 +813,7 @@ int main (int argc, char *argv[])
             log_format_time(s_pProcessStatsRouter->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRouter->lastIPCIncomingTime, szTime2);
             log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3);
-            char* szPIDs = hw_process_get_pid("ruby_rt_station");
+            char* szPIDs = hw_process_get_pid(szRouter);
             if ( strlen(szPIDs) > 3 )
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
             else

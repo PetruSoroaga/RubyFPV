@@ -130,7 +130,7 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
       if ( NULL != g_pCurrentModel )
          pairing_stop();
       menu_discard_all();
-      u32 uVehicleId = g_pCurrentModel->vehicle_id;
+      u32 uVehicleId = g_pCurrentModel->uVehicleId;
       deleteModel(g_pCurrentModel);
       g_pCurrentModel = NULL;
       notification_add_model_deleted();
@@ -288,7 +288,7 @@ void MenuVehicleManagement::onSelectItem()
       strcpy(szModelName, g_pCurrentModel->getLongName());
       str_sanitize_filename(szModelName);
 
-      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s/%s/ruby_model_%s_%u.txt", FOLDER_RUBY, FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->vehicle_id);
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s/ruby_model_%s_%u.txt", FOLDER_USB_MOUNT, szModelName, g_pCurrentModel->uVehicleId);
       g_pCurrentModel->saveToFile(szFile, false);
    
       hardware_unmount_usb();
@@ -340,7 +340,7 @@ void MenuVehicleManagement::onSelectItem()
    {
       if ( checkIsArmed() )
          return;
-      if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)) )
+      if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
       {
          addMessage("Please connect to your vehicle first, if you want to update the sowftware on the vehicle.");
          return;

@@ -775,8 +775,21 @@ float Menu::RenderFrameAndTitle()
         yPos += g_pRenderEngine->textHeight(g_idFontMenu)*(1.0 + MENU_TEXTLINE_SPACING);
       else
       {
-         yPos += g_pRenderEngine->drawMessageLines(m_RenderXPos + m_sfMenuPaddingX + m_fIconSize + m_fTopLinesDX[i], yPos, m_szTopLines[i], MENU_TEXTLINE_SPACING, getUsableWidth()-m_fTopLinesDX[i], g_idFontMenu);
-         yPos += g_pRenderEngine->textHeight(g_idFontMenu)*MENU_TEXTLINE_SPACING;
+         if ( NULL != strstr(m_szTopLines[i], "---") )
+         {
+            g_pRenderEngine->setColors(get_Color_MenuBg());
+            g_pRenderEngine->setStroke(get_Color_MenuBorder());
+            g_pRenderEngine->drawLine(m_RenderXPos+m_sfMenuPaddingX, yPos + 0.5*g_pRenderEngine->textHeight(g_idFontMenu), m_RenderXPos+m_RenderWidth - m_sfMenuPaddingX, yPos + 0.5*g_pRenderEngine->textHeight(g_idFontMenu));
+
+            g_pRenderEngine->setColors(get_Color_MenuText());
+            g_pRenderEngine->setStrokeSize(0);
+            yPos += g_pRenderEngine->textHeight(g_idFontMenu)*(1+MENU_TEXTLINE_SPACING);
+         }
+         else
+         {
+            yPos += g_pRenderEngine->drawMessageLines(m_RenderXPos + m_sfMenuPaddingX + m_fIconSize + m_fTopLinesDX[i], yPos, m_szTopLines[i], MENU_TEXTLINE_SPACING, getUsableWidth()-m_fTopLinesDX[i], g_idFontMenu);
+            yPos += g_pRenderEngine->textHeight(g_idFontMenu)*MENU_TEXTLINE_SPACING;
+         }
       }
    }
 
@@ -1595,10 +1608,14 @@ static void * _thread_generate_upload(void *argument)
       return NULL;
    log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileName);
 
-    // Add update info file
-   if( access( FILE_INFO_LAST_UPDATE, R_OK ) == -1 )
+   // Add update info file
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_INFO_LAST_UPDATE);
+
+   if( access(szFile, R_OK) == -1 )
    {
-      sprintf(szComm, "cp %s %s 2>/dev/null", FILE_INFO_VERSION, FILE_INFO_LAST_UPDATE);
+      sprintf(szComm, "cp %s%s %s%s 2>/dev/null", FOLDER_BINARIES, FILE_INFO_VERSION, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -1656,7 +1673,7 @@ bool Menu::uploadSoftware()
    {
       if ( (g_nFailedOTAUpdates == 0) && (g_nSucceededOTAUpdates == 0) )
       {
-         sprintf(szComm, "find updates/ruby_update_%d.%d.zip 2>/dev/null", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
+         sprintf(szComm, "find %s/ruby_update_%d.%d.zip 2>/dev/null", FOLDER_UPDATES, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
          hw_execute_bash_command(szComm, szBuff);
          if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "ruby_update") )
          {
@@ -2177,4 +2194,44 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    add_menu_to_stack(pm);
 
    return s_szMenuObjectsVideoBitrateWarning;
+}
+
+
+void Menu::addUnsupportedMessageOpenIPC(const char* szMessage)
+{
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   pm->m_xPos = 0.4; pm->m_yPos = 0.4;
+   pm->m_Width = 0.36;
+   if ( (NULL != szMessage) && (0 != szMessage[0]) )
+      pm->addTopLine(szMessage);
+   else
+      pm->addTopLine("This functionality is not supported on OpenIPC camera hardware.");
+   pm->m_bDisableStacking = true;
+   add_menu_to_stack(pm);
+}
+
+void Menu::addUnsupportedMessageOpenIPCGoke(const char* szMessage)
+{
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   pm->m_xPos = 0.4; pm->m_yPos = 0.4;
+   pm->m_Width = 0.36;
+   if ( (NULL != szMessage) && (0 != szMessage[0]) )
+      pm->addTopLine(szMessage);
+   else
+      pm->addTopLine("This functionality is not supported on OpenIPC Goke camera hardware.");
+   pm->m_bDisableStacking = true;
+   add_menu_to_stack(pm);
+}
+
+void Menu::addUnsupportedMessageOpenIPCSigmaster(const char* szMessage)
+{
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   pm->m_xPos = 0.4; pm->m_yPos = 0.4;
+   pm->m_Width = 0.36;
+   if ( (NULL != szMessage) && (0 != szMessage[0]) )
+      pm->addTopLine(szMessage);
+   else
+      pm->addTopLine("This functionality is not supported on OpenIPC Sigmaster SSC335 camera hardware.");
+   pm->m_bDisableStacking = true;
+   add_menu_to_stack(pm);
 }

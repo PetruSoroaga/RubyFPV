@@ -14,7 +14,7 @@ class MenuVehicleOSDStats: public Menu
       virtual void onSelectItem();
             
    private:
-      int m_IndexFontSize, m_IndexTransparency;
+      int m_IndexFontSize, m_IndexTransparency, m_IndexFitWidgets;
       int m_IndexStatsRadioLinks, m_IndexStatsRadioInterfaces, m_IndexVehicleRadioRxStats, m_IndexStatsDecode;
       int m_IndexRadioRxHistoryController;
       int m_IndexRadioRxHistoryControllerBig;

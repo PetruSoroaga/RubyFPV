@@ -64,7 +64,7 @@ void radio_links_reinit_radio_interfaces()
    
    send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
 
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
    hw_execute_bash_command("/etc/init.d/udev restart", NULL);
@@ -100,7 +100,7 @@ void radio_links_reinit_radio_interfaces()
    }
 
    log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    
    hw_execute_bash_command("ifconfig wlan0 down", NULL);
@@ -114,7 +114,7 @@ void radio_links_reinit_radio_interfaces()
    hw_execute_bash_command("ifconfig wlan2 up", NULL);
    hw_execute_bash_command("ifconfig wlan3 up", NULL);
    
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    
    // Remove radio initialize file flag

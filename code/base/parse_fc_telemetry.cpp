@@ -41,6 +41,7 @@ bool s_bHasReceivedGPSPos = false;
 bool s_bHasReceivedHeartbeat = false;
 bool s_bShowLocalVerticalSpeed = false;
 bool s_bRemoveDuplicateFCMessages = false;
+bool s_bTelemetryForceAlwaysArmed = false;
 
 #define MAX_FC_MESSAGES_HISTORY 10
 char s_szLastMessages[MAX_FC_MESSAGES_HISTORY][FC_MESSAGE_MAX_LENGTH];
@@ -185,6 +186,11 @@ void parse_telemetry_set_show_local_vspeed(bool bShowLocalVerticalSpeed)
 void parse_telemetry_remove_duplicate_messages(bool bRemove)
 {
    s_bRemoveDuplicateFCMessages = bRemove;
+}
+
+void parse_telemetry_force_always_armed(bool bForce)
+{
+   s_bTelemetryForceAlwaysArmed = bForce;
 }
 
 int* get_mavlink_rc_channels()
@@ -372,6 +378,9 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          else
             pdpfct->flight_mode &= ~FLIGHT_MODE_ARMED;
 
+         if ( s_bTelemetryForceAlwaysArmed )
+            pdpfct->flight_mode |= FLIGHT_MODE_ARMED;
+
          if ( (vehicleType & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE )
          {
          //log_line("plane tmp32: %u", tmp32);
@@ -431,6 +440,9 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             pdpfct->flags |= FC_TELE_FLAGS_ARMED;
          else
             pdpfct->flags &= ~FC_TELE_FLAGS_ARMED;
+
+         if ( s_bTelemetryForceAlwaysArmed )
+            pdpfct->flight_mode |= FLIGHT_MODE_ARMED;
 
          s_bHasReceivedHeartbeat = true;
          s_iHeartbeatMsgCount++;

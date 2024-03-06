@@ -68,7 +68,7 @@ int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
 
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_PING_CLOCK_REPLY, STREAM_ID_DATA);
-      PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.vehicle_id_dest = pPH->vehicle_id_src;
       PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(u32);
       u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -130,7 +130,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_PAIRING_CONFIRMATION, STREAM_ID_DATA);
-      PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.vehicle_id_dest = pPH->vehicle_id_src;
       PH.total_length = sizeof(t_packet_header) + sizeof(u32);
 
@@ -143,11 +143,14 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       g_bReceivedPairingRequest = true;
       g_uControllerId = pPH->vehicle_id_src;
-      if ( g_pCurrentModel->controller_id != g_uControllerId )
+      if ( g_pCurrentModel->uControllerId != g_uControllerId )
       {
-         g_pCurrentModel->controller_id = g_uControllerId;
+         g_pCurrentModel->uControllerId = g_uControllerId;
          saveCurrentModel();
-         FILE* fd = fopen(FILE_CONTROLLER_ID, "w");
+         char szFile[128];
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+         FILE* fd = fopen(szFile, "w");
          if ( NULL != fd )
          {
             fprintf(fd, "%u\n", g_uControllerId);
@@ -197,7 +200,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
          t_packet_header PH;
          radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          PH.vehicle_id_dest = pPH->vehicle_id_src;
          PH.total_length = sizeof(t_packet_header) + strlen(szBuff)+3*sizeof(u8);
 
@@ -236,7 +239,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
-      PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.vehicle_id_dest = pPH->vehicle_id_src;
       PH.total_length = sizeof(t_packet_header) + strlen(szBuff)+3*sizeof(u8);
 

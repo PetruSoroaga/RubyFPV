@@ -52,17 +52,26 @@ bool loadAllModels()
       delete s_pCurrentModel;
 
    s_pCurrentModel = new Model();
-   if ( ! s_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+
+   char szFileBackup[128];
+   strcpy(szFileBackup, FOLDER_CONFIG);
+   strcat(szFileBackup, FILE_CONFIG_CURRENT_VEHICLE_MODEL_BACKUP);
+
+   if ( ! s_pCurrentModel->loadFromFile(szFile, true) )
    {
       log_softerror_and_alarm("Failed to load current model.");
-      if( access( FILE_CURRENT_VEHICLE_MODEL, R_OK ) == -1 )
-      if( access( FILE_CURRENT_VEHICLE_MODEL_BACKUP, R_OK ) == -1 )
+      if( access(szFile, R_OK) == -1 )
+      if( access(szFileBackup, R_OK) == -1 )
          log_softerror_and_alarm("No current vehicle model file present.");
       s_pCurrentModel->resetToDefaults(true);
       bSucceeded = false;
    }
 
-   log_line("Current model: [%s], VID: %u", s_pCurrentModel->getLongName(), s_pCurrentModel->vehicle_id);
+   log_line("Current model: [%s], VID: %u", s_pCurrentModel->getLongName(), s_pCurrentModel->uVehicleId);
 
    if ( hardware_is_vehicle() )
       return bSucceeded;
@@ -70,19 +79,23 @@ bool loadAllModels()
    s_iModelsCount = 0;
    s_iModelsSpectatorCount = 0;
 
-   int count = load_simple_config_fileI(FILE_CURRENT_VEHICLE_COUNT, 0);
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
+   int count = load_simple_config_fileI(szFile, 0);
    if (count < 0 )
       count = 0;
    log_line("Loading %d controller models...", count);
    for( int i=0; i<count; i++ )
    {
-      char szFile[256];
-      sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+      sprintf(szFile, szFolderM, i);
       s_pModels[i] = new Model();
       if ( ! s_pModels[i]->loadFromFile(szFile, true) )
          break;
 
-      if ( s_pCurrentModel->vehicle_id == s_pModels[i]->vehicle_id )
+      if ( s_pCurrentModel->uVehicleId == s_pModels[i]->uVehicleId )
          s_pModels[i] = s_pCurrentModel;
       s_iModelsCount++;
    }
@@ -92,13 +105,16 @@ bool loadAllModels()
    while( s_iModelsSpectatorCount < MAX_MODELS_SPECTATOR )
    {
       char szBuff[256];
-      sprintf(szBuff, FILE_VEHICLE_SPECTATOR, s_iModelsSpectatorCount);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+      sprintf(szBuff, szFolderM, s_iModelsSpectatorCount);
       s_pModelsSpectator[s_iModelsSpectatorCount] = new Model();
       if( access( szBuff, R_OK ) == -1 )
          break;
       if ( ! s_pModelsSpectator[s_iModelsSpectatorCount]->loadFromFile(szBuff, true) )
          break;
-      if ( s_pCurrentModel->vehicle_id == s_pModelsSpectator[s_iModelsSpectatorCount]->vehicle_id )
+      if ( s_pCurrentModel->uVehicleId == s_pModelsSpectator[s_iModelsSpectatorCount]->uVehicleId )
          s_pModelsSpectator[s_iModelsSpectatorCount] = s_pCurrentModel;
       s_iModelsSpectatorCount++;
    }
@@ -106,11 +122,10 @@ bool loadAllModels()
 
    log_line("Loaded controller models:");
    for( int i=0; i<s_iModelsCount; i++ )
-      log_line("Controller model %d: [%s], VID: %u", i+1, s_pModels[i]->getLongName(), s_pModels[i]->vehicle_id);
+      log_line("Controller model %d: [%s], VID: %u", i+1, s_pModels[i]->getLongName(), s_pModels[i]->uVehicleId);
 
    return true;
 }
-
 
 bool saveCurrentModel()
 {
@@ -120,29 +135,40 @@ bool saveCurrentModel()
       return false;
    }
 
-   log_line("Saving model id %u as current model", s_pCurrentModel->vehicle_id);
-   s_pCurrentModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, hardware_is_station());
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+
+   log_line("Saving model id %u as current model", s_pCurrentModel->uVehicleId);
+   s_pCurrentModel->saveToFile(szFile, hardware_is_station());
 
    if ( hardware_is_vehicle() )
       return true;
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
-      if ( s_pModelsSpectator[i]->vehicle_id != s_pCurrentModel->vehicle_id )
+      if ( s_pModelsSpectator[i]->uVehicleId != s_pCurrentModel->uVehicleId )
          continue;
       char szBuff[256];
-      sprintf(szBuff, FILE_VEHICLE_SPECTATOR, i);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+      sprintf(szBuff, szFolderM, i);
       s_pModelsSpectator[i]->saveToFile(szBuff, hardware_is_station());
    }
 
    log_line("Saving %d controller models.", s_iModelsCount);
-   save_simple_config_fileI(FILE_CURRENT_VEHICLE_COUNT, s_iModelsCount);
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
+   save_simple_config_fileI(szFile, s_iModelsCount);
    for( int i=0; i<s_iModelsCount; i++ )
    {
-      if ( s_pModels[i]->vehicle_id != s_pCurrentModel->vehicle_id )
+      if ( s_pModels[i]->uVehicleId != s_pCurrentModel->uVehicleId )
          continue;
-      char szFile[256];
-      sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+      sprintf(szFile, szFolderM, i);
       s_pModels[i]->saveToFile(szFile, hardware_is_station());
    }
    return true;
@@ -160,7 +186,10 @@ bool reloadCurrentModel()
    if ( NULL == s_pCurrentModel )
       return false;
 
-   if ( ! s_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL) )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( ! s_pCurrentModel->loadFromFile(szFile) )
       return false;
 
    return true;
@@ -170,7 +199,7 @@ void setCurrentModel(u32 uVehicleId)
 {
    for( int i=0; i<s_iModelsCount; i++ )
    {
-       if ( (NULL != s_pModels[i]) && (s_pModels[i]->vehicle_id == uVehicleId) )
+       if ( (NULL != s_pModels[i]) && (s_pModels[i]->uVehicleId == uVehicleId) )
        {
           log_line("Set current vehicle to controller vehicle index %d (VID %u)", i, uVehicleId);
           s_pCurrentModel = s_pModels[i];
@@ -179,7 +208,7 @@ void setCurrentModel(u32 uVehicleId)
    }
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
-       if ( (NULL != s_pModelsSpectator[i]) && (s_pModelsSpectator[i]->vehicle_id == uVehicleId) )
+       if ( (NULL != s_pModelsSpectator[i]) && (s_pModelsSpectator[i]->uVehicleId == uVehicleId) )
        {
           log_line("Set current vehicle to controller spectator vehicle index %d (VID %u)", i, uVehicleId);
           s_pCurrentModel = s_pModelsSpectator[i];
@@ -202,7 +231,10 @@ void deleteAllModels()
 {
    s_iModelsSpectatorCount = 0;
    s_iModelsCount = 0;
-   save_simple_config_fileI(FILE_CURRENT_VEHICLE_COUNT, s_iModelsCount);
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
+   save_simple_config_fileI(szFile, s_iModelsCount);
 }
 
 
@@ -218,7 +250,7 @@ Model* addSpectatorModel(u32 vehicleId)
 {
    int index = 0;
    for( index = 0; index < s_iModelsSpectatorCount; index++ )
-      if ( s_pModelsSpectator[index]->vehicle_id == vehicleId )
+      if ( s_pModelsSpectator[index]->uVehicleId == vehicleId )
       {
          // Move it to top of the list;
          Model* tmp = s_pModelsSpectator[index];
@@ -238,7 +270,7 @@ Model* addSpectatorModel(u32 vehicleId)
    }
    s_pModelsSpectator[0] = new Model();
    s_pModelsSpectator[0]->resetToDefaults(false);
-   s_pModelsSpectator[0]->vehicle_id = vehicleId;
+   s_pModelsSpectator[0]->uVehicleId = vehicleId;
 
    s_iModelsSpectatorCount++;
    if ( s_iModelsSpectatorCount > MAX_MODELS_SPECTATOR )
@@ -247,7 +279,10 @@ Model* addSpectatorModel(u32 vehicleId)
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
       char szBuff[256];
-      sprintf(szBuff, FILE_VEHICLE_SPECTATOR, i);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+      sprintf(szBuff, szFolderM, i);
       s_pModelsSpectator[i]->saveToFile(szBuff, true);
    }
 
@@ -282,12 +317,18 @@ Model* addNewModel()
    s_pModels[s_iModelsCount]->resetToDefaults(true);
    
    char szBuff[256];
-   sprintf(szBuff, FILE_VEHICLE_CONTROLLER, s_iModelsCount);
+   char szFolderM[128];
+   strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+   strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+   sprintf(szBuff, szFolderM, s_iModelsCount);
    s_pModels[s_iModelsCount]->saveToFile(szBuff, true);
    s_iModelsCount++;
-   save_simple_config_fileI(FILE_CURRENT_VEHICLE_COUNT, s_iModelsCount);
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
+   save_simple_config_fileI(szFile, s_iModelsCount);
    
-   log_line("Added a new model in the controller's models list, VID: %u", s_pModels[s_iModelsCount-1]->vehicle_id);
+   log_line("Added a new model in the controller's models list, VID: %u", s_pModels[s_iModelsCount-1]->uVehicleId);
    return s_pModels[s_iModelsCount-1];
 }
 
@@ -297,23 +338,23 @@ void replaceModel(int index, Model* pModel)
       return;
 
    if ( (NULL != s_pCurrentModel) && (NULL != s_pModels[index]) )
-   if ( s_pCurrentModel->vehicle_id == s_pModels[index]->vehicle_id )
+   if ( s_pCurrentModel->uVehicleId == s_pModels[index]->uVehicleId )
       s_pCurrentModel = pModel;
    
    if ( NULL == s_pModels[index] )
       log_line("Replacing controller model %d, which is NULL, with new VID %u, ptr: %X",
-          index, pModel->vehicle_id, pModel);
+          index, pModel->uVehicleId, pModel);
    else
       log_line("Replacing controller model %d, VID %u, ptr: %X with new VID %u, ptr: %X",
-          index, s_pModels[index]->vehicle_id, s_pModels[index],
-          pModel->vehicle_id, pModel);
+          index, s_pModels[index]->uVehicleId, s_pModels[index],
+          pModel->uVehicleId, pModel);
 
    s_pModels[index] = pModel;
 
    if ( NULL == s_pCurrentModel )
       log_line("Current model is NULL");
    else
-      log_line("Current model VID: %u, ptr: %X", s_pCurrentModel->vehicle_id, s_pCurrentModel);
+      log_line("Current model VID: %u, ptr: %X", s_pCurrentModel->uVehicleId, s_pCurrentModel);
 }
 
 Model* findModelWithId(u32 uVehicleId, u32 uSrcId)
@@ -324,26 +365,26 @@ Model* findModelWithId(u32 uVehicleId, u32 uSrcId)
       loadAllModels();
    }
    if ( NULL != s_pCurrentModel )
-   if ( s_pCurrentModel->vehicle_id == uVehicleId )
+   if ( s_pCurrentModel->uVehicleId == uVehicleId )
       return s_pCurrentModel;
 
    for( int i=0; i<s_iModelsCount; i++ )
-      if ( s_pModels[i]->vehicle_id == uVehicleId )
+      if ( s_pModels[i]->uVehicleId == uVehicleId )
          return s_pModels[i];
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
-      if ( s_pModelsSpectator[i]->vehicle_id == uVehicleId )
+      if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
          return s_pModelsSpectator[i];
 
    log_softerror_and_alarm("Tried to find an invalid VID: %u (source id: %u). Current loaded vehicles:", uVehicleId, uSrcId);
    for( int i=0; i<s_iModelsCount; i++ )
-      log_softerror_and_alarm("Vehicle Ctrlr %d: %u", i, s_pModels[i]->vehicle_id);
+      log_softerror_and_alarm("Vehicle Ctrlr %d: %u", i, s_pModels[i]->uVehicleId);
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
-      log_softerror_and_alarm("Vehicle Spect %d: %u", i, s_pModelsSpectator[i]->vehicle_id);
+      log_softerror_and_alarm("Vehicle Spect %d: %u", i, s_pModelsSpectator[i]->uVehicleId);
    if ( NULL == s_pCurrentModel )
       log_softerror_and_alarm("Current vehicle: NULL");
    else
-      log_softerror_and_alarm("Current vehicle: %u", s_pCurrentModel->vehicle_id);
+      log_softerror_and_alarm("Current vehicle: %u", s_pCurrentModel->uVehicleId);
    return NULL;
 }
 
@@ -356,11 +397,11 @@ bool controllerHasModelWithId(u32 uVehicleId)
    }
 
    for( int i=0; i<s_iModelsCount; i++ )
-      if ( s_pModels[i]->vehicle_id == uVehicleId )
+      if ( s_pModels[i]->uVehicleId == uVehicleId )
          return true;
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
-      if ( s_pModelsSpectator[i]->vehicle_id == uVehicleId )
+      if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
          return true;
 
    return false;
@@ -378,7 +419,7 @@ Model* deleteModel(Model* pModel)
 
    if ( hardware_is_vehicle() )
    {
-      log_softerror_and_alarm("Tried to delete a model (VID %u, ptr: %X) on vehicle side.", pModel->vehicle_id, pModel);
+      log_softerror_and_alarm("Tried to delete a model (VID %u, ptr: %X) on vehicle side.", pModel->uVehicleId, pModel);
       return s_pCurrentModel;
    }
 
@@ -395,17 +436,21 @@ Model* deleteModel(Model* pModel)
 
    for( pos=0; pos<s_iModelsCount; pos++ )
    {
-      if ( s_pModels[pos]->vehicle_id != pModel->vehicle_id )
+      if ( s_pModels[pos]->uVehicleId != pModel->uVehicleId )
          continue;
 
-      log_line("Deleting controller model index %d: VID %u, ptr: %X", pos+1, pModel->vehicle_id, pModel);
+      log_line("Deleting controller model index %d: VID %u, ptr: %X", pos+1, pModel->uVehicleId, pModel);
       
-      if ( (NULL != s_pCurrentModel) && (s_pModels[pos]->vehicle_id == s_pCurrentModel->vehicle_id) )
+      if ( (NULL != s_pCurrentModel) && (s_pModels[pos]->uVehicleId == s_pCurrentModel->uVehicleId) )
       {
          log_line("Model to delete is also the current model. Delete it too.");
-         unlink(FILE_CURRENT_VEHICLE_MODEL);
-         unlink(FILE_CURRENT_VEHICLE_MODEL_BACKUP);
-         log_line("Deleted current vehicle (VID %u, ptr: %X) model file: %s", s_pCurrentModel->vehicle_id, s_pCurrentModel, FILE_CURRENT_VEHICLE_MODEL);
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL_BACKUP);
+         unlink(szFile);
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+         unlink(szFile);
+         log_line("Deleted current vehicle (VID %u, ptr: %X) model file: %s", s_pCurrentModel->uVehicleId, s_pCurrentModel, szFile);
          s_pCurrentModel = NULL;
       }
       
@@ -413,17 +458,24 @@ Model* deleteModel(Model* pModel)
          s_pModels[i] = s_pModels[i+1];
       s_iModelsCount--;
 
-      sprintf(szFile, FILE_VEHICLE_CONTROLLER, s_iModelsCount);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+      sprintf(szFile, szFolderM, s_iModelsCount);
       unlink(szFile);
       szFile[strlen(szFile)-3] = 0;
       strcat(szFile, "bak");
       unlink(szFile);
       
       log_line("Saving %d controller models.", s_iModelsCount);
-      save_simple_config_fileI(FILE_CURRENT_VEHICLE_COUNT, s_iModelsCount);
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
+      save_simple_config_fileI(szFile, s_iModelsCount);
       for( int i=pos; i<s_iModelsCount; i++ )
       {
-         sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+         strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+         strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+         sprintf(szFile, szFolderM, i);
          s_pModels[i]->saveToFile(szFile, hardware_is_station());
       }
       bDeletedController = true;
@@ -433,17 +485,21 @@ Model* deleteModel(Model* pModel)
    pos = 0;
    for( pos=0; pos<s_iModelsSpectatorCount; pos++ )
    {
-      if ( s_pModelsSpectator[pos]->vehicle_id != pModel->vehicle_id )
+      if ( s_pModelsSpectator[pos]->uVehicleId != pModel->uVehicleId )
          continue;
 
-      log_line("Deleting spectator model index %d: VID %u, ptr: %X", pos+1, pModel->vehicle_id, pModel);
+      log_line("Deleting spectator model index %d: VID %u, ptr: %X", pos+1, pModel->uVehicleId, pModel);
       
-      if ( (NULL != s_pCurrentModel) && (s_pModelsSpectator[pos]->vehicle_id == s_pCurrentModel->vehicle_id) )
+      if ( (NULL != s_pCurrentModel) && (s_pModelsSpectator[pos]->uVehicleId == s_pCurrentModel->uVehicleId) )
       {
          log_line("Model to delete is also the current spectator model. Delete it too.");
-         unlink(FILE_CURRENT_VEHICLE_MODEL);
-         unlink(FILE_CURRENT_VEHICLE_MODEL_BACKUP);
-         log_line("Deleted current vehicle (VID %u, ptr: %X) model file: %s", s_pCurrentModel->vehicle_id, s_pCurrentModel, FILE_CURRENT_VEHICLE_MODEL);
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL_BACKUP);
+         unlink(szFile);
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+         unlink(szFile);
+         log_line("Deleted current vehicle (VID %u, ptr: %X) model file: %s", s_pCurrentModel->uVehicleId, s_pCurrentModel, szFile);
          s_pCurrentModel = NULL;
       }
       
@@ -451,7 +507,10 @@ Model* deleteModel(Model* pModel)
          s_pModelsSpectator[i] = s_pModelsSpectator[i+1];
       s_iModelsSpectatorCount--;
 
-      sprintf(szFile, FILE_VEHICLE_SPECTATOR, s_iModelsSpectatorCount);
+      char szFolderM[128];
+      strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+      strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+      sprintf(szFile, szFolderM, s_iModelsSpectatorCount);
       unlink(szFile);
       szFile[strlen(szFile)-3] = 0;
       strcat(szFile, "bak");
@@ -460,7 +519,9 @@ Model* deleteModel(Model* pModel)
       log_line("Saving %d spectator models.", s_iModelsSpectatorCount);
       for( int i=pos; i<s_iModelsSpectatorCount; i++ )
       {
-         sprintf(szFile, FILE_VEHICLE_SPECTATOR, i);
+         strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+         strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+         sprintf(szFile, szFolderM, i);
          s_pModelsSpectator[i]->saveToFile(szFile, hardware_is_station());
       }
       bDeletedSpectator = true;
@@ -479,12 +540,15 @@ void saveControllerModel(Model* pModel)
 
    for( int i=0; i<s_iModelsCount; i++ )
    {
-      if ( s_pModels[i]->vehicle_id == pModel->vehicle_id )
+      if ( s_pModels[i]->uVehicleId == pModel->uVehicleId )
       if ( s_pModels[i]->is_spectator == pModel->is_spectator )
       {
          log_line("Found matching vehicle in controller's list while saving a model. Save it in controller's models list too.");
          char szFile[256];
-         sprintf(szFile, FILE_VEHICLE_CONTROLLER, i);
+         char szFolderM[128];
+         strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+         strcat(szFolderM, FILE_VEHICLE_CONTROLL);
+         sprintf(szFile, szFolderM, i);
          pModel->saveToFile(szFile, true);
          s_pModels[i]->loadFromFile(szFile, true);
          break;
@@ -493,12 +557,15 @@ void saveControllerModel(Model* pModel)
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
-      if ( s_pModelsSpectator[i]->vehicle_id == pModel->vehicle_id )
+      if ( s_pModelsSpectator[i]->uVehicleId == pModel->uVehicleId )
       if ( s_pModelsSpectator[i]->is_spectator == pModel->is_spectator )
       {
          log_line("Found matching spectator vehicle in list.");
          char szFile[256];
-         sprintf(szFile, FILE_VEHICLE_SPECTATOR, i);
+         char szFolderM[128];
+         strcpy(szFolderM, FOLDER_CONFIG_MODELS);
+         strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
+         sprintf(szFile, szFolderM, i);
          pModel->saveToFile(szFile, true);
          s_pModelsSpectator[i]->loadFromFile(szFile, true);
          break;
@@ -506,11 +573,14 @@ void saveControllerModel(Model* pModel)
    }
 
    if ( NULL != s_pCurrentModel )
-   if ( pModel->vehicle_id == s_pCurrentModel->vehicle_id )
+   if ( pModel->uVehicleId == s_pCurrentModel->uVehicleId )
    {
-      log_line("Saving model VID %u, ptr: %X, as current model", s_pCurrentModel->vehicle_id, s_pCurrentModel);
-      pModel->saveToFile(FILE_CURRENT_VEHICLE_MODEL, true);
-      s_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true);
+      log_line("Saving model VID %u, ptr: %X, as current model", s_pCurrentModel->uVehicleId, s_pCurrentModel);
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+      pModel->saveToFile(szFile, true);
+      s_pCurrentModel->loadFromFile(szFile, true);
    }
 }
 
@@ -518,7 +588,7 @@ Model* setControllerCurrentModel(u32 uVehicleId)
 {
    for( int i=0; i<s_iModelsCount; i++ )
    {
-      if ( s_pModels[i]->vehicle_id == uVehicleId )
+      if ( s_pModels[i]->uVehicleId == uVehicleId )
       {
          s_pCurrentModel = s_pModels[i];
          log_line("Set VID %u, index %d as current controller model", uVehicleId, i);
@@ -528,7 +598,7 @@ Model* setControllerCurrentModel(u32 uVehicleId)
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
-      if ( s_pModelsSpectator[i]->vehicle_id == uVehicleId )
+      if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
       {
          s_pCurrentModel = s_pModelsSpectator[i];
          log_line("Set VID %u, index %d as current spectator model", uVehicleId, i);
@@ -549,7 +619,7 @@ void logControllerModels()
          log_error_and_alarm("Controller model %d: is NULL.", i+1);
       else
          log_line("Controller model %d: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-            i+1, s_pModels[i]->vehicle_id, s_pModels[i], s_pModels[i]->is_spectator?"yes":"no", s_pModels[i]->b_mustSyncFromVehicle?"yes":"no");
+            i+1, s_pModels[i]->uVehicleId, s_pModels[i], s_pModels[i]->is_spectator?"yes":"no", s_pModels[i]->b_mustSyncFromVehicle?"yes":"no");
    }
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
@@ -558,10 +628,10 @@ void logControllerModels()
          log_error_and_alarm("Spectator model %d: is NULL.", i+1);
       else
          log_line("Spectator model %d: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-         i+1, s_pModelsSpectator[i]->vehicle_id, s_pModelsSpectator[i], s_pModelsSpectator[i]->is_spectator?"yes":"no", s_pModelsSpectator[i]->b_mustSyncFromVehicle?"yes":"no");
+         i+1, s_pModelsSpectator[i]->uVehicleId, s_pModelsSpectator[i], s_pModelsSpectator[i]->is_spectator?"yes":"no", s_pModelsSpectator[i]->b_mustSyncFromVehicle?"yes":"no");
    }
    
    if ( NULL != s_pCurrentModel )
       log_line("Current model: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-         s_pCurrentModel->vehicle_id, s_pCurrentModel, s_pCurrentModel->is_spectator?"yes":"no", s_pCurrentModel->b_mustSyncFromVehicle?"yes":"no");
+         s_pCurrentModel->uVehicleId, s_pCurrentModel, s_pCurrentModel->is_spectator?"yes":"no", s_pCurrentModel->b_mustSyncFromVehicle?"yes":"no");
 }

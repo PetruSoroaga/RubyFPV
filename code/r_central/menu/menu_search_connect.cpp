@@ -179,7 +179,7 @@ void MenuSearchConnect::Render()
       u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
       vMaj = vMaj >> 4;
       vMin = vMin & 0x0F;
-      //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin);
+      //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, vMaj, vMin);
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Version: %d.%d", vMaj, vMin);
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text *(1.0+MENU_ITEM_SPACING);

@@ -70,30 +70,36 @@ void controller_launch_router(bool bSearchMode, int iFirmwareType)
       return;
    }
    ControllerSettings* pcs = get_ControllerSettings();
-   char szComm[1024];
 
-   if ( NULL == pcs )
-      log_line("NNN");
-
+   char szParams[256];
+   char szPrefix[256];
+   szPrefix[0] = 0;
+   szParams[0] = 0;
    if ( bSearchMode )
    {
       if ( (g_iSearchSiKAirDataRate >= 0) && (iFirmwareType == MODEL_FIRMWARE_TYPE_RUBY) )
-         sprintf(szComm, "nice -n %d ./ruby_rt_station -search %d -sik %d %d %d %d &",
-             pcs->iNiceRouter, g_iSearchFrequency,
-             g_iSearchSiKAirDataRate, g_iSearchSiKECC, g_iSearchSiKLBT, g_iSearchSiKMCSTR);
+      {
+         sprintf(szPrefix, "nice -n %d", pcs->iNiceRouter);
+         sprintf(szParams, "-search %d -sik %d %d %d %d",
+             g_iSearchFrequency, g_iSearchSiKAirDataRate, g_iSearchSiKECC, g_iSearchSiKLBT, g_iSearchSiKMCSTR);
+      }
       else
-         sprintf(szComm, "nice -n %d ./ruby_rt_station -search %d -firmware %d &", pcs->iNiceRouter, g_iSearchFrequency, iFirmwareType);
+      {
+         sprintf(szPrefix, "nice -n %d", pcs->iNiceRouter);
+         sprintf(szParams, "-search %d -firmware %d", g_iSearchFrequency, iFirmwareType);
+      }
    }
    else
    {
       #ifdef HW_CAPABILITY_IONICE
       if ( pcs->ioNiceRouter > 0 )
-         sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_rt_station &", pcs->ioNiceRouter, pcs->iNiceRouter);
+         sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", pcs->ioNiceRouter, pcs->iNiceRouter);
       else
       #endif
-         sprintf(szComm, "nice -n %d ./ruby_rt_station &", pcs->iNiceRouter);
+         sprintf(szPrefix, "nice -n %d", pcs->iNiceRouter);
    }
-   hw_execute_bash_command(szComm, NULL);
+
+   hw_execute_ruby_process(szPrefix, "ruby_rt_station", szParams, NULL);
 
    hw_set_proc_priority( "ruby_rt_station", pcs->iNiceRouter, pcs->ioNiceRouter, 1);
 
@@ -112,7 +118,7 @@ void controller_launch_rx_telemetry()
       log_line("ruby_rx_telemetry process already running. Do nothing.");
       return;
    }
-   hw_execute_bash_command("./ruby_rx_telemetry &", NULL);
+   hw_execute_ruby_process(NULL, "ruby_rx_telemetry", NULL, NULL);
 }
 
 void controller_stop_rx_telemetry()
@@ -128,24 +134,24 @@ void controller_launch_tx_rc()
       return;
    }
 
-   char szComm[128];
+   char szPrefix[128];
+   char szParams[128];
+   szPrefix[0] = 0;
+   szParams[0] = 0;
 
    #ifdef HW_CAPABILITY_IONICE
    if ( g_bSearching )
-      sprintf(szComm, "./ruby_tx_rc -search &");
+      sprintf(szParams, "-search");
    else if ( NULL != g_pCurrentModel )
-      sprintf(szComm, "ionice -c 1 -n %d nice -n %d ./ruby_tx_rc &", DEFAULT_IO_PRIORITY_RC, g_pCurrentModel->niceRC);
-   else
-      sprintf(szComm, "./ruby_tx_rc &");
+      sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, g_pCurrentModel->niceRC);
    #else
    if ( g_bSearching )
-      sprintf(szComm, "./ruby_tx_rc -search &");
+      sprintf(szParams, "-search &");
    else if ( NULL != g_pCurrentModel )
-      sprintf(szComm, "nice -n %d ./ruby_tx_rc &", g_pCurrentModel->niceRC);
-   else
-      sprintf(szComm, "./ruby_tx_rc &");
+      sprintf(szPrefix, "nice -n %d", g_pCurrentModel->niceRC);
    #endif
-   hw_execute_bash_command(szComm, NULL);
+
+   hw_execute_ruby_process(szPrefix, "ruby_tx_rc", szParams, NULL);
 }
 
 void controller_stop_tx_rc()
@@ -246,9 +252,9 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
 
 void controller_start_i2c()
 {
-   char szComm[256];
-   sprintf(szComm, "nice -n %d ./ruby_i2c &", DEFAULT_PRIORITY_PROCESS_RC);
-   hw_execute_bash_command(szComm, NULL);
+   char szPrefix[128];
+   sprintf(szPrefix, "nice -n %d", DEFAULT_PRIORITY_PROCESS_RC);
+   hw_execute_ruby_process(szPrefix, "ruby_i2c", NULL, NULL);
 }
 
 void controller_stop_i2c()

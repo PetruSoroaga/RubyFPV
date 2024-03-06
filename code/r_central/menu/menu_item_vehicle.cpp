@@ -75,7 +75,7 @@ float MenuItemVehicle::getItemHeight(float maxWidth)
    if ( (-1 != m_iVehicleIndex) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
    {
       Model *pModel = getModelAtIndex(m_iVehicleIndex);
-      if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+      if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
       {
          m_RenderTitleHeight *= 2.0;
          m_RenderHeight = m_RenderTitleHeight*1.1;
@@ -130,10 +130,10 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
    bool bIsCurrentVehicle = false;
    bool bIsCurrentSpectatorVehicle = false;
    if ( !m_bIsSpectator )
-   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       bIsCurrentVehicle = true;
    if ( m_bIsSpectator )
-   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+   if ( (NULL != pModel) && (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       bIsCurrentSpectatorVehicle = true;
 
    float fIconHeight = height_text;

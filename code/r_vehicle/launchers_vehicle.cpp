@@ -45,9 +45,6 @@ static type_video_link_profile s_LastAppliedVeyeVideoParams;
 
 static bool s_bAudioCaptureIsStarted = false;
 static pthread_t s_pThreadAudioCapture;
-static pthread_t s_pThreadBgAffinities;
-static bool s_bThreadBgAffinitiesStarted = false;
-static int s_iCPUCoresCount = -1;
 
 void vehicle_launch_tx_telemetry(Model* pModel)
 {
@@ -55,8 +52,8 @@ void vehicle_launch_tx_telemetry(Model* pModel)
    {
       log_error_and_alarm("Invalid model (NULL) on launching TX telemetry. Can't start TX telemetry.");
       return;
-   }   
-   hw_execute_bash_command("./ruby_tx_telemetry&", NULL);
+   }
+   hw_execute_ruby_process(NULL, "ruby_tx_telemetry", NULL, NULL);
 }
 
 void vehicle_stop_tx_telemetry()
@@ -71,13 +68,14 @@ void vehicle_launch_rx_rc(Model* pModel)
       log_error_and_alarm("Invalid model (NULL) on launching RX RC. Can't start RX RC.");
       return;
    }
-   char szBuff[256];
+   char szPrefix[64];
+   szPrefix[0] = 0;
    #ifdef HW_CAPABILITY_IONICE
-   sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rx_rc &", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
+   sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
    #else
-   sprintf(szBuff, "nice -n %d ./ruby_rx_rc &", pModel->niceRC);
+   sprintf(szPrefix, "nice -n %d", pModel->niceRC);
    #endif
-   hw_execute_bash_command(szBuff, NULL);
+   hw_execute_ruby_process(szPrefix, "ruby_rx_rc", NULL, NULL);
 }
 
 void vehicle_stop_rx_rc()
@@ -92,7 +90,7 @@ void vehicle_launch_rx_commands(Model* pModel)
       log_error_and_alarm("Invalid model (NULL) on launching RX commands. Can't start RX commands.");
       return;
    }
-   hw_execute_bash_command("./ruby_rx_commands &", NULL);
+   hw_execute_ruby_process(NULL, "ruby_rx_commands", NULL, NULL);
 }
 
 void vehicle_stop_rx_commands()
@@ -110,20 +108,24 @@ void vehicle_launch_tx_router(Model* pModel)
 
    hardware_sleep_ms(20);
 
-   char szBuff[128];
+   char szPrefix[64];
+   szPrefix[0] = 0;
    #ifdef HW_CAPABILITY_IONICE
    if ( pModel->ioNiceRouter > 0 )
-      sprintf(szBuff, "ionice -c 1 -n %d nice -n %d ./ruby_rt_vehicle &", pModel->ioNiceRouter, pModel->niceRouter );
+      sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceRouter, pModel->niceRouter );
    else
    #endif
-      sprintf(szBuff, "nice -n %d ./ruby_rt_vehicle &", pModel->niceRouter);
+      sprintf(szPrefix, "nice -n %d", pModel->niceRouter);
 
-   hw_execute_bash_command(szBuff, NULL);
+   hw_execute_ruby_process(szPrefix, "ruby_rt_vehicle", NULL, NULL);
 }
 
 void vehicle_stop_tx_router()
 {
-   hw_stop_process("ruby_rt_vehicle");
+   char szRouter[64];
+   strcpy(szRouter, "ruby_rt_vehicle");
+
+   hw_stop_process(szRouter);
 }
 
 bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites)
@@ -168,6 +170,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
 
    log_line("Computing video capture parameters for active camera type: %d ...", pModel->getActiveCameraType());
 
+   char szFile[128];
    char szBuff[1024];
    char szCameraFlags[256];
    char szVideoFlags[256];
@@ -210,9 +213,12 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
          sprintf(szBuff, "%s ./%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
    }
 
-   FILE* fd = fopen(FILE_TMP_CURRENT_VIDEO_PARAMS, "w");
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_CURRENT_VIDEO_PARAMS);
+
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save current video config log to file: %s",FILE_TMP_CURRENT_VIDEO_PARAMS);
+      log_softerror_and_alarm("Failed to save current video config log to file: %s", szFile);
    else
    {
       fprintf(fd, "Video Flags: %s  # ", szVideoFlags);
@@ -569,7 +575,8 @@ static void * _thread_audio_capture(void *argument)
       {
          log_softerror_and_alarm("[AudioCaptureThread] Audio capture segment finished too soon (took %u ms, expected %d ms)",
              uTimeNow - uTimeCheck, iIntervalSec*1000);
-         hardware_sleep_ms(iIntervalSec*500);
+         for( int i=0; i<10; i++ )
+            hardware_sleep_ms(iIntervalSec*50);
       }
 
       hw_execute_bash_command(szCommFlag, NULL);
@@ -608,6 +615,10 @@ void vehicle_stop_audio_capture(Model* pModel)
    //hw_execute_bash_command("kill -9 $(pidof arecord) 2>/dev/null", NULL);
    hw_stop_process("arecord");
 }
+
+#ifdef HW_PLATFORM_RASPBERRY
+static bool s_bThreadBgAffinitiesStarted = false;
+static int s_iCPUCoresCount = -1;
 
 static void * _thread_adjust_affinities_vehicle(void *argument)
 {
@@ -665,13 +676,17 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
          hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, 2, s_iCPUCoresCount);
       #endif
    }
+
    log_line("Background thread to adjust processes affinities completed.");
    s_bThreadBgAffinitiesStarted = false;
    return NULL;
 }
+#endif
 
 void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
 {
+   #ifdef HW_PLATFORM_RASPBERRY
+
    log_line("Adjust processes affinities. Use thread: %s, veye camera: %s",
       (bUseThread?"Yes":"No"), (bVeYe?"Yes":"No"));
 
@@ -688,7 +703,9 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
       return;
    }
    s_bThreadBgAffinitiesStarted = true;
-   if ( 0 != pthread_create(&s_pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &bVeYe) )
+   pthread_t pThreadBgAffinities;
+
+   if ( 0 != pthread_create(&pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &bVeYe) )
    {
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
       s_bThreadBgAffinitiesStarted = false;
@@ -696,4 +713,6 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
    }
 
    log_line("Created thread for adjusting processes affinities (veye: %s)", (bVeYe?"Yes":"No"));
+
+   #endif
 }

@@ -76,7 +76,7 @@ void MenuVehicleImport::onShow()
    buildSettingsFileList();
 
    char szId[256];
-   sprintf(szId, "%u", g_pCurrentModel->vehicle_id);
+   sprintf(szId, "%u", g_pCurrentModel->uVehicleId);
    bool found = false;
    int selectedIndex = -1;
 
@@ -123,7 +123,7 @@ void MenuVehicleImport::onSelectItem()
       return;
 
    if ( ! m_bCreateNew )
-   if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)) )
+   if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
    {
       Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Not connected to vehicle",NULL);
       pm->m_xPos = 0.4; pm->m_yPos = 0.4;
@@ -135,7 +135,7 @@ void MenuVehicleImport::onSelectItem()
 
    Model m;
    char szFile[1024];
-   sprintf(szFile, "%s/%s/%s",FOLDER_RUBY, FOLDER_USB_MOUNT, m_szTempFiles[m_SelectedIndex]);
+   sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, m_szTempFiles[m_SelectedIndex]);
 
    if ( ! m.loadFromFile(szFile, true) )
    {
@@ -171,7 +171,7 @@ void MenuVehicleImport::onSelectItem()
    }
    else
    {
-      log_error_and_alarm("Failed to load current vehicle configuration from file: %s", FILE_CURRENT_VEHICLE_MODEL);
+      log_error_and_alarm("Failed to load current vehicle configuration from file: %s", szFile);
       return;
    }
  
@@ -205,7 +205,7 @@ void MenuVehicleImport::buildSettingsFileList()
       free(m_szTempFiles[i]);
    m_TempFilesCount = 0;
 
-   sprintf(szFolder, "%s/%s/",FOLDER_RUBY, FOLDER_USB_MOUNT);
+   sprintf(szFolder, "%s/", FOLDER_USB_MOUNT);
    log_line("Searching for model settings files on: %s", szFolder);
    d = opendir(szFolder);
    if (d)

@@ -172,42 +172,12 @@ int base_check_crc32(u8* pBuffer, int iLength)
    return 1;
 }
 
-void init_boot_timestamp()
-{
-   s_bootCount = 0;
-
-   FILE* fd = fopen(FILE_BOOT_COUNT, "r");
-   if ( NULL != fd )
-   {
-      if ( 1 != fscanf(fd, "%d", &s_bootCount) )
-         s_bootCount = 0;
-      fclose(fd);
-   }
-
-   struct timespec t;
-   clock_gettime(CLOCK_MONOTONIC, &t);
-   sStartTimeStamp = t.tv_sec*1000LL*1000LL + t.tv_nsec/1000LL;
-   sStartTimeStamp_ms = t.tv_sec*1000LL + t.tv_nsec/1000LL/1000LL;
-   
-   int count = 0;
-   while ( count < 10 )
-   {
-      fd = fopen(FILE_BOOT_TIMESTAMP, "w");
-      if ( NULL != fd )
-      {
-         fprintf(fd, "%lld\n", sStartTimeStamp_ms);
-         fclose(fd);
-         break;
-      }
-      system("sudo mount -o remount,rw /");
-      hardware_sleep_ms(50);
-      count++;
-   }
-}
-
 void _init_timestamp_for_process()
 {
-   FILE* fd = fopen(FILE_BOOT_COUNT, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOOT_COUNT);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%d", &s_bootCount) )
@@ -215,7 +185,9 @@ void _init_timestamp_for_process()
       fclose(fd);
    }
 
-   fd = fopen(FILE_BOOT_TIMESTAMP, "r");
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOOT_TIMESTAMP);
+   fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
       struct timespec t;
@@ -225,7 +197,7 @@ void _init_timestamp_for_process()
       int count = 0;
       while ( count<10 )
       {
-         fd = fopen(FILE_BOOT_TIMESTAMP, "w");
+         fd = fopen(szFile, "w");
          if ( NULL != fd )
          {
             fprintf(fd, "%lld\n", sStartTimeStamp_ms);
@@ -234,8 +206,10 @@ void _init_timestamp_for_process()
             //log_line("Current timestamp: %lld", sStartTimeStamp_ms);
             return;
          }
+         #ifdef HW_PLATFORM_RASPBERRY
          system("sudo mount -o remount,rw /");
          hardware_sleep_ms(50);
+         #endif
          count++;
       }
       return;
@@ -407,7 +381,10 @@ void log_init(const char* component_name)
 {
    s_logServiceMessageQueue = -1;
    s_logServiceAccessErrorCount = 0;
-   if( access( LOG_USE_PROCESS, R_OK ) != -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, LOG_USE_PROCESS);
+   if( access(szFile, R_OK) != -1 )
       s_logUseService = 1;
    else
       s_logUseService = 0;
@@ -419,6 +396,23 @@ void log_init(const char* component_name)
    _log_check_for_service_log_access();
     
    log_line("Starting...");
+}
+
+void log_arguments(int argc, char *argv[])
+{
+   if ( argc <= 0 )
+   {
+      log_line("Executed with no arguments");
+      return;
+   }
+   log_line("Executed with %d arguments:", argc);
+   for( int i=0; i<argc; i++ )
+   {
+      if ( NULL == argv[i] )
+         log_line("Arg %d: NULL", i);
+      else
+         log_line("Arg %d: [%s]", i, argv[i]);
+   }
 }
 
 void log_add_file(const char* szFileName)
@@ -473,14 +467,17 @@ void log_line(const char* format, ...)
  
    if ( _log_check_for_service_log_access() )
    {
-      char szBuff[1200];
-      vsnprintf(szBuff,1199, format, args);
-      szBuff[1199] = 0;
+      char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
+      vsnprintf(szBuff,MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
+      szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+   FILE* fd = fopen(szFile, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
 
    if ( 0 != s_szAdditionalLogFile[0] )
@@ -548,15 +545,23 @@ void log_line_watchdog(const char* format, ...)
  
    if ( _log_check_for_service_log_access() )
    {
-      char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
-      szBuff[1199] = 0;
+      char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
+      vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
+      szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_WATCHDOG, "a+");
-   FILE* fd2 = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+
+   char szFile2[256];
+   strcpy(szFile2, FOLDER_LOGS);
+   strcat(szFile2, LOG_FILE_WATCHDOG);
+
+   FILE* fd = fopen(szFile, "a+");
+   FILE* fd2 = fopen(szFile2, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
 
    if ( ! s_logDisabledStdout )
@@ -603,15 +608,23 @@ void log_line_commands(const char* format, ...)
  
    if ( _log_check_for_service_log_access() )
    {
-      char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
-      szBuff[1199] = 0;
+      char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
+      vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
+      szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_COMMANDS, "a+");
-   FILE* fd2 = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+
+   char szFile2[256];
+   strcpy(szFile2, FOLDER_LOGS);
+   strcat(szFile2, LOG_FILE_COMMANDS);
+
+   FILE* fd = fopen(szFile, "a+");
+   FILE* fd2 = fopen(szFile2, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
 
    if ( ! s_logDisabledStdout )
@@ -735,7 +748,11 @@ void log_buffer5(const u8* buffer, int size, int delim1, int delim2, int delim3,
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+
+   FILE* fd = fopen(szFile, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
 
    if ( ! s_logDisabledStdout )
@@ -821,7 +838,10 @@ void log_dword(const char* szText, u32 value)
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+   FILE* fd = fopen(szFile, "a+");
    
    if ( ! s_logDisabledStdout )
       printf("%s %s: ", s_szTimeLog, sszComponentName);
@@ -876,7 +896,10 @@ void log_dword_bits(const char* szText, u32 value)
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+   FILE* fd = fopen(szFile, "a+");
    
    if ( ! s_logDisabledStdout )
       printf("%s %s: ", s_szTimeLog, sszComponentName);
@@ -929,15 +952,23 @@ void log_error_and_alarm(const char* format, ...)
 
    if ( _log_check_for_service_log_access() )
    {
-      char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
-      szBuff[1199] = 0;
+      char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
+      vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
+      szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry_error(szBuff);
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
-   FILE* fd2 = fopen(LOG_FILE_ERRORS, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+
+   char szFile2[256];
+   strcpy(szFile2, FOLDER_LOGS);
+   strcat(szFile2, LOG_FILE_ERRORS);
+
+   FILE* fd = fopen(szFile, "a+");
+   FILE* fd2 = fopen(szFile2, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
    //int lock2 = flock(fileno(fd2), LOCK_EX);
  
@@ -1019,15 +1050,23 @@ void log_softerror_and_alarm(const char* format, ...)
 
    if ( _log_check_for_service_log_access() )
    {
-      char szBuff[1200];
-      vsnprintf(szBuff, 1199, format, args);
-      szBuff[1199] = 0;
+      char szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH];
+      vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
+      szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry_softerror(szBuff);
       return;
    }
 
-   FILE* fd = fopen(LOG_FILE_SYSTEM, "a+");
-   FILE* fd2 = fopen(LOG_FILE_ERRORS_SOFT, "a+");
+   char szFile[256];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+
+   char szFile2[256];
+   strcpy(szFile2, FOLDER_LOGS);
+   strcat(szFile2, LOG_FILE_ERRORS_SOFT);
+
+   FILE* fd = fopen(szFile, "a+");
+   FILE* fd2 = fopen(szFile2, "a+");
    //int lock = flock(fileno(fd), LOCK_EX);
    //int lock2 = flock(fileno(fd2), LOCK_EX);
  
@@ -1170,7 +1209,7 @@ int check_licences()
       return 1;
    //printf("L: %s\n\n", szBuff);
    for( int i=0; i<14; i++ )
-      hardware_sleep_ms(900);
+      hardware_sleep_ms(800);
    hw_execute_bash_command("sudo shutdown now", NULL);
    #endif
    return 1;

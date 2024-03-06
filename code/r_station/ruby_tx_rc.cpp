@@ -173,7 +173,7 @@ void try_read_pipes()
 {
    int maxMsgToRead = 5;
 
-   while ( (maxMsgToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, 1000, s_PipeBufferFromRouter, &s_PipeBufferFromRouterPos, s_BufferRCDownlink) )
+   while ( (maxMsgToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, s_PipeBufferFromRouter, &s_PipeBufferFromRouterPos, s_BufferRCDownlink)) )
    {
       maxMsgToRead--;
       t_packet_header* pPH = (t_packet_header*)&s_BufferRCDownlink[0];
@@ -271,8 +271,8 @@ int main (int argc, char *argv[])
       g_bSearching = true;
 
    if ( strcmp(argv[argc-1], "-debug") == 0 )
-      g_bDebug = true;
-   if ( g_bDebug )
+      g_bDebugState = true;
+   if ( g_bDebugState )
       log_enable_stdout();
   
    loadAllModels();
@@ -325,8 +325,8 @@ int main (int argc, char *argv[])
    gPH.stream_packet_idx = (STREAM_ID_DATA) << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
    if ( NULL != g_pCurrentModel )
    {
-      gPH.vehicle_id_src = g_pCurrentModel->vehicle_id;
-      gPH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+      gPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      gPH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    }
    else
    {
@@ -346,10 +346,11 @@ int main (int argc, char *argv[])
 
    g_TimeStart = get_current_timestamp_ms(); 
 
+   int iSleepTime = 50;
    while ( !g_bQuit )
    { 
       g_iFPSFramesCount++;
-      hardware_sleep_ms(5);
+      hardware_sleep_ms(iSleepTime);
 
       if ( NULL != s_pProcessStats )
       {
@@ -371,6 +372,8 @@ int main (int argc, char *argv[])
 
       try_read_pipes();
 
+      iSleepTime = 50;
+
       if ( g_bSearching || g_bUpdateInProgress )
       {
          _update_loop_info(tTime0);
@@ -389,6 +392,7 @@ int main (int argc, char *argv[])
    
       #ifdef FEATURE_ENABLE_RC
 
+      iSleepTime = 5;
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
       {
          g_PHRCFUpstream.flags &= (~RC_FULL_FRAME_FLAGS_HAS_INPUT);
@@ -452,7 +456,7 @@ int main (int argc, char *argv[])
 
       radio_packet_init(&gPH, PACKET_COMPONENT_RC, PACKET_TYPE_RC_FULL_FRAME, STREAM_ID_DATA);
       gPH.vehicle_id_src = g_uControllerId;
-      gPH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+      gPH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
       gPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_rc_full_frame_upstream);
       
       u8 buffer[MAX_PACKET_TOTAL_SIZE];

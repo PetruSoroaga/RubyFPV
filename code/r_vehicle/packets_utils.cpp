@@ -429,7 +429,6 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
             continue;
          radio_stats_update_on_packet_sent_on_radio_link(&g_SM_RadioStats, g_TimeNow, iLocalRadioLinkId, i, iTotalBytesOnEachStream[i], iCountChainedPackets[i]);
       }
-      hardware_sleep_micros(100);
       return true;
    }
 
@@ -802,7 +801,7 @@ void send_packet_vehicle_log(u8* pBuffer, int length)
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_LOG_FILE_SEGMENT, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = PH.vehicle_id_src;
    PH.total_length = sizeof(t_packet_header) + sizeof(t_packet_header_file_segment) + (u16)length;
 
@@ -824,7 +823,7 @@ void _send_alarm_packet_to_router(u32 uAlarmIndex, u32 uAlarm, u32 uFlags1, u32 
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_ALARM, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + 4*sizeof(u32);
 

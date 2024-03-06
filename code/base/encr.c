@@ -40,7 +40,10 @@ u8 s_eppl = 0;
 
 int lpp(char* szOutputBuffer, int maxLength)
 {
-   FILE* fd = fopen(FILE_ENCRYPTION_PASS, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_ENCRYPTION_PASS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
       return 0;
 
@@ -97,7 +100,10 @@ int spp(char* szBuffer)
    if ( NULL == szBuffer || 0 == szBuffer[0] )
       return 0;
 
-   FILE* fd = fopen(FILE_ENCRYPTION_PASS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_ENCRYPTION_PASS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
       return 0;
 

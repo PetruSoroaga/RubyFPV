@@ -43,7 +43,10 @@
 
 void write_result(bool bSucceeded)
 {
-   FILE* fd = fopen(FILE_TMP_SIK_CONFIG_FINISHED, "wb");
+   char szFile[128];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_SIK_CONFIG_FINISHED);
+   FILE* fd = fopen(szFile, "wb");
    if ( NULL != fd )
    {
       fprintf(fd, "%d\n", (int)bSucceeded);
@@ -145,7 +148,7 @@ int _setTxPower(int iTxPower)
 int main(int argc, char *argv[])
 {
    char szBuff[256];
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+   sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
    hw_execute_bash_command(szBuff, NULL);
 
    if ( strcmp(argv[argc-1], "-ver") == 0 )

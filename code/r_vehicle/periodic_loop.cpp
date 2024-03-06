@@ -159,7 +159,10 @@ int _check_reinit_sik_interfaces()
       else
       {
          int iResult = -1;
-         FILE* fd = fopen(FILE_TMP_SIK_CONFIG_FINISHED, "rb");
+         char szFile[128];
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_SIK_CONFIG_FINISHED);
+         FILE* fd = fopen(szFile, "rb");
          if ( NULL != fd )
          {
             if ( 1 != fscanf(fd, "%d", &iResult) )
@@ -167,9 +170,8 @@ int _check_reinit_sik_interfaces()
             fclose(fd);
          }
          log_line("SiK radio configuration completed. Result: %d.", iResult);
-         char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
-         hw_execute_bash_command(szBuff, NULL);
+         sprintf(szFile, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
+         hw_execute_bash_command(szFile, NULL);
          g_SiKRadiosState.bConfiguringToolInProgress = false;
          reopen_marked_sik_interfaces();
          send_alarm_to_controller(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0, 10);
@@ -296,7 +298,7 @@ void _send_radio_stats_to_controller()
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = g_uControllerId;
    
    u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -432,7 +434,7 @@ void _periodic_loop_check_ping()
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_PING_CLOCK, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = g_pCurrentModel->relay_params.uRelayedVehicleId;
    PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
    
@@ -483,7 +485,7 @@ void _update_videobitrate_history()
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(shared_mem_dev_video_bitrate_history);
 
@@ -526,6 +528,7 @@ int periodicLoop()
       _check_write_filesystem();
    }
 
+   // Save lastest camera params to flash (on camera)
    if ( 0 != g_uTimeToSaveCameraParams )
    if ( g_TimeNow > g_uTimeToSaveCameraParams )
    {
@@ -570,7 +573,7 @@ int periodicLoop()
       }
    }
 
-   _periodic_loop_check_ping();
+   //_periodic_loop_check_ping();
 
 #ifdef FEATURE_ENABLE_RC_FREQ_SWITCH
    if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) &&
@@ -671,7 +674,7 @@ int periodicLoop()
 
          t_packet_header PH;
          radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          PH.vehicle_id_dest = g_uControllerId;
          PH.total_length = sizeof(t_packet_header) + strlen(szBuff)+3*sizeof(u8);
 
@@ -692,7 +695,10 @@ int periodicLoop()
 
    if ( g_TimeNow >= g_TimeLastDebugFPSComputeTime + 1000 )
    {
-      if( access( FILE_TMP_REINIT_RADIO_REQUEST, R_OK ) != -1 )
+      char szFile[128];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_REINIT_RADIO_REQUEST);
+      if( access(szFile, R_OK) != -1 )
       {
          log_line("Received signal to reinitialize the radio modules.");
          reinit_radio_interfaces();
@@ -744,7 +750,10 @@ int periodicLoop()
    if ( g_TimeNow > g_TimeLastLiveLogCheck + 100 )
    {
       g_TimeLastLiveLogCheck = g_TimeNow;
-      FILE* fd = fopen(LOG_FILE_SYSTEM, "rb");
+      char szFile[256];
+      strcpy(szFile, FOLDER_LOGS);
+      strcat(szFile, LOG_FILE_SYSTEM);
+      FILE* fd = fopen(szFile, "rb");
       if ( NULL != fd )
       {
          fseek(fd, 0, SEEK_END);
@@ -796,7 +805,7 @@ int periodicLoop()
       {
          t_packet_header PH;
          radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_TX_HISTORY, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          PH.vehicle_id_dest = 0;
          PH.total_length = sizeof(t_packet_header) + sizeof(t_packet_header_vehicle_tx_history);
 

@@ -130,6 +130,9 @@ typedef struct
 #define COMMAND_ID_GET_SIK_CONFIG 47
 // param: local radio interface index
 
+#define COMMAND_ID_SET_RADIO_LINKS_FLAGS 48
+// param: uGlobalRadioLinksFlags from type_radio_links_parameters
+
 #define COMMAND_ID_SET_ALARMS_PARAMS 50
 // an type_alarms_parameters structure as input
 

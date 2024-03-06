@@ -56,10 +56,13 @@ void reset_CorePluginsSettings()
 
 int save_CorePluginsSettings()
 {
-   FILE* fd = fopen(FILE_CORE_PLUGINS_SETTINGS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CORE_PLUGINS_SETTINGS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save core plugins settings to file: %s",FILE_CORE_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to save core plugins settings to file: %s", szFile);
       return 0;
    }
    fprintf(fd, "%s\n", CORE_PLUGINS_SETTINGS_STAMP_ID);
@@ -80,17 +83,21 @@ int save_CorePluginsSettings()
    }
    fclose(fd);
 
-   log_line("Saved core plugins settings to file: %s", FILE_CORE_PLUGINS_SETTINGS);
+   log_line("Saved core plugins settings to file: %s", szFile);
    return 1;
 }
 
 int load_CorePluginsSettings()
 {
    s_CorePluginsSettingsLoaded = 1;
-   FILE* fd = fopen(FILE_CORE_PLUGINS_SETTINGS, "r");
+
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CORE_PLUGINS_SETTINGS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to load core plugins settings from file: %s (missing file). Reseted core plugins settings to default.",FILE_CORE_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to load core plugins settings from file: %s (missing file). Reseted core plugins settings to default.", szFile);
       reset_CorePluginsSettings();
       save_CorePluginsSettings();
       return 0;
@@ -107,7 +114,7 @@ int load_CorePluginsSettings()
    if ( failed )
    {
       fclose(fd);
-      log_softerror_and_alarm("Failed to load core plugins settings from file: %s (invalid config file version). Reseted core plugins settings to default.",FILE_CORE_PLUGINS_SETTINGS);
+      log_softerror_and_alarm("Failed to load core plugins settings from file: %s (invalid config file version). Reseted core plugins settings to default.", szFile);
       reset_CorePluginsSettings();
       save_CorePluginsSettings();
       return 0;
@@ -150,12 +157,12 @@ int load_CorePluginsSettings()
 
    if ( failed )
    {
-      log_line("Incomplete/Invalid core plugins settings file %s, error code: %d. Reseted to default.", FILE_CORE_PLUGINS_SETTINGS, failed);
+      log_line("Incomplete/Invalid core plugins settings file %s, error code: %d. Reseted to default.", szFile, failed);
       reset_CorePluginsSettings();
       save_CorePluginsSettings();
    }
    else
-      log_line("Loaded core plugins settings from file: %s", FILE_CORE_PLUGINS_SETTINGS);
+      log_line("Loaded core plugins settings from file: %s", szFile);
    return 1;
 }
 

@@ -13,7 +13,10 @@ bool load_favorites()
    s_iFavoritesCount = 0;
    s_bFavoritesLoaded = true;
 
-   FILE* fd = fopen(FILE_CONTROLLER_FAVORITES_VEHICLES, "rb");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_FAVORITES_VEHICLES);
+   FILE* fd = fopen(szFile, "rb");
    if ( NULL == fd )
       return false;
 
@@ -33,7 +36,10 @@ bool load_favorites()
 
 bool save_favorites()
 {
-   FILE* fd = fopen(FILE_CONTROLLER_FAVORITES_VEHICLES, "wb");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_FAVORITES_VEHICLES);
+   FILE* fd = fopen(szFile, "wb");
    if ( NULL == fd )
       return false;
 

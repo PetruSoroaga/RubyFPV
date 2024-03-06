@@ -54,7 +54,7 @@ MenuConfirmationHDMI::~MenuConfirmationHDMI()
 {
    log_line("Closed HDMI resolution change confirmation dialog.");
    char szBuff[128];
-   sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+   sprintf(szBuff, "rm -rf %s%s", FOLDER_CONFIG, FILE_TEMP_HDMI_CHANGED);
    hw_execute_bash_command(szBuff, NULL);
 }
 
@@ -73,10 +73,13 @@ void MenuConfirmationHDMI::onSelectItem()
       log_line("Reverting HDMI resolution change, user confirmed it...");
       onEventReboot();
 
-      FILE* fd = fopen(FILE_TMP_HDMI_CHANGED, "r");
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_TEMP_HDMI_CHANGED);
+      FILE* fd = fopen(szFile, "r");
       if ( NULL != fd )
       {
-         char szBuff[256];
+         char szBuff[128];
          int group, mode;
          int tmp1, tmp2, tmp3;
          fscanf(fd, "%d %d", &tmp1, &tmp2 );
@@ -84,7 +87,7 @@ void MenuConfirmationHDMI::onSelectItem()
          fscanf(fd, "%d %d", &group, &mode );
          fclose(fd);
          log_line("Reverting HDMI resolution back to: group: %d, mode: %d", group, mode);
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+         sprintf(szBuff, "rm -rf %s%s", FOLDER_CONFIG, FILE_TEMP_HDMI_CHANGED);
          hw_execute_bash_command(szBuff, NULL);
 
          hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);

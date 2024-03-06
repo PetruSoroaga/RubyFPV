@@ -33,6 +33,7 @@ vehicle_and_telemetry_info_t g_VehicleTelemetryInfo;
 
 u32 g_uControllerId = 0;
 int g_iBootCount = 0;
+bool g_bDebugState = false;
 
 RenderEngine* g_pRenderEngine = NULL;
 RenderEngineUI* g_pRenderEngineOSDPlugins = NULL;

@@ -44,7 +44,10 @@ bool s_bLoadedModelsFrequencies = false;
 
 void _load_models_connect_frequencies()
 {
-   FILE* fd = fopen(FILE_CONFIG_MODELS_CONNECT_FREQUENCIES, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_MODELS_CONNECT_FREQUENCIES);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
       s_iLoadedModelsFrequencyCount = 0;
@@ -88,7 +91,10 @@ void _save_models_connect_frequencies()
       s_iLoadedModelsFrequencyCount--;
    }
 
-   FILE* fd = fopen(FILE_CONFIG_MODELS_CONNECT_FREQUENCIES, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_MODELS_CONNECT_FREQUENCIES);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
       log_softerror_and_alarm("Failed to save file containing models connect frequencies.");

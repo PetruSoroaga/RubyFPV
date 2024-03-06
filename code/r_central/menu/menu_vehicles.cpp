@@ -58,7 +58,7 @@ void MenuVehicles::onShow()
    m_Height = 0.0;
    
    if ( (NULL != g_pCurrentModel) && ( 0 != g_uActiveControllerModelVID) )
-      log_line("[Menu] MenuVehicles: Current vehicle id: %u (%u)", g_pCurrentModel->vehicle_id, g_uActiveControllerModelVID);
+      log_line("[Menu] MenuVehicles: Current vehicle id: %u (%u)", g_pCurrentModel->uVehicleId, g_uActiveControllerModelVID);
    else
       log_line("[Menu] MenuVehicles: No current vehicle.");
    removeAllTopLines();
@@ -72,7 +72,7 @@ void MenuVehicles::onShow()
    for( int i=0; i<getControllerModelsCount(); i++ )
    {
       Model *p = getModelAtIndex(i);
-      log_line("[Menu] MenuVehicles: Iterating vehicles: id: %u", p->vehicle_id);
+      log_line("[Menu] MenuVehicles: Iterating vehicles: id: %u", p->uVehicleId);
       char szBuff[256];
       if ( 1 == p->radioLinksParams.links_count )
          sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
@@ -99,7 +99,7 @@ void MenuVehicles::onShow()
       pItem->setVehicleIndex(i, false);
       addMenuItem( pItem );
       if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
-      if ( (g_uActiveControllerModelVID == p->vehicle_id) && (g_pCurrentModel->vehicle_id == p->vehicle_id) )
+      if ( (g_uActiveControllerModelVID == p->uVehicleId) && (g_pCurrentModel->uVehicleId == p->uVehicleId) )
       {
          log_line("[Menu] MenuVehicles: Found current vehicle in the list.");
          bCurrentVehicleFound = true;
@@ -148,9 +148,9 @@ void MenuVehicles::Render()
       Model *pModel = getModelAtIndex(i);
       if ( NULL == pModel )
          continue;
-      if ( vehicle_is_favorite(pModel->vehicle_id) )
+      if ( vehicle_is_favorite(pModel->uVehicleId) )
       {
-         if ( (NULL != g_pCurrentModel) && (pModel->vehicle_id == g_pCurrentModel->vehicle_id) )
+         if ( (NULL != g_pCurrentModel) && (pModel->uVehicleId == g_pCurrentModel->uVehicleId) )
             g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy+0.6*height_text, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
          else
             g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);

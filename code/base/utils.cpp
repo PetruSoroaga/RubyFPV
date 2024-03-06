@@ -37,14 +37,20 @@
 
 bool ruby_is_first_pairing_done()
 {
-   if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
+   if ( access(szFile, R_OK) == -1 )
       return false;
    return true;
 }
 
 void ruby_set_is_first_pairing_done()
 {
-   FILE* fd = fopen(FILE_FIRST_PAIRING_DONE, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
       log_softerror_and_alarm("Failed to create file for marking 'first pairing done' flag.");

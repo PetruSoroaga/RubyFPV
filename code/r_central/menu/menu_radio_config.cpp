@@ -65,6 +65,7 @@
 #define MRC_ID_SWITCH_RADIO_LINK 14
 #define MRC_ID_SWAP_VEHICLE_RADIO_INTERFACES 15
 #define MRC_ID_ROTATE_RADIO_LINKS 16
+#define MRC_ID_DISABLE_UPLINKS 17
 #define MRC_ID_DIAGNOSE_RADIO_LINK 20
 
 
@@ -645,8 +646,8 @@ void MenuRadioConfig::onSelectItem()
    if ( link_has_received_main_vehicle_ruby_telemetry() )
    if ( pairing_isStarted() )
    if ( NULL != g_pCurrentModel )
-   if ( NULL != get_vehicle_runtime_info_for_vehicle_id(g_pCurrentModel->vehicle_id) )
-   if ( ! get_vehicle_runtime_info_for_vehicle_id(g_pCurrentModel->vehicle_id)->bLinkLost )
+   if ( NULL != get_vehicle_runtime_info_for_vehicle_id(g_pCurrentModel->uVehicleId) )
+   if ( ! get_vehicle_runtime_info_for_vehicle_id(g_pCurrentModel->uVehicleId)->bLinkLost )
       bConnectedToVehicle = true;
 
    char szConnectTitle[32];

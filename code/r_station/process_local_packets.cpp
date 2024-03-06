@@ -132,8 +132,8 @@ bool _switch_to_vehicle_radio_link(int iVehicleRadioLinkId)
       g_SM_RadioStats.radio_links[iLocalRadioLinkId].matchingVehicleRadioLinkId = iVehicleRadioLinkId;
 
       // Update controller's main connect frequency too if needed
-      if ( uCurrentFrequencyKhz == get_model_main_connect_frequency(g_pCurrentModel->vehicle_id) )
-         set_model_main_connect_frequency(g_pCurrentModel->vehicle_id, g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId]);
+      if ( uCurrentFrequencyKhz == get_model_main_connect_frequency(g_pCurrentModel->uVehicleId) )
+         set_model_main_connect_frequency(g_pCurrentModel->uVehicleId, g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLinkId]);
                
       bSwitched = true;
       break;
@@ -157,7 +157,7 @@ bool _switch_to_vehicle(Model* pTmp)
    radio_links_close_rxtx_radio_interfaces();
 
    // Reload new model state
-   setCurrentModel(pTmp->vehicle_id);
+   setCurrentModel(pTmp->uVehicleId);
    g_pCurrentModel = getCurrentModel();
    if ( ! reloadCurrentModel() )
       log_softerror_and_alarm("Failed to load current model.");
@@ -215,8 +215,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       g_SiKRadiosState.bConfiguringToolInProgress = true;
       g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
          
-      char szCommand[256];
-      sprintf(szCommand, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+      char szCommand[128];
+      sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
       hw_execute_bash_command(szCommand, NULL);
 
       sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", pCS->iTXPowerSiK);
@@ -368,7 +368,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       log_line("Received notification from central that relay flags and params changed.");
 
       if ( NULL != g_pCurrentModel )
-         radio_duplicate_detection_remove_data_for_all_except(g_pCurrentModel->vehicle_id);
+         radio_duplicate_detection_remove_data_for_all_except(g_pCurrentModel->uVehicleId);
       
       // If relayed vehicle changed, or relay was disabled, remove runtime info for the relayed vehicle
 
@@ -464,7 +464,7 @@ void process_local_control_packet(t_packet_header* pPH)
          test_link_reset_state();
          return;
       }
-      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->vehicle_id, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 3*sizeof(u8)) ) )
+      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->uVehicleId, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 3*sizeof(u8)) ) )
       {
          test_link_send_status_message_to_central("Invalid radio parameters.");
          test_link_send_end_message_to_central(false);
@@ -483,7 +483,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE )
    {
-      log_line("Received local request to switch to favorite vehicle VID %u (current VID: %u)", pPH->vehicle_id_dest, g_pCurrentModel->vehicle_id);
+      log_line("Received local request to switch to favorite vehicle VID %u (current VID: %u)", pPH->vehicle_id_dest, g_pCurrentModel->uVehicleId);
       Model* pTmp = findModelWithId(pPH->vehicle_id_dest, 100);
       if ( NULL == pTmp )
       {
@@ -681,7 +681,7 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_RELAY_MODE_SWITCHED )
    {
       g_pCurrentModel->relay_params.uCurrentRelayMode = pPH->vehicle_id_src;
-      Model* pModel = findModelWithId(g_pCurrentModel->vehicle_id, 101);
+      Model* pModel = findModelWithId(g_pCurrentModel->uVehicleId, 101);
       if ( NULL != pModel )
          pModel->relay_params.uCurrentRelayMode = pPH->vehicle_id_src;
 
@@ -690,8 +690,8 @@ void process_local_control_packet(t_packet_header* pPH)
       int iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
       if ( ! relay_controller_must_display_main_video(g_pCurrentModel) )
          iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
-      log_line("Set current keyframe to %d ms for FPS %d for current vehicle (VID: %u)", iDefaultKeyframeIntervalMs, iCurrentFPS, g_pCurrentModel->vehicle_id);
-      video_link_keyframe_set_current_level_to_request(g_pCurrentModel->vehicle_id, iDefaultKeyframeIntervalMs);
+      log_line("Set current keyframe to %d ms for FPS %d for current vehicle (VID: %u)", iDefaultKeyframeIntervalMs, iCurrentFPS, g_pCurrentModel->uVehicleId);
+      video_link_keyframe_set_current_level_to_request(g_pCurrentModel->uVehicleId, iDefaultKeyframeIntervalMs);
       
       pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 102);
       if ( NULL != pModel )
@@ -699,8 +699,8 @@ void process_local_control_packet(t_packet_header* pPH)
          iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
          if ( ! relay_controller_must_display_remote_video(g_pCurrentModel) )
             iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
-         log_line("Set current keyframe to %d ms for remote vehicle (VID: %u)", iDefaultKeyframeIntervalMs, pModel->vehicle_id);
-         video_link_keyframe_set_current_level_to_request(pModel->vehicle_id, iDefaultKeyframeIntervalMs);
+         log_line("Set current keyframe to %d ms for remote vehicle (VID: %u)", iDefaultKeyframeIntervalMs, pModel->uVehicleId);
+         video_link_keyframe_set_current_level_to_request(pModel->uVehicleId, iDefaultKeyframeIntervalMs);
       }
 
       g_iShowVideoKeyframesAfterRelaySwitch = 5;
@@ -786,8 +786,8 @@ void process_local_control_packet(t_packet_header* pPH)
             
             send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
 
-            char szCommand[256];
-            sprintf(szCommand, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
+            char szCommand[128];
+            sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
             hw_execute_bash_command(szCommand, NULL);
 
             sprintf(szCommand, "./ruby_sik_config %s %d -serialspeed %d &", pPort->szPortDeviceName, (int)oldSerialPorts[i].lPortSpeed, (int)pPort->lPortSpeed);

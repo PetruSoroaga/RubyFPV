@@ -146,17 +146,22 @@ bool load_temp_local_stats()
 {
    // Load and delete the file
 
-   if( access( FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_TEMP_CONTROLLER_LOAD_LOCAL_STATS);
+   if( access(szFile, R_OK) == -1 )
       return false;
 
    log_line("Loading temp local stats after a crash or reboot.");
 
-   FILE* fd = fopen(FILE_TMP_CONTROLLER_LOCAL_STATS, "r");
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_TEMP_CONTROLLER_LOCAL_STATS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to load temporary local stats from file: %s (missing file)",FILE_TMP_CONTROLLER_LOCAL_STATS);
+      log_softerror_and_alarm("Failed to load temporary local stats from file: %s (missing file)", szFile);
       char szComm[256];
-      sprintf(szComm, "rm -rf %s 2>&1", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+      sprintf(szComm, "rm -rf %s%s 2>&1", FOLDER_CONFIG, FILE_TEMP_CONTROLLER_LOAD_LOCAL_STATS);
       hw_execute_bash_command(szComm, NULL);  
       return false;
    }
@@ -205,12 +210,12 @@ bool load_temp_local_stats()
    fclose(fd);
 
    if ( failed )
-      log_line("Incomplete/Invalid temporary local stats file %s", FILE_TMP_CONTROLLER_LOCAL_STATS);
+      log_line("Incomplete/Invalid temporary local stats file %s", szFile);
    else
-      log_line("Loaded temporary local stats from file: %s", FILE_TMP_CONTROLLER_LOCAL_STATS);
+      log_line("Loaded temporary local stats from file: %s", szFile);
 
-   char szComm[256];
-   sprintf(szComm, "rm -rf %s 2>&1", FILE_TMP_CONTROLLER_LOAD_LOCAL_STATS);
+   char szComm[128];
+   sprintf(szComm, "rm -rf %s%s 2>&1", FOLDER_CONFIG, FILE_TEMP_CONTROLLER_LOAD_LOCAL_STATS);
    hw_execute_bash_command(szComm, NULL);  
 
    if ( failed )
@@ -226,10 +231,13 @@ void save_temp_local_stats()
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       saveControllerModel(g_VehiclesRuntimeInfo[i].pModel);
 
-   FILE* fd = fopen(FILE_TMP_CONTROLLER_LOCAL_STATS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_TEMP_CONTROLLER_LOCAL_STATS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save temporary local stats to file: %s",FILE_TMP_CONTROLLER_LOCAL_STATS);
+      log_softerror_and_alarm("Failed to save temporary local stats to file: %s", szFile);
       return;
    }
 

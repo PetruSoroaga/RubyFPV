@@ -387,7 +387,8 @@ typedef struct
    u8  uUplinkDataDataRateType[MAX_RADIO_INTERFACES]; // DataRate Type
    u8  uDownlinkDataDataRateType[MAX_RADIO_INTERFACES];
    int iSiKPacketSize;
-   u32 dummy[8];
+   u32 uGlobalRadioLinksFlags; // 0 - none, 1 - disable uplinks
+   u32 uDummyRadio[7];
 } type_radio_links_parameters;
 
 typedef struct
@@ -413,7 +414,7 @@ typedef struct
 // This is all readonly:
 typedef struct 
 {
-   int iBoardType;//board_type;
+   int iBoardType; //board_type;
    int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
    int iMaxTxVideoBlockPackets; // max packets in a video block
    int dummyhwc[3];
@@ -452,8 +453,8 @@ class Model
       type_hardware_capabilities hwCapabilities;
       
       char vehicle_name[MAX_VEHICLE_NAME_LENGTH];
-      u32 vehicle_id;
-      u32 controller_id;
+      u32 uVehicleId;
+      u32 uControllerId;
       u32 sw_version; // byte 0: minor version, byte 1 Major version, byte 2-3: build nb
       bool is_spectator;
       u8 vehicle_type;
@@ -567,6 +568,7 @@ class Model
       bool isActiveCameraVeye307();
       bool isActiveCameraVeye327290();
       bool isActiveCameraCSICompatible();
+      bool isActiveCameraOpenIPC();
       void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
 
       void setDefaultVideoBitrate();
@@ -607,10 +609,10 @@ class Model
       int iSaveCount;
 
       void generateUID();
-      bool loadVersion8(const char* szFile, FILE* fd);
-      bool loadVersion9(const char* szFile, FILE* fd); // from 7.4
-      bool loadVersion10(const char* szFile, FILE* fd); // from 7.6
-      bool saveVersion10(const char* szFile, FILE* fd, bool isOnController); // from 7.6
+      bool loadVersion8(FILE* fd);
+      bool loadVersion9(FILE* fd); // from 7.4
+      bool loadVersion10(FILE* fd); // from 7.6
+      bool saveVersion10(FILE* fd, bool isOnController); // from 7.6
 };
 
 const char* model_getShortFlightMode(u8 mode);

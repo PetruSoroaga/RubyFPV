@@ -55,7 +55,7 @@ MenuDiagnoseRadioLink::MenuDiagnoseRadioLink(int iVehicleRadioLinkIndex)
    
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+2*sizeof(u8);
    
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -67,7 +67,7 @@ MenuDiagnoseRadioLink::MenuDiagnoseRadioLink(int iVehicleRadioLinkIndex)
 
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+2*sizeof(u8);
    
    uCommandId = 0;
@@ -117,7 +117,7 @@ void MenuDiagnoseRadioLink::onReceivedVehicleData(u8* pData, int iDataLength)
       
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
       PH.vehicle_id_src = g_uControllerId;
-      PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+      PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
       PH.total_length = sizeof(t_packet_header)+2*sizeof(u8);
       
       u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -175,7 +175,7 @@ void MenuDiagnoseRadioLink::onReceivedControllerData(u8* pData, int iDataLength)
    
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+2*sizeof(u8);
    
    u8 buffer[MAX_PACKET_TOTAL_SIZE];

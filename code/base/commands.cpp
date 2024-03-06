@@ -61,6 +61,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_GET_CORE_PLUGINS_INFO: strcpy(szCommandDesc, "Get_Core_Plugins_Info"); break;
       case COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS: strcpy(szCommandDesc, "Set_Controller_Telemetry_Options"); break;
       case COMMAND_ID_GET_SIK_CONFIG: strcpy(szCommandDesc, "Get_SiK_Config"); break;
+      case COMMAND_ID_SET_RADIO_LINKS_FLAGS: strcpy(szCommandDesc, "Set_Radio_Links_Flags"); break;
       case COMMAND_ID_ROTATE_RADIO_LINKS: strcpy(szCommandDesc, "Rotate_Radio_Links"); break;
       case COMMAND_ID_SWAP_RADIO_INTERFACES: strcpy(szCommandDesc, "Swap_Radio_Interfaces"); break;
       case COMMAND_ID_SET_RELAY_PARAMETERS: strcpy(szCommandDesc, "Set_Relay_Parameters"); break;

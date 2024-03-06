@@ -767,7 +767,8 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    s_lCountBytesSend += s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].packetLength;
    s_lCountBytesSend += sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + 14; // 14 - radio headers
 
-
+   
+   if ( ((s_CurrentPHVF.video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H264 )
    if ( (! isRetransmitted) && (! isDuplicationPacket) )
    if ( packetIndex < s_BlocksTxBuffers[bufferIndex].block_packets )
    if ( NULL != g_pCurrentModel )
@@ -804,7 +805,6 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
                    }
                 }
              }
-             //if ((s_uParseVideoTag == 0x0121) || (s_uParseVideoTag == 0x0127))
           }
       }
 
@@ -1094,7 +1094,7 @@ bool _onNewCompletePacketReadFromInput()
       if ( _check_update_video_link_profile_data() )
          _log_encoding_scheme();
 
-      s_CurrentPH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      s_CurrentPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
    }
 
@@ -1170,7 +1170,7 @@ bool process_data_tx_video_init()
 
    radio_packet_init(&s_CurrentPH, PACKET_COMPONENT_VIDEO | PACKET_FLAGS_BIT_HEADERS_ONLY_CRC, PACKET_TYPE_VIDEO_DATA_FULL, STREAM_ID_VIDEO_1);
 
-   s_CurrentPH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   s_CurrentPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    s_CurrentPH.vehicle_id_dest = 0;
    s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].packet_length;
 
@@ -1191,6 +1191,10 @@ bool process_data_tx_video_init()
          s_iCurrentKeyFrameIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
    }
    s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
+   #endif
+   
    s_CurrentPHVF.video_block_index = 0;
    s_CurrentPHVF.video_block_packet_index = 0;
    s_CurrentPHVF.fec_time = 0;
@@ -1431,8 +1435,14 @@ void _process_command_resend_packets(u8* pPacketBuffer, u8 packetType)
    }
 }
 
+extern bool bDebugNoVideoOutput;
+
 bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
 {
+
+   if ( bDebugNoVideoOutput )
+      return true;
+     
    if ( ! (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
       return false;
 

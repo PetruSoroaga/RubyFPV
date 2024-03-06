@@ -52,7 +52,7 @@
 #define FIFO_RUBY_RC_TO_ROUTER "tmp/ruby/fiforcrouter"
 
 
-#define PROFILE_IPC 1
+//#define PROFILE_IPC 1
 #define PROFILE_IPC_MAX_TIME 20
 
 #define MAX_CHANNELS 32
@@ -623,7 +623,7 @@ int ruby_ipc_channel_send_message(int iChannelUniqueId, u8* pMessage, int iLengt
          log_line("[IPC] Retry write operation (%d)...", iRetryCounter);
       */
       iRetryCounter--;
-      hardware_sleep_ms(20);
+      hardware_sleep_ms(10);
 
    } while (iRetryCounter > 0);
    #endif
@@ -641,7 +641,7 @@ int ruby_ipc_channel_send_message(int iChannelUniqueId, u8* pMessage, int iLengt
 }
 
 
-u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer)
+u8* ruby_ipc_try_read_message(int iChannelUniqueId, u8* pTempBuffer, int* pTempBufferPos, u8* pOutputBuffer)
 {
    if ( iChannelUniqueId < 0 || s_iRubyIPCChannelsCount == 0 )
    {
@@ -675,9 +675,6 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTe
       return NULL;
    }
 
-   if ( timeoutMicrosec > 10000 )
-      log_softerror_and_alarm("[IPC] Called reading pipe with a timeout too big (%d milisec).", timeoutMicrosec/1000);
-   
    u8* pReturn = NULL;
    int lenReadIPCMsgQueue = 0;
 
@@ -725,7 +722,7 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTe
       FD_SET(iChannelFd, &readset);
 
       timePipeInput.tv_sec = 0;
-      timePipeInput.tv_usec = timeoutMicrosec;
+      timePipeInput.tv_usec = 0;
 
       int selectResult = select(iChannelFd+1, &readset, NULL, NULL, &timePipeInput);
       if ( selectResult > 0 && (FD_ISSET(iChannelFd, &readset)) )
@@ -768,8 +765,6 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTe
 
    pReturn = NULL;
    
-   u32 uTimeStartReadIpc = get_current_timestamp_ms();
-
    lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, ICP_CHANNEL_MAX_MSG_SIZE, 0, IPC_NOWAIT);
    if ( lenReadIPCMsgQueue > 6 )
    {
@@ -806,16 +801,6 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, int timeoutMicrosec, u8* pTe
    }
    else
       s_iRubyIPCCountReadErrors = 0;
-   #endif
-
-   #ifdef RUBY_USES_MSGQUEUES
-   if ( lenReadIPCMsgQueue == 0 )
-   if ( timeoutMicrosec >= 1000 )
-   {
-      u32 uTimeDiffReadIPC = get_current_timestamp_ms() - uTimeStartReadIpc;
-      if ( (u32)timeoutMicrosec > uTimeDiffReadIPC*1000 + 1000 )
-         hardware_sleep_micros((u32)timeoutMicrosec - uTimeDiffReadIPC*1000 - 500);
-   }
    #endif
 
    return pReturn;

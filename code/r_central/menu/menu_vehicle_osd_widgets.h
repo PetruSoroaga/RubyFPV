@@ -5,6 +5,8 @@
 #include "menu_item_range.h"
 #include "../../base/config.h"
 
+#define MAX_MENU_OSD_WIDGETS 30
+
 class MenuVehicleOSDWidgets: public Menu
 {
    public:
@@ -14,21 +16,17 @@ class MenuVehicleOSDWidgets: public Menu
       virtual bool periodicLoop();
       virtual void Render();
 
-      virtual void onMoveUp(bool bIgnoreReversion);
-      virtual void onMoveDown(bool bIgnoreReversion);
-      virtual void onMoveLeft(bool bIgnoreReversion);
-      virtual void onMoveRight(bool bIgnoreReversion);
-      
       virtual void onSelectItem();
             
       virtual int onBack();
-
-      void stopAction();
       
    private:
-      bool m_bIsMovingH;
-      bool m_bIsMovingV;
-      bool m_bIsResizing;
-      
-      
+      int m_IndexShowSpeedAlt;
+      int m_IndexSpeedToSides;
+      int m_IndexShowHeading;
+      int m_IndexShowAltGraph;
+
+      MenuItemSelect* m_pItemsSelect[MAX_MENU_OSD_WIDGETS+10];
+      int m_IndexWidgets[MAX_MENU_OSD_WIDGETS];
+
 };

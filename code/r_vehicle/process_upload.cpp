@@ -95,7 +95,7 @@ void _sw_update_close_remove_temp_files()
    s_uSWPacketsMaxSize = 0;
 
    char szComm[256];
-   sprintf(szComm, "rm -rf %s", FILE_TMP_UPDATE_IN_PROGRESS);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS);
    hw_execute_bash_command_silent(szComm, NULL);
 
    if ( s_bSoftwareUpdateStoppedVideoPipeline )
@@ -177,7 +177,7 @@ void _process_upload_apply()
       
       sprintf(szComm, "tar -zxf %s 2>&1", s_szUpdateArchiveFile);
       hw_execute_bash_command_raw(szComm, NULL);
-      hardware_sleep_ms(1000);
+      hardware_sleep_ms(800);
       hw_execute_bash_command("chmod 777 ruby*", NULL);
 
       hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
@@ -297,7 +297,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
 
    if ( ! s_bSoftwareUpdateStoppedVideoPipeline )
    {
-      sprintf(szComm, "touch %s", FILE_TMP_UPDATE_IN_PROGRESS);
+      sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS);
       hw_execute_bash_command_silent(szComm, NULL);
       s_bSoftwareUpdateStoppedVideoPipeline = true;
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO, 0);

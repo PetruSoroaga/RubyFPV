@@ -5,19 +5,19 @@
 #include "menu_item_range.h"
 #include "../../base/config.h"
 
+#define MAX_OSD_CUSTOM_PLUGINS 30
+
 class MenuVehicleOSDPlugins: public Menu
 {
    public:
       MenuVehicleOSDPlugins();
       virtual ~MenuVehicleOSDPlugins();
-      virtual void valuesToUI();
       virtual void Render();
-      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void onSelectItem();
+      virtual void onItemValueChanged(int itemIndex);
+      virtual void valuesToUI();
             
    private:
-      void readPlugins();
-      void importFromUSB();
-
-      //int m_IndexImport;
+      MenuItemSelect* m_pItemsSelect[MAX_OSD_CUSTOM_PLUGINS];     
+      int m_IndexPlugins[MAX_OSD_CUSTOM_PLUGINS];
 };

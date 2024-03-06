@@ -38,17 +38,16 @@
 #include "menu_system_all_params.h"
 #include "menu_system_hardware.h"
 #include "../../base/controller_utils.h"
-
 #include "menu_system_dev_logs.h"
 #include "menu_system_alarms.h"
-
+#include "../osd/osd_common.h"
 #include "../process_router_messages.h"
-
-
 
 #include <time.h>
 #include <sys/resource.h>
 #include <semaphore.h>
+
+extern u32 g_idIconOpenIPC;
 
 
 MenuSystem::MenuSystem(void)
@@ -116,6 +115,11 @@ void MenuSystem::Render()
    float yEnd = RenderFrameAndTitle();
    float y = yEnd;
 
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   float iconHeight = 2.0*height_text;
+   float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
+   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth, y - iconHeight - 5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
+
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
 
@@ -139,7 +143,7 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
 
       hw_execute_bash_command("sudo reboot -f", NULL);

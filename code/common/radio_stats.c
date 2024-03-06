@@ -356,7 +356,14 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
       strcpy(szBuff, "Radio Interfaces total tx packets/bytes: ");
       for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
       {
-         sprintf(szBuff2, "i%d: %u/%u, ", i+1, pSMRS->radio_interfaces[i].totalTxPackets, pSMRS->radio_interfaces[i].totalTxBytes);
+         sprintf(szBuff2, "i-%d: %u/%u, ", i+1, pSMRS->radio_interfaces[i].totalTxPackets, pSMRS->radio_interfaces[i].totalTxBytes);
+         strcat(szBuff, szBuff2);
+      }
+      log_line(szBuff);
+      strcpy(szBuff, "Radio Interfaces tx packets/bytes/bits/sec: ");
+      for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
+      {
+         sprintf(szBuff2, "i-%d: %u/%u/%u/sec, ", i+1, pSMRS->radio_interfaces[i].txPacketsPerSec, pSMRS->radio_interfaces[i].txBytesPerSec, pSMRS->radio_interfaces[i].txBytesPerSec*8);
          strcat(szBuff, szBuff2);
       }
       log_line(szBuff);

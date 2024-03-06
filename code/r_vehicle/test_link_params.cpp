@@ -301,7 +301,7 @@ void _test_link_send_ping_to_controller()
    s_uCountPingSent++;
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = g_uControllerId;
    PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + 2*sizeof(u32);
 
@@ -320,7 +320,7 @@ void _test_link_send_end_message()
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = g_uControllerId;
    PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
 
@@ -456,7 +456,7 @@ void test_link_process_received_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(&s_RadioLinksParamsOriginal, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
       memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
 
-      _test_link_generate_start_packet(g_uControllerId, g_pCurrentModel->vehicle_id, iRadioLinkId, &s_RadioLinksParamsToTest);
+      _test_link_generate_start_packet(g_uControllerId, g_pCurrentModel->uVehicleId, iRadioLinkId, &s_RadioLinksParamsToTest);
 
       test_link_reset_state();
 

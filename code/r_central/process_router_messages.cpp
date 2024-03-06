@@ -207,7 +207,7 @@ t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
    {
       if ( NULL != g_pCurrentModel )
       {
-         g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->vehicle_id;
+         g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
          g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
       }
       return &(g_VehiclesRuntimeInfo[0]);
@@ -406,7 +406,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       {
          s_uTimeLastLogTelemetrySearch = g_TimeNow;
          log_line("Received a Ruby telemetry packet while searching: vehicle ID: %u, radio links (%d): %s, %s, %s",
-            pRuntimeInfo->headerRubyTelemetryExtended.vehicle_id, pRuntimeInfo->headerRubyTelemetryExtended.radio_links_count,
+            pRuntimeInfo->headerRubyTelemetryExtended.uVehicleId, pRuntimeInfo->headerRubyTelemetryExtended.radio_links_count,
             szFreq1, szFreq2, szFreq3 );
       }
    }
@@ -590,19 +590,19 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_FIRST_PAIRING_DONE )
    {
       log_line("Received notification from router that first pairing was done.");
-      log_line("Current local model VID %u, ptr: %X (before updating local copy)", g_pCurrentModel->vehicle_id, g_pCurrentModel);
+      log_line("Current local model VID %u, ptr: %X (before updating local copy)", g_pCurrentModel->uVehicleId, g_pCurrentModel);
       loadAllModels();
       g_pCurrentModel = getCurrentModel();
       g_pCurrentModel->b_mustSyncFromVehicle = true;
-      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+      ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
       g_bFirstModelPairingDone = true;
       g_bSyncModelSettingsOnLinkRecover = true;
-      log_line("Updated current local model VID %u, ptr: %X", g_pCurrentModel->vehicle_id, g_pCurrentModel);
-      g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->vehicle_id;
+      log_line("Updated current local model VID %u, ptr: %X", g_pCurrentModel->uVehicleId, g_pCurrentModel);
+      g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
       g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
       log_line("Updated runtime info index 0");
       warnings_add(0, "First pairing complete.");
-      onModelAdded(g_pCurrentModel->vehicle_id);
+      onModelAdded(g_pCurrentModel->uVehicleId);
       return 0;
    }
 
@@ -803,7 +803,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       else
          memset((u8*)&PHRTE, 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
 
-      PHRTE.vehicle_id = pPH->vehicle_id_src;
+      PHRTE.uVehicleId = pPH->vehicle_id_src;
       PHRTE.version = pPHRTS->version;
       PHRTE.radio_links_count = pPHRTS->radio_links_count;
       if ( PHRTE.radio_links_count > 3 )
@@ -1261,7 +1261,6 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
 int try_read_messages_from_router(u32 uMaxMiliseconds)
 {
-   int timeoutReadPipeMicroseconds = 1000*uMaxMiliseconds;
    u32 uTimeStart = get_current_timestamp_ms();
    if ( -1 == s_fIPCFromRouter )
    {
@@ -1307,7 +1306,7 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
          }        
       }
       else
-         pResult = ruby_ipc_try_read_message(s_fIPCFromRouter, timeoutReadPipeMicroseconds, s_BufferTmpOutputRouterMessage, &s_BufferTmpOutputRouterMessagePos, s_BufferPipeFromRouter);
+         pResult = ruby_ipc_try_read_message(s_fIPCFromRouter, s_BufferTmpOutputRouterMessage, &s_BufferTmpOutputRouterMessagePos, s_BufferPipeFromRouter);
       
       if ( NULL != pResult )
       {
@@ -1330,21 +1329,23 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
       {
          return iCountMessagesProcessed;
       }
-      timeoutReadPipeMicroseconds = 1000 * (uTimeStart + uMaxMiliseconds - uTimeNow);
    }
    return iCountMessagesProcessed;
 }
 
 void * _router_ipc_thread_func(void *ignored_argument)
 {
+   u32 uWaitTimeMs = 5;
    while ( true )
    {
       u8* pResult = NULL;
       if ( -1 != s_fIPCFromRouter )
-         pResult = ruby_ipc_try_read_message(s_fIPCFromRouter, 9000, s_BufferTmpOutputRouterMessage, &s_BufferTmpOutputRouterMessagePos, s_BufferPipeFromRouter);
+         pResult = ruby_ipc_try_read_message(s_fIPCFromRouter, s_BufferTmpOutputRouterMessage, &s_BufferTmpOutputRouterMessagePos, s_BufferPipeFromRouter);
       if ( NULL == pResult )
       {
-         hardware_sleep_ms(10);
+         if ( uWaitTimeMs < 50 )
+            uWaitTimeMs += 5;
+         hardware_sleep_ms(uWaitTimeMs);
          if ( ruby_ipc_get_read_continous_error_count() > 100 )
          {
             log_line("Too many read errors on pipe from router. Flag read error.");
@@ -1352,6 +1353,7 @@ void * _router_ipc_thread_func(void *ignored_argument)
          }
          continue;
       }
+      uWaitTimeMs = 5;
       pthread_mutex_lock(&s_pThreadIPCMutex);
       if ( s_iCountMessagesFromRouter >= MAX_ROUTER_MESSAGES )
       {

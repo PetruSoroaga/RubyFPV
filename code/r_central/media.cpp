@@ -127,7 +127,10 @@ bool media_init_and_scan()
    s_szMediaCurrentVideoFileInfo[0] = 0;
    s_iMediaInitCount++;
 
-   FILE* fd = fopen(FILE_BOOT_COUNT, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOOT_COUNT);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%d", &s_iMediaBootCount) )

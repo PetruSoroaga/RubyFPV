@@ -82,8 +82,8 @@ void MenuVehicleOSDPlugin::readPlugin()
       m_IndexSettings[i] = -1;
 
    m_nPluginSettingsCount = osd_plugin_get_settings_count(m_nPluginIndex);
-   if ( m_nPluginSettingsCount > MAX_PLUGIN_SETTINGS )
-      m_nPluginSettingsCount = MAX_PLUGIN_SETTINGS;
+   if ( m_nPluginSettingsCount >= MAX_PLUGIN_SETTINGS )
+      m_nPluginSettingsCount = MAX_PLUGIN_SETTINGS-1;
 
    for( int i=0; i<m_nPluginSettingsCount; i++ )
    {
@@ -260,8 +260,8 @@ void MenuVehicleOSDPlugin::onMoveUp(bool bIgnoreReversion)
             pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
 
          pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN*0.5/fAspect;
-         if ( pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
-            pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
+         if ( pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
+            pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
       }
       return;
    }

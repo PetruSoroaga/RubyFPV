@@ -23,6 +23,7 @@ class MenuVehicleTelemetry: public Menu
       int m_IndexTelemetryNoFCMessages;
       int m_IndexTelemetryRequestStreams;
       int m_IndexTelemetryControllerSysId;
+      int m_IndexAlwaysArmed;
       int m_IndexInfoSysId;
       int m_IndexRemoveDuplicateMsg;
       int m_IndexRUpdateRate;

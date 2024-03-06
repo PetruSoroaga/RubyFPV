@@ -392,7 +392,7 @@ void MenuDeviceI2C::onSelectItem()
    {
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_I2C_DEVICE_CHANGED, PACKET_COMPONENT_RUBY);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", FILE_TMP_I2C_UPDATED);
+      sprintf(szBuff, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_I2C_UPDATED);
       hw_execute_bash_command_silent(szBuff, NULL);
       valuesToUI();
    }   

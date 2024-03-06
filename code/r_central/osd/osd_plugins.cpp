@@ -391,7 +391,7 @@ void osd_plugins_load()
             match = true;
          if ( ! match )
             continue;
-         sprintf(szFile, "%s/%s%s", FOLDER_RUBY, FOLDER_OSD_PLUGINS, dir->d_name);
+         sprintf(szFile, "%s%s", FOLDER_OSD_PLUGINS, dir->d_name);
          _osd_load_plugin(szFile);
       }
       closedir(d);
@@ -510,7 +510,7 @@ void osd_plugins_render()
       }
       telemetry_info2.uThrottleInput = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtraInfo.uThrottleInput;
       telemetry_info2.uThrottleOutput = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtraInfo.uThrottleOutput;
-      telemetry_info2.uVehicleId = pModel->vehicle_id;
+      telemetry_info2.uVehicleId = pModel->uVehicleId;
       telemetry_info2.uIsSpectatorMode = (pModel->is_spectator?1:0);
 
       plugin_settings_info_t2 plugin_settings;

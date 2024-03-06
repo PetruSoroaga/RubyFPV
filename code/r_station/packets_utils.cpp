@@ -230,7 +230,7 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
          break;
       if ( NULL == g_pCurrentModel )
          break;
-      if ( g_pVideoProcessorRxList[i]->m_uVehicleId != g_pCurrentModel->vehicle_id )
+      if ( g_pVideoProcessorRxList[i]->m_uVehicleId != g_pCurrentModel->uVehicleId )
          continue;
 
       nVideoProfile = g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
@@ -454,7 +454,6 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
          u8 uCommandId = *(pPacketData + sizeof(t_packet_header) + sizeof(u8));
          log_line("Sent radio packet to vehicle to configure SiK vehicle radio link %d, command: %d", (int) uVehicleLinkId+1, (int)uCommandId);
       }
-      hardware_sleep_micros(200);
       return true;
    }
    

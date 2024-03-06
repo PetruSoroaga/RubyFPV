@@ -31,7 +31,7 @@
 #include "timers.h"
 
 bool g_bQuit = false;
-bool g_bDebug = false;
+bool g_bDebugState = false;
 Model* g_pCurrentModel = NULL;
 
 ControllerSettings* g_pControllerSettings = NULL; 

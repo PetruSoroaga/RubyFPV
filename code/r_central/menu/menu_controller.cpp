@@ -198,8 +198,11 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
       return;
    }
 
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_TEMP_HDMI_CHANGED);
    if ( ! m_bShownHDMIChangeNotif )
-   if ( access( FILE_TMP_HDMI_CHANGED, R_OK ) != -1 )
+   if ( access(szFile, R_OK) != -1 )
    {
       m_bShownHDMIChangeNotif = true;
       MenuConfirmation* pMC = new MenuConfirmation("HDMI Output Configuration Changed","You updated the HDMI output configuration. Do you want to reboot now for the changes to take effect?", 11);
@@ -369,8 +372,8 @@ void MenuController::updateSoftware()
       fclose(fd);
    }
 
-   hw_execute_bash_command("./ruby_update_worker &", NULL);
-
+   hw_execute_ruby_process(NULL, "ruby_update_worker", NULL, NULL);
+   
    ruby_signal_alive();
 
    Popup* p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);

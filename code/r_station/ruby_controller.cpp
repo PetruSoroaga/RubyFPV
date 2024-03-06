@@ -92,12 +92,9 @@ int main(int argc, char *argv[])
 
    hw_launch_process("./ruby_central");
    
-   hardware_sleep_ms(800);
-   hardware_sleep_ms(800);
-   hardware_sleep_ms(800);
-   hardware_sleep_ms(800);
-   hardware_sleep_ms(800);
-
+   for( int i=0; i<5; i++ )
+      hardware_sleep_ms(800);
+   
    int sleepIntervalMs = 200;
    u32 maxTimeForProcess = 6000;
    int counter = 0;
@@ -105,6 +102,10 @@ int main(int argc, char *argv[])
    log_line("Enter watchdog state");
    log_line_watchdog("Watchdog state started.");
  
+   char szFilePause[128];
+   strcpy(szFilePause, FOLDER_RUBY_TEMP);
+   strcat(szFilePause, FILE_TEMP_CONTROLLER_PAUSE_WATCHDOG);
+
    while ( ! g_bQuit )
    {
       u32 uTimeStart = get_current_timestamp_ms();
@@ -125,7 +126,7 @@ int main(int argc, char *argv[])
       if ( NULL == s_pProcessStatsCentral )
          try_open_process_stats();
 
-      if ( access( FILE_TMP_CONTROLLER_PAUSE_WATCHDOG, R_OK ) != -1 )
+      if ( access(szFilePause, R_OK) != -1 )
       {
          log_line("Watchdog is paused.");
          u32 dTime = get_current_timestamp_ms() - uTimeStart;
@@ -158,15 +159,16 @@ int main(int argc, char *argv[])
          shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_CENTRAL, s_pProcessStatsCentral);   
          s_pProcessStatsCentral = NULL;
 
-         char szComm[256];
-         sprintf(szComm, "touch %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
+         char szComm[128];
+         sprintf(szComm, "touch %s%s", FOLDER_CONFIG, FILE_TEMP_CONTROLLER_CENTRAL_CRASHED);
          hw_execute_bash_command(szComm, NULL);
    
          hardware_sleep_ms(200);
 
          hw_execute_bash_command("./ruby_central -reinit &", NULL);
-         hardware_sleep_ms(900);
-         hardware_sleep_ms(900);
+         for( int i=0; i<3; i++ )
+            hardware_sleep_ms(800);
+   
          while ( hw_process_exists("ruby_central") )
          {
             log_line("Ruby reinit still in progress...");

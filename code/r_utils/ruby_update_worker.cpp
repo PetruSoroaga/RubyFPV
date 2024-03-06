@@ -273,10 +273,16 @@ int main(int argc, char *argv[])
       strcpy(szZipFile, szFoundFile);
       log_line("Found zip archive [%s]", szZipFile);
 
-      hw_execute_bash_command("mkdir -p updates", NULL);
-      hw_execute_bash_command("chmod 777 updates", NULL);
-      hw_execute_bash_command("rm -rf updates/*", NULL);
-      sprintf(szComm, "cp -rf %s updates/", szZipFile);
+      sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
+      hw_execute_bash_command(szComm, NULL);
+
+      sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
+      hw_execute_bash_command(szComm, NULL);
+      
+      sprintf(szComm, "rm -rf %s/*", FOLDER_UPDATES);
+      hw_execute_bash_command(szComm, NULL);
+
+      sprintf(szComm, "cp -rf %s %s/", szZipFile, FOLDER_UPDATES);
       hw_execute_bash_command(szComm, NULL);
 
       sprintf(szComm, "mkdir -p %s/tmpUpdate", FOLDER_RUBY_TEMP);
@@ -301,7 +307,7 @@ int main(int argc, char *argv[])
    }
 
    bool bValidZip = false;
-   sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_LAST_UPDATE);
+   sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_SHORT_LAST_UPDATE);
    if( access( szFile, R_OK ) != -1 )
    {
       log_line("Found update info file in zip file: %s", szZipFile);

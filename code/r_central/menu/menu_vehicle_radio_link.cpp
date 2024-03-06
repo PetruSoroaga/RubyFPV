@@ -671,7 +671,7 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
 
    u8 buffer[1024];
@@ -709,7 +709,7 @@ void MenuVehicleRadioLink::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
 
    u8 buffer[1024];

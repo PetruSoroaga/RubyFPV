@@ -57,7 +57,7 @@ bool quickActionCheckVehicle(const char* szText)
 {
    bool bHasVehicle = false;
    if ( pairing_isStarted() && (NULL != g_pCurrentModel) )
-   if ( link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+   if ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
    if ( link_has_received_main_vehicle_ruby_telemetry() )
       bHasVehicle = true;
 
@@ -96,7 +96,7 @@ void executeQuickActionRecord()
 
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
    {
-      warnings_add(g_pCurrentModel->vehicle_id, "Can't record video for OpenIPC vehicles.");
+      warnings_add(g_pCurrentModel->uVehicleId, "Can't record video for OpenIPC vehicles.");
       return;
    }
 
@@ -106,7 +106,7 @@ void executeQuickActionRecord()
    }
    else
    {
-      if ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+      if ( ! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
          Popup* p = new Popup("You must be connected to a vehicle to start video recording.", 0.1,0.8, 0.54, 5);
          p->setIconId(g_idIconError, get_Color_IconError());
@@ -155,7 +155,7 @@ void executeQuickActionCycleOSD()
    Model* pModel = osd_get_current_layout_source_model();
    if ( NULL == pModel )
       return;
-   log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->vehicle_id, pModel->getShortName(), pModel->osd_params.layout);
+   log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->uVehicleId, pModel->getShortName(), pModel->osd_params.layout);
 
    int curentLayout = pModel->osd_params.layout;
    int k=0; 
@@ -193,15 +193,15 @@ void executeQuickActionCycleOSD()
    save_Preferences();
 
    if ( pModel->osd_params.layout == 0 )
-      warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 1");
+      warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 1");
    if ( pModel->osd_params.layout == 1 )
-      warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 2");
+      warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 2");
    if ( pModel->osd_params.layout == 2 )
-      warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen 3");
+      warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 3");
    if ( pModel->osd_params.layout == 3 )
-      warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean");
+      warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen Lean");
    if ( pModel->osd_params.layout == 4 )
-      warnings_add(pModel->vehicle_id, "OSD Screen changed to Screen Lean Extended");
+      warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen Lean Extended");
 
    if ( pModel->is_spectator )
       return;
@@ -210,7 +210,7 @@ void executeQuickActionCycleOSD()
    //memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    handle_commands_abandon_command();
    //handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t));
-   handle_commands_send_single_oneway_command_to_vehicle(pModel->vehicle_id, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.layout, NULL, 0, 0);
+   handle_commands_send_single_oneway_command_to_vehicle(pModel->uVehicleId, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.layout, NULL, 0, 0);
    g_iMustSendCurrentActiveOSDLayoutCounter = 10; // send it 10 times, every 200 ms
    g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
 
@@ -231,7 +231,7 @@ void executeQuickActionRelaySwitch()
    
    s_uTimeLastQuickActionPress = get_current_timestamp_ms();
 
-   if ( ! link_is_vehicle_online_now(g_pCurrentModel->vehicle_id) )
+   if ( ! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
    {
       Popup* p =new Popup("You must be connected to a vehicle to switch relaying!", 0.1,0.8, 0.54, 4);
       p->setIconId(g_idIconError, get_Color_IconError());
@@ -320,13 +320,13 @@ void executeQuickActionRelaySwitch()
 
 void executeQuickActionSwitchFavoriteVehicle()
 {
-   if ( ! vehicle_is_favorite(g_pCurrentModel->vehicle_id) )
+   if ( ! vehicle_is_favorite(g_pCurrentModel->uVehicleId) )
    {
       warnings_add(0, "This vehicle is not a favorite vehicle. Add it to favorites to be able to cycle through favorites.");
       return;
    }
-   u32 uOldVehicleId = g_pCurrentModel->vehicle_id;
-   u32 uVehicleId = get_next_favorite(g_pCurrentModel->vehicle_id);
+   u32 uOldVehicleId = g_pCurrentModel->uVehicleId;
+   u32 uVehicleId = get_next_favorite(g_pCurrentModel->uVehicleId);
    Model* pNewVehicle = findModelWithId(uVehicleId, 51);
    if ( NULL == pNewVehicle )
    {
@@ -334,7 +334,7 @@ void executeQuickActionSwitchFavoriteVehicle()
       return;
    }
 
-   if ( uVehicleId == g_pCurrentModel->vehicle_id )
+   if ( uVehicleId == g_pCurrentModel->uVehicleId )
    {
       warnings_add(0, "You have a single favorite vehicle. Add at least two in order to be able to cycle through favorites.");
       return;
@@ -346,25 +346,25 @@ void executeQuickActionSwitchFavoriteVehicle()
    g_bSwitchingFavoriteVehicle = true;
    Model* pOldVehicle = g_pCurrentModel;
 
-   setCurrentModel(pNewVehicle->vehicle_id);
+   setCurrentModel(pNewVehicle->uVehicleId);
    g_pCurrentModel = getCurrentModel();
 
-   setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+   setControllerCurrentModel(g_pCurrentModel->uVehicleId);
    saveControllerModel(g_pCurrentModel);
 
-   ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+   ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
    
    onMainVehicleChanged(false);
 
    //shared_vars_state_reset_all_vehicles_runtime_info();
-   //g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->vehicle_id;
+   //g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
    //g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
    //g_iCurrentActiveVehicleRuntimeInfoIndex = 0;
    
    int iIndexRuntime = -1;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->vehicle_id )
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->uVehicleId )
       {
          iIndexRuntime = i;
          break;
@@ -385,7 +385,7 @@ void executeQuickActionSwitchFavoriteVehicle()
       iIndexRuntime = MAX_CONCURENT_VEHICLES-1;
 
    reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[iIndexRuntime]));
-   g_VehiclesRuntimeInfo[iIndexRuntime].uVehicleId = g_pCurrentModel->vehicle_id;
+   g_VehiclesRuntimeInfo[iIndexRuntime].uVehicleId = g_pCurrentModel->uVehicleId;
    g_VehiclesRuntimeInfo[iIndexRuntime].pModel = g_pCurrentModel;
 
    t_structure_vehicle_info tmp;

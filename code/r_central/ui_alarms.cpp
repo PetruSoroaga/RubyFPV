@@ -775,7 +775,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
             warnings_add(0, "Paired with a unknown vehicle.", g_idIconController);
          else
          {
-            log_line("Paired with %s, VID: %u", pModel->getLongName(), pModel->vehicle_id);
+            log_line("Paired with %s, VID: %u", pModel->getLongName(), pModel->uVehicleId);
             char szBuff[256];
             sprintf(szBuff, "Paired with %s", pModel->getLongName());
             warnings_add(0, szBuff, g_idIconController);
@@ -783,7 +783,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
             int iIndexRuntime = -1;
             for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
             {
-               if ( g_VehiclesRuntimeInfo[i].uVehicleId == pModel->vehicle_id )
+               if ( g_VehiclesRuntimeInfo[i].uVehicleId == pModel->uVehicleId )
                {
                   iIndexRuntime = i;
                   break;
@@ -818,7 +818,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
                }
             }
             if ( ! bHasCamera )
-               warnings_add(pModel->vehicle_id, "This vehicle has no camera or video streams.", g_idIconCamera, get_Color_IconError());
+               warnings_add(pModel->uVehicleId, "This vehicle has no camera or video streams.", g_idIconCamera, get_Color_IconError());
          }
          return;
       }

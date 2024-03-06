@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef HW_CAPABILITY_GPIO
 static int s_iGPIOButtonsDirectionDetected = 0;
 static int s_iGPIOButtonsPullDirection = 1;
-
+#endif
 
 int GPIOExport(int pin)
 {
@@ -134,7 +135,11 @@ int GPIOWrite(int pin, int value)
 
 int GPIOGetButtonsPullDirection()
 {
+   #ifdef HW_CAPABILITY_GPIO
    return s_iGPIOButtonsPullDirection;
+   #else
+   return 1;
+   #endif
 }
 
 int _GPIOTryPullUpDown(int iPin, int iPullDirection)
@@ -308,7 +313,7 @@ int GPIOButtonsResetDetectionFlag()
    #ifdef HW_CAPABILITY_GPIO
    log_line("[GPIO] Reset buttons direction detection flag.");
    char szComm[256];
-   sprintf(szComm, "rm -rf %s", FILE_CONTROLLER_BUTTONS);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CONTROLLER_BUTTONS);
    hw_execute_bash_command(szComm, NULL);
    s_iGPIOButtonsDirectionDetected = 0;
    s_iGPIOButtonsPullDirection = 1;
@@ -327,30 +332,33 @@ int GPIOInitButtons()
    s_iGPIOButtonsDirectionDetected = 0;
    s_iGPIOButtonsPullDirection = 1;
 
-   if( access( FILE_CONTROLLER_BUTTONS, R_OK ) != -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+   if( access( szFile, R_OK ) != -1 )
    {
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "rb");
+      FILE* fp = fopen(szFile, "rb");
       if ( NULL != fp )
       {
          int iGPIOPin = 0;
          if ( 3 == fscanf(fp, "%d %d %d", &s_iGPIOButtonsDirectionDetected, &s_iGPIOButtonsPullDirection, &iGPIOPin) )
          {
             log_line("[GPIO] Read buttons config file [%s]. Direction detected: %s, direction: %s, initial GPIO pin that was detected: %d",
-                   FILE_CONTROLLER_BUTTONS,
+                   szFile,
                    (s_iGPIOButtonsDirectionDetected==1)?"yes":"not yet",
                    (s_iGPIOButtonsPullDirection==0)?"pulled down":"pulled up",
                    iGPIOPin);
          }
          else
          {
-            log_softerror_and_alarm("[GPIO] Failed to read from buttons config file [%s]", FILE_CONTROLLER_BUTTONS);
+            log_softerror_and_alarm("[GPIO] Failed to read from buttons config file [%s]", szFile);
             s_iGPIOButtonsDirectionDetected = 0;
             s_iGPIOButtonsPullDirection = 1;
          }
          fclose(fp);
       }
       else
-         log_softerror_and_alarm("[GPIO] Failed to access existing buttons config file [%s]", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("[GPIO] Failed to access existing buttons config file [%s]", szFile);
    }
    else
       log_line("[GPIO] There is no buttons configuration file to read initial state from.");
@@ -564,7 +572,10 @@ int GPIOButtonsTryDetectPullUpDown()
       s_iGPIOButtonsDirectionDetected = 1;
       s_iGPIOButtonsPullDirection = 0;
 
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "wb");
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+      FILE* fp = fopen(szFile, "wb");
       if ( NULL != fp )
       {
          fprintf(fp, "%d %d %d\n", s_iGPIOButtonsDirectionDetected, s_iGPIOButtonsPullDirection, pin);
@@ -635,7 +646,10 @@ int GPIOButtonsTryDetectPullUpDown()
       s_iGPIOButtonsDirectionDetected = 1;
       s_iGPIOButtonsPullDirection = 1;
 
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "wb");
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+      FILE* fp = fopen(szFile, "wb");
       if ( NULL != fp )
       {
          fprintf(fp, "%d %d %d\n", s_iGPIOButtonsDirectionDetected, s_iGPIOButtonsPullDirection, pin);

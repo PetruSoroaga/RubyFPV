@@ -28,6 +28,7 @@ extern vehicle_and_telemetry_info_t g_VehicleTelemetryInfo;
 
 extern u32 g_uControllerId;
 extern int g_iBootCount;
+extern bool g_bDebugState;
 
 extern RenderEngine* g_pRenderEngine;
 extern RenderEngineUI* g_pRenderEngineOSDPlugins;

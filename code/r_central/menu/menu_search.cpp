@@ -69,7 +69,7 @@ MenuSearch::MenuSearch(void)
    m_pModelOriginal = g_pCurrentModel;
 
    if ( NULL != g_pCurrentModel )
-      log_line("Search open: has a current model: VID %u, name: [%s]", g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName());
+      log_line("Search open: has a current model: VID %u, name: [%s]", g_pCurrentModel->uVehicleId, g_pCurrentModel->getLongName());
    else
       log_line("Search open: does not have a current model.");
 
@@ -492,7 +492,10 @@ void MenuSearch::setSpectatorOnly()
 void MenuSearch::onShow()
 {
    render_search_step = -1;
-   m_SearchBandIndex = load_simple_config_fileI(FILE_CURRENT_SEARCH_BAND, 100);
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_SEARCH_BAND);
+   m_SearchBandIndex = load_simple_config_fileI(szFile, 100);
 
    if ( (100 == m_SearchBandIndex) || (m_SearchBandIndex<0) || (m_SearchBandIndex >=m_iCountSupportedBands) )
    {
@@ -523,7 +526,10 @@ void MenuSearch::onShow()
    }
    if ( m_SearchBandIndex >= m_iCountSupportedBands )
       m_SearchBandIndex = m_iCountSupportedBands-1;
-   save_simple_config_fileI(FILE_CURRENT_SEARCH_BAND, m_SearchBandIndex);
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_SEARCH_BAND);
+   save_simple_config_fileI(szFile, m_SearchBandIndex);
    m_pItemSelectBand->setSelection(m_SearchBandIndex);
 
    m_bIsSearchingAuto = false;
@@ -996,7 +1002,7 @@ void MenuSearch::onSearchStep()
       }
 
       bool bVehicleIsOnCurrentFreq = false;
-      if ( (g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo) && (g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id != 0) )
+      if ( (g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo) && (g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId != 0) )
       {
          char szTmpBuff[256];
          szTmpBuff[0] = 0;
@@ -1006,7 +1012,7 @@ void MenuSearch::onSearchStep()
             sprintf(szTmp2, "%s ", str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequenciesKhz[i]) );
             strcat(szTmpBuff, szTmp2);
          }
-         log_line("MenuSearch: There is a vehicle found on current frequency. Vehicle id: %u, has %d radio links: %s.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count, szTmpBuff);
+         log_line("MenuSearch: There is a vehicle found on current frequency. Vehicle id: %u, has %d radio links: %s.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count, szTmpBuff);
          for( int i=0; i<g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count; i++ )
          {
             if ( g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequenciesKhz[i] == m_CurrentSearchFrequencyKhz )
@@ -1032,7 +1038,7 @@ void MenuSearch::onSearchStep()
          strcpy(szFreq3, str_format_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uRadioFrequenciesKhz[2]) );
 
          log_line("MenuSearch::onSearchStep() Found a vehicle while searching on %s: vehicle ID: %u, version: %d.%d, radio links (%d): %s, %s, %s",
-             str_format_frequency(m_CurrentSearchFrequencyKhz), g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, vMaj, vMin,
+             str_format_frequency(m_CurrentSearchFrequencyKhz), g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, vMaj, vMin,
              g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.radio_links_count,
              szFreq1, szFreq2, szFreq3 );
          m_bIsSearchPaused = true;
@@ -1052,7 +1058,7 @@ void MenuSearch::onSearchStep()
          add_menu_to_stack(pMenu);
          log_line("Added connect menu to stack");
       }
-      else if ( g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id != 0 )
+      else if ( g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId != 0 )
       {
          char szFreq1[64];
          char szFreq2[64];
@@ -1080,12 +1086,12 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
       return;
 
    if ( NULL != m_pModelOriginal )
-      log_line("Search: had an initial model when opened search menu: VID %u, name: [%s]", m_pModelOriginal->vehicle_id, m_pModelOriginal->getLongName());
+      log_line("Search: had an initial model when opened search menu: VID %u, name: [%s]", m_pModelOriginal->uVehicleId, m_pModelOriginal->getLongName());
    else
       log_line("Search: did not had an initial model when opened search menu.");
 
    if ( NULL != g_pCurrentModel )
-      log_line("Search: has a current model: VID %u, name: [%s]", g_pCurrentModel->vehicle_id, g_pCurrentModel->getLongName());
+      log_line("Search: has a current model: VID %u, name: [%s]", g_pCurrentModel->uVehicleId, g_pCurrentModel->getLongName());
    else
       log_line("Search: does not have a current model.");
 
@@ -1104,8 +1110,8 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( NULL != m_pModelOriginal )
    {
       log_line("Save current original model, vehicle id: %u. Received vehicle id while searching: %u",
-         m_pModelOriginal->vehicle_id,
-         g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id );
+         m_pModelOriginal->uVehicleId,
+         g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId );
 
       saveControllerModel(m_pModelOriginal);
    }
@@ -1122,16 +1128,16 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    else
       log_line("First pairing was already completed.");
 
-   if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id) )
+   if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId) )
       bIsNew = true;
 
-   if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 14) )
+   if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 14) )
       bIsNew = true;
      
    if ( bIsNew )
-      log_line("Search: Found vehicle id %u is new (not on controller).", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      log_line("Search: Found vehicle id %u is new (not on controller).", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
    else
-      log_line("Search: Found vehicle id %u already exists on controller.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      log_line("Search: Found vehicle id %u already exists on controller.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
    
    // Connect as Spectator
 
@@ -1139,26 +1145,26 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    {
       log_line("Pressed add as spectator. Current total spectator vehicles: %d.", getControllerModelsSpectatorCount());
       
-      Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
       pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = true;
 
-      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
+      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, m_CurrentSearchFrequencyKhz);
 
       stopSearch();
       ruby_set_is_first_pairing_done();
       g_bFirstModelPairingDone = true;
-      setCurrentModel(pModel->vehicle_id);
+      setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
-      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 
-      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+      ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
 
       if ( bIsNew )
-         onModelAdded(pModel->vehicle_id);
+         onModelAdded(pModel->uVehicleId);
       onMainVehicleChanged(true);
-      log_line("Added vehicle id: %u as spectator.", pModel->vehicle_id);
+      log_line("Added vehicle id: %u as spectator.", pModel->uVehicleId);
       pairing_start_normal();
       m_bDidConnectToAVehicle = true;
       m_bMustSwitchBack = false;
@@ -1177,37 +1183,37 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
       if ( bIsNew )
       {
          log_line("Search: Adding a new vehicle model as controller");
-         log_line("Creating a vehicle model for vehicle uid: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+         log_line("Creating a vehicle model for vehicle uid: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
          pModel = addNewModel();
       }
       else
       {
-         pModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 15);
-         log_line("Search: Found existing controller vehicle model for vehicle id %u.", pModel->vehicle_id);
+         pModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 15);
+         log_line("Search: Found existing controller vehicle model for vehicle id %u.", pModel->uVehicleId);
       }
       pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = false;
 
-      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, m_CurrentSearchFrequencyKhz);
+      set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, m_CurrentSearchFrequencyKhz);
 
       stopSearch();
-      log_line("MenuSearch: Save model VID %u, mode: %s", pModel->vehicle_id, (pModel->is_spectator)?"spectator":"control");
+      log_line("MenuSearch: Save model VID %u, mode: %s", pModel->uVehicleId, (pModel->is_spectator)?"spectator":"control");
       ruby_set_is_first_pairing_done();
       g_bFirstModelPairingDone = true;
-      setCurrentModel(pModel->vehicle_id);
+      setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
-      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 
-      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+      ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
      
       if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
          g_pCurrentModel->b_mustSyncFromVehicle = true;
-      log_line("MenuSearch: Changed current main vehicle to vehicle id %u", g_pCurrentModel->vehicle_id);
+      log_line("MenuSearch: Changed current main vehicle to vehicle id %u", g_pCurrentModel->uVehicleId);
       if ( bIsNew )
-         onModelAdded(pModel->vehicle_id);
+         onModelAdded(pModel->uVehicleId);
       onMainVehicleChanged(true);
-      log_line("Added VID %u as a controller model", pModel->vehicle_id);
+      log_line("Added VID %u as a controller model", pModel->uVehicleId);
       pairing_start_normal();
       m_bDidConnectToAVehicle = true;
       m_bMustSwitchBack = false;
@@ -1265,12 +1271,12 @@ int MenuSearch::onBack()
 
       if ( ! g_bFirstModelPairingDone )
       {
-         log_line("MenuSearch:onBack() Switched back to previous active current model with no first pairing done, vehicle id: %u", g_pCurrentModel->vehicle_id);
+         log_line("MenuSearch:onBack() Switched back to previous active current model with no first pairing done, vehicle id: %u", g_pCurrentModel->uVehicleId);
          pairing_start_normal();
       }
       else if ( (NULL != g_pCurrentModel) && ((0 != getControllerModelsCount()) || (0 != getControllerModelsSpectatorCount()) ) )
       {
-         log_line("MenuSearch:onBack() Switched back to previous active current model, vehicle id: %u", g_pCurrentModel->vehicle_id);
+         log_line("MenuSearch:onBack() Switched back to previous active current model, vehicle id: %u", g_pCurrentModel->uVehicleId);
          pairing_start_normal();
       }
       else
@@ -1304,7 +1310,10 @@ void MenuSearch::onSelectItem()
    if ( m_IndexBand == m_SelectedIndex )
    {
       m_SearchBandIndex = m_pItemSelectBand->getSelectedIndex();
-      save_simple_config_fileI(FILE_CURRENT_SEARCH_BAND, m_SearchBandIndex);
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_SEARCH_BAND);
+      save_simple_config_fileI(szFile, m_SearchBandIndex);
       return;
    }
 

@@ -102,9 +102,9 @@ void _forward_on_usb_device_detected()
    }
 
    
-   sprintf(szBuff, "touch %s", TEMP_USB_TETHERING_DEVICE);
+   sprintf(szBuff, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_USB_TETHERING_DEVICE);
    hw_execute_bash_command(szBuff, NULL);
-   sprintf(szBuff, "echo \"%s\" > %s", szIP, TEMP_USB_TETHERING_DEVICE);
+   sprintf(szBuff, "echo \"%s\" > %s%s", szIP, FOLDER_RUBY_TEMP, FILE_TEMP_USB_TETHERING_DEVICE);
    hw_execute_bash_command(szBuff, NULL);
    log_line("Done configuring USB tethering device connection.");
    ruby_resume_watchdog();
@@ -196,7 +196,7 @@ void forward_streams_loop()
             log_line("USB tethering device unplugged.");
             _forward_on_usb_device_unplugged();
             char szBuff[256];
-            sprintf(szBuff, "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
+            sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_USB_TETHERING_DEVICE);
             hw_execute_bash_command(szBuff, NULL);
             s_bForwardHasUSBDevice = false;
          }

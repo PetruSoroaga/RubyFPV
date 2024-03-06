@@ -80,6 +80,12 @@ void MenuVehicleRadioConfig::populate()
    else
       m_bControllerHasKey = false;
 
+   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
+   m_pItemsSelect[4]->addSelection("No");
+   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4]->setIsEditable();
+   m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
+
    m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
    m_pItemsSelect[3]->addSelection("No");
    m_pItemsSelect[3]->addSelection("Yes");
@@ -273,6 +279,15 @@ void MenuVehicleRadioConfig::valuesToUI()
    if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
       m_pItemsSelect[3]->setSelectedIndex(1); 
 
+   m_pItemsSelect[4]->setSelectedIndex(0);
+   if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+      m_pItemsSelect[4]->setSelectedIndex(1);
+    
+   if ( m_pItemsSelect[4]->getSelectedIndex() == 1 )
+      m_pItemsSelect[3]->setEnabled(false);
+   else
+      m_pItemsSelect[3]->setEnabled(true);
+
    if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
       m_pItemsSelect[2]->setSelectedIndex(1); 
 
@@ -328,7 +343,7 @@ void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u3
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
 
    u8 buffer[1024];
@@ -358,6 +373,18 @@ void MenuVehicleRadioConfig::onSelectItem()
 
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
+
+   if ( m_IndexDisableUplink == m_SelectedIndex )
+   {
+      u32 uFlags = g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags;
+      if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
+         uFlags &= ~(MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY);
+      if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
+         uFlags |= MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY;
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINKS_FLAGS, uFlags, NULL, 0) )
+         valuesToUI();
+
+   }
 
    if ( m_IndexPrioritizeUplink == m_SelectedIndex )
    {
@@ -396,7 +423,10 @@ void MenuVehicleRadioConfig::onSelectItem()
 
       if ( 0 != m_pItemsSelect[2]->getSelectedIndex() )
       {
-         FILE* fd = fopen(FILE_ENCRYPTION_PASS, "r");
+         char szFile[128];
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_ENCRYPTION_PASS);
+         FILE* fd = fopen(szFile, "r");
          if ( NULL == fd )
             return;
          len = fread(&params[2], 1, 124, fd);

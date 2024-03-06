@@ -75,6 +75,15 @@ void _hardware_enumerate_serial_ports()
    s_iCountHardwareSerialPorts = 1;
    #endif
    
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   strcpy(s_HardwareSerialPortsInfo[0].szName, "Serial-0");
+   strcpy(s_HardwareSerialPortsInfo[0].szPortDeviceName, "/dev/ttyAMA0");
+   s_HardwareSerialPortsInfo[0].iSupported = 1;
+   s_HardwareSerialPortsInfo[0].lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+   s_HardwareSerialPortsInfo[0].iPortUsage = SERIAL_PORT_USAGE_NONE;
+   s_iCountHardwareSerialPorts = 1;
+   #endif
+
    for( int i=0; i<MAX_SERIAL_PORTS-4; i++ )
    {
       char szBuff[128];
@@ -173,7 +182,10 @@ int hardware_reload_serial_ports_settings()
 
    int iFailed = 1;
       
-   FILE* fd = fopen(FILE_CONFIG_HW_SERIAL_PORTS, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_HW_SERIAL_PORTS);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       iFailed = 0;
@@ -208,10 +220,10 @@ int hardware_reload_serial_ports_settings()
    }
 
    if ( iFailed )
-      log_softerror_and_alarm("[HardwareSerial] Failed to load existing serial ports configuration from file [%s]. 0 serial ports loaded.", FILE_CONFIG_HW_SERIAL_PORTS);
+      log_softerror_and_alarm("[HardwareSerial] Failed to load existing serial ports configuration from file [%s]. 0 serial ports loaded.", szFile);
    else
    {
-      log_line("[HardwareSerial] Loaded existing serial ports configuration from file [%s]. Loaded %d serial ports: ", FILE_CONFIG_HW_SERIAL_PORTS, s_iCountLoadedSerialPorts);
+      log_line("[HardwareSerial] Loaded existing serial ports configuration from file [%s]. Loaded %d serial ports: ", szFile, s_iCountLoadedSerialPorts);
    
       for( int i=0; i<s_iCountLoadedSerialPorts; i++ )
          log_line("[HardwareSerial] Serial port %d: [%s] [%s], speed: %ld bps, usage: %d (%s), supported: %d", i+1,
@@ -273,7 +285,10 @@ void hardware_serial_save_configuration()
       }
    }
 
-   FILE* fd = fopen(FILE_CONFIG_HW_SERIAL_PORTS, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_HW_SERIAL_PORTS);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
       log_softerror_and_alarm("[HardwareSerial] Failed to save hardware serial ports configuration.");
@@ -298,7 +313,7 @@ void hardware_serial_save_configuration()
       fprintf(fd, "%d %ld %d\n", s_LoadedSerialPortsInfo[i].iSupported, s_LoadedSerialPortsInfo[i].lPortSpeed, s_LoadedSerialPortsInfo[i].iPortUsage );
    }
    fclose(fd);
-   log_line("[HardwareSerial] Saved serial ports configuration to file [%s]. %d serial ports:", FILE_CONFIG_HW_SERIAL_PORTS, s_iCountLoadedSerialPorts);
+   log_line("[HardwareSerial] Saved serial ports configuration to file [%s]. %d serial ports:", szFile, s_iCountLoadedSerialPorts);
    for( int i=0; i<s_iCountLoadedSerialPorts; i++ )
       log_line("[HardwareSerial] Saved Serial port %d: [%s] [%s], speed: %ld bps, usage: %d (%s), supported: %d", i+1,
          s_LoadedSerialPortsInfo[i].szName,

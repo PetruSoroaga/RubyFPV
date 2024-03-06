@@ -27,8 +27,11 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "../base/base.h"
 #include "../base/hardware.h"
+#ifdef HW_PLATFORM_RASPBERRY
 #include "../base/hw_procs.h"
+#endif
 #include "../base/shared_mem.h"
 #include "../radio/radiolink.h"
 #include "../radio/radiopackets2.h"
@@ -141,6 +144,7 @@ int main(int argc, char *argv[])
    }
    
    log_init("RX_RC");
+   log_arguments(argc, argv);
 
    if ( strcmp(argv[argc-1], "-debug") == 0 )
       g_bDebug = true;
@@ -152,7 +156,10 @@ int main(int argc, char *argv[])
    if ( s_fIPC_FromRouter < 0 )
       return -1;
 
-   if ( ! sModelVehicle.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( ! sModelVehicle.loadFromFile(szFile, true) )
    {
       log_error_and_alarm("Can't load current model vehicle. Exiting.");
       return -1;
@@ -161,8 +168,10 @@ int main(int argc, char *argv[])
    if ( sModelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
 
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_set_priority_current_proc(sModelVehicle.niceRC);   
-
+   #endif
+   
    s_pPHDownstreamInfoRC = shared_mem_rc_downstream_info_open_write();
    if ( NULL == s_pPHDownstreamInfoRC )
       log_softerror_and_alarm("Failed to open RC Download info shared memory for write.");
@@ -205,9 +214,14 @@ int main(int argc, char *argv[])
 
    g_TimeStart = get_current_timestamp_ms();
 
+   int iSleepIntervalMS = 50;
+
    while (!g_bQuit) 
    {
-      hardware_sleep_ms(5);
+      hardware_sleep_ms(iSleepIntervalMS);
+      if ( iSleepIntervalMS < 50 )
+         iSleepIntervalMS += 10;
+
       g_TimeNow = get_current_timestamp_ms();
       u32 tTime0 = g_TimeNow;
 
@@ -267,8 +281,9 @@ int main(int argc, char *argv[])
          g_pProcessStats->lastActiveTime = g_TimeNow;
 
       int maxMsgToRead = 5;
-      while ( (maxMsgToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPC_FromRouter, 9000, s_PipeTmpBufferRCFromRouter, &s_PipeTmpBufferRCFromRouterPos, s_BufferRCFromRouter) )
+      while ( (maxMsgToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPC_FromRouter, s_PipeTmpBufferRCFromRouter, &s_PipeTmpBufferRCFromRouterPos, s_BufferRCFromRouter)) )
       {
+         iSleepIntervalMS = 2;
          maxMsgToRead--;
          t_packet_header* pPH = (t_packet_header*)&s_BufferRCFromRouter[0];
          if ( ! radio_packet_check_crc(s_BufferRCFromRouter, pPH->total_length) )
@@ -278,7 +293,7 @@ int main(int argc, char *argv[])
          if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
          {
             log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
-            sModelVehicle.controller_id = pPH->vehicle_id_src;
+            sModelVehicle.uControllerId = pPH->vehicle_id_src;
             if ( sModelVehicle.relay_params.isRelayEnabledOnRadioLinkId >= 0 )
             if ( sModelVehicle.relay_params.uRelayedVehicleId != 0 )
                sModelVehicle.relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
@@ -292,14 +307,17 @@ int main(int argc, char *argv[])
                  changeType == MODEL_CHANGED_SWAPED_RADIO_INTERFACES )
             {
                log_line("Received request from router to reload model.");
-               sModelVehicle.loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true);
+               char szFile[128];
+               strcpy(szFile, FOLDER_CONFIG);
+               strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+               sModelVehicle.loadFromFile(szFile, true);
                log_line("RC Failsafe timeout: %d ms", sModelVehicle.rc_params.rc_failsafe_timeout_ms);
             }
             else
                log_line("Model change does not affect RX RC. Don't update local model.");
          }
 
-         if ( pPH->vehicle_id_dest != sModelVehicle.vehicle_id )
+         if ( pPH->vehicle_id_dest != sModelVehicle.uVehicleId )
             continue;
 
          if ( NULL != g_pProcessStats )

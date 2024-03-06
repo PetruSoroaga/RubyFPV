@@ -44,6 +44,7 @@
 #include "osd.h"
 #include "osd_stats_dev.h"
 #include "osd_stats_radio.h"
+#include "osd_widgets.h"
 #include "../local_stats.h"
 #include "../launchers_controller.h"
 #include "../link_watch.h"
@@ -96,7 +97,8 @@ static float s_fOSDStatsColumnsWidths[MAX_OSD_COLUMNS];
 
 static float s_fOSDStatsSpacingH = 0.0;
 static float s_fOSDStatsSpacingV = 0.0;
-static float s_fOSDStatsMarginH = 0.0;
+static float s_fOSDStatsMarginHLeft = 0.0;
+static float s_fOSDStatsMarginHRight = 0.0;
 static float s_fOSDStatsMarginVBottom = 0.0;
 static float s_fOSDStatsMarginVTop = 0.0;
 
@@ -422,7 +424,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId == pActiveModel->vehicle_id )
+      if ( pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId == pActiveModel->uVehicleId )
       {
          frecv_video_mbps = pSM_RadioStats->radio_streams[i][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
          break;
@@ -1334,7 +1336,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       int maxPacketsPerSec = 0;
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++)
       {
-         if ( pSM_RadioStats->radio_streams[i][0].uVehicleId == pActiveModel->vehicle_id )
+         if ( pSM_RadioStats->radio_streams[i][0].uVehicleId == pActiveModel->uVehicleId )
          {
             maxPacketsPerSec = pSM_RadioStats->radio_streams[0][STREAM_ID_VIDEO_1].rxPacketsPerSec;
             break;
@@ -4388,7 +4390,7 @@ void _osd_stats_autoarange_left( int iCountArranged, int iCurrentColumn )
          s_fOSDStatsColumnsWidths[i] = g_fOSDStatsForcePanelWidth;
 
    float fColumnCurrentHeight = 0.0;
-   float fCurrentColumnX = s_fOSDStatsMarginH;
+   float fCurrentColumnX = s_fOSDStatsMarginHLeft;
    for( int i=0; i<iCurrentColumn; i++ )
       fCurrentColumnX += (s_fOSDStatsSpacingH + s_fOSDStatsColumnsWidths[i]);
    
@@ -4434,7 +4436,7 @@ void _osd_stats_autoarange_right( int iCountArranged, int iCurrentColumn )
          s_fOSDStatsColumnsWidths[i] = g_fOSDStatsForcePanelWidth;
 
    float fColumnCurrentHeight = 0.0;
-   float fCurrentColumnX = 1.0-s_fOSDStatsMarginH;
+   float fCurrentColumnX = 1.0-s_fOSDStatsMarginHRight;
    for( int i=0; i<iCurrentColumn; i++ )
       fCurrentColumnX -= (s_fOSDStatsSpacingH + s_fOSDStatsColumnsWidths[i]);
    
@@ -4487,7 +4489,7 @@ void _osd_stats_autoarange_top()
       {
          // Move it to sorted position
          _osd_stats_swap_pannels(iCountArranged, i);
-         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          s_iOSDStatsBoundingBoxesY[iCountArranged] = s_fOSDStatsMarginVTop;
          s_iOSDStatsBoundingBoxesColumns[iCountArranged] = iColumn;
          s_fOSDStatsColumnsHeights[iColumn] += s_iOSDStatsBoundingBoxesH[iCountArranged] + s_fOSDStatsSpacingV;
@@ -4501,15 +4503,15 @@ void _osd_stats_autoarange_top()
 
    // Add to remaning empty columns
 
-   if ( fRowCurrentWidth < 1.0 - 2.0*s_fOSDStatsMarginH )
+   if ( fRowCurrentWidth < 1.0 - 2.0*s_fOSDStatsMarginHRight )
    {
       for( int i=iCountArranged; i<s_iCountOSDStatsBoundingBoxes; i++ )
       {
-         if ( fRowCurrentWidth + s_iOSDStatsBoundingBoxesW[iCountArranged] <= 1.0 - 2.0*s_fOSDStatsMarginH )
+         if ( fRowCurrentWidth + s_iOSDStatsBoundingBoxesW[iCountArranged] <= 1.0 - 2.0*s_fOSDStatsMarginHRight )
          {
             // Move it to sorted position
             _osd_stats_swap_pannels(iCountArranged, i);
-            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
             s_iOSDStatsBoundingBoxesY[iCountArranged] = s_fOSDStatsMarginVTop;
             s_iOSDStatsBoundingBoxesColumns[iCountArranged] = iColumn;
             fRowCurrentWidth += s_iOSDStatsBoundingBoxesW[iCountArranged] + s_fOSDStatsSpacingH;
@@ -4533,7 +4535,7 @@ void _osd_stats_autoarange_top()
             continue;
          if ( s_fOSDStatsColumnsHeights[iColumn] + s_iOSDStatsBoundingBoxesH[iCountArranged]  <= 1.0 - 0.7*s_fOSDStatsMarginVBottom )
          {
-            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged];
+            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged];
             for( int i=0; i<iColumn; i++ )
                 s_iOSDStatsBoundingBoxesX[iCountArranged] -= (s_fOSDStatsSpacingH + s_fOSDStatsColumnsWidths[i]);
             
@@ -4557,11 +4559,11 @@ void _osd_stats_autoarange_top()
 
       if ( ! bFittedInColumn )
       {
-         //s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         //s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          //s_iOSDStatsBoundingBoxesY[iCountArranged] = s_fOSDStatsMarginVTop;
          //fRowCurrentWidth += s_iOSDStatsBoundingBoxesW[iCountArranged] + s_fOSDStatsSpacingH; 
 
-         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          s_iOSDStatsBoundingBoxesY[iCountArranged] = s_fOSDStatsColumnsHeights[9];
          s_fOSDStatsColumnsHeights[9] += s_iOSDStatsBoundingBoxesH[iCountArranged] + s_fOSDStatsSpacingV;
       }
@@ -4585,7 +4587,7 @@ void _osd_stats_autoarange_bottom()
       {
          // Move it to sorted position
          _osd_stats_swap_pannels(iCountArranged, i);
-         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          s_iOSDStatsBoundingBoxesY[iCountArranged] = 1.0 - s_fOSDStatsMarginVTop - s_iOSDStatsBoundingBoxesH[iCountArranged];
          s_iOSDStatsBoundingBoxesColumns[iCountArranged] = iColumn;
          s_fOSDStatsColumnsHeights[iColumn] += s_iOSDStatsBoundingBoxesH[iCountArranged] + s_fOSDStatsSpacingV;
@@ -4599,15 +4601,15 @@ void _osd_stats_autoarange_bottom()
 
    // Add to remaning empty columns
 
-   if ( fRowCurrentWidth < 1.0 - 2.0*s_fOSDStatsMarginH )
+   if ( fRowCurrentWidth < 1.0 - 2.0*s_fOSDStatsMarginHRight )
    {
       for( int i=iCountArranged; i<s_iCountOSDStatsBoundingBoxes; i++ )
       {
-         if ( fRowCurrentWidth + s_iOSDStatsBoundingBoxesW[iCountArranged] <= 1.0 - 2.0*s_fOSDStatsMarginH )
+         if ( fRowCurrentWidth + s_iOSDStatsBoundingBoxesW[iCountArranged] <= 1.0 - 2.0*s_fOSDStatsMarginHRight )
          {
             // Move it to sorted position
             _osd_stats_swap_pannels(iCountArranged, i);
-            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
             s_iOSDStatsBoundingBoxesY[iCountArranged] = 1.0 - s_fOSDStatsMarginVTop - s_iOSDStatsBoundingBoxesH[iCountArranged];
             s_iOSDStatsBoundingBoxesColumns[iCountArranged] = iColumn;
             fRowCurrentWidth += s_iOSDStatsBoundingBoxesW[iCountArranged] + s_fOSDStatsSpacingH;
@@ -4630,7 +4632,7 @@ void _osd_stats_autoarange_bottom()
             continue;
          if ( s_fOSDStatsColumnsHeights[iColumn] + s_iOSDStatsBoundingBoxesH[iCountArranged] <= 1.0 - 0.7*s_fOSDStatsMarginVBottom )
          {
-            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged];
+            s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged];
             for( int i=0; i<iColumn; i++ )
                 s_iOSDStatsBoundingBoxesX[iCountArranged] -= (s_fOSDStatsSpacingH + s_fOSDStatsColumnsWidths[i]);
             
@@ -4653,10 +4655,10 @@ void _osd_stats_autoarange_bottom()
 
       if ( ! bFittedInColumn )
       {
-         //s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         //s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          //s_iOSDStatsBoundingBoxesY[iCountArranged] = 1.0 - s_fOSDStatsMarginVTop - s_iOSDStatsBoundingBoxesH[iCountArranged];
          //fRowCurrentWidth += s_iOSDStatsBoundingBoxesW[iCountArranged] + s_fOSDStatsSpacingH; 
-         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginH - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
+         s_iOSDStatsBoundingBoxesX[iCountArranged] = 1.0 - s_fOSDStatsMarginHRight - s_iOSDStatsBoundingBoxesW[iCountArranged] - fRowCurrentWidth;
          s_iOSDStatsBoundingBoxesY[iCountArranged] = 1.0 - s_fOSDStatsColumnsHeights[9] - s_iOSDStatsBoundingBoxesH[iCountArranged];
          s_fOSDStatsColumnsHeights[9] += s_iOSDStatsBoundingBoxesH[iCountArranged] + s_fOSDStatsSpacingV;
       }
@@ -4671,6 +4673,8 @@ void osd_render_stats_panels()
    Model* pModel = osd_get_current_data_source_vehicle_model();
    if ( NULL == pModel )
       return;
+
+   int iOSDLayoutIndex = pModel->osd_params.layout;
 
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
@@ -4694,7 +4698,7 @@ void osd_render_stats_panels()
    s_iCountOSDStatsBoundingBoxes = 0;
 
    g_fOSDStatsBgTransparency = 1.0;
-   switch ( ((pModel->osd_params.osd_preferences[pModel->osd_params.layout])>>20) & 0x0F )
+   switch ( ((pModel->osd_params.osd_preferences[iOSDLayoutIndex])>>20) & 0x0F )
    {
       case 0: g_fOSDStatsBgTransparency = 0.25; break;
       case 1: g_fOSDStatsBgTransparency = 0.5; break;
@@ -4705,24 +4709,54 @@ void osd_render_stats_panels()
    s_fOSDStatsSpacingH = 0.014/g_pRenderEngine->getAspectRatio();
    s_fOSDStatsSpacingV = 0.014;
 
-   s_fOSDStatsMarginH = osd_getMarginX() + 0.01/g_pRenderEngine->getAspectRatio();
+   s_fOSDStatsMarginHLeft = osd_getMarginX() + 0.01/g_pRenderEngine->getAspectRatio();
+   s_fOSDStatsMarginHRight = s_fOSDStatsMarginHLeft;
    s_fOSDStatsMarginVBottom = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.01;
    s_fOSDStatsMarginVTop = s_fOSDStatsMarginVBottom;
 
 
-   if ( (pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_CPU_INFO ) ||
+   if ( (pModel->osd_params.osd_flags[iOSDLayoutIndex] & OSD_FLAG_SHOW_CPU_INFO ) ||
         p->iShowControllerCPUInfo )
       s_fOSDStatsMarginVTop += osd_getFontHeight();
    
-   if ( pModel->osd_params.osd_flags2[pModel->osd_params.layout] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
+   if ( pModel->osd_params.osd_flags3[iOSDLayoutIndex] & OSD_FLAG3_LAYOUT_STATS_AUTO_WIDGETS_MARGINS )
    {
-      s_fOSDStatsMarginH = osd_getVerticalBarWidth() + osd_getMarginX() + 0.02;
+      // Add some room at margins for widgets, if widgets are present on the margins of the screen
+      for( int i=0; i<osd_widgets_get_count(); i++ )
+      {
+         type_osd_widget* pWidget = osd_widgets_get(i);
+         if ( NULL == pWidget )
+            continue;
+         for( int iModel=0; iModel<MAX_MODELS; iModel++ )
+         {
+            type_osd_widget_display_info* pWDI = &(pWidget->display_info[iModel][iOSDLayoutIndex]);
+            if ( (pWDI->uVehicleId == 0) || (pWDI->uVehicleId == MAX_U32) )
+               break;
+            if ( ! pWDI->bShow )
+               continue;
+
+            // Right side widget?
+            if ( pWDI->fXPos + pWDI->fWidth > 0.9 )
+               s_fOSDStatsMarginHRight += pWidget->display_info[iModel][iOSDLayoutIndex].fWidth;
+            // Left side widget?
+            if ( pWDI->fXPos < 0.1 )
+               s_fOSDStatsMarginHLeft += pWidget->display_info[iModel][iOSDLayoutIndex].fWidth;
+         }
+      }
+   }
+
+   if ( pModel->osd_params.osd_flags2[iOSDLayoutIndex] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
+   {
+      s_fOSDStatsMarginHLeft = osd_getVerticalBarWidth() + osd_getMarginX() + 0.02;
+      s_fOSDStatsMarginHRight = s_fOSDStatsMarginHLeft;
       s_fOSDStatsMarginVBottom = osd_getMarginY();
       s_fOSDStatsMarginVTop = s_fOSDStatsMarginVBottom;
    }
 
-   if ( s_fOSDStatsMarginH < 0.01 )
-      s_fOSDStatsMarginH = 0.01;
+   if ( s_fOSDStatsMarginHLeft < 0.01 )
+      s_fOSDStatsMarginHLeft = 0.01;
+   if ( s_fOSDStatsMarginHRight < 0.01 )
+      s_fOSDStatsMarginHRight = 0.01;
    if ( s_fOSDStatsMarginVBottom < 0.01 )
       s_fOSDStatsMarginVBottom = 0.01;
    if ( s_fOSDStatsMarginVTop < 0.01 )

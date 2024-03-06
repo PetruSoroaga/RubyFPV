@@ -110,7 +110,7 @@ void MenuVehicleRelay::onShow()
       Model *pModel = getModelAtIndex(i);
       if ( NULL == pModel )
          continue;
-      if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+      if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
          continue;
 
       u32 uAllBands = 0;
@@ -123,7 +123,7 @@ void MenuVehicleRelay::onShow()
       }
       if ( (uTotalVehicleSupportedBands & uAllBands) == 0 )
          continue;
-      m_uVehiclesID[m_iCountVehiclesIDs] = pModel->vehicle_id;
+      m_uVehiclesID[m_iCountVehiclesIDs] = pModel->uVehicleId;
       m_iCountVehiclesIDs++;
 
       char szName[128];

@@ -46,6 +46,7 @@
 #include "osd.h"
 #include "osd_stats.h"
 #include "osd_warnings.h"
+#include "osd_widgets.h"
 #include "link_watch.h"
 #include "ui_alarms.h"
 #include "warnings.h"
@@ -60,6 +61,7 @@
 void onModelAdded(u32 uModelId)
 {
    log_line("[Event] Handling event new model added (vehicle UID: %u).", uModelId);
+   osd_widgets_on_new_vehicle_added_to_controller(uModelId);
    log_line("[Event] Handled event new model added (vehicle UID: %u). Done.", uModelId);
 }
 
@@ -153,9 +155,10 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
       if ( NULL == g_pPluginsOSD[i] )
          continue;
       if ( NULL != g_pPluginsOSD[i]->pFunctionOnNewVehicle )
-         (*(g_pPluginsOSD[i]->pFunctionOnNewVehicle))(g_pCurrentModel->vehicle_id);
-   }  
-
+         (*(g_pPluginsOSD[i]->pFunctionOnNewVehicle))(g_pCurrentModel->uVehicleId);
+   }
+   osd_widgets_on_main_vehicle_changed(g_pCurrentModel->uVehicleId);
+   
    warnings_on_changed_vehicle();
    log_line("[Event] Handled event Main Vehicle Changed. Done.");
 }
@@ -214,7 +217,7 @@ void onEventBeforePairing()
    // First vehicle is always the main vehicle, the next ones are relayed vehicles
    if ( NULL != g_pCurrentModel )
    {
-      g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->vehicle_id;
+      g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
       g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
       g_iCurrentActiveVehicleRuntimeInfoIndex = 0;
 
@@ -423,11 +426,11 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       return false;
    }
 
-   log_line("[Event] Found model (VID %u) in the runtimelist at position %d", pModel->vehicle_id, iRuntimeIndex);
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+   log_line("[Event] Found model (VID %u) in the runtimelist at position %d", pModel->uVehicleId, iRuntimeIndex);
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       log_line("[Event] Found model is current model.");
    else
-      log_line("[Event] Found model is not current model (current model VID: %u)", (NULL != g_pCurrentModel)?(g_pCurrentModel->vehicle_id): 0);
+      log_line("[Event] Found model is not current model (current model VID: %u)", (NULL != g_pCurrentModel)?(g_pCurrentModel->uVehicleId): 0);
 
    bool bOldAudioEnabled = false;
    osd_parameters_t osd_temp;
@@ -489,8 +492,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
          modelTemp.radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
    }
 
-   log_line("Current (before update) local model (VID: %u) is in controll mode: %s", pModel->vehicle_id, pModel->is_spectator?"no":"yes");
-   log_line("Currently received temp model (VID: %u) is in controll mode: %s", modelTemp.vehicle_id, modelTemp.is_spectator?"no":"yes");
+   log_line("Current (before update) local model (VID: %u) is in controll mode: %s", pModel->uVehicleId, pModel->is_spectator?"no":"yes");
+   log_line("Currently received temp model (VID: %u) is in controll mode: %s", modelTemp.uVehicleId, modelTemp.is_spectator?"no":"yes");
    //if ( modelTemp.is_spectator )
    //    log_softerror_and_alarm("Received model is set as spectator mode.");
 
@@ -502,7 +505,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    bool bRadioChanged = false;
    bool bCameraChanged = false;
 
-   if ( pModel->vehicle_id == modelTemp.vehicle_id )
+   if ( pModel->uVehicleId == modelTemp.uVehicleId )
    {
       if ( modelTemp.iCurrentCamera != pModel->iCurrentCamera )
          bCameraChanged = true;
@@ -552,20 +555,20 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
 
-   if ( pModel->vehicle_id != modelTemp.vehicle_id )
+   if ( pModel->uVehicleId != modelTemp.uVehicleId )
    {
-      Model* pTempModel = findModelWithId(modelTemp.vehicle_id, 4);
+      Model* pTempModel = findModelWithId(modelTemp.uVehicleId, 4);
       if ( NULL == pTempModel )
       {
-         log_softerror_and_alarm("[Event] Received model settings for unknown vehicle id %u (none in the list).", modelTemp.vehicle_id);
+         log_softerror_and_alarm("[Event] Received model settings for unknown vehicle id %u (none in the list).", modelTemp.uVehicleId);
          return false;
       }
       saveControllerModel(&modelTemp);
-      warnings_add(modelTemp.vehicle_id, "Received vehicle settings.", g_idIconCheckOK);
+      warnings_add(modelTemp.uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
       return true;
    }
 
-   log_line("Camera did change on the vehicle %u ? %s", modelTemp.vehicle_id, (bCameraChanged?"Yes":"No"));
+   log_line("Camera did change on the vehicle %u ? %s", modelTemp.uVehicleId, (bCameraChanged?"Yes":"No"));
    
    bool is_spectator = pModel->is_spectator;
 
@@ -578,9 +581,9 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       saveControllerModel(&modelTemp);
 
    if ( bUnsolicited )
-      warnings_add(pModel->vehicle_id, "Received vehicle settings.", g_idIconCheckOK);
+      warnings_add(pModel->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
    else
-      warnings_add(pModel->vehicle_id, "Got vehicle settings.", g_idIconCheckOK);
+      warnings_add(pModel->uVehicleId, "Got vehicle settings.", g_idIconCheckOK);
 
    log_line("The vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pModel->sw_version)>>8) & 0xFF, (pModel->sw_version) & 0xFF, ((pModel->sw_version)>>16), pModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
    
@@ -598,7 +601,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       getSystemVersionString(szBuff2, pModel->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
       sprintf(szBuff, "Vehicle has Ruby version %s (b%d) and your controller %s (b%d). You should update your vehicle.", szBuff2, pModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
-      warnings_add(pModel->vehicle_id, szBuff, 0, NULL, 12);
+      warnings_add(pModel->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
@@ -621,12 +624,12 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( pModel->is_spectator )
       memcpy((u8*)&(pModel->osd_params), (u8*)&osd_temp, sizeof(osd_parameters_t));
 
-   log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->vehicle_id, g_pCurrentModel->bDeveloperMode?"yes":"no");
-   log_line("Current model (VID %u) is spectator: %s", g_pCurrentModel->vehicle_id, g_pCurrentModel->is_spectator?"yes":"no");
-   log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->vehicle_id, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
-   log_line("Received model (VID %u) is in developer mode: %s", pModel->vehicle_id, pModel->bDeveloperMode?"yes":"no");
-   log_line("Received model (VID %u) is spectator: %s", pModel->vehicle_id, pModel->is_spectator?"yes":"no");
-   log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", pModel->vehicle_id, pModel->m_Stats.uCurrentOnTime/60, pModel->m_Stats.uCurrentOnTime%60, pModel->m_Stats.uCurrentFlightTime/60, pModel->m_Stats.uCurrentFlightTime%60, pModel->m_Stats.uTotalFlights);
+   log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->bDeveloperMode?"yes":"no");
+   log_line("Current model (VID %u) is spectator: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"yes":"no");
+   log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->uVehicleId, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
+   log_line("Received model (VID %u) is in developer mode: %s", pModel->uVehicleId, pModel->bDeveloperMode?"yes":"no");
+   log_line("Received model (VID %u) is spectator: %s", pModel->uVehicleId, pModel->is_spectator?"yes":"no");
+   log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", pModel->uVehicleId, pModel->m_Stats.uCurrentOnTime/60, pModel->m_Stats.uCurrentOnTime%60, pModel->m_Stats.uCurrentFlightTime/60, pModel->m_Stats.uCurrentFlightTime%60, pModel->m_Stats.uTotalFlights);
    saveControllerModel(pModel);
    log_line("[Event] Updated current local vehicle with received settings.");
 
@@ -634,7 +637,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    // Check supported cards
 
-   if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
    {
       int countUnsuported = 0;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
@@ -656,18 +659,18 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
    if ( pModel->alarms & ALARM_ID_UNSUPORTED_USB_SERIAL )
-      warnings_add(pModel->vehicle_id, "Your vehicle has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", g_idIconError);
+      warnings_add(pModel->uVehicleId, "Your vehicle has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", g_idIconError);
 
    if ( pModel->audio_params.enabled )
    {
       if ( ! pModel->audio_params.has_audio_device )
-         warnings_add(pModel->vehicle_id, "Your vehicle has audio enabled but no audio capture device", g_idIconError);
-      else if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+         warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but no audio capture device", g_idIconError);
+      else if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
       {
          char szOutput[4096];
          hw_execute_bash_command_raw("aplay -l 2>&1", szOutput );
          if ( NULL != strstr(szOutput, "no soundcards") )
-            warnings_add(pModel->vehicle_id, "Your vehicle has audio enabled but your controller can't output audio.", g_idIconError);
+            warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but your controller can't output audio.", g_idIconError);
       }
    }
 
@@ -688,12 +691,12 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
             snprintf(szBuff, 255, "Your camera %d is autodetected as %s but you forced to work as %s", i+1, szBuff1, szBuff2);
          else
             snprintf(szBuff, 255, "Your camera is autodetected as %s but you forced to work as %s", szBuff1, szBuff2);
-         warnings_add(pModel->vehicle_id, szBuff, g_idIconCamera, get_Color_IconWarning() );
+         warnings_add(pModel->uVehicleId, szBuff, g_idIconCamera, get_Color_IconWarning() );
       }
    }
    
 
-   if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
    if ( g_bIsFirstConnectionToCurrentVehicle )
    {
       osd_add_stats_total_flights();
@@ -701,13 +704,13 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
    bool bMustPair = false;
-   if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
    if ( pModel->audio_params.enabled != bOldAudioEnabled )
    {
       log_line("Audio enable flag changed. Must repair.");
       bMustPair = true;
    }
-   if ( pModel->vehicle_id == g_pCurrentModel->vehicle_id )
+   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
    if ( bRadioChanged )
       bMustPair = true;
 
@@ -736,7 +739,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 void onEventRelayModeChanged()
 {
    log_line("[Event] Handling event OnRelayModeChanged...");
-   log_line("[Event] New relay mode: %d (%s), main VID: %u, relayed VID: %u", g_pCurrentModel->relay_params.uCurrentRelayMode, str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode), g_pCurrentModel->vehicle_id, g_pCurrentModel->relay_params.uRelayedVehicleId);
+   log_line("[Event] New relay mode: %d (%s), main VID: %u, relayed VID: %u", g_pCurrentModel->relay_params.uCurrentRelayMode, str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode), g_pCurrentModel->uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId);
    log_line("[Event] Handled of event OnRelayModeChanged complete.");
 
    Model* pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 5);
@@ -760,7 +763,7 @@ void onEventRelayModeChanged()
                g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height,      
                pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width,
                pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].height );
-            warnings_add(g_pCurrentModel->vehicle_id, szBuff, g_idIconCamera);
+            warnings_add(g_pCurrentModel->uVehicleId, szBuff, g_idIconCamera);
          }
       }
    }

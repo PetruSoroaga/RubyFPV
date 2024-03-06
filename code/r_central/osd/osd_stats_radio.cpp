@@ -1222,13 +1222,13 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
          u32 uRTDelay = MAX_U32;
          for( int k=0; k<MAX_CONCURENT_VEHICLES; k++ )
          {
-            if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] != g_pCurrentModel->vehicle_id )
+            if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] != g_pCurrentModel->uVehicleId )
                continue;
             uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
             break;
          }
          sprintf(szBuff, "Link-%d RT delay:", iVehicleRadioLink+1);
-         if ( uRTDelay == MAX_U32 )
+         if ( (uRTDelay == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
             strcpy(szBuff2, "N/A");
          else
             sprintf(szBuff2, "%u ms", uRTDelay/1000);
@@ -1273,14 +1273,14 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;
 
-      if ( pRadioStats->uAverageCommandRoundtripMiliseconds == MAX_U32 )
+      if ( (pRadioStats->uAverageCommandRoundtripMiliseconds == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
          strcpy(szBuff, "N/A");
       else
          sprintf(szBuff, "%d", pRadioStats->uAverageCommandRoundtripMiliseconds);
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
-      if ( pRadioStats->uMinCommandRoundtripMiliseconds == MAX_U32 )
+      if ( (pRadioStats->uMinCommandRoundtripMiliseconds == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
          strcpy(szBuff, "N/A");
       else
          sprintf(szBuff, "%d", pRadioStats->uMinCommandRoundtripMiliseconds);

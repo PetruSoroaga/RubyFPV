@@ -104,7 +104,10 @@ int main(int argc, char *argv[])
 
    int board_type = 0;
    char szBoardId[256];
-   FILE* fd = fopen("config/board.txt", "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       fscanf(fd, "%d %s", &board_type, szBoardId);

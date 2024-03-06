@@ -102,9 +102,18 @@ int main(int argc, char *argv[])
    int counter = 0;
    int nSleepMs = 100;
    int nLeds = 0;
-   
+
+   char szFile[128];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_UPDATE_IN_PROGRESS);
+
+   char szFileAlarm[128];
+   strcpy(szFileAlarm, FOLDER_RUBY_TEMP);
+   strcat(szFileAlarm, FILE_TEMP_ALARM_ON);
+
    bool bHasAlarm = false;
    bool bHasUpdateInProgress = false;
+   
    while ( ! gbQuit )
    {
       u32 uTimeStart = get_current_timestamp_ms();
@@ -114,12 +123,12 @@ int main(int argc, char *argv[])
 
       if ( (counter % 20) == 0 )
       {
-         if ( access( FILE_TMP_ALARM_ON, R_OK ) != -1 )
+         if ( access(szFileAlarm, R_OK) != -1 )
             bHasAlarm = true;
          else
             bHasAlarm = false;
 
-         if ( access(FILE_TMP_UPDATE_IN_PROGRESS, R_OK) != -1 )
+         if ( access(szFile, R_OK) != -1 )
             bHasUpdateInProgress = true;
          else
             bHasUpdateInProgress = false;

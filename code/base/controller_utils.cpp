@@ -35,12 +35,17 @@
 #include "controller_utils.h"
 #include "ctrl_interfaces.h"
 
+#ifdef HW_PLATFORM_RASPBERRY
+
 u32 controller_utils_getControllerId()
 {
    bool bControllerIdOk = false;
    u32 uControllerId = 0;
 
-   FILE* fd = fopen(FILE_CONTROLLER_ID, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%u", &uControllerId) )
@@ -74,7 +79,7 @@ u32 controller_utils_getControllerId()
 
    log_line("Generated a new unique controller ID: %u", uControllerId);
 
-   fd = fopen(FILE_CONTROLLER_ID, "w");
+   fd = fopen(szFile, "w");
    if ( NULL != fd )
    {
       fprintf(fd, "%u\n", uControllerId);
@@ -341,3 +346,12 @@ int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pMo
 
    return iErrorCode;
 }
+
+#else
+u32 controller_utils_getControllerId() { return 0; }
+int controller_utils_export_all_to_usb() { return 0; }
+int controller_utils_import_all_from_usb(bool bImportAnyFound) { return 0; }
+bool controller_utils_usb_import_has_matching_controller_id_file() { return false; }
+bool controller_utils_usb_import_has_any_controller_id_file() { return false; }
+int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId) { return 0; }
+#endif

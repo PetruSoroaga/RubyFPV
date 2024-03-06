@@ -969,6 +969,9 @@ int main(int argc, char *argv[])
 
    load_settings();
 
+   char szFile[128];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_I2C_UPDATED);
 
    g_TimeLastReloadCheck = g_TimeNow = get_current_timestamp_ms();
 
@@ -983,13 +986,13 @@ int main(int argc, char *argv[])
       if (  g_TimeNow >= g_TimeLastReloadCheck+300 )
       {
          g_TimeLastReloadCheck = g_TimeNow;
-         if ( access( FILE_TMP_I2C_UPDATED, R_OK ) != -1 )
+         if ( access(szFile, R_OK) != -1 )
          {
          	  log_line("I2C devices settings changed. Reloading settings and setting up devices.");
             close_files();
             load_settings();
             char szBuff[128];
-            sprintf(szBuff, "rm -rf %s 2>/dev/null", FILE_TMP_I2C_UPDATED);
+            sprintf(szBuff, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_I2C_UPDATED);
             hw_execute_bash_command_silent(szBuff, NULL);
          }
       }

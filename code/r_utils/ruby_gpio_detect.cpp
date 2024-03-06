@@ -78,10 +78,13 @@ int main(int argc, char *argv[])
       log_enable_stdout();
    
    #ifdef HW_CAPABILITY_GPIO
-   if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) != -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+   if ( access(szFile, R_OK) != -1 )
    {
       log_line("GPIO configuration is already detected (config buttons file exists).");
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "rb");
+      FILE* fp = fopen(szFile, "rb");
       if ( NULL != fp )
       {
          int iDetected = 0;
@@ -94,14 +97,14 @@ int main(int argc, char *argv[])
             fclose(fp);
             return 0;
          }
-         log_softerror_and_alarm("Failed to read buttons config file [%s]", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("Failed to read buttons config file [%s]", szFile);
          fclose(fp);
       }
       else
-         log_softerror_and_alarm("Failed to open [%s] buttons config file.", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("Failed to open [%s] buttons config file.", szFile);
    }
    else
-      log_line("Buttons config file [%s] does not exists.", FILE_CONTROLLER_BUTTONS);
+      log_line("Buttons config file [%s] does not exists.", szFile);
 
 
    log_line("Start to detect GPIO configuration...");
@@ -122,7 +125,7 @@ int main(int argc, char *argv[])
       }
 
       log_line("Finished doing GPIO detection (quit: %s).", g_bQuit?"yes":"no");
-      FILE* fp = fopen(FILE_CONTROLLER_BUTTONS, "rb");
+      FILE* fp = fopen(szFile, "rb");
       if ( NULL != fp )
       {
          int iDetected = 0;
@@ -137,11 +140,11 @@ int main(int argc, char *argv[])
             fclose(fp);
             break;
          }
-         log_softerror_and_alarm("Failed to read values from buttons config file [%s]", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("Failed to read values from buttons config file [%s]", szFile);
          fclose(fp);
       }
       else
-         log_softerror_and_alarm("Failed to open [%s] buttons config file. Retry detection.", FILE_CONTROLLER_BUTTONS);
+         log_softerror_and_alarm("Failed to open [%s] buttons config file. Retry detection.", szFile);
    }
    #endif
    log_line("GPIO detection process finished.");

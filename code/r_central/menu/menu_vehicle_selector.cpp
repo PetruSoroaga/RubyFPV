@@ -71,14 +71,14 @@ void MenuVehicleSelector::onShow()
    strcpy(szBuff, "Actions");
    setTitle(szBuff);
    m_IndexSelect = addMenuItem(new MenuItem("Select","Make this vehicle the active one."));
-   if ( vehicle_is_favorite(pModel->vehicle_id) )
+   if ( vehicle_is_favorite(pModel->uVehicleId) )
       m_IndexFavorite = addMenuItem(new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles."));
    else
       m_IndexFavorite = addMenuItem(new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action."));
    m_IndexDelete = addMenuItem(new MenuItem("Delete","Deletes this vehicle."));
   
    Menu::onShow();
-   log_line("[Menu] Showed vehicle selector for vehicle index: %d, VID: %u, spectator mode? %s", m_IndexSelectedVehicle, pModel->vehicle_id, m_bSpectatorMode?"yes":"no");
+   log_line("[Menu] Showed vehicle selector for vehicle index: %d, VID: %u, spectator mode? %s", m_IndexSelectedVehicle, pModel->uVehicleId, m_bSpectatorMode?"yes":"no");
 }
 
 void MenuVehicleSelector::Render()
@@ -112,11 +112,11 @@ void MenuVehicleSelector::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( (1 == returnValue) && (1 == iChildMenuId/1000) )
    {
       log_line("[Menu] VehicleSelector: Pressed command to delete model");
-      log_line("[Menu] VehicleSelector: Deleting model VID %u, ptr: %X", pModel->vehicle_id, pModel);
+      log_line("[Menu] VehicleSelector: Deleting model VID %u, ptr: %X", pModel->uVehicleId, pModel);
       if ( NULL != g_pCurrentModel )
-         log_line("[Menu] VehicleSelector: Current local model: VID: %u, ptr: %X", g_pCurrentModel->vehicle_id, g_pCurrentModel);
+         log_line("[Menu] VehicleSelector: Current local model: VID: %u, ptr: %X", g_pCurrentModel->uVehicleId, g_pCurrentModel);
 
-      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       {
          log_line("[Menu] VehicleSelector: Pressed command to delete model: current model.");
          render_all(get_current_timestamp_ms(), true, false);
@@ -126,7 +126,7 @@ void MenuVehicleSelector::onReturnFromChild(int iChildMenuId, int returnValue)
          g_pCurrentModel = NULL;
       }
 
-      deletePluginModelSettings(pModel->vehicle_id);
+      deletePluginModelSettings(pModel->uVehicleId);
       save_PluginsSettings();
       deleteModel(pModel);
       log_line("[Menu] VehicleSelector: Deleted model 1/2.");
@@ -156,7 +156,7 @@ void MenuVehicleSelector::onSelectItem()
 
    if ( m_IndexDelete == m_SelectedIndex )
    {
-      if ( (NULL != g_pCurrentModel) && (pModel->vehicle_id == g_pCurrentModel->vehicle_id) )
+      if ( (NULL != g_pCurrentModel) && (pModel->uVehicleId == g_pCurrentModel->uVehicleId) )
       if ( (!m_bSpectatorMode) && checkIsArmed() )
          return;
       char szBuff[64];
@@ -168,7 +168,7 @@ void MenuVehicleSelector::onSelectItem()
    if ( m_IndexSelect == m_SelectedIndex )
    {
       if ( NULL != g_pCurrentModel )
-      if ( (g_uActiveControllerModelVID == pModel->vehicle_id) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+      if ( (g_uActiveControllerModelVID == pModel->uVehicleId) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       {
          menu_discard_all();
          return;
@@ -185,10 +185,10 @@ void MenuVehicleSelector::onSelectItem()
 
       hardware_sleep_ms(100);
       g_pCurrentModel = pModel;
-      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 
-      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+      ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
       
       onMainVehicleChanged(true);
       pairing_start_normal(); 
@@ -196,13 +196,13 @@ void MenuVehicleSelector::onSelectItem()
 
    if ( m_IndexFavorite == m_SelectedIndex )
    {
-      if ( vehicle_is_favorite(pModel->vehicle_id) )
-         remove_favorite(pModel->vehicle_id);
+      if ( vehicle_is_favorite(pModel->uVehicleId) )
+         remove_favorite(pModel->uVehicleId);
       else
-         add_favorite(pModel->vehicle_id);
+         add_favorite(pModel->uVehicleId);
 
       MenuItem* pItem = NULL;
-      if ( vehicle_is_favorite(pModel->vehicle_id) )
+      if ( vehicle_is_favorite(pModel->uVehicleId) )
          pItem = new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles.");
       else
         pItem = new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action.");

@@ -160,7 +160,7 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
          if ( (NULL != pRxInfoStats) && (g_TimeNow > pRxInfoStats->timeLastLogWrongRxPacket + 2000) )
          {
             pRxInfoStats->timeLastLogWrongRxPacket = g_TimeNow;
-            log_softerror_and_alarm("[Relaying] Received radio packet on the relay link from a different vehicle than the relayed vehicle (received VID: %u, current main VID: %u, relayed VID: %u)", pPH->vehicle_id_src, g_pCurrentModel->vehicle_id, g_pCurrentModel->relay_params.uRelayedVehicleId );
+            log_softerror_and_alarm("[Relaying] Received radio packet on the relay link from a different vehicle than the relayed vehicle (received VID: %u, current main VID: %u, relayed VID: %u)", pPH->vehicle_id_src, g_pCurrentModel->uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId );
          }
          
          bIsFullComposedPacketOkToForward = false;
@@ -445,7 +445,7 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
    if ( bContainsPairConfirmation )
      log_line("[RelayTX] Relayed back pairing confirmation from relayed vehicle VID %u to controller %u",
         uSourceVehicleId, g_uControllerId);
-   //log_line("[RelayTX] Sent relayed packet to controller, stream %u, %d bytes, relayed VID: %u, current VID: %u", uStreamId, iBufferLength, uSourceVehicleId, g_pCurrentModel->vehicle_id);
+   //log_line("[RelayTX] Sent relayed packet to controller, stream %u, %d bytes, relayed VID: %u, current VID: %u", uStreamId, iBufferLength, uSourceVehicleId, g_pCurrentModel->uVehicleId);
 }
 
 void relay_send_single_packet_to_relayed_vehicle(u8* pBufferData, int iBufferLength)

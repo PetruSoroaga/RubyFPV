@@ -622,6 +622,7 @@ char* str_format_frequency_no_sufix(u32 uFrequencyKhz)
 const char* str_get_hardware_board_name(u32 board_type)
 {
    static const char* s_szBoardTypeUnknown = "N/A";
+   #ifdef HW_PLATFORM_RASPBERRY
    static const char* s_szBoardTypePi0 = "Raspberry Pi Zero";
    static const char* s_szBoardTypePi0W = "Raspberry Pi Zero W";
    static const char* s_szBoardTypePi02 = "Raspberry Pi Zero 2";
@@ -632,8 +633,11 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypePi3B = "Raspberry Pi 3B";
    static const char* s_szBoardTypePi3BP = "Raspberry Pi 3B+";
    static const char* s_szBoardTypePi4B = "Raspberry Pi 4B";
+   #endif
    static const char* s_szBoardTypeOpenIPCGoke = "OpenIPC Goke";
+   static const char* s_szBoardTypeOpenIPCSigmaster335 = "OpenIPC Sigmaster SSC335";
 
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( board_type == BOARD_TYPE_PIZERO )
       return s_szBoardTypePi0;
    if ( board_type == BOARD_TYPE_PIZEROW )
@@ -654,9 +658,12 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypePi3BP;
    if ( board_type == BOARD_TYPE_PI4B )
       return s_szBoardTypePi4B;
+   #endif
 
    if ( board_type == BOARD_TYPE_OPENIPC_GOKE )
       return s_szBoardTypeOpenIPCGoke;
+   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER )
+      return s_szBoardTypeOpenIPCSigmaster335;
 
    return s_szBoardTypeUnknown;
 }
@@ -664,6 +671,7 @@ const char* str_get_hardware_board_name(u32 board_type)
 const char* str_get_hardware_board_name_short(u32 board_type)
 {
    static const char* s_szBoardSTypeUnknown = "N/A";
+   #ifdef HW_PLATFORM_RASPBERRY
    static const char* s_szBoardSTypePi0 = "Pi 0";
    static const char* s_szBoardSTypePi0W = "Pi 0W";
    static const char* s_szBoardSTypePi02 = "Pi 02";
@@ -674,7 +682,12 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypePi3B = "Pi 3B";
    static const char* s_szBoardSTypePi3BP = "Pi 3B+";
    static const char* s_szBoardSTypePi4B = "Pi 4B";
+   #endif
 
+   static const char* s_szBoardSTypeOpenIPCGoke = "Goke";
+   static const char* s_szBoardSTypeOpenIPCSigmaster335 = "Sigmaster SSC335";
+
+   #ifdef HW_PLATFORM_RASPBERRY
    if ( board_type == BOARD_TYPE_PIZERO )
       return s_szBoardSTypePi0;
    if ( board_type == BOARD_TYPE_PIZEROW )
@@ -695,6 +708,12 @@ const char* str_get_hardware_board_name_short(u32 board_type)
       return s_szBoardSTypePi3BP;
    if ( board_type == BOARD_TYPE_PI4B )
       return s_szBoardSTypePi4B;
+   #endif
+
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE )
+      return s_szBoardSTypeOpenIPCGoke;
+   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER )
+      return s_szBoardSTypeOpenIPCSigmaster335;
 
    return s_szBoardSTypeUnknown;
 }
@@ -721,26 +740,36 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
    if ( NULL == szOutput )
       return;
    szOutput[0] = 0;
+
+   if ( camType == 0 )
+   {
+      strcpy(szOutput, "None");
+      return;
+   }
+   
+   strcpy(szOutput, "Unknown");
+
+   #ifdef HW_PLATFORM_RASPBERRY   
    if ( camType == CAMERA_TYPE_CSI )
-      strcat(szOutput, "Standard CSI");
+      strcpy(szOutput, "Standard CSI");
    else if ( camType == CAMERA_TYPE_VEYE290 )
-      strcat(szOutput, "VEYE/IMX290");
+      strcpy(szOutput, "VEYE/IMX290");
    else if ( camType == CAMERA_TYPE_VEYE307 )
-      strcat(szOutput, "VEYE/IMX307");
+      strcpy(szOutput, "VEYE/IMX307");
    else if ( camType == CAMERA_TYPE_VEYE327 )
-      strcat(szOutput, "VEYE/IMX327");
+      strcpy(szOutput, "VEYE/IMX327");
    else if ( camType == CAMERA_TYPE_HDMI )
-      strcat(szOutput, "HDMI CSI");
+      strcpy(szOutput, "HDMI CSI");
    else if ( camType == CAMERA_TYPE_USB )
-      strcat(szOutput, "USB");
+      strcpy(szOutput, "USB");
    else if ( camType == CAMERA_TYPE_IP )
-      strcat(szOutput, "IP");
-   else if ( camType == CAMERA_TYPE_OPENIPC_GOKE )
-      strcat(szOutput, "Goke OpenIPC");
-   else if ( camType == 0 )
-      strcat(szOutput, "None");
-   else
-      strcat(szOutput, "Unknown");
+      strcpy(szOutput, "IP");
+   #endif
+
+   if ( camType == CAMERA_TYPE_OPENIPC_GOKE )
+      strcpy(szOutput, "Goke OpenIPC");
+   else if ( camType == CAMERA_TYPE_OPENIPC_SIGMASTER335 )
+      strcpy(szOutput, "Sigmaster SSC335 OpenIPC");
 }
 
 void str_get_supported_bands_string(u32 bands, char* szOut)

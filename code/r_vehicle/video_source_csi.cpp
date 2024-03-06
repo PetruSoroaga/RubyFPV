@@ -47,7 +47,7 @@
 int s_fInputVideoStreamCSIPipe = -1;
 char s_szInputVideoStreamCSIPipeName[128];
 bool s_bInputVideoStreamCSIPipeOpenFailed = false;
-u8 s_uInputVideoCSIPipeBuffer[MAX_PACKET_PAYLOAD];
+u8 s_uInputVideoCSIPipeBuffer[MAX_PACKET_TOTAL_SIZE];
 
 bool s_bRequestedVideoCSICaptureRestart = false;
 bool s_bVideoCSICaptureProgramStarted = false;
@@ -369,6 +369,7 @@ void video_source_csi_periodic_checks()
       send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED,1,0, 5);
    }
 
+   #endif
 
    if ( g_TimeNow >= s_uDebugTimeLastCSIVideoInputCheck+1000 )
    {
@@ -378,6 +379,4 @@ void video_source_csi_periodic_checks()
       s_uDebugCSIInputBytes = 0;
       s_uDebugCSIInputReads = 0;
    }
-
-   #endif
 }

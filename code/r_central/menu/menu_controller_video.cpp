@@ -138,10 +138,12 @@ MenuControllerVideo::~MenuControllerVideo(void)
         m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
    {
       char szBuff[128];
-      sprintf(szBuff, "touch %s", FILE_TMP_HDMI_CHANGED);
+      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, FILE_TEMP_HDMI_CHANGED);
       hw_execute_bash_command_silent(szBuff, NULL);
 
-      FILE* fd = fopen(FILE_TMP_HDMI_CHANGED, "w");
+      strcpy(szBuff, FOLDER_CONFIG);
+      strcat(szBuff, FILE_TEMP_HDMI_CHANGED);
+      FILE* fd = fopen(szBuff, "w");
       if ( NULL != fd )
       {
          fprintf(fd, "%d %d\n", hdmi_get_current_resolution_group(), hdmi_get_current_resolution_mode() );

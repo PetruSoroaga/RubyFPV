@@ -288,9 +288,13 @@ int RenderEngineRaw::loadFont(const char* szFontFile)
    m_pFonts[m_iCountFonts]->charIdFirst = m_pFonts[m_iCountFonts]->chars[0].charId;
    m_pFonts[m_iCountFonts]->charIdLast = m_pFonts[m_iCountFonts]->chars[m_pFonts[m_iCountFonts]->charCount-1].charId;
    m_pFonts[m_iCountFonts]->dxLetters = 0.0;
-   log_line("Loaded font %s (%d of max %d): chars: %d to %d, count %d, kering %d, id: %u; %d currently loaded fonts",
-       szFile, m_iCountFonts, MAX_RAW_FONTS,
-       m_pFonts[m_iCountFonts]->charIdFirst, m_pFonts[m_iCountFonts]->charIdLast, m_pFonts[m_iCountFonts]->charCount, m_pFonts[m_iCountFonts]->keringsCount, m_CurrentFontId+1, m_iCountFonts+1);
+   log_line("Loaded font %s (%d of max %d)",
+       szFile, m_iCountFonts, MAX_RAW_FONTS);
+   log_line("Font %s: chars: %d to %d, count %d",
+       szFile, m_pFonts[m_iCountFonts]->charIdFirst, m_pFonts[m_iCountFonts]->charIdLast, m_pFonts[m_iCountFonts]->charCount);
+
+   log_line("Font %s: kering %d, id: %u; %d currently loaded fonts",
+       szFile, m_pFonts[m_iCountFonts]->keringsCount, m_CurrentFontId+1, m_iCountFonts+1);
 
    m_CurrentFontId++;
    m_FontIds[m_iCountFonts] = m_CurrentFontId;

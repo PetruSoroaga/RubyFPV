@@ -24,7 +24,7 @@
 #define SYSTEM_NAME "Ruby"
 #define SYSTEM_SW_VERSION_MAJOR 8
 #define SYSTEM_SW_VERSION_MINOR 30
-#define SYSTEM_SW_BUILD_NUMBER  178
+#define SYSTEM_SW_BUILD_NUMBER  185
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117
@@ -41,8 +41,13 @@
 #define MAX_CAMERA_NAME_LENGTH 24
 
 #define DEFAULT_VEHICLE_NAME ""
+#ifdef HW_PLATFORM_OPENIPC_CAMERA
+#define MAX_MODELS 2
+#define MAX_MODELS_SPECTATOR 2
+#else
 #define MAX_MODELS 40
 #define MAX_MODELS_SPECTATOR 20
+#endif
 #define MAX_TX_POWER 71
 #define MAX_MCS_INDEX 5
 
@@ -106,7 +111,13 @@
 #define DEFAULT_MAVLINK_SYS_ID_VEHICLE 1
 #define DEFAULT_MAVLINK_SYS_ID_CONTROLLER 255
 
+#ifdef HW_PLATFORM_RASPBERRY
 #define DEFAULT_FC_TELEMETRY_SERIAL_SPEED 57600
+#endif
+#ifdef HW_PLATFORM_OPENIPC_CAMERA
+#define DEFAULT_FC_TELEMETRY_SERIAL_SPEED 115200
+#endif
+
 #define DEFAULT_FC_TELEMETRY_UPDATE_RATE 5 // Times per second, for FC telemetry from vehicle to controller
 #define DEFAULT_RUBY_TELEMETRY_UPDATE_RATE 4 // Times per second. How often the Ruby telemetry gets sent from vehicle to controller
 

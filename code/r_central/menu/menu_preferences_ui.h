@@ -5,13 +5,14 @@
 class MenuPreferencesUI: public Menu
 {
    public:
-      MenuPreferencesUI();
+      MenuPreferencesUI(bool bShowOnlyOSD = false);
       virtual void onShow();     
       virtual void Render();
       virtual void onSelectItem();
       virtual void valuesToUI();
       
    private:
+      bool m_bShowOnlyOSD;
       MenuItemSelect* m_pItemsSelect[20];
       int m_IndexScaleMenu, m_IndexMenuStacked;
       int m_IndexOSDSize, m_IndexOSDFlip;

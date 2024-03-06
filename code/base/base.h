@@ -14,7 +14,8 @@
 #include <time.h>
 #include <sys/mman.h>
 #include <signal.h>
-#include "build.h"
+#include "config_hw.h"
+
 
 typedef unsigned int u32;
 typedef unsigned short u16;
@@ -52,7 +53,6 @@ u32 base_compute_crc32(u8 *buf, int length);
 u8 base_compute_crc8(u8* pBuffer, int iLength);
 int base_check_crc32(u8* pBuffer, int iLength);
 
-void init_boot_timestamp(); // should be called only once per boot
 u32 get_current_timestamp_micros();
 u32 get_current_timestamp_ms();
 u32 get_boot_timestamp_ms();
@@ -62,6 +62,7 @@ char* removeTrailingZero(char* szBuff);
 
 void log_init_local_only(const char* component_name);
 void log_init(const char* component_name);
+void log_arguments(int argc, char *argv[]);
 void log_add_file(const char* szFileName);
 void log_disable();
 void log_disable_stdout();

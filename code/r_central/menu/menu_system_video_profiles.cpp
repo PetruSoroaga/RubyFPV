@@ -738,7 +738,7 @@ void MenuSystemVideoProfiles::onSelectItem()
 
        radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL, STREAM_ID_DATA);
        PH.vehicle_id_src = g_uControllerId;
-       PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+       PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
        PH.total_length = sizeof(t_packet_header)+sizeof(u32);
 
        memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));

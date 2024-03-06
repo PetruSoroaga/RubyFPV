@@ -59,6 +59,7 @@ int niceValue = 10;
 
 bool store_video()
 {
+   char szFile[128];
    char szComm[1024];
    //char szCommOutput[4096];
    char szFileIn[256];
@@ -67,43 +68,52 @@ bool store_video()
    int length = 0;
    int width, height;
 
-   FILE* fd = fopen(TEMP_VIDEO_FILE_INFO, "r");
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+      log_softerror_and_alarm("Failed to open video recording info file: %s", szFile);
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+      fd = fopen(szFile, "a");
       fprintf(fd, "%s\n", "Failed to read video recording info file.");
       fclose(fd);
-      log_softerror_and_alarm("Failed to open video recording info file: %s", TEMP_VIDEO_FILE_INFO);
       return false;
    }
    if ( 3 != fscanf(fd, "%s %d %d", szFileIn, &fps, &length) )
    {
       fclose(fd);
-      fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+      log_softerror_and_alarm("Failed to read video recording info file 1/2: %s", szFile);
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+      fd = fopen(szFile, "a");
       fprintf(fd, "%s\n", "Failed to read video recording info file. Invalid file.");
-      log_softerror_and_alarm("Failed to read video recording info file 1/2: %s", TEMP_VIDEO_FILE_INFO);
       fclose(fd);
       return false;
    }
    if ( 2 != fscanf(fd, "%d %d", &width, &height) )
    {
+      log_softerror_and_alarm("Failed to read video recording info file 2/2: %s", szFile);
       fclose(fd);
-      fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+      fd = fopen(szFile, "a");
       fprintf(fd, "%s\n", "Failed to read video recording info file. Invalid file.");
-      log_softerror_and_alarm("Failed to read video recording info file 2/2: %s", TEMP_VIDEO_FILE_INFO);
       fclose(fd);
       return false;
    }
    fclose(fd);
 
-   if ( NULL != strstr(szFileIn, TEMP_VIDEO_MEM_FOLDER) )
+   if ( NULL != strstr(szFileIn, FOLDER_TEMP_VIDEO_MEM) )
    {
-      snprintf(szComm, 511, "nice -n %d mv %s %s", niceValue, szFileIn, TEMP_VIDEO_FILE);
+      snprintf(szComm, 511, "nice -n %d mv %s %s%s", niceValue, szFileIn, FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "umount %s", TEMP_VIDEO_MEM_FOLDER);
+      sprintf(szComm, "umount %s", FOLDER_TEMP_VIDEO_MEM);
       hw_execute_bash_command(szComm, NULL);
-      strcpy(szFileIn, TEMP_VIDEO_FILE);
+      strcpy(szFileIn, FOLDER_RUBY_TEMP);
+      strcat(szFileIn, FILE_TEMP_VIDEO_FILE);
    }
 
    char szOutFile[512];
@@ -111,12 +121,16 @@ bool store_video()
    szOutFile[0] = 0;
    szOutFileInfo[0] = 0;
 
-   fd = fopen(TEMP_VIDEO_FILE_INFO, "r");
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
+   fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+      log_softerror_and_alarm("Failed to read video output info file 1/2: %s", szFile);
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+      fd = fopen(szFile, "a");
       fprintf(fd, "%s\n", "Failed to read video output info file.");
-      log_softerror_and_alarm("Failed to read video output info file 1/2: %s", TEMP_VIDEO_FILE_INFO);
       fclose(fd);
       return false;
    }
@@ -125,9 +139,11 @@ bool store_video()
       if ( 1 != fscanf(fd, "%s", szOutFileInfo) )
       {
          fclose(fd);
-         fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+         log_softerror_and_alarm("Failed to read video output info file 1/2: %s", szFile);
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+         fd = fopen(szFile, "a");
          fprintf(fd, "%s\n", "Failed to read video output info file. Invalid file.");
-         log_softerror_and_alarm("Failed to read video output info file 1/2: %s", TEMP_VIDEO_FILE_INFO);
          fclose(fd);
          return false;
       }
@@ -157,9 +173,11 @@ bool store_video()
    fd = fopen(szFileInfo, "w");
    if ( NULL == fd )
    {
-      fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "a");
+      log_softerror_and_alarm("Failed to write video output info file: %s", szFile);
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
+      fd = fopen(szFile, "a");
       fprintf(fd, "%s\n", "Failed to write video output information file.");
-      log_softerror_and_alarm("Failed to write video output info file: %s", TEMP_VIDEO_FILE_PROCESS_ERROR);
       fclose(fd);
       return false;
    }
@@ -174,7 +192,7 @@ bool store_video()
    hw_execute_bash_command(szComm, NULL);
    //launch_set_proc_priority("cp", 10,0,1);
 
-   sprintf(szComm, "rm -rf %s", TEMP_VIDEO_FILE_INFO);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_INFO);
    hw_execute_bash_command(szComm, NULL);
 
    return true;
@@ -235,13 +253,18 @@ int main(int argc, char *argv[])
    //hardware_set_priority(2);
 
    g_pCurrentModel = new Model();
-   if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL) )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( ! g_pCurrentModel->loadFromFile(szFile) )
    {
       log_softerror_and_alarm("Failed to load current model.");
       g_pCurrentModel = new Model();
    }
 
-   FILE* fd = fopen(FILE_BOOT_COUNT, "r");
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOOT_COUNT);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%d", &g_iBootCount) )

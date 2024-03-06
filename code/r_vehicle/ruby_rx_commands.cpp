@@ -48,6 +48,8 @@
 #include "../common/relay_utils.h"
 
 #include <ctype.h>
+#include <unistd.h>
+
 #include "launchers_vehicle.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -127,7 +129,10 @@ bool _populate_camera_name()
    u8 dataCamera[1024];
    bool bCameraNameUpdated = false;
 
-   FILE* fd = fopen(FILE_TMP_CAMERA_NAME, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_CAMERA_NAME);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       log_line("Populating camera name buffer from file");
@@ -218,7 +223,7 @@ void send_model_settings_to_controller()
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_MODEL_SETTINGS, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + s_bufferModelSettingsLength + 2*sizeof(u32) + sizeof(u8);
 
    u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -258,7 +263,7 @@ void send_model_settings_to_controller()
       memcpy( &(uSegment[3]), (u8*)((&(s_bufferModelSettings[0]))+iPos), iSize);
 
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_MODEL_SETTINGS, STREAM_ID_DATA);
-      PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32) + sizeof(u8) + 3*sizeof(u8) + iSize;
    
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -288,6 +293,8 @@ void send_model_settings_to_controller()
 
 void update_priorities()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
+
    hw_set_proc_priority("ruby_rt_vehicle", g_pCurrentModel->niceRouter, g_pCurrentModel->ioNiceRouter, 1);
    if ( g_pCurrentModel->isActiveCameraVeye() )
    {
@@ -299,6 +306,8 @@ void update_priorities()
    hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
    hw_set_proc_priority("ruby_tx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
    hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->niceOthers, 0, 1 );
+
+   #endif
 }
 
 void signalReinitializeRouterRadioLinks()
@@ -496,7 +505,7 @@ void sendCommandReply(u8 responseFlags, int iResponseExtraParam, int delayMiliSe
    t_packet_header_command_response PHCR;
 
    radio_packet_init(&PH, PACKET_COMPONENT_COMMANDS, PACKET_TYPE_COMMAND_RESPONSE, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = lastRecvSourceControllerId;
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_command_response) + lastRecvCommandReplyBufferLength;
 
@@ -517,7 +526,7 @@ void sendCommandReply(u8 responseFlags, int iResponseExtraParam, int delayMiliSe
    char szBuff[64];
    szBuff[0] = 0;
    strcpy(szBuff, str_get_command_response_flags_string(lastRecvCommandResponseFlags) );
-   //log_line_commands("Sent response %s to router for vehicle UID: %u, command nb.%d, command retry counter: %d, command type: %s ", szBuff, g_pCurrentModel->vehicle_id, lastRecvCommandNumber, lastRecvCommandResendCounter, commands_get_description(lastRecvCommandType));
+   //log_line_commands("Sent response %s to router for vehicle UID: %u, command nb.%d, command retry counter: %d, command type: %s ", szBuff, g_pCurrentModel->uVehicleId, lastRecvCommandNumber, lastRecvCommandResendCounter, commands_get_description(lastRecvCommandType));
    log_line_commands("Sent response %s, command nb.%d, retry counter: %d, type: %s ", szBuff, lastRecvCommandNumber, lastRecvCommandResendCounter, commands_get_description(lastRecvCommandType));
    s_CurrentResponseCounter++;
 
@@ -807,8 +816,8 @@ bool process_command(u8* pBuffer, int length)
       log_line("Received e flags %d, len: %d", (int)flags, (int)len);
       if ( flags == MODEL_ENC_FLAGS_NONE )
       {
-         char szComm[256];
-         sprintf(szComm, "rm -rf %s", FILE_ENCRYPTION_PASS);
+         char szComm[128];
+         sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_ENCRYPTION_PASS);
          hw_execute_bash_command(szComm, NULL);
          rpp(); 
          sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
@@ -819,7 +828,10 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
-      FILE* fd = fopen(FILE_ENCRYPTION_PASS, "w");
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_ENCRYPTION_PASS);
+      FILE* fd = fopen(szFile, "w");
       if ( NULL == fd )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
@@ -851,7 +863,7 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
       hardware_sleep_ms(50);
       hw_execute_bash_command("sudo reboot -f", NULL);
@@ -1011,7 +1023,7 @@ bool process_command(u8* pBuffer, int length)
          #ifdef HW_PLATFORM_RASPBERRY
          strcpy(szBuffer, "Platform: Raspberry Pi#");
          #endif
-         #ifdef HW_PLATFORM_OPENIPC
+         #ifdef HW_PLATFORM_OPENIPC_CAMERA
          strcpy(szBuffer, "Platform: OpenIPC#");
          #endif
 
@@ -1395,7 +1407,10 @@ bool process_command(u8* pBuffer, int length)
       char szOutput[1500];
       szBuffer[0] = 0;
       
-      FILE* fd = fopen(FILE_INFO_VERSION, "r");
+      char szFile[128];
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, FILE_INFO_VERSION);
+      FILE* fd = fopen(szFile, "r");
       if ( NULL == fd )
          fd = fopen("ruby_ver.txt", "r");
       if ( NULL != fd )
@@ -1409,7 +1424,9 @@ bool process_command(u8* pBuffer, int length)
          }
          fclose(fd);
       }
-      fd = fopen(FILE_INFO_LAST_UPDATE, "r");
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_INFO_LAST_UPDATE);
+      fd = fopen(szFile, "r");
       if ( NULL != fd )
       {
          szOutput[0] = 0;
@@ -1652,7 +1669,16 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->vehicle_type &= MODEL_FIRMWARE_MASK;
       g_pCurrentModel->vehicle_type |= pPHC->command_param & MODEL_TYPE_MASK;
       saveCurrentModel();
-      signalReloadModel(0, 0);
+      signalReloadModel(MODEL_CHANGED_GENERIC, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      return true;
+   }
+
+   if ( uCommandType == COMMAND_ID_SET_RADIO_LINKS_FLAGS )
+   {
+      g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags = pPHC->command_param;
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_GENERIC,0);
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
@@ -1996,7 +2022,7 @@ bool process_command(u8* pBuffer, int length)
          if ( ! bHadServiceLog )
          {
             char szC[128];
-            sprintf(szC, "touch %s", LOG_USE_PROCESS);
+            sprintf(szC, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
             hw_execute_bash_command(szC,NULL);
          }
       }
@@ -2005,7 +2031,7 @@ bool process_command(u8* pBuffer, int length)
          if ( bHadServiceLog )
          {
             char szC[128];
-            sprintf(szC, "rm -rf %s", LOG_USE_PROCESS);
+            sprintf(szC, "rm -rf %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
             hw_execute_bash_command(szC,NULL);
          }
       }
@@ -2175,7 +2201,7 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       char szBuff[128];
-      sprintf(szBuff, "touch %s", LOG_USE_PROCESS);
+      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
 
       FILE* fd = fopen("config/reset_info.txt", "wt");
@@ -2186,7 +2212,7 @@ bool process_command(u8* pBuffer, int length)
          if ( 0 == szName[0] )
             strcpy(szName, "*");
          fprintf(fd, "%u %u %d %d %d %s",
-           g_pCurrentModel->vehicle_id, g_pCurrentModel->controller_id,
+           g_pCurrentModel->uVehicleId, g_pCurrentModel->uControllerId,
            g_pCurrentModel->radioLinksParams.link_frequency_khz[0],
            g_pCurrentModel->radioLinksParams.link_frequency_khz[1],
            g_pCurrentModel->radioLinksParams.link_frequency_khz[2],
@@ -2696,7 +2722,7 @@ bool process_command(u8* pBuffer, int length)
       int length = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command);
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
       log_line("Received all model settings. Model file size: %d", length);
-      FILE* fd = fopen(FILE_CURRENT_VEHICLE_MODEL, "wb");
+      FILE* fd = fopen(FILE_CONFIG_CURRENT_VEHICLE_MODEL, "wb");
       if ( NULL != fd )
       {
           fwrite(pData, 1, length, fd);
@@ -2705,13 +2731,13 @@ bool process_command(u8* pBuffer, int length)
       }
       else
       {
-         log_error_and_alarm("Failed to save received vehicle configuration to file: %s", FILE_CURRENT_VEHICLE_MODEL);
+         log_error_and_alarm("Failed to save received vehicle configuration to file: %s", FILE_CONFIG_CURRENT_VEHICLE_MODEL);
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
          
-      u32 vid = g_pCurrentModel->vehicle_id;
-      u32 ctrlId = g_pCurrentModel->controller_id;
+      u32 vid = g_pCurrentModel->uVehicleId;
+      u32 ctrlId = g_pCurrentModel->uControllerId;
       int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
       bool bDev = g_pCurrentModel->bDeveloperMode;
       u8 cameraType = g_pCurrentModel->camera_type;
@@ -2735,7 +2761,7 @@ bool process_command(u8* pBuffer, int length)
          strcpy(iszPort[i], g_pCurrentModel->nic_szPort[i]);
       }
 
-      g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true);
+      g_pCurrentModel->loadFromFile(FILE_CONFIG_CURRENT_VEHICLE_MODEL, true);
 
       g_pCurrentModel->nic_count = nicCount;
       for( int i=0; i<g_pCurrentModel->nic_count; i++ )
@@ -2747,8 +2773,8 @@ bool process_command(u8* pBuffer, int length)
          strcpy(g_pCurrentModel->nic_szMAC[i], iszMAC[i]);
          strcpy(g_pCurrentModel->nic_szPort[i], iszPort[i]);
       }
-      g_pCurrentModel->vehicle_id = vid;
-      g_pCurrentModel->controller_id = ctrlId;
+      g_pCurrentModel->uVehicleId = vid;
+      g_pCurrentModel->uControllerId = ctrlId;
       g_pCurrentModel->hwCapabilities.iBoardType = boardType;
       g_pCurrentModel->bDeveloperMode = bDev;
       g_pCurrentModel->camera_type = cameraType;
@@ -2877,18 +2903,21 @@ bool process_command(u8* pBuffer, int length)
          bNotifyChanged = true;
       }
 
-      if ( g_pCurrentModel->controller_id != pPH->vehicle_id_src )
+      if ( g_pCurrentModel->uControllerId != pPH->vehicle_id_src )
       {
          log_line("Controller ID changed. Updating it.");
          bTelemetryChanged = true;
          restartVideo = true;
          bSave = true;
          bNotifyChanged = true;
-         g_pCurrentModel->controller_id = pPH->vehicle_id_src;
-         FILE* fd = fopen(FILE_CONTROLLER_ID, "w");
+         g_pCurrentModel->uControllerId = pPH->vehicle_id_src;
+         char szFile[128];
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+         FILE* fd = fopen(szFile, "w");
          if ( NULL != fd )
          {
-            fprintf(fd, "%u\n", g_pCurrentModel->controller_id);
+            fprintf(fd, "%u\n", g_pCurrentModel->uControllerId);
             fclose(fd);
          }
       }
@@ -2949,7 +2978,11 @@ bool process_command(u8* pBuffer, int length)
       {
          hw_execute_bash_command("rm -rf tmp/model.tar* 2>/dev/null", NULL);
          hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
-         sprintf(szBuff, "cp -rf %s tmp/model.mdl 2>/dev/null", FILE_CURRENT_VEHICLE_MODEL);
+
+         char szFile[128];
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+         sprintf(szBuff, "cp -rf %s tmp/model.mdl 2>/dev/null", szFile);
          hw_execute_bash_command(szBuff, NULL);
          hw_execute_bash_command("tar -cf tmp/model.tar tmp/model.mdl 2>&1", NULL);
          hw_execute_bash_command("gzip tmp/model.tar 2>&1", NULL);
@@ -3025,14 +3058,17 @@ bool process_command(u8* pBuffer, int length)
    {
       u8 buffer[2048];
       int length = 0;
-      FILE* fd = fopen(FILE_TMP_CURRENT_VIDEO_PARAMS, "rb");
+      char szFile[128];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_CURRENT_VIDEO_PARAMS);
+      FILE* fd = fopen(szFile, "rb");
       if ( NULL != fd )
       {
          length = fread(buffer, 1, 2000, fd);
          fclose(fd);
       }
       else
-         log_error_and_alarm("Failed to load current video config from log file: %s", FILE_TMP_CURRENT_VIDEO_PARAMS);
+         log_error_and_alarm("Failed to load current video config from log file: %s", szFile);
       buffer[length] = 0;
       length++;
 
@@ -3402,7 +3438,7 @@ void on_received_command(u8* pBuffer, int length)
    t_packet_header* pPH = (t_packet_header*)pBuffer;
    t_packet_header_command* pPHC = (t_packet_header_command*)(pBuffer + sizeof(t_packet_header));
 
-   if ( pPH->vehicle_id_dest != g_pCurrentModel->vehicle_id )
+   if ( pPH->vehicle_id_dest != g_pCurrentModel->uVehicleId )
       return;
 
    if ( ! radio_packet_check_crc(pBuffer, pPH->total_length) )
@@ -3421,7 +3457,7 @@ void on_received_command(u8* pBuffer, int length)
    {
       if ( pPHC->command_resend_counter > lastRecvCommandResendCounter )
       {
-         log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->vehicle_id, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+         log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
          if ( ! (((pPHC->command_type) & COMMAND_TYPE_MASK) & COMMAND_TYPE_FLAG_NO_RESPONSE_NEEDED) )
          {
             log_line("Resending command response, for command id: %d", lastRecvCommandNumber);
@@ -3430,13 +3466,13 @@ void on_received_command(u8* pBuffer, int length)
          }
       }
       else if (pPHC->command_counter > 1 )
-         log_line_commands("Ignoring command (duplicate) (current vehicle UID: %u) nb.%d, retry count: %d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->vehicle_id, pPHC->command_counter, lastRecvCommandResendCounter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+         log_line_commands("Ignoring command (duplicate) (current vehicle UID: %u) nb.%d, retry count: %d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, lastRecvCommandResendCounter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
       if ( pPHC->command_resend_counter > lastRecvCommandResendCounter || pPHC->command_counter > 1 )
          return;
    }
 
-   log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->vehicle_id, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+   log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
    lastRecvSourceControllerId = pPH->vehicle_id_src;
    lastRecvCommandNumber = pPHC->command_counter;
@@ -3446,7 +3482,7 @@ void on_received_command(u8* pBuffer, int length)
    lastRecvCommandResponseFlags = 0;
    lastRecvCommandReplyBufferLength = 0;
 
-   //log_line_commands("Received command (current vehicle UID: %u) nb.%d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->vehicle_id, pPHC->command_counter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+   //log_line_commands("Received command (current vehicle UID: %u) nb.%d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
    if ( ! process_command(pBuffer, length) )
       sendCommandReply(COMMAND_RESPONSE_FLAGS_UNKNOWN_COMMAND, 0, 0); 
@@ -3506,7 +3542,10 @@ int main(int argc, char *argv[])
       return 0;
    }
 
+   chdir(FOLDER_BINARIES);
+
    log_init("RX_Commands");
+   log_arguments(argc, argv);
 
    s_fIPCFromRouter = ruby_open_ipc_channel_read_endpoint(IPC_CHANNEL_TYPE_ROUTER_TO_COMMANDS);
    if ( s_fIPCFromRouter < 0 )
@@ -3562,9 +3601,11 @@ int main(int argc, char *argv[])
   
    g_TimeLastPeriodicCheck = get_current_timestamp_ms();
  
+   int iSleepIntervalMS = 50;
+
    while (!g_bQuit) 
    {
-      hardware_sleep_ms(5);
+      hardware_sleep_ms(iSleepIntervalMS);
       g_TimeNow = get_current_timestamp_ms();
       u32 tTime0 = g_TimeNow;
 
@@ -3580,9 +3621,13 @@ int main(int argc, char *argv[])
          _periodic_loop();
       }
 
+      if ( iSleepIntervalMS < 50 )
+         iSleepIntervalMS += 10;
+
       int maxMsgToRead = 5 + DEFAULT_UPLOAD_PACKET_CONFIRMATION_FREQUENCY;
-      while ( (maxMsgToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, 9000, s_PipeTmpBufferCommands, &s_PipeTmpBufferCommandsPos, s_BufferCommands) )
+      while ( (maxMsgToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, s_PipeTmpBufferCommands, &s_PipeTmpBufferCommandsPos, s_BufferCommands)) )
       {
+         iSleepIntervalMS = 2;
          maxMsgToRead--;
          if ( NULL != g_pProcessStats )
             g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
@@ -3597,7 +3642,7 @@ int main(int argc, char *argv[])
             log_line("Received pairing request from router (received retry counter: %u). CID: %u, VID: %u. Updating local model.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
             if ( NULL != g_pCurrentModel )
             {
-               g_pCurrentModel->controller_id = pPH->vehicle_id_src;
+               g_pCurrentModel->uControllerId = pPH->vehicle_id_src;
                if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
                if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
                   g_pCurrentModel->relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
@@ -3620,15 +3665,18 @@ int main(int argc, char *argv[])
                u8 changeType = (pPH->vehicle_id_src >> 8 ) & 0xFF;
                u8 fromComponentId = (pPH->vehicle_id_src & 0xFF);
                log_line("Received request from router to reload model (from component id: %d (%s), change type: %d (%s).", (int)fromComponentId, str_get_component_id((int)fromComponentId), (int)changeType, str_get_model_change_type((int)changeType));
+               char szFile[128];
+               strcpy(szFile, FOLDER_CONFIG);
+               strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
                if ( changeType == MODEL_CHANGED_STATS )
                {
                   log_line("Loading model including stats.");
-                  if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, true) )
+                  if ( ! g_pCurrentModel->loadFromFile(szFile, true) )
                      log_error_and_alarm("Can't load current model vehicle.");
                }
                else
                {
-                  if ( ! g_pCurrentModel->loadFromFile(FILE_CURRENT_VEHICLE_MODEL, false) )
+                  if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
                      log_error_and_alarm("Can't load current model vehicle.");
                }
             }

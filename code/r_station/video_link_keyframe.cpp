@@ -203,6 +203,9 @@ void video_link_keyframe_periodic_loop()
    if ( g_bIsControllerLinkToVehicleLost || g_bIsVehicleLinkToControllerLost )
       return;
      
+   if ( g_bDebugState )
+      return;
+     
    u32 s_uTimeLastKeyFrameCheckVehicles = 0;
 
 
@@ -218,7 +221,7 @@ void video_link_keyframe_periodic_loop()
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
 
-      _video_link_keyframe_check_send_to_vehicle(pModel->vehicle_id);
+      _video_link_keyframe_check_send_to_vehicle(pModel->uVehicleId);
    }
 
    // Do adjustments only once ever 100 ms
@@ -238,6 +241,9 @@ void video_link_keyframe_periodic_loop()
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
         
+      if ( pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+         continue;
+
       // To fix
       int iCurrentVideoProfile = 0;
       for( int k=0; k<MAX_VIDEO_PROCESSORS; k++ )
@@ -263,11 +269,11 @@ void video_link_keyframe_periodic_loop()
       if ( iCurrentFPS < 1 )
          iCurrentFPS = pModel->video_link_profiles[iCurrentVideoProfile].fps;
 
-      _video_link_keyframe_check_send_to_vehicle(pModel->vehicle_id);
+      _video_link_keyframe_check_send_to_vehicle(pModel->uVehicleId);
 
       // If relaying is enabled on this vehicle and video from this vehicle is not visible, do not adjust anything (will default to relay keyframe interval)
    
-      if ( ! relay_controller_must_display_video_from(g_pCurrentModel, pModel->vehicle_id) )
+      if ( ! relay_controller_must_display_video_from(g_pCurrentModel, pModel->uVehicleId) )
          continue;
 
       // User set a fixed keyframe value? Then do nothing (just set it if not set);
@@ -280,7 +286,7 @@ void video_link_keyframe_periodic_loop()
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs == g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastAcknowledgedKeyFrameMs )
             continue;
 
-         _video_link_keyframe_check_send_to_vehicle(pModel->vehicle_id);
+         _video_link_keyframe_check_send_to_vehicle(pModel->uVehicleId);
          continue;
       }
 
@@ -374,7 +380,7 @@ void video_link_keyframe_periodic_loop()
             iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs;
          if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs )
          {
-            _video_link_keyframe_request_new_keyframe_interval(pModel->vehicle_id, iNewKeyFrameIntervalMs);
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftUp = g_TimeNow;
          }
       }
@@ -386,7 +392,7 @@ void video_link_keyframe_periodic_loop()
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs / 2)
          {
             iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs / 2;
-            _video_link_keyframe_request_new_keyframe_interval(pModel->vehicle_id, iNewKeyFrameIntervalMs);
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
          }
       }
@@ -396,7 +402,7 @@ void video_link_keyframe_periodic_loop()
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs / 4)
          {
             iNewKeyFrameIntervalMs = iCurrentFPS * pModel->video_params.uMaxAutoKeyframeIntervalMs / 4;
-            _video_link_keyframe_request_new_keyframe_interval(pModel->vehicle_id, iNewKeyFrameIntervalMs);
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
          }
       }
@@ -405,14 +411,14 @@ void video_link_keyframe_periodic_loop()
            (iCountMissingSegmentsDown > iThresholdDownLevel4) )
       {
          iNewKeyFrameIntervalMs = 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
-         _video_link_keyframe_request_new_keyframe_interval(pModel->vehicle_id, iNewKeyFrameIntervalMs);
+         _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
       }
 
       if ( iCountReRetransmissionsDown > iThresholdDownLevel5 )
       {
          iNewKeyFrameIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
-         _video_link_keyframe_request_new_keyframe_interval(pModel->vehicle_id, iNewKeyFrameIntervalMs);
+         _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
       }
 

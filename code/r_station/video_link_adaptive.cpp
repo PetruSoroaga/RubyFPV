@@ -463,6 +463,9 @@ void video_link_adaptive_periodic_loop()
    if ( g_bSearching || NULL == g_pCurrentModel || g_bUpdateInProgress )
       return;
    
+   if ( g_bDebugState )
+      return;
+     
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
@@ -473,6 +476,9 @@ void video_link_adaptive_periodic_loop()
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
         
+      if ( pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+         continue;
+
       int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
       int isAdaptiveKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ? 0 : 1;
 

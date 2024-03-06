@@ -6,8 +6,11 @@
 #include "zfec.h"
 #include <sodium.h>
 
+#ifdef HW_PLATFORM_RASPBERRY
 #define MAX_RX_PACKETS_QUEUE 500
-
+#else
+#define MAX_RX_PACKETS_QUEUE 50
+#endif
 typedef struct
 {
    u32 uVehicleId;

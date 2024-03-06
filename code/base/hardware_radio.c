@@ -85,7 +85,10 @@ void hardware_log_radio_info()
 
 void hardware_save_radio_info()
 {
-   FILE* fp = fopen(FILE_CURRENT_RADIO_HW_CONFIG, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
+   FILE* fp = fopen(szFile, "w");
    if ( NULL == fp )
    {
       log_softerror_and_alarm("Failed to save radio HW info file.");
@@ -111,7 +114,10 @@ void hardware_save_radio_info()
 
 int hardware_load_radio_info()
 {
-   if ( access( FILE_CURRENT_RADIO_HW_CONFIG, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
+   if ( access(szFile, R_OK) == -1 )
    {
       log_line("No radio HW info file.");
       return 0;
@@ -120,7 +126,7 @@ int hardware_load_radio_info()
    u8 bufferIn[9056];
    int posIn = 0;
 
-   FILE* fp = fopen(FILE_CURRENT_RADIO_HW_CONFIG, "r");
+   FILE* fp = fopen(szFile, "r");
    if ( NULL == fp )
       succeeded = 0;
 
@@ -774,7 +780,10 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
 
    if( iStep == -1 || iStep == 0 )
    {
-      if ( access( FILE_CURRENT_RADIO_HW_CONFIG, R_OK ) != -1 )
+      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
+      if ( access(szFile, R_OK) != -1 )
       {
          log_line("[HardwreRadio]: HW Enumerate: has radio HW info file. Using it.");
          if ( hardware_load_radio_info() )

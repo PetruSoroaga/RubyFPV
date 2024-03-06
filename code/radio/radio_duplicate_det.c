@@ -36,7 +36,7 @@
 
 
 #define PACKETS_INDEX_HASH_SIZE 1024
-#define PACKETS_INDEX_HASH_MASH 0x03FF
+#define PACKETS_INDEX_HASH_MASK 0x03FF
 
 typedef struct
 {
@@ -252,7 +252,7 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
    // Check for packet duplication on stream for vehicle
 
    int bIsDuplicatePacket = 0;
-   int iHashIndex = uStreamPacketIndex & PACKETS_INDEX_HASH_MASH;
+   int iHashIndex = uStreamPacketIndex & PACKETS_INDEX_HASH_MASK;
    if ( uStreamPacketIndex == pDupInfo->streamsPacketsHistory[uStreamIndex].packetsHashIndexes[iHashIndex] )
       bIsDuplicatePacket = 1;
 

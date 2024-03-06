@@ -446,10 +446,13 @@ int hardware_i2c_save_device_settings()
    if ( 0 == s_iHardwareI2CBussesEnumerated )
       hardware_enumerate_i2c_busses();
 
-   FILE* fd = fopen(FILE_HARDWARE_I2C_DEVICES, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_HARDWARE_I2C_DEVICES);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[Hardware]: Failed to save I2C devices settings to file: %s",FILE_HARDWARE_I2C_DEVICES);
+      log_softerror_and_alarm("[Hardware]: Failed to save I2C devices settings to file: %s",szFile);
       return 0;
    }
 
@@ -474,7 +477,7 @@ int hardware_i2c_save_device_settings()
    if ( NULL != fd )
       fclose(fd);
 
-   log_line("[Hardware]: Saved I2C devices settings to file: %s", FILE_HARDWARE_I2C_DEVICES);
+   log_line("[Hardware]: Saved I2C devices settings to file: %s", szFile);
    log_line("[Hardware]: Saved I2C devices settings for %d I2C devices.", s_iCountI2CDevicesSettings);
    return 1;
 }
@@ -484,10 +487,13 @@ int hardware_i2c_load_device_settings()
    if ( 0 == s_iHardwareI2CBussesEnumerated )
       hardware_enumerate_i2c_busses();
 
-   FILE* fd = fopen(FILE_HARDWARE_I2C_DEVICES, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_HARDWARE_I2C_DEVICES);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (missing file). Recreated the file.",FILE_HARDWARE_I2C_DEVICES);
+      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (missing file). Recreated the file.", szFile);
       hardware_i2c_save_device_settings();
       return 0;
    }
@@ -502,7 +508,7 @@ int hardware_i2c_load_device_settings()
 
    if ( failed )
    {
-      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid file stamp)",FILE_HARDWARE_I2C_DEVICES);
+      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid file stamp)", szFile);
       fclose(fd);
       hardware_i2c_save_device_settings();
       return 0;
@@ -513,7 +519,7 @@ int hardware_i2c_load_device_settings()
    {
       s_iCountI2CDevicesSettings = 0;
       failed = 16;
-      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c count)",FILE_HARDWARE_I2C_DEVICES);
+      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c count)", szFile);
       hardware_i2c_save_device_settings();
    }
 
@@ -530,9 +536,9 @@ int hardware_i2c_load_device_settings()
       int nVersion = 0;
       if ( 4 != fscanf(fd, "%d %d %d %s", &i2cAddress, &nVersion, &deviceType, s_listI2CDevicesSettings[i].szDeviceName) )
       {
-         log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data)",FILE_HARDWARE_I2C_DEVICES);
+         log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data)", szFile);
          failed = 17;
-	 break;
+       	 break;
       }
       int len = strlen(s_listI2CDevicesSettings[i].szDeviceName);
       for( int j=0; j<len; j++ )
@@ -544,7 +550,7 @@ int hardware_i2c_load_device_settings()
       u32 extraValue = 0;
       if ( 4 != fscanf(fd, "%d %d %d %u", &tmp1, &tmp2, &extraFields, &extraValue) )
       {
-         log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data2)",FILE_HARDWARE_I2C_DEVICES);
+         log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data2)", szFile);
          failed = 18;
          break;
       }
@@ -553,14 +559,14 @@ int hardware_i2c_load_device_settings()
       for( int k=0; k<MAX_I2C_DEVICE_SETTINGS; k++ )
          if ( 1 != fscanf(fd, "%u", &(s_listI2CDevicesSettings[i].uParams[k]) ) )
          {
-            log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data3)",FILE_HARDWARE_I2C_DEVICES);
+            log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data3)", szFile);
             failed = 18;
             break;
          }
       for( int k=0; k<extraFields; k++ )
          if ( 1 != fscanf(fd, "%u", &extraValue ) )
          {
-            log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data4)",FILE_HARDWARE_I2C_DEVICES);
+            log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid i2c data4)", szFile);
             failed = 19;
             break;
          }
@@ -581,12 +587,12 @@ int hardware_i2c_load_device_settings()
    if ( failed )
    {
       s_iCountI2CDevicesSettings = 0;
-      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid config file, error code: %d)",FILE_CONTROLLER_INTERFACES, failed);
+      log_softerror_and_alarm("[Hardware]: Failed to load I2C devices settings from file: %s (invalid config file, error code: %d)", szFile, failed);
       return 0;
    }
 
    s_iI2CDeviceSettingsLoaded = 1;
-   log_line("[Hardware]: Loaded I2C devices settings from file: %s", FILE_HARDWARE_I2C_DEVICES);
+   log_line("[Hardware]: Loaded I2C devices settings from file: %s", szFile);
    log_line("[Hardware]: Loaded I2C devices settings for %d I2C devices", s_iCountI2CDevicesSettings);
    return 1;
 }

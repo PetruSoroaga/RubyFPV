@@ -100,8 +100,11 @@ bool _pairing_start()
    if ( NULL != g_pCurrentModel )
    {
       char szFile[128];
-      snprintf(szFile, 127, LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());      
-      FILE* fd = fopen(szFile, "wb");
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), LOG_FILE_VEHICLE, g_pCurrentModel->getShortName());      
+      char szPath[256];
+      strcpy(szPath, FOLDER_LOGS);
+      strcat(szPath, szFile);
+      FILE* fd = fopen(szPath, "wb");
       if ( NULL != fd )
          fclose(fd);
    }

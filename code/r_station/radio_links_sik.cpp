@@ -256,7 +256,10 @@ int radio_links_check_reinit_sik_interfaces()
       else
       {
          int iResult = -1;
-         FILE* fd = fopen(FILE_TMP_SIK_CONFIG_FINISHED, "rb");
+         char szFile[128];
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_SIK_CONFIG_FINISHED);
+         FILE* fd = fopen(szFile, "rb");
          if ( NULL != fd )
          {
             if ( 1 != fscanf(fd, "%d", &iResult) )
@@ -264,9 +267,8 @@ int radio_links_check_reinit_sik_interfaces()
             fclose(fd);
          }
          log_line("SiK radio configuration tool completed. Result: %d.", iResult);
-         char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_SIK_CONFIG_FINISHED);
-         hw_execute_bash_command(szBuff, NULL);
+         sprintf(szFile, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
+         hw_execute_bash_command(szFile, NULL);
          g_SiKRadiosState.bConfiguringToolInProgress = false;
          radio_links_reopen_marked_sik_interfaces();
          send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0);

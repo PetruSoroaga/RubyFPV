@@ -87,6 +87,12 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_pItemsSelect[7]->setIsEditable();
    m_IndexPanelsDirection = addMenuItem(m_pItemsSelect[7]);
 
+   m_pItemsSelect[32] = new MenuItemSelect("Add margins for widgets", "When arranging stats on the screen, allow room for widgets if any are overlaping with stats.");
+   m_pItemsSelect[32]->addSelection("No");
+   m_pItemsSelect[32]->addSelection("Auto");
+   m_pItemsSelect[32]->setIsEditable();
+   m_IndexFitWidgets = addMenuItem(m_pItemsSelect[32]);
+
    addSeparator();
 
    m_pItemsSelect[1] = new MenuItemSelect("Radio: Links stats", "Show statistics about the radio links health.");  
@@ -338,6 +344,7 @@ void MenuVehicleOSDStats::valuesToUI()
    m_pItemsSelect[0]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex])>>16) & 0x0F);
    m_pItemsSelect[21]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex])>>20) & 0x0F);
    m_pItemsSelect[1]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_STATS_RADIO_LINKS)?1:0);
+   m_pItemsSelect[32]->setSelection((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_LAYOUT_STATS_AUTO_WIDGETS_MARGINS)?1:0);
    
    if ( ! (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES) )
       m_pItemsSelect[2]->setSelection(0);
@@ -604,6 +611,13 @@ void MenuVehicleOSDStats::onSelectItem()
       sendToVehicle = true;
    }
 
+   if ( m_IndexFitWidgets == m_SelectedIndex )
+   {
+      params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_LAYOUT_STATS_AUTO_WIDGETS_MARGINS;
+      if ( 1 == m_pItemsSelect[32]->getSelectedIndex() )
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_LAYOUT_STATS_AUTO_WIDGETS_MARGINS;
+      sendToVehicle = true;
+   }
 
    if ( m_IndexStatsRadioLinks == m_SelectedIndex )
    {

@@ -24,8 +24,9 @@ class MenuVehicleOSD: public Menu
       int m_IndexDontShowFCMessages;
       int m_IndexOSDElements;
       int m_IndexOSDWidgets;
-      int m_IndexOSDInstruments;
+      int m_IndexOSDPlugins;
       int m_IndexOSDStats;
+      int m_IndexOSDController;
       MenuItemSlider* m_pItemsSlider[3];
       MenuItemSelect* m_pItemsSelect[10];
       MenuItemRange* m_pItemsRange[10];

@@ -109,7 +109,6 @@ void MenuConfirmationImportKey::onSelectItem()
 
    strcpy(szInputFile, szOutput);
 
-   //sprintf(szOutputFile, "%s/gs.key", FOLDER_CONFIG);
    strcpy(szOutputFile, FILE_DEFAULT_OPENIPC_KEYS);
 
    sprintf(szOutput, "%s.bk", FILE_DEFAULT_OPENIPC_KEYS);

@@ -23,7 +23,7 @@ Code written by: Petru Soroaga, 2021-2023
 #define MAX_DATA_PACKETS_IN_BLOCK 32
 #define MAX_FECS_PACKETS_IN_BLOCK 32
 #else
-#define MAX_RXTX_BLOCKS_BUFFER 100
+#define MAX_RXTX_BLOCKS_BUFFER 50
 #define MAX_TOTAL_PACKETS_IN_BLOCK 32
 #define MAX_DATA_PACKETS_IN_BLOCK 16
 #define MAX_FECS_PACKETS_IN_BLOCK 16
@@ -128,6 +128,8 @@ typedef struct
 #define VIDEO_TYPE_NONE 0
 #define VIDEO_TYPE_H264 1
 #define VIDEO_TYPE_OPENIPC 2
+#define VIDEO_TYPE_RTP_H264 3
+#define VIDEO_TYPE_RTS_H265 4
 
 
 #define PACKET_TYPE_VIDEO_DATA_FULL 2
@@ -374,7 +376,7 @@ typedef struct
 {
    u16 flags;    // see above
    u8  version;  // version x.y 4bits each        
-   u32 vehicle_id; // to which vehicle this telemetry refers to
+   u32 uVehicleId; // to which vehicle this telemetry refers to
    u8  vehicle_type;
          // semantic changed in version 8.0
          // bit 0...4 - vehicle type: car, drone, plane, etc
@@ -415,7 +417,7 @@ typedef struct
 {
    u16 flags;    // see above
    u8  version;  // version x.y 4bits each        
-   u32 vehicle_id; // to which vehicle this telemetry refers to
+   u32 uVehicleId; // to which vehicle this telemetry refers to
    u8  vehicle_type;
          // semantic changed in version 8.0
          // bit 0...4 - vehicle type: car, drone, plane, etc
@@ -455,7 +457,7 @@ typedef struct // introduced in version 7.4
 {
    u16 flags;    // see above
    u8  version;  // version x.y 4bits each        
-   u32 vehicle_id; // to which vehicle this telemetry refers to
+   u32 uVehicleId; // to which vehicle this telemetry refers to
    u8  vehicle_type;
          // semantic changed in version 8.0
          // bit 0...4 - vehicle type: car, drone, plane, etc

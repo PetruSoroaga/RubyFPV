@@ -222,7 +222,7 @@ void link_watch_loop_popup_looking()
    }
    else
    {
-      log_line("Will add `looking for` popup for VID %u, firmware type: %s", g_pCurrentModel->vehicle_id, str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
+      log_line("Will add `looking for` popup for VID %u, firmware type: %s", g_pCurrentModel->uVehicleId, str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
       idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
       if ( g_pCurrentModel->radioLinksParams.links_count < 2 )
          sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
@@ -287,7 +287,7 @@ void link_watch_loop_unexpected_vehicles()
    if( ! g_bFirstModelPairingDone )
       return;
 
-   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id, 10);
+   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 10);
    
    // Received unexpected known vehicle
 
@@ -309,8 +309,8 @@ void link_watch_loop_unexpected_vehicles()
       s_bLinkWatchShownSwitchVehicleMenu = true;
 
       log_line("Received data from unexpected model. Current vehicle ID: %u, received telemetry vehicle ID: %u",
-            g_pCurrentModel->vehicle_id, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
-      add_menu_to_stack(new MenuSwitchVehicle(pModelTemp->vehicle_id));
+            g_pCurrentModel->uVehicleId, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
+      add_menu_to_stack(new MenuSwitchVehicle(pModelTemp->uVehicleId));
       return;
    }
    
@@ -323,7 +323,7 @@ void link_watch_loop_unexpected_vehicles()
       {
          popups_remove(g_pPopupWrongModel);
          g_pPopupWrongModel = NULL;
-         log_line("Removed popup wrong model. We are not getting data anymore from the unexpected model UID: %u", g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+         log_line("Removed popup wrong model. We are not getting data anymore from the unexpected model UID: %u", g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
       }
       return;
    }  
@@ -334,7 +334,7 @@ void link_watch_loop_unexpected_vehicles()
       return;
 
    log_line("Received data from unexpected model. Current vehicle ID: %u, received telemetry vehicle ID: %u",
-      g_pCurrentModel->vehicle_id, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_id);
+      g_pCurrentModel->uVehicleId, g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
    char szBuff[256];
    char szName[128];
    szName[0] = 0;
@@ -683,6 +683,8 @@ void link_watch_loop_processes()
    if ( g_bSearching )
       return;
 
+   char szFile[128];
+
    if ( g_TimeNow > s_TimeLastProcessesCheck + 1000 )
    {
       s_TimeLastProcessesCheck = g_TimeNow;
@@ -758,7 +760,7 @@ void link_watch_loop_processes()
             char szComm[1024];
             char szBuff[2048];
             char szTemp[64];
-            sprintf(szComm, "df %s | sed -n 2p", TEMP_VIDEO_MEM_FOLDER);
+            sprintf(szComm, "df %s | sed -n 2p", FOLDER_TEMP_VIDEO_MEM);
             hw_execute_bash_command_raw(szComm, szBuff);
             long lu, lf, lt;
             sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
@@ -779,7 +781,9 @@ void link_watch_loop_processes()
       {
          log_line("Video processing process finished.");
          g_bVideoProcessing = false;
-         if ( access( TEMP_VIDEO_FILE_PROCESS_ERROR, R_OK ) != -1 )
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+         if ( access(szFile, R_OK) != -1 )
          {
             warnings_add(0, "Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
 
@@ -787,7 +791,7 @@ void link_watch_loop_processes()
             char * line = NULL;
             size_t len = 0;
             ssize_t read;
-            FILE* fd = fopen(TEMP_VIDEO_FILE_PROCESS_ERROR, "r");
+            FILE* fd = fopen(szFile, "r");
 
             while ( (NULL != fd) && ((read = getline(&line, &len, fd)) != -1))
             {
@@ -797,7 +801,7 @@ void link_watch_loop_processes()
             }
             if ( NULL != fd )
                fclose(fd);
-            sprintf(szBuff, "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
+            sprintf(szBuff, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
             hw_execute_bash_command(szBuff, NULL );
          }
          else
@@ -849,7 +853,7 @@ void link_watch_rc()
          if ( pCI->inputInterfacesCount  == 0 )
          {
              s_TimeLastWarningRCHID = g_TimeNow;
-             warnings_add(g_pCurrentModel->vehicle_id, "RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());
+             warnings_add(g_pCurrentModel->uVehicleId, "RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());
              return;
          }
       }
@@ -864,7 +868,7 @@ void link_watch_rc()
       if ( ! bFound )
       {
           s_TimeLastWarningRCHID = g_TimeNow;
-          warnings_add(g_pCurrentModel->vehicle_id, "RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!", g_idIconJoystick, get_Color_IconError());
+          warnings_add(g_pCurrentModel->uVehicleId, "RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!", g_idIconJoystick, get_Color_IconError());
           return;
       }
    }
@@ -930,7 +934,7 @@ bool link_has_received_main_vehicle_ruby_telemetry()
       return false;
  
    if ( g_bFirstModelPairingDone )
-   if ( g_VehiclesRuntimeInfo[0].uVehicleId == g_pCurrentModel->vehicle_id )
+   if ( g_VehiclesRuntimeInfo[0].uVehicleId == g_pCurrentModel->uVehicleId )
       return true;
 
    if ( ! g_bFirstModelPairingDone )
@@ -967,7 +971,7 @@ bool link_has_paired_with_main_vehicle()
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( (g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->vehicle_id) && g_VehiclesRuntimeInfo[i].bPairedConfirmed )
+      if ( (g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->uVehicleId) && g_VehiclesRuntimeInfo[i].bPairedConfirmed )
          return true;
    }
    return false;

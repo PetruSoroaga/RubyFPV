@@ -30,6 +30,7 @@
 #include "../base/base.h"
 #include "../base/encr.h"
 #include "../base/enc.h"
+#include "../base/config_hw.h"
 #include <pthread.h>
 #include <sodium.h>
 #include "../common/radio_stats.h"
@@ -771,6 +772,8 @@ static void * _thread_radio_rx(void *argument)
 {
    log_line("[RadioRxThread] Started.");
 
+   #ifdef HW_PLATFORM_RASPBERRY
+
    pthread_t this_thread = pthread_self();
    struct sched_param params;
    int policy = 0;
@@ -790,6 +793,8 @@ static void * _thread_radio_rx(void *argument)
    if ( ret != 0 )
      log_softerror_and_alarm("[RadioRxThread] Failed to get schedule param");
    log_line("[RadioRxThread] Current new thread policy/priority: %d/%d", policy, params.sched_priority);
+
+   #endif
 
    log_line("[RadioRxThread] Initialized State. Waiting for rx messages...");
 

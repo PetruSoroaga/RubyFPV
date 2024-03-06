@@ -130,7 +130,7 @@ extern u32 s_uLastAlarmsCount;
 
 pthread_t s_pThreadWatchDogVideoCapture;
 
-u32 s_uTimeLastReadIPCMessages = 0;
+u32 s_uTimeLastTryReadIPCMessages = 0;
 
 bool links_set_cards_frequencies_and_params(int iLinkId)
 {
@@ -306,7 +306,7 @@ void send_radio_config_to_controller()
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_RADIO_CONFIG_UPDATED, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = PH.vehicle_id_src;
    PH.total_length = sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters) + sizeof(type_radio_links_parameters);
 
@@ -322,7 +322,7 @@ void send_radio_reinitialized_message()
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_RADIO_REINITIALIZED, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = PH.vehicle_id_src;
    PH.total_length = sizeof(t_packet_header);
 
@@ -390,10 +390,10 @@ void reinit_radio_interfaces()
    char szComm[128];
    log_line("Reinit radio interfaces (PID %d)...", getpid());
 
-   sprintf(szComm, "touch %s", FILE_TMP_ALARM_ON);
+   sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
    hw_execute_bash_command_silent(szComm, NULL);
 
-   sprintf(szComm, "touch %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
+   sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_IN_PROGRESS);
    hw_execute_bash_command_silent(szComm, NULL);
 
    u32 uTimeStart = get_current_timestamp_ms();
@@ -411,7 +411,26 @@ void reinit_radio_interfaces()
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   char szCommRadio[128];
+   strcpy(szCommRadio, "./ruby_initradio");
+   for ( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+      if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] >= 0 )
+      if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] < g_pCurrentModel->radioLinksParams.links_count )
+      {
+         int dataRateMb = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[g_pCurrentModel->radioInterfacesParams.interface_link_id[i]];
+         if ( dataRateMb > 0 )
+            dataRateMb = dataRateMb / 1000 / 1000;
+         if ( dataRateMb > 0 )
+         {
+            sprintf(szCommRadio, "./ruby_initradio %d", dataRateMb);
+            break;
+         }
+      }
+   }
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
    if ( g_pCurrentModel->hasCamera() )
@@ -478,7 +497,7 @@ void reinit_radio_interfaces()
       }
 
       log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
-      sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+      sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
       hardware_enumerate_radio_interfaces();
@@ -503,11 +522,11 @@ void reinit_radio_interfaces()
    hw_execute_bash_command("ifconfig wlan2 up", NULL);
    hw_execute_bash_command("ifconfig wlan3 up", NULL);
    
-   sprintf(szComm, "rm -rf %s", FILE_CURRENT_RADIO_HW_CONFIG);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    // Remove radio initialize file flag
    hw_execute_bash_command("rm -rf tmp/ruby/conf_radios", NULL);
-   hw_execute_bash_command("./ruby_initradio", NULL);
+   hw_execute_bash_command(szCommRadio, NULL);
    
    hardware_sleep_ms(100);
    hardware_reset_radio_enumerated_flag();
@@ -552,10 +571,10 @@ void reinit_radio_interfaces()
    g_bRadioReinitialized = true;
    g_TimeRadioReinitialized = get_current_timestamp_ms();
 
-   sprintf(szComm, "rm -rf %s", FILE_TMP_REINIT_RADIO_IN_PROGRESS);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_IN_PROGRESS);
    hw_execute_bash_command_silent(szComm, NULL);
 
-   sprintf(szComm, "rm -rf %s", FILE_TMP_REINIT_RADIO_REQUEST);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_REQUEST);
    hw_execute_bash_command_silent(szComm, NULL); 
 
    // wait here so that whatchdog restarts everything
@@ -601,8 +620,8 @@ void _inject_video_link_dev_stats_packet()
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_STATS, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + sizeof(shared_mem_video_link_stats_and_overwrites);
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -616,8 +635,8 @@ void _inject_video_link_dev_graphs_packet()
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_GRAPHS, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + sizeof(shared_mem_video_link_graphs);
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -629,11 +648,11 @@ void _inject_video_link_dev_graphs_packet()
 
 void _read_ipc_pipes(u32 uTimeNow)
 {
-   s_uTimeLastReadIPCMessages = uTimeNow;
+   s_uTimeLastTryReadIPCMessages = uTimeNow;
    int maxToRead = 20;
    int maxPacketsToRead = maxToRead;
 
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCRouterFromCommands, 50, s_PipeTmpBufferCommandsReply, &s_PipeTmpBufferCommandsReplyPos, s_BufferCommandsReply) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromCommands, s_PipeTmpBufferCommandsReply, &s_PipeTmpBufferCommandsReplyPos, s_BufferCommandsReply)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferCommandsReply;      
@@ -646,7 +665,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       log_line("Read %d messages from commands msgqueue.", maxToRead - maxPacketsToRead);
 
    maxPacketsToRead = maxToRead;
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCRouterFromTelemetry, 50, s_PipeTmpBufferTelemetryDownlink, &s_PipeTmpBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromTelemetry, s_PipeTmpBufferTelemetryDownlink, &s_PipeTmpBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferTelemetryDownlink;      
@@ -673,7 +692,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       log_line("Read %d messages from telemetry msgqueue.", maxToRead - maxPacketsToRead);
 
    maxPacketsToRead = maxToRead;
-   while ( (maxPacketsToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCRouterFromRC, 50, s_PipeTmpBufferRCDownlink, &s_PipeTmpBufferRCDownlinkPos, s_BufferRCDownlink) )
+   while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromRC, s_PipeTmpBufferRCDownlink, &s_PipeTmpBufferRCDownlinkPos, s_BufferRCDownlink)) )
    {
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferRCDownlink;      
@@ -728,9 +747,9 @@ void process_and_send_packets()
    while ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
    {
       u32 uTime = get_current_timestamp_ms();
-      if ( uTime > s_uTimeLastReadIPCMessages + 500 )
+      if ( uTime > s_uTimeLastTryReadIPCMessages + 500 )
       {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while sending radio packets, read ipc messages.", uTime - s_uTimeLastReadIPCMessages);
+         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while sending radio packets, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
          _read_ipc_pipes(uTime);
       }
 
@@ -867,7 +886,7 @@ void process_and_send_packets()
    }
 }
 
-
+#ifdef HW_PLATFORM_RASPBERRY
 static void * _thread_watchdog_video_capture(void *ignored_argument)
 {
    int iCount = 0;
@@ -894,10 +913,7 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
 
       // Check video capture program up and running
    
-      // To fix, re-enable
-      /*
-      #ifdef HW_PLATFORM_RASPBERRY
-      if ( g_pCurrentModel->hasCamera() && (g_TimeStartRaspiVid > 0) && (g_TimeNow > g_TimeStartRaspiVid+5000) )
+      if ( g_pCurrentModel->hasCamera() && (video_source_cs_get_program_start_time() > 0) && (g_TimeNow > video_source_cs_get_program_start_time()+5000) )
       if ( ! g_bVideoPaused )
       //if ( g_TimeNow > g_TimeLastVideoCaptureProgramRunningCheck + 2000 )
       {
@@ -956,14 +972,13 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
          {
             send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED,0,0, 5);
             log_line("Signaled router main thread to restart video capture.");
-            flag_need_video_capture_restart();
+            video_source_csi_request_restart_program();
          }
       }
-      #endif
-      */
    }
    return NULL;
 }
+#endif
 
 void _synchronize_shared_mems()
 {
@@ -1268,9 +1283,9 @@ void _consume_radio_rx_packets()
          uTimeStart = uTime;
          _read_ipc_pipes(uTime);
       }
-      if ( uTime > s_uTimeLastReadIPCMessages + 500 )
+      if ( uTime > s_uTimeLastTryReadIPCMessages + 500 )
       {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastReadIPCMessages);
+         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
          uTimeStart = uTime;
          _read_ipc_pipes(uTime);
       }
@@ -1345,14 +1360,16 @@ void _check_free_storage_space()
       
       int iFreeSpaceKb = hardware_get_free_space_kb();
       int iMinFree = 100*1000;
-      #ifdef HW_PLATFORM_OPENIPC
+      #ifdef HW_PLATFORM_OPENIPC_CAMERA
       iMinFree = 1000;
       #endif
       if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFree) )
       {
+         char szComm[128];
          char szOutput[2048];
          szOutput[0] = 0;
-         hw_execute_bash_command_raw("du -h logs/", szOutput);
+         sprintf(szComm, "du -h %s", FOLDER_LOGS );
+         hw_execute_bash_command_raw(szComm, szOutput);
          for( int i=0; i<(int)strlen(szOutput); i++ )
          {
            if ( isspace(szOutput[i]) )
@@ -1418,6 +1435,9 @@ void handle_sigint(int sig)
    radio_rx_mark_quit();
 } 
 
+// To remove
+bool bDebugNoVideoOutput = false;
+
 int main (int argc, char *argv[])
 {
    signal(SIGINT, handle_sigint);
@@ -1431,6 +1451,7 @@ int main (int argc, char *argv[])
    }
 
    log_init("Router");
+   log_arguments(argc, argv);
 
    load_VehicleSettings();
 
@@ -1441,8 +1462,6 @@ int main (int argc, char *argv[])
    hardware_reload_serial_ports_settings();
 
    hardware_enumerate_radio_interfaces(); 
-
-   //init_radio_in_packets_state();
 
    reset_sik_state_info(&g_SiKRadiosState);
 
@@ -1489,12 +1508,14 @@ int main (int argc, char *argv[])
    
    if ( g_pCurrentModel->hasCamera() )
    {
+      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       if ( video_source_csi_open(FIFO_RUBY_CAMERA1) <= 0 )
       {
          cleanUp();
          return -1;
       }
 
+      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       if ( video_source_udp_open(5600) <= 0 )
       {
          cleanUp();
@@ -1699,6 +1720,7 @@ int main (int argc, char *argv[])
    u32 uLastTotalTxPackets = 0;
    u32 uLastTotalTxBytes = 0;
    
+   #ifdef HW_PLATFORM_RASPBERRY 
    if ( g_pCurrentModel->hasCamera() )
    {
       if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, NULL, &_thread_watchdog_video_capture, NULL) )
@@ -1706,6 +1728,7 @@ int main (int argc, char *argv[])
       else
          log_line("[Router] Created thread for watchdog.");
    }
+   #endif
    
    _broadcast_router_ready();
 
@@ -1719,9 +1742,8 @@ int main (int argc, char *argv[])
          send_alarm_to_controller(ALARM_ID_FIRMWARE_OLD, i, 0, 5);
    }
 
-   bool bDebugForceCSI = false;
-   if( access( "csi", R_OK ) != -1 )
-      bDebugForceCSI = true;
+   if( access( "novideo", R_OK ) != -1 )
+      bDebugNoVideoOutput = true;
 
    while ( !g_bQuit )
    {
@@ -1758,9 +1780,9 @@ int main (int argc, char *argv[])
 
       if ( g_pCurrentModel->hasCamera() )
       {
-         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() || bDebugForceCSI )
+         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
             video_source_csi_periodic_checks();
-         if ( g_pCurrentModel->getActiveCameraType() == CAMERA_TYPE_OPENIPC_GOKE )
+         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
             video_source_udp_periodic_checks();
       }
       u32 tTimeD1 = get_current_timestamp_ms();
@@ -1797,13 +1819,13 @@ int main (int argc, char *argv[])
             iVideoDataSize = 0;
             u8* pVideoData = NULL;
 
-            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() || bDebugForceCSI )
+            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
                pVideoData = video_source_csi_read(&iVideoDataSize);
-            if ( ! bDebugForceCSI )
-            if ( g_pCurrentModel->getActiveCameraType() == CAMERA_TYPE_OPENIPC_GOKE )
-               pVideoData = video_source_udp_read(&iVideoDataSize);
+            if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+               pVideoData = video_source_udp_read(&iVideoDataSize, true);
 
             if ( (NULL != pVideoData) && (iVideoDataSize > 0) )
+            if ( ! bDebugNoVideoOutput )
             {
                if ( process_data_tx_video_on_new_data(pVideoData, iVideoDataSize) )
                   s_debugVideoBlocksInCount++;
@@ -1842,14 +1864,15 @@ int main (int argc, char *argv[])
       if ( bSendPacketsNow )
          process_and_send_packets();
 
-      if ( NULL != g_pProcessorTxAudio )
-         g_pProcessorTxAudio->sendAudioPackets();
+      //if ( NULL != g_pProcessorTxAudio )
+      //   g_pProcessorTxAudio->sendAudioPackets();
 
       u32 tTime4 = get_current_timestamp_ms();
 
       //if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_NONE ||
       //     g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
       {
+         if ( ! bDebugNoVideoOutput )
          if ( videoPacketsReadyToSend > 0 )
             process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
 

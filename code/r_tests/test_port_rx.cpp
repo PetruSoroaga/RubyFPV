@@ -171,9 +171,6 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
 
 void process_packet(int iInterfaceIndex )
 {
-   printf("x");
-   fflush(stdout);
-         
    int nLength = 0;
    u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength); 
    if ( NULL == pBuffer )

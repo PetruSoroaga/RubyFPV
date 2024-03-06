@@ -118,7 +118,7 @@ void MenuSwitchVehicle::onSelectItem()
          menu_discard_all();
          return;
       }
-      if ( NULL != g_pCurrentModel && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->vehicle_id == pModel->vehicle_id) )
+      if ( NULL != g_pCurrentModel && (!g_pCurrentModel->is_spectator) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       {
          menu_discard_all();
          return;
@@ -132,12 +132,12 @@ void MenuSwitchVehicle::onSelectItem()
          
       pairing_stop();
       pModel->is_spectator = false;
-      setCurrentModel(pModel->vehicle_id);
+      setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
-      setControllerCurrentModel(g_pCurrentModel->vehicle_id);
+      setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 
-      ruby_set_active_model_id(g_pCurrentModel->vehicle_id);
+      ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
 
       g_bIsFirstConnectionToCurrentVehicle = true;
       onMainVehicleChanged(true);

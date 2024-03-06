@@ -220,7 +220,10 @@ int Model::getLoadedFileVersion()
 
 bool Model::reloadIfChanged(bool bLoadStats)
 {
-   FILE* fd = fopen(FILE_CURRENT_VEHICLE_MODEL, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
       return false;
 
@@ -230,7 +233,7 @@ bool Model::reloadIfChanged(bool bLoadStats)
    if ( iS != iSaveCount )
    {
       fclose(fd);
-      return loadFromFile(FILE_CURRENT_VEHICLE_MODEL, bLoadStats);
+      return loadFromFile(szFile, bLoadStats);
    }
    fclose(fd);
    return true;
@@ -238,8 +241,8 @@ bool Model::reloadIfChanged(bool bLoadStats)
 
 bool Model::loadFromFile(const char* filename, bool bLoadStats)
 {
-   char szFileNormal[1024];
-   char szFileBackup[1024];
+   char szFileNormal[128];
+   char szFileBackup[128];
 
    strcpy(szFileNormal, filename);
    strcpy(szFileBackup, filename);
@@ -269,11 +272,11 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       {
          //log_line("Found model file version: %d.", iVersion);
          if ( 8 == iVersionMain )
-            bMainFileLoadedOk = loadVersion8(szFileNormal, fd);
+            bMainFileLoadedOk = loadVersion8(fd);
          if ( 9 == iVersionMain )
-            bMainFileLoadedOk = loadVersion9(szFileNormal, fd);
+            bMainFileLoadedOk = loadVersion9(fd);
          if ( 10 == iVersionMain )
-            bMainFileLoadedOk = loadVersion10(szFileNormal, fd);
+            bMainFileLoadedOk = loadVersion10(fd);
          if ( bMainFileLoadedOk )
          {
             iLoadedFileVersion = iVersionMain;
@@ -300,11 +303,11 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       strcpy(szFreq2, str_format_frequency(radioLinksParams.link_frequency_khz[1]));
       strcpy(szFreq3, str_format_frequency(radioLinksParams.link_frequency_khz[2]));
       //log_line("Loaded vehicle successfully (%u ms) from file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s, is in developer mode: %s, %d radio links, 1st link: %s, 2nd link: %s, 3rd link: %s",
-      // timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes", (bDeveloperMode?"yes":"no"), radioLinksParams.links_count, szFreq1, szFreq2, szFreq3);
+      // timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes", (bDeveloperMode?"yes":"no"), radioLinksParams.links_count, szFreq1, szFreq2, szFreq3);
 
       log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, software: %d.%d (b%d), on time: %02d:%02d",
          bLoadStats?"with stats":"without stats",
-         filename, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
+         filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       constructLongName();
       return true;
@@ -323,11 +326,11 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       {
          //log_line("Found model file version: %d.", iVersion);
          if ( 8 == iVersionBackup )
-            bBackupFileLoadedOk = loadVersion8(szFileBackup, fd);
+            bBackupFileLoadedOk = loadVersion8(fd);
          if ( 9 == iVersionBackup )
-            bBackupFileLoadedOk = loadVersion9(szFileBackup, fd);
+            bBackupFileLoadedOk = loadVersion9(fd);
          if ( 10 == iVersionBackup )
-            bBackupFileLoadedOk = loadVersion10(szFileBackup, fd);
+            bBackupFileLoadedOk = loadVersion10(fd);
          if ( bBackupFileLoadedOk )
          {
             iLoadedFileVersion = iVersionBackup;
@@ -354,14 +357,14 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
    validate_settings();
 
    timeStart = get_current_timestamp_ms() - timeStart;
-   log_line("Loaded vehicle successfully (%d ms) from backup file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s", timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes");
+   log_line("Loaded vehicle successfully (%d ms) from backup file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s", timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes");
 
    constructLongName();
    
    fd = fopen(szFileNormal, "w");
    if ( NULL != fd )
    {
-      saveVersion10(szFileNormal, fd, false);
+      saveVersion10(fd, false);
       fclose(fd);
       log_line("Restored main model file from backup model file.");
    }
@@ -372,7 +375,7 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
 }
 
 
-bool Model::loadVersion8(const char* szFile, FILE* fd)
+bool Model::loadVersion8(FILE* fd)
 {
    char szBuff[256];
    int tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0, tmp5 = 0, tmp6 = 0, tmp7 = 0;
@@ -388,7 +391,7 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -493,7 +496,6 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
       radioLinksParams.uplink_datarate_data_bps[i] *= 1000 * 1000;
    }
 
-   
    for( unsigned int j=0; j<12; j++ )
    {
       if ( 1 != fscanf(fd, "%d", &tmp1) )
@@ -976,7 +978,7 @@ bool Model::loadVersion8(const char* szFile, FILE* fd)
 }
 
 
-bool Model::loadVersion9(const char* szFile, FILE* fd)
+bool Model::loadVersion9(FILE* fd)
 {
    char szBuff[256];
    int tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0, tmp5 = 0, tmp6 = 0, tmp7 = 0;
@@ -992,7 +994,7 @@ bool Model::loadVersion9(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1548,7 +1550,7 @@ bool Model::loadVersion9(const char* szFile, FILE* fd)
 
 
 
-bool Model::loadVersion10(const char* szFile, FILE* fd)
+bool Model::loadVersion10(FILE* fd)
 {
    char szBuff[256];
    int tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0, tmp5 = 0, tmp6 = 0, tmp7 = 0;
@@ -1564,7 +1566,7 @@ bool Model::loadVersion10(const char* szFile, FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &vehicle_id, &controller_id, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1675,16 +1677,16 @@ bool Model::loadVersion10(const char* szFile, FILE* fd)
       radioLinksParams.uDownlinkDataDataRateType[i] = tmp2;
    }
 
-   if ( 1 != fscanf(fd, "%d", &radioLinksParams.iSiKPacketSize) )
+   if ( 2 != fscanf(fd, "%d %u", &radioLinksParams.iSiKPacketSize, &radioLinksParams.uGlobalRadioLinksFlags) )
    {
       log_softerror_and_alarm("Load model10: error on radio 9");
       return false;
    }
-   for( unsigned int j=0; j<(sizeof(radioLinksParams.dummy)/sizeof(radioLinksParams.dummy[0])); j++ )
+   for( unsigned int j=0; j<(sizeof(radioLinksParams.uDummyRadio)/sizeof(radioLinksParams.uDummyRadio[0])); j++ )
    {
       if ( 1 != fscanf(fd, "%d", &tmp1) )
          { log_softerror_and_alarm("Load model10: Error on line radio4 dummy data"); return false; }
-      radioLinksParams.dummy[j] = tmp1;
+      radioLinksParams.uDummyRadio[j] = tmp1;
    }
 
    //-------------------------------
@@ -2158,7 +2160,7 @@ bool Model::saveToFile(const char* filename, bool isOnController)
 
    if ( isOnController )
    {
-      sprintf(szBuff, FOLDER_VEHICLE_HISTORY, vehicle_id);
+      sprintf(szBuff, FOLDER_VEHICLE_HISTORY, uVehicleId);
       sprintf(szComm, "mkdir -p %s", szBuff);
       hw_execute_bash_command_silent(szComm, NULL);
    }
@@ -2175,17 +2177,17 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       log_softerror_and_alarm("Failed to save model configuration to file: %s",filename);
       return false;
    }
-   saveVersion10(filename, fd, isOnController);
+   saveVersion10(fd, isOnController);
    if ( NULL != fd )
+   {
+      fflush(fd);
       fclose(fd);
-
+   }
    log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, on time: %02d:%02d",
-         filename, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
+         filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          isOnController?"yes":"no",
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       
-   hardware_sleep_ms(2);
-
    strcpy(szBuff, filename);
    szBuff[strlen(szBuff)-3] = 'b';
    szBuff[strlen(szBuff)-2] = 'a';
@@ -2197,7 +2199,7 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       log_softerror_and_alarm("Failed to save model configuration to file: %s",szBuff);
       return false;
    }
-   saveVersion10(szBuff, fd, isOnController);
+   saveVersion10(fd, isOnController);
    if ( NULL != fd )
    {
       fflush(fd);
@@ -2215,15 +2217,15 @@ bool Model::saveToFile(const char* filename, bool isOnController)
    strcpy(szFreq3, str_format_frequency(radioLinksParams.link_frequency_khz[2]));
    
    sprintf(szLog, "Saved model version 8 (%d ms) to file [%s] and [*.bak], UID: %u, save count: %d: name: [%s], vehicle id: %u, software: %d.%d (b%d), (is on controller side: %s, is in control mode: %s), %d radio links: 1: %s 2: %s 3: %s",
-      timeStart, filename, vehicle_id,
-      iSaveCount, vehicle_name, vehicle_id, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version >> 16, isOnController?"yes":"no", is_spectator?"no (spectator mode)":"yes",
+      timeStart, filename, uVehicleId,
+      iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version >> 16, isOnController?"yes":"no", is_spectator?"no (spectator mode)":"yes",
       radioLinksParams.links_count, szFreq1, szFreq2, szFreq3 );
    log_line(szLog);
    */
    return true;
 }
 
-bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
+bool Model::saveVersion10(FILE* fd, bool isOnController)
 {
    char szSetting[256];
    char szModel[8096];
@@ -2241,7 +2243,7 @@ bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
    strcat(szModel, szSetting);
    sprintf(szSetting, "savecounter: %d\n", iSaveCount);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, vehicle_id, controller_id, hwCapabilities.iBoardType); 
+   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, uVehicleId, uControllerId, hwCapabilities.iBoardType); 
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "%u\n", uModelFlags);
@@ -2308,12 +2310,12 @@ bool Model::saveVersion10(const char* szFile, FILE* fd, bool isOnController)
       sprintf( szSetting, "%d %d\n", radioLinksParams.uUplinkDataDataRateType[i], radioLinksParams.uDownlinkDataDataRateType[i] );
       strcat(szModel, szSetting);
    }
-   sprintf(szSetting, " %d\n", radioLinksParams.iSiKPacketSize);
+   sprintf(szSetting, " %d %u\n", radioLinksParams.iSiKPacketSize, radioLinksParams.uGlobalRadioLinksFlags);
    strcat(szModel, szSetting);
 
-   for( unsigned int j=0; j<(sizeof(radioLinksParams.dummy)/sizeof(radioLinksParams.dummy[0])); j++ )
+   for( unsigned int j=0; j<(sizeof(radioLinksParams.uDummyRadio)/sizeof(radioLinksParams.uDummyRadio[0])); j++ )
    {
-      sprintf(szSetting, " %d", radioLinksParams.dummy[j]); 
+      sprintf(szSetting, " %d", radioLinksParams.uDummyRadio[j]); 
       strcat(szModel, szSetting);
    }
    sprintf(szSetting, "\n");      
@@ -2773,7 +2775,7 @@ void Model::copy_video_link_profile(int from, int to)
 void Model::generateUID()
 {
    log_line("Generating a new unique vehicle ID...");
-   vehicle_id = rand();
+   uVehicleId = rand();
    FILE* fd = fopen("/sys/firmware/devicetree/base/serial-number", "r");
    if ( NULL != fd )
    {
@@ -2782,14 +2784,14 @@ void Model::generateUID()
       if ( 1 == fscanf(fd, "%s", szBuff) && 4 < strlen(szBuff) )
       {
          //log_line("Serial ID of HW: %s", szBuff);
-         vehicle_id += szBuff[strlen(szBuff)-1] + 256 * szBuff[strlen(szBuff)-2];
+         uVehicleId += szBuff[strlen(szBuff)-1] + 256 * szBuff[strlen(szBuff)-2];
          
          //strcat(vehicle_name, "-");
          //strcat(vehicle_name, szBuff + (strlen(szBuff)-4));
       }
       fclose(fd);
    }
-   log_line("Generated unique vehicle ID: %u", vehicle_id);
+   log_line("Generated unique vehicle ID: %u", uVehicleId);
 }
 
 void Model::populateHWInfo()
@@ -3901,12 +3903,12 @@ void Model::resetToDefaults(bool generateId)
    if ( generateId )
       generateUID();
    else
-      log_line("Reusing the same unique vehicle ID (%u).", vehicle_id);
+      log_line("Reusing the same unique vehicle ID (%u).", uVehicleId);
 
    hwCapabilities.iBoardType = 0;
    resetHWCapabilities();
 
-   controller_id = 0;
+   uControllerId = 0;
    sw_version = (SYSTEM_SW_VERSION_MAJOR * 256 + SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16);
    log_line("SW Version: %d.%d (b%d)", (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version >> 16);
    vehicle_type = (MODEL_TYPE_DRONE & MODEL_TYPE_MASK) | ((MODEL_FIRMWARE_TYPE_RUBY << 5) & MODEL_FIRMWARE_MASK);
@@ -4003,6 +4005,7 @@ void Model::resetRadioLinksParams()
    radioInterfacesParams.thresh62 = DEFAULT_RADIO_THRESH62;
    
    radioLinksParams.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
+   radioLinksParams.uGlobalRadioLinksFlags = 0;
    
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
@@ -4016,8 +4019,8 @@ void Model::resetRadioLinksParams()
       radioLinksParams.link_frequency_khz[i] = 0;
    }
 
-   for( unsigned int j=0; j<(sizeof(radioLinksParams.dummy)/sizeof(radioLinksParams.dummy[0])); j++ )
-      radioLinksParams.dummy[j] = 0;
+   for( unsigned int j=0; j<(sizeof(radioLinksParams.uDummyRadio)/sizeof(radioLinksParams.uDummyRadio[0])); j++ )
+      radioLinksParams.uDummyRadio[j] = 0;
 }
 
 void Model::resetRelayParamsToDefaults(type_relay_parameters* pRelayParams)
@@ -4751,13 +4754,11 @@ bool Model::isActiveCameraHDMI()
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
     
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-   {
-      if ( camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_HDMI )
-         return true;
-      return false;
-   }
-   if ( camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_HDMI )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+
+   if ( iCameraType == CAMERA_TYPE_HDMI )
       return true;
    return false;
 }
@@ -4770,17 +4771,13 @@ bool Model::isActiveCameraVeye()
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
 
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-   {
-      if ( camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE290 ||
-        camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE307 ||
-        camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE327 )
-         return true;
-      return false;
-   }
-   if ( camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE290 ||
-        camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 ||
-        camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE327 )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+
+   if ( iCameraType == CAMERA_TYPE_VEYE290 ||
+        iCameraType == CAMERA_TYPE_VEYE307 ||
+        iCameraType == CAMERA_TYPE_VEYE327 )
       return true;
    return false;
 }
@@ -4793,13 +4790,11 @@ bool Model::isActiveCameraVeye307()
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
 
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-   {
-      if ( camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE307 )
-         return true;
-      return false;
-   }
-   if ( camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+
+   if ( iCameraType == CAMERA_TYPE_VEYE307 )
       return true;
    return false;
 }
@@ -4812,15 +4807,12 @@ bool Model::isActiveCameraVeye327290()
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
 
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-   {
-      if ( camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE290 ||
-           camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_VEYE327 )
-         return true;
-      return false;
-   }
-   if ( camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE290 ||
-        camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE327 )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+
+   if ( iCameraType == CAMERA_TYPE_VEYE290 ||
+        iCameraType == CAMERA_TYPE_VEYE327 )
       return true;
    return false;
 }
@@ -4833,15 +4825,29 @@ bool Model::isActiveCameraCSICompatible()
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
 
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-   {
-      if ( camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_CSI ||
-           camera_params[iCurrentCamera].iForcedCameraType == CAMERA_TYPE_HDMI )
-         return true;
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+   if ( iCameraType == CAMERA_TYPE_CSI ||
+        iCameraType == CAMERA_TYPE_HDMI )
+      return true;
+   return false;
+}
+
+bool Model::isActiveCameraOpenIPC()
+{
+   if ( iCameraCount <= 0 )
       return false;
-   }
-   if ( camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_CSI ||
-        camera_params[iCurrentCamera].iCameraType == CAMERA_TYPE_HDMI )
+
+   if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
+      return false;
+
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
+   if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+   
+   if ( iCameraType == CAMERA_TYPE_OPENIPC_GOKE ||
+        iCameraType == CAMERA_TYPE_OPENIPC_SIGMASTER335 )
       return true;
    return false;
 }
@@ -5166,7 +5172,7 @@ void Model::populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_exten
    pPHRTE->vehicle_name[0] = 0;
    strncpy( (char*)pPHRTE->vehicle_name, vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
    pPHRTE->vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
-   pPHRTE->vehicle_id = vehicle_id;
+   pPHRTE->uVehicleId = uVehicleId;
    pPHRTE->vehicle_type = vehicle_type;
    pPHRTE->radio_links_count = radioLinksParams.links_count;
    pPHRTE->uRelayLinks = 0;
@@ -5191,7 +5197,7 @@ void Model::populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_exten
 
 void Model::populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_extended_v1* pPHRTE)
 {
-   vehicle_id = pPHRTE->vehicle_id;
+   uVehicleId = pPHRTE->uVehicleId;
    strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
@@ -5267,7 +5273,7 @@ void Model::populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_e
 
 void Model::populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_extended_v2* pPHRTE)
 {
-   vehicle_id = pPHRTE->vehicle_id;
+   uVehicleId = pPHRTE->uVehicleId;
    strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
@@ -5352,7 +5358,7 @@ void Model::populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_e
 
 void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE)
 {
-   vehicle_id = pPHRTE->vehicle_id;
+   uVehicleId = pPHRTE->uVehicleId;
    strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;

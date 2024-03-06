@@ -58,7 +58,7 @@ void MenuSpectator::onShow()
    for( int i=0; i<getControllerModelsSpectatorCount(); i++ )
    {
       Model *p = getSpectatorModel(i);
-      log_line("MenuSpectator: Iterating vehicles: id: %u", p->vehicle_id);
+      log_line("MenuSpectator: Iterating vehicles: id: %u", p->uVehicleId);
       char szBuff[256];
       if ( 1 == p->radioLinksParams.links_count )
          sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
@@ -87,7 +87,7 @@ void MenuSpectator::onShow()
 
       //MenuItem* pMI = new MenuItem(szBuff);
       //addMenuItem( pMI );
-      //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->vehicle_id == p->vehicle_id )
+      //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator && g_pCurrentModel->uVehicleId == p->uVehicleId )
       //   pMI->setExtraHeight((1+MENU_TEXTLINE_SPACING)*g_pRenderEngine->textHeight(g_idFontMenu));
 
    }
@@ -126,7 +126,7 @@ void MenuSpectator::Render()
       Model *pModel = getSpectatorModel(i);
       if ( NULL == pModel )
          continue;
-      if ( vehicle_is_favorite(pModel->vehicle_id) )
+      if ( vehicle_is_favorite(pModel->uVehicleId) )
          g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
    }
    RenderEnd(yTop);

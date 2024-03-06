@@ -26,63 +26,76 @@
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include "../../base/plugins_settings.h"
+
 #include "menu.h"
+
 #include "menu_vehicle_osd_plugins.h"
 #include "menu_vehicle_osd_plugin.h"
 #include "menu_item_select.h"
-#include "menu_item_slider.h"
-#include "menu_item_range.h"
+#include "menu_item_text.h"
 #include "menu_item_section.h"
-#include "menu_confirmation.h"
+#include "menu_vehicle_instruments_general.h"
 
 #include "../osd/osd_plugins.h"
 
-#include <sys/types.h>
-#include <dirent.h>
-#include <string.h>
-
-
-bool s_bMenuOSDPluginsPluginDeleted = false;
 
 MenuVehicleOSDPlugins::MenuVehicleOSDPlugins(void)
-:Menu(MENU_ID_VEHICLE_OSD_PLUGINS, "Plugins for OSD/Instruments/Gauges", NULL)
+:Menu(MENU_ID_OSD_PLUGINS, "OSD Plugins Settings", NULL)
 {
-   m_Width = 0.22;
-   m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
+   m_Width = 0.28;
+   m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
 
-   char szBuff[256];
-   sprintf(szBuff, "Plugins (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   char szBuff[128];
+   sprintf(szBuff, "OSD Plugins Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
    setTitle(szBuff);
    
-   readPlugins();
+   for( int i=0; i<MAX_OSD_CUSTOM_PLUGINS; i++ )
+   {
+      m_pItemsSelect[i] = NULL;
+      m_IndexPlugins[i] = -1;
+   }
+
+   for( int i=0; i<osd_plugins_get_count(); i++ )
+   {
+      if ( (i >= MAX_OSD_PLUGINS) || (i >= MAX_OSD_CUSTOM_PLUGINS) )
+         break;
+      char* szName = osd_plugins_get_short_name(i);
+      m_pItemsSelect[i] = new MenuItemSelect(szName, "Shows/hide/configure this plugin on current OSD layout");
+      m_pItemsSelect[i]->addSelection("No");
+      m_pItemsSelect[i]->addSelection("Yes");
+      m_pItemsSelect[i]->addSelection("Configure...");
+      m_pItemsSelect[i]->setIsEditable();
+      m_IndexPlugins[i] = addMenuItem(m_pItemsSelect[i]);
+   }
+
+   addSeparator();
+   addMenuItem(new MenuItemText("If you want to add additional OSD plugins, import them from [Menu] -> [Controller Settings] -> [Management] -> [Manage Plugins]", true));
 }
 
 MenuVehicleOSDPlugins::~MenuVehicleOSDPlugins()
 {
 }
 
-void MenuVehicleOSDPlugins::readPlugins()
+void MenuVehicleOSDPlugins::valuesToUI()
 {
-   removeAllItems();
+   int layoutIndex = g_pCurrentModel->osd_params.layout;
+
+   //log_dword("start: osd flags", g_pCurrentModel->osd_params.osd_flags[layoutIndex]);
+   //log_dword("start: instruments flags", g_pCurrentModel->osd_params.instruments_flags[layoutIndex]);
+   //log_line("current layout: %d, show instr: %d", (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_AHI_STYLE_MASK)>>3, g_pCurrentModel->osd_params.instruments_flags[layoutIndex] & INSTRUMENTS_FLAG_SHOW_INSTRUMENTS);
 
    for( int i=0; i<osd_plugins_get_count(); i++ )
    {
-      if ( i >= MAX_OSD_PLUGINS )
+      if ( (i >= MAX_OSD_PLUGINS) || ( i >= MAX_OSD_CUSTOM_PLUGINS) )
          break;
-
-      char* szName = osd_plugins_get_name(i);
-      addMenuItem(new MenuItem(szName, "Configure this plugin"));
+      u32 flags = g_pCurrentModel->osd_params.instruments_flags[layoutIndex];
+      if ( flags & (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i) )
+         m_pItemsSelect[i]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[i]->setSelectedIndex(0);
    }
-   
-   //addMenuItem(new MenuItemSection("Manage Plugins"));
-   //m_IndexImport = addMenuItem(new MenuItem("Import Plugins", "Import new OSD plugins from a USB memory stick."));
-   //m_pMenuItems[m_IndexImport]->showArrow();
 }
 
-void MenuVehicleOSDPlugins::valuesToUI()
-{
-}
 
 void MenuVehicleOSDPlugins::Render()
 {
@@ -91,27 +104,14 @@ void MenuVehicleOSDPlugins::Render()
    float y = yTop;
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
+
    RenderEnd(yTop);
 }
 
-void MenuVehicleOSDPlugins::onReturnFromChild(int iChildMenuId, int returnValue)
+void MenuVehicleOSDPlugins::onItemValueChanged(int itemIndex)
 {
-   Menu::onReturnFromChild(iChildMenuId, returnValue);
-
-   if ( s_bMenuOSDPluginsPluginDeleted )
-   {
-      readPlugins();
-      s_bMenuOSDPluginsPluginDeleted = false;
-      return;
-   }
-
-   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
-   {
-      importFromUSB();
-      return;
-   }
+   Menu::onItemValueChanged(itemIndex);
 }
-
 
 void MenuVehicleOSDPlugins::onSelectItem()
 {
@@ -120,109 +120,52 @@ void MenuVehicleOSDPlugins::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   if ( m_SelectedIndex < osd_plugins_get_count() )
+   if ( handle_commands_is_command_in_progress() )
    {
-      MenuVehicleOSDPlugin* pMenu = new MenuVehicleOSDPlugin(m_SelectedIndex);
-      add_menu_to_stack(pMenu);
+      handle_commands_show_popup_progress();
       return;
    }
 
-   /*
-   if ( m_IndexImport == m_SelectedIndex )
+   osd_parameters_t params;
+   memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
+   bool sendToVehicle = false;
+   int layoutIndex = g_pCurrentModel->osd_params.layout;
+
+   for( int i=0; i<osd_plugins_get_count(); i++ )
    {
-      MenuConfirmation* pMC = new MenuConfirmation("Import OSD Plugins","Insert an USB stick containing your plugins and then press Ok to start the import process.",1, true);
-      pMC->m_yPos = 0.3;
-      add_menu_to_stack(pMC);
-      return;
-   }  
-   */
-}
-
-void MenuVehicleOSDPlugins::importFromUSB()
-{
-   if ( ! hardware_try_mount_usb() )
-   {
-      addMessage("No USB memory stick detected. Please insert a USB stick");
-      return;
-   }
-
-   DIR *d;
-   FILE* fd;
-   struct dirent *dir;
-   char szFile[1024];
-   char szComm[1024];
-   log_line("Searching for plugins...");
-   
-   d = opendir(FOLDER_USB_MOUNT);
-   if (!d)
-   {
-      log_softerror_and_alarm("Failed to open USB mount dir to search for OSD plugins.");
-      addMessage("Failed to read the USB memory stick.");
-      hardware_unmount_usb();
-      return;
-   }
-
-   int countImported = 0;
-
-   while ((dir = readdir(d)) != NULL)
-   {
-      if ( strlen(dir->d_name) < 4 )
-         continue;
-
-      sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
-      long lSize = 0;
-      fd = fopen(szFile, "rb");
-      if ( NULL != fd )
-      {
-         fseek(fd, 0, SEEK_END);
-         lSize = ftell(fd);
-         fseek(fd, 0, SEEK_SET);
-         fclose(fd);
-      }
-      else
-         log_softerror_and_alarm("Failed to open file [%s] for checking it's size.", szFile);
-      if ( lSize < 3 )
-         continue;
-
-      if ( NULL != strstr(dir->d_name, ".png") )
-      {
-         sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
-         hw_execute_bash_command(szComm, NULL);
-         continue;
-      }
-
-      if ( NULL == strstr(dir->d_name, ".so") )
-         continue;
-
-      log_line("Found OSD plugin: [%s]", dir->d_name);
-      sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
-      hw_execute_bash_command(szComm, NULL);
-      countImported++;
-   }
-   closedir(d);
-   log_line("Searching for OSD plugins complete.");
-   hardware_unmount_usb();
-
-   if ( 0 == countImported )
-   {
-      addMessage("No OSD plugins found.");
-      hardware_unmount_usb();
-      return;
-   }
-   char szBuff[256];
-   sprintf(szBuff, "Found and imported %d OSD plugins.", countImported);
-   addMessage(szBuff);
-   hardware_unmount_usb();
-   osd_plugins_load();
-
-   for( int i=osd_plugins_get_count()-countImported; i<osd_plugins_get_count(); i++ )
-   {
-      if ( i < 0 || i >= MAX_OSD_PLUGINS )
+      if ( (i >= MAX_OSD_PLUGINS) || (i >= MAX_OSD_CUSTOM_PLUGINS) )
          break;
-      if ( NULL == g_pCurrentModel )
-         break;
-      int layoutIndex = g_pCurrentModel->osd_params.layout;
-      g_pCurrentModel->osd_params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
+
+      if ( m_IndexPlugins[i] != -1 )
+      if ( m_SelectedIndex == m_IndexPlugins[i] )
+      {
+         if ( m_pItemsSelect[i]->getSelectedIndex() == 0 )
+            params.instruments_flags[layoutIndex] &= ~(INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
+         else if ( m_pItemsSelect[i]->getSelectedIndex() == 1 )
+            params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
+         else
+         {
+            params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
+            memcpy(&(g_pCurrentModel->osd_params), &params, sizeof(osd_parameters_t));
+            valuesToUI();
+            MenuVehicleOSDPlugin* pMenu = new MenuVehicleOSDPlugin(i);
+            add_menu_to_stack(pMenu);
+            //return;
+         }
+         sendToVehicle = true;
+      }
    }
-   readPlugins();
+
+   if ( g_pCurrentModel->is_spectator )
+   {
+      memcpy(&(g_pCurrentModel->osd_params), &params, sizeof(osd_parameters_t));
+      saveControllerModel(g_pCurrentModel);
+      valuesToUI();
+   }
+   else if ( sendToVehicle )
+   {
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t)) )
+         valuesToUI();
+      return;
+   }
 }

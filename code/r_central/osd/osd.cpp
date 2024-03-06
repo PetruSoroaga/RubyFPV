@@ -396,7 +396,7 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
    {
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
-         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId != pActiveModel->vehicle_id )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId != pActiveModel->uVehicleId )
             continue;
          totalMaxVideo_bps = g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].rxBytesPerSec * 8;
          break;
@@ -1171,7 +1171,7 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
          char szComm[1024];
          char szBuff[2048];
          char szTemp[64];
-         sprintf(szComm, "df %s | sed -n 2p", TEMP_VIDEO_MEM_FOLDER);
+         sprintf(szComm, "df %s | sed -n 2p", FOLDER_TEMP_VIDEO_MEM);
          hw_execute_bash_command_raw(szComm, szBuff);
          //log_line("Output: [%s]", szBuff);
          long lu;
@@ -1244,7 +1244,7 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
 
 void render_bars()
 {
-   if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
+   if ( ! (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BACKGROUND_BARS) )
       return;
 
    osd_set_colors_background_fill();
@@ -2755,7 +2755,7 @@ void osd_render_all()
       osd_render_instruments();
    }
 
-   osd_widgets_render(pModel->vehicle_id);
+   osd_widgets_render(pModel->uVehicleId, osd_get_current_layout_index());
    osd_plugins_render();
    g_pRenderEngine->drawBackgroundBoundingBoxes(false);
 

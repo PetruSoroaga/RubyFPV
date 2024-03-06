@@ -15,7 +15,7 @@
 #define PROFILE_RX_MAX_TIME 15
 
 extern bool g_bQuit;
-extern bool g_bDebug;
+extern bool g_bDebugState;
 
 extern Model* g_pCurrentModel;
 extern ControllerSettings* g_pControllerSettings; 

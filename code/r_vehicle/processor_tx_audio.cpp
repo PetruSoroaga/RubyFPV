@@ -197,8 +197,8 @@ int ProcessorTxAudio::startLocalRecording()
    if ( NULL != m_fAudioRecordingFile )
       fclose(m_fAudioRecordingFile);
 
-   char szBuff[256];
-   sprintf(szBuff, "%s%d", FILE_TMP_AUDIO_RECORDING, m_iRecordingFileNumber);
+   char szBuff[128];
+   sprintf(szBuff, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, m_iRecordingFileNumber);
    m_fAudioRecordingFile = fopen(szBuff, "wb");
    if ( NULL == m_fAudioRecordingFile )
    {
@@ -209,7 +209,7 @@ int ProcessorTxAudio::startLocalRecording()
       log_line("[Audio-Tx] Opened audio recording output file %s, fd:%d", szBuff, fileno(m_fAudioRecordingFile));
 #endif
 
-   s_pFileRawStream = fopen("raw_audio_out_stream.data", "wb");
+   //s_pFileRawStream = fopen("raw_audio_out_stream.data", "wb");
 
    return 1;
 }
@@ -231,7 +231,7 @@ int ProcessorTxAudio::stopLocalRecording()
    for( int i=0; i<5; i++ )
    {
       m_iRecordingFileNumber++;
-      sprintf(szBuff, "rm -rf %s%d 2>/dev/null", FILE_TMP_AUDIO_RECORDING, m_iRecordingFileNumber);
+      sprintf(szBuff, "rm -rf %s%s%d 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, m_iRecordingFileNumber);
       hw_execute_bash_command(szBuff, NULL);
    }
    m_iRecordingFileNumber = 0;
@@ -374,7 +374,7 @@ void ProcessorTxAudio::_localRecordBuffer(u8* pBuffer, int iLength)
 
    m_iRecordingFileNumber++;
    char szBuff[256];
-   sprintf(szBuff, "%s%d", FILE_TMP_AUDIO_RECORDING, m_iRecordingFileNumber);
+   sprintf(szBuff, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, m_iRecordingFileNumber);
 
    m_fAudioRecordingFile = fopen(szBuff, "wb");
    if ( NULL == m_fAudioRecordingFile )
@@ -401,7 +401,7 @@ void ProcessorTxAudio::_sendAudioPacket(u8* pBuffer, int iLength, u32 uAudioPack
    
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_AUDIO, PACKET_TYPE_AUDIO_SEGMENT, STREAM_ID_VIDEO_1);
-   PH.vehicle_id_src = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(u32) + iLength;
 

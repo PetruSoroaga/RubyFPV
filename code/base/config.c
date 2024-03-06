@@ -589,7 +589,10 @@ void get_Ruby_BaseVersion(int* pMajor, int* pMinor)
    char szVersion[32];
    szVersion[0] = 0;
 
-   FILE* fd = fopen(FILE_INFO_VERSION, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, FILE_INFO_VERSION);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
       fd = fopen("ruby_ver.txt", "r");
    if ( NULL != fd )
@@ -639,7 +642,10 @@ void get_Ruby_UpdatedVersion(int* pMajor, int* pMinor)
    char szVersion[32];
    szVersion[0] = 0;
 
-   FILE* fd = fopen(FILE_INFO_LAST_UPDATE, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_INFO_LAST_UPDATE);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%s", szVersion) )

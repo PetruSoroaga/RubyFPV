@@ -651,10 +651,14 @@ int hardware_radio_sik_save_configuration()
    }
 
    log_line("[HardwareRadio]: Saving current SiK radios configuration (%d SiK radio interfaces).", s_iSiKRadioCount);
-   FILE* fd = fopen(FILE_CONFIG_LAST_SIK_RADIOS_DETECTED, "wb");
+   
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+   FILE* fd = fopen(szFile, "wb");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[HardwareRadio]: Failed to write last good SiK radio configuration to file: [%s]", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+      log_softerror_and_alarm("[HardwareRadio]: Failed to write last good SiK radio configuration to file: [%s]", szFile);
       return 0;
    }
 
@@ -675,7 +679,7 @@ int hardware_radio_sik_save_configuration()
    }
    fclose(fd);
 
-   log_line("[HardwareRadio]: Saved current SiK radios configuration to file [%s]:", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+   log_line("[HardwareRadio]: Saved current SiK radios configuration to file [%s]:", szFile);
    return 1;
 }
 
@@ -701,17 +705,21 @@ int hardware_radio_sik_load_configuration()
    s_iSiKRadioCount = 0;
    s_iSiKRadioLastKnownCount = 0;
 
-   if ( access( FILE_CONFIG_LAST_SIK_RADIOS_DETECTED, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+
+   if ( access(szFile, R_OK) == -1 )
    {
       log_line("[HardwareRadio]: No last known good SiK radio configuration file. Nothing to load.");
       return 0;
    }
-   log_line("[HardwareRadio]: Try to load last known good SiK radio configuration from file [%s].", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+   log_line("[HardwareRadio]: Try to load last known good SiK radio configuration from file [%s].", szFile);
 
-   FILE* fd = fopen(FILE_CONFIG_LAST_SIK_RADIOS_DETECTED, "rb");
+   FILE* fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s].", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s].", szFile);
       return 0;
    }
 
@@ -720,7 +728,7 @@ int hardware_radio_sik_load_configuration()
       fclose(fd);
       s_iSiKRadioCount = 0;
       s_iSiKRadioLastKnownCount = 0;
-      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format.", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format.", szFile);
       return 0;
    }
 
@@ -729,7 +737,7 @@ int hardware_radio_sik_load_configuration()
       fclose(fd);
       s_iSiKRadioCount = 0;
       s_iSiKRadioLastKnownCount = 0;
-      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format (2).", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
+      log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format (2).", szFile);
       return 0;
    }
 
@@ -740,12 +748,12 @@ int hardware_radio_sik_load_configuration()
          fclose(fd);
          s_iSiKRadioCount = 0;
          s_iSiKRadioLastKnownCount = 0;
-         log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format (3/%d).", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED, i);
+         log_softerror_and_alarm("[HardwareRadio]: Failed to load last known good SiK radio configuration from file [%s]. Invalid file format (3/%d).", szFile, i);
          return 0;
       }
    }
    fclose(fd);
-   log_line("[HardwareRadio]: Loaded last known good SiK radio configuration from file [%s]. %d SiK radios loaded:", FILE_CONFIG_LAST_SIK_RADIOS_DETECTED, s_iSiKRadioCount);
+   log_line("[HardwareRadio]: Loaded last known good SiK radio configuration from file [%s]. %d SiK radios loaded:", szFile, s_iSiKRadioCount);
 
    for( int i=0; i<s_iSiKRadioCount; i++ )
    {

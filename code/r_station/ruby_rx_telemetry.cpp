@@ -313,7 +313,7 @@ void upload_telemetry_packet()
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_TELEMETRY_RAW_UPLOAD, STREAM_ID_DATA);
 
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw) + telemetryBufferToVehicleCount;
       
    PHTR.telem_segment_index = s_uRawTelemetryUploadSegmentIndex;
@@ -358,7 +358,7 @@ void upload_datalink_packet()
 
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_AUX_DATA_LINK_UPLOAD, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + sizeof(u32) + dataLinkBufferToVehicleCount;
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -466,11 +466,8 @@ void try_read_serial_datalink()
 void try_read_messages_from_router()
 {
    int maxMessagesToRead = 10;
-   int timeoutReadPipeMicroseconds = 1000;
-   if ( g_bInputTelemetryFromSerial )
-      timeoutReadPipeMicroseconds = 500;
  
-   while ( (maxMessagesToRead > 0) && NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, timeoutReadPipeMicroseconds, s_PipeBufferTelemetryDownlink, &s_PipeBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink) )
+   while ( (maxMessagesToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCFromRouter, s_PipeBufferTelemetryDownlink, &s_PipeBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink)) )
    {
       maxMessagesToRead--;
 
@@ -522,7 +519,7 @@ void try_read_messages_from_router()
          continue;
       }
       
-      if ( pPH->vehicle_id_src != g_pCurrentModel->vehicle_id )
+      if ( pPH->vehicle_id_src != g_pCurrentModel->uVehicleId )
       {
          if ( maxMessagesToRead <= 0 )
             break;
@@ -800,12 +797,15 @@ void periodic_checks()
    if ( pCS->iTelemetryForwardUSBType != 0 )
    if ( g_TimeNow > s_TelemetryUSBOutputInfo.TimeLastUSBTetheringCheck + 1000 )
    {
+      char szFile[128];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_USB_TETHERING_DEVICE);
       s_TelemetryUSBOutputInfo.TimeLastUSBTetheringCheck = g_TimeNow;
       if ( ! s_TelemetryUSBOutputInfo.bUSBTethering )
-      if ( access(TEMP_USB_TETHERING_DEVICE, R_OK) != -1 )
+      if ( access(szFile, R_OK) != -1 )
       {
          s_TelemetryUSBOutputInfo.szIPUSB[0] = 0;
-         FILE* fd = fopen(TEMP_USB_TETHERING_DEVICE, "r");
+         FILE* fd = fopen(szFile, "r");
          if ( NULL != fd )
          {
             fscanf(fd, "%s", s_TelemetryUSBOutputInfo.szIPUSB);
@@ -827,7 +827,7 @@ void periodic_checks()
          return;
       }
       if ( s_TelemetryUSBOutputInfo.bUSBTethering )
-      if ( access(TEMP_USB_TETHERING_DEVICE, R_OK) == -1 )
+      if ( access(szFile, R_OK) == -1 )
       {
          log_line("Tethered USB Device for Telemetry Output Unplugged.");
          if ( -1 != s_TelemetryUSBOutputInfo.socketUSBOutput )
@@ -896,8 +896,8 @@ int main(int argc, char *argv[])
    //log_add_file("logs/log_rx_telemetry.log");
 
    if ( strcmp(argv[argc-1], "-debug") == 0 )
-      g_bDebug = true;
-   if ( g_bDebug )
+      g_bDebugState = true;
+   if ( g_bDebugState )
       log_enable_stdout();
   
    g_uControllerId = controller_utils_getControllerId();
@@ -936,6 +936,8 @@ int main(int argc, char *argv[])
 
    g_TimeStart = get_current_timestamp_ms();
  
+   int iSleepTime = 20;
+
    while (!g_bQuit) 
    {
       u32 uTimeStart = get_current_timestamp_ms();
@@ -946,15 +948,17 @@ int main(int argc, char *argv[])
          g_pProcessStats->lastActiveTime = g_TimeNow;
       }
 
-      hardware_sleep_ms(5);
+      hardware_sleep_ms(iSleepTime);
 
       g_TimeNow = get_current_timestamp_ms();
       u32 tTime0 = g_TimeNow;
 
       periodic_checks();
 
+      iSleepTime = 20;
       if ( g_bInputTelemetryFromSerial )
       {
+         iSleepTime = 5;
          try_read_serial_telemetry();
          if ( telemetryBufferToVehicleCount >= RAW_TELEMETRY_MIN_SEND_LENGTH || 
              (telemetryBufferToVehicleCount > 0 && g_TimeNow >= telemetryBufferToVehicleLastSendTime + RAW_TELEMETRY_SEND_TIMEOUT ) )
@@ -963,6 +967,7 @@ int main(int argc, char *argv[])
 
       if ( -1 != g_iSerialPortDataLink )
       {
+         iSleepTime = 5;
          try_read_serial_datalink();
          if ( dataLinkBufferToVehicleCount >= AUXILIARY_DATA_LINK_MIN_SEND_LENGTH || 
              (dataLinkBufferToVehicleCount > 0 && g_TimeNow >= dataLinkBufferToVehicleLastSendTime + AUXILIARY_DATA_LINK_SEND_TIMEOUT ) )

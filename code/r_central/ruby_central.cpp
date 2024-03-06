@@ -76,6 +76,7 @@
 #include "osd.h"
 #include "osd_common.h"
 #include "osd_plugins.h"
+#include "osd_widgets.h"
 #include "menu.h"
 #include "fonts.h"
 #include "popup.h"
@@ -107,7 +108,6 @@ u32 s_idBgImageMenu = 0;
 
 bool g_bIsReinit = false;
 bool g_bIsHDMIConfirmation = false;
-bool g_bDebug = false;
 bool quit = false;
 
 static int s_iRubyFPS = 0;
@@ -135,6 +135,8 @@ shared_mem_process_stats* s_pProcessStatsCentral = NULL;
 
 Popup popupNoModel("No vehicle defined or linked to!", 0.22, 0.45, 5);
 Popup popupStartup("System starting. Please wait.", 0.05, 0.16, 0);
+
+static char s_szFileHDMIChanged[128];
 
 MenuConfirmationHDMI* s_pMenuConfirmHDMI = NULL;
 MenuConfirmationImport* s_pMenuConfirmationImport = NULL;
@@ -200,14 +202,14 @@ void _draw_background()
    else
       g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImage);
 
-   double cc[4] = { 80,30,40,0.88 };
+   double cc[4] = { 80,30,40,1.0 };
 
    g_pRenderEngine->setColors(cc);
-   float width_text = g_pRenderEngine->textWidth(g_idFontMenu, SYSTEM_NAME);
+   float width_text = g_pRenderEngine->textWidth(g_idFontMenuLarge, SYSTEM_NAME);
    char szBuff[256];
    getSystemVersionString(szBuff, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-   g_pRenderEngine->drawText(0.91, 0.92, g_idFontMenu, SYSTEM_NAME);
-   g_pRenderEngine->drawText(0.915+width_text, 0.92, g_idFontMenu, szBuff);
+   g_pRenderEngine->drawText(0.91, 0.94, g_idFontMenuLarge, SYSTEM_NAME);
+   g_pRenderEngine->drawText(0.915+width_text, 0.94, g_idFontMenuLarge, szBuff);
 
    bool bNoModel = false;
 
@@ -585,13 +587,13 @@ void _render_video_background()
    u32 uSwVersion = 0;
    if ( NULL != g_pCurrentModel )
    {
-      uVehicleIdFullVideo = g_pCurrentModel->vehicle_id;
+      uVehicleIdFullVideo = g_pCurrentModel->uVehicleId;
       uSwVersion = g_pCurrentModel->sw_version;
       Model* pModel = relay_controller_get_relayed_vehicle_model(g_pCurrentModel);
       if ( NULL != pModel )
       if ( relay_controller_must_display_remote_video(pModel) )
       {
-         uVehicleIdFullVideo = pModel->vehicle_id;
+         uVehicleIdFullVideo = pModel->uVehicleId;
          bDisplayingRelayedVideo = true;
          uSwVersion = pModel->sw_version;
       }
@@ -916,7 +918,7 @@ void ruby_start_recording()
    hw_execute_bash_command("mkdir -p tmp", NULL );
    hw_execute_bash_command("chmod 777 tmp", NULL );
 
-   sprintf(szBuff, "rm -rf %s 2>/dev/null",TEMP_VIDEO_FILE_PROCESS_ERROR);
+   sprintf(szBuff, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
    hw_execute_bash_command(szBuff, NULL );
 
    if ( access( FOLDER_MEDIA, R_OK ) == -1 )
@@ -966,7 +968,7 @@ void ruby_start_recording()
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 8 * sizeof(u8);
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -1000,7 +1002,7 @@ void ruby_stop_recording()
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->vehicle_id;
+   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
    PH.total_length = sizeof(t_packet_header) + 8 * sizeof(u8);
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -1192,7 +1194,7 @@ void executeQuickActions()
       
       //char szBuff[64];
       //sprintf(szBuff, "Switching to camera profile %s", model_getCameraProfileName(iProfile));
-      //warnings_add(g_pCurrentModel->vehicle_id, szBuff);
+      //warnings_add(g_pCurrentModel->uVehicleId, szBuff);
 
       log_camera_profiles_differences(pProfile1, pProfile2);
 
@@ -1264,12 +1266,15 @@ void ruby_load_models()
    g_pCurrentModel = getCurrentModel();
    log_line("Loaded models complete.");
    
-   if ( access( FILE_ACTIVE_CONTROLLER_MODEL, R_OK ) == -1 )
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_ACTIVE_CONTROLLER_MODEL);
+   if ( access(szFile, R_OK) == -1 )
    {
       if ( g_bFirstModelPairingDone )
       if ( (0 != getControllerModelsCount()) || ( 0 != getControllerModelsSpectatorCount()) )
       if ( NULL != g_pCurrentModel )
-          g_uActiveControllerModelVID = g_pCurrentModel->vehicle_id;
+          g_uActiveControllerModelVID = g_pCurrentModel->uVehicleId;
 
       if ( ! controllerHasModelWithId(g_uActiveControllerModelVID) )
          g_uActiveControllerModelVID = 0;
@@ -1278,7 +1283,7 @@ void ruby_load_models()
       ruby_set_active_model_id(g_uActiveControllerModelVID);
    }
 
-   FILE* fd = fopen(FILE_ACTIVE_CONTROLLER_MODEL, "rb");
+   FILE* fd = fopen(szFile, "rb");
    if ( NULL != fd )
    {
       fscanf(fd, "%u", &g_uActiveControllerModelVID);
@@ -1340,7 +1345,7 @@ void start_loop()
       if ( access("/sys/class/net/usb0", R_OK ) == -1 )
       {
          char szBuff[256];
-         sprintf(szBuff, "rm -rf %s", TEMP_USB_TETHERING_DEVICE);
+         sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_USB_TETHERING_DEVICE);
          hw_execute_bash_command(szBuff, NULL);
       }
 
@@ -1674,11 +1679,17 @@ void start_loop()
       log_line("Start sequence: START_SEQ_SCAN_MEDIA_PRE");
       popupStartup.addLine("Scanning media storage...");
       log_line("Start sequence: Scanning media storage...");
-      if ( access(TEMP_VIDEO_FILE, R_OK) != -1 )
-      if ( access(TEMP_VIDEO_FILE_INFO, R_OK) != -1 )
+      char szFile[128];
+      char szFile2[128];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_VIDEO_FILE);
+      strcpy(szFile2, FOLDER_RUBY_TEMP);
+      strcat(szFile2, FILE_TEMP_VIDEO_FILE_INFO);
+      if ( access(szFile, R_OK) != -1 )
+      if ( access(szFile2, R_OK) != -1 )
       {
          long fSize = 0;
-         FILE *pF = fopen(TEMP_VIDEO_FILE, "rb");
+         FILE *pF = fopen(szFile, "rb");
          if ( NULL != pF )
          {
             fseek(pF, 0, SEEK_END);
@@ -1687,7 +1698,7 @@ void start_loop()
             fclose(pF);
          }
 
-         log_line("Processing unfinished video file %s, length: %d bytes", TEMP_VIDEO_FILE, fSize);
+         log_line("Processing unfinished video file %s, length: %d bytes", szFile, fSize);
 
          char szBuff[64];
          sprintf(szBuff, "nice -n 5 ./ruby_video_proc &");
@@ -1753,6 +1764,7 @@ void start_loop()
       
       link_watch_init();
       osd_plugins_load();
+      osd_widgets_load();
       r_check_processes_filesystem();
 
       log_line("Current local model: %X, first pairing done: %d, controller models: %d, spectator models: %d",
@@ -1798,7 +1810,8 @@ void start_loop()
             log_line("Opened shared mem to RC tx process watchdog stats for reading.");
       }
 
-      if ( g_bDebug )
+      /*
+      if ( g_bDebugState )
       {
          s_StartSequence = START_SEQ_COMPLETED;
          g_bIsRouterPacketsHistoryGraphOn = true;
@@ -1813,7 +1826,8 @@ void start_loop()
             return;
          } 
       }
-
+      */
+      
       s_StartSequence = START_SEQ_COMPLETED;
       log_line("Start sequence: COMPLETED.");
       log_line("System Configured. Start sequence done.");
@@ -2060,7 +2074,7 @@ void ruby_processing_loop(bool bNoKeys)
 
    if ( g_iMustSendCurrentActiveOSDLayoutCounter > 0 )
    if ( g_TimeNow >= g_TimeLastSentCurrentActiveOSDLayout+200 )
-   if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->vehicle_id)  )
+   if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)  )
    {
       g_iMustSendCurrentActiveOSDLayoutCounter--;
       g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
@@ -2120,14 +2134,14 @@ void main_loop_r_central()
    if ( NULL != s_pMenuConfirmHDMI )
    if ( g_TimeNow > s_TimeCentralInitializationComplete + 10000 )
    if ( menu_is_menu_on_top(s_pMenuConfirmHDMI) )
-   if ( access( FILE_TMP_HDMI_CHANGED, R_OK ) != -1 )         
+   if ( access(s_szFileHDMIChanged, R_OK) != -1 )         
    {
       log_line("Reverting HDMI resolution change...");
       ruby_pause_watchdog();
       save_temp_local_stats();
       hardware_sleep_ms(50);
 
-      FILE* fd = fopen(FILE_TMP_HDMI_CHANGED, "r");
+      FILE* fd = fopen(s_szFileHDMIChanged, "r");
       if ( NULL != fd )
       {
          char szBuff[256];
@@ -2139,7 +2153,7 @@ void main_loop_r_central()
          fclose(fd);
          log_line("Reverting HDMI resolution back to: group: %d, mode: %d", group, mode);
 
-         sprintf(szBuff, "rm -rf %s", FILE_TMP_HDMI_CHANGED);
+         sprintf(szBuff, "rm -rf %s%s", FOLDER_CONFIG, FILE_TEMP_HDMI_CHANGED);
          hw_execute_bash_command(szBuff, NULL);
 
          hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
@@ -2171,8 +2185,8 @@ void ruby_pause_watchdog()
    if ( 1 == s_iCountRequestsPauseWatchdog )
    {
       log_line("Pause watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
-      char szComm[256];
-      sprintf(szComm, "touch %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
+      char szComm[128];
+      sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
    }
    else
@@ -2188,8 +2202,8 @@ void ruby_resume_watchdog()
    {
       hardware_sleep_ms(20);
       log_line("Resumed watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
-      char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_PAUSE_WATCHDOG);
+      char szComm[128];
+      sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
    }
    else
@@ -2221,6 +2235,18 @@ int main(int argc, char *argv[])
       printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
       return 0;
    }
+
+   g_bDebugState = false;
+
+   if ( argc >= 1 )
+   if ( strcmp(argv[argc-1], "-debug") == 0 )
+      g_bDebugState = true;
+
+   if ( access(CONFIG_FILENAME_DEBUG, R_OK) != -1 )
+      g_bDebugState = true;
+   if ( g_bDebugState )
+      log_line("Starting in debug mode.");
+
    
    setlocale(LC_ALL, "en_GB.UTF-8");
 
@@ -2228,8 +2254,7 @@ int main(int argc, char *argv[])
 
    check_licences();
    
-   if ( strcmp(argv[argc-1], "-debug") == 0 )
-      g_bDebug = true;
+   char szFile[128];
 
    g_uControllerId = controller_utils_getControllerId();
    log_line("Controller UID: %u", g_uControllerId);
@@ -2266,7 +2291,9 @@ int main(int argc, char *argv[])
    }
    else
    {
-     if ( access(FILE_CONTROLLER_BUTTONS, R_OK ) == -1 )
+     strcpy(szFile, FOLDER_CONFIG);
+     strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+     if ( access(szFile, R_OK ) == -1 )
      if ( ! hw_process_exists("ruby_gpio_detect") )
      {
         hardware_sleep_ms(100);
@@ -2279,8 +2306,11 @@ int main(int argc, char *argv[])
      }
    }
 
+   strcpy(s_szFileHDMIChanged, FOLDER_CONFIG);
+   strcat(s_szFileHDMIChanged, FILE_TEMP_HDMI_CHANGED);
+
    g_bIsHDMIConfirmation = false;
-   if ( access( FILE_TMP_HDMI_CHANGED, R_OK ) != -1 )
+   if ( access(s_szFileHDMIChanged, R_OK) != -1 )
       g_bIsHDMIConfirmation = true;
 
    log_line("Ruby UI starting");
@@ -2345,7 +2375,10 @@ int main(int argc, char *argv[])
    }
 
    g_iBootCount = 0;
-   FILE* fd = fopen(FILE_BOOT_COUNT, "r");
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_BOOT_COUNT);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
       fscanf(fd, "%d", &g_iBootCount);
@@ -2356,7 +2389,10 @@ int main(int argc, char *argv[])
    shared_vars_state_reset_all_vehicles_runtime_info();
 
    g_bFirstModelPairingDone = false;
-   if ( access( FILE_FIRST_PAIRING_DONE, R_OK ) != -1 )
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
+   if ( access(szFile, R_OK) != -1 )
       g_bFirstModelPairingDone = true;
  
    keyboard_init();
@@ -2422,7 +2458,10 @@ void ruby_set_active_model_id(u32 uVehicleId)
    else
       log_line("Ruby: Set active model vehicle id to %u, %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
 
-   FILE* fd = fopen(FILE_ACTIVE_CONTROLLER_MODEL, "wb");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_ACTIVE_CONTROLLER_MODEL);
+   FILE* fd = fopen(szFile, "wb");
    if ( NULL != fd )
    {
       fprintf(fd, "%u\n", g_uActiveControllerModelVID);

@@ -36,6 +36,8 @@
 #include "ctrl_settings.h"
 #include "../common/string_utils.h"
 
+#ifdef HW_PLATFORM_RASPBERRY
+
 ControllerInterfacesSettings s_CIS;
 bool s_bAddedNewRadioInterfaces = false;
 int  s_iNewCardRadioInterfaceIndex = -1;
@@ -118,10 +120,13 @@ void reset_ControllerInterfacesSettings()
 
 int save_ControllerInterfacesSettings()
 {
-   FILE* fd = fopen(FILE_CONTROLLER_INTERFACES, "w");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_INTERFACES);
+   FILE* fd = fopen(szFile, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to save controller interfaces settings to file: %s",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to save controller interfaces settings to file: %s", szFile);
       return 0;
    }
 
@@ -181,17 +186,20 @@ int save_ControllerInterfacesSettings()
    if ( NULL != fd )
       fclose(fd);
 
-   log_line("Saved controller interfaces settings to file: %s", FILE_CONTROLLER_INTERFACES);
+   log_line("Saved controller interfaces settings to file: %s", szFile);
    log_line("Saved controller interfaces settings for %d radio interfaces, %d input devices.", s_CIS.radioInterfacesCount, s_CIS.inputInterfacesCount);
    return 1;
 }
 
 int load_ControllerInterfacesSettings()
 {
-   FILE* fd = fopen(FILE_CONTROLLER_INTERFACES, "r");
+   char szFile[128];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_INTERFACES);
+   FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (missing file). Reset and create the file.",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (missing file). Reset and create the file.", szFile);
       reset_ControllerInterfacesSettings();
       save_ControllerInterfacesSettings();
       return 0;
@@ -208,7 +216,7 @@ int load_ControllerInterfacesSettings()
    if ( failed )
    {
       reset_ControllerInterfacesSettings();
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid config file stamp)",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid config file stamp)", szFile);
       fclose(fd);
       return 0;
    }
@@ -220,7 +228,7 @@ int load_ControllerInterfacesSettings()
    {
       failed = 4;
       s_CIS.radioInterfacesCount = 0;
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri count)",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri count)", szFile);
    }
 
    if ( ! failed )
@@ -234,7 +242,7 @@ int load_ControllerInterfacesSettings()
          if ( 5 != fscanf(fd, "%s %s %d %u %d", s_CIS.listRadioInterfaces[i].szUserDefinedName, s_CIS.listRadioInterfaces[i].szMAC, &(s_CIS.listRadioInterfaces[i].cardModel), &tmp, &tmp2) )
          {
             failed = 5;
-            log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri data)",FILE_CONTROLLER_INTERFACES);
+            log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ri data)", szFile);
          }
          if ( failed )
          {
@@ -275,7 +283,7 @@ int load_ControllerInterfacesSettings()
    {
       failed = 6;
       s_CIS.listMACTXPreferredCount = 0;
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid txp count)",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid txp count)", szFile);
    }
 
    if ( ! failed )
@@ -284,7 +292,7 @@ int load_ControllerInterfacesSettings()
       if ( 1 != fscanf(fd, "%s", s_CIS.listMACTXPreferredOrdered[i]) )
       {
          failed = 7;
-         log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid txp data)",FILE_CONTROLLER_INTERFACES);
+         log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid txp data)", szFile);
       }
       if ( failed )
       {
@@ -299,7 +307,7 @@ int load_ControllerInterfacesSettings()
    {
       failed = 8;
       s_CIS.inputInterfacesCount = 0;
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid input icount)",FILE_CONTROLLER_INTERFACES);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid input icount)", szFile);
    }
    if ( ! failed )
    for( int i=0; i<s_CIS.inputInterfacesCount; i++ )
@@ -308,7 +316,7 @@ int load_ControllerInterfacesSettings()
       if ( 2 != fscanf(fd, "%d %s", &index, s_CIS.inputInterfaces[i].szInterfaceName) )
       {
          failed = 9;
-         log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ii data)",FILE_CONTROLLER_INTERFACES);
+         log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid ii data)", szFile);
       }
       if ( index != i+1 )
          failed = 10;
@@ -350,12 +358,12 @@ int load_ControllerInterfacesSettings()
 
    if ( failed )
    {
-      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid config file, error code: %d)",FILE_CONTROLLER_INTERFACES, failed);
+      log_softerror_and_alarm("Failed to load controller interfaces settings from file: %s (invalid config file, error code: %d)", szFile, failed);
       fclose(fd);
       return 0;
    }
    fclose(fd);
-   log_line("Loaded controller interfaces settings from file: %s", FILE_CONTROLLER_INTERFACES);
+   log_line("Loaded controller interfaces settings from file: %s", szFile);
    log_line("Loaded controller interfaces settings for %d radio interfaces, %d input devices.", s_CIS.radioInterfacesCount, s_CIS.inputInterfacesCount);
    return 1;
 }
@@ -1192,3 +1200,13 @@ t_ControllerInputInterface* controllerInterfacesGetAt(int index)
    return NULL;
 }
 
+
+#else
+
+int save_ControllerInterfacesSettings() { return 0; }
+int load_ControllerInterfacesSettings() { return 0; }
+void reset_ControllerInterfacesSettings() {}
+ControllerInterfacesSettings* get_ControllerInterfacesSettings() { return NULL; }
+void controllerRadioInterfacesLogInfo() {}
+int controllerGetCardDataRate(const char* szMAC) { return 0; }
+#endif

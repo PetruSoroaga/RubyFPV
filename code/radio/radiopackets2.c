@@ -76,7 +76,7 @@ void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_rub
 
    pV3->flags = pV1->flags;
    pV3->version = pV1->version;
-   pV3->vehicle_id = pV1->vehicle_id;
+   pV3->uVehicleId = pV1->uVehicleId;
    pV3->vehicle_type = pV1->vehicle_type;
    memcpy(pV3->vehicle_name, pV1->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    pV3->radio_links_count = pV1->radio_links_count;
@@ -132,7 +132,7 @@ void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(t_packet_header_rub
 
    pV3->flags = pV2->flags;
    pV3->version = pV2->version;
-   pV3->vehicle_id = pV2->vehicle_id;
+   pV3->uVehicleId = pV2->uVehicleId;
    pV3->vehicle_type = pV2->vehicle_type;
    memcpy(pV3->vehicle_name, pV2->vehicle_name, MAX_VEHICLE_NAME_LENGTH);
    pV3->radio_links_count = pV2->radio_links_count;

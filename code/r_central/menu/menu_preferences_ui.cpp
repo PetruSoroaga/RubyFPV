@@ -38,31 +38,38 @@
 #include "../fonts.h"
 
 
-MenuPreferencesUI::MenuPreferencesUI(void)
+MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
 :Menu(MENU_ID_PREFERENCES_UI, "User Interface Fonts, Colors and Sizes", NULL)
 {
    m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
-   addMenuItem(new MenuItemSection("Menus"));
+   m_bShowOnlyOSD = bShowOnlyOSD;
 
-   m_pItemsSelect[0] = new MenuItemSelect("Menu Font Size", "Change how big the menus appear on screen.");  
-   m_pItemsSelect[0]->addSelection("X-Small");
-   m_pItemsSelect[0]->addSelection("Small");
-   m_pItemsSelect[0]->addSelection("Normal");
-   m_pItemsSelect[0]->addSelection("Large");
-   m_pItemsSelect[0]->addSelection("X-Large");
-   m_pItemsSelect[0]->setIsEditable();
-   m_IndexScaleMenu = addMenuItem(m_pItemsSelect[0]);
-   
-   m_pItemsSelect[1] = new MenuItemSelect("Menus Layout", "Changes how the menus appear on screen.");  
-   m_pItemsSelect[1]->addSelection("Side by side");
-   m_pItemsSelect[1]->addSelection("Stacked");
-   m_pItemsSelect[1]->setIsEditable();
-   m_IndexMenuStacked = addMenuItem(m_pItemsSelect[1]);
+   m_IndexScaleMenu = -1;
+   m_IndexMenuStacked = -1;
 
-   addMenuItem(new MenuItemSection("OSD"));
+   if ( ! m_bShowOnlyOSD )
+   {
+      addMenuItem(new MenuItemSection("Menus"));
 
+      m_pItemsSelect[0] = new MenuItemSelect("Menu Font Size", "Change how big the menus appear on screen.");  
+      m_pItemsSelect[0]->addSelection("X-Small");
+      m_pItemsSelect[0]->addSelection("Small");
+      m_pItemsSelect[0]->addSelection("Normal");
+      m_pItemsSelect[0]->addSelection("Large");
+      m_pItemsSelect[0]->addSelection("X-Large");
+      m_pItemsSelect[0]->setIsEditable();
+      m_IndexScaleMenu = addMenuItem(m_pItemsSelect[0]);
+      
+      m_pItemsSelect[1] = new MenuItemSelect("Menus Layout", "Changes how the menus appear on screen.");  
+      m_pItemsSelect[1]->addSelection("Side by side");
+      m_pItemsSelect[1]->addSelection("Stacked");
+      m_pItemsSelect[1]->setIsEditable();
+      m_IndexMenuStacked = addMenuItem(m_pItemsSelect[1]);
+
+      addMenuItem(new MenuItemSection("OSD"));
+   }
    m_pItemsSelect[2] = new MenuItemSelect("Invert Colors", "Invert colors on OSD and Menus.");
    m_pItemsSelect[2]->addSelection("Normal");
    m_pItemsSelect[2]->addSelection("Inverted");
@@ -125,8 +132,11 @@ void MenuPreferencesUI::valuesToUI()
       return;
    }
 
-   m_pItemsSelect[0]->setSelection(p->iScaleMenus+2);
-   m_pItemsSelect[1]->setSelection(p->iMenusStacked);
+   if ( ! m_bShowOnlyOSD )
+   {
+      m_pItemsSelect[0]->setSelection(p->iScaleMenus+2);
+      m_pItemsSelect[1]->setSelection(p->iMenusStacked);
+   }
 
    m_pItemsSelect[2]->setSelection(p->iInvertColorsOSD);
    //m_pItemsSelect[3]->setSelection(p->iOSDOutlineThickness+3);
@@ -204,7 +214,7 @@ void MenuPreferencesUI::Render()
          float ws = hs;
          float ho = hs;
          float wo = ws;
-         float x = m_xPos+m_RenderWidth-2*m_sfMenuPaddingX-ws;
+         float x = m_xPos+m_RenderWidth-2.2*m_sfMenuPaddingX-ws;
          x -= 0.04*m_sfScaleFactor;
          if ( NULL != p && p->iOSDScreenSize == 1 )
          { ho = hs*0.9; wo = ws*0.9; }
@@ -236,6 +246,7 @@ void MenuPreferencesUI::onSelectItem()
       return;
    }
 
+   if ( ! m_bShowOnlyOSD )
    if ( m_IndexScaleMenu == m_SelectedIndex && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
    {
       p->iScaleMenus = m_pItemsSelect[0]->getSelectedIndex()-2;
@@ -248,6 +259,7 @@ void MenuPreferencesUI::onSelectItem()
       }
    }
 
+   if ( ! m_bShowOnlyOSD )
    if ( m_IndexMenuStacked == m_SelectedIndex  && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
    {
       p->iMenusStacked = m_pItemsSelect[1]->getSelectedIndex();

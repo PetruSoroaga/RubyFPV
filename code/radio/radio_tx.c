@@ -159,7 +159,7 @@ int _radio_tx_send_msg(int iInterfaceIndex, u8* pData, int iLength)
          continue; 
       }
       iTotalBytesSent += iWriteResult;
-      hardware_sleep_ms(1);
+      hardware_sleep_micros(500);
    }
    return 1;
 }
