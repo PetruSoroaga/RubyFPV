@@ -2,9 +2,9 @@
 
 // Select the platform to build for
 
-//#define HW_PLATFORM_OPENIPC_CAMERA 1
+#define HW_PLATFORM_OPENIPC_CAMERA 1
 //#define HW_PLATFORM_LINUX_GENERIC 1
-#define HW_PLATFORM_RASPBERRY 1
+//#define HW_PLATFORM_RASPBERRY 1
 
 
 // Configuration customisations for individual platforms 
