@@ -1,4 +1,9 @@
+ifeq ($(RUBY_BUILD_ENV),openipc)
+_LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -Wl,--gc-sections
+else
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -lwiringPi -Wl,--gc-sections
+endif
+
 _CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 _CPPFLAGS := -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 
@@ -143,7 +148,7 @@ CENTRAL_RADIO := $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopackets_sh
 
 all: vehicle controller ruby_i2c ruby_plugins ruby_central tests
 
-vehicle: ruby_start ruby_utils ruby_vehicle ruby_rx_rc ruby_rx_commands ruby_tx_telemetry ruby_rt_vehicle
+vehicle: ruby_start ruby_utils ruby_rx_commands ruby_tx_telemetry ruby_rt_vehicle
 
 controller: ruby_start ruby_utils ruby_controller ruby_rt_station ruby_tx_rc ruby_rx_telemetry
 
@@ -153,9 +158,9 @@ ruby_central: $(FOLDER_CENTRAL)/ruby_central.o $(MODULE_BASE) $(MODULE_MODELS) $
 	$(CXX) -export-dynamic -o $@ $^ $(_LDFLAGS) -ldl -lfreetype -lpng -ljpeg $(LDFLAGS_CENTRAL) $(LDFLAGS_CENTRAL2)
 
 
-ruby_utils: ruby_logger ruby_initdhcp ruby_initradio ruby_sik_config ruby_alive ruby_video_proc ruby_gpio_detect ruby_update ruby_update_worker
+ruby_utils: ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_gpio_detect ruby_update ruby_update_worker
 
-ruby_start: $(FOLDER_START)/ruby_start.o $(MODULE_MINIMUM_BASE) $(MODULE_MODELS) $(MODULE_MINIMUM_COMMON) $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_BASE)/controller_utils.o
+ruby_start: $(FOLDER_START)/ruby_start.o $(FOLDER_START)/r_start_vehicle.o $(FOLDER_START)/r_initradio.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o $(FOLDER_VEHICLE)/hw_config_check.o $(MODULE_MINIMUM_BASE) $(MODULE_MODELS) $(MODULE_MINIMUM_COMMON) $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_BASE)/controller_utils.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_VEHICLE)/utils_vehicle.o $(FOLDER_BASE)/encr.o
 	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_i2c: $(FOLDER_I2C)/ruby_i2c.o $(MODULE_BASE) $(MODULE_MODELS) $(MODULE_COMMON) $(MODULE_BASE2) $(FOLDER_BASE)/shared_mem_i2c.o
@@ -165,9 +170,6 @@ ruby_logger: $(FOLDER_UTILS)/ruby_logger.o $(MODULE_BASE) $(MODULE_BASE2) $(MODU
 	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_initdhcp: $(FOLDER_UTILS)/ruby_initdhcp.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
-	$(CXX) -o $@ $^ $(_LDFLAGS)
-
-ruby_initradio: $(FOLDER_UTILS)/ruby_initradio.o $(MODULE_MINIMUM_BASE) $(MODULE_MINIMUM_COMMON) $(MODULE_MINIMUM_RADIO) $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o
 	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_sik_config: $(FOLDER_UTILS)/ruby_sik_config.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
@@ -187,14 +189,8 @@ ruby_update: $(FOLDER_UTILS)/ruby_update.o $(MODULE_BASE) $(MODULE_BASE2) $(MODU
 
 ruby_update_worker: $(FOLDER_UTILS)/ruby_update_worker.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
 	$(CXX) -o $@ $^ $(_LDFLAGS)
- 
-ruby_vehicle: $(FOLDER_VEHICLE)/ruby_vehicle.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_VEHICLE)/hw_config_check.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
 
-ruby_rx_rc: $(FOLDER_VEHICLE)/ruby_rx_rc.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
-
-ruby_rx_commands: $(FOLDER_VEHICLE)/ruby_rx_commands.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/vehicle_settings.o
+ruby_rx_commands: $(FOLDER_VEHICLE)/ruby_rx_commands.o $(FOLDER_VEHICLE)/ruby_rx_rc.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/vehicle_settings.o
 	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl
 
 ruby_tx_telemetry: $(FOLDER_VEHICLE)/ruby_tx_telemetry.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_BASE)/parse_fc_telemetry.o $(FOLDER_BASE)/parse_fc_telemetry_ltm.o $(FOLDER_BASE)/vehicle_settings.o
@@ -265,13 +261,13 @@ test_port_rx:$(FOLDER_TESTS)/test_port_rx.o $(MODULE_BASE) $(MODULE_BASE2) $(MOD
 	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
 
 clean:
-	rm -rf ruby_start ruby_i2c ruby_logger ruby_initdhcp ruby_initradio ruby_sik_config ruby_alive ruby_video_proc ruby_gpio_detect ruby_update ruby_update_worker \
-          ruby_vehicle ruby_rx_rc ruby_rx_commands ruby_tx_telemetry ruby_rt_vehicle \
+	rm -rf ruby_start ruby_i2c ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_gpio_detect ruby_update ruby_update_worker \
+        ruby_rx_commands ruby_tx_telemetry ruby_rt_vehicle \
           test_* ruby_controller ruby_rt_station ruby_tx_rc ruby_rx_telemetry \
           ruby_central $(FOLDER_CENTRAL)/ruby_central test_log $(FOLDER_TESTS)/test_log ruby_plugin* \
-          $(FOLDER_VEHICLE)/ruby_vehicle $(FOLDER_VEHICLE)/ruby_rx_rc $(FOLDER_VEHICLE)/ruby_rx_commands $(FOLDER_VEHICLE)/ruby_tx_telemetry $(FOLDER_VEHICLE)/ruby_rt_vehicle \
+          $(FOLDER_VEHICLE)/ruby_rx_commands $(FOLDER_VEHICLE)/ruby_tx_telemetry $(FOLDER_VEHICLE)/ruby_rt_vehicle \
           $(FOLDER_STATION)/ruby_controller $(FOLDER_STATION)/ruby_rt_station $(FOLDER_STATION)/ruby_tx_rc $(FOLDER_STATION)/ruby_rx_telemetry \
-          $(FOLDER_START)/ruby_start $(FOLDER_I2C)/ruby_i2c $(FOLDER_UTILS)/ruby_logger $(FOLDER_UTILS)/ruby_initdhcp $(FOLDER_UTILS)/ruby_initradio $(FOLDER_UTILS)/ruby_sik_config $(FOLDER_UTILS)/ruby_alive $(FOLDER_UTILS)/ruby_video_proc $(FOLDER_UTILS)/ruby_gpio_detect $(FOLDER_UTILS)/ruby_update $(FOLDER_UTILS)/ruby_update_worker \
+          $(FOLDER_START)/ruby_start $(FOLDER_I2C)/ruby_i2c $(FOLDER_UTILS)/ruby_logger $(FOLDER_UTILS)/ruby_initdhcp $(FOLDER_UTILS)/ruby_sik_config $(FOLDER_UTILS)/ruby_alive $(FOLDER_UTILS)/ruby_video_proc $(FOLDER_UTILS)/ruby_gpio_detect $(FOLDER_UTILS)/ruby_update $(FOLDER_UTILS)/ruby_update_worker \
           $(FOLDER_BASE)/*.o $(FOLDER_COMMON)/*.o $(FOLDER_RADIO)/*.o $(FOLDER_START)/*.o $(FOLDER_UTILS)/*.o $(FOLDER_VEHICLE)/*.o $(FOLDER_STATION)/*.o \
           $(FOLDER_CENTRAL)/*.o $(FOLDER_CENTRAL_MENU)/*.o $(FOLDER_CENTRAL_OSD)/*.o $(FOLDER_CENTRAL_RENDERER)/*.o \
           $(FOLDER_PLUGINS_OSD)/*.o code/public/utils/*.o $(FOLDER_TESTS)/*.o
