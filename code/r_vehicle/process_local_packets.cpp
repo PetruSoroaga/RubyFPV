@@ -290,13 +290,20 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
    type_radio_interfaces_parameters oldRadioInterfacesParams;
    type_radio_links_parameters oldRadioLinksParams;
+   rc_parameters_t oldRCParams;
    audio_parameters_t oldAudioParams;
    type_relay_parameters oldRelayParams;
+   video_parameters_t oldVideoParams;
+   type_video_link_profile oldVideoLinkProfiles[MAX_VIDEO_LINK_PROFILES];
 
    memcpy(&oldRadioInterfacesParams, &(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(&oldRadioLinksParams, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
+   memcpy(&oldRCParams, &(g_pCurrentModel->rc_params), sizeof(rc_parameters_t));
    memcpy(&oldAudioParams, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
    memcpy(&oldRelayParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
+   memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
+   memcpy(&(oldVideoLinkProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
+   
    u32 old_ef = g_pCurrentModel->enc_flags;
    bool bMustSignalOtherComponents = true;
    bool bMustReinitVideo = true;
@@ -338,6 +345,36 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          case 5: uRefreshIntervalMs = 500; break;
       }
       radio_stats_set_graph_refresh_interval(&g_SM_RadioStats, uRefreshIntervalMs);
+   }
+
+
+   // If video link was change from one way to adaptive or viceversa, set video params defaults
+   if ( (oldVideoLinkProfiles[oldVideoParams.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO ) !=
+        (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO) )
+   {
+      log_line("Received notification that video link has changed (oneway - bidirectional).");
+
+      int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+      
+      if ( g_pCurrentModel->isVideoLinkFixedOneWay() && ( keyframe_ms < 0 ) )
+         keyframe_ms = -keyframe_ms;
+      if ( keyframe_ms > 0 )
+      {
+         log_line("Set fixed keyframe, value: %d ms. Adjust now the video capture keyframe param.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), keyframe_ms);
+         process_data_tx_video_set_current_keyframe_interval(keyframe_ms, "set fixed kf onewaylink or user set");
+      }
+
+      video_stats_overwrites_init();
+      video_stats_overwrites_reset_to_highest_level();
+
+      if ( g_pCurrentModel->isVideoLinkFixedOneWay() ||
+           (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)) ) 
+         video_link_set_fixed_quantization_values(0);
+
+      ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+      return;
    }
 
    if ( changeType == MODEL_CHANGED_CONTROLLER_TELEMETRY )
@@ -397,8 +434,9 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       }
 
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
-      ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
       return;
    }
 
@@ -482,7 +520,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
-      ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
       
       send_alarm_to_controller(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_SWAPPED_RADIO_INTERFACES, 0, 10);
       return;
@@ -734,6 +773,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       }
       return;
    }
+
    if ( changeType == MODEL_CHANGED_ADAPTIVE_VIDEO_FLAGS )
    {
       log_line("Received local notification that adaptive video link capabilities changed.");
@@ -830,6 +870,31 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       return;
    }
 
+   if ( changeType == MODEL_CHANGED_RC_PARAMS )
+   {
+      // If RC was disabled, stop Rx Rc process
+      if ( oldRCParams.rc_enabled && (! g_pCurrentModel->rc_params.rc_enabled) )
+      {
+         vehicle_stop_rx_rc();
+         ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+         return;
+      }
+
+      // If RC was enabled, start Rx Rc process
+      if ( (! oldRCParams.rc_enabled) && g_pCurrentModel->rc_params.rc_enabled )
+      {
+         vehicle_launch_rx_rc(g_pCurrentModel);
+         ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+         return;       
+      }
+
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+      ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+
+      return;
+   }
+
    if ( old_ef != g_pCurrentModel->enc_flags )
    {
       if ( g_pCurrentModel->enc_flags == MODEL_ENC_FLAGS_NONE )
@@ -865,12 +930,14 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       if ( fromComponentId == PACKET_COMPONENT_COMMANDS )
       {
          ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
-         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+         if ( g_pCurrentModel->rc_params.rc_enabled )
+            ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
       }
       if ( fromComponentId == PACKET_COMPONENT_TELEMETRY )
       {
          ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
-         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+         if ( g_pCurrentModel->rc_params.rc_enabled )
+            ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
       }
    }
 

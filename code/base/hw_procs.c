@@ -515,6 +515,9 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( access(szFullPath, R_OK) == -1 )
       sprintf(szFullPath, "%s%s", FOLDER_BINARIES, szProcess);
 
+   if ( access("tmp/debug", R_OK) != -1 )
+      sprintf(szFullPath, "/tmp/debug/%s", szProcess);
+
    if ( access(szFullPath, R_OK) == -1 )
    {
       log_error_and_alarm("Can't execute Ruby process. Not found here: [%s] or here: [%s]", szProcess, szFullPath );

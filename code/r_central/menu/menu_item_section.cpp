@@ -87,8 +87,14 @@ void MenuItemSection::Render(float xPos, float yPos, bool bSelected, float fWidt
    g_pRenderEngine->setColors(get_Color_MenuBg());
    g_pRenderEngine->setStroke(get_Color_MenuBorder());
    float yMid = yPos + m_fMarginTop + 0.3*m_RenderHeight;
-   g_pRenderEngine->drawLine(xPos-dxpadding, yMid, xPos+dx, yMid);
+   g_pRenderEngine->drawLine(xPos-dxpadding, yMid, xPos+dx-g_pRenderEngine->getPixelWidth(), yMid);
    g_pRenderEngine->drawLine(xPos+dx+2*dxp2+m_RenderTitleWidth, yMid, xPos+m_pMenu->getUsableWidth(), yMid);
+   if ( g_pRenderEngine->getScreenHeight() > 760 )
+   {
+      float dh = 1.1 * g_pRenderEngine->getPixelHeight();
+      g_pRenderEngine->drawLine(xPos-dxpadding, yMid+dh, xPos+dx-g_pRenderEngine->getPixelWidth(), yMid+dh);
+      g_pRenderEngine->drawLine(xPos+dx+2*dxp2+m_RenderTitleWidth, yMid+dh, xPos+m_pMenu->getUsableWidth(), yMid+dh);
+   }
    g_pRenderEngine->setFill(0,0,0,0.4*g_pRenderEngine->getGlobalAlfa());
    g_pRenderEngine->drawRoundRect(xPos+dx, yMid-0.74*height_text, 2.0*dxp2+m_RenderTitleWidth, 1.4*height_text, 0.02*Menu::getMenuPaddingY());
    g_pRenderEngine->setColors(get_Color_MenuText());

@@ -30,12 +30,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <sodium.h>
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/commands.h"
+#ifdef HW_CAPABILITY_WFBOHD
+#include <sodium.h>
+#endif
 #include "../base/enc.h"
 #include "../base/encr.h"
 #include "../base/shared_mem.h"
@@ -1725,11 +1727,14 @@ void _router_periodic_loop()
    if ( radio_links_check_read_auxiliary_links() > 0 )
       _process_auxiliary_radio_packets();
 
+   #ifdef HW_CAPABILITY_WFBOHD
    if ( wfbohd_is_wronk_key_flag_set() )
    {
       wfbohd_clear_wrong_key_flag();
       send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY, 0);
    }
+   #endif
+   
    if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
    {
       static u32 s_uTimeLastRadioStatsSharedMemSync = 0;

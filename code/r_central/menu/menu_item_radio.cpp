@@ -81,9 +81,6 @@ void MenuItemRadio::addSelection(const char* szText)
    if ( -1 == m_nSelectedIndex )
       m_nSelectedIndex = 0;
 
-   if ( -1 == m_nFocusedIndex )
-      m_nFocusedIndex = 0;
-
    m_szSelections[m_nSelectionsCount] = (char*)malloc(strlen(szText)+1);
    strcpy(m_szSelections[m_nSelectionsCount], szText);
    m_szSelectionsLegend[m_nSelectionsCount] = NULL;
@@ -98,9 +95,6 @@ void MenuItemRadio::addSelection(const char* szText, const char* szLegend)
 
    if ( -1 == m_nSelectedIndex )
       m_nSelectedIndex = 0;
-
-   if ( -1 == m_nFocusedIndex )
-      m_nFocusedIndex = 0;
 
    m_szSelections[m_nSelectionsCount] = (char*)malloc(strlen(szText)+1);
    strcpy(m_szSelections[m_nSelectionsCount], szText);
@@ -138,8 +132,6 @@ void MenuItemRadio::enableSelectionIndex(int index, bool bEnable)
    {
       if ( m_nFocusedIndex == index && (!bEnable) )
          setNextAvailableFocusableItem();
-      if ( -1 == m_nFocusedIndex && bEnable )
-         m_nFocusedIndex = index;
 
       m_bEnabledSelections[index] = bEnable;
    }
@@ -175,66 +167,46 @@ void MenuItemRadio::useSmallLegend(bool bSmall)
    m_bSmallLegend = bSmall;
 }
 
-void MenuItemRadio::setPrevAvailableFocusableItem()
+bool MenuItemRadio::setPrevAvailableFocusableItem()
 {
-   bool bFound = false;
-
-   for( int k=0; k<m_nSelectionsCount*2; k++ )
+   while ( m_nFocusedIndex >= 0 )
    {
       m_nFocusedIndex--;
       if ( m_nFocusedIndex < 0 )
-         m_nFocusedIndex = m_nSelectionsCount-1;
-      if ( m_bEnabledSelections[m_nFocusedIndex] )
-      {
-         bFound = true;
          break;
-      }
+      if ( m_bEnabledSelections[m_nFocusedIndex] )
+         return true;
    }
-   if ( ! bFound )
-      m_nFocusedIndex = -1;
+
+   if ( m_nFocusedIndex < 0 )
+      m_nFocusedIndex = 0;
+   return false;
 }
 
-void MenuItemRadio::setNextAvailableFocusableItem()
+bool MenuItemRadio::setNextAvailableFocusableItem()
 {
-   bool bFound = false;
-
-   for( int k=0; k<m_nSelectionsCount*2; k++ )
+   while ( m_nFocusedIndex < m_nSelectionsCount )
    {
       m_nFocusedIndex++;
       if ( m_nFocusedIndex >= m_nSelectionsCount )
-         m_nFocusedIndex = 0;
-      if ( m_bEnabledSelections[m_nFocusedIndex] )
-      {
-         bFound = true;
          break;
-      }
+      if ( m_bEnabledSelections[m_nFocusedIndex] )
+         return true;
    }
-   if ( ! bFound )
-      m_nFocusedIndex = -1;
+
+   if ( m_nFocusedIndex >= m_nSelectionsCount )
+      m_nFocusedIndex = m_nSelectionsCount-1;
+   return false;
 }
 
 bool MenuItemRadio::preProcessKeyUp()
 {
-   int n = m_nFocusedIndex;
-   setPrevAvailableFocusableItem();
-   if ( m_nFocusedIndex > n )
-   {
-      m_nFocusedIndex = n;
-      return false;
-   }
-   return true;
+   return setPrevAvailableFocusableItem();
 }
 
 bool MenuItemRadio::preProcessKeyDown()
 {
-   int n = m_nFocusedIndex;
-   setNextAvailableFocusableItem();
-   if ( m_nFocusedIndex < n )
-   {
-      m_nFocusedIndex = n;
-      return false;
-   }
-   return true;
+   return setNextAvailableFocusableItem();
 }
 
 void MenuItemRadio::onClick()
@@ -266,7 +238,8 @@ void MenuItemRadio::onKeyRight(bool bIgnoreReversion)
 
 float MenuItemRadio::getItemHeight(float maxWidth)
 {
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   maxWidth = m_pMenu->getUsableWidth();
+   //float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float height_text_small = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float fHeight = 0.0;
 
@@ -276,14 +249,19 @@ float MenuItemRadio::getItemHeight(float maxWidth)
       if ( NULL != m_szSelectionsLegend[i] && 0 != m_szSelectionsLegend[i][0] )
       {
          if ( m_bSmallLegend )
-            fHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, maxWidth-m_fSelectorWidth-m_fLegendDx, g_idFontMenuSmall);
+         {
+            fHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, maxWidth-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenuSmall);
+            fHeight += height_text_small*0.5;
+         }
          else
-            fHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, maxWidth-m_fSelectorWidth-m_fLegendDx, g_idFontMenu) + height_text_small*0.2;
+            fHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, maxWidth-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenu) + height_text_small*0.2;
       }
+      //fHeight += height_text * MENU_ITEM_SPACING;
+      fHeight += 2.0 * Menu::getSelectionPaddingY();
    }
 
-   if ( m_nSelectionsCount > 1 )
-      fHeight += (float)(m_nSelectionsCount-1) * MENU_ITEM_SPACING * height_text;
+   //if ( m_nSelectionsCount > 1 )
+   //   fHeight += (float)(m_nSelectionsCount-1) * MENU_ITEM_SPACING * height_text;
 
    fHeight += m_fExtraHeight;
    return fHeight;
@@ -291,50 +269,69 @@ float MenuItemRadio::getItemHeight(float maxWidth)
 
 float MenuItemRadio::getTitleWidth(float maxWidth)
 {
-   //return MenuItem::getTitleWidth(maxWidth);
-   return maxWidth;
+   return 0.0;
+   //return maxWidth;
 }
 
 float MenuItemRadio::getValueWidth(float maxWidth)
 {
-   //return MenuItem::getValueWidth(maxWidth);
-   return maxWidth;
+   return 0.0;
+   //return maxWidth;
 }
 
 
 void MenuItemRadio::Render(float xPos, float yPos, bool bSelected, float fWidthSelection)
 {
+   fWidthSelection = m_pMenu->getUsableWidth();
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float height_text_small = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    
    g_pRenderEngine->setColors(get_Color_MenuText());
    float y = yPos;
 
+  if ( bSelected )
+  {
+     if ( -1 == m_nFocusedIndex )
+        m_nFocusedIndex = 0;
+  }
+  else
+     m_nFocusedIndex = -1;
+
    for( int i=0; i<m_nSelectionsCount; i++ )
    {
       float yItem = y;
+
+      // Draw circle
       g_pRenderEngine->setColors(get_Color_MenuText());
       if ( ! m_bEnabledSelections[i] )
          g_pRenderEngine->setColors(get_Color_ItemDisabledText());
 
-      g_pRenderEngine->drawCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.3*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.5);
+      g_pRenderEngine->drawCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.6);
       if ( i == m_nSelectedIndex )
-         g_pRenderEngine->fillCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.3*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.3);
+         g_pRenderEngine->fillCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.4);
+      // Draw circle - end
 
       y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth, y, m_szSelections[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth, g_idFontMenu);
       if ( NULL != m_szSelectionsLegend[i] && 0 != m_szSelectionsLegend[i][0] )
       {
          if ( m_bSmallLegend )
-            y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth + m_fLegendDx, y, m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx, g_idFontMenuSmall);
+         {
+            y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth + m_fLegendDx, y + 0.3*height_text_small, m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenuSmall);
+            y += height_text_small*0.5;
+         }
          else
-            y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth + m_fLegendDx, y + height_text_small*0.2, m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx, g_idFontMenu) + height_text_small*0.2;
+            y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth + m_fLegendDx, y + height_text_small*0.2, m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenu) + height_text_small*0.2;
       }
 
+      if ( bSelected )
       if ( i == m_nFocusedIndex )
       {
+         double pC[4];
+         memcpy(pC, get_Color_ItemSelectedBg(), 4*sizeof(double));
+         pC[3] = 0.2;
          g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
-         g_pRenderEngine->setFill(0,0,0,0);
-         g_pRenderEngine->setStrokeSize(1);
+         g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
+         g_pRenderEngine->setStrokeSize(2);
          g_pRenderEngine->drawRoundRect(xPos-Menu::getSelectionPaddingX(), yItem-Menu::getSelectionPaddingY(), fWidthSelection + 2.0 * Menu::getSelectionPaddingX(), (y-yItem) + 2.0 * Menu::getSelectionPaddingY(), 0.01);
       }
 

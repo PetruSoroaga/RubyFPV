@@ -40,8 +40,8 @@ class MenuItemRadio: public MenuItem
      virtual void RenderCondensed(float xPos, float yPos, bool bSelected, float fWidthSelection);
 
    protected:
-      void setPrevAvailableFocusableItem();
-      void setNextAvailableFocusableItem();
+      bool setPrevAvailableFocusableItem();
+      bool setNextAvailableFocusableItem();
 
       int m_nSelectedIndex;
       int m_nFocusedIndex;

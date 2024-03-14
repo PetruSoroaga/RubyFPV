@@ -174,7 +174,7 @@ int base_check_crc32(u8* pBuffer, int iLength)
 
 void _init_timestamp_for_process()
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_BOOT_COUNT);
    FILE* fd = fopen(szFile, "r");
@@ -381,7 +381,7 @@ void log_init(const char* component_name)
 {
    s_logServiceMessageQueue = -1;
    s_logServiceAccessErrorCount = 0;
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, LOG_USE_PROCESS);
    if( access(szFile, R_OK) != -1 )
@@ -474,7 +474,7 @@ void log_line(const char* format, ...)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
    FILE* fd = fopen(szFile, "a+");
@@ -552,11 +552,11 @@ void log_line_watchdog(const char* format, ...)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
 
-   char szFile2[256];
+   char szFile2[MAX_FILE_PATH_SIZE];
    strcpy(szFile2, FOLDER_LOGS);
    strcat(szFile2, LOG_FILE_WATCHDOG);
 
@@ -615,11 +615,11 @@ void log_line_commands(const char* format, ...)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
 
-   char szFile2[256];
+   char szFile2[MAX_FILE_PATH_SIZE];
    strcpy(szFile2, FOLDER_LOGS);
    strcat(szFile2, LOG_FILE_COMMANDS);
 
@@ -748,7 +748,7 @@ void log_buffer5(const u8* buffer, int size, int delim1, int delim2, int delim3,
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
 
@@ -838,7 +838,7 @@ void log_dword(const char* szText, u32 value)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
    FILE* fd = fopen(szFile, "a+");
@@ -896,7 +896,7 @@ void log_dword_bits(const char* szText, u32 value)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
    FILE* fd = fopen(szFile, "a+");
@@ -959,11 +959,11 @@ void log_error_and_alarm(const char* format, ...)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
 
-   char szFile2[256];
+   char szFile2[MAX_FILE_PATH_SIZE];
    strcpy(szFile2, FOLDER_LOGS);
    strcat(szFile2, LOG_FILE_ERRORS);
 
@@ -1057,11 +1057,11 @@ void log_softerror_and_alarm(const char* format, ...)
       return;
    }
 
-   char szFile[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
    strcat(szFile, LOG_FILE_SYSTEM);
 
-   char szFile2[256];
+   char szFile2[MAX_FILE_PATH_SIZE];
    strcpy(szFile2, FOLDER_LOGS);
    strcat(szFile2, LOG_FILE_ERRORS_SOFT);
 

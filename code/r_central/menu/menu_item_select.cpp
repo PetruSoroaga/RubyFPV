@@ -221,7 +221,7 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
    float fAlphaLow = 0.3;
    height_text = 0.9*height_text;
 
-   float xEnd = xPos + m_pMenu->getUsableWidth() - m_fMarginX;
+   float xEnd = xPos + m_pMenu->getUsableWidth();
    float x0 = xEnd;
 
    float dxPaddings = Menu::getSelectionPaddingX();

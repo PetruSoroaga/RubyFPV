@@ -129,10 +129,16 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
 
    float sliderHeight = 0.4 * m_RenderTitleHeight;
    float sliderWidth = m_SliderWidth * Menu::getScaleFactor();
+   float fMinSliderWidth = 0.05;
+   if ( sliderWidth < fMinSliderWidth )
+      sliderWidth = fMinSliderWidth;
 
    if ( fWidthSelection + sliderWidth + valueWidth + valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
+   {
       sliderWidth = m_pMenu->getUsableWidth() - m_fMarginX - fWidthSelection - valueWidth - valueMargin - Menu::getMenuPaddingX();
-   
+      if ( sliderWidth < fMinSliderWidth )
+         sliderWidth = fMinSliderWidth;
+   }
    float xPosSlider = xPos + m_pMenu->getUsableWidth() - sliderWidth - m_fMarginX;
 
    if ( m_bIsEditing )
@@ -190,9 +196,10 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.8, yBottom, xPosSlider+sliderWidth*0.8, yBottom-sliderHeight*0.8);
    g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.9, yBottom, xPosSlider+sliderWidth*0.9, yBottom-sliderHeight*0.8);
 
-   float size = sliderHeight*1.8;
-   xPosSlider = xPosSlider + (float)(sliderWidth-size)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
-   g_pRenderEngine->drawRoundRect(xPosSlider, yBottom-size*0.6, size, size, 0.1*Menu::getMenuPaddingY());
+   float fSizeSelectorH = sliderHeight*1.8;
+   float fSizeSelectorW = sliderHeight*1.2;
+   xPosSlider = xPosSlider + (float)(sliderWidth-fSizeSelectorW)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
+   g_pRenderEngine->drawRoundRect(xPosSlider, yBottom-fSizeSelectorH*0.6, fSizeSelectorW, fSizeSelectorH, 0.1*Menu::getMenuPaddingY());
 
    g_pRenderEngine->setGlobalAlfa(fA);
    g_pRenderEngine->setColors(get_Color_MenuText());

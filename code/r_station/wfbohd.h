@@ -1,7 +1,6 @@
 #pragma once
 #include "../base/base.h"
 
-
 void wfbohd_init(bool bSearching);
 void wfbohd_cleanup();
 

@@ -32,7 +32,9 @@
 #include "../base/enc.h"
 #include "../base/config_hw.h"
 #include <pthread.h>
+#ifdef HW_CAPABILITY_WFBOHD
 #include <sodium.h>
+#endif
 #include "../common/radio_stats.h"
 #include "../common/string_utils.h"
 #include "radio_rx.h"
@@ -50,7 +52,9 @@ pthread_t s_pThreadRadioRx;
 pthread_mutex_t s_pThreadRadioRxMutex;
 shared_mem_radio_stats* s_pSMRadioStats = NULL;
 shared_mem_radio_stats_interfaces_rx_graph* s_pSMRadioRxGraphs = NULL;
+#ifdef HW_CAPABILITY_WFBOHD
 static int s_iSodiumInited = 0;
+#endif
 int s_iSearchMode = 0;
 u32 s_uRadioRxTimeNow = 0;
 u32 s_uRadioRxLastTimeRead = 0;
@@ -422,7 +426,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
    return 0;
 }
 
-
+#ifdef HW_CAPABILITY_WFBOHD
 // returns 0 if it should be discarded
 // returns positive number: how many packets have been skipped - 1
 int _radio_rx_parse_received_packet_wfbohd(int iInterfaceIndex, u8* pBuffer, int iBufferLength)
@@ -572,6 +576,7 @@ int _radio_rx_parse_received_packet_wfbohd(int iInterfaceIndex, u8* pBuffer, int
    s_uLastFragmentReceived = uFragmentIndex;
    return uSkipped;
 }
+#endif
 
 // return 0 on success, -1 if the interface is now invalid or broken
 
@@ -619,6 +624,8 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
 
    int iCountPackets = 0;
    int iIsVideoData = 0;
+
+   #ifdef HW_CAPABILITY_WFBOHD
    int iCountSkippedPackets = 0;
 
    if ( (s_RadioRxState.uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC) )
@@ -634,6 +641,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       }
    }
    else
+   #endif
    {
       while ( (iLength > 0) && (NULL != pData) )
       { 
@@ -683,12 +691,14 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    u32 uVehicleId = 0;
    if ( s_RadioRxState.uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
    {
+      #ifdef HW_CAPABILITY_WFBOHD
       u32 uFreqKhz = 0;
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
       if ( NULL != pRadioHWInfo )
          uFreqKhz = pRadioHWInfo->uCurrentFrequencyKhz;
 
       uVehicleId = wfbohd_radio_generate_vehicle_id(uFreqKhz);
+      #endif
    }
    else if ( NULL != pBuffer )
    {
@@ -699,9 +709,11 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
    if ( NULL != s_pSMRadioStats )
    {
+      #ifdef HW_CAPABILITY_WFBOHD
       if ( (s_RadioRxState.uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC) )
          radio_stats_update_on_new_wfbohd_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, iIsVideoData, iDataIsOk, iCountSkippedPackets);
       else
+      #endif
          radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, 0, iIsVideoData, iDataIsOk);
    }
    return iReturn;
@@ -992,6 +1004,7 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
    s_iRadioRxSingalStop = 0;
    s_RadioRxState.uAcceptedFirmwareType = uAcceptedFirmwareType;
    
+   #ifdef HW_CAPABILITY_WFBOHD
    if ( s_RadioRxState.uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       if ( ! s_iSodiumInited )
@@ -1004,6 +1017,7 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
       if ( 1 != load_openipc_keys(FILE_DEFAULT_OPENIPC_KEYS) )
          log_softerror_and_alarm("[RadioRx] Can't load openIpc keys from file [%s].", FILE_DEFAULT_OPENIPC_KEYS);
    }
+   #endif
 
    radio_rx_reset_interfaces_broken_state();
 
@@ -1047,6 +1061,7 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
       for( int k=0; k<MAX_RADIO_INTERFACES; k++ )
          s_RadioRxState.vehicles[i].uLastRxRadioLinkPacketIndex[k] = 0;
 
+      #ifdef HW_CAPABILITY_WFBOHD
       if ( s_RadioRxState.vehicles[i].uDetectedFirmwareType & MODEL_FIRMWARE_TYPE_OPENIPC )
       {
          if ( NULL != get_openipc_key1() )
@@ -1056,6 +1071,7 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
          memset( s_RadioRxState.vehicles[i].session_key, 0, sizeof(s_RadioRxState.vehicles[i].session_key)); 
          s_RadioRxState.vehicles[i].pFEC = NULL;
       }
+      #endif
    }
    s_RadioRxState.uTimeLastMinute = get_current_timestamp_ms();
    s_RadioRxState.iMaxPacketsInQueue = 0;
@@ -1205,12 +1221,13 @@ int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLeng
       }
    }
 
+   #ifdef HW_CAPABILITY_WFBOHD
    if ( nPacketLength >= sizeof(type_wfb_block_header) )
    if ( ((*pPacketBuffer) == PACKET_TYPE_WFB_DATA) || ((*pPacketBuffer) == PACKET_TYPE_WFB_KEY) )
    {
       return MODEL_FIRMWARE_TYPE_OPENIPC;
    }
-
+   #endif
    return 0;
 }
 

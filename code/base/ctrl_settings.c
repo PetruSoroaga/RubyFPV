@@ -77,7 +77,7 @@ void reset_ControllerSettings()
    s_CtrlSettings.iDeveloperMode = 0;
    s_CtrlSettings.iRenderFPS = 10;
    s_CtrlSettings.iShowVoltage = 1;
-   s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;
+   s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
    s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
    s_CtrlSettings.nUseFixedIP = 0;
    s_CtrlSettings.uFixedIP = (192<<24) | (168<<16) | (1<<8) | 20;
@@ -256,7 +256,7 @@ int load_ControllerSettings()
 
    if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS, &s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs)) )
    {
-      s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;
+      s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
       s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
       failed = 10;
    }

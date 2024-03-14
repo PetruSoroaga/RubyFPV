@@ -584,28 +584,31 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
          bECChanged = true;
 
+      u32 uECSpreadHigh = (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpread = uECSpreadLow | (uECSpreadHigh<<1);
       szBuff2[0] = 0;
       if ( pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
       {
          if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
          {
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%d", szCurrentProfile,
-               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
+               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
             sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
          }
          else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%u/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
       }
       else
       {
          if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
          {
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%d", szCurrentProfile,
-               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
+               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
             sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
          }
          else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, pVDS->video_data_length);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%u/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
       }
 
       if ( bECChanged && g_bOSDElementChangeNotification )

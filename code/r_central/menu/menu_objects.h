@@ -158,6 +158,7 @@ class Menu
      void removeMenuItem(MenuItem* pItem);
      int addMenuItem(MenuItem* item);
      int insertMenuItem(MenuItem* pItem, int iPosition);
+     int getSelectedMenuItemIndex();
      void addSeparator();
      int addSection(const char* szSectionName);
      void enableMenuItem(int index, bool enable);
@@ -200,6 +201,7 @@ class Menu
      
    protected:
      void computeRenderSizes();
+     float _getMenuItemTotalRenderHeight(int iMenuItemIndex);
      void updateScrollingOnSelectionChange();
      bool checkIsArmed();
      void addMessageWithTitle(int iId, const char* szTitle, const char* szMessage);

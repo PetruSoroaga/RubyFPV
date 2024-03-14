@@ -411,8 +411,8 @@ void reinit_radio_interfaces()
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   char szCommRadio[128];
-   strcpy(szCommRadio, "./ruby_initradio");
+   char szCommRadioParams[64];
+   strcpy(szCommRadioParams, "-initradio");
    for ( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
       if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
@@ -424,7 +424,7 @@ void reinit_radio_interfaces()
             dataRateMb = dataRateMb / 1000 / 1000;
          if ( dataRateMb > 0 )
          {
-            sprintf(szCommRadio, "./ruby_initradio %d", dataRateMb);
+            sprintf(szCommRadioParams, "-initradio %d", dataRateMb);
             break;
          }
       }
@@ -524,9 +524,12 @@ void reinit_radio_interfaces()
    
    sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
+   
    // Remove radio initialize file flag
-   hw_execute_bash_command("rm -rf tmp/ruby/conf_radios", NULL);
-   hw_execute_bash_command(szCommRadio, NULL);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_RADIOS_CONFIGURED);
+   hw_execute_bash_command(szComm, NULL);
+
+   hw_execute_ruby_process_wait(NULL, "ruby_start", szCommRadioParams, NULL, 1);
    
    hardware_sleep_ms(100);
    hardware_reset_radio_enumerated_flag();

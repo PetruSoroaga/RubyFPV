@@ -118,8 +118,29 @@ void radio_links_reinit_radio_interfaces()
    hw_execute_bash_command(szComm, NULL);
    
    // Remove radio initialize file flag
-   hw_execute_bash_command("rm -rf tmp/ruby/conf_radios", NULL);
-   hw_execute_bash_command("./ruby_initradio", NULL);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_RADIOS_CONFIGURED);
+   hw_execute_bash_command(szComm, NULL);
+
+   char szCommRadioParams[64];
+   strcpy(szCommRadioParams, "-initradio");
+   for ( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+      if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] >= 0 )
+      if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] < g_pCurrentModel->radioLinksParams.links_count )
+      {
+         int dataRateMb = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[g_pCurrentModel->radioInterfacesParams.interface_link_id[i]];
+         if ( dataRateMb > 0 )
+            dataRateMb = dataRateMb / 1000 / 1000;
+         if ( dataRateMb > 0 )
+         {
+            sprintf(szCommRadioParams, "-initradio %d", dataRateMb);
+            break;
+         }
+      }
+   }
+
+   hw_execute_ruby_process_wait(NULL, "ruby_start", szCommRadioParams, NULL, 1);
    
    hardware_sleep_ms(100);
    hardware_reset_radio_enumerated_flag();
@@ -244,9 +265,11 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
          else
          {
             int iRes = 0;
+            #ifdef HW_CAPABILITY_WFBOHD
             if ( g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
                iRes = radio_open_interface_for_read_wfbohd(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_VIDEO);
             else
+            #endif
                iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
               
             if ( iRes > 0 )
@@ -404,9 +427,11 @@ void radio_links_open_rxtx_radio_interfaces()
          else
          {
             int iRes = 0;
+            #ifdef HW_CAPABILITY_WFBOHD
             if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
                iRes = radio_open_interface_for_read_wfbohd(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_VIDEO);
             else
+            #endif
                iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
 
             if ( iRes > 0 )
@@ -418,8 +443,10 @@ void radio_links_open_rxtx_radio_interfaces()
             else
                s_iFailedInitRadioInterface = i;
 
+            #ifdef HW_CAPABILITY_WFBOHD
             if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
                s_pAuxiliaryLinks[i] = radio_open_auxiliary_wfbohd_channel(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_TELEMETRY);
+            #endif
          }
       }
 

@@ -48,7 +48,6 @@
 #include "../common/relay_utils.h"
 
 #include <ctype.h>
-#include <unistd.h>
 
 #include "launchers_vehicle.h"
 #include "shared_vars.h"
@@ -56,6 +55,7 @@
 #include "utils_vehicle.h"
 #include "video_link_stats_overwrites.h"
 #include "process_upload.h"
+#include "ruby_rx_rc.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -303,7 +303,8 @@ void update_priorities()
    }
    else
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND, g_pCurrentModel->niceVideo, g_pCurrentModel->ioNiceVideo, 1 );
-   hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
+   // To fix
+   //hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
    hw_set_proc_priority("ruby_tx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
    hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->niceOthers, 0, 1 );
 
@@ -958,14 +959,14 @@ bool process_command(u8* pBuffer, int length)
             log_softerror_and_alarm("Commands: NULL core plugin name.");
             continue;
          }
-         if ( NULL == pSettings->szGUID )
+         if ( 0 == pSettings->szGUID[0] )
          {
-            log_softerror_and_alarm("Commands: NULL core plugin settings GUID for plugin [%s]", szName);
+            log_softerror_and_alarm("Commands: Empty core plugin settings GUID for plugin [%s]", szName);
             continue;
          }
-         if ( NULL == pSettings->szName )
+         if ( 0 == pSettings->szName[0] )
          {
-            log_softerror_and_alarm("Commands: NULL core plugin settings name for plugin [%s]", szName);
+            log_softerror_and_alarm("Commands: Empty core plugin settings name for plugin [%s]", szName);
             continue;
          }
          log_line("Core plugin %d: [%s]-[%s]: [%s]-[%s], enabled: %d", i+1, szName, szGUID, pSettings->szName, pSettings->szGUID, pSettings->iEnabled);
@@ -1056,16 +1057,6 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, "ruby_start: ");
          strcat(szBuffer, szOutput);
 
-         hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         strcat(szBuffer, ", ruby_vehicle: ");
-         strcat(szBuffer, szOutput);
-
          hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
          if ( strlen(szOutput)> 0 )
          if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
@@ -1095,17 +1086,6 @@ bool process_command(u8* pBuffer, int length)
             szOutput[strlen(szOutput)-1] = 0;
          strcat(szBuffer, ", ruby_tx_telemetry: ");
          strcat(szBuffer, szOutput);
-
-         hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         strcat(szBuffer, ", ruby_rx_rc: ");
-         strcat(szBuffer, szOutput);
-
 
          hw_execute_bash_command_raw_silent("./ruby_capture_raspi -ver", szOutput);
          if ( strlen(szOutput)> 0 )
@@ -1407,12 +1387,7 @@ bool process_command(u8* pBuffer, int length)
       char szOutput[1500];
       szBuffer[0] = 0;
       
-      char szFile[128];
-      strcpy(szFile, FOLDER_BINARIES);
-      strcat(szFile, FILE_INFO_VERSION);
-      FILE* fd = fopen(szFile, "r");
-      if ( NULL == fd )
-         fd = fopen("ruby_ver.txt", "r");
+      FILE* fd = try_open_base_version_file(NULL);
       if ( NULL != fd )
       {
          szOutput[0] = 0;
@@ -1424,6 +1399,7 @@ bool process_command(u8* pBuffer, int length)
          }
          fclose(fd);
       }
+      char szFile[128];
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_INFO_LAST_UPDATE);
       fd = fopen(szFile, "r");
@@ -1452,13 +1428,6 @@ bool process_command(u8* pBuffer, int length)
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
-      hw_get_proc_priority("ruby_vehicle", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-
       hw_get_proc_priority("ruby_rt_vehicle", szOutput);
       strcat(szBuffer, szOutput);
       strcat(szBuffer, "+");
@@ -1474,13 +1443,6 @@ bool process_command(u8* pBuffer, int length)
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_rx_commands", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-
-      hw_get_proc_priority("ruby_rx_rc", szOutput);
       strcat(szBuffer, szOutput);
       strcat(szBuffer, "+");
 
@@ -2404,7 +2366,9 @@ bool process_command(u8* pBuffer, int length)
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
+      video_parameters_t oldVideoParams;
       type_video_link_profile oldVideoProfiles[MAX_VIDEO_LINK_PROFILES];
+      memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
       memcpy(&(oldVideoProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
 
@@ -2423,45 +2387,6 @@ bool process_command(u8* pBuffer, int length)
          oldVideoProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps
       );
       int iProfileToCheck = g_pCurrentModel->video_params.user_selected_video_link_profile;
-
-      // Copy the bidirectional video and adaptive video flags to MQ and LQ profiles too
-
-      int retr = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS)?1:0;
-      int adaptive = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
-      int useControllerInfo = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
-
-      if ( retr == 0 )
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
-      }
-      else
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
-      }
-
-      if ( adaptive == 0 )
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-      }
-      else
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-      }
-
-      if ( useControllerInfo == 0 )
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-      }
-      else
-      {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags | (ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-      }
    
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].width = g_pCurrentModel->video_link_profiles[iProfileToCheck].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].height = g_pCurrentModel->video_link_profiles[iProfileToCheck].height;
@@ -2519,7 +2444,16 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
-      signalReloadModel(0, 0);
+      bool bChangedOneWayVideo = false;
+      if ( (oldVideoProfiles[oldVideoParams.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO ) !=
+        (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO) )
+         bChangedOneWayVideo = true;
+
+      if ( bChangedOneWayVideo )
+      {
+         signalReloadModel(0, 0);
+         return true;
+      }
 
       if ( true )
       {   
@@ -3259,7 +3193,7 @@ bool process_command(u8* pBuffer, int length)
       memcpy(&g_pCurrentModel->rc_params, params, sizeof(rc_parameters_t));
       log_dword("Received RC flags: ", g_pCurrentModel->rc_params.flags);
       saveCurrentModel();
-      signalReloadModel(0, 0);
+      signalReloadModel(MODEL_CHANGED_RC_PARAMS, 0);
       return true;
    }
 
@@ -3376,13 +3310,21 @@ bool process_command(u8* pBuffer, int length)
 
       g_pCurrentModel->uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
 
-      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      {
-         g_pCurrentModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
- 
-         g_pCurrentModel->video_link_profiles[i].encoding_extra_flags &= (~0xFF00);
-         g_pCurrentModel->video_link_profiles[i].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      }
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
       g_pCurrentModel->resetVideoLinkProfiles(VIDEO_PROFILE_MQ);
       g_pCurrentModel->resetVideoLinkProfiles(VIDEO_PROFILE_LQ);
@@ -3536,13 +3478,17 @@ int main(int argc, char *argv[])
    signal(SIGTERM, handle_sigint);
    signal(SIGQUIT, handle_sigint);
 
+
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
       printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
       return 0;
    }
 
-   chdir(FOLDER_BINARIES);
+   if ( strcmp(argv[argc-1], "-rc") == 0 )
+   {
+      return r_start_rx_rc(argc, argv);
+   }
 
    log_init("RX_Commands");
    log_arguments(argc, argv);

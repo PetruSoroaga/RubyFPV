@@ -37,7 +37,7 @@
 
 bool ruby_is_first_pairing_done()
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
    if ( access(szFile, R_OK) == -1 )
@@ -47,7 +47,7 @@ bool ruby_is_first_pairing_done()
 
 void ruby_set_is_first_pairing_done()
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_FIRST_PAIRING_DONE); 
    FILE* fd = fopen(szFile, "w");
@@ -964,6 +964,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 
          if ( bTryHT40 )
          {
+            #ifdef HW_PLATFORM_RASPBERRY
             if ( (pRadioInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
             {
                sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
@@ -974,10 +975,18 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
                sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
                bUsedHT40 = true;
             }
+            #else
+               sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+            #endif
          }
          else if ( pRadioInfo->isHighCapacityInterface )
+         {
+            #ifdef HW_PLATFORM_RASPBERRY
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
-
+            #else
+            sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+            #endif
+         }
          hw_execute_bash_command_raw(cmd, szOutput);
 
          if ( NULL != strstr( szOutput, "Invalid argument" ) )
@@ -992,7 +1001,11 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             szOutput[0] = 0;
+            #ifdef HW_PLATFORM_RASPBERRY
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
+            #else
+            sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+            #endif
             hw_execute_bash_command_raw(cmd, szOutput);
          }
 

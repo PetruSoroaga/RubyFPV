@@ -71,7 +71,7 @@ void video_link_auto_keyframe_init()
 
 void video_link_auto_keyframe_periodic_loop()
 {
-   if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) )
+   if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) || (g_pCurrentModel->isVideoLinkFixedOneWay()) )
       return;
 
    if ( (g_TimeNow < g_TimeStart + 5000) ||

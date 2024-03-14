@@ -53,11 +53,11 @@ bool loadAllModels()
 
    s_pCurrentModel = new Model();
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
 
-   char szFileBackup[128];
+   char szFileBackup[MAX_FILE_PATH_SIZE];
    strcpy(szFileBackup, FOLDER_CONFIG);
    strcat(szFileBackup, FILE_CONFIG_CURRENT_VEHICLE_MODEL_BACKUP);
 
@@ -87,7 +87,7 @@ bool loadAllModels()
    log_line("Loading %d controller models...", count);
    for( int i=0; i<count; i++ )
    {
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_CONTROLL);
       sprintf(szFile, szFolderM, i);
@@ -105,7 +105,7 @@ bool loadAllModels()
    while( s_iModelsSpectatorCount < MAX_MODELS_SPECTATOR )
    {
       char szBuff[256];
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
       sprintf(szBuff, szFolderM, s_iModelsSpectatorCount);
@@ -135,7 +135,7 @@ bool saveCurrentModel()
       return false;
    }
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
 
@@ -150,7 +150,7 @@ bool saveCurrentModel()
       if ( s_pModelsSpectator[i]->uVehicleId != s_pCurrentModel->uVehicleId )
          continue;
       char szBuff[256];
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
       sprintf(szBuff, szFolderM, i);
@@ -165,7 +165,7 @@ bool saveCurrentModel()
    {
       if ( s_pModels[i]->uVehicleId != s_pCurrentModel->uVehicleId )
          continue;
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_CONTROLL);
       sprintf(szFile, szFolderM, i);
@@ -186,7 +186,7 @@ bool reloadCurrentModel()
    if ( NULL == s_pCurrentModel )
       return false;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( ! s_pCurrentModel->loadFromFile(szFile) )
@@ -231,7 +231,7 @@ void deleteAllModels()
 {
    s_iModelsSpectatorCount = 0;
    s_iModelsCount = 0;
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
    save_simple_config_fileI(szFile, s_iModelsCount);
@@ -279,7 +279,7 @@ Model* addSpectatorModel(u32 vehicleId)
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
    {
       char szBuff[256];
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
       sprintf(szBuff, szFolderM, i);
@@ -317,13 +317,14 @@ Model* addNewModel()
    s_pModels[s_iModelsCount]->resetToDefaults(true);
    
    char szBuff[256];
-   char szFolderM[128];
+   char szFolderM[MAX_FILE_PATH_SIZE];
    strcpy(szFolderM, FOLDER_CONFIG_MODELS);
    strcat(szFolderM, FILE_VEHICLE_CONTROLL);
    sprintf(szBuff, szFolderM, s_iModelsCount);
    s_pModels[s_iModelsCount]->saveToFile(szBuff, true);
    s_iModelsCount++;
-   char szFile[128];
+
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_COUNT);
    save_simple_config_fileI(szFile, s_iModelsCount);
@@ -429,7 +430,7 @@ Model* deleteModel(Model* pModel)
       return s_pCurrentModel;
    }
 
-   char szFile[256];      
+   char szFile[MAX_FILE_PATH_SIZE];      
    bool bDeletedController = false;
    bool bDeletedSpectator = false;
    int pos = 0;
@@ -458,7 +459,7 @@ Model* deleteModel(Model* pModel)
          s_pModels[i] = s_pModels[i+1];
       s_iModelsCount--;
 
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_CONTROLL);
       sprintf(szFile, szFolderM, s_iModelsCount);
@@ -507,7 +508,7 @@ Model* deleteModel(Model* pModel)
          s_pModelsSpectator[i] = s_pModelsSpectator[i+1];
       s_iModelsSpectatorCount--;
 
-      char szFolderM[128];
+      char szFolderM[MAX_FILE_PATH_SIZE];
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
       sprintf(szFile, szFolderM, s_iModelsSpectatorCount);
@@ -544,8 +545,8 @@ void saveControllerModel(Model* pModel)
       if ( s_pModels[i]->is_spectator == pModel->is_spectator )
       {
          log_line("Found matching vehicle in controller's list while saving a model. Save it in controller's models list too.");
-         char szFile[256];
-         char szFolderM[128];
+         char szFile[MAX_FILE_PATH_SIZE];
+         char szFolderM[MAX_FILE_PATH_SIZE];
          strcpy(szFolderM, FOLDER_CONFIG_MODELS);
          strcat(szFolderM, FILE_VEHICLE_CONTROLL);
          sprintf(szFile, szFolderM, i);
@@ -561,8 +562,8 @@ void saveControllerModel(Model* pModel)
       if ( s_pModelsSpectator[i]->is_spectator == pModel->is_spectator )
       {
          log_line("Found matching spectator vehicle in list.");
-         char szFile[256];
-         char szFolderM[128];
+         char szFile[MAX_FILE_PATH_SIZE];
+         char szFolderM[MAX_FILE_PATH_SIZE];
          strcpy(szFolderM, FOLDER_CONFIG_MODELS);
          strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
          sprintf(szFile, szFolderM, i);
@@ -576,7 +577,7 @@ void saveControllerModel(Model* pModel)
    if ( pModel->uVehicleId == s_pCurrentModel->uVehicleId )
    {
       log_line("Saving model VID %u, ptr: %X, as current model", s_pCurrentModel->uVehicleId, s_pCurrentModel);
-      char szFile[128];
+      char szFile[MAX_FILE_PATH_SIZE];
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
       pModel->saveToFile(szFile, true);

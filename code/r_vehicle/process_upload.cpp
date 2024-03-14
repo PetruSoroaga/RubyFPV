@@ -166,8 +166,6 @@ void _process_upload_apply()
       hw_execute_bash_command("chmod 777 last_update_received.tar 2>&1", NULL);
       log_line("Apply update using controller mirrored files...");
       char szOutput[4069];
-      hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
-      log_line("ruby_vehicle: [%s]", szOutput);
       hw_execute_bash_command_raw("./ruby_rx_commands -ver", szOutput);
       log_line("ruby_rx_commands: [%s]", szOutput);
       hw_execute_bash_command_raw("./ruby_rt_vehicle -ver", szOutput);
@@ -180,8 +178,6 @@ void _process_upload_apply()
       hardware_sleep_ms(800);
       hw_execute_bash_command("chmod 777 ruby*", NULL);
 
-      hw_execute_bash_command_raw("./ruby_vehicle -ver", szOutput);
-      log_line("ruby_vehicle: [%s]", szOutput);
       hw_execute_bash_command_raw("./ruby_rx_commands -ver", szOutput);
       log_line("ruby_rx_commands: [%s]", szOutput);
       hw_execute_bash_command_raw("./ruby_rt_vehicle -ver", szOutput);

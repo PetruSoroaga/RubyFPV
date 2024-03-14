@@ -1049,6 +1049,8 @@ char* str_format_video_encoding_flags(u32 uVideoEncodingFlags)
    static char sl_szVideoEncodingFlagsString[256];
    sl_szVideoEncodingFlagsString[0] = 0;
 
+   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+      strcat(sl_szVideoEncodingFlagsString, " ONE_WAY");
    if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
       strcat(sl_szVideoEncodingFlagsString, " RETRANSMISSIONS_ENABLED");
    if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
@@ -1063,7 +1065,17 @@ char* str_format_video_encoding_flags(u32 uVideoEncodingFlags)
    if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_USE_MEDIUM_STRENGTH");
    if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
-      strcat(sl_szVideoEncodingFlagsString, " VIDEO_AUTO_QUANTISATION_ENABLED");
+      strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_ENABLED");
+   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+      strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_HIGH");
+   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME )
+      strcat(sl_szVideoEncodingFlagsString, " AUTO_EC_SCHEME");
+
+   u32 uECSpreadHigh = (uVideoEncodingFlags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+   u32 uECSpreadLow = (uVideoEncodingFlags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+   char szBuff[16];
+   sprintf(szBuff, " EC_SPREAD: %u", (uECSpreadHigh<<1) | uECSpreadLow);
+   strcat(sl_szVideoEncodingFlagsString, szBuff);
 
    return sl_szVideoEncodingFlagsString;
 }

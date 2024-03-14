@@ -261,7 +261,7 @@ void MenuSystemExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
-      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
       pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
       save_ControllerSettings();      
 
@@ -597,16 +597,6 @@ void MenuSystemExpert::onSelectItem()
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_update_worker: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
-      hw_execute_bash_command_raw_silent("./ruby_vehicle -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_vehicle: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
       hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
       if ( strlen(szOutput)> 0 )
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
@@ -625,16 +615,6 @@ void MenuSystemExpert::onSelectItem()
       if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
          szOutput[strlen(szOutput)-1] = 0;
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_telemetry: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_rx_rc -ver", szOutput);
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      if ( strlen(szOutput)> 0 )
-      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-         szOutput[strlen(szOutput)-1] = 0;
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_rc: %s", szOutput);
       pMenu->addTopLine(szBuff);
 
       add_menu_to_stack(pMenu);

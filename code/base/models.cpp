@@ -220,7 +220,7 @@ int Model::getLoadedFileVersion()
 
 bool Model::reloadIfChanged(bool bLoadStats)
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    FILE* fd = fopen(szFile, "r");
@@ -241,8 +241,8 @@ bool Model::reloadIfChanged(bool bLoadStats)
 
 bool Model::loadFromFile(const char* filename, bool bLoadStats)
 {
-   char szFileNormal[128];
-   char szFileBackup[128];
+   char szFileNormal[MAX_FILE_PATH_SIZE];
+   char szFileBackup[MAX_FILE_PATH_SIZE];
 
    strcpy(szFileNormal, filename);
    strcpy(szFileBackup, filename);
@@ -2619,7 +2619,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
       //video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
       video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-
+      video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[i].radio_datarate_video_bps = 0; // Auto
       video_link_profiles[i].radio_datarate_data_bps = 0; // Auto
       video_link_profiles[i].radio_flags = 0;
@@ -2660,6 +2660,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
@@ -2676,6 +2677,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
@@ -2688,6 +2690,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
    video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
    video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
    video_link_profiles[VIDEO_PROFILE_USER].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
@@ -2700,6 +2703,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
    video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
    video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
+   video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps = 0;
    video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_data_bps = 0;
    video_link_profiles[VIDEO_PROFILE_MQ].h264profile = 2; // high
@@ -2721,6 +2725,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
    video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
    video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
+   video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps = 0;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_data_bps = 0;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_flags = 0;
@@ -4911,6 +4916,17 @@ void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamPro
       log_line(" * Cam fovV is different: %f - %f", pCamProfile1->fovV, pCamProfile2->fovV);
    if ( fabsf(pCamProfile1->fovH - pCamProfile2->fovH) > 0.000001 )
       log_line(" * Cam fovH is different: %f - %f", pCamProfile1->fovH, pCamProfile2->fovH);
+}
+
+bool Model::isVideoLinkFixedOneWay()
+{
+   if ( video_link_profiles[video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+      return true;
+
+   if ( radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+      return true;
+
+   return false;
 }
 
 void Model::setDefaultVideoBitrate()

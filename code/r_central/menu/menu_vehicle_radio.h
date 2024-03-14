@@ -21,6 +21,7 @@ class MenuVehicleRadioConfig: public Menu
       int m_IndexDisableUplink;
       int m_IndexEncryption;
       int m_IndexPower;
+      int m_IndexRadioConfig;
       int m_IndexFreq[MAX_RADIO_INTERFACES];
       int m_IndexConfigureLinks[MAX_RADIO_INTERFACES];
       u32 m_SupportedChannels[MAX_RADIO_INTERFACES][100];

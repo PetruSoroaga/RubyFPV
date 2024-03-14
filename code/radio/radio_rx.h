@@ -3,8 +3,10 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#ifdef HW_CAPABILITY_WFBOHD
 #include "zfec.h"
 #include <sodium.h>
+#endif
 
 #ifdef HW_PLATFORM_RASPBERRY
 #define MAX_RX_PACKETS_QUEUE 500
@@ -26,10 +28,12 @@ typedef struct
    u32 uLastRxRadioLinkPacketIndex[MAX_RADIO_INTERFACES]; // per radio interface
 
    // For OpenIPC encrypted link
+   #ifdef HW_CAPABILITY_WFBOHD
    uint8_t rx_secretkey[crypto_box_SECRETKEYBYTES];
    uint8_t tx_publickey[crypto_box_PUBLICKEYBYTES];
    uint8_t session_key[crypto_aead_chacha20poly1305_KEYBYTES];
-   fec_t* pFEC; 
+   fec_t* pFEC;
+   #endif
 } __attribute__((packed)) t_radio_rx_state_vehicle;
 
 typedef struct

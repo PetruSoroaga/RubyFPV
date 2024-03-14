@@ -110,7 +110,7 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
    {
       sprintf(szOutput, "%u", uAlarms);
    }
-   char szBuff[256];
+   char szBuff[128];
    if ( ! (uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE) )
       sprintf(szBuff, ", Flags1: %u, Flags2: %u", uFlags1, uFlags2);
    else
@@ -126,7 +126,7 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       else if ( uFlags1 == ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST ) strcpy(szFlags1, "ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST");
       else
          sprintf(szFlags1, "Unknown: %u", uFlags1);
-      sprintf(szBuff, ", Flags1: %s, Flags2: %u", szFlags1, uFlags2);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), ", Flags1: %s, Flags2: %u", szFlags1, uFlags2);
    }
    strcat(szOutput, szBuff);
 }

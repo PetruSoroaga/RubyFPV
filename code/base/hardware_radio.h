@@ -13,8 +13,8 @@
 #define RADIO_TYPE_SIK 5
 #define RADIO_TYPE_SERIAL 6
 
-#define RADIO_HW_DRIVER_ATHEROS 0       // ath9k_htc
-#define RADIO_HW_DRIVER_RALINK 1        // rt2800usb, only 2.4Ghz band
+#define RADIO_HW_DRIVER_ATHEROS 1       // ath9k_htc
+#define RADIO_HW_DRIVER_RALINK 2        // rt2800usb, only 2.4Ghz band
 #define RADIO_HW_DRIVER_MEDIATEK 3      // mt7601u
 #define RADIO_HW_DRIVER_REALTEK_RTL88XXAU 4       // rtl88xxau
 #define RADIO_HW_DRIVER_REALTEK_RTL8812AU 5       // rtl8812au
@@ -145,6 +145,7 @@ typedef struct
    int iDeviceNb;
    char szProductId[32];
    char szName[64];
+   int iDriver;
 } usb_radio_interface_info_t;
 
 
@@ -155,6 +156,8 @@ void hardware_log_radio_info();
 void hardware_reset_radio_enumerated_flag();
 int hardware_enumerate_radio_interfaces();
 int hardware_enumerate_radio_interfaces_step(int iStep);
+
+int hardware_radio_load_radio_modules();
 
 int hardware_get_radio_interfaces_count();
 radio_hw_info_t* hardware_get_radio_info_array();

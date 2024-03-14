@@ -94,7 +94,7 @@ bool osd_widgets_load()
    {
       log_softerror_and_alarm("Failed to load OSD widgets configuration file.");
       bFailed = true;
-      _osd_widgets_add(OSD_WIDGET_ID_BUILTIN_ALTITUDE, 1, "Altitude Gauge");
+      //_osd_widgets_add(OSD_WIDGET_ID_BUILTIN_ALTITUDE, 1, "Altitude Gauge");
       return false;
    }
 
@@ -185,7 +185,7 @@ bool osd_widgets_load()
 
    fclose(fd);
 
-   _osd_widgets_add(OSD_WIDGET_ID_BUILTIN_ALTITUDE, 1, "Altitude Gauge");
+   //_osd_widgets_add(OSD_WIDGET_ID_BUILTIN_ALTITUDE, 1, "Altitude Gauge");
 
    if ( bFailed )
       log_softerror_and_alarm("Failed to load OSD widgets configuration file.");

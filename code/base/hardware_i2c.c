@@ -446,7 +446,7 @@ int hardware_i2c_save_device_settings()
    if ( 0 == s_iHardwareI2CBussesEnumerated )
       hardware_enumerate_i2c_busses();
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_HARDWARE_I2C_DEVICES);
    FILE* fd = fopen(szFile, "w");
@@ -487,7 +487,7 @@ int hardware_i2c_load_device_settings()
    if ( 0 == s_iHardwareI2CBussesEnumerated )
       hardware_enumerate_i2c_busses();
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_HARDWARE_I2C_DEVICES);
    FILE* fd = fopen(szFile, "r");

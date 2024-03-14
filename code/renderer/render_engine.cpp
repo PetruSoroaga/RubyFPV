@@ -340,6 +340,10 @@ void RenderEngine::drawTriangle(float x1, float y1, float x2, float y2, float x3
 {
 }
 
+void RenderEngine::fillTriangle(float x1, float y1, float x2, float y2, float x3, float y3)
+{
+}
+
 void RenderEngine::drawPolyLine(float* x, float* y, int count)
 {
 }

@@ -173,9 +173,11 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    type_radio_links_parameters oldRadioLinksParams;
    audio_parameters_t oldAudioParams;
    type_relay_parameters oldRelayParams;
+   rc_parameters_t oldRCParams;
 
    memcpy(&oldRadioInterfacesParams, &(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(&oldRadioLinksParams, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
+   memcpy(&oldRCParams, &(g_pCurrentModel->rc_params), sizeof(rc_parameters_t));
    memcpy(&oldAudioParams, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
    memcpy(&oldRelayParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
 
@@ -230,6 +232,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    if ( ! reloadCurrentModel() )
       log_softerror_and_alarm("Failed to load current model.");
 
+   
    if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
    {
       g_pCurrentModel->b_mustSyncFromVehicle = false;
@@ -425,17 +428,15 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       log_line("Received notification from central that current model OSD params have changed.");
       return;       
    }
-   
+
    // Signal other components about the model change if it's not from central or if settings where synchronised form vehicle
    // Signal other components too if the RC parameters where changed
    bool bNotify = false;
    if ( (pPH->vehicle_id_src == PACKET_COMPONENT_COMMANDS) ||
         (uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE) )
       bNotify = true;
-
    if ( uChangeType == MODEL_CHANGED_RC_PARAMS )
       bNotify = true;
-     
    if ( bNotify )
    {
       if ( -1 != g_fIPCToTelemetry )

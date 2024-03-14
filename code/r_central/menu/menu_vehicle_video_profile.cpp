@@ -38,7 +38,7 @@ MenuVehicleVideoProfileSelector::MenuVehicleVideoProfileSelector(void)
 {
    m_Width = 0.32;
    m_Height = 0.0;
-   m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.26;
+   m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
    char szLegend[256];
    
    m_pItemsRadio[0] = new MenuItemRadio("", "");
@@ -55,8 +55,8 @@ MenuVehicleVideoProfileSelector::MenuVehicleVideoProfileSelector(void)
    m_pItemsRadio[0]->setEnabled(true);
    m_IndexVideoProfile = addMenuItem(m_pItemsRadio[0]);
 
-   addMenuItem(new MenuItemText("Note: Encodings and advanced video parameters can not be changed when in \"High Performance\" or \"High Quality\" mode") );
-   addMenuItem(new MenuItemText("Encodings and advanced video parameters can be change only when in \"User\" mode, from the \"Advanced Video Parameters\" menu") );
+   //addMenuItem(new MenuItemText("Note: Encodings and advanced video parameters can not be changed when in \"High Performance\" or \"High Quality\" mode") );
+   //addMenuItem(new MenuItemText("Encodings and advanced video parameters can be change only when in \"User\" mode, from the \"Advanced Video Parameters\" menu") );
 }
 
 MenuVehicleVideoProfileSelector::~MenuVehicleVideoProfileSelector()

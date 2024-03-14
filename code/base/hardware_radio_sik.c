@@ -652,7 +652,7 @@ int hardware_radio_sik_save_configuration()
 
    log_line("[HardwareRadio]: Saving current SiK radios configuration (%d SiK radio interfaces).", s_iSiKRadioCount);
    
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
    FILE* fd = fopen(szFile, "wb");
@@ -705,7 +705,7 @@ int hardware_radio_sik_load_configuration()
    s_iSiKRadioCount = 0;
    s_iSiKRadioLastKnownCount = 0;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_LAST_SIK_RADIOS_DETECTED);
 

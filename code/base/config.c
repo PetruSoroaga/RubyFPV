@@ -417,7 +417,7 @@ void getSystemVersionString(char* p, u32 swversion)
 
 int config_file_get_value(const char* szPropName)
 {
-   char szComm[1024];
+   char szComm[MAX_FILE_PATH_SIZE];
    char szOut[1024];
    char* szTmp = NULL;
    int value = 0;
@@ -449,7 +449,7 @@ int config_file_get_value(const char* szPropName)
 
 void config_file_add_value(const char* szFile, const char* szPropName, int value)
 {
-   char szComm[1024];
+   char szComm[MAX_FILE_PATH_SIZE];
    char szOutput[1024];
    sprintf(szComm, "cat %s | grep %s", szFile, szPropName);
    hw_execute_bash_command(szComm, szOutput);
@@ -477,7 +477,7 @@ void config_file_add_value(const char* szFile, const char* szPropName, int value
 
 void config_file_set_value(const char* szFile, const char* szPropName, int value)
 {
-   char szComm[1024];
+   char szComm[MAX_FILE_PATH_SIZE];
    if ( value <= 0 )
    {
       sprintf(szComm, "sed -i 's/#%s!=[-0-9]*/#%s!=%d/g' %s", szPropName, szPropName, value, szFile);
@@ -498,7 +498,7 @@ void config_file_set_value(const char* szFile, const char* szPropName, int value
 
 void config_file_force_value(const char* szFile, const char* szPropName, int value)
 {
-   char szComm[1024];
+   char szComm[MAX_FILE_PATH_SIZE];
    sprintf(szComm, "sed -i 's/#%s!=[-0-9]*/%s=%d/g' %s", szPropName, szPropName, value, szFile);
    hw_execute_bash_command(szComm, NULL);
 
@@ -581,6 +581,54 @@ int load_simple_config_fileI(const char* fileName, int defaultValue)
    return returnValue;
 }
 
+FILE* try_open_base_version_file(char* szOutputFile)
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+
+   if ( NULL != szOutputFile )
+      szOutputFile[0] = 0;
+
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, FILE_INFO_VERSION);
+   FILE* fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      if ( NULL != szOutputFile )
+         strcpy(szOutputFile, szFile);
+      return fd;
+   }
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_INFO_VERSION);
+   fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      if ( NULL != szOutputFile )
+         strcpy(szOutputFile, szFile);
+      return fd;
+   }
+
+   strcpy(szFile, "/root/");
+   strcat(szFile, FILE_INFO_VERSION);
+   fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      if ( NULL != szOutputFile )
+         strcpy(szOutputFile, szFile);
+      return fd;
+   }
+
+   fd = fopen("ruby_ver.txt", "r");
+   if ( NULL != fd )
+   {
+      if ( NULL != szOutputFile )
+         strcpy(szOutputFile, szFile);
+      return fd;
+   }
+
+   return fd;
+}
+
 void get_Ruby_BaseVersion(int* pMajor, int* pMinor)
 {
    int iMajor = 0;
@@ -589,12 +637,7 @@ void get_Ruby_BaseVersion(int* pMajor, int* pMinor)
    char szVersion[32];
    szVersion[0] = 0;
 
-   char szFile[128];
-   strcpy(szFile, FOLDER_BINARIES);
-   strcat(szFile, FILE_INFO_VERSION);
-   FILE* fd = fopen(szFile, "r");
-   if ( NULL == fd )
-      fd = fopen("ruby_ver.txt", "r");
+   FILE* fd = try_open_base_version_file(NULL);
    if ( NULL != fd )
    {
       if ( 1 != fscanf(fd, "%s", szVersion) )
@@ -642,7 +685,7 @@ void get_Ruby_UpdatedVersion(int* pMajor, int* pMinor)
    char szVersion[32];
    szVersion[0] = 0;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
    FILE* fd = fopen(szFile, "r");

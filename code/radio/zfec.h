@@ -1,4 +1,7 @@
 #pragma once
+#include "../base/config_hw.h"
+
+#ifdef HW_CAPABILITY_WFBOHD
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,6 +72,7 @@ void zfec_decode(const fec_t* code, const gf** inpkts, gf** outpkts, const unsig
 }
 #endif // __cplusplus 
 
+#endif
 /**
  * zfec -- fast forward error correction library with Python interface
  * 

@@ -149,69 +149,59 @@ long compute_file_sizes()
 
    lTotalSize += lSize;
 
-   lSize = get_filesize("ruby_vehicle");
-   if ( -1 == lSize )
-      return -1;    
-
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_rt_station");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_update");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_rt_vehicle");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_start");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_update");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_rx_telemetry");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_tx_telemetry");
    if ( -1 == lSize )
-      return -1;    
-
-   lTotalSize += lSize;
-
-   lSize = get_filesize("ruby_rx_rc");
-   if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_tx_rc");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
    lSize = get_filesize("ruby_i2c");
    if ( -1 == lSize )
-      return -1;    
+      return -1;
 
    lTotalSize += lSize;
 
@@ -327,6 +317,7 @@ int main(int argc, char *argv[])
       return -1;
    }
 
+   /*
    long lSizeBefore = compute_file_sizes();
    if ( -1 == lSizeBefore )
    {
@@ -334,6 +325,7 @@ int main(int argc, char *argv[])
       _write_return_code(-2);
       return -1;    
    }
+   */
 
    g_TimeNow = get_current_timestamp_ms();
 
@@ -393,6 +385,7 @@ int main(int argc, char *argv[])
 
    process_custom_commands_file();
 
+   /*
    long lSizeAfter = compute_file_sizes();
    if ( -1 == lSizeAfter )
    {
@@ -402,6 +395,7 @@ int main(int argc, char *argv[])
    }
    
    log_line("Files updated. Before files size: %d bytes, after files size: %d bytes", lSizeBefore, lSizeAfter);
+   */
 
    if( access( "ruby_update", R_OK ) != -1 )
    {
@@ -420,13 +414,14 @@ int main(int argc, char *argv[])
    else
       log_line("Update vehicle finished.");
 
+   /*
    if ( lSizeBefore == lSizeAfter )
    {
       log_error_and_alarm("Failed to do update: can't write files: files sizes before is the same as after.");
       _write_return_code(-4);
       return -1;    
    }
-     
+   */
    _write_return_code(0);
    return (0);
 } 

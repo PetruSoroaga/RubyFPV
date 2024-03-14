@@ -35,8 +35,8 @@
 #include "radiolink.h"
 
 
-#define PACKETS_INDEX_HASH_SIZE 1024
-#define PACKETS_INDEX_HASH_MASK 0x03FF
+#define PACKETS_INDEX_HASH_SIZE 512
+#define PACKETS_INDEX_HASH_MASK 0x01FF
 
 typedef struct
 {

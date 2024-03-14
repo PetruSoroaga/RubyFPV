@@ -113,7 +113,7 @@ void video_link_adaptive_set_intial_video_adjustment_level(u32 uVehicleId, int i
    log_line("Adaptive video did set initial/current adaptive video level to %d, from received video stream for VID %u", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift, uVehicleId);
 }
 
-void _video_link_adaptive_check_send_to_vehicle(u32 uVehicleId)
+void _video_link_adaptive_check_send_to_vehicle(u32 uVehicleId, bool bForce)
 {
    Model* pModel = findModelWithId(uVehicleId, 142);
    if ( NULL == pModel )
@@ -123,13 +123,15 @@ void _video_link_adaptive_check_send_to_vehicle(u32 uVehicleId)
    if ( -1 == iIndex )
       return;
 
-   if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift == -1 )
-      return;
-
-   if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift == g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedLevelShift )
-      return;
-   if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastRequestedLevelShift + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uUpdateInterval + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedLevelShiftRetryCount*10 )
-      return;
+   if ( ! bForce )
+   {
+      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift == -1 )
+         return;
+      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift == g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedLevelShift )
+         return;
+      if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastRequestedLevelShift + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uUpdateInterval + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedLevelShiftRetryCount*10 )
+         return;
+   }
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL, STREAM_ID_DATA);
@@ -162,7 +164,15 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( ! isAdaptiveVideoOn )
       return;
 
-   _video_link_adaptive_check_send_to_vehicle(uVehicleId);
+   _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
+
+   static u32 s_uTimeLastPeriodicResentCurrentAdaptiveLevel = 0;
+   if ( ! pModel->isVideoLinkFixedOneWay() )
+   if ( g_TimeNow > s_uTimeLastPeriodicResentCurrentAdaptiveLevel + 5000 )
+   {
+      s_uTimeLastPeriodicResentCurrentAdaptiveLevel = g_TimeNow;
+      _video_link_adaptive_check_send_to_vehicle(uVehicleId, true);
+   }
 
    int iVehicleIndex = getVehicleRuntimeIndex(uVehicleId);
 
@@ -203,15 +213,27 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
          fParamsChangeStrength = 0.1;
    }
 
-
+   // Check for video profile received from vehicle missmatch
    if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftCheckConsistency + 4000 )
    {
       g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftCheckConsistency = g_TimeNow;
+
+      bool bHasRecentRxData = false;
+      for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
+      {
+         if ( g_TimeNow > 2000 && g_SM_RadioStats.radio_links[i].timeLastRxPacket >= g_TimeNow-1000 )
+         {
+            bHasRecentRxData = true;
+            break;
+         }
+      }
       for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
       {
          if ( NULL == g_pVideoProcessorRxList[i] )
             break;
          if ( g_pVideoProcessorRxList[i]->m_uVehicleId != uVehicleId )
+            continue;
+         if ( ! bHasRecentRxData )
             continue;
 
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift < iLevelsHQ )
@@ -224,7 +246,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
                strcpy(szTmp, str_get_video_profile_name(pModel->video_params.user_selected_video_link_profile));
                log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
-               _video_link_adaptive_check_send_to_vehicle(uVehicleId);
+               _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
                u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
@@ -240,7 +262,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
                strcpy(szTmp, str_get_video_profile_name(VIDEO_PROFILE_MQ));
                log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
-               _video_link_adaptive_check_send_to_vehicle(uVehicleId);
+               _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
                u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
@@ -256,7 +278,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
                strcpy(szTmp, str_get_video_profile_name(VIDEO_PROFILE_LQ));
                log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
-               _video_link_adaptive_check_send_to_vehicle(uVehicleId);
+               _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
                u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
@@ -476,8 +498,14 @@ void video_link_adaptive_periodic_loop()
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
         
-      if ( pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+      if ( pModel->isVideoLinkFixedOneWay() )
+      {
+         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift != 0 )
+           g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift = 0;
+         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastAcknowledgedLevelShift != 0 )
+            _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
          continue;
+      }
 
       int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
       int isAdaptiveKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ? 0 : 1;
@@ -487,7 +515,7 @@ void video_link_adaptive_periodic_loop()
           if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift != 0 )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift = 0;
           if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastAcknowledgedLevelShift != 0 )
-             _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+             _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
       }
 
       if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uLastUpdateTime + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval )
@@ -530,7 +558,7 @@ void video_link_adaptive_periodic_loop()
 
       if ( (0 != s_uPauseAdjustmensUntilTime) && (g_TimeNow < s_uPauseAdjustmensUntilTime) )
       {
-         _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+         _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
       }
       else if ( isAdaptiveVideoOn )
       {

@@ -28,6 +28,9 @@
 */
 
 #include "wfbohd.h"
+
+#ifdef HW_CAPABILITY_WFBOHD
+
 #include "../base/hw_procs.h"
 #include "../base/enc.h"
 #include "../base/parse_fc_telemetry.h"
@@ -293,3 +296,11 @@ int wfbohd_process_auxiliary_radio_packet(u8* pBuffer, int iBufferLength)
    }
    return 1;
 }
+
+#else
+void wfbohd_init(bool bSearching){}
+void wfbohd_cleanup(){}
+bool wfbohd_is_video_player_started() {return true;}
+void wfbohd_check_start_video_player(){}
+int wfbohd_process_auxiliary_radio_packet(u8* pBuffer, int iBufferLength) {return 0;}
+#endif

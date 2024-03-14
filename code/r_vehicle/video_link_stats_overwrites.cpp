@@ -1025,6 +1025,8 @@ void video_stats_overwrites_periodic_loop()
 
    float fParamsChangeStrength = (float)g_pCurrentModel->video_params.videoAdjustmentStrength / 10.0;
    iThresholdControllerLinkMs = 500 + (1.0 - fParamsChangeStrength)*1000.0;
+
+   if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
    if ( g_TimeNow > g_TimeStart + 5000 )
    if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
    if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
@@ -1055,7 +1057,8 @@ void video_stats_overwrites_periodic_loop()
       return;
    }
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   _video_stats_overwrites_check_update_params();
+   if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
+      _video_stats_overwrites_check_update_params();
    #else
    video_link_check_adjust_bitrate_for_overload();
    #endif

@@ -28,6 +28,9 @@
 */
 
 #include "enc.h"
+
+#ifdef HW_CAPABILITY_WFBOHD
+
 #include <sodium.h>
 
 static int s_iOpenIPCKeyLoaded = 0;
@@ -75,3 +78,5 @@ uint8_t* get_openipc_key2()
       return NULL;
    return s_uOpenIPCKey2;
 }
+
+#endif

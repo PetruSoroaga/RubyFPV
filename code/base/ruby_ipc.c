@@ -151,12 +151,25 @@ void _ruby_ipc_log_channels()
    log_line("[IPC] Currently opened channels: %d:", s_iRubyIPCChannelsCount);
    for( int i=0; i<s_iRubyIPCChannelsCount; i++ )
    {
-      log_line("[IPC] Channel %d: unique id: %d, fd: %d, type: %s, key %u",
+      log_line("[IPC] Channel %d: unique id: %d, fd: %d, type: %s, key: 0x%x",
          i+1, s_iRubyIPCChannelsUniqueIds[i], s_iRubyIPCChannelsFd[i],
          _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[i]), (u32)s_uRubyIPCChannelsKeys[i]);
    }
 }
 
+void _ruby_ipc_log_channel_info(int iChannelType, int iChannelId, int iChannelFd)
+{
+   if ( iChannelFd < 0 )
+      return;
+   struct msqid_ds msg_stats;
+   if ( 0 != msgctl(iChannelFd, IPC_STAT, &msg_stats) )
+      log_softerror_and_alarm("[IPC] Failed to get statistics on ICP message queue %s, id %d, fd %d",
+        _ruby_ipc_get_channel_name(iChannelType), iChannelId, iChannelFd );
+   else
+      log_line("[IPC] Channel %s (id: %d, fd: %d) info: %u pending messages, %u used bytes, max bytes in the IPC channel: %u bytes",
+         _ruby_ipc_get_channel_name(iChannelType), iChannelId,
+         iChannelFd, (u32)msg_stats.msg_qnum, (u32)msg_stats.msg_cbytes, (u32)msg_stats.msg_qbytes);
+}
 
 void _check_ruby_ipc_consistency()
 {
@@ -329,6 +342,7 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
    
    log_line("[IPC] Opened IPC channel %s write endpoint: success, fd: %d, id: %d. (%d channels currently opened).",
       _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
+   _ruby_ipc_log_channel_info(nChannelType, s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1]);
    _check_ruby_ipc_consistency();
    _ruby_ipc_log_channels();
    return s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1];
@@ -415,6 +429,7 @@ int ruby_open_ipc_channel_read_endpoint(int nChannelType)
    
    log_line("[IPC] Opened IPC channel %s read endpoint: success, fd: %d, id: %d. (%d channels currently opened).",
       _ruby_ipc_get_channel_name(nChannelType), s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsCount);
+   _ruby_ipc_log_channel_info(nChannelType, s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1], s_iRubyIPCChannelsFd[s_iRubyIPCChannelsCount-1]);
    _check_ruby_ipc_consistency();
    _ruby_ipc_log_channels();
    return s_iRubyIPCChannelsUniqueIds[s_iRubyIPCChannelsCount-1];

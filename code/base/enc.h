@@ -1,4 +1,8 @@
 #pragma once
+#include "config_hw.h"
+
+#ifdef HW_CAPABILITY_WFBOHD
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -12,5 +16,7 @@ uint8_t* get_openipc_key1();
 uint8_t* get_openipc_key2();
 
 #ifdef __cplusplus
-}  
-#endif 
+}
+#endif
+
+#endif

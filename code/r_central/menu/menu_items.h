@@ -24,6 +24,9 @@ class MenuItem
      virtual void setEnabled(bool enabled);
      void showArrow();
 
+     void setHidden(bool bHidden);
+     bool isHidden();
+     
      void setCondensedOnly();
      void setExtraHeight(float fExtraHeight);
      float getExtraHeight();
@@ -69,6 +72,7 @@ class MenuItem
      bool m_bIsEditing;
      bool m_bShowArrow;
      bool m_bCondensedOnly;
+     bool m_bHidden;
 
      float m_fExtraHeight;
      float m_fMarginX;

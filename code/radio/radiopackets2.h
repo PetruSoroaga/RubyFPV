@@ -31,7 +31,7 @@ Code written by: Petru Soroaga, 2021-2023
 
 #define MAX_PACKET_RADIO_HEADERS 100
 #define MAX_PACKET_PAYLOAD 1250
-#define MAX_PACKET_TOTAL_SIZE 1600
+#define MAX_PACKET_TOTAL_SIZE 1500
 
 #define RADIO_PORT_ROUTER_UPLINK 0x0E     // from controller to vehicle
 #define RADIO_PORT_ROUTER_DOWNLINK 0x0F   // from vehicle to controller
@@ -129,7 +129,7 @@ typedef struct
 #define VIDEO_TYPE_H264 1
 #define VIDEO_TYPE_OPENIPC 2
 #define VIDEO_TYPE_RTP_H264 3
-#define VIDEO_TYPE_RTS_H265 4
+#define VIDEO_TYPE_RTP_H265 4
 
 
 #define PACKET_TYPE_VIDEO_DATA_FULL 2
@@ -158,6 +158,9 @@ typedef struct
       //    bit 0  - use medium adaptive video
       //    bit 1  - enable video auto quantization
       //    bit 2  - video auto quantization strength
+      //    bit 3  - one way video link
+      //    bit 4  - video profile should use EC scheme as auto;
+      //    bit 5,6 - EC scheme spreading factor (0...3)
 
    u32 encoding_extra_flags2;
       // Byte 0: current h264 quantization value

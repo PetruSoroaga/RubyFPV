@@ -24,7 +24,7 @@
 #define SYSTEM_NAME "Ruby"
 #define SYSTEM_SW_VERSION_MAJOR 8
 #define SYSTEM_SW_VERSION_MINOR 30
-#define SYSTEM_SW_BUILD_NUMBER  185
+#define SYSTEM_SW_BUILD_NUMBER  186
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117
@@ -34,7 +34,12 @@
 
 #define MAX_RELAY_VEHICLES 5
 // Should be Main vehicle + relay vehicles (above)
+
+#ifdef HW_PLATFORM_OPENIPC_CAMERA
+#define MAX_CONCURENT_VEHICLES 3
+#else
 #define MAX_CONCURENT_VEHICLES 6
+#endif
 
 #define MAX_PLUGIN_NAME_LENGTH 64
 #define MAX_OSD_PLUGINS 32
@@ -178,6 +183,7 @@ u32 load_simple_config_fileU(const char* fileName, u32 defaultValue);
 void save_simple_config_fileI(const char* fileName, int value);
 int load_simple_config_fileI(const char* fileName, int defaultValue);
 
+FILE* try_open_base_version_file(char* szOutputFile);
 void get_Ruby_BaseVersion(int* pMajor, int* pMinor);
 void get_Ruby_UpdatedVersion(int* pMajor, int* pMinor);
 

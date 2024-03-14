@@ -52,6 +52,8 @@
 float MENU_TEXTLINE_SPACING = 0.1; // percent of item text height
 float MENU_ITEM_SPACING = 0.28;  // percent of item text height
 
+static bool s_bDebugMenuBoundingBoxes = false;
+
 static bool s_bMenuObjectsRenderEndItems = false;
 
 float Menu::m_sfMenuPaddingX = 0.0;
@@ -321,6 +323,11 @@ int Menu::insertMenuItem(MenuItem* pItem, int iPosition)
    return iPosition;
 }
 
+int Menu::getSelectedMenuItemIndex()
+{
+   return m_SelectedIndex;
+}
+
 void Menu::addSeparator()
 {
    if ( 0 == m_ItemsCount )
@@ -416,7 +423,7 @@ void Menu::onShow()
       m_SelectedIndex = -1;
    else
    {
-      while ( m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) )
+      while ( (m_SelectedIndex < m_ItemsCount) && (NULL != m_pMenuItems[m_SelectedIndex]) && ( ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) )
          m_SelectedIndex++;
    }
    if ( m_SelectedIndex >= m_ItemsCount )
@@ -526,7 +533,7 @@ void Menu::computeRenderSizes()
    
    for( int i=0; i<m_ItemsCount; i++ )
    {
-      if ( NULL == m_pMenuItems[i] )
+      if ( (NULL == m_pMenuItems[i]) || (m_pMenuItems[i]->isHidden()) )
          continue;
       float fItemTotalHeight = 0.0;
       if ( m_iColumnsCount < 2 )
@@ -561,11 +568,11 @@ void Menu::computeRenderSizes()
 
    // End: compute items total height and render total height
 
-   m_RenderFooterHeight = 0.6*m_sfMenuPaddingY;
+   m_RenderFooterHeight = 0.4*m_sfMenuPaddingY;
    m_RenderFooterHeight += m_RenderTooltipHeight;
    m_RenderFooterHeight += 0.2*m_sfMenuPaddingY;
 
-   m_RenderMaxFooterHeight = 0.6*m_sfMenuPaddingY;
+   m_RenderMaxFooterHeight = 0.4*m_sfMenuPaddingY;
    m_RenderMaxFooterHeight += m_RenderMaxTooltipHeight;
    m_RenderMaxFooterHeight += 0.2*m_sfMenuPaddingY;
 
@@ -581,7 +588,7 @@ void Menu::computeRenderSizes()
    if ( m_Height < 0.001 )
    {
        if ( m_bEnableScrolling )
-       if ( (m_iColumnsCount < 2) && (m_RenderYPos + m_RenderTotalHeight > 0.9) )
+       if ( (m_iColumnsCount < 2) && (m_RenderYPos + m_RenderTotalHeight > 0.96) )
        {
           if ( m_TopLinesCount > 10 )
           {
@@ -594,7 +601,7 @@ void Menu::computeRenderSizes()
              m_bHasScrolling = true;
        }
 
-       float fOverflowHeight = (m_RenderYPos + m_RenderTotalHeight) - 0.9;
+       float fOverflowHeight = (m_RenderYPos + m_RenderTotalHeight) - 0.96;
           
        // Just move up if possible
 
@@ -628,7 +635,7 @@ void Menu::computeRenderSizes()
       if ( m_bHasScrolling )
       {
          // Reduce the menu height to fit the screen and enable scrolling
-         float fDeltaH = m_RenderHeight - (0.9 - m_RenderYPos);
+         float fDeltaH = m_RenderHeight - (0.96 - m_RenderYPos);
          m_RenderHeight -= fDeltaH;
          m_fRenderItemsStopYPos -= fDeltaH;
       }
@@ -645,7 +652,7 @@ void Menu::computeRenderSizes()
    for( int i=0; i<m_ItemsCount; i++ )
    {
       float w = 0;
-      if ( NULL != m_pMenuItems[i] )
+      if ( (NULL != m_pMenuItems[i]) && (! m_pMenuItems[i]->isHidden()) )
       {
          if ( m_pMenuItems[i]->isSelectable() )
             w = m_pMenuItems[i]->getTitleWidth(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
@@ -807,6 +814,8 @@ float Menu::RenderFrameAndTitle()
       float yButton = 0.0;
       for( int k=0; k<m_iIndexFirstVisibleItem; k++ )
       {
+         if ( m_pMenuItems[k]->isHidden() )
+            continue;
          float fItemTotalHeight = 0.0;
          if ( m_iColumnsCount < 2 )
          {
@@ -863,8 +872,7 @@ float Menu::RenderFrameAndTitle()
    }
 
 
-   bool bShowDebug = false;
-   if ( bShowDebug )
+   if ( s_bDebugMenuBoundingBoxes )
    {
       g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
       g_pRenderEngine->setStroke(get_Color_IconError());
@@ -892,6 +900,20 @@ float Menu::RenderFrameAndTitle()
           (m_fRenderItemsStopYPos - m_fRenderItemsStartYPos) + 4.0*g_pRenderEngine->getPixelHeight()
           );
 
+      double col3[4] = {100,255,100,1};
+      g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
+      g_pRenderEngine->setStroke(col3);
+      g_pRenderEngine->drawRect( m_RenderXPos - 12.0 * g_pRenderEngine->getPixelWidth(),
+          m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderTotalHeight);
+
+      g_pRenderEngine->drawRect( m_RenderXPos - 18.0 * g_pRenderEngine->getPixelWidth(),
+          m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderHeaderHeight);
+
+      g_pRenderEngine->drawRect( m_RenderXPos - 24.0 * g_pRenderEngine->getPixelWidth(),
+          m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxFooterHeight);
+
+      g_pRenderEngine->drawRect( m_RenderXPos - 30.0 * g_pRenderEngine->getPixelWidth(),
+          m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxTooltipHeight);
       g_pRenderEngine->setColors(get_Color_MenuBg());
       g_pRenderEngine->setStroke(get_Color_MenuText());
    }
@@ -901,7 +923,7 @@ float Menu::RenderFrameAndTitle()
 float Menu::RenderItem(int index, float yPos, float dx)
 {
    m_bRenderedLastItem = false;
-   if ( NULL == m_pMenuItems[index] )
+   if ( (NULL == m_pMenuItems[index]) || m_pMenuItems[index]->isHidden() )
       return 0.0;
 
    if ( m_bHasScrolling )
@@ -946,8 +968,7 @@ float Menu::RenderItem(int index, float yPos, float dx)
    }
    */
 
-   bool bShowDebug = false;
-   if ( bShowDebug )
+   if ( s_bDebugMenuBoundingBoxes )
    {
       g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
       g_pRenderEngine->setStroke(get_Color_IconSucces());
@@ -962,6 +983,13 @@ float Menu::RenderItem(int index, float yPos, float dx)
           yPos + 2.0*g_pRenderEngine->getPixelHeight(),
           m_fSelectionWidth - 4.0 * g_pRenderEngine->getPixelWidth(), hItem - 4.0*g_pRenderEngine->getPixelHeight()
           );
+
+
+      if ( m_pMenuItems[index]->getExtraHeight() > 0.0001 )
+      {
+         g_pRenderEngine->setStroke(50,50,255,1);
+         g_pRenderEngine->drawLine(m_RenderXPos + m_RenderWidth*0.5, yPos + hItem - m_pMenuItems[index]->getExtraHeight(), m_RenderXPos + m_RenderWidth*0.5, yPos + hItem);
+      }
 
       g_pRenderEngine->setStroke(get_Color_MenuBorder());
    }
@@ -990,12 +1018,37 @@ bool Menu::didRenderedLastItem()
    return m_bRenderedLastItem;
 }
 
+float Menu::_getMenuItemTotalRenderHeight(int iMenuItemIndex)
+{
+   if ( (iMenuItemIndex < 0) || (iMenuItemIndex >= m_ItemsCount) )
+      return 0.0;
+   if ( (NULL == m_pMenuItems[iMenuItemIndex]) || m_pMenuItems[iMenuItemIndex]->isHidden() )
+      return 0.0;
+
+
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   float fItemTotalHeight = 0.0;
+   if ( m_iColumnsCount < 2 )
+   {
+      fItemTotalHeight += m_pMenuItems[iMenuItemIndex]->getItemHeight(getUsableWidth() - m_pMenuItems[iMenuItemIndex]->m_fMarginX);
+      fItemTotalHeight += height_text * MENU_ITEM_SPACING;
+      if ( m_bHasSeparatorAfter[iMenuItemIndex] )
+         fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
+   }
+   else if ( (iMenuItemIndex%m_iColumnsCount) == 0 )
+   {
+      fItemTotalHeight += m_pMenuItems[iMenuItemIndex]->getItemHeight(getUsableWidth() - m_pMenuItems[iMenuItemIndex]->m_fMarginX);
+      fItemTotalHeight += height_text * MENU_ITEM_SPACING;
+      if ( m_bHasSeparatorAfter[iMenuItemIndex] )
+         fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
+   }
+   return fItemTotalHeight;
+}
+
 void Menu::updateScrollingOnSelectionChange()
 {
    if ( (! m_bEnableScrolling) || (! m_bHasScrolling) )
       return;
-
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
 
    // -------------------------------------
    // Begin - Scroll up
@@ -1003,11 +1056,16 @@ void Menu::updateScrollingOnSelectionChange()
    int countItemsNonSelectableJustBeforeSelection = 0;
    while ( m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1 >= 0 )
    {
+      if ( ! m_pMenuItems[m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1]->isHidden() )
       if ( m_pMenuItems[m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1]->m_bEnabled )
       if ( m_pMenuItems[m_SelectedIndex - countItemsNonSelectableJustBeforeSelection - 1]->isSelectable() )
          break;
       countItemsNonSelectableJustBeforeSelection++;
    }
+
+   if ( s_bDebugMenuBoundingBoxes )
+      log_line("Menu-Scroll: Count non selectable top: %d, sel index: %d, first visible index: %d",
+         countItemsNonSelectableJustBeforeSelection, m_SelectedIndex, m_iIndexFirstVisibleItem);
 
    if ( m_SelectedIndex < m_iIndexFirstVisibleItem )
    {
@@ -1030,49 +1088,26 @@ void Menu::updateScrollingOnSelectionChange()
    float fTotalVisibleItemsHeight = 0.0;
    for( int i=m_iIndexFirstVisibleItem; i<=m_SelectedIndex; i++ )
    {
-      float fItemTotalHeight = 0.0;
-      if ( m_iColumnsCount < 2 )
-      {
-         fItemTotalHeight += m_pMenuItems[i]->getItemHeight(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
-         fItemTotalHeight += height_text * MENU_ITEM_SPACING;
-         if ( m_bHasSeparatorAfter[i] )
-            fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
-      }
-      else if ( (i%m_iColumnsCount) == 0 )
-      {
-         fItemTotalHeight += m_pMenuItems[i]->getItemHeight(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
-         fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         if ( m_bHasSeparatorAfter[i] )
-            fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
-      }
-
-      fTotalVisibleItemsHeight += fItemTotalHeight;
+      fTotalVisibleItemsHeight += _getMenuItemTotalRenderHeight(i);
    }
 
    // End - computed total items height up to, including, selected item
+
+   if ( s_bDebugMenuBoundingBoxes )
+      log_line("Menu-Scroll: Total height from first visible item (%d) to current item (%d) inclusive: %.2f, menu visible usable items container height: %.2f",
+          m_iIndexFirstVisibleItem, m_SelectedIndex, fTotalVisibleItemsHeight, m_fRenderItemsStopYPos - m_fRenderItemsStartYPos);
 
    // Move displayed items range down (that is first visible item index) untill the selected item becomes visible
 
    while ( fTotalVisibleItemsHeight >= m_fRenderItemsStopYPos - m_fRenderItemsStartYPos - 0.001 * m_sfScaleFactor)
    {
-      float fItemTotalHeight = 0.0;
-      if ( m_iColumnsCount < 2 )
-      {
-         fItemTotalHeight += m_pMenuItems[m_iIndexFirstVisibleItem]->getItemHeight(getUsableWidth() - m_pMenuItems[m_iIndexFirstVisibleItem]->m_fMarginX);
-         fItemTotalHeight += height_text * MENU_ITEM_SPACING;
-         if ( m_bHasSeparatorAfter[m_iIndexFirstVisibleItem] )
-            fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
-      }
-      else if ( (m_iIndexFirstVisibleItem%m_iColumnsCount) == 0 )
-      {
-         fItemTotalHeight += m_pMenuItems[m_iIndexFirstVisibleItem]->getItemHeight(getUsableWidth() - m_pMenuItems[m_iIndexFirstVisibleItem]->m_fMarginX);
-         fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-         if ( m_bHasSeparatorAfter[m_iIndexFirstVisibleItem] )
-            fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
-      }
-
-      fTotalVisibleItemsHeight -= fItemTotalHeight;
+      fTotalVisibleItemsHeight -= _getMenuItemTotalRenderHeight(m_iIndexFirstVisibleItem);
       m_iIndexFirstVisibleItem++;
+      if ( m_iIndexFirstVisibleItem >= m_ItemsCount-1 )
+         break;
+
+      if ( m_pMenuItems[m_iIndexFirstVisibleItem]->isHidden() )
+         continue;
    }
 }
 
@@ -1084,6 +1119,7 @@ int Menu::onBack()
 
    for( int i=0; i<m_ItemsCount; i++ )
    {
+      if ( ! m_pMenuItems[i]->isHidden() )
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          m_pMenuItems[i]->endEdit(true);
@@ -1112,6 +1148,8 @@ void Menu::onSelectItem()
       return;
    }
    if ( m_SelectedIndex < 0 || m_SelectedIndex >= m_ItemsCount )
+      return;
+   if ( m_pMenuItems[m_SelectedIndex]->isHidden() )
       return;
    if ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() )
       return;
@@ -1161,6 +1199,9 @@ void Menu::onMoveUp(bool bIgnoreReversion)
 
    // Check for edit first
    for( int i=0; i<m_ItemsCount; i++ )
+   {
+      if ( m_pMenuItems[i]->isHidden() )
+         continue;
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          if ( bIgnoreReversion || p->iSwapUpDownButtonsValues == 0 )
@@ -1186,9 +1227,12 @@ void Menu::onMoveUp(bool bIgnoreReversion)
          onItemValueChanged(i);
          return;
       }
+   }
 
-   // Check if current selected items wants to preprocess up/down/left/right
-   if ( m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   // Check if current selected item wants to preprocess up/down/left/right
+   if ( (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) )
+   if ( (NULL != m_pMenuItems[m_SelectedIndex]) && (m_pMenuItems[m_SelectedIndex]->isEnabled()) )
+   if ( ! m_pMenuItems[m_SelectedIndex]->isHidden() )
    if ( m_pMenuItems[m_SelectedIndex]->preProcessKeyUp() )
    {
       onItemValueChanged(m_SelectedIndex);
@@ -1197,19 +1241,19 @@ void Menu::onMoveUp(bool bIgnoreReversion)
 
    int loopCount = 0;
 
-   if ( m_iColumnsCount > 1 && m_bEnableColumnSelection && m_bIsSelectingInsideColumn )
+   if ( (m_iColumnsCount > 1) && m_bEnableColumnSelection && m_bIsSelectingInsideColumn )
    {
       int indexStartColumn = 1 + ((int)(m_SelectedIndex/m_iColumnsCount))*m_iColumnsCount;
       int indexEndColumn = indexStartColumn + m_iColumnsCount - 2;
       do
       {
-      loopCount++;
-      if ( m_SelectedIndex > indexStartColumn )
-         m_SelectedIndex--;
-      else
-         m_SelectedIndex = indexEndColumn;
+         loopCount++;
+         if ( m_SelectedIndex > indexStartColumn )
+            m_SelectedIndex--;
+         else
+            m_SelectedIndex = indexEndColumn;
       }
-      while ( (loopCount < (m_iColumnsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+      while ( (loopCount < (m_iColumnsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && ( ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
    }
    else
    {
@@ -1226,7 +1270,7 @@ void Menu::onMoveUp(bool bIgnoreReversion)
                m_SelectedIndex = ((int)(m_SelectedIndex/m_iColumnsCount))*m_iColumnsCount;
             }
          }
-         while ( (loopCount < (m_ItemsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+         while ( (loopCount < (m_ItemsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && (( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
       }
       else
       {
@@ -1238,10 +1282,10 @@ void Menu::onMoveUp(bool bIgnoreReversion)
             else
                m_SelectedIndex = m_ItemsCount-1;
          }
-         while ( (loopCount < (m_ItemsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+         while ( (loopCount < (m_ItemsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && (( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
       }
    }
-   if ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() )
+   if ( (! m_pMenuItems[m_SelectedIndex]->isSelectable()) || (m_pMenuItems[m_SelectedIndex]->isHidden()) )
       m_SelectedIndex = -1;
    onFocusedItemChanged();
 }
@@ -1260,6 +1304,9 @@ void Menu::onMoveDown(bool bIgnoreReversion)
    // Check for edit first
 
    for( int i=0; i<m_ItemsCount; i++ )
+   {
+      if ( m_pMenuItems[i]->isHidden() )
+         continue;
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          if ( bIgnoreReversion || p->iSwapUpDownButtonsValues == 0 )
@@ -1285,9 +1332,12 @@ void Menu::onMoveDown(bool bIgnoreReversion)
          onItemValueChanged(i);
          return;
       }
+   }
 
-   // Check if current selected items wants to preprocess up/down/left/right
-   if ( m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   // Check if current selected item wants to preprocess up/down/left/right
+   if ( (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) )
+   if ( (NULL != m_pMenuItems[m_SelectedIndex]) && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   if ( ! m_pMenuItems[m_SelectedIndex]->isHidden() )
    if ( m_pMenuItems[m_SelectedIndex]->preProcessKeyDown() )
    {
       onItemValueChanged(m_SelectedIndex);
@@ -1302,13 +1352,13 @@ void Menu::onMoveDown(bool bIgnoreReversion)
       int indexEndColumn = indexStartColumn + m_iColumnsCount - 2;
       do
       {
-      loopCount++;
-      if ( m_SelectedIndex < indexEndColumn )
-         m_SelectedIndex++;
-      else
-         m_SelectedIndex = indexStartColumn;
+         loopCount++;
+         if ( m_SelectedIndex < indexEndColumn )
+            m_SelectedIndex++;
+         else
+            m_SelectedIndex = indexStartColumn;
       }
-      while ( (loopCount < (m_iColumnsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+      while ( (loopCount < (m_iColumnsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && ( ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
    }
    else
    {
@@ -1322,7 +1372,7 @@ void Menu::onMoveDown(bool bIgnoreReversion)
             else
                m_SelectedIndex = 0;
          }
-         while ( (loopCount < (m_ItemsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+         while ( (loopCount < (m_ItemsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && ( ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
       }
       else
       {
@@ -1334,11 +1384,11 @@ void Menu::onMoveDown(bool bIgnoreReversion)
             else
                m_SelectedIndex = 0;
          }
-         while ( (loopCount < (m_ItemsCount+2)*2) && NULL != m_pMenuItems[m_SelectedIndex] && ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) );
+         while ( (loopCount < (m_ItemsCount+2)*2) && (NULL != m_pMenuItems[m_SelectedIndex]) && ( ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() ) || m_pMenuItems[m_SelectedIndex]->isHidden()) );
       }
 
    }
-   if ( ! m_pMenuItems[m_SelectedIndex]->isSelectable() )
+   if ( (! m_pMenuItems[m_SelectedIndex]->isSelectable()) || m_pMenuItems[m_SelectedIndex]->isHidden() )
       m_SelectedIndex = -1;
    onFocusedItemChanged();
 }
@@ -1355,6 +1405,8 @@ void Menu::onMoveLeft(bool bIgnoreReversion)
 
    for( int i=0; i<m_ItemsCount; i++ )
    {
+      if ( m_pMenuItems[i]->isHidden() )
+         continue;
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          m_pMenuItems[i]->onKeyLeft(bIgnoreReversion);
@@ -1363,8 +1415,10 @@ void Menu::onMoveLeft(bool bIgnoreReversion)
       }
    }
 
-   // Check if current selected items wants to preprocess up/down/left/right
-   if ( m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   // Check if current selected item wants to preprocess up/down/left/right
+   if ( (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) )
+   if ( (NULL != m_pMenuItems[m_SelectedIndex]) && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   if ( ! m_pMenuItems[m_SelectedIndex]->isHidden() )
    if ( m_pMenuItems[m_SelectedIndex]->preProcessKeyLeft() )
    {
       onItemValueChanged(m_SelectedIndex);
@@ -1385,6 +1439,8 @@ void Menu::onMoveRight(bool bIgnoreReversion)
 
    for( int i=0; i<m_ItemsCount; i++ )
    {
+      if ( m_pMenuItems[i]->isHidden() )
+         continue;
       if ( m_pMenuItems[i]->isSelectable() && m_pMenuItems[i]->isEditing() )
       {
          m_pMenuItems[i]->onKeyRight(bIgnoreReversion);
@@ -1393,20 +1449,23 @@ void Menu::onMoveRight(bool bIgnoreReversion)
       }
    }
 
-   // Check if current selected items wants to preprocess up/down/left/right
-   if ( m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   // Check if current selected item wants to preprocess up/down/left/right
+   if ( (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) )
+   if ( (NULL != m_pMenuItems[m_SelectedIndex]) && m_pMenuItems[m_SelectedIndex]->isEnabled() )
+   if ( ! m_pMenuItems[m_SelectedIndex]->isHidden() )
    if ( m_pMenuItems[m_SelectedIndex]->preProcessKeyRight() )
    {
       onItemValueChanged(m_SelectedIndex);
       return;
    }
-
 }
 
 
 void Menu::onFocusedItemChanged()
 {
-   if ( 0 < m_ItemsCount && m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] )
+   if ( (0 < m_ItemsCount) && (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) )
+   if ( NULL != m_pMenuItems[m_SelectedIndex] )
+   if ( ! m_pMenuItems[m_SelectedIndex]->isHidden() )
       setTooltip( m_pMenuItems[m_SelectedIndex]->getTooltip() );
 
    updateScrollingOnSelectionChange();
@@ -1609,20 +1668,43 @@ static void * _thread_generate_upload(void *argument)
    log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileName);
 
    // Add update info file
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
 
    if( access(szFile, R_OK) == -1 )
    {
-      sprintf(szComm, "cp %s%s %s%s 2>/dev/null", FOLDER_BINARIES, FILE_INFO_VERSION, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
-      hw_execute_bash_command(szComm, NULL);
+      char szVersionFile[MAX_FILE_PATH_SIZE];
+      FILE* fd = try_open_base_version_file(szVersionFile);
+      if ( NULL != fd )
+      {
+         fclose(fd);
+         sprintf(szComm, "cp %s %s%s 2>/dev/null", szVersionFile, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
+         hw_execute_bash_command(szComm, NULL);
+      }
    }
 
    sprintf(szComm, "rm -rf %s 2>/dev/null", szFileName);
    hw_execute_bash_command(szComm, NULL);
    hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
    hw_execute_bash_command("chmod 777 ruby_update_vehicle", NULL);
+
+   // Generate dummy ruby_vehicle binary for older versions of vehicles
+   bool bAddDummyBinary = false;
+   if ( NULL == g_pCurrentModel )
+      bAddDummyBinary = true;
+   else if ( ((g_pCurrentModel->sw_version>>8) & 0xFF) < 8 )
+      bAddDummyBinary = true;
+   else if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && (((g_pCurrentModel->sw_version & 0xFF) <= 30)) )
+      bAddDummyBinary = true;
+
+   if ( bAddDummyBinary )
+   {
+      hw_execute_bash_command("echo 'dummy' > ruby_vehicle", NULL);
+      hw_execute_bash_command("chmod 777 ruby_vehicle", NULL);
+   }
+
+
    sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFileName);
    hw_execute_bash_command(szComm, NULL);
 
@@ -1659,16 +1741,17 @@ bool Menu::uploadSoftware()
    char szBuff[1024];
    static char s_szArchiveToUpload[256];
    s_szArchiveToUpload[0] = 0;
-   int iUpdateType = -1;
 
    //bool bForceUseBinaries = false;
    //if ( (((g_pCurrentModel->sw_version)>>8) & 0xFF) == 6 )
    //if ( ((g_pCurrentModel->sw_version) & 0xFF) < 30 )
    //   bForceUseBinaries = true;
    bool bForceUseBinaries = true;
+   int iUpdateType = -1;
 
    if ( bForceUseBinaries )
       log_line("Using controller binaries for update.");
+   /*
    else
    {
       if ( (g_nFailedOTAUpdates == 0) && (g_nSucceededOTAUpdates == 0) )
@@ -1687,7 +1770,7 @@ bool Menu::uploadSoftware()
       else
          log_line("There are previous updates done or failed. Using regular update of binary files.");
    }
-
+   */
    // Always will do this
    if ( iUpdateType == -1 )
    {

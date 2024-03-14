@@ -9,6 +9,8 @@
 
 #include "zfec.h"
 
+#ifdef HW_CAPABILITY_WFBOHD
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -533,6 +535,8 @@ zfec_decode(const fec_t* code, const gf** inpkts, gf** outpkts, const unsigned* 
         }
     }
 }
+
+#endif
 
 /**
  * zfec -- fast forward error correction library with Python interface

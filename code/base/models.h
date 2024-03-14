@@ -93,7 +93,9 @@ typedef struct
    //    bit 0  - use medium adaptive video
    //    bit 1  - enable video auto quantization
    //    bit 2  - video auto quantization strength
-   //    bit 3  - video profile should use EC scheme as auto;
+   //    bit 3  - one way video link
+   //    bit 4  - video profile should use EC scheme as auto;
+   //    bit 5,6 - EC scheme spreading factor (0...3)
 
    int radio_datarate_video_bps; // radio data rate to use for this video profile for video packets: 0 - to use auto datarate, positive: bps, negative: MCS
    int radio_datarate_data_bps;  // radio data rate to use for this video profile for data packets: 0 - to use auto datarate, positive: bps, negative: MCS
@@ -570,7 +572,8 @@ class Model
       bool isActiveCameraCSICompatible();
       bool isActiveCameraOpenIPC();
       void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
-
+      bool isVideoLinkFixedOneWay();
+      
       void setDefaultVideoBitrate();
       
       void setAWBMode();

@@ -46,6 +46,7 @@
 
 #include <time.h>
 #include <sys/resource.h>
+#include <semaphore.h>
 
 Model sModelVehicle; 
 
@@ -63,6 +64,9 @@ int s_LastHistorySlice = 0;
 u8 s_LastReceivedRCFrameIndex = 0;
 u8 s_QualityRecvCount[2];
 u8 s_QualityRecvIndex = 0;
+
+
+sem_t* s_pSemaphoreStop = NULL;
 
 void process_data_rc_full_frame(u8* pBuffer, int length)
 {
@@ -122,27 +126,8 @@ void on_failsafe_cleared()
    s_pPHDownstreamInfoRC->is_failsafe = 0;
 }
 
-void handle_sigint(int sig) 
-{ 
-   log_line("--------------------------");
-   log_line("Caught signal to stop: %d", sig);
-   log_line("--------------------------");
-   g_bQuit = true;
-} 
-
-
-int main(int argc, char *argv[])
+int r_start_rx_rc(int argc, char *argv[])
 {
-   signal(SIGINT, handle_sigint);
-   signal(SIGTERM, handle_sigint);
-   signal(SIGQUIT, handle_sigint);
-   
-   if ( strcmp(argv[argc-1], "-ver") == 0 )
-   {
-      printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
-      return 0;
-   }
-   
    log_init("RX_RC");
    log_arguments(argc, argv);
 
@@ -165,6 +150,12 @@ int main(int argc, char *argv[])
       return -1;
    } 
    
+   s_pSemaphoreStop = sem_open(SEMAPHORE_STOP_RX_RC, O_CREAT, S_IWUSR | S_IRUSR, 0);
+   if ( NULL == s_pSemaphoreStop )
+      log_error_and_alarm("Failed to open semaphore: %s", SEMAPHORE_STOP_RX_RC);
+   else
+      log_line("Opened semaphore for signaling stop.");
+
    if ( sModelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
 
@@ -222,6 +213,17 @@ int main(int argc, char *argv[])
       if ( iSleepIntervalMS < 50 )
          iSleepIntervalMS += 10;
 
+      int val = 0;
+      if ( NULL != s_pSemaphoreStop )
+      if ( 0 == sem_getvalue(s_pSemaphoreStop, &val) )
+      if ( 0 < val )
+      if ( EAGAIN != sem_trywait(s_pSemaphoreStop) )
+      {
+         log_line("Semaphore to stop is set.");
+         g_bQuit = true;
+         break;
+      }
+   
       g_TimeNow = get_current_timestamp_ms();
       u32 tTime0 = g_TimeNow;
 
@@ -381,6 +383,9 @@ int main(int argc, char *argv[])
    ruby_close_ipc_channel(s_fIPC_FromRouter);
    s_fIPC_FromRouter = -1;
  
+   if ( NULL != s_pSemaphoreStop )
+      sem_close(s_pSemaphoreStop);
+
    log_line("Stopped.Exit");
    log_line("-----------------------");
    return 0;

@@ -443,8 +443,8 @@ void RenderEngineRaw::_buildMipImage(struct _fbg_img* pSrc, struct _fbg_img* pDe
    u32 b[4];
    u32 a[4];
    u32 res;
-   for( int y=0; y<pDest->height; y++ )
-   for( int x=0; x<pDest->width; x++ )
+   for( unsigned int y=0; y<pDest->height; y++ )
+   for( unsigned int x=0; x<pDest->width; x++ )
    {
       unsigned char* pixelDest = pDest->data + x*4 + y * pDest->width * 4;
       unsigned char* pixelSrc = pSrc->data + x*2*4 + y*2 * pSrc->width * 4;
@@ -675,7 +675,6 @@ float RenderEngineRaw::textWidthScaled(u32 fontId, float fScale, const char* szT
    if ( NULL == pFont )
       return 0.0;
 
-   float space_width = _get_space_width(pFont);
    float fWidth = 0.0;
    char* p = (char*)szText;
 
@@ -756,8 +755,6 @@ void RenderEngineRaw::drawTextLeftScaled(float xPos, float yPos, u32 fontId, flo
    if ( yPos + fScale*pFont->lineHeight * m_fPixelHeight >= 1.0 )
       return;
 
-   float space_width = _get_space_width(pFont);
-
    char* p = (char*)szText;
    float wText = 0.0;
 
@@ -786,16 +783,15 @@ float RenderEngineRaw::getMessageHeight(const char* text, float line_spacing_per
    if ( 0 == strlen(text) )
       return 0.0;
 
-   float fScale = 1.0;
    if ( ! m_bEnableFontScaling )
       fTextHeight = textHeight(fontId);
    else
    {
-      float ff = textHeight(fontId);
-      if ( ff > 0.0001 )
-         fScale = fTextHeight / ff;
-      else
-         fScale = 1.0;
+      //float ff = textHeight(fontId);
+      //if ( ff > 0.0001 )
+      //   fScale = fTextHeight / ff;
+      //else
+      //   fScale = 1.0;
    }
    float height = 0.0;
 
@@ -1021,8 +1017,6 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
 
    int tmp = m_pFBG->disableFontOutline;
    m_pFBG->disableFontOutline = m_bDisableTextOutline?1:0;
-
-   float space_width = _get_space_width(pFont);
    
    if ( m_bDrawBackgroundBoundingBoxes )
    {
@@ -1119,7 +1113,7 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
       int yImg = pFont->chars[(*szText)-pFont->charIdFirst].imgYOffset;
       int wImg = pFont->chars[(*szText)-pFont->charIdFirst].width;
       int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
-      unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
+      //unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
 
       if ( (*szText) != ' ' )
          fbg_imageClipAColor(m_pFBG, pFont->pImage, xTmp*m_iRenderWidth, yPos*m_iRenderHeight, xImg, yImg, wImg, hImg);
@@ -1177,7 +1171,7 @@ void RenderEngineRaw::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const ch
       int yImg = pFont->chars[(*szText)-pFont->charIdFirst].imgYOffset;
       int wImg = pFont->chars[(*szText)-pFont->charIdFirst].width;
       int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
-      unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
+      //unsigned char *img_pointer = (unsigned char *)(pFont->pImage->data + (yImg * pFont->pImage->width * m_pFBG->components + xImg * m_pFBG->components));
 
       fbg_imageDrawAlpha(m_pFBG, pFont->pImage, xPos * m_iRenderWidth, yPos * m_iRenderHeight, wImg*fScale, hImg*fScale, xImg, yImg, wImg, hImg);
 
@@ -1458,6 +1452,107 @@ void RenderEngineRaw::drawRoundRect(float xPos, float yPos, float fWidth, float 
 
 void RenderEngineRaw::drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3)
 {
+   drawLine(x1,y1,x2,y2);
+   drawLine(x2,y2,x3,y3);
+   drawLine(x3,y3,x1,y1);
+}
+
+
+void RenderEngineRaw::fillTriangle(float x1, float y1, float x2, float y2, float x3, float y3)
+{
+   int ix1 = x1 * m_iRenderWidth;
+   int ix2 = x2 * m_iRenderWidth;
+   int ix3 = x3 * m_iRenderWidth;
+   int iy1 = y1 * m_iRenderHeight;
+   int iy2 = y2 * m_iRenderHeight;
+   int iy3 = y3 * m_iRenderHeight;
+   
+   int iymin = iy1;
+   int iymax = iy1;
+
+   if ( iy2 < iymin ) iymin = iy2;
+   if ( iy3 < iymin ) iymin = iy3;
+
+   if ( iy2 > iymax ) iymax = iy2;
+   if ( iy3 > iymax ) iymax = iy3;
+
+   int ixmin = ix1;
+   int ixmax = ix1;
+
+   if ( ix2 < ixmin ) ixmin = ix2;
+   if ( ix3 < ixmin ) ixmin = ix3;
+
+   if ( ix2 > ixmax ) ixmax = ix2;
+   if ( ix3 > ixmax ) ixmax = ix3;
+
+   ixmin++;
+   ixmax--;
+   iymin++;
+   iymax--;
+
+   if ( iymin > iymax )
+   {
+      drawLine(x1,y1,x2,y2);
+      drawLine(x2,y2,x3,y3);
+      drawLine(x3,y3,x1,y1);
+      return;
+   }
+   
+   int ixpt, ixpt1, ixpt2;
+
+   for( int iy=iymin; iy <= iymax; iy++ )
+   {
+      ixpt1 = -1;
+      ixpt2 = -1;
+      ixpt = -1;
+      if ( (iy >= iy1) && (iy <= iy2) && (iy1 != iy2) )
+         ixpt = ix1 + ((ix2-ix1)*(iy-iy1))/(iy2-iy1);
+      if ( (iy >= iy2) && (iy <= iy1) && (iy1 != iy2) )
+         ixpt = ix2 + ((ix1-ix2)*(iy-iy2))/(iy1-iy2);
+      if ( -1 == ixpt1 )
+         ixpt1 = ixpt;
+      else if ( -1 == ixpt2 )
+         ixpt2 = ixpt;
+
+      if ( (iy >= iy2) && (iy <= iy3) && (iy2 != iy3) )
+         ixpt = ix2 + ((ix3-ix2)*(iy-iy2))/(iy3-iy2);
+      if ( (iy >= iy3) && (iy <= iy2) && (iy2 != iy3) )
+         ixpt = ix3 + ((ix2-ix3)*(iy-iy3))/(iy2-iy3);
+      if ( -1 == ixpt1 )
+         ixpt1 = ixpt;
+      else if ( -1 == ixpt2 )
+         ixpt2 = ixpt;
+
+      if ( (iy >= iy1) && (iy <= iy3) && (iy1 != iy3) )
+         ixpt = ix1 + ((ix3-ix1)*(iy-iy1))/(iy3-iy1);
+      if ( (iy >= iy3) && (iy <= iy1) && (iy1 != iy3) )
+         ixpt = ix3 + ((ix1-ix3)*(iy-iy3))/(iy1-iy3);
+      if ( -1 == ixpt1 )
+         ixpt1 = ixpt;
+      else if ( -1 == ixpt2 )
+         ixpt2 = ixpt;
+
+      if ( (ixpt1 < 0) || (ixpt2 < 0) || (ixpt1 >= m_iRenderWidth) || (ixpt2 >= m_iRenderWidth) )
+         continue;
+
+      if ( ixpt1 > ixpt2 )
+      {
+         ixpt = ixpt1;
+         ixpt1 = ixpt2;
+         ixpt2 = ixpt;
+      }
+
+      //if ( (ixpt1 < ixmin) || (ixpt2 > ixmax) )
+      //   continue;
+
+      if ( ixpt1 < ixmin )
+         ixpt1 = ixmin;
+      if ( ixpt2 > ixmax )
+         ixpt2 = ixmax;
+      //fbg_line(m_pFBG, ixpt1, iy, ixpt2, iy, m_ColorFill[0], m_ColorFill[1], m_ColorFill[2], m_ColorFill[3]);
+      fbg_line(m_pFBG, ixpt1, iy, ixpt2, iy, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]/2);
+   }
+
    drawLine(x1,y1,x2,y2);
    drawLine(x2,y2,x3,y3);
    drawLine(x3,y3,x1,y1);

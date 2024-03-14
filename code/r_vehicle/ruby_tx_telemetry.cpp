@@ -933,7 +933,7 @@ void onRebootRequest()
       vehicle_stop_video_capture_csi(g_pCurrentModel);
 
    hw_stop_process("ruby_rx_commands");
-   hw_stop_process("ruby_rx_rc");
+   vehicle_stop_rx_rc();
    hardware_sleep_ms(100);
    log_line("Will reboot now.");
    hw_execute_bash_command("sudo reboot -f", NULL);

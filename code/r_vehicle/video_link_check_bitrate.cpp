@@ -120,7 +120,7 @@ void video_link_quantization_shift(int iDelta)
 
 void video_link_check_adjust_quantization_for_overload_periodic_loop()
 {
-   if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) )
+   if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) || g_pCurrentModel->isVideoLinkFixedOneWay() )
       return;
    if ( g_bVideoPaused )
       return;

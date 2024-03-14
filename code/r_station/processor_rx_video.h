@@ -99,7 +99,7 @@ class ProcessorRxVideo
    protected:
       void resetReceiveState();
       void resetOutputState();
-      void resetReceiveBuffers();
+      void resetReceiveBuffers(int iToMaxIndex);
       void resetReceiveBuffersBlock(int iBlockIndex);
 
       void logCurrentRxBuffers(bool bIncludeRetransmissions);
@@ -167,6 +167,7 @@ class ProcessorRxVideo
       u32 m_TimeLastHistoryStatsUpdate;
       u32 m_TimeLastRetransmissionsStatsUpdate;
 
+      u32 m_uTimeLastReceivedNewVideoPacket;
       u32 m_uLastBlockReceivedAckKeyframeInterval;
       u32 m_uLastBlockReceivedAdaptiveVideoInterval;
       u32 m_uLastBlockReceivedSetVideoBitrate;

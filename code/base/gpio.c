@@ -312,7 +312,7 @@ int GPIOButtonsResetDetectionFlag()
 {
    #ifdef HW_CAPABILITY_GPIO
    log_line("[GPIO] Reset buttons direction detection flag.");
-   char szComm[256];
+   char szComm[MAX_FILE_PATH_SIZE];
    sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CONTROLLER_BUTTONS);
    hw_execute_bash_command(szComm, NULL);
    s_iGPIOButtonsDirectionDetected = 0;
@@ -332,7 +332,7 @@ int GPIOInitButtons()
    s_iGPIOButtonsDirectionDetected = 0;
    s_iGPIOButtonsPullDirection = 1;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
    if( access( szFile, R_OK ) != -1 )
@@ -572,7 +572,7 @@ int GPIOButtonsTryDetectPullUpDown()
       s_iGPIOButtonsDirectionDetected = 1;
       s_iGPIOButtonsPullDirection = 0;
 
-      char szFile[128];
+      char szFile[MAX_FILE_PATH_SIZE];
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
       FILE* fp = fopen(szFile, "wb");
@@ -646,7 +646,7 @@ int GPIOButtonsTryDetectPullUpDown()
       s_iGPIOButtonsDirectionDetected = 1;
       s_iGPIOButtonsPullDirection = 1;
 
-      char szFile[128];
+      char szFile[MAX_FILE_PATH_SIZE];
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
       FILE* fp = fopen(szFile, "wb");

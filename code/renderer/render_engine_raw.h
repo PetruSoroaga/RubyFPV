@@ -87,6 +87,7 @@ class RenderEngineRaw: public RenderEngine
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);
      virtual void drawRoundRect(float xPos, float yPos, float fWidth, float fHeight, float fCornerRadius);
      virtual void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3);
+     virtual void fillTriangle(float x1, float y1, float x2, float y2, float x3, float y3);
      virtual void drawPolyLine(float* x, float* y, int count);
      virtual void fillPolygon(float* x, float* y, int count);
 

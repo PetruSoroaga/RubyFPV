@@ -42,7 +42,7 @@ u32 controller_utils_getControllerId()
    bool bControllerIdOk = false;
    u32 uControllerId = 0;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
    FILE* fd = fopen(szFile, "r");
@@ -347,6 +347,112 @@ int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pMo
    return iErrorCode;
 }
 
+void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_video_link_profile* pUpdatedProfile, type_video_link_profile* pAllProfiles)
+{
+   if ( (NULL == pOrgProfile) || (NULL == pUpdatedProfile) || (NULL == pAllProfiles) )
+      return;
+
+   // If EC scheme spreading factor has changed by user, update MQ and LQ video profiles spreading factor too
+   
+   if ( ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) ) ||
+      ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT) ) )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+   }
+
+   if ( ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) ) ||
+      ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) ) )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+   }
+
+   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+   }
+
+   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+   }
+
+   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   }
+
+   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   }
+
+   if ( (pOrgProfile->width != pUpdatedProfile->width) || (pOrgProfile->height != pUpdatedProfile->height) )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].width = pUpdatedProfile->width;
+      pAllProfiles[VIDEO_PROFILE_MQ].height = pUpdatedProfile->height;
+      pAllProfiles[VIDEO_PROFILE_LQ].width = pUpdatedProfile->width;
+      pAllProfiles[VIDEO_PROFILE_LQ].height = pUpdatedProfile->height;
+   }
+
+   if ( pOrgProfile->fps != pUpdatedProfile->fps )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].fps = pUpdatedProfile->fps;
+      pAllProfiles[VIDEO_PROFILE_LQ].fps = pUpdatedProfile->fps;
+   }
+
+   if ( pOrgProfile->keyframe_ms != pUpdatedProfile->keyframe_ms )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].keyframe_ms = pUpdatedProfile->keyframe_ms;
+      pAllProfiles[VIDEO_PROFILE_LQ].keyframe_ms = pUpdatedProfile->keyframe_ms;
+   }
+
+   if ( pOrgProfile->h264profile != pUpdatedProfile->h264profile )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].h264profile = pUpdatedProfile->h264profile;
+      pAllProfiles[VIDEO_PROFILE_LQ].h264profile = pUpdatedProfile->h264profile;
+   }
+
+   if ( pOrgProfile->h264level != pUpdatedProfile->h264level )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].h264level = pUpdatedProfile->h264level;
+      pAllProfiles[VIDEO_PROFILE_LQ].h264level = pUpdatedProfile->h264level;
+   }
+
+   if ( pOrgProfile->h264refresh != pUpdatedProfile->h264refresh )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].h264refresh = pUpdatedProfile->h264refresh;
+      pAllProfiles[VIDEO_PROFILE_LQ].h264refresh = pUpdatedProfile->h264refresh;
+   }
+
+   if ( pOrgProfile->insertPPS != pUpdatedProfile->insertPPS )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].insertPPS = pUpdatedProfile->insertPPS;
+      pAllProfiles[VIDEO_PROFILE_LQ].insertPPS = pUpdatedProfile->insertPPS;
+   }
+}
+
 #else
 u32 controller_utils_getControllerId() { return 0; }
 int controller_utils_export_all_to_usb() { return 0; }
@@ -354,4 +460,5 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound) { return 0; }
 bool controller_utils_usb_import_has_matching_controller_id_file() { return false; }
 bool controller_utils_usb_import_has_any_controller_id_file() { return false; }
 int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId) { return 0; }
+void propagate_video_profile_changes(type_video_link_profile* pOrg, type_video_link_profile* pUpdated, type_video_link_profile* pAllProfiles){}
 #endif

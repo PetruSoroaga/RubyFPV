@@ -129,7 +129,9 @@ void MenuSearch::valuesToUI()
 {
    log_line("MenuSearch: updating UI values...");
 
+#ifdef HW_CAPABILITY_WFBOHD
    m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
+#endif
 
    if ( m_bHasSiKRadio )
    {
@@ -406,17 +408,23 @@ void MenuSearch::_add_menu_items()
 
    m_IndexBand = addMenuItem(m_pItemSelectBand);
 
+#ifdef HW_CAPABILITY_WFBOHD
    m_pItemsSelect[0] = new MenuItemSelect("Vehicle Types", "Select what type of vehicles to search for, based on vehicle firmware to look for. You can search for a particular type of firmware: Ruby, OpenIPC.");
    m_pItemsSelect[0]->addSelection("Ruby");
    m_pItemsSelect[0]->addSelection("OpenIPC");
    m_pItemsSelect[0]->setIsEditable();
    m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
    m_IndexModelTypes = addMenuItem(m_pItemsSelect[0]);
+#else
+   m_IndexModelTypes = -1;
+#endif
 
+#ifdef HW_CAPABILITY_WFBOHD
    if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
       m_IndexImportKey = addMenuItem(new MenuItem("Import OpenIPC key", "Imports a custom OpenIPC encryption key from a USB memory stick."));
    else
       m_IndexImportKey = -1;
+#endif
 
    m_IndexStartSearch = addMenuItem(new MenuItem("Start Search", "Start/Stop searching for vehicles on current band."));
    m_IndexManualSearch = _populate_search_frequencies();
@@ -705,7 +713,9 @@ void MenuSearch::startSearch()
    if ( ! m_bDidConnectToAVehicle )
       m_bMustSwitchBack = true;
    
+#ifdef HW_CAPABILITY_WFBOHD
    m_pItemsSelect[0]->setEnabled(false);
+#endif
 
    if ( m_bHasSiKRadio )
    {
@@ -762,7 +772,9 @@ void MenuSearch::stopSearch()
 
    reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
 
+#ifdef HW_CAPABILITY_WFBOHD
    m_pItemsSelect[0]->setEnabled(true);
+#endif
    if ( m_bHasSiKRadio )
    {
       enableMenuItem(m_IndexSiKInfo, true);
@@ -1317,12 +1329,14 @@ void MenuSearch::onSelectItem()
       return;
    }
 
+   #ifdef HW_CAPABILITY_WFBOHD
    if ( m_IndexModelTypes == m_SelectedIndex )
    {
       m_iSearchModelTypes = m_pItemsSelect[0]->getSelectedIndex();
       _add_menu_items();
       return;
    }
+   #endif
 
    if ( m_IndexImportKey == m_SelectedIndex )
    {
@@ -1375,7 +1389,10 @@ void MenuSearch::onSelectItem()
 
       log_line("Searching only on %s", str_format_frequency(m_pSearchChannels[0]));
 
+      #ifdef HW_CAPABILITY_WFBOHD
       m_pItemsSelect[0]->setEnabled(false);
+      #endif
+      
       if ( m_bHasSiKRadio )
       {
          enableMenuItem(m_IndexSiKInfo, false);

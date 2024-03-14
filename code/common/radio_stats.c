@@ -982,6 +982,7 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
 
 int radio_stats_update_on_new_wfbohd_radio_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsVideo, int iDataIsOk, int iCountSkippedPackets)
 {
+   #ifdef HW_CAPABILITY_WFBOHD
    if ( NULL == pSMRS )
       return -1;
 
@@ -1064,7 +1065,7 @@ int radio_stats_update_on_new_wfbohd_radio_packet_received(shared_mem_radio_stat
    }
 
    // End - Update history and good/bad/lost packets for interface 
-
+   #endif
    return 1;
 }
 

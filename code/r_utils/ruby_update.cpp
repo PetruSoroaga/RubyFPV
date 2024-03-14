@@ -88,6 +88,79 @@ void validate_camera(Model* pModel)
    }
 }
 
+void do_update_to_83()
+{
+   log_line("Doing update to 8.3");
+ 
+   if ( ! s_isVehicle )
+   {
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
+      pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
+      save_ControllerSettings();
+
+      //load_Preferences();
+      //Preferences* pP = get_Preferences();
+      //pP->iPersistentMessages = 1;
+      //save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   // Remove deprecated DEVELOPER-FLAGS_BIT-USE_OLD_EC_SCHEME flag
+   pModel->uDeveloperFlags &= ~((u32)(((u32)0x01)<<18));
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= 0xFFFF00FF;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      pModel->video_link_profiles[i].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+   }
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+
+   pModel->video_params.user_selected_video_link_profile = VIDEO_PROFILE_BEST_PERF;
+
+   pModel->rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
+   
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
+   }
+
+   log_line("Updated model VID %u (%s) to v8.3", pModel->uVehicleId, pModel->getLongName());
+}
 
 void do_update_to_82()
 {
@@ -191,7 +264,7 @@ void do_update_to_78()
 
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
-      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;   
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;   
       pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
    
       save_ControllerSettings();
@@ -764,7 +837,7 @@ void do_update_to_69()
       pCS->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
       pCS->ioNiceRXVideo = DEFAULT_IO_PRIORITY_VIDEO_RX;
 
-      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;   
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;   
       
       save_ControllerSettings();
    }
@@ -1057,7 +1130,7 @@ void do_update_to_62()
    {
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
-      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_RETRY_TIME;   
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;   
       pCS->nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;      
       save_ControllerSettings();
 
@@ -1165,11 +1238,7 @@ int main(int argc, char *argv[])
       }
       if ( 0 == szVersionPresent[0] )
       {
-         strcpy(szFile, FOLDER_BINARIES);
-         strcat(szFile, FILE_INFO_VERSION);
-         fd = fopen(szFile, "r");
-         if ( NULL == fd )
-            fd = fopen("ruby_ver.txt", "r");
+         fd = try_open_base_version_file(NULL);
 
          if ( NULL != fd )
          {
@@ -1273,6 +1342,8 @@ int main(int argc, char *argv[])
       do_update_to_81();
    if ( (iMajor < 8) || (iMajor == 8 && iMinor <= 2) )
       do_update_to_82();
+   if ( (iMajor < 8) || (iMajor == 8 && iMinor <= 3) )
+      do_update_to_83();
 
    saveCurrentModel();
    

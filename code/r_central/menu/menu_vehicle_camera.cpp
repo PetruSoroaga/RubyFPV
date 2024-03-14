@@ -143,6 +143,7 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[11]->addSelection(szCam);
    }
    m_pItemsSelect[11]->setIsEditable();
+   m_pItemsSelect[11]->setExtraHeight(0.8*m_sfMenuPaddingY);
    m_IndexCamera = addMenuItem(m_pItemsSelect[11]);
 
    m_pItemsSelect[12] = new MenuItemSelect("Camera Type", "Autodetect the active camera type or force a particular camera type for the active camera.");
@@ -547,8 +548,6 @@ void MenuVehicleCamera::Render()
    for( int i=0; i<m_ItemsCount; i++ )
    {
       y += RenderItem(i,y);
-      if ( i == 0 )
-         y += 0.8*m_sfMenuPaddingY;
    }
    RenderEnd(yTop);
 }

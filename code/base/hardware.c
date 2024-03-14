@@ -136,7 +136,7 @@ int init_hardware()
    int failed = 0;
 
    #ifdef HW_CAPABILITY_GPIO
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
    if ( access(szFile, R_OK ) != -1 )
@@ -453,21 +453,23 @@ u32 hardware_get_base_ruby_version()
    if ( 0 != s_uBaseRubyVersion )
       return s_uBaseRubyVersion;
 
-   FILE* fd = fopen("version_ruby_base.txt", "r");
+   char szFile[MAX_FILE_PATH_SIZE];
+   szFile[0] = 0;
+   FILE* fd = try_open_base_version_file(szFile);
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[Hardware] Failed to open base Ruby version file.");
+      log_softerror_and_alarm("[Hardware] Failed to open base Ruby version file (%s).", szFile);
       return s_uBaseRubyVersion;
    }
    char szBuff[32];
    if ( 1 != fscanf(fd, "%s", szBuff) )
    {
       fclose(fd);
-      log_softerror_and_alarm("[Hardware] Failed to read base Ruby version file.");
+      log_softerror_and_alarm("[Hardware] Failed to read base Ruby version file (%s).", szFile);
       return s_uBaseRubyVersion;
    }
    fclose(fd);
-   log_line("[Hardware] Read base Ruby version: [%s]", szBuff);
+   log_line("[Hardware] Read raw base Ruby version: [%s] from file (%s)", szBuff, szFile);
 
    for( int i=0; i<strlen(szBuff); i++ )
    {
@@ -483,6 +485,7 @@ u32 hardware_get_base_ruby_version()
          return s_uBaseRubyVersion;
       }
    }
+   log_softerror_and_alarm("[Hardware] Failed to parse base Ruby version from file (%s).", szFile);
    return s_uBaseRubyVersion;
 }
 
@@ -508,7 +511,7 @@ int hardware_detectBoardType()
    log_line("Board description string: %s", szBuff);
    log_line("");
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    FILE* fd = fopen(szFile, "w");
@@ -793,7 +796,7 @@ void gpio_read_buttons_loop()
    int iForceBackPressed = 0;
    int iForceQA1Pressed = 0;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
    if ( access(szFile, R_OK ) == -1 )
@@ -2056,10 +2059,16 @@ int hardware_get_free_space_kb()
    if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
       return -1;
    #else
-   if ( 1 != hw_execute_bash_command_raw("df . | grep -e 'overlay|tmpfp", szOutput) )
+   szOutput[0] = 0;
+   if ( 1 != hw_execute_bash_command_raw("df . | grep overlay 2>/dev/null", szOutput) )
+      return -1;
+   if ( strlen(szOutput) < 10 )
+   if ( 1 != hw_execute_bash_command_raw("df . | grep tmpfs 2>/dev/null", szOutput) )
       return -1;
    #endif
 
+   if ( strlen(szOutput) < 10 )
+      return -1;
    char szTemp[1024];
    long lb = 0, lu = 0, lf = 0;
    sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);

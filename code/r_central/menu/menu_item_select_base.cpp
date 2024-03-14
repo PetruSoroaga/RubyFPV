@@ -239,7 +239,7 @@ void MenuItemSelectBase::Render(float xPos, float yPos, bool bSelected, float fW
    float triSize = 0.3 * height_text;
    float triMargin = 0.2 * height_text;
    float totalWidthValue = width_value + 2.0*triSize + 2.0*triMargin;
-   float xValue = xPos + m_pMenu->getUsableWidth() - totalWidthValue - m_fMarginX;
+   float xValue = xPos + m_pMenu->getUsableWidth() - totalWidthValue;
    
    if ( xPos + fWidthSelection > xValue - m_pMenu->getMenuPaddingX() )
    //if ( fWidthSelection > width_title )
@@ -278,9 +278,9 @@ void MenuItemSelectBase::Render(float xPos, float yPos, bool bSelected, float fW
       g_pRenderEngine->setColors(get_Color_ItemDisabledText());
 
    float yT = yPos+height_text*0.5;
-   g_pRenderEngine->drawTriangle(xValue, yT, xValue+triSize, yT+triSize, xValue+triSize, yT-triSize);
+   g_pRenderEngine->fillTriangle(xValue, yT, xValue+triSize, yT+triSize, xValue+triSize, yT-triSize);
    xValue += totalWidthValue;
-   g_pRenderEngine->drawTriangle(xValue, yT, xValue-triSize, yT+triSize, xValue-triSize, yT-triSize);
+   g_pRenderEngine->fillTriangle(xValue, yT, xValue-triSize, yT+triSize, xValue-triSize, yT-triSize);
 }
 
 void MenuItemSelectBase::RenderCondensed(float xPos, float yPos, bool bSelected, float fWidthSelection)
@@ -332,7 +332,7 @@ void MenuItemSelectBase::RenderCondensed(float xPos, float yPos, bool bSelected,
    if ( ! m_bEnabled )
       g_pRenderEngine->setColors(get_Color_ItemDisabledText());
    float yT = yPos+height_text*0.5;
-   g_pRenderEngine->drawTriangle(xPos, yT, xPos+triSize, yT+triSize, xPos+triSize, yT-triSize);
+   g_pRenderEngine->fillTriangle(xPos, yT, xPos+triSize, yT+triSize, xPos+triSize, yT-triSize);
    xPos += totalWidthValue;
-   g_pRenderEngine->drawTriangle(xPos, yT, xPos-triSize, yT+triSize, xPos-triSize, yT-triSize);
+   g_pRenderEngine->fillTriangle(xPos, yT, xPos-triSize, yT+triSize, xPos-triSize, yT-triSize);
 }

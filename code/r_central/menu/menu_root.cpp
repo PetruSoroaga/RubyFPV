@@ -391,12 +391,7 @@ void MenuRoot::show_MenuInfo()
    szBuff[0] = 0;      
    strcpy(szBuff, "Ruby base version: N/A");
 
-   char szFile[128];
-   strcpy(szFile, FOLDER_BINARIES);
-   strcat(szFile, FILE_INFO_VERSION);
-   FILE* fd = fopen(szFile, "r");
-   if ( NULL == fd )
-      fd = fopen("ruby_ver.txt", "r");
+   FILE* fd = try_open_base_version_file(NULL);
 
    if ( NULL != fd )
    {
@@ -409,6 +404,7 @@ void MenuRoot::show_MenuInfo()
       fclose(fd);
    }
 
+   char szFile[128];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
    fd = fopen(szFile, "r");

@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <semaphore.h>
 #include <dirent.h>
-#include <unistd.h>
 
 // To fix (remove)
 #include <sys/socket.h> 
@@ -52,6 +51,8 @@
 #endif
 
 #include "../common/string_utils.h"
+#include "r_start_vehicle.h"
+#include "r_initradio.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 
@@ -59,7 +60,7 @@ static int s_iBootCount = 0;
 
 static bool g_bDebug = false;
 static bool s_isVehicle = false;
-static bool s_bQuit = false;
+bool s_bQuit = false;
 Model modelVehicle;
 
 int board_type = BOARD_TYPE_NONE;
@@ -269,44 +270,6 @@ void _check_files()
       printf("Ruby: Checked files consistency: failed.\n");
    else
       printf("Ruby: Checked files consistency: ok.\n");
-}
-
-
-void _set_default_sik_params_for_vehicle(Model* pModel)
-{
-   if ( NULL == pModel )
-   {
-      log_softerror_and_alarm("Can't set default SiK radio params for NULL model.");
-      return;
-   }
-   log_line("Setting default SiK radio params for all SiK interfaces for current model...");
-   int iCountSiKInterfaces = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( hardware_radio_index_is_sik_radio(i) )
-      {
-         iCountSiKInterfaces++;
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo )
-         {
-            log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
-            continue;
-         }
-         int iLinkIndex = pModel->radioInterfacesParams.interface_link_id[i];
-         if ( (iLinkIndex >= 0) && (iLinkIndex < pModel->radioLinksParams.links_count) )
-         {
-            u32 uFreq = pModel->radioLinksParams.link_frequency_khz[iLinkIndex];
-            hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
-               uFreq, pModel->radioInterfacesParams.txPowerSiK,
-               pModel->radioLinksParams.link_datarate_data_bps[iLinkIndex],
-               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_ECC)?1:0),
-               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_LBT)?1:0),
-               (u32)((pModel->radioLinksParams.link_radio_flags[iLinkIndex] & RADIO_FLAGS_SIK_MCSTR)?1:0),
-               NULL);
-         }
-      }
-   }
-   log_line("Setting default SiK radio params for all SiK interfaces (%d SiK interfaces) for current model. Done.", iCountSiKInterfaces);
 }
 
 void _create_default_model()
@@ -670,13 +633,14 @@ void _test()
          tmp += i;
          f += k;
          b = f-tmp*3;
+         b = b-1;
       }
       uTime2 = get_current_timestamp_ms();
       log_line("Work %d, diff: %u - %u = %u", i, uTime2, uTime1, uTime2-uTime1);
       uTime1 = uTime2;
    }
 
-   int socket_server, socket_client;
+   int socket_server;
    struct sockaddr_in server_addr, client_addr;
  
    socket_server = socket(AF_INET , SOCK_DGRAM, 0);
@@ -749,6 +713,21 @@ void _test()
    close(socket_server);
 }
 
+void _log_platform(bool bNewLine)
+{
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   printf("Built for OpenIPC camera.");
+   #elif HW_PLATFORM_LINUX_GENERIC
+   printf("Built for Linux");
+   #elif HW_PLATFORM_RASPBERRY
+   printf("Built for Raspberry");
+   #else
+   printf("Built for N/A");
+   #endif
+   if ( bNewLine )
+      printf("\n");
+}
+
 void handle_sigint(int sig) 
 { 
    log_line("Caught signal to stop: %d\n", sig);
@@ -762,9 +741,30 @@ int main (int argc, char *argv[])
    signal(SIGTERM, handle_sigint);
    signal(SIGQUIT, handle_sigint);
 
+   if ( strcmp(argv[argc-1], "-noop") == 0 )
+   {
+      _log_platform(true);
+      return 0;
+   }
+
+   if ( strcmp(argv[argc-1], "-vehicle") == 0 )
+   {
+      r_start_vehicle(argc, argv);
+      return 0;
+   }
+
+   if ( (strcmp(argv[argc-1], "-initradio") == 0) || 
+        (strcmp(argv[0], "-initradio") == 0) ||
+        ((argc>1) && (strcmp(argv[1], "-initradio") == 0)) )
+   {
+      r_initradio(argc, argv);
+      return 0;
+   }
+
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      printf("%d.%d (b%d) ", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      _log_platform(false);
       return 0;
    }
 
@@ -820,8 +820,6 @@ int main (int argc, char *argv[])
    system("cd /boot; sudo mount -o remount,rw /boot; cd /home/pi/ruby");
    hardware_sleep_ms(50);
    #endif
-
-   chdir(FOLDER_BINARIES);
 
    sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
    hw_execute_bash_command_silent(szComm, NULL);
@@ -987,15 +985,7 @@ int main (int argc, char *argv[])
    hw_execute_bash_command("sudo modprobe i2c-dev", NULL);
    #endif
 
-   #ifdef HW_PLATFORM_RASPBERRY
-   hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1", szOutput);
-   #else
-   hw_execute_bash_command("modprobe -a 88XXau 2>&1", szOutput);
-   #endif
-
-   if ( 0 != szOutput[0] )
-   if ( strlen(szOutput) > 10 )
-      log_line("Error on loading driver: [%s]", szOutput);
+   hardware_radio_load_radio_modules();
      
    hardware_sleep_ms(50);
 
@@ -1323,12 +1313,13 @@ int main (int argc, char *argv[])
    if ( access( szFile, R_OK) == -1 )
       _create_default_model();
    
-   hw_execute_ruby_process_wait(NULL, "ruby_vehicle", "-ver", szOutput, 1);
-   log_line("ruby_vehicle: [%s]", szOutput);
-   hw_execute_ruby_process_wait(NULL, "ruby_rx_commands", "-ver", szOutput, 1);
-   log_line("ruby_rx_commands: [%s]", szOutput);
+   hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
+   log_line("ruby_start: [%s]", szOutput);
+
    hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
    log_line("ruby_rt_vehicle: [%s]", szOutput);
+   hw_execute_ruby_process_wait(NULL, "ruby_rx_commands", "-ver", szOutput, 1);
+   log_line("ruby_rx_commands: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
 
@@ -1337,11 +1328,11 @@ int main (int argc, char *argv[])
    log_line("ruby_rt_station: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_rx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_rx_telemetry: [%s]", szOutput);
+   hw_execute_ruby_process_wait(NULL, "ruby_tx_rc", "-ver", szOutput, 1);
+   log_line("ruby_tx_rc: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_central", "-ver", szOutput, 1);
    log_line("ruby_central: [%s]", szOutput);
    #endif
-   hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
-   log_line("ruby_start: [%s]", szOutput);
 
 
    _check_for_update_from_boot();
@@ -1477,7 +1468,7 @@ int main (int argc, char *argv[])
    fflush(stdout);
 
    char szParams[64];
-   szParams[0] = 0;
+   strcpy(szParams, "-initradio");
    if ( s_isVehicle )
    {
       for ( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
@@ -1491,13 +1482,13 @@ int main (int argc, char *argv[])
                dataRateMb = dataRateMb / 1000 / 1000;
             if ( dataRateMb > 0 )
             {
-               sprintf(szParams, "%d", dataRateMb);
+               sprintf(szParams, "-initradio %d", dataRateMb);
                break;
             }
          }
       }
    }
-   hw_execute_ruby_process_wait(NULL, "ruby_initradio", szParams, NULL, 1);
+   hw_execute_ruby_process_wait(NULL, "ruby_start", szParams, NULL, 1);
    
    printf("Ruby: Starting main process...\n");
    log_line("Starting main process...");
@@ -1548,7 +1539,7 @@ int main (int argc, char *argv[])
       }
       printf("Ruby: Total supported radio interfaces: %d\n", c);
       fflush(stdout);
-      hw_execute_ruby_process(NULL, "ruby_vehicle", NULL, NULL);
+      hw_execute_ruby_process(NULL, "ruby_start", "-vehicle", NULL);
    }
    else
    {
@@ -1685,6 +1676,8 @@ int main (int argc, char *argv[])
       {
          bool bError = false;
 
+         // To fix : check for ruby_start -vehicle process
+         /*
          if ( hw_process_exists("ruby_vehicle") )
          {
            if ( iCheckCount == 0 )
@@ -1692,6 +1685,7 @@ int main (int argc, char *argv[])
          }
          else
             { log_error_and_alarm("ruby_vehicle is not running"); bError = true; }
+         */
 
          if ( hw_process_exists("ruby_rt_vehicle") )
          {

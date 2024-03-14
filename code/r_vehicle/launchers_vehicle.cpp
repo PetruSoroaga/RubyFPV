@@ -34,6 +34,7 @@
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #include <math.h>
+#include <semaphore.h>
 
 #include "shared_vars.h"
 #include "timers.h"
@@ -75,12 +76,17 @@ void vehicle_launch_rx_rc(Model* pModel)
    #else
    sprintf(szPrefix, "nice -n %d", pModel->niceRC);
    #endif
-   hw_execute_ruby_process(szPrefix, "ruby_rx_rc", NULL, NULL);
+   hw_execute_ruby_process(szPrefix, "ruby_rx_commands", "-rc", NULL);
 }
 
 void vehicle_stop_rx_rc()
 {
-   hw_stop_process("ruby_rx_rc");
+   sem_t* s = sem_open(SEMAPHORE_STOP_RX_RC, 0, S_IWUSR | S_IRUSR, 0);
+   if ( SEM_FAILED != s )
+   {
+      sem_post(s);
+      sem_close(s);
+   }
 }
 
 void vehicle_launch_rx_commands(Model* pModel)
@@ -657,7 +663,8 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
    {
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
       hw_set_proc_affinity("ruby_tx_telemetry", 2,2);
-      hw_set_proc_affinity("ruby_rx_rc", 2,2);
+      // To fix
+      //hw_set_proc_affinity("ruby_rx_rc", 2,2);
 
       #ifdef HW_PLATFORM_RASPBERRY
       if ( bVeYe )

@@ -35,6 +35,7 @@
 #include "menu_item_text.h"
 #include "menu_vehicle_radio_link.h"
 #include "menu_vehicle_radio_link_sik.h"
+#include "menu_radio_config.h"
 #include "menu_txinfo.h"
 
 #include "../link_watch.h"
@@ -79,30 +80,6 @@ void MenuVehicleRadioConfig::populate()
       m_bControllerHasKey = true;
    else
       m_bControllerHasKey = false;
-
-   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
-   m_pItemsSelect[4]->setIsEditable();
-   m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
-
-   m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
-   m_pItemsSelect[3]->addSelection("No");
-   m_pItemsSelect[3]->addSelection("Yes");
-   m_pItemsSelect[3]->setIsEditable();
-   m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
-
-   m_pItemsSelect[2] = new MenuItemSelect("Radio Encryption", "Changes the encryption used for the radio links. You can encrypt the video data, or telemetry data, or everything, including the ability to search for and find this vehicle (unless your controller has the right pass phrase).");
-   m_pItemsSelect[2]->addSelection("None");
-   m_pItemsSelect[2]->addSelection("Video Stream Only");
-   m_pItemsSelect[2]->addSelection("Data Streams Only");
-   m_pItemsSelect[2]->addSelection("Video and Data Streams");
-   m_pItemsSelect[2]->addSelection("All Streams and Data");
-   m_pItemsSelect[2]->setIsEditable();
-   m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
-
-   m_IndexPower = addMenuItem(new MenuItem("Tx Power Level", "Change the transmit power levels for the vehicle's radio interfaces."));
-   m_pMenuItems[m_IndexPower]->showArrow();
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       m_IndexFreq[i] = -1;
@@ -230,6 +207,7 @@ void MenuVehicleRadioConfig::populate()
       m_IndexFreq[iRadioLinkId] = addMenuItem(m_pItemsSelect[20+iRadioLinkId]);
    }
 
+   /*
    for( int iRadioLinkId=0; iRadioLinkId<g_pCurrentModel->radioLinksParams.links_count; iRadioLinkId++ )
    {
       int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(iRadioLinkId);
@@ -267,6 +245,34 @@ void MenuVehicleRadioConfig::populate()
       m_IndexConfigureLinks[iRadioLinkId] = addMenuItem(new MenuItem(szTitle, szTooltip));
       m_pMenuItems[m_IndexConfigureLinks[iRadioLinkId]]->showArrow();
    }
+   */
+
+   m_IndexPower = addMenuItem(new MenuItem("Tx Power Level", "Change the transmit power levels for the vehicle's radio interfaces."));
+   m_pMenuItems[m_IndexPower]->showArrow();
+
+   m_IndexRadioConfig = addMenuItem(new MenuItem("Full Radio Config", "Full radio configuration"));
+   m_pMenuItems[m_IndexRadioConfig]->showArrow();
+
+   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
+   m_pItemsSelect[4]->addSelection("No");
+   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4]->setIsEditable();
+   m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
+
+   m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
+   m_pItemsSelect[3]->addSelection("No");
+   m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3]->setIsEditable();
+   m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
+
+   m_pItemsSelect[2] = new MenuItemSelect("Radio Encryption", "Changes the encryption used for the radio links. You can encrypt the video data, or telemetry data, or everything, including the ability to search for and find this vehicle (unless your controller has the right pass phrase).");
+   m_pItemsSelect[2]->addSelection("None");
+   m_pItemsSelect[2]->addSelection("Video Stream Only");
+   m_pItemsSelect[2]->addSelection("Data Streams Only");
+   m_pItemsSelect[2]->addSelection("Video and Data Streams");
+   m_pItemsSelect[2]->addSelection("All Streams and Data");
+   m_pItemsSelect[2]->setIsEditable();
+   m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
 }
 
 void MenuVehicleRadioConfig::valuesToUI()
@@ -530,6 +536,7 @@ void MenuVehicleRadioConfig::onSelectItem()
          sendNewRadioLinkFrequency(n, freq);
    }
 
+   /*
    for( int n=0; n<g_pCurrentModel->radioLinksParams.links_count; n++ )
    if ( m_IndexConfigureLinks[n] == m_SelectedIndex )
    {
@@ -543,4 +550,8 @@ void MenuVehicleRadioConfig::onSelectItem()
 
       add_menu_to_stack(pMenu);
    }
+   */
+
+   if ( m_IndexRadioConfig == m_SelectedIndex )
+     add_menu_to_stack(new MenuRadioConfig());
 }

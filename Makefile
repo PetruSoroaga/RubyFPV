@@ -1,17 +1,17 @@
+_CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
+_CPPFLAGS := -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
+
+LDFLAGS_CENTRAL := -L/usr/lib/arm-linux-gnueabihf -L../openvg -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm
+LDFLAGS_CENTRAL2 := -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lmmal  -lmmal_core -lmmal_util -lmmal_vc_client  
+
 ifeq ($(RUBY_BUILD_ENV),openipc)
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -Wl,--gc-sections
+_CFLAGS := $(CFLAGS) -DRUBY_BUILD_HW_PLATFORM_OPENIPC
 else
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -lwiringPi -Wl,--gc-sections
 endif
 
-_CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
-_CPPFLAGS := -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
-
-
 INCLUDE_CENTRAL := -Imenu -Iosd -I../menu -I../osd -Icode/r_central/menu -Icode/r_central/osd -I../openvg -I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/usr/include/freetype2
-
-LDFLAGS_CENTRAL := -L/usr/lib/arm-linux-gnueabihf -L../openvg -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm
-LDFLAGS_CENTRAL2 := -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lmmal  -lmmal_core -lmmal_util -lmmal_vc_client  
 
 FOLDER_BASE=code/base
 FOLDER_COMMON=code/common
@@ -191,25 +191,25 @@ ruby_update_worker: $(FOLDER_UTILS)/ruby_update_worker.o $(MODULE_BASE) $(MODULE
 	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_rx_commands: $(FOLDER_VEHICLE)/ruby_rx_commands.o $(FOLDER_VEHICLE)/ruby_rx_rc.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/vehicle_settings.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl
 
 ruby_tx_telemetry: $(FOLDER_VEHICLE)/ruby_tx_telemetry.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_BASE)/parse_fc_telemetry.o $(FOLDER_BASE)/parse_fc_telemetry_ltm.o $(FOLDER_BASE)/vehicle_settings.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
+	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_rt_vehicle: $(FOLDER_VEHICLE)/ruby_rt_vehicle.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_VEHICLE) $(FOLDER_BASE)/vehicle_settings.o $(FOLDER_VEHICLE)/processor_relay.o $(FOLDER_VEHICLE)/processor_tx_video.o $(FOLDER_VEHICLE)/processor_tx_audio.o $(FOLDER_VEHICLE)/events.o $(FOLDER_VEHICLE)/packets_utils.o $(FOLDER_VEHICLE)/process_local_packets.o $(FOLDER_VEHICLE)/process_radio_in_packets.o $(FOLDER_VEHICLE)/process_received_ruby_messages.o $(FOLDER_VEHICLE)/radio_links.o $(FOLDER_VEHICLE)/periodic_loop.o $(FOLDER_VEHICLE)/video_link_auto_keyframe.o $(FOLDER_VEHICLE)/video_link_check_bitrate.o $(FOLDER_VEHICLE)/video_link_stats_overwrites.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_VEHICLE)/test_link_params.o $(FOLDER_VEHICLE)/video_source_csi.o $(FOLDER_VEHICLE)/video_source_udp.o $(FOLDER_BASE)/radio_utils.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
+	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_controller: $(FOLDER_STATION)/ruby_controller.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_STATION)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
+	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_rx_telemetry: $(FOLDER_STATION)/ruby_rx_telemetry.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_STATION)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
+	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_tx_rc: $(FOLDER_STATION)/ruby_tx_rc.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_STATION) $(FOLDER_BASE)/shared_mem_i2c.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium
+	$(CXX) -o $@ $^ $(_LDFLAGS)
 
 ruby_rt_station: $(FOLDER_STATION)/ruby_rt_station.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS) $(MODULE_STATION) $(FOLDER_STATION)/links_utils.o $(FOLDER_STATION)/packets_utils.o $(FOLDER_STATION)/process_local_packets.o $(FOLDER_STATION)/process_radio_in_packets.o $(FOLDER_STATION)/processor_rx_audio.o $(FOLDER_STATION)/processor_rx_video.o $(FOLDER_STATION)/processor_rx_video_wfbohd.o $(FOLDER_STATION)/radio_links.o $(FOLDER_STATION)/relay_rx.o $(FOLDER_STATION)/test_link_params.o $(FOLDER_STATION)/rx_video_output.o $(FOLDER_STATION)/video_link_adaptive.o $(FOLDER_STATION)/video_link_keyframe.o $(FOLDER_STATION)/wfbohd.o $(FOLDER_BASE)/shared_mem_controller_only.o $(FOLDER_COMMON)/models_connect_frequencies.o $(FOLDER_BASE)/parse_fc_telemetry.o $(FOLDER_BASE)/parse_fc_telemetry_ltm.o $(FOLDER_STATION)/radio_links_sik.o $(FOLDER_BASE)/radio_utils.o $(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/camera_utils.o
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl
 
 ruby_plugins: ruby_plugin_osd_ahi ruby_plugin_gauge_speed ruby_plugin_gauge_altitude ruby_plugin_gauge_ahi ruby_plugin_gauge_heading
 
@@ -231,34 +231,34 @@ ruby_plugin_gauge_heading: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd
 tests: test_log test_socket_in test_socket_out test_udp_to_pipe test_pipe_to_udp test_udp_to_udp test_port_rx test_radio_to_udp test_udp_to_radio test_rtpudp_read
 
 test_log:$(FOLDER_TESTS)/test_log.o core_plugins_utils.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_socket_in:$(FOLDER_TESTS)/test_socket_in.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_socket_out:$(FOLDER_TESTS)/test_socket_out.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_udp_to_pipe:$(FOLDER_TESTS)/test_udp_to_pipe.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_udp_to_udp:$(FOLDER_TESTS)/test_udp_to_udp.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_pipe_to_udp:$(FOLDER_TESTS)/test_pipe_to_udp.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_radio_to_udp:$(FOLDER_TESTS)/test_radio_to_udp.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_udp_to_radio:$(FOLDER_TESTS)/test_udp_to_radio.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_rtpudp_read:$(FOLDER_TESTS)/test_rtpudp_read.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_port_rx:$(FOLDER_TESTS)/test_port_rx.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
-	$(CXX) -o $@ $^ $(_LDFLAGS) -lsodium -ldl -lc
+	$(CXX) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 clean:
 	rm -rf ruby_start ruby_i2c ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_gpio_detect ruby_update ruby_update_worker \

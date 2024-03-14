@@ -36,6 +36,7 @@ MenuItem::MenuItem(const char* title)
 {
    m_ItemType = MENU_ITEM_TYPE_SIMPLE;
    m_bEnabled = true;
+   m_bHidden = false;
    m_bIsEditable = false;
    m_bIsEditing = false;
    m_bShowArrow = false;
@@ -62,6 +63,7 @@ MenuItem::MenuItem(const char* title, const char* tooltip)
 {
    m_ItemType = MENU_ITEM_TYPE_SIMPLE;
    m_bEnabled = true;
+   m_bHidden = false;
    m_bIsEditable = false;
    m_bIsEditing = false;
    m_bShowArrow = false;
@@ -118,6 +120,16 @@ bool MenuItem::isEditing() { return m_bIsEditing; }
 bool MenuItem::isEditable() { return m_bIsEditable; }
 void MenuItem::showArrow() { m_bShowArrow = true; }
 void MenuItem::setCondensedOnly() { m_bCondensedOnly = true; }
+
+void MenuItem::setHidden(bool bHidden)
+{
+   m_bHidden = bHidden;
+}
+
+bool MenuItem::isHidden()
+{
+   return m_bHidden;
+}
 
 void MenuItem::setExtraHeight(float fExtraHeight)
 {
@@ -283,7 +295,7 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
       else
          g_pRenderEngine->setColors(get_Color_ItemDisabledText());
    }
-   g_pRenderEngine->drawText(xPos, yPos+g_pRenderEngine->getPixelHeight()*0.2, g_idFontMenu, m_pszTitle);
+   g_pRenderEngine->drawText(xPos + m_fMarginX, yPos+g_pRenderEngine->getPixelHeight()*0.2, g_idFontMenu, m_pszTitle);
 
    if ( m_bShowArrow )
    {

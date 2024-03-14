@@ -1,6 +1,8 @@
 #pragma once
 #include "config_hw.h"
 
+#define MAX_FILE_PATH_SIZE 128
+
 #define LOG_FILE_LOGGER "log_logger.log"
 #define LOG_FILE_START  "log_start.txt"
 #define LOG_FILE_SYSTEM "log_system.txt"
@@ -75,6 +77,7 @@
 #define FILE_TEMP_CURRENT_VIDEO_PARAMS "current_video_config.txt"
 #define FILE_TEMP_SIK_CONFIG_FINISHED "sik_config_complete"
 #define FILE_TEMP_AUDIO_RECORDING "audio.wav"
+#define FILE_TEMP_RADIOS_CONFIGURED "radio_configured"
 
 
 //-------------------------------------------

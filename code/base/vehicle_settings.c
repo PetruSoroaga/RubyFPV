@@ -47,7 +47,7 @@ void reset_VehicleSettings()
 
 int save_VehicleSettings()
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_VEHICLE_SETTINGS);
    FILE* fd = fopen(szFile, "w");
@@ -67,7 +67,7 @@ int save_VehicleSettings()
 int load_VehicleSettings()
 {
    s_VehicleSettingsLoaded = 1;
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_VEHICLE_SETTINGS);
    FILE* fd = fopen(szFile, "r");

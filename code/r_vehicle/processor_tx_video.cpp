@@ -900,28 +900,27 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
 
       // Send ec packet if any
 
-      bool bUseLegacyScheme = false;
-      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_USE_OLD_EC_SCHEME )
-         bUseLegacyScheme = true;
+      u32 uECSpreadHigh = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      int iECSpread = (int)(uECSpreadLow | (uECSpreadHigh<<1));
 
-      if ( bUseLegacyScheme )
-      if ( s_iCurrentBlockPacketIndexToSend == (s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets - 1) )
+      if ( 0 == iECSpread )
       {
-         for( int k=0; k<s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs; k++ )
-            _send_packet(s_iCurrentBufferIndexToSend, s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets + k, false, false, true);
+         if ( s_iCurrentBlockPacketIndexToSend == (s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets - 1) )
+         {
+            for( int k=0; k<s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs; k++ )
+               _send_packet(s_iCurrentBufferIndexToSend, s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_packets + k, false, false, true);
+         }
       }
-
-      if ( ! bUseLegacyScheme )
-      if ( s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs > 0 )
+      else if ( s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs > 0 )
       {
-         int iBlocksSpread = 3;
-         int iECPacketsPerSlice = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/iBlocksSpread;
+         int iECPacketsPerSlice = s_BlocksTxBuffers[s_iCurrentBufferIndexToSend].block_fecs/(iECSpread+1);
          if ( iECPacketsPerSlice < 1 )
             iECPacketsPerSlice = 1;
 
          int iDeltaBlocks = s_iCurrentBlockPacketIndexToSend/iECPacketsPerSlice;
-         if ( iDeltaBlocks >= iBlocksSpread )
-            iDeltaBlocks = iBlocksSpread-1;
+         if ( iDeltaBlocks > iECSpread )
+            iDeltaBlocks = iECSpread;
 
          int iPrevBlockToSend = s_iCurrentBufferIndexToSend - iDeltaBlocks - 1;
          if ( iPrevBlockToSend < 0 )

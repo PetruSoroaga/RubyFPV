@@ -27,6 +27,10 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "../base/config_hw.h"
+
+#ifdef HW_CAPABILITY_WFBOHD
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <utime.h>
@@ -409,3 +413,5 @@ int radiopackets_wfbohd_generate_fake_full_ruby_telemetry_packet(uint32_t uFreqK
    radio_packet_compute_crc(pOutput, PH.total_length);
    return PH.total_length;
 }
+
+#endif

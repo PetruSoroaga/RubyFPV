@@ -182,7 +182,7 @@ int hardware_reload_serial_ports_settings()
 
    int iFailed = 1;
       
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_HW_SERIAL_PORTS);
    FILE* fd = fopen(szFile, "r");
@@ -285,7 +285,7 @@ void hardware_serial_save_configuration()
       }
    }
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_HW_SERIAL_PORTS);
    FILE* fd = fopen(szFile, "w");

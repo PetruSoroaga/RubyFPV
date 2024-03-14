@@ -38,6 +38,7 @@
 #include "menu_confirmation.h"
 #include "../../radio/radiolink.h"
 #include "../../base/utils.h"
+#include "../../base/controller_utils.h"
 #include "../process_router_messages.h"
 
 #include <time.h>
@@ -522,6 +523,34 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
    profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags &= 0xFFFF00FF;
    profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags |= miliSec;
 
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      type_video_link_profile* pProfile = &(profiles[i]);
+
+      int iRetrDuplication = m_pItemsSelect[0]->getSelectedIndex();
+      int iDuplication = -1;
+      if ( i == VIDEO_PROFILE_MQ || i == VIDEO_PROFILE_LQ )
+         iDuplication = m_pItemsSelect[i*20+14]->getSelectedIndex();
+
+      pProfile->encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT);
+      u32 value = 0;
+      if ( iDuplication >= 1 )
+         value = value | ((u32)(iDuplication-1));
+      else
+         value = value | 0x0F;
+
+      if ( iRetrDuplication != 0 )
+         value = value | (((u32)(iRetrDuplication-1))<<4);
+      else
+         value = value | 0xF0;
+
+      pProfile->encoding_extra_flags |= (value<<16);
+   }
+
+   // Propagate changes to lower video profile
+
+   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
+
    for( int k=VIDEO_PROFILE_MQ; k<=VIDEO_PROFILE_LQ; k++ )
    {
       int index = m_pItemsSelect[k*20+11]->getSelectedIndex();
@@ -575,31 +604,11 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       profiles[k].bitrate_fixed_bps = m_pItemsSlider[k*20+10]->getCurrentValue()*1000*1000/4;
    }
 
-   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-   {
-      type_video_link_profile* pProfile = &(profiles[i]);
+   log_line("Sending video encoding extra flags for user selected profile: %s", str_format_video_encoding_flags(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags));
+   log_line("Sending video encoding extra flags for MQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_MQ].encoding_extra_flags));
+   log_line("Sending video encoding extra flags for LQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_LQ].encoding_extra_flags));
 
-      int iRetrDuplication = m_pItemsSelect[0]->getSelectedIndex();
-      int iDuplication = -1;
-      if ( i == VIDEO_PROFILE_MQ || i == VIDEO_PROFILE_LQ )
-         iDuplication = m_pItemsSelect[i*20+14]->getSelectedIndex();
-
-      pProfile->encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT);
-      u32 value = 0;
-      if ( iDuplication >= 1 )
-         value = value | ((u32)(iDuplication-1));
-      else
-         value = value | 0x0F;
-
-      if ( iRetrDuplication != 0 )
-         value = value | (((u32)(iRetrDuplication-1))<<4);
-      else
-         value = value | 0xF0;
-
-      pProfile->encoding_extra_flags |= (value<<16);
-   }
-
-   u8 buffer[2024];
+   u8 buffer[1024];
    memcpy( buffer, &(profiles[0]), MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile) );
 
    log_line("Sending new video link profiles to vehicle.");
