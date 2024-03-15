@@ -715,11 +715,11 @@ void _test()
 
 void _log_platform(bool bNewLine)
 {
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    printf("Built for OpenIPC camera.");
-   #elifdef HW_PLATFORM_LINUX_GENERIC
+   #elif defined(HW_PLATFORM_LINUX_GENERIC)
    printf("Built for Linux");
-   #elifdef HW_PLATFORM_RASPBERRY
+   #elif defined(HW_PLATFORM_RASPBERRY)
    printf("Built for Raspberry");
    #else
    printf("Built for N/A");

@@ -6,7 +6,8 @@ LDFLAGS_CENTRAL2 := -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host
 
 ifeq ($(RUBY_BUILD_ENV),openipc)
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -Wl,--gc-sections
-_CFLAGS := $(CFLAGS) -DRUBY_BUILD_HW_PLATFORM_OPENIPC
+_CFLAGS := $(_CFLAGS) -DRUBY_BUILD_HW_PLATFORM_OPENIPC
+_CPPFLAGS := $(_CPPFLAGS) -DRUBY_BUILD_HW_PLATFORM_OPENIPC
 else
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -lwiringPi -Wl,--gc-sections
 endif
