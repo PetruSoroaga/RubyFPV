@@ -80,6 +80,9 @@ shared_mem_video_stream_stats_history_rx_processors g_SM_VDS_history;
 shared_mem_controller_retransmissions_stats_rx_processors* g_pSM_ControllerRetransmissionsStats = NULL;
 shared_mem_controller_retransmissions_stats_rx_processors g_SM_ControllerRetransmissionsStats;
 
+shared_mem_radio_rx_queue_info* g_pSM_RadioRxQueueInfo = NULL;
+shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
+
 shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats = NULL;
 shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 

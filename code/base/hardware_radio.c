@@ -650,7 +650,7 @@ int _hardware_enumerate_wifi_radios()
    log_line("[HardwareRadio] Enumerating wifi radios for linux/raspberry platform...");
    #endif
 
-   char szDriver[256];
+   char szDriver[128];
    char szComm[256];
    char szBuff[1024];
 
@@ -711,13 +711,13 @@ int _hardware_enumerate_wifi_radios()
 
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
       sprintf(szComm, "ls -al /sys/class/net/%s/device/ | grep driver", sRadioInfo[i].szName);
-      hw_execute_bash_command(szComm, szDriver);
+      hw_execute_bash_command_raw(szComm, szDriver);
       #else
       sprintf(szComm, "cat /sys/class/net/%s/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'", sRadioInfo[i].szName);
       hw_execute_bash_command(szComm, szDriver);
       #endif
 
-      log_line("[HardwareRadio] Driver for %s: %s", sRadioInfo[i].szName, szDriver);
+      log_line("[HardwareRadio] Driver for %s: <<<%s>>>", sRadioInfo[i].szName, szDriver);
       sRadioInfo[i].isSupported = 0;
       if ( (NULL != strstr(szDriver,"rtl88xxau")) ||
            (NULL != strstr(szDriver,"8812au")) ||

@@ -1063,7 +1063,7 @@ int main (int argc, char *argv[])
          iWifiIndexToTry = 0;
    }
    
-   sprintf(szComm, "ifconfig 2>&1 | grep wlan%d", iWifiIndexToTry);
+   sprintf(szComm, "ifconfig -a 2>&1 | grep wlan%d", iWifiIndexToTry);
    hw_execute_bash_command_raw(szComm, szOutput);
    log_line("Radio interface wlan%d state: [%s]", iWifiIndexToTry, szOutput);
 

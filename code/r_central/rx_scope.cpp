@@ -30,7 +30,7 @@
 #include "rx_scope.h"
 #include "../base/base.h"
 #include "../base/config.h"
-#include "../radio/radiolink.h"
+//#include "../radio/radiolink.h"
 
 #include "../renderer/render_engine.h"
 #include "pairing.h"
@@ -88,7 +88,8 @@ void rx_scope_start()
    pairing_stop();
 
    s_RXScopeInterfaceRx = 0;
-   radio_open_interface_for_read(0, RADIO_PORT_ROUTER_DOWNLINK);
+   // Deprecated
+   //radio_open_interface_for_read(0, RADIO_PORT_ROUTER_DOWNLINK);
 
    for( int i=0; i<RXSCOPE_SLICES; i++ )
    {
@@ -124,7 +125,8 @@ void rx_scope_stop()
    if ( ! s_bRXScopeStarted )
       return;
 
-   radio_close_interface_for_read(s_RXScopeInterfaceRx);
+   // Deprecated
+   //radio_close_interface_for_read(s_RXScopeInterfaceRx);
    s_RXScopeInterfaceRx = -1;
 
    s_bRXScopeStarted = false;
@@ -405,7 +407,8 @@ void rx_scope_read_data()
    int rxLength = 0;
    t_packet_header* pPH = NULL;
 
-   rxBuffer = radio_process_wlan_data_in(s_RXScopeInterfaceRx, &rxLength);
+   // Deprecated
+   //rxBuffer = radio_process_wlan_data_in(s_RXScopeInterfaceRx, &rxLength);
    if ( NULL == rxBuffer )
       return;
    if ( rxLength < (int)(sizeof(t_packet_header)) )

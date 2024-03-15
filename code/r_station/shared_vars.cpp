@@ -73,6 +73,9 @@ shared_mem_video_stream_stats_history_rx_processors* g_pSM_VideoDecodeStatsHisto
 shared_mem_controller_retransmissions_stats_rx_processors g_SM_ControllerRetransmissionsStats;
 shared_mem_controller_retransmissions_stats_rx_processors* g_pSM_ControllerRetransmissionsStats = NULL;
 
+shared_mem_radio_rx_queue_info* g_pSM_RadioRxQueueInfo = NULL;
+shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
+
 shared_mem_radio_stats g_SM_RadioStats;
 shared_mem_radio_stats* g_pSM_RadioStats = NULL;
 

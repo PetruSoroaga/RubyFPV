@@ -523,9 +523,13 @@ int hardware_detectBoardType()
       fclose(fd);
    }
 
-   fd = fopen("config/wifi.txt", "w");
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, "wifi.txt");
+   
+   fd = fopen(szFile, "w");
+
    if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save wifi configuration to file: config/wifi.txts");
+      log_softerror_and_alarm("Failed to save wifi configuration to file: %s", szFile);
    else
    {
       fprintf(fd, "%d\n", wifi_type);

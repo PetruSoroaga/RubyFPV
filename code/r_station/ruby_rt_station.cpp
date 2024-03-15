@@ -1372,41 +1372,34 @@ void init_shared_memory_objects()
 
    g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open(false);
    if ( NULL == g_pSM_VideoDecodeStats )
-   {
       log_softerror_and_alarm("Failed to open video decoder stats shared memory for read/write.");
-   }
    else
-   {
       log_line("Opened video decoder stats shared memory for read/write: success.");
-      memset(g_pSM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
-   }
    memset((u8*)&g_SM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
 
 
    g_pSM_VideoDecodeStatsHistory = shared_mem_video_stream_stats_history_rx_processors_open(false);
    if ( NULL == g_pSM_VideoDecodeStatsHistory )
-   {
       log_softerror_and_alarm("Failed to open video decoder stats history shared memory for read/write.");
-   }
    else
-   {
       log_line("Opened video decoder stats history shared memory for read/write: success.");
-      memset(g_pSM_VideoDecodeStatsHistory, 0, sizeof(shared_mem_video_stream_stats_history_rx_processors));
-   }
    memset((u8*)&g_SM_VideoDecodeStatsHistory, 0, sizeof(shared_mem_video_stream_stats_history_rx_processors));
 
 
    g_pSM_ControllerRetransmissionsStats = shared_mem_controller_video_retransmissions_stats_open_for_write();
    if ( NULL == g_pSM_ControllerRetransmissionsStats )
-   {
       log_softerror_and_alarm("Failed to open video retransmissions stats shared memory for read/write.");
-   }
    else
-   {
       log_line("Opened video retransmissions stats shared memory for read/write: success.");
-      memset(g_pSM_ControllerRetransmissionsStats, 0, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
-   }
    memset((u8*)&g_SM_ControllerRetransmissionsStats, 0, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
+
+   g_pSM_RadioRxQueueInfo = shared_mem_radio_rx_queue_info_open_for_write();
+   if ( NULL == g_pSM_RadioRxQueueInfo )
+      log_softerror_and_alarm("Failed to open radio rx queue info shared memory for read/write.");
+   else
+      log_line("Opened radio rx queue info shared memory for read/write: success.");
+   memset((u8*)&g_SM_RadioRxQueueInfo, 0, sizeof(shared_mem_radio_rx_queue_info));
+   g_SM_RadioRxQueueInfo.uMeasureIntervalMs = 100;
 
    g_pSM_VideoInfoStats = shared_mem_video_info_stats_open_for_write();
    if ( NULL == g_pSM_VideoInfoStats )
@@ -1608,12 +1601,20 @@ void _consume_radio_rx_packets()
 {
    int iReceivedAnyPackets = radio_rx_has_packets_to_consume();
 
+   if ( iReceivedAnyPackets > g_SM_RadioRxQueueInfo.uPendingRxPackets[g_SM_RadioRxQueueInfo.uCurrentIndex] )
+   {
+      if ( iReceivedAnyPackets < 255 )
+         g_SM_RadioRxQueueInfo.uPendingRxPackets[g_SM_RadioRxQueueInfo.uCurrentIndex] = iReceivedAnyPackets;
+      else
+         g_SM_RadioRxQueueInfo.uPendingRxPackets[g_SM_RadioRxQueueInfo.uCurrentIndex] = 254;
+   }
+
    if ( iReceivedAnyPackets <= 0 )
       return;
 
-   if ( iReceivedAnyPackets > 10 )
-      iReceivedAnyPackets = 10;
-   
+   if ( iReceivedAnyPackets > 15 )
+      iReceivedAnyPackets = 15;
+     
    u32 uTimeStart = get_current_timestamp_ms();
 
    for( int i=0; i<iReceivedAnyPackets; i++ )
@@ -1851,6 +1852,17 @@ void _router_periodic_loop()
       memcpy(g_pSM_VideoDecodeStats, &g_SM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
       memcpy(g_pSM_VideoDecodeStatsHistory, &g_SM_VideoDecodeStatsHistory, sizeof(shared_mem_video_stream_stats_history_rx_processors));
       memcpy(g_pSM_ControllerRetransmissionsStats, &g_SM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
+
+   }
+
+   if ( g_TimeNow >= g_SM_RadioRxQueueInfo.uLastMeasureTime + g_SM_RadioRxQueueInfo.uMeasureIntervalMs )
+   {
+      g_SM_RadioRxQueueInfo.uLastMeasureTime = g_TimeNow;
+      g_SM_RadioRxQueueInfo.uCurrentIndex++;
+      if ( g_SM_RadioRxQueueInfo.uCurrentIndex >= MAX_RADIO_RX_QUEUE_INFO_VALUES )
+         g_SM_RadioRxQueueInfo.uCurrentIndex = 0;
+      g_SM_RadioRxQueueInfo.uPendingRxPackets[g_SM_RadioRxQueueInfo.uCurrentIndex] = 0;
+      memcpy(g_pSM_RadioRxQueueInfo, &g_SM_RadioRxQueueInfo, sizeof(shared_mem_radio_rx_queue_info));
    }
 
    _check_send_pairing_requests();
@@ -2297,6 +2309,8 @@ int main (int argc, char *argv[])
    shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
    shared_mem_video_stream_stats_history_rx_processors_close(g_pSM_VideoDecodeStatsHistory);
    shared_mem_controller_video_retransmissions_stats_close(g_pSM_ControllerRetransmissionsStats);
+   shared_mem_radio_rx_queue_info_close(g_pSM_RadioRxQueueInfo);
+   g_pSM_RadioRxQueueInfo = NULL;
    shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
    shared_mem_video_link_graphs_close(g_pSM_VideoLinkGraphs);
    shared_mem_radio_stats_close(g_pSM_RadioStats);

@@ -367,6 +367,18 @@ void _pairing_open_shared_mem()
    if ( NULL == g_pSM_ControllerRetransmissionsStats )
       iAnyFailed++;
 
+   ruby_signal_alive();
+   for( int i=0; i<20; i++ )
+   {
+      if ( NULL != g_pSM_RadioRxQueueInfo )
+         break;
+      g_pSM_RadioRxQueueInfo = shared_mem_radio_rx_queue_info_open_for_read();
+      hardware_sleep_ms(5);
+      iAnyNewOpen++;
+   }
+   if ( NULL == g_pSM_RadioRxQueueInfo )
+      iAnyFailed++;
+
 
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
@@ -457,6 +469,10 @@ void _pairing_close_shared_mem()
 
    shared_mem_controller_video_retransmissions_stats_close(g_pSM_ControllerRetransmissionsStats);
    g_pSM_ControllerRetransmissionsStats = NULL;
+
+   shared_mem_radio_rx_queue_info_close(g_pSM_RadioRxQueueInfo);
+   g_pSM_RadioRxQueueInfo = NULL;
+
 
    shared_mem_rc_downstream_info_close(g_pSM_DownstreamInfoRC);
    g_pSM_DownstreamInfoRC = NULL;

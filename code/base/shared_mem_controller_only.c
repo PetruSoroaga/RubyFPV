@@ -232,6 +232,24 @@ void shared_mem_controller_video_retransmissions_stats_close(shared_mem_controll
       munmap(pAddress, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
 }
 
+shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read()
+{
+   void *retVal = open_shared_mem(SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS, sizeof(shared_mem_radio_rx_queue_info), 1);
+   return (shared_mem_radio_rx_queue_info*)retVal; 
+}
+
+shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_write()
+{
+   void *retVal = open_shared_mem(SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS, sizeof(shared_mem_radio_rx_queue_info), 0);
+   return (shared_mem_radio_rx_queue_info*)retVal;
+}
+
+void shared_mem_radio_rx_queue_info_close(shared_mem_radio_rx_queue_info* pAddress)
+{
+   if ( NULL != pAddress )
+      munmap(pAddress, sizeof(shared_mem_radio_rx_queue_info));
+}
+
 shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_read()
 {
    void *retVal = open_shared_mem_for_read(SHARED_MEM_AUDIO_DECODE_STATS, sizeof(shared_mem_audio_decode_stats));

@@ -1037,6 +1037,7 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
    float height_text = g_pRenderEngine->textHeight(s_idFontStats)*scale;
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall)*scale;
    float height = 2.0 *s_fOSDStatsMargin*scale*1.1 + height_text*s_OSDStatsLineSpacing;
+   float hGraph = height_text*3.0;
 
    height += 1.3*height_text*s_OSDStatsLineSpacing;
 
@@ -1062,6 +1063,8 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
       height += 5 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
       height += height_text_small*s_OSDStatsLineSpacing; // Ping frequency
       height += height_text_small*s_OSDStatsLineSpacing; // Last response recv from vehicle
+
+      height += hGraph + height_text_small*s_OSDStatsLineSpacing; // Radio rx queue graph
    }
 
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
@@ -1463,7 +1466,62 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       y += height_text*0.2;
    }
 
-   y += height_text*0.2;
+   // Radio Rx queue graph
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   {
+      float hGraph = height_text*3.0;
+      float marginH = height_text*1.0;
+      float maxWidth = width - marginH - 0.001;
+
+      float dxBarWidth = maxWidth/(float)MAX_RADIO_RX_QUEUE_INFO_VALUES;
+      float fStroke = OSD_STRIKE_WIDTH;
+
+      double* pColorDev = get_Color_Dev();
+      g_pRenderEngine->setColors(pColorDev);
+
+      g_pRenderEngine->drawText(xPos, y, s_idFontStatsSmall, "Radio Rx Queue size:");
+      y += height_text_small*s_OSDStatsLineSpacing + height_text*0.5;
+      hGraph -= height_text*0.6;
+
+      g_pRenderEngine->drawLine(xPos + marginH, y - g_pRenderEngine->getPixelHeight(), xPos + marginH + maxWidth, y-g_pRenderEngine->getPixelHeight());
+      g_pRenderEngine->drawLine(xPos + marginH, y+hGraph + g_pRenderEngine->getPixelHeight(), xPos + marginH + maxWidth, y+hGraph + g_pRenderEngine->getPixelHeight());
+
+      u8 uMax = 0;
+      for( int k=0; k<MAX_RADIO_RX_QUEUE_INFO_VALUES; k++ )
+      {
+          if ( g_SM_RadioRxQueueInfo.uPendingRxPackets[k] > uMax )
+             uMax = g_SM_RadioRxQueueInfo.uPendingRxPackets[k]; 
+      }
+      sprintf(szBuff, "%d", (int)uMax);
+      g_pRenderEngine->drawText(xPos, y-0.5*height_text_small, s_idFontStatsSmall, szBuff);
+      g_pRenderEngine->drawText(xPos, y+hGraph-0.5*height_text_small, s_idFontStatsSmall, "0");
+      
+      osd_set_colors();
+      double* pcBarRx = get_Color_OSDText();
+      g_pRenderEngine->setFill(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
+      g_pRenderEngine->setStroke(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
+      g_pRenderEngine->setStrokeSize(fStroke);
+
+      float xBar = xPos + marginH + maxWidth;
+      int iIndex = g_SM_RadioRxQueueInfo.uCurrentIndex;
+      for( int k=0; k<MAX_RADIO_RX_QUEUE_INFO_VALUES; k++ )
+      {
+         xBar -= dxBarWidth;
+
+         iIndex--;
+         if ( iIndex < 0 )
+            iIndex = MAX_RADIO_RX_QUEUE_INFO_VALUES-1;
+
+         if ( g_SM_RadioRxQueueInfo.uPendingRxPackets[iIndex] == 0 )
+            continue;
+
+         float hBar = hGraph * (float)(g_SM_RadioRxQueueInfo.uPendingRxPackets[iIndex]) / (float)uMax;
+         g_pRenderEngine->drawRect(xBar, y+hGraph - hBar, dxBarWidth - g_pRenderEngine->getPixelWidth(), hBar);
+      }
+
+      osd_set_colors();  
+   }
+
    osd_set_colors();
 
    return height;

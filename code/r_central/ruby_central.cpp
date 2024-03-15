@@ -2019,6 +2019,8 @@ void synchronize_shared_mems()
       memcpy((u8*)&g_SM_VDS_history, g_pSM_VDS_history, sizeof(shared_mem_video_stream_stats_history_rx_processors));
    if ( NULL != g_pSM_ControllerRetransmissionsStats )
       memcpy((u8*)&g_SM_ControllerRetransmissionsStats, g_pSM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
+   if ( NULL != g_pSM_RadioRxQueueInfo )
+      memcpy((u8*)&g_SM_RadioRxQueueInfo, g_pSM_RadioRxQueueInfo, sizeof(shared_mem_radio_rx_queue_info));
    if ( NULL != g_pSM_VideoLinkStats )
       memcpy((u8*)&g_SM_VideoLinkStats, g_pSM_VideoLinkStats, sizeof(shared_mem_video_link_stats_and_overwrites));
    if ( NULL != g_pSM_VideoLinkGraphs )

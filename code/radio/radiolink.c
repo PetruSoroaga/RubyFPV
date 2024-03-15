@@ -45,6 +45,7 @@
 #include <sys/resource.h>
 #include "radiolink.h"
 #include "radiopackets2.h"
+#include "radio_rx.h"
 
 //#define DEBUG_PACKET_RECEIVED
 //#define DEBUG_PACKET_SENT
@@ -745,6 +746,7 @@ void radio_close_interface_for_read(int interfaceIndex)
       return;
    }
 
+   radio_rx_pause_interface(interfaceIndex);
    
    if ( NULL != pRadioHWInfo->monitor_interface_read.ppcap )
    {
@@ -758,6 +760,8 @@ void radio_close_interface_for_read(int interfaceIndex)
    pRadioHWInfo->monitor_interface_read.selectable_fd = -1;
    pRadioHWInfo->monitor_interface_read.iErrorCount = 0;
    pRadioHWInfo->openedForRead = 0;
+
+   radio_rx_resume_interface(interfaceIndex);
 }
 
 void radio_close_interfaces_for_read()
@@ -765,7 +769,7 @@ void radio_close_interfaces_for_read()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( (NULL == pRadioHWInfo) || (pRadioHWInfo->openedForRead) )
+      if ( (NULL != pRadioHWInfo) && pRadioHWInfo->openedForRead )
          radio_close_interface_for_read(i);
    }
    log_line("Closed all radio interfaces used for read (in pcap mode).");
@@ -1056,6 +1060,9 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
             pRadioHWInfo->monitor_interface_read.iErrorCount,
             pRadioHWInfo->monitor_interface_read.ppcap,
             pRadioHWInfo->monitor_interface_read.selectable_fd );
+
+         // Recovery of a broken Rx interface should be done by Rx thread
+         /*
          if ( pRadioHWInfo->monitor_interface_read.iErrorCount > 10 )
          {
             log_softerror_and_alarm("rx pcap ERROR: Try to recover interface...");
@@ -1081,6 +1088,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
                log_softerror_and_alarm("rx pcap: Could not recover the interface.");
             s_iRadioInterfacesBroken++;
          }
+         */
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
             pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);

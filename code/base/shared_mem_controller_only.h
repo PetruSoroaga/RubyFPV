@@ -9,12 +9,13 @@
 #define SHARED_MEM_VIDEO_STREAM_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS_HISTORY "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS_HISTORY"
 #define SHARED_MEM_VIDEO_RETRANSMISSIONS_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_RETRANMISSIONS_STATS"
-
+#define SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS "/SYSTEM_SHARED_MEM_RADIO_RX_QUEUE_STATS"
 
 #define MAX_HISTORY_VIDEO_INTERVALS 50
 #define MAX_HISTORY_STACK_RETRANSMISSION_INFO 100
 #define MAX_RETRANSMISSION_PACKETS_IN_REQUEST 20
 
+#define MAX_RADIO_RX_QUEUE_INFO_VALUES 50
 
 #ifdef __cplusplus
 extern "C" {
@@ -249,6 +250,16 @@ typedef struct
    shared_mem_controller_adaptive_video_info_vehicle vehicles_adaptive_video[MAX_CONCURENT_VEHICLES];
 } __attribute__((packed)) shared_mem_router_vehicles_runtime_info;
 
+
+typedef struct
+{
+   u8 uPendingRxPackets[MAX_RADIO_RX_QUEUE_INFO_VALUES];
+   u32 uMeasureIntervalMs;
+   u32 uLastMeasureTime;
+   u8 uCurrentIndex;
+} __attribute__((packed)) shared_mem_radio_rx_queue_info;
+
+
 shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_read();
 shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_write();
 void shared_mem_router_packets_stats_history_close(shared_mem_router_packets_stats_history* pAddress);
@@ -277,6 +288,10 @@ void shared_mem_router_vehicles_runtime_info_close(shared_mem_router_vehicles_ru
 shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_read();
 shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_write();
 void shared_mem_controller_video_retransmissions_stats_close(shared_mem_controller_retransmissions_stats_rx_processors* pAddress);
+
+shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read();
+shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_write();
+void shared_mem_radio_rx_queue_info_close(shared_mem_radio_rx_queue_info* pAddress);
 
 #ifdef __cplusplus
 }  

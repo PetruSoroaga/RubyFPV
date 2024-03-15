@@ -64,6 +64,10 @@ int s_iRadioRxPausedInterfaces[MAX_RADIO_INTERFACES];
 int s_iRadioRxAllInterfacesPaused = 0;
 
 fd_set s_RadioRxReadSet;
+fd_set s_RadioRxExceptionSet;
+int s_iRadioRxCountFDs = 0;
+int s_iRadioRxMaxFD = 0;
+struct timeval s_iRadioRxReadTimeInterval;
 
 u8 s_tmpLastProcessedRadioRxPacket[MAX_PACKET_TOTAL_SIZE];
 
@@ -71,6 +75,9 @@ u32 s_uLastRxShortPacketsVehicleIds[MAX_RADIO_INTERFACES];
 
 extern pthread_mutex_t s_pMutexRadioSyncRxTxThreads;
 extern int s_iMutexRadioSyncRxTxThreadsInitialized;
+
+volatile int s_bHasPendingOperation = 0;
+volatile int s_bCanDoOperations = 0;
 
 void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
 {
@@ -169,6 +176,36 @@ void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsSho
 
       s_RadioRxState.vehicles[iStatsIndex].uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
    }
+}
+
+void _radio_rx_update_fd_sets()
+{
+   FD_ZERO(&s_RadioRxReadSet);
+   FD_ZERO(&s_RadioRxExceptionSet);
+
+   s_iRadioRxCountFDs = 0;
+   s_iRadioRxMaxFD = 0;
+   s_iRadioRxReadTimeInterval.tv_sec = 0;
+   s_iRadioRxReadTimeInterval.tv_usec = 50000; // 50 milisec timeout
+
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )
+         continue;
+      if ( s_RadioRxState.iRadioInterfacesBroken[i] )
+         continue;
+      if ( s_iRadioRxPausedInterfaces[i] )
+         continue;
+
+      FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet);
+      FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxExceptionSet);
+
+      s_iRadioRxCountFDs++;
+      if ( pRadioHWInfo->monitor_interface_read.selectable_fd > s_iRadioRxMaxFD )
+         s_iRadioRxMaxFD = pRadioHWInfo->monitor_interface_read.selectable_fd;
+   }
+   s_iRadioRxMaxFD++;
 }
 
 void _radio_rx_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadioInterface)
@@ -811,18 +848,38 @@ static void * _thread_radio_rx(void *argument)
    log_line("[RadioRxThread] Initialized State. Waiting for rx messages...");
 
    int* piQuit = (int*) argument;
-   struct timeval timeRXRadio;
-   
-   int maxfd = -1;
-   int iCountFD = 0;
    int iLoopCounter = 0;
    u32 uTimeLastLoopCheck = get_current_timestamp_ms();
-   
+   u32 uTimeLastRead = 0;
+   u32 uTime = 0;
+
    while ( 1 )
    {
-      hardware_sleep_micros(500);
+      iLoopCounter++;
+      if ( (NULL != piQuit) && (*piQuit != 0 ) )
+      {
+         log_line("[RadioRxThread] Signaled to stop.");
+         break;
+      }
+      if ( s_iRadioRxMarkedForQuit )
+      {
+         if ( iLoopCounter )
+            log_line("[RadioRxThread] Rx marked for quit. Do nothing.");
+         iLoopCounter = -1;
+         hardware_sleep_ms(10);
+         continue;
+      }
 
-      u32 uTime = get_current_timestamp_ms();
+      if ( s_bHasPendingOperation )
+      {
+         s_bCanDoOperations = 1;
+         hardware_sleep_ms(1);
+         continue;
+      }
+      
+      s_bCanDoOperations = 0;
+      
+      uTime = get_current_timestamp_ms();
       if ( uTime - uTimeLastLoopCheck > s_iRadioRxLoopTimeoutInterval )
       {
          log_softerror_and_alarm("[RadioRxThread] Radio Rx loop took too long (%d ms, read: %u microsec, queue: %u microsec).", uTime - uTimeLastLoopCheck, s_uRadioRxLastTimeRead, s_uRadioRxLastTimeQueue);
@@ -831,117 +888,22 @@ static void * _thread_radio_rx(void *argument)
       }
       uTimeLastLoopCheck = uTime;
 
-      if ( s_iRadioRxAllInterfacesPaused )
-      {
-         log_line("[RadioRxThread] All interfaces paused. Pause Rx.");
-         hardware_sleep_ms(100);
-         uTimeLastLoopCheck = get_current_timestamp_ms();
-         continue;
-      }
-      if ( s_iRadioRxMarkedForQuit )
-      {
-         log_line("[RadioRxThread] Rx marked for quit. Do nothing.");
-         hardware_sleep_ms(20);
-         uTimeLastLoopCheck = get_current_timestamp_ms();
-         continue;
-      }
+      // Loop is executed every 50 ms max. So update stats every 500 ms max
 
-      if ( (NULL != piQuit) && (*piQuit != 0 ) )
-      {
-         log_line("[RadioRxThread] Signaled to stop.");
-         break;
-      }
-
-      iLoopCounter++;
-         
-      if ( 0 == (iLoopCounter % 20) )
-      {
+      if ( 0 == (iLoopCounter % 10) )
          _radio_rx_update_stats(uTime);
-      }
 
-      // Build exceptions FD_SET
+      _radio_rx_update_fd_sets();
 
-      maxfd = -1;
-      iCountFD = 0;
-      FD_ZERO(&s_RadioRxReadSet);
-      for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
+      if ( s_iRadioRxCountFDs <= 0 )
       {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( (NULL == pRadioHWInfo) || ( !pRadioHWInfo->openedForRead) )
-            continue;
-         if ( s_RadioRxState.iRadioInterfacesBroken[i] )
-            continue;
-         if ( s_iRadioRxPausedInterfaces[i] )
-            continue;
-         iCountFD++;
-         FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet);
-         if ( pRadioHWInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pRadioHWInfo->monitor_interface_read.selectable_fd;
+         hardware_sleep_ms(10);
+         continue;
       }
 
-      // Check for exceptions first
+      uTimeLastRead = uTime;
 
-      s_uRadioRxLastTimeQueue = 0;
-      s_uRadioRxLastTimeRead = 0;
-      u32 uTimeLastRead = get_current_timestamp_micros();
-
-      timeRXRadio.tv_sec = 0;
-      timeRXRadio.tv_usec = 10; // 0.01 miliseconds timeout
-
-      int nResult = 0;
-      if ( iCountFD > 0 )
-         nResult = select(maxfd+1, NULL, NULL, &s_RadioRxReadSet, &timeRXRadio);
-
-      s_uRadioRxLastTimeRead += get_current_timestamp_micros() - uTimeLastRead;
-      
-      if ( nResult < 0 || nResult > 0 )
-      {
-         for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
-         {
-            radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-            if ( ( NULL != pRadioHWInfo) && (FD_ISSET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet)) )
-            if ( 0 == s_iRadioRxPausedInterfaces[i] )
-            if ( pRadioHWInfo->openedForRead )
-            {
-               log_softerror_and_alarm("[RadioRxThread] Radio interface %d [%s] has an exception.", i+1, pRadioHWInfo->szName);
-               s_RadioRxState.iRadioInterfacesBroken[i] = 1;
-               //if ( hardware_radio_index_is_sik_radio(i) )
-               //   flag_reinit_sik_interface(i);
-            }
-         }
-      }
-
-      // Build read FD_SET
-
-      FD_ZERO(&s_RadioRxReadSet);
-      maxfd = 0;
-      iCountFD = 0;
-      timeRXRadio.tv_sec = 0;
-      timeRXRadio.tv_usec = 2000; // 2 miliseconds timeout
-
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )
-            continue;
-         if ( s_RadioRxState.iRadioInterfacesBroken[i] )
-            continue;
-         if ( s_iRadioRxPausedInterfaces[i] )
-            continue;
-
-         iCountFD++;
-         FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet);
-         if ( pRadioHWInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pRadioHWInfo->monitor_interface_read.selectable_fd;
-      }
-
-      // Check for read ready
-
-      uTimeLastRead = get_current_timestamp_micros();
-      
-      nResult = 0;
-      if ( iCountFD > 0 )
-         nResult = select(maxfd+1, &s_RadioRxReadSet, NULL, NULL, &timeRXRadio);
+      int nResult = select(s_iRadioRxMaxFD, &s_RadioRxReadSet, NULL, NULL, &s_iRadioRxReadTimeInterval);
 
       s_uRadioRxLastTimeRead += get_current_timestamp_micros() - uTimeLastRead;
       s_uRadioRxLastTimeQueue = 0;
@@ -950,9 +912,15 @@ static void * _thread_radio_rx(void *argument)
       {
          log_line("[RadioRxThread] Radio interfaces have broken up. Exception on select read radio handle.");
          for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-            s_RadioRxState.iRadioInterfacesBroken[i] = 1;
-         continue;
+         {
+            radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+            if ( (NULL != pRadioHWInfo) && pRadioHWInfo->openedForRead )
+               s_RadioRxState.iRadioInterfacesBroken[i] = 1;
+         }
       }
+
+      if ( nResult <= 0 )
+         continue;
 
       // Received data, process it
 
@@ -974,21 +942,16 @@ static void * _thread_radio_rx(void *argument)
          else
          {
             int iResult = _radio_rx_parse_received_wifi_radio_data(iInterfaceIndex);
-            if ( iResult < 0 )
+            if ( (iResult < 0) || ( radio_get_last_read_error_code() == RADIO_READ_ERROR_INTERFACE_BROKEN ) )
             {
                log_line("[RadioRx] Mark interface %d as broken", iInterfaceIndex+1);
                s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
                continue;
             }
          }
-
-         if ( (NULL != piQuit) && (*piQuit != 0 ) )
-         {
-            log_line("[RadioRxThread] Signaled to stop.");
-            break;
-         }
       }
    }
+
    log_line("[RadioRxThread] Stopped.");
    return NULL;
 }
@@ -997,6 +960,8 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
 {
    if ( s_iRadioRxInitialized )
       return 1;
+
+   _radio_rx_update_fd_sets();
 
    s_pSMRadioStats = pSMRadioStats;
    s_pSMRadioRxGraphs = pSMRadioRxGraphs;
@@ -1138,21 +1103,28 @@ void radio_rx_pause_interface(int iInterfaceIndex)
    if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
 
-   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+   if ( s_iRadioRxInitialized )
+   {
+      s_bHasPendingOperation = 1;
+      while ( ! s_bCanDoOperations )
+         hardware_sleep_ms(1);
 
-   if ( ! s_iRadioRxInitialized )
+      pthread_mutex_lock(&s_pThreadRadioRxMutex);
+      s_iRadioRxPausedInterfaces[iInterfaceIndex]++;
+      _radio_rx_check_update_all_paused_flag();
+      pthread_mutex_unlock(&s_pThreadRadioRxMutex);
+
+      _radio_rx_update_fd_sets();
+      s_bHasPendingOperation = 0;
+      s_bCanDoOperations = 0;
+   }
+   else
    {
       s_iRadioRxPausedInterfaces[iInterfaceIndex] = 1;
       _radio_rx_check_update_all_paused_flag();
    }
-   else
-   {
-      pthread_mutex_lock(&s_pThreadRadioRxMutex);
-      s_iRadioRxPausedInterfaces[iInterfaceIndex]++;
-      _radio_rx_check_update_all_paused_flag();
-      pthread_mutex_unlock(&s_pThreadRadioRxMutex);    
-   }
 
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
    if ( NULL != pRadioHWInfo )
       log_line("[RadioRx] Pause Rx on radio interface %d, [%s] (+%d)", iInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioRxPausedInterfaces[iInterfaceIndex]);
    else
@@ -1164,15 +1136,12 @@ void radio_rx_resume_interface(int iInterfaceIndex)
    if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
 
-   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+   if ( s_iRadioRxInitialized )
+   {
+      s_bHasPendingOperation = 1;
+      while ( ! s_bCanDoOperations )
+         hardware_sleep_ms(1);
 
-   if ( ! s_iRadioRxInitialized )
-   {
-      s_iRadioRxPausedInterfaces[iInterfaceIndex] = 0;
-      s_iRadioRxAllInterfacesPaused = 0;
-   }
-   else
-   {
       pthread_mutex_lock(&s_pThreadRadioRxMutex);
       if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] > 0 )
       {
@@ -1181,8 +1150,17 @@ void radio_rx_resume_interface(int iInterfaceIndex)
             s_iRadioRxAllInterfacesPaused = 0;
       }
       pthread_mutex_unlock(&s_pThreadRadioRxMutex);
+      _radio_rx_update_fd_sets();
+      s_bHasPendingOperation = 0;
+      s_bCanDoOperations = 0;
+   }
+   else
+   {
+      s_iRadioRxPausedInterfaces[iInterfaceIndex] = 0;
+      s_iRadioRxAllInterfacesPaused = 0;
    }
 
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
    if ( NULL != pRadioHWInfo )
       log_line("[RadioRx] Resumed Rx on radio interface %d, [%s] (+%d)", iInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioRxPausedInterfaces[iInterfaceIndex]);
    else
