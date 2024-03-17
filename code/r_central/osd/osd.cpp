@@ -405,15 +405,11 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
 
    strcpy(szSuffix, "Mbps");
 
-   if ( pActiveModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
+   if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
       sprintf(szBuff,"%.1f", totalMaxVideo_bps/1000.0/1000.0);
    else
-   {
-      if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
-         sprintf(szBuff,"%.1f", totalMaxVideo_bps/1000.0/1000.0);
-      else
-         sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
-   }
+      sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+
    u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
    if ( pActiveModel->radioLinksParams.links_count > 1 )
    if ( pActiveModel->getLinkRealDataRate(1) > uRealDataRate )
@@ -1789,7 +1785,6 @@ void _render_osd_left_right()
    y = y0;
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RC_RSSI ) )
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       _osd_show_rc_rssi(x,y, 1.0);
       y += height_text + 1.0*vSpacing;
@@ -2138,7 +2133,6 @@ void osd_render_elements()
    x = 1.0 - osd_getMarginX() - 0.5*osd_getSpacingH();
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RC_RSSI ) )
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       x -= _osd_show_rc_rssi(x,y, 1.0) + osd_getSpacingH();
    }

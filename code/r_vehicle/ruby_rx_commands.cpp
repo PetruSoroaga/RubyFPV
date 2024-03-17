@@ -295,7 +295,7 @@ void update_priorities()
 {
    #ifdef HW_PLATFORM_RASPBERRY
 
-   hw_set_proc_priority("ruby_rt_vehicle", g_pCurrentModel->niceRouter, g_pCurrentModel->ioNiceRouter, 1);
+   //hw_set_proc_priority("ruby_rt_vehicle", g_pCurrentModel->niceRouter, g_pCurrentModel->ioNiceRouter, 1);
    if ( g_pCurrentModel->isActiveCameraVeye() )
    {
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, g_pCurrentModel->niceVideo, g_pCurrentModel->ioNiceVideo, 1 );

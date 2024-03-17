@@ -618,9 +618,6 @@ void _render_video_background()
          bVehicleHasCamera = true;
       if ( bVehicleHasCamera && link_has_received_videostream(uVehicleIdFullVideo) )
          return;
-
-      if ( pModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-         bVehicleHasCamera = true;
    }
 
    g_pRenderEngine->setGlobalAlfa(1.0);
@@ -1172,11 +1169,6 @@ void executeQuickActions()
       if ( g_pCurrentModel->is_spectator )
       {
          warnings_add(0, "Can't switch camera profile for spectator vehicles.");
-         return;
-      }
-      if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-      {
-         warnings_add(0, "Can't switch camera profile for OpenIPC vehicles.");
          return;
       }
       if ( handle_commands_is_command_in_progress() )

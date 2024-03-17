@@ -268,16 +268,12 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
       height += height_text*s_OSDStatsLineSpacing;
   
    // Dynamic Params
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
-   {
-      if ( bIsCompact || bIsNormal || bIsExtended )
-         height += 7.2*height_text*s_OSDStatsLineSpacing;
-      if ( bIsNormal || bIsExtended )
-         height += height_text*s_OSDStatsLineSpacing;
-   }
+   if ( bIsCompact || bIsNormal || bIsExtended )
+      height += 7.2*height_text*s_OSDStatsLineSpacing;
+   if ( bIsNormal || bIsExtended )
+      height += height_text*s_OSDStatsLineSpacing;
 
    // Rx packets Buffers
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       float hBar = 0.014*scale;
@@ -296,7 +292,6 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
       height += height_text_small*1.2;
       height += hGraph*0.6;
 
-      if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
       {
          // History gap graph
          height += height_text_small*1.2;
@@ -313,7 +308,6 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
    if ( bIsExtended )
       height += height_text * s_OSDStatsLineSpacing;
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    {
       if ( bIsNormal || bIsExtended )
          height += height_text * s_OSDStatsLineSpacing;
@@ -492,7 +486,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
 
-         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
          {
             sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
@@ -547,10 +540,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             if ( g_iOptionsVideoWidth[i] == pVDS->width )
             if ( g_iOptionsVideoHeight[i] == pVDS->height )
             {
-               if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
-                  snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps %d ms KF", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps, pVDS->keyframe_ms);
-               else
-                  snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps);
+               snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps %d ms KF", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps, pVDS->keyframe_ms);
                break;
             }
 
@@ -590,25 +580,15 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       szBuff2[0] = 0;
       if ( pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
       {
-         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
-         {
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
-            sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
-         }
-         else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%u/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+         sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
       }
       else
       {
-         if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
-         {
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-               (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
-            sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
-         }
-         else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %d/%d/%u/%d", szCurrentProfile, pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+         sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
       }
 
       if ( bECChanged && g_bOSDElementChangeNotification )
@@ -634,7 +614,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // --------------------------------------
    // Begin - Dynamic params
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsCompact || bIsNormal || bIsExtended )
    {
       strcpy(szBuff, "Retransmissions: ");
@@ -848,7 +827,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // ---------------------------------------
    // Begin - Draw Rx packets buffer
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       y += height_text*0.1;
@@ -1217,7 +1195,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // ----------------------------------------------------
    // History packets max gap graph
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( iDeveloperMode )
    if ( bIsExtended )
    {
@@ -1277,7 +1254,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // -----------------------------------------
    // Pending good blocks to output graph
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( bIsExtended )
    {
@@ -1372,7 +1348,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing;
    }
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsNormal || bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Discarded buff/seg/pack:");
@@ -1381,7 +1356,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing;
    }
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Lost packets max gap:");
@@ -1401,7 +1375,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    //-------------------------------------------------
    // History requested retransmissions vs missing packets
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( bIsNormal || bIsExtended )
    if ( iDeveloperMode )
    {
@@ -1569,7 +1542,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    // Dev requested retransmissions
 
-   if ( pActiveModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
    if ( iDeveloperMode )
    {
       g_pRenderEngine->setColors(get_Color_Dev());

@@ -404,7 +404,11 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
    if ( 0 == m_pItemsRadio[0]->getSelectedIndex() )
       pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
 
-
+   if ( m_pItemsSelect[8]->getSelectedIndex() == 0 )
+      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION );
+   else
+      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+  
    if ( m_pItemsSelect[7]->getSelectedIndex() == 0 )
       pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
    else
@@ -511,7 +515,7 @@ void MenuVehicleVideo::onSelectItem()
       sendVideoLinkProfiles();
    }
 
-   if ( m_IndexRetransmissions == m_SelectedIndex )
+   if ( m_IndexRetransmissions == m_SelectedIndex || m_IndexAutoQuantization == m_SelectedIndex )
    {
       sendVideoLinkProfiles();
       return;

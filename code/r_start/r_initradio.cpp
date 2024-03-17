@@ -98,7 +98,7 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
 
    if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY58) )
    {
-      sprintf(szComm, "iwconfig %s freq %u 2>&1", pRadioHWInfo->szName, ((u32)DEFAULT_FREQUENCY58)*(u32)1000);
+      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY58);
       pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY58;
       hw_execute_bash_command(szComm, szOutput);
       if ( 0 != szOutput[0] )
@@ -108,7 +108,7 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
    }
    else if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY) )
    {
-      sprintf(szComm, "iwconfig %s freq %u 2>&1", pRadioHWInfo->szName, ((u32)DEFAULT_FREQUENCY)*(u32)1000);
+      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY);
       pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY;
       hw_execute_bash_command(szComm, szOutput);
       if ( 0 != szOutput[0] )

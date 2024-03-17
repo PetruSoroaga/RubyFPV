@@ -94,12 +94,6 @@ void executeQuickActionRecord()
       return;
    s_uTimeLastQuickActionPress = get_current_timestamp_ms();
 
-   if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-   {
-      warnings_add(g_pCurrentModel->uVehicleId, "Can't record video for OpenIPC vehicles.");
-      return;
-   }
-
    if ( g_bVideoRecordingStarted )
    {
       ruby_stop_recording();

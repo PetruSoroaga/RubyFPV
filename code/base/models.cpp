@@ -5384,9 +5384,6 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
    else
       telemetry_params.flags &= ~TELEMETRY_FLAGS_SPECTATOR_ENABLE;
 
-   if ( getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-      rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
-
    u32 ver = pPHRTE->version;
    log_line("populateFromVehicleTelemetryData (version 3): firmware type: %s, sw version from telemetry stream: %d.%d", str_format_firmware_type(getVehicleFirmwareType()), ver>>4, ver & 0x0F);
    log_line("populateFromVehicleTelemetryData (version 3): radio links: %d", pPHRTE->radio_links_count);

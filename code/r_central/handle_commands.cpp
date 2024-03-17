@@ -112,7 +112,7 @@ Menu* s_pMenuUSBInfoVehicle = NULL;
 void update_processes_priorities()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   hw_set_proc_priority("ruby_rt_station", pCS->iNiceRouter, pCS->ioNiceRouter, 1);
+   //hw_set_proc_priority("ruby_rt_station", pCS->iNiceRouter, pCS->ioNiceRouter, 1);
    hw_set_proc_priority("ruby_tx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
    hw_set_proc_priority("ruby_rx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
    hw_set_proc_priority("ruby_central", pCS->iNiceCentral, 0, 1 );

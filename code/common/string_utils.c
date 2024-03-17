@@ -1359,8 +1359,6 @@ char* str_format_firmware_type(u32 uFirmwareType)
  
    if ( uFirmwareType == MODEL_FIRMWARE_TYPE_RUBY )
       strcpy(s_szFormatFirmwareType, "Ruby");
-   else if ( uFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
-      strcpy(s_szFormatFirmwareType, "OpenIPC");
    else
       strcpy(s_szFormatFirmwareType, "Unknown");
    return s_szFormatFirmwareType;  

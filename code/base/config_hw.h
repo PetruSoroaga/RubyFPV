@@ -27,6 +27,4 @@
 #define HW_CAPABILITY_I2C
 #define HW_CAPABILITY_IONICE
 
-// Support on GS for connecting to WFBng or OpenHD vehicles
-//#define HW_CAPABILITY_WFBOHD
 #endif

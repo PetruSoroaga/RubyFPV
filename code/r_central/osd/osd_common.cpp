@@ -430,8 +430,6 @@ u32 osd_getVehicleIcon(int vehicle_type)
 {
    u32 idIcon = g_idIconRuby;
 
-   if ( ((vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
-      return g_idIconOpenIPC;
    if ( (vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE )
       idIcon = g_idIconDrone;
    if ( (vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE )

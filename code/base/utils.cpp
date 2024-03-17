@@ -976,7 +976,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
                bUsedHT40 = true;
             }
             #else
-               sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+               sprintf(cmd, "iwconfig %s freq %u000 2>&1", pRadioInfo->szName, uFrequencyKhz);            
             #endif
          }
          else if ( pRadioInfo->isHighCapacityInterface )
@@ -984,7 +984,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             #ifdef HW_PLATFORM_RASPBERRY
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
             #else
-            sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+            sprintf(cmd, "iwconfig %s freq %u000 2>&1", pRadioInfo->szName, uFrequencyKhz);            
             #endif
          }
          hw_execute_bash_command_raw(cmd, szOutput);
@@ -1004,7 +1004,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             #ifdef HW_PLATFORM_RASPBERRY
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
             #else
-            sprintf(cmd, "iwconfig %s freq %u 2>&1", pRadioInfo->szName, uFreqWifi*1000*1000);            
+            sprintf(cmd, "iwconfig %s freq %u000 2>&1", pRadioInfo->szName, uFrequencyKhz);
             #endif
             hw_execute_bash_command_raw(cmd, szOutput);
          }

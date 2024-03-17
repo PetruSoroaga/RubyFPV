@@ -15,7 +15,6 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../public/telemetry_info.h"
 #include "local_packets.h"
 #include "radiopackets_short.h"
-#include "radiopackets_wfbohd.h"
 
 #ifdef HW_PLATFORM_RASPBERRY
 #define MAX_RXTX_BLOCKS_BUFFER 200

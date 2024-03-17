@@ -111,14 +111,6 @@ void MenuSearchConnect::Render()
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.8);
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
       g_pRenderEngine->setColors(get_Color_MenuText());
-
-      if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
-      {
-         float fIconSize = height_text*4.0;
-         g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - fIconSize/g_pRenderEngine->getAspectRatio(), y-0.4*height_text, fIconSize/g_pRenderEngine->getAspectRatio(), fIconSize, idIcon);
-         fMaxWidth -= fIconSize/g_pRenderEngine->getAspectRatio();
-         y += 0.2*height_text;
-      }
    }
     
    sprintf(szBuff,"Found vehicle on %s", str_format_frequency(m_CurrentSearchFrequency));
@@ -134,16 +126,12 @@ void MenuSearchConnect::Render()
       return;
    }
 
-   if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_OPENIPC )
-      sprintf(szBuff, "Type: OpenIPC, Name: %s", (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name);
+   sprintf(szBuff,"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
+   if ( 0 == g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
+      strcat(szBuff, "No Name");
    else
-   {
-      sprintf(szBuff,"Type: %s, Name: ", Model::getVehicleType(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type));
-      if ( 0 == g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name[0] )
-         strcat(szBuff, "No Name");
-      else
-         strncat(szBuff, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name, MAX_VEHICLE_NAME_LENGTH);
-   }
+      strncat(szBuff, (char*)g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name, MAX_VEHICLE_NAME_LENGTH);
+
    g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
    y += height_text *(1.0+MENU_ITEM_SPACING);
 

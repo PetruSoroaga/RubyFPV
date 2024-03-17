@@ -95,8 +95,6 @@ void MenuVehicle::onShow()
    m_IndexOSD = addMenuItem(new MenuItem("OSD / Instruments","Change OSD type, layout and settings."));
 
    m_IndexCamera = addMenuItem(new MenuItem("Camera","Change camera parameters: brightness, contrast, sharpness and so on."));
-   //if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC) )
-   //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
 
    //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
    //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
@@ -105,8 +103,6 @@ void MenuVehicle::onShow()
 
    m_IndexVideo = addMenuItem(new MenuItem("Video","Change video resolution, fps so on."));
    
-   //if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC) )
-   //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
    //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
    //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )

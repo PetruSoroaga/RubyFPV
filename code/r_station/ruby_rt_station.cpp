@@ -35,10 +35,6 @@
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/commands.h"
-#ifdef HW_CAPABILITY_WFBOHD
-#include <sodium.h>
-#endif
-#include "../base/enc.h"
 #include "../base/encr.h"
 #include "../base/shared_mem.h"
 #include "../base/models.h"
@@ -55,7 +51,6 @@
 #include "../radio/radiopacketsqueue.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
-#include "../radio/zfec.h"
 #include "../radio/radio_duplicate_det.h"
 #include "../base/controller_utils.h"
 #include "../base/core_plugins_settings.h"
@@ -72,7 +67,6 @@
 #include "packets_utils.h"
 #include "video_link_adaptive.h"
 #include "video_link_keyframe.h"
-#include "wfbohd.h"
 #include "test_link_params.h"
 
 #include "timers.h"
@@ -105,6 +99,8 @@ int s_iSearchSikLBT = -1;
 int s_iSearchSikMCSTR = -1;
 
 u32 s_uTimeLastTryReadIPCMessages = 0;
+
+type_received_radio_packet s_ReceivedRadioPacketsBuffer[20];
 
 void _broadcast_radio_interface_init_failed(int iInterfaceIndex)
 {
@@ -1549,28 +1545,6 @@ void _check_rx_loop_consistency()
       }
    }
 }
-
-
-void _process_auxiliary_radio_packets()
-{
-   // Received data, process it
-
-   for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
-   {
-      pcap_t* pLink = radio_links_get_auxiliary_link(i);
-      if ( NULL == pLink )
-         continue;
-
-      if ( ! radio_links_is_auxiliary_link_signaled(i) )
-         continue;
-
-      int iBufferLength = 0;
-      u8* pBuffer = radio_process_wlan_data_in_pcap(i, pLink, &iBufferLength);
-
-      wfbohd_process_auxiliary_radio_packet(pBuffer, iBufferLength);
-   }
-
-}
      
 void _consume_ipc_messages()
 {
@@ -1597,8 +1571,21 @@ void _consume_ipc_messages()
       log_softerror_and_alarm("Consuming %d IPC messages took too long: %d ms", 20 - iMaxToConsume, uTime - uTimeStart);
 }
 
-void _consume_radio_rx_packets()
+int _consume_radio_rx_packets()
 {
+   /*
+   static int s_iCountFrames = 0;
+   static u32 s_uLastCountFrames = 0;
+
+   s_iCountFrames++;
+   if ( g_TimeNow >= s_uLastCountFrames + 1000 )
+   {
+      s_uLastCountFrames = g_TimeNow;
+      log_line("DEBUG fps: %d", s_iCountFrames);
+      s_iCountFrames = 0;
+   }
+   */
+
    int iReceivedAnyPackets = radio_rx_has_packets_to_consume();
 
    if ( iReceivedAnyPackets > g_SM_RadioRxQueueInfo.uPendingRxPackets[g_SM_RadioRxQueueInfo.uCurrentIndex] )
@@ -1610,34 +1597,23 @@ void _consume_radio_rx_packets()
    }
 
    if ( iReceivedAnyPackets <= 0 )
-      return;
+      return 0;
 
    if ( iReceivedAnyPackets > 15 )
       iReceivedAnyPackets = 15;
      
    u32 uTimeStart = get_current_timestamp_ms();
 
-   for( int i=0; i<iReceivedAnyPackets; i++ )
+   int iCount = radio_rx_get_received_packets(iReceivedAnyPackets, s_ReceivedRadioPacketsBuffer);
+
+   for( int i=0; i<iCount; i++ )
    {
       if ( g_bQuit )
          break;
-      int iPacketLength = 0;
-      int iIsShortPacket = 0;
-      int iRadioInterfaceIndex = 0;
-      u8* pPacket = radio_rx_get_next_received_packet(&iPacketLength, &iIsShortPacket, &iRadioInterfaceIndex);
-      if ( (NULL == pPacket) || (iPacketLength <= 0) )
-         continue;
+      int iPacketLength = s_ReceivedRadioPacketsBuffer[i].iPacketLength;
+      int iRadioInterfaceIndex = s_ReceivedRadioPacketsBuffer[i].iPacketRxInterface;
+      u8* pPacket = s_ReceivedRadioPacketsBuffer[i].pPacketData;
 
-      if ( g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
-      if ( ! wfbohd_is_video_player_started() )
-      {
-         t_packet_header* pPH = (t_packet_header*)pPacket;
-         if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL)
-         {
-            log_line("Start video player for OpenIPC cameras as we started receiving video data.");
-            wfbohd_check_start_video_player();
-         }
-      }
       shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
       process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);
       u32 uTime = get_current_timestamp_ms();    
@@ -1654,6 +1630,7 @@ void _consume_radio_rx_packets()
          _read_ipc_pipes(uTime);
       }
    }
+   return iCount;
 }
 
 void _check_send_pairing_requests()
@@ -1724,18 +1701,6 @@ void _router_periodic_loop()
    if ( test_link_is_in_progress() )
       test_link_loop();
 
-   if ( (!g_bSearching) && (g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC) )
-   if ( radio_links_check_read_auxiliary_links() > 0 )
-      _process_auxiliary_radio_packets();
-
-   #ifdef HW_CAPABILITY_WFBOHD
-   if ( wfbohd_is_wronk_key_flag_set() )
-   {
-      wfbohd_clear_wrong_key_flag();
-      send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY, 0);
-   }
-   #endif
-   
    if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
    {
       static u32 s_uTimeLastRadioStatsSharedMemSync = 0;
@@ -2011,8 +1976,8 @@ int main (int argc, char *argv[])
       g_uAcceptedFirmwareType = g_pCurrentModel->getVehicleFirmwareType();
    }
 
-   if ( NULL != g_pControllerSettings )
-      hw_set_priority_current_proc(g_pControllerSettings->iNiceRouter);
+   //if ( NULL != g_pControllerSettings )
+   //   hw_set_priority_current_proc(g_pControllerSettings->iNiceRouter);
  
    init_shared_memory_objects();
 
@@ -2128,6 +2093,11 @@ int main (int argc, char *argv[])
          send_alarm_to_central(ALARM_ID_FIRMWARE_OLD, i, 0);
    }
 
+   for( int i=0; i<(int)sizeof(s_ReceivedRadioPacketsBuffer)/(int)sizeof(s_ReceivedRadioPacketsBuffer[0]); i++ )
+      s_ReceivedRadioPacketsBuffer[i].pPacketData = (u8*)malloc(MAX_PACKET_TOTAL_SIZE);
+
+   hw_increase_current_thread_priority(NULL);
+
    log_line("");
    log_line("");
    log_line("----------------------------------------------");
@@ -2149,7 +2119,8 @@ int main (int argc, char *argv[])
          g_pProcessStats->lastActiveTime = g_TimeNow;
       }
 
-      hardware_sleep_ms(2);
+      //hardware_sleep_ms(1);
+      hardware_sleep_micros(300);
       g_TimeNow = get_current_timestamp_ms();
       g_TimeNowMicros = get_current_timestamp_micros();
       u32 tTime0 = g_TimeNow;
@@ -2175,8 +2146,13 @@ int main (int argc, char *argv[])
 
       u32 tTime2 = get_current_timestamp_ms();
 
-      _consume_radio_rx_packets();
-
+      int iCounter = 4;
+      while ( iCounter > 0 )
+      {
+         iCounter--;
+         if ( 0 == _consume_radio_rx_packets() )
+            break;
+      }
       u32 tTime3 = get_current_timestamp_ms();
       
       int nEndOfVideoBlock = 0;
@@ -2349,13 +2325,9 @@ int main (int argc, char *argv[])
 
 void video_processors_init()
 {
-   wfbohd_init(g_bSearching);
-
    if ( ! g_bSearching )
    {
-      if ( g_uAcceptedFirmwareType != MODEL_FIRMWARE_TYPE_OPENIPC )
-         rx_video_output_init();
-   
+      rx_video_output_init();
       rx_video_output_enable_pipe_output();
 
       ProcessorRxVideo::oneTimeInit();
@@ -2381,8 +2353,6 @@ void video_processors_cleanup()
       }
    }
 
-   wfbohd_cleanup();
    if ( ! g_bSearching )
-   if ( g_uAcceptedFirmwareType != MODEL_FIRMWARE_TYPE_OPENIPC )
       rx_video_output_uninit();
 }

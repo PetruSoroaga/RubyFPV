@@ -722,10 +722,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
       u32 uVideoBlockIndex = pPHVFNew->video_block_index;
 
       log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %d, video stream type: %d, at radio packet index: %u, video block index: %u", uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()), (int)(uVideoStreamIndexAndType & 0x0F), (int)uVideoStreamType, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
-      if ( pModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-         g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideoWFBOHD(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
-      else
-         g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
       
       g_pVideoProcessorRxList[iFirstFreeSlot]->init();
       iRuntimeIndex = iFirstFreeSlot;
@@ -734,10 +731,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
    if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
-   if ( pModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_OPENIPC )
-   {
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
-   }
 
    int nRet = 0;
 

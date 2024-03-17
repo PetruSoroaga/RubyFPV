@@ -129,10 +129,6 @@ void MenuSearch::valuesToUI()
 {
    log_line("MenuSearch: updating UI values...");
 
-#ifdef HW_CAPABILITY_WFBOHD
-   m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
-#endif
-
    if ( m_bHasSiKRadio )
    {
       ControllerSettings* pCS = get_ControllerSettings();
@@ -408,23 +404,8 @@ void MenuSearch::_add_menu_items()
 
    m_IndexBand = addMenuItem(m_pItemSelectBand);
 
-#ifdef HW_CAPABILITY_WFBOHD
-   m_pItemsSelect[0] = new MenuItemSelect("Vehicle Types", "Select what type of vehicles to search for, based on vehicle firmware to look for. You can search for a particular type of firmware: Ruby, OpenIPC.");
-   m_pItemsSelect[0]->addSelection("Ruby");
-   m_pItemsSelect[0]->addSelection("OpenIPC");
-   m_pItemsSelect[0]->setIsEditable();
-   m_pItemsSelect[0]->setSelectedIndex(m_iSearchModelTypes);
-   m_IndexModelTypes = addMenuItem(m_pItemsSelect[0]);
-#else
    m_IndexModelTypes = -1;
-#endif
-
-#ifdef HW_CAPABILITY_WFBOHD
-   if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
-      m_IndexImportKey = addMenuItem(new MenuItem("Import OpenIPC key", "Imports a custom OpenIPC encryption key from a USB memory stick."));
-   else
-      m_IndexImportKey = -1;
-#endif
+   m_IndexImportKey = -1;
 
    m_IndexStartSearch = addMenuItem(new MenuItem("Start Search", "Start/Stop searching for vehicles on current band."));
    m_IndexManualSearch = _populate_search_frequencies();
@@ -712,10 +693,6 @@ void MenuSearch::startSearch()
 
    if ( ! m_bDidConnectToAVehicle )
       m_bMustSwitchBack = true;
-   
-#ifdef HW_CAPABILITY_WFBOHD
-   m_pItemsSelect[0]->setEnabled(false);
-#endif
 
    if ( m_bHasSiKRadio )
    {
@@ -772,9 +749,6 @@ void MenuSearch::stopSearch()
 
    reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
 
-#ifdef HW_CAPABILITY_WFBOHD
-   m_pItemsSelect[0]->setEnabled(true);
-#endif
    if ( m_bHasSiKRadio )
    {
       enableMenuItem(m_IndexSiKInfo, true);
@@ -826,12 +800,6 @@ void MenuSearch::Render()
 
    if ( (! m_bIsSearchingManual) && (! m_bIsSearchingAuto) && (!g_bSearchFoundVehicle) )
    {
-      if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
-      {
-         strcpy(szBuff, "Note: Searching OpenIPC firmware vehicles takes longer due to how radio link protocol works on them.");
-         g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y, szBuff, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
-         y += height_text *(1.0+MENU_ITEM_SPACING);
-      }
       RenderEnd(yTop);
       return;
    }
@@ -1003,8 +971,6 @@ void MenuSearch::onSearchStep()
          uWaitTimeMs = 1500;
          log_line("MenuSearch::onSearchStep() Searching on 433/868/915 Mhz band and we have Sik radios. Increase search time to %u ms", uWaitTimeMs);
       }
-      if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
-         uWaitTimeMs = 4000;
 
       if ( g_TimeNow > g_RouterIsReadyTimestamp + uWaitTimeMs )
       {
@@ -1329,15 +1295,6 @@ void MenuSearch::onSelectItem()
       return;
    }
 
-   #ifdef HW_CAPABILITY_WFBOHD
-   if ( m_IndexModelTypes == m_SelectedIndex )
-   {
-      m_iSearchModelTypes = m_pItemsSelect[0]->getSelectedIndex();
-      _add_menu_items();
-      return;
-   }
-   #endif
-
    if ( m_IndexImportKey == m_SelectedIndex )
    {
       add_menu_to_stack( new MenuConfirmationImportKey("Import Encryption Key", "Import a custom OpenIPC encryption key from a USB memory stick.", 5));
@@ -1388,10 +1345,6 @@ void MenuSearch::onSelectItem()
       m_SearchChannelsCount = 1;
 
       log_line("Searching only on %s", str_format_frequency(m_pSearchChannels[0]));
-
-      #ifdef HW_CAPABILITY_WFBOHD
-      m_pItemsSelect[0]->setEnabled(false);
-      #endif
       
       if ( m_bHasSiKRadio )
       {
@@ -1505,7 +1458,5 @@ void MenuSearch::createSearchPopup()
 
    m_pPopupSearch->addLine("Long press on [Back] to stop the search.");
 
-   if ( m_iSearchModelTypes == MODEL_FIRMWARE_TYPE_OPENIPC )
-      m_pPopupSearch->addLine("* Searching OpenIPC firmware vehicles takes longer due to how radio link protocol works on them.");
    popups_add_topmost(m_pPopupSearch);
 }

@@ -1549,8 +1549,8 @@ int main (int argc, char *argv[])
    for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
       g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId = i;
      
-   if ( NULL != g_pCurrentModel )
-      hw_set_priority_current_proc(g_pCurrentModel->niceRouter);
+   //if ( NULL != g_pCurrentModel )
+   //   hw_set_priority_current_proc(g_pCurrentModel->niceRouter);
 
    if ( NULL != g_pProcessStats )
    {
@@ -1747,6 +1747,8 @@ int main (int argc, char *argv[])
 
    if( access( "novideo", R_OK ) != -1 )
       bDebugNoVideoOutput = true;
+
+   hw_increase_current_thread_priority(NULL);
 
    while ( !g_bQuit )
    {

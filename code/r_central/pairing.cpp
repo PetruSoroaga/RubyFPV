@@ -83,6 +83,7 @@ bool _pairing_start()
    handle_commands_start_on_pairing();
    start_pipes_to_router();
 
+   /*
    if ( (! g_bSearching) && (NULL != g_pCurrentModel) )
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
    {
@@ -97,6 +98,8 @@ bool _pairing_start()
          add_menu_to_stack(pm); 
       }
    }
+   */
+   
    if ( NULL != g_pCurrentModel )
    {
       char szFile[128];

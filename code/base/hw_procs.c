@@ -2,6 +2,7 @@
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <ctype.h>
+#include <pthread.h>
 
 #include "base.h"
 #include "config.h"
@@ -516,7 +517,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       sprintf(szFullPath, "%s%s", FOLDER_BINARIES, szProcess);
 
    if ( access("tmp/debug", R_OK) != -1 )
-      sprintf(szFullPath, "/tmp/debug/%s", szProcess);
+      sprintf(szFullPath, "/tmp/%s", szProcess);
 
    if ( access(szFullPath, R_OK) == -1 )
    {
@@ -525,10 +526,15 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    }
 
    char szCommand[256];
+   szCommand[0] = 0;
    if ( (NULL != szPrefixes) && (0 != szPrefixes[0]) )
-      sprintf(szCommand, "%s ./%s", szPrefixes, szProcess);
-   else
-      sprintf(szCommand, "./%s", szProcess);
+   {
+      strcpy(szCommand, szPrefixes);
+      strcat(szCommand, " ");
+   }
+   if ( szFullPath[0] != '/' )
+     strcat(szCommand, "./");
+   strcat(szCommand, szFullPath);
 
    if ( (NULL != szParams) && (0 != szParams[0]) )
    {
@@ -558,6 +564,39 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
          log_line("Empty response from Ruby process.");
    }
    if ( -1 == pclose(fp) )
-      log_softerror_and_alarm("Failed to close Ruby process: [%s]", szCommand);
-   log_line("Launched Ruby process: [%s]", szCommand);
+      log_softerror_and_alarm("Failed to launch and confirm Ruby process: [%s]", szCommand);
+   else
+      log_line("Launched Ruby process: [%s]", szCommand);
+}
+
+void hw_increase_current_thread_priority(const char* szLogPrefix)
+{   
+   char szTmp[2];
+   szTmp[0] = 0;
+   char* szPrefix = szTmp;
+   if ( (NULL != szLogPrefix) && (0 != szLogPrefix[0]) )
+     szPrefix = (char*)szLogPrefix;
+
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
+   int policy = 0;
+   int ret = 0;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("%s Failed to get schedule param", szPrefix);
+   
+   log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
+
+   #ifdef HW_PLATFORM_RASPBERRY
+
+   params.sched_priority = DEFAULT_PRORITY_THREAD_RADIO_RX;
+   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("%s Failed to set thread schedule class, error: %d, %s", szPrefix, errno, strerror(errno));
+
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("%s Failed to get schedule param", szPrefix);
+   log_line("%s Current new thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
+   #endif
 }

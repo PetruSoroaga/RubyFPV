@@ -131,7 +131,6 @@
 #define MODEL_TYPE_LAST 8
 
 #define MODEL_FIRMWARE_TYPE_RUBY 0
-#define MODEL_FIRMWARE_TYPE_OPENIPC 1 // Just for original OpenIPC cameras, that do not run Ruby code.
 
 // Encryption flags for models
 

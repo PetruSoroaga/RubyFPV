@@ -264,13 +264,7 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
          }
          else
          {
-            int iRes = 0;
-            #ifdef HW_CAPABILITY_WFBOHD
-            if ( g_uAcceptedFirmwareType == MODEL_FIRMWARE_TYPE_OPENIPC )
-               iRes = radio_open_interface_for_read_wfbohd(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_VIDEO);
-            else
-            #endif
-               iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
+            int iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
               
             if ( iRes > 0 )
             {
@@ -426,13 +420,7 @@ void radio_links_open_rxtx_radio_interfaces()
          }
          else
          {
-            int iRes = 0;
-            #ifdef HW_CAPABILITY_WFBOHD
-            if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-               iRes = radio_open_interface_for_read_wfbohd(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_VIDEO);
-            else
-            #endif
-               iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
+            int iRes = radio_open_interface_for_read(i, RADIO_PORT_ROUTER_DOWNLINK);
 
             if ( iRes > 0 )
             {
@@ -442,11 +430,6 @@ void radio_links_open_rxtx_radio_interfaces()
             }
             else
                s_iFailedInitRadioInterface = i;
-
-            #ifdef HW_CAPABILITY_WFBOHD
-            if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_OPENIPC )
-               s_pAuxiliaryLinks[i] = radio_open_auxiliary_wfbohd_channel(i, (DEFAULT_WFBOHD_CHANNEL_ID<<8) + DEFAULT_WFBOHD_PORD_ID_TELEMETRY);
-            #endif
          }
       }
 
@@ -547,67 +530,6 @@ void radio_links_open_rxtx_radio_interfaces()
    log_line("Finished opening RX/TX radio interfaces.");
    log_line("OPEN RADIO INTERFACES END ===========================================================");
    log_line("");
-}
-
-pcap_t* radio_links_get_auxiliary_link(int iIndex)
-{
-   if ( (iIndex < 0) || (iIndex >= MAX_RADIO_INTERFACES) )
-      return NULL;
-   return s_pAuxiliaryLinks[iIndex];
-}
-
-// Returns positive is there are packets to read from auxiliary radio links
-int radio_links_check_read_auxiliary_links()
-{
-   if ( g_TimeNow < s_uTimeLastCheckedAuxiliaryLinks + 50 )
-      return 0;
-
-   s_uTimeLastCheckedAuxiliaryLinks = g_TimeNow;
-   
-   struct timeval timeRXRadio;
-   int iMaxFD = 0;
-   int iCountFD = 0;
-   
-   FD_ZERO(&s_RadioAuxiliaryRxReadSet);
-   timeRXRadio.tv_sec = 0;
-   timeRXRadio.tv_usec = 100; // 0.1 miliseconds timeout
- 
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( NULL == s_pAuxiliaryLinks[i] )
-         continue;
-
-      int iFD = pcap_get_selectable_fd(s_pAuxiliaryLinks[i]);
-      if ( iFD <= 0 )
-         continue;
-
-      iCountFD++;
-      FD_SET(iFD, &s_RadioAuxiliaryRxReadSet);
-      if ( iFD > iMaxFD )
-         iMaxFD = iFD;
-   }
-
-   int nResult = 0;
-   if ( iCountFD > 0 )
-      nResult = select(iMaxFD+1, &s_RadioAuxiliaryRxReadSet, NULL, NULL, &timeRXRadio);
-   return nResult;
-}
-
-int radio_links_is_auxiliary_link_signaled(int iIndex)
-{
-   if ( (iIndex < 0) || (iIndex >= MAX_RADIO_INTERFACES) )
-      return 0;
-   if ( NULL == s_pAuxiliaryLinks[iIndex] )
-      return 0;
-
-   int iFD = pcap_get_selectable_fd(s_pAuxiliaryLinks[iIndex]);
-   if ( iFD <= 0 )
-      return 0;
-
-   if ( 0 == FD_ISSET(iFD, &s_RadioAuxiliaryRxReadSet) )
-      return 0;
-
-   return 1;
 }
 
 
