@@ -587,6 +587,8 @@ void hw_increase_current_thread_priority(const char* szLogPrefix)
    
    log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
 
+   // To fix : enable this for OpenIPC too
+
    #ifdef HW_PLATFORM_RASPBERRY
 
    params.sched_priority = DEFAULT_PRORITY_THREAD_RADIO_RX;

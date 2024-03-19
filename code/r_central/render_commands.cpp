@@ -107,8 +107,26 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
       g_pRenderEngine->drawRoundRect(xPos+i*(fBarWidth+fBarSpacing), yPos+0.5*(fHeight-fBarHeight), fBarWidth, fBarHeight, 0.006);
    }
 
-   if ( s_ProgressPercent >= 0 )
+   static int sl_iCountUploadTextDotsCount = 0;
+   sl_iCountUploadTextDotsCount++;
+
+   if ( s_ProgressPercent > 0 )
    {
+      //if ( (NULL == szMsg) || (0 == szMsg[0]) )
+      {
+         char szText[128];
+         strcpy(szText, "Uploading software. Please wait.");
+           
+         float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szText);
+         
+         for( int i=0; i<((sl_iCountUploadTextDotsCount/10) % 3); i++ )
+            strcat(szText, ".");
+         if ( bCentered )
+            g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szText);
+         else
+            g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szText);
+      }
+
       char szBuff[32];
       sprintf(szBuff, "%d%%", s_ProgressPercent);
       if ( ! s_bUploadNewMethod )
@@ -119,16 +137,13 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
 
    if ( (s_ProgressPercent == 0) || ((NULL != szMsg) && (0 != szMsg[0])) )
    {
-      char szText[256];
+      char szText[128];
       strcpy(szText, "Generating update archive to upload. Please wait.");
       if ( (NULL != szMsg) && (0 != szMsg[0]) )
          strcpy(szText, szMsg);
         
       float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szText);
       
-      static int sl_iCountUploadTextDotsCount = 0;
-      sl_iCountUploadTextDotsCount++;
-
       for( int i=0; i<((sl_iCountUploadTextDotsCount/10) % 3); i++ )
          strcat(szText, ".");
       if ( bCentered )

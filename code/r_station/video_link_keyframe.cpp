@@ -244,27 +244,22 @@ void video_link_keyframe_periodic_loop()
       if ( pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
          continue;
 
-      // To fix
       int iCurrentVideoProfile = 0;
+      int iCurrentFPS = 0;
       for( int k=0; k<MAX_VIDEO_PROCESSORS; k++ )
       {
          if ( NULL == g_pVideoProcessorRxList[k] )
             break;
+         if ( pModel->uVehicleId != g_pVideoProcessorRxList[k]->m_uVehicleId )
+            continue;
          iCurrentVideoProfile = g_pVideoProcessorRxList[k]->getCurrentlyReceivedVideoProfile();
+         iCurrentFPS = g_pVideoProcessorRxList[k]->getCurrentlyReceivedVideoFPS();
+         break;
       }
       if ( iCurrentVideoProfile == -1 )
          iCurrentVideoProfile = pModel->video_params.user_selected_video_link_profile;
    
       int iCurrentProfileKeyFrameMs = pModel->video_link_profiles[iCurrentVideoProfile].keyframe_ms;
-
-      int iCurrentFPS = 0;
-      // To fix
-      for( int k=0; k<MAX_VIDEO_PROCESSORS; k++ )
-      {
-         if ( NULL == g_pVideoProcessorRxList[k] )
-            break;
-         iCurrentFPS = g_pVideoProcessorRxList[k]->getCurrentlyReceivedVideoFPS();
-      }
 
       if ( iCurrentFPS < 1 )
          iCurrentFPS = pModel->video_link_profiles[iCurrentVideoProfile].fps;

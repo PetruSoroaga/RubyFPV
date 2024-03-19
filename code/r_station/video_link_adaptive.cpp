@@ -532,12 +532,13 @@ void video_link_adaptive_periodic_loop()
 
       g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iChangeStrength = pModel->video_params.videoAdjustmentStrength;
 
-      // To fix
       int iMissing = 0;
       for( int k=0; k<MAX_VIDEO_PROCESSORS; k++ )
       {
          if ( NULL == g_pVideoProcessorRxList[k] )
             break;
+         if ( pModel->uVehicleId != g_pVideoProcessorRxList[k]->m_uVehicleId )
+            continue;
          iMissing = g_pVideoProcessorRxList[k]->getCurrentlyMissingVideoPackets();
          break;
       }

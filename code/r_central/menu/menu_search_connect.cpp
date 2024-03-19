@@ -106,8 +106,6 @@ void MenuSearchConnect::Render()
 
    if ( g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo )
    {
-      u32 idIcon = osd_getVehicleIcon( g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type );
-
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.8);
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
       g_pRenderEngine->setColors(get_Color_MenuText());

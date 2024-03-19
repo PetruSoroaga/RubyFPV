@@ -406,6 +406,21 @@ void _stop_recording()
    }
    u32 duration_ms = get_current_timestamp_ms() - s_TimeStartRecording;
 
+   int width = 1280;
+   int height = 720;
+   int fps = 30;
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if( NULL == g_pVideoProcessorRxList[i] )
+         break;
+      if ( g_pCurrentModel->uVehicleId != g_pVideoProcessorRxList[i]->m_uVehicleId )
+         continue;
+      width = g_pVideoProcessorRxList[i]->getVideoWidth();
+      height = g_pVideoProcessorRxList[i]->getVideoHeight();
+      fps = g_pVideoProcessorRxList[i]->getVideoFPS();
+      break;
+   }
+
    char szFile[128];
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
@@ -432,41 +447,15 @@ void _stop_recording()
    else
    {
       fprintf(fd, "%s\n", s_szFileRecording);
-      // To fix
-      int width = 1280;
-      int height = 720;
-      int fps = 30;
-      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-      {
-         if( NULL == g_pVideoProcessorRxList[i] )
-            break;
-         width = g_pVideoProcessorRxList[i]->getVideoWidth();
-         height = g_pVideoProcessorRxList[i]->getVideoHeight();
-         fps = g_pVideoProcessorRxList[i]->getVideoFPS();
-         break;
-      }
       fprintf(fd, "%d %d\n", fps, duration_ms/1000 );
       fprintf(fd, "%d %d\n", width, height );
       fclose(fd);
    }
 
-   log_line("[VideoOutput] Created video info file %s", szFile);
+   log_line("[VideoOutput] Created video info file %s, for resolution: %d x %d, %d fps",
+      szFile, width, height, fps);
 
-   // To fix
-   int width = 1280;
-   int height = 720;
-   int fps = 30;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( NULL == g_pVideoProcessorRxList[i] )
-         break;
-
-      width = g_pVideoProcessorRxList[i]->getVideoWidth();
-      height = g_pVideoProcessorRxList[i]->getVideoHeight();
-      fps = g_pVideoProcessorRxList[i]->getVideoFPS();
-      break;
-   }
-   log_line("[VideoOutput] Video info file content: (%s, %d, %d seconds, %d, %d)", s_szFileRecording, fps, duration_ms/1000, width, height);
+   log_line("[VideoOutput] Video info file content: (%s, %d fps, %d seconds, %d x %d)", s_szFileRecording, fps, duration_ms/1000, width, height);
    hw_execute_bash_command("./ruby_video_proc &", NULL);
    s_bRecording = false;
    s_szFileRecording[0] = 0;
@@ -913,12 +902,13 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
                uFlags = ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT;
          }
 
-         // To fix
          u32 uTimeLastVideoChanged = 0;
          for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
          {
             if ( NULL == g_pVideoProcessorRxList[i] )
                break;
+            if ( g_pCurrentModel->uVehicleId != g_pVideoProcessorRxList[i]->m_uVehicleId )
+               continue;
             uTimeLastVideoChanged = g_pVideoProcessorRxList[i]->getLastTimeVideoStreamChanged();
             break;
          }

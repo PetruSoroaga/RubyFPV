@@ -31,9 +31,6 @@
 #include <semaphore.h>
 #include <dirent.h>
 
-// To fix (remove)
-#include <sys/socket.h> 
-
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/shared_mem.h"
@@ -1684,16 +1681,14 @@ int main (int argc, char *argv[])
       {
          bool bError = false;
 
-         // To fix : check for ruby_start -vehicle process
-         /*
-         if ( hw_process_exists("ruby_vehicle") )
+         if ( hw_process_exists("ruby_start") )
          {
            if ( iCheckCount == 0 )
-              log_line("ruby_vehicle is started");
+              log_line("ruby_start is started");
          }
          else
-            { log_error_and_alarm("ruby_vehicle is not running"); bError = true; }
-         */
+            { log_error_and_alarm("ruby_start is not running"); bError = true; }
+
 
          if ( hw_process_exists("ruby_rt_vehicle") )
          {

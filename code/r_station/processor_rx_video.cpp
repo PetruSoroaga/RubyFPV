@@ -558,12 +558,6 @@ void ProcessorRxVideo::checkAndDiscardBlocksTooOld()
    if ( m_iRXBlocksStackTopIndex <= 0 )
       return;
 
-   // To fix, use proper timeout, below
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   if ( m_pRXBlocksStack[0]->uTimeLastUpdated >= g_TimeNow - 2000 )
-      return;
-   #endif
-
    if ( m_pRXBlocksStack[0]->uTimeLastUpdated >= g_TimeNow - m_iMilisecondsMaxRetransmissionWindow-10 )
       return;
 
