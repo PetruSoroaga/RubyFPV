@@ -1684,10 +1684,12 @@ static void * _thread_generate_upload(void *argument)
       }
    }
 
-   sprintf(szComm, "rm -rf %s 2>/dev/null", szFileName);
+   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, szFileName);
    hw_execute_bash_command(szComm, NULL);
-   hw_execute_bash_command("cp -rf ruby_update ruby_update_vehicle", NULL);
-   hw_execute_bash_command("chmod 777 ruby_update_vehicle", NULL);
+   sprintf(szComm, "cp -rf %s/ruby_update %s/ruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
 
    // Generate dummy ruby_vehicle binary for older versions of vehicles
    bool bAddDummyBinary = false;
@@ -1700,19 +1702,23 @@ static void * _thread_generate_upload(void *argument)
 
    if ( bAddDummyBinary )
    {
-      hw_execute_bash_command("echo 'dummy' > ruby_vehicle", NULL);
-      hw_execute_bash_command("chmod 777 ruby_vehicle", NULL);
+      sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", FOLDER_BINARIES);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s/ruby_vehicle", FOLDER_BINARIES);
+      hw_execute_bash_command(szComm, NULL);
    }
 
 
-   sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFileName);
+   sprintf(szComm, "tar -C %s -czf %s%s %s/ruby_* 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP, szFileName, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("Save last generated update archive...");
-   hw_execute_bash_command("rm -rf last_uploaded_archive.tar 2>&1", NULL);
-   sprintf(szComm, "cp -rf %s last_uploaded_archive.tar", szFileName);
+   sprintf(szComm, "rm -rf %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
-   hw_execute_bash_command("chmod 777 last_uploaded_archive.tar 2>&1", NULL);
+   sprintf(szComm, "cp -rf %s%s %s/last_uploaded_archive.tar", FOLDER_RUBY_TEMP, szFileName, FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
 
    log_line("ThreadGenerateUpload finished, counter %d", s_iThreadGenerateUploadCounter);
    s_iThreadGenerateUploadCounter--;
@@ -1737,8 +1743,6 @@ bool Menu::uploadSoftware()
    // Either the latest update zip if present, either the binaries present on the controller
    // If we had failed uploads, use the binaries on the controller
 
-   char szComm[256];
-   char szBuff[1024];
    static char s_szArchiveToUpload[256];
    s_szArchiveToUpload[0] = 0;
 
@@ -1774,7 +1778,7 @@ bool Menu::uploadSoftware()
    // Always will do this
    if ( iUpdateType == -1 )
    {
-      strcpy(s_szArchiveToUpload, "tmp/sw.tar");
+      strcpy(s_szArchiveToUpload, "sw.tar");
       iUpdateType = 1;
 
       g_TimeNow = get_current_timestamp_ms();
@@ -1885,9 +1889,12 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
    cpswp_cancel.block_length = 0;
 
    g_bUpdateInProgress = true;
-
    long lSize = 0;
-   FILE* fd = fopen(szArchiveToUpload, "rb");
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, szArchiveToUpload);
+   FILE* fd = fopen(szFile, "rb");
    if ( NULL != fd )
    {
       fseek(fd, 0, SEEK_END);
@@ -1896,9 +1903,9 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
       fclose(fd);
    }
 
-   log_line("Sending to vehicle the update archive (method 6.3): [%s], size: %d bytes", szArchiveToUpload, (int)lSize);
+   log_line("Sending to vehicle the update archive (method 6.3): [%s], size: %d bytes", szFile, (int)lSize);
 
-   fd = fopen(szArchiveToUpload, "rb");
+   fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
       addMessage("There was an error generating the software package.");

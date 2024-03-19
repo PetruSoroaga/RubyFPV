@@ -932,7 +932,7 @@ void onRebootRequest()
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       vehicle_stop_video_capture_csi(g_pCurrentModel);
 
-   hw_stop_process("ruby_rx_commands");
+   vehicle_stop_rx_commands();
    vehicle_stop_rx_rc();
    hardware_sleep_ms(100);
    log_line("Will reboot now.");

@@ -1589,39 +1589,10 @@ void start_loop()
       log_line("Checking the file system for write access...");
       bool bWriteFailed = false;
 
-      hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-      FILE* fdTemp = fopen("tmp/testwrite.txt", "wb");
-      if ( NULL == fdTemp )
+      if ( check_write_filesystem() < 0 )
       {
          alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
          bWriteFailed = true;
-      }
-      else
-      {
-         fprintf(fdTemp, "test1234\n");
-         fclose(fdTemp);
-         fdTemp = fopen("tmp/testwrite.txt", "rb");
-         if ( NULL == fdTemp )
-         {
-            alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
-            bWriteFailed = true;
-         }
-         else
-         {
-            char szTmp[256];
-            if ( 1 != fscanf(fdTemp, "%s", szTmp) )
-            {
-               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
-               bWriteFailed = true;
-            }
-            else if ( 0 != strcmp(szTmp, "test1234") )
-            {
-               alarms_add_from_local(ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR, 0, 0);
-               bWriteFailed = true;
-            }
-            fclose(fdTemp);
-            hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-         }
       }
                
       if ( bWriteFailed )

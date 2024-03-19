@@ -95,9 +95,8 @@ u32 controller_utils_getControllerId()
 int controller_utils_export_all_to_usb()
 {
    char szOutput[1024];
-   char szComm[1024];
-   char szBuff[512];
-   char szOutFile[256];
+   char szComm[512];
+   char szOutFile[MAX_FILE_PATH_SIZE];
 
    hw_execute_bash_command_raw("which zip", szOutput);
    if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "zip") )
@@ -109,23 +108,26 @@ int controller_utils_export_all_to_usb()
    u32 uControllerId = controller_utils_getControllerId();
    sprintf(szOutFile, "ruby_export_all_controller_%u.zip", uControllerId);
 
-   hw_execute_bash_command("mkdir -p tmp/importexport", NULL);
-   hw_execute_bash_command("chmod 777 tmp/importexport", NULL);
-
-   sprintf(szComm, "rm -rf tmp/importexport/%s 2>/dev/null", szOutFile);
+   sprintf(szComm, "mkdir -p %s/importexport", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s/importexport", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "zip tmp/importexport/%s config/*", szOutFile);
+   sprintf(szComm, "rm -rf %s/importexport/%s 2>/dev/null", FOLDER_RUBY_TEMP, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "zip -r tmp/importexport/%s /boot/config.txt", szOutFile);
+   sprintf(szComm, "zip %s/importexport/%s %s/*", FOLDER_RUBY_TEMP, szOutFile, FOLDER_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "chmod 777 tmp/importexport/%s", szOutFile);
+   #ifdef HW_PLATFORM_RASPBERRY
+   sprintf(szComm, "zip -r %s/importexport/%s /boot/config.txt", FOLDER_RUBY_TEMP, szOutFile);
+   hw_execute_bash_command(szComm, NULL);
+   #endif
+
+   sprintf(szComm, "chmod 777 %s/importexport/%s", FOLDER_RUBY_TEMP, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szBuff, "%s/Ruby_Exports", FOLDER_USB_MOUNT);
-   sprintf(szComm, "mkdir -p %s", szBuff );
+   sprintf(szComm, "mkdir -p %s/Ruby_Exports", FOLDER_USB_MOUNT );
    hw_execute_bash_command(szComm, NULL);
 
    sprintf(szComm, "rm -rf %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
@@ -135,12 +137,13 @@ int controller_utils_export_all_to_usb()
    if( access( szComm, R_OK ) != -1 )
    {
       hardware_unmount_usb();
-      hw_execute_bash_command("rm -rf tmp/importexport", NULL);
+      sprintf(szComm, "rm -rf %s/importexport", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
       sync();
       return -10;
    }
 
-   sprintf(szComm, "cp -rf tmp/importexport/%s %s/Ruby_Exports/%s", szOutFile, FOLDER_USB_MOUNT, szOutFile);
+   sprintf(szComm, "cp -rf %s/importexport/%s %s/Ruby_Exports/%s", FOLDER_RUBY_TEMP, szOutFile, FOLDER_USB_MOUNT, szOutFile);
    hw_execute_bash_command(szComm, NULL);
 
    sprintf(szComm, "chmod 777 %s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szOutFile);
@@ -150,13 +153,15 @@ int controller_utils_export_all_to_usb()
    if( access( szComm, R_OK ) == -1 )
    {
       hardware_unmount_usb();
-      hw_execute_bash_command("rm -rf tmp/importexport", NULL);
+      sprintf(szComm, "rm -rf %s/importexport", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
       sync();
       return -11;
    }
 
    hardware_unmount_usb();
-   hw_execute_bash_command("rm -rf tmp/importexport", NULL);
+   sprintf(szComm, "rm -rf %s/importexport", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
    sync();
 
    return 0;
@@ -165,9 +170,9 @@ int controller_utils_export_all_to_usb()
 int controller_utils_import_all_from_usb(bool bImportAnyFound)
 {
    char szOutput[1024];
-   char szComm[1024];
-   char szUSBFile[512];
-   char szInFile[256];
+   char szComm[512];
+   char szUSBFile[MAX_FILE_PATH_SIZE];
+   char szInFile[MAX_FILE_PATH_SIZE];
 
    hw_execute_bash_command_raw("which zip", szOutput);
    if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "zip") )
@@ -178,7 +183,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
 
    u32 uControllerId = controller_utils_getControllerId();
    sprintf(szInFile, "ruby_export_all_controller_%u.zip", uControllerId);
-   snprintf(szUSBFile, 511, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
+   snprintf(szUSBFile, sizeof(szUSBFile)/sizeof(szUSBFile[0]), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
 
    if( access( szUSBFile, R_OK ) == -1 )
    {
@@ -213,24 +218,29 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
       }
    }
 
-   hw_execute_bash_command("mkdir -p tmp/importexport", NULL);
-   hw_execute_bash_command("chmod 777 tmp/importexport", NULL);
-
-   sprintf(szComm, "rm -rf tmp/importexport/%s 2>/dev/null", szInFile);
+   sprintf(szComm, "mkdir -p %s/importexport", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s/importexport", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s tmp/importexport/%s", szUSBFile, szInFile);
+   sprintf(szComm, "rm -rf %s/importexport/%s 2>/dev/null", FOLDER_RUBY_TEMP, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
-   hw_execute_bash_command("rm -rf config/*", NULL);
-
-   sprintf(szComm, "unzip tmp/importexport/%s", szInFile);
+   sprintf(szComm, "cp -rf %s %s/importexport/%s", szUSBFile, FOLDER_RUBY_TEMP, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
+   sprintf(szComm, "rm -rf %s/*", FOLDER_CONFIG);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "unzip %s/importexport/%s", FOLDER_RUBY_TEMP, szInFile);
+   hw_execute_bash_command(szComm, NULL);
+
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("cp -rf boot/config.txt /boot/config.txt", NULL);
    hw_execute_bash_command("rm -rf boot/config.txt", NULL);
+   #endif
 
-   sprintf(szComm, "rm -rf tmp/importexport/%s", szInFile);
+   sprintf(szComm, "rm -rf %s/importexport/%s", FOLDER_RUBY_TEMP, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_unmount_usb();

@@ -382,7 +382,7 @@ int hardware_getBoardType()
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
    s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
-   hw_execute_bash_command("ipctool -c 2>/dev/null", szBuff);
+   hw_execute_bash_command("ipcinfo -c 2>/dev/null", szBuff);
    log_line("Detected board type: %s", szBuff);
    if ( NULL != strstr(szBuff, "gk72") )
       s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
@@ -1791,7 +1791,7 @@ u32 _hardware_detect_camera_type()
    s_iHardwareCameraI2CBus = -1;
    s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
 
-   hw_execute_bash_command("ipctool -c 2>/dev/null", szOutput);
+   hw_execute_bash_command("ipcinfo -c 2>/dev/null", szOutput);
    log_line("Detected board type: %s", szOutput);
    if ( NULL != strstr(szOutput, "gk72") )
       s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;

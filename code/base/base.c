@@ -281,9 +281,7 @@ int _log_check_for_service_log_access()
    if ( s_logServiceMessageQueue >= 0 )
       return 1;
 
-   key_t key;
-   key = ftok("ruby_logger", LOGGER_MESSAGE_QUEUE_ID);
-   
+   key_t key = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
    s_logServiceMessageQueue = msgget(key, 0222);
 
    if ( s_logServiceMessageQueue < 0 )
@@ -1229,3 +1227,11 @@ long get_filesize(const char* szFileName)
    return lSize;
 }
 
+key_t generate_msgqueue_key(int iMsgQueueId)
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "ruby_logger");
+   key_t key = ftok(szFile, iMsgQueueId);
+   return key;
+}

@@ -170,11 +170,13 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
       return 0;
    }
 
-   hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
-   char szRecvFile[128];
-   strcpy(szRecvFile, "tmp/last_recv_model.tar");
+   char szComm[256];
+   sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   char szRecvFile[MAX_FILE_PATH_SIZE];
+   sprintf(szRecvFile, "%s/last_recv_model.tar", FOLDER_RUBY_TEMP);
    if ( iResponseParam != 0 )
-      strcpy(szRecvFile, "tmp/last_recv_model.tar.gz");
+      sprintf(szRecvFile, "%s/last_recv_model.tar.gz", FOLDER_RUBY_TEMP);
 
    FILE* fd = fopen(szRecvFile, "wb");
    if ( NULL == fd )
@@ -188,16 +190,24 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    fd = NULL;
 
    if ( 0 == iResponseParam )
-      hw_execute_bash_command("tar -zxf tmp/last_recv_model.tar 2>&1", NULL);
+   {
+      sprintf(szComm, "tar -C %s -zxf %s/last_recv_model.tar 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+   }
    else
    {
-      hw_execute_bash_command("gzip -df tmp/last_recv_model.tar.gz 2>&1", NULL);
-      hw_execute_bash_command("tar -xf tmp/last_recv_model.tar 2>&1", NULL);    
+      sprintf(szComm, "gzip -df %s/last_recv_model.tar.gz 2>&1", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "tar -C %s -xf %s/last_recv_model.tar 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);    
    }
-   fd = fopen("tmp/model.mdl", "rb");
+   char szFile[MAX_FILE_PATH_SIZE];
+   sprintf(szFile, "%s/model.mdl", FOLDER_RUBY_TEMP);
+
+   fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to read received model settings from temporary model file.");
+      log_softerror_and_alarm("Failed to read received model settings from temporary model file (%s).", szFile);
       return -1;
    }
    fseek(fd, 0, SEEK_END);
@@ -208,11 +218,13 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    log_line("[Commands] Received temporary model settings uncompressed file size: %d bytes", (int)fsize);
 
    Model modelTemp;
-   if ( ! modelTemp.loadFromFile("tmp/model.mdl", true) )
+   if ( ! modelTemp.loadFromFile(szFile, true) )
    {
-      log_softerror_and_alarm("Failed to load temporary model file.");
-      hw_execute_bash_command("cp -rf tmp/last_recv_model.tar tmp/last_error_model.tar", NULL);
-      hw_execute_bash_command("cp -rf tmp/model.mdl tmp/last_error_model.mdl", NULL);
+      log_softerror_and_alarm("Failed to load temporary model file (%s).", szFile);
+      sprintf(szComm, "cp -rf %s/last_recv_model.tar %s/last_error_model.tar", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %s/model.mdl %s/last_error_model.mdl", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
       return -1;
    }
    log_line("[Commands] Received full model settings for vehicle id %u.", modelTemp.uVehicleId);
@@ -291,10 +303,11 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    if ( (NULL != g_pCurrentModel) && (modelTemp.uVehicleId != g_pCurrentModel->uVehicleId) )
       log_line("[Commands] Received model settings for a different vehicle (%u) than the current model (%u)", modelTemp.uVehicleId, g_pCurrentModel->uVehicleId);
 
-   fd = fopen("tmp/model.mdl", "rb");
+   sprintf(szFile, "%s/model.mdl", FOLDER_RUBY_TEMP);
+   fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("[Commands] Failed to read received model settings from temporary model file tmp/model.mdl");
+      log_softerror_and_alarm("[Commands] Failed to read received model settings from temporary model file (%s)", szFile);
       return -1;
    }
    
@@ -303,7 +316,8 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    fclose(fd);
    
    onEventReceivedModelSettings(modelTemp.uVehicleId, uBuffer, length, false);
-   hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
+   sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
 
    s_CommandType = 0;
    s_bHasCommandInProgress = false;
@@ -567,8 +581,11 @@ void _handle_download_file_response()
 
       if ( pFileInfo->file_id == FILE_ID_VEHICLE_LOGS_ARCHIVE )
       {
-         hw_execute_bash_command("rm -rf tmp/vehicle_logs.zip", NULL);
-         hw_execute_bash_command("touch tmp/vehicle_logs.zip", NULL);
+         char szComm[256];
+         sprintf(szComm, "rm -rf %s/vehicle_logs.zip", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "touch %s/vehicle_logs.zip", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
       }
    }
    else
@@ -656,9 +673,16 @@ void _handle_download_file_segment_response()
    {
       warnings_add(0, "Received complete vehicles logs.");
 
-      hw_execute_bash_command("rm -rf tmp/vehicle_logs.zip", NULL);
-      hw_execute_bash_command("touch tmp/vehicle_logs.zip", NULL);
-      FILE* fd = fopen("tmp/vehicle_logs.zip", "wb");
+      char szComm[256];
+      char szFile[MAX_FILE_PATH_SIZE];
+      sprintf(szComm, "rm -rf %s/vehicle_logs.zip", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "touch %s/vehicle_logs.zip", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "vehicle_logs.zip");
+      FILE* fd = fopen(szFile, "wb");
       if ( NULL != fd )
       {
          for( u32 u=0; u<s_uCountFileSegmentsToDownload; u++ )
@@ -667,9 +691,8 @@ void _handle_download_file_segment_response()
          fclose(fd);
       }
       else
-         log_softerror_and_alarm("[Commands] Failed to write received vehicle logs zip file to storage.");
+         log_softerror_and_alarm("[Commands] Failed to write received vehicle logs zip file to storage (%s).", szFile);
 
-      char szComm[256];
       char szFolder[256];
       char szBuff[256];
 
@@ -680,7 +703,7 @@ void _handle_download_file_segment_response()
       for( int i=0; i<(int)strlen(szBuff); i++ )
          if ( szBuff[i] == ' ' )
             szBuff[i] = '-';
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mv -f tmp/vehicle_logs.zip %s/%s", szFolder, szBuff);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mv -f %s/vehicle_logs.zip %s/%s", FOLDER_RUBY_TEMP, szFolder, szBuff);
       hw_execute_bash_command(szComm, NULL);
    }
 
@@ -1093,10 +1116,12 @@ bool handle_last_command_result()
         }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info.", iDataLength);
-        char szFileUSB[64];
-        strcpy(szFileUSB, "tmp/tmp_usb_info.tar");
+        
+        char szComm[256];
+        char szFileUSB[MAX_FILE_PATH_SIZE];
+        sprintf(szFileUSB, "%s/tmp_usb_info.tar", FOLDER_RUBY_TEMP);
         if ( pPHCR->command_response_param != 0 )
-           strcpy(szFileUSB, "tmp/tmp_usb_info.tar.gz");
+           sprintf(szFileUSB, "%s/tmp_usb_info.tar.gz", FOLDER_RUBY_TEMP);
         log_line("Storing received USB info to file: [%s]", szFileUSB);
         char szText[3000];
         FILE* fd = fopen(szFileUSB, "wb");
@@ -1106,17 +1131,20 @@ bool handle_last_command_result()
            fclose(fd);
            if ( pPHCR->command_response_param == 0 )
            {
-              sprintf(szBuff, "tar -zxf %s 2>&1", szFileUSB);
-              hw_execute_bash_command(szBuff, NULL);
+              sprintf(szComm, "tar -C %s -zxf %s 2>&1", FOLDER_RUBY_TEMP, szFileUSB);
+              hw_execute_bash_command(szComm, NULL);
            }
            else
            {
-              sprintf(szBuff, "gzip -df %s 2>&1", szFileUSB);
-              hw_execute_bash_command(szBuff, NULL);
-              hw_execute_bash_command("tar -xf tmp/tmp_usb_info.tar 2>&1", NULL);
+              sprintf(szComm, "gzip -df %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szComm, NULL);
+              sprintf(szComm, "tar -C %s -xf %s/tmp_usb_info.tar 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+              hw_execute_bash_command(szComm, NULL);
            }
            iDataLength = 0;
-           fd = fopen("tmp/tmp_usb_info.txt", "rb");
+           strcpy(szFileUSB, FOLDER_RUBY_TEMP);
+           strcat(szFileUSB, "tmp_usb_info.txt");
+           fd = fopen(szFileUSB, "rb");
            if ( NULL != fd )
            {
               iDataLength = fread(szText,1,3000, fd);
@@ -1125,7 +1153,7 @@ bool handle_last_command_result()
         }
         else
         {
-           log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info. tmp/tmp_usb_info.tar");
+           log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info: [%s]", szFileUSB);
            iDataLength = 0;
         }
 
@@ -1169,10 +1197,11 @@ bool handle_last_command_result()
         }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info2.", iDataLength);
-        char szFileUSB[64];
-        strcpy(szFileUSB, "tmp/tmp_usb_info2.tar");
+        char szComm[256];
+        char szFileUSB[MAX_FILE_PATH_SIZE];
+        sprintf(szFileUSB, "%s/tmp_usb_info2.tar", FOLDER_RUBY_TEMP);
         if ( pPHCR->command_response_param != 0 )
-           strcpy(szFileUSB, "tmp/tmp_usb_info2.tar.gz");
+           sprintf(szFileUSB, "%s/tmp_usb_info2.tar.gz", FOLDER_RUBY_TEMP);
         log_line("Storing received USB2 info to file: [%s]", szFileUSB);
 
         char szText[3000];
@@ -1184,18 +1213,21 @@ bool handle_last_command_result()
 
            if ( pPHCR->command_response_param == 0 )
            {
-              sprintf(szBuff, "tar -zxf %s 2>&1", szFileUSB);
-              hw_execute_bash_command(szBuff, NULL);
+              sprintf(szComm, "tar -C %s -zxf %s 2>&1", FOLDER_RUBY_TEMP, szFileUSB);
+              hw_execute_bash_command(szComm, NULL);
            }
            else
            {
-              sprintf(szBuff, "gzip -df %s 2>&1", szFileUSB);
-              hw_execute_bash_command(szBuff, NULL);
-              hw_execute_bash_command("tar -xf tmp/tmp_usb_info2.tar 2>&1", NULL);
+              sprintf(szComm, "gzip -df %s 2>&1", szFileUSB);
+              hw_execute_bash_command(szComm, NULL);
+              sprintf(szComm, "tar -C %s -xf %s/tmp_usb_info2.tar 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+              hw_execute_bash_command(szComm, NULL);
            }
 
            iDataLength = 0;
-           fd = fopen("tmp/tmp_usb_info2.txt", "rb");
+           strcpy(szFileUSB, FOLDER_RUBY_TEMP);
+           strcat(szFileUSB, "tmp_usb_info2.txt");
+           fd = fopen(szFileUSB, "rb");
            if ( NULL != fd )
            {
               iDataLength = fread(szText,1,3000, fd);
@@ -1204,7 +1236,7 @@ bool handle_last_command_result()
         }
         else
         {
-           log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info2. tmp/tmp_usb_info2.tar");
+           log_softerror_and_alarm("[Commands] Failed to write file with vehicle USB radio info2: [%s]", szFileUSB);
            iDataLength = 0;
         }
 
@@ -1413,7 +1445,10 @@ bool handle_last_command_result()
             memcpy(&radio_links, &g_pCurrentModel->radioLinksParams, sizeof(type_radio_links_parameters) );
             memcpy(&radio_interfaces, &g_pCurrentModel->radioInterfacesParams, sizeof(type_radio_interfaces_parameters) );
  
-            g_pCurrentModel->loadFromFile("tmp/tempVehicleSettings.txt"); 
+            char szFile[MAX_FILE_PATH_SIZE];
+            strcpy(szFile, FOLDER_RUBY_TEMP);
+            strcat(szFile, "tempVehicleSettings.txt");
+            g_pCurrentModel->loadFromFile(szFile); 
 
             memcpy(&g_pCurrentModel->radioLinksParams, &radio_links, sizeof(type_radio_links_parameters) );
             memcpy(&g_pCurrentModel->radioInterfacesParams, &radio_interfaces, sizeof(type_radio_interfaces_parameters) );

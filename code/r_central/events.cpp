@@ -438,7 +438,10 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    bOldAudioEnabled = pModel->audio_params.enabled;
    memcpy((u8*)&osd_temp, (u8*)&(pModel->osd_params), sizeof(osd_parameters_t));
 
-   FILE* fd = fopen("tmp/last_recv_model.mdl", "wb");
+   char szFile[MAX_FILE_PATH_SIZE];
+   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
+
+   FILE* fd = fopen(szFile, "wb");
    if ( NULL != fd )
    {
        fwrite(pBuffer, 1, length, fd);
@@ -447,12 +450,13 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
    else
    {
-      log_error_and_alarm("Failed to save received vehicle configuration to temp file.");
+      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
       log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
       return false;
    }
 
-   fd = fopen("tmp/last_recv_model.bak", "wb");
+   sprintf(szFile, "%s/last_recv_model.bak", FOLDER_RUBY_TEMP);
+   fd = fopen(szFile, "wb");
    if ( NULL != fd )
    {
        fwrite(pBuffer, 1, length, fd);
@@ -461,13 +465,14 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
    else
    {
-      log_error_and_alarm("Failed to save received vehicle configuration to temp file.");
+      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
       log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
       return false;
    }
 
    Model modelTemp;
-   if ( ! modelTemp.loadFromFile("tmp/last_recv_model.mdl", true) )
+   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
+   if ( ! modelTemp.loadFromFile(szFile, true) )
    {
       log_softerror_and_alarm("HCommands: Failed to load the received vehicle model file. Invalid file.");
       log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");

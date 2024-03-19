@@ -1119,3 +1119,37 @@ void log_camera_profiles_differences(camera_profile_parameters_t* pProfile1, cam
 {
  
 }
+
+int check_write_filesystem()
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szComm[256];
+
+   sprintf(szComm, "rm -rf %s/testwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
+   hw_execute_bash_command(szComm, NULL);
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, "testwrite.txt");
+   FILE* fd = fopen(szFile, "wb");
+   if ( NULL == fd )
+      return -1;
+
+   fprintf(fd, "test1234\n");
+   fclose(fd);
+
+   fd = fopen(szFile, "rb");
+   if ( NULL == fd )
+      return -2;
+   
+   if ( 1 != fscanf(fd, "%s", szComm) )
+      return -3;
+  
+   if ( 0 != strcmp(szComm, "test1234") )
+      return -4;
+   
+   fclose(fd);
+
+   sprintf(szComm, "rm -rf %s/testwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
+   hw_execute_bash_command(szComm, NULL);
+   return 0;
+}

@@ -463,28 +463,9 @@ int r_start_vehicle(int argc, char *argv[])
    
    log_line("Start sequence: Checking the file system for write access...");
 
-   hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-   FILE* fdTemp = fopen("tmp/testwrite.txt", "wb");
-   if ( NULL == fdTemp )
+   modelVehicle.alarms &= ~(ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR);
+   if ( check_write_filesystem() < 0 )
       modelVehicle.alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-   else
-   {
-      fprintf(fdTemp, "test1234\n");
-      fclose(fdTemp);
-      fdTemp = fopen("tmp/testwrite.txt", "rb");
-      if ( NULL == fdTemp )
-         modelVehicle.alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-      else
-      {
-         char szTmp[256];
-         if ( 1 != fscanf(fdTemp, "%s", szTmp) )
-            modelVehicle.alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-         else if ( 0 != strcmp(szTmp, "test1234") )
-            modelVehicle.alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-         fclose(fdTemp);
-         hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-      }
-   }
 
    if ( modelVehicle.alarms & ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR )
       log_line("Start sequence: Checking the file system for write access: Failed.");
@@ -834,7 +815,7 @@ int r_start_vehicle(int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsCommands->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2);
-            char* szPIDs = hw_process_get_pid("ruby_rx_commands");
+            char* szPIDs = hw_process_get_pid("ruby_start");
             if ( strlen(szPIDs) > 3 )
                log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
             else
@@ -853,10 +834,9 @@ int r_start_vehicle(int argc, char *argv[])
 
          if ( s_failCountProcessRC >= s_failCountProcessThreshold )
          {
-            // To fix
             log_format_time(s_pProcessStatsRC->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2);
-            char* szPIDs = hw_process_get_pid("ruby_rx_commands");
+            char* szPIDs = hw_process_get_pid("ruby_start");
             if ( strlen(szPIDs) > 3 )
                log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
             else
@@ -874,7 +854,7 @@ int r_start_vehicle(int argc, char *argv[])
          if ( modelVehicle.hasCamera() )
          if ( modelVehicle.isActiveCameraCSICompatible() || modelVehicle.isActiveCameraVeye() ) 
             vehicle_stop_video_capture_csi(&modelVehicle);
-         hw_stop_process("ruby_rx_commands");
+         hw_stop_process("ruby_start");
          vehicle_stop_tx_telemetry();
          vehicle_stop_rx_rc();
 

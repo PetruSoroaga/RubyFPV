@@ -300,8 +300,7 @@ int ruby_open_ipc_channel_write_endpoint(int nChannelType)
 
    #ifdef RUBY_USES_MSGQUEUES
 
-   key_t key;
-   key = ftok("ruby_logger", nChannelType);
+   key_t key = generate_msgqueue_key(nChannelType);
 
    if ( key < 0 )
    {
@@ -388,8 +387,7 @@ int ruby_open_ipc_channel_read_endpoint(int nChannelType)
 
    #ifdef RUBY_USES_MSGQUEUES
 
-   key_t key;
-   key = ftok("ruby_logger", nChannelType);
+   key_t key = generate_msgqueue_key(nChannelType);
 
    if ( key < 0 )
    {

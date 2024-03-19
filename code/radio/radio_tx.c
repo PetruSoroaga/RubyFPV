@@ -63,8 +63,7 @@ pthread_mutex_t s_pThreadRadioTxMutex;
 
 int _radio_tx_create_msg_queue()
 {
-   key_t key;
-   key = ftok("ruby_logger", RADIO_TX_MESSAGE_QUEUE_ID);
+   key_t key = generate_msgqueue_key(RADIO_TX_MESSAGE_QUEUE_ID);
 
    if ( key < 0 )
    {
@@ -72,7 +71,10 @@ int _radio_tx_create_msg_queue()
          errno, strerror(errno));
       log_line("%d %d %d", ENOENT, EACCES, ENOTDIR);
 
-      key = ftok("ruby_start", 107);
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_start");
+      key = ftok(szFile, 107);
 
       if ( key < 0 )
       {

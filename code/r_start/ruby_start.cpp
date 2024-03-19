@@ -53,6 +53,8 @@
 #include "../common/string_utils.h"
 #include "r_start_vehicle.h"
 #include "r_initradio.h"
+#include "../r_vehicle/ruby_rx_commands.h"
+#include "../r_vehicle/ruby_rx_rc.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 
@@ -236,8 +238,6 @@ void _check_files()
       { failed = true; strcat(szFilesMissing, " ruby_rt_vehicle"); }
    if( access( "ruby_tx_telemetry", R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " ruby_tx_telemetry"); }
-   if( access( "ruby_rx_commands", R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " ruby_rx_commands"); }
    //if( access( VIDEO_PLAYER_PIPE, R_OK ) == -1 )
    //   { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
    //if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
@@ -751,6 +751,16 @@ int main (int argc, char *argv[])
    {
       r_start_vehicle(argc, argv);
       return 0;
+   }
+
+   if ( strcmp(argv[argc-1], "-rx_commands") == 0 )
+   {
+      return r_start_commands_rx(argc, argv);
+   }
+
+   if ( strcmp(argv[argc-1], "-rc") == 0 )
+   {
+      return r_start_rx_rc(argc, argv);
    }
 
    if ( (strcmp(argv[argc-1], "-initradio") == 0) || 
@@ -1318,8 +1328,6 @@ int main (int argc, char *argv[])
 
    hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
    log_line("ruby_rt_vehicle: [%s]", szOutput);
-   hw_execute_ruby_process_wait(NULL, "ruby_rx_commands", "-ver", szOutput, 1);
-   log_line("ruby_rx_commands: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
 
@@ -1702,14 +1710,6 @@ int main (int argc, char *argv[])
          }
          else
             { log_error_and_alarm("ruby_tx_telemetry is not running"); bError = true; }
-
-         if ( hw_process_exists("ruby_rx_commands") )
-         {
-           if ( iCheckCount == 0 )
-              log_line("ruby_rx_commands is started");
-         }
-         else
-            { log_error_and_alarm("ruby_rx_commands is not running"); bError = true; }
 
          if ( bError )
             printf("Error: Some processes are not running.\n");

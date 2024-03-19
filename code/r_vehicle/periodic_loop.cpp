@@ -219,42 +219,13 @@ void _check_write_filesystem()
       s_bRouterCheckedForWriteFileSystem = true;
       s_bRouterWriteFileSystemOk = false;
 
-      hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-      FILE* fdTemp = fopen("tmp/testwrite.txt", "wb");
-      if ( NULL == fdTemp )
+      g_pCurrentModel->alarms &= ~(ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR);
+      if ( check_write_filesystem() < 0 )
       {
          g_pCurrentModel->alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
          s_bRouterWriteFileSystemOk = false;
       }
-      else
-      {
-         fprintf(fdTemp, "test1234\n");
-         fclose(fdTemp);
-         fdTemp = fopen("tmp/testwrite.txt", "rb");
-         if ( NULL == fdTemp )
-         {
-            g_pCurrentModel->alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-            s_bRouterWriteFileSystemOk = false;
-         }
-         else
-         {
-            char szTmp[256];
-            if ( 1 != fscanf(fdTemp, "%s", szTmp) )
-            {
-               g_pCurrentModel->alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-               s_bRouterWriteFileSystemOk = false;
-            }
-            else if ( 0 != strcmp(szTmp, "test1234") )
-            {
-               g_pCurrentModel->alarms |= ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR;
-               s_bRouterWriteFileSystemOk = false;
-            }
-            else
-               s_bRouterWriteFileSystemOk = true;
-            fclose(fdTemp);
-            hw_execute_bash_command("rm -rf tmp/testwrite.txt", NULL);
-         }
-      }
+
       if ( ! s_bRouterWriteFileSystemOk )
          log_line("Checking the file system for write access: Failed.");
       else

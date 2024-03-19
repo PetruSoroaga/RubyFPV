@@ -76,7 +76,7 @@ void vehicle_launch_rx_rc(Model* pModel)
    #else
    sprintf(szPrefix, "nice -n %d", pModel->niceRC);
    #endif
-   hw_execute_ruby_process(szPrefix, "ruby_rx_commands", "-rc", NULL);
+   hw_execute_ruby_process(szPrefix, "ruby_start", "-rc", NULL);
 }
 
 void vehicle_stop_rx_rc()
@@ -96,12 +96,14 @@ void vehicle_launch_rx_commands(Model* pModel)
       log_error_and_alarm("Invalid model (NULL) on launching RX commands. Can't start RX commands.");
       return;
    }
-   hw_execute_ruby_process(NULL, "ruby_rx_commands", NULL, NULL);
+   char szPrefix[64];
+   szPrefix[0] = 0;
+   hw_execute_ruby_process(szPrefix, "ruby_start", "-rx_commands", NULL);
 }
 
 void vehicle_stop_rx_commands()
 {
-   hw_stop_process("ruby_rx_commands");
+   //hw_stop_process("ruby_rx_commands");
 }
 
 void vehicle_launch_tx_router(Model* pModel)

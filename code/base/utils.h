@@ -53,3 +53,5 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int datarate_bps, u32 uDelayMs);
 
 void log_camera_profiles_differences(camera_profile_parameters_t* pProfile1, camera_profile_parameters_t* pProfile2);
+
+int check_write_filesystem();

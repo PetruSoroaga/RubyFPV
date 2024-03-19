@@ -112,7 +112,7 @@ void PopupCameraParams::onShow()
       m_iTotalParams++;
    }
 
-   if ( g_pCurrentModel->isActiveCameraVeye307() || g_pCurrentModel->isActiveCameraCSICompatible() )
+   if ( g_pCurrentModel->isActiveCameraVeye307() )
    {
       m_bHasHue = true;
       m_iIndexParamHue = m_iTotalParams;
@@ -367,9 +367,9 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          value_max = 10;
       }
 
-      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].sharpness > 100-value_min )
+      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].sharpness > 100+value_min )
          cparams.profiles[iProfile].sharpness--;
-      if ( bFastCCW && cparams.profiles[iProfile].sharpness > 100-value_min )
+      if ( bFastCCW && cparams.profiles[iProfile].sharpness > 100+value_min )
          cparams.profiles[iProfile].sharpness--;
 
       if ( (bCW || bFastCW) && cparams.profiles[iProfile].sharpness < 100 + value_max )

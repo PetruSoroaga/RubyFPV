@@ -14,6 +14,7 @@
 #include <time.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <sys/ipc.h>
 #include "config_hw.h"
 
 
@@ -90,6 +91,7 @@ long distance_meters_between(double lat1, double lon1, double lat2, double lon2)
 int check_licences();
 
 long get_filesize(const char* szFileName);
+key_t generate_msgqueue_key(int iMsgQueueId);
 
 #ifdef __cplusplus
 }  

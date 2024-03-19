@@ -55,7 +55,6 @@
 #include "utils_vehicle.h"
 #include "video_link_stats_overwrites.h"
 #include "process_upload.h"
-#include "ruby_rx_rc.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -126,9 +125,20 @@ void signalReloadModel(u32 uChangeType, u8 uExtraParam);
 bool _populate_camera_name()
 {
    log_line("Populating camera name buffer...");
-   u8 dataCamera[1024];
    bool bCameraNameUpdated = false;
 
+   #ifdef HW_PLATFORM_OPENIPC
+
+   char szBuff[128];
+   szBuff[0] = 0;
+   hw_execute_bash_command("ipcinfo -s 2>/dev/null", szBuff);
+   for( int i=0; i<strlen(szBuff); i++ )
+      szBuff[i] = toupper(szBuff[i]);
+   bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, szBuff);
+   
+   #else
+
+   u8 dataCamera[1024];
    char szFile[128];
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_CAMERA_NAME);
@@ -165,6 +175,8 @@ bool _populate_camera_name()
       bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, "");
    }
 
+   #endif
+
    if ( bCameraNameUpdated )
    {
       saveCurrentModel();
@@ -177,18 +189,27 @@ void populate_model_settings_buffer()
 {
    _populate_camera_name();
 
-   g_pCurrentModel->saveToFile("tmp/tmp_download_model.mdl", false);
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, "tmp_download_model.mdl");
+   g_pCurrentModel->saveToFile(szFile, false);
 
-   char szBuff[128];
-   hw_execute_bash_command("rm -rf tmp/model.tar* 2>/dev/null", NULL);
-   hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
-   sprintf(szBuff, "cp -rf tmp/tmp_download_model.mdl tmp/model.mdl 2>/dev/null");
-   hw_execute_bash_command(szBuff, NULL);
-   hw_execute_bash_command("tar -cf tmp/model.tar tmp/model.mdl 2>&1", NULL);
-   hw_execute_bash_command("gzip tmp/model.tar 2>&1", NULL);
+   char szComm[256];
+   sprintf(szComm, "rm -rf %s/model.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "rm -rf %s/model.mdl* 2>/dev/null", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "cp -rf %s/tmp_download_model.mdl %s/model.mdl 2>/dev/null", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "tar -C %s -cf %s/model.tar model.mdl 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "gzip %s/model.tar 2>&1", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
 
    s_bufferModelSettingsLength = 0;
-   FILE* fd = fopen("tmp/model.tar.gz", "rb");
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, "model.tar.gz");
+   FILE* fd = fopen(szFile, "rb");
    if ( NULL != fd )
    {
       s_bufferModelSettingsLength = fread(s_bufferModelSettings, 1, 2000, fd);
@@ -196,10 +217,12 @@ void populate_model_settings_buffer()
       log_line("Generated buffer with compressed model settings. Compressed size: %d bytes", s_bufferModelSettingsLength);
    }
    else
-      log_error_and_alarm("Failed to load vehicle configuration from file: model.tar");
+      log_error_and_alarm("Failed to load vehicle configuration from file: [%s]", szFile);
 
-   hw_execute_bash_command("rm -rf tmp/model.tar*", NULL);
-   hw_execute_bash_command("rm -rf tmp/model.mdl", NULL); 
+   sprintf(szComm, "rm -rf %s/model.tar*", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL); 
 }
 
 
@@ -306,7 +329,7 @@ void update_priorities()
    // To fix
    //hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
    hw_set_proc_priority("ruby_tx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
-   hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->niceOthers, 0, 1 );
+   //hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->niceOthers, 0, 1 );
 
    #endif
 }
@@ -595,7 +618,10 @@ bool _process_file_download_request( u8* pBuffer, int length)
             PHDFInfo.isReady = 1;
             strcpy((char*)PHDFInfo.szFileName, "logs.zip");
 
-            FILE* fd = fopen("tmp/logs.zip", "rb");
+            char szFile[MAX_FILE_PATH_SIZE];
+            strcpy(szFile, FOLDER_RUBY_TEMP);
+            strcat(szFile, "logs.zip");
+            FILE* fd = fopen(szFile, "rb");
             if ( NULL != fd )
             {
                fseek(fd, 0, SEEK_END);
@@ -608,13 +634,16 @@ bool _process_file_download_request( u8* pBuffer, int length)
                log_line("File logs archive: %u bytes, %d segments, %d bytes/segment", fSize, PHDFInfo.segments_count, PHDFInfo.segment_size );
             }
             else
-               log_softerror_and_alarm("Failed to create archive with log files.");
+               log_softerror_and_alarm("Failed to create archive with log files in file [%s]", szFile);
          }
       }
       else
       {
-         hw_execute_bash_command("rm -rf tmp/logs.zip", NULL);
-         hw_execute_bash_command("zip tmp/logs.zip logs/* > /dev/null 2>&1 &", NULL);
+         char szComm[256];
+         sprintf(szComm, "rm -rf %s/logs.zip", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "zip %s/logs.zip %s/* > /dev/null 2>&1 &", FOLDER_RUBY_TEMP, FOLDER_LOGS);
+         hw_execute_bash_command(szComm, NULL);
       }
    }
 
@@ -639,17 +668,20 @@ bool _process_file_segment_download_request( u8* pBuffer, int length)
    memcpy(buffer, (u8*)&flags, sizeof(u32));
    if ( uFileId == FILE_ID_VEHICLE_LOGS_ARCHIVE )
    {
-      FILE* fd = fopen("tmp/logs.zip", "rb");
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "logs.zip");
+      FILE* fd = fopen(szFile, "rb");
       if ( NULL != fd )
       {
           fseek(fd, uSegmentId*1117, SEEK_SET);
           if ( 1117 != fread(&buffer[4], 1, 1117, fd) )
-             log_softerror_and_alarm("Failed to read vehicle logs zip file.");
+             log_softerror_and_alarm("Failed to read vehicle logs zip file: [%s]", szFile);
           fclose(fd);
       }
       else
       {
-         log_softerror_and_alarm("Failed to open for read vehicle logs zip file.");
+         log_softerror_and_alarm("Failed to open for read vehicle logs zip file: [%s]", szFile);
          memset(&buffer[4], 0, 1117);
       }
    }
@@ -665,12 +697,17 @@ void _process_received_uploaded_file()
    if ( s_InfoLastFileUploaded.uLastFileId == FILE_ID_CORE_PLUGINS_ARCHIVE )
    {
       log_line("Processing received core plugins archive (%u bytes)...", s_InfoLastFileUploaded.uFileSize);
-      hw_execute_bash_command("rm -rf tmp/core_plugins.zip 2>&1", NULL);
+      char szComm[128];
+      sprintf(szComm, "rm -rf %s/core_plugins.zip 2>&1", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
       
-      FILE* fd = fopen("tmp/core_plugins.zip", "wb");
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "core_plugins.zip");
+      FILE* fd = fopen(szFile, "wb");
       if ( NULL == fd )
       {
-         log_softerror_and_alarm("Failed to create file on disk for uploaded plugins.");
+         log_softerror_and_alarm("Failed to create file on disk for uploaded plugins: [%s]", szFile);
          return;
       }
       for( u32 u=0; u<s_InfoLastFileUploaded.uTotalSegments; u++ )
@@ -686,11 +723,14 @@ void _process_received_uploaded_file()
       fflush(fd);
       fclose(fd);
       char szOutput[4096];
-      hw_execute_bash_command("chmod 777 tmp/core_plugins.zip 2>&1", NULL);
+      sprintf(szComm, "chmod 777 %s/core_plugins.zip 2>&1", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(100);
-      hw_execute_bash_command("unzip tmp/core_plugins.zip -d . 2>&1", szOutput);
+      sprintf(szComm, "unzip %s/core_plugins.zip -d %s 2>&1", FOLDER_RUBY_TEMP, FOLDER_CORE_PLUGINS);
+      hw_execute_bash_command(szComm, szOutput);
       log_line("Result: [%s]", szOutput);
-      hw_execute_bash_command("chmod 777 plugins/core/*", NULL);
+      sprintf(szComm, "chmod 777 %s/*", FOLDER_CORE_PLUGINS);
+      hw_execute_bash_command(szComm, NULL);
       log_line("Finised processing core plugins archive.");
    }
 }
@@ -1066,16 +1106,6 @@ bool process_command(u8* pBuffer, int length)
             szOutput[strlen(szOutput)-1] = 0;
          strcat(szBuffer, ", ruby_rt_vehicle: ");
          strcat(szBuffer, szOutput);
-
-         hw_execute_bash_command_raw_silent("./ruby_rx_commands -ver", szOutput);
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         if ( strlen(szOutput)> 0 )
-         if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
-            szOutput[strlen(szOutput)-1] = 0;
-         strcat(szBuffer, ", ruby_rx_commands: ");
-         strcat(szBuffer, szOutput);
          
          hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
          if ( strlen(szOutput)> 0 )
@@ -1149,8 +1179,11 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_GET_USB_INFO )
    {
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+      char szComm[128];
+      sprintf(szComm, "rm -rf %s/tmp_usb_info.tar 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
 
       char szBuff[6000];
       char szBuff2[3000];
@@ -1166,7 +1199,10 @@ bool process_command(u8* pBuffer, int length)
       strcat(szBuff, szBuff2);
       iLen1 = strlen(szBuff);
 
-      FILE* fd = fopen("tmp/tmp_usb_info.txt", "wb");
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "tmp_usb_info.txt");
+      FILE* fd = fopen(szFile, "wb");
       if ( NULL == fd )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
@@ -1175,16 +1211,23 @@ bool process_command(u8* pBuffer, int length)
       fwrite(szBuff, 1, iLen1, fd );
       fclose(fd);
 
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
-      hw_execute_bash_command("tar -cf tmp/tmp_usb_info.tar tmp/tmp_usb_info.txt 2>&1", NULL);
-      hw_execute_bash_command("gzip tmp/tmp_usb_info.tar 2>&1", NULL);
+      sprintf(szComm, "rm -rf %s/tmp_usb_info.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "tar -C %s -cf %s/tmp_usb_info.tar tmp_usb_info.txt 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "gzip %s/tmp_usb_info.tar 2>&1", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
 
-      fd = fopen("tmp/tmp_usb_info.tar.gz", "rb");
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "tmp_usb_info.tar.gz");
+      fd = fopen(szFile, "rb");
       if ( NULL == fd )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
           return true;       
       }
       szBuff2[0] = 0;
@@ -1194,8 +1237,10 @@ bool process_command(u8* pBuffer, int length)
       if ( iLen2 <= 0 )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar* 2>/dev/null", NULL);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
           return true;
       }
 
@@ -1207,16 +1252,18 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_GET_USB_INFO2 )
    {
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.tar 2>/dev/null", NULL);
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info.txt 2>/dev/null", NULL);
+      char szComm[512];
+      sprintf(szComm, "rm -rf %s/tmp_usb_info.tar 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
 
       char szBuff[3000];
       szBuff[0] = 0;
     
       DIR *d;
       struct dirent *dir;
-      char szFile[1024];
-      char szComm[1024];
+      char szFile[512];
       char szOutput[1024];
       d = opendir("/sys/bus/usb/devices/");
       if (d)
@@ -1226,8 +1273,8 @@ bool process_command(u8* pBuffer, int length)
             int iLen = strlen(dir->d_name);
             if ( iLen < 3 )
                continue;
-            snprintf(szFile, 1023, "/sys/bus/usb/devices/%s", dir->d_name);
-            snprintf(szComm, 1023, "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
+            snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "/sys/bus/usb/devices/%s", dir->d_name);
+            snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
             szOutput[0] = 0;
             hw_execute_bash_command(szComm, szOutput);
             strcat(szBuff, dir->d_name);
@@ -1307,7 +1354,9 @@ bool process_command(u8* pBuffer, int length)
       if ( 0 == strlen(szBuff) )
          strcpy(szBuff, "No info available.");
       int iLen = strlen(szBuff);
-      FILE* fd = fopen("tmp/tmp_usb_info2.txt", "wb");
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "tmp_usb_info2.txt");
+      FILE* fd = fopen(szFile, "wb");
       if ( NULL == fd )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
@@ -1316,16 +1365,23 @@ bool process_command(u8* pBuffer, int length)
       fwrite(szBuff, 1, iLen, fd );
       fclose(fd);
 
-      hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
-      hw_execute_bash_command("tar -cf tmp/tmp_usb_info2.tar tmp/tmp_usb_info2.txt 2>&1", NULL);
-      hw_execute_bash_command("gzip tmp/tmp_usb_info2.tar 2>&1", NULL);
+      sprintf(szComm, "rm -rf %s/tmp_usb_info2.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "tar -C %s -cf %s/tmp_usb_info2.tar tmp_usb_info2.txt 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "gzip %s/tmp_usb_info2.tar 2>&1", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
 
-      fd = fopen("tmp/tmp_usb_info2.tar.gz", "rb");
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, "tmp_usb_info2.tar.gz");
+      fd = fopen(szFile, "rb");
       if ( NULL == fd )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.txt 2>/dev/null", NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info2.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info2.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
           return true;       
       }
       szBuff[0] = 0;
@@ -1335,8 +1391,10 @@ bool process_command(u8* pBuffer, int length)
       if ( iLen <= 0 )
       {
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.tar* 2>/dev/null", NULL);
-          hw_execute_bash_command("rm -rf tmp/tmp_usb_info2.txt 2>/dev/null", NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info2.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
+          sprintf(szComm, "rm -rf %s/tmp_usb_info2.txt 2>/dev/null", FOLDER_RUBY_TEMP);
+          hw_execute_bash_command(szComm, NULL);
           return true;
       }
 
@@ -1436,13 +1494,6 @@ bool process_command(u8* pBuffer, int length)
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
       hw_get_proc_priority("ruby_tx_telemetry", szOutput);
-      strcat(szBuffer, szOutput);
-      strcat(szBuffer, "+");
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-
-      hw_get_proc_priority("ruby_rx_commands", szOutput);
       strcat(szBuffer, szOutput);
       strcat(szBuffer, "+");
 
@@ -2910,29 +2961,39 @@ bool process_command(u8* pBuffer, int length)
 
       if ( bNewZIPCommand )
       {
-         hw_execute_bash_command("rm -rf tmp/model.tar* 2>/dev/null", NULL);
-         hw_execute_bash_command("rm -rf tmp/model.mdl 2>/dev/null", NULL);
+         char szComm[256];
+         sprintf(szComm, "rm -rf %s/model.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "rm -rf %s/model.mdl 2>/dev/null", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
 
          char szFile[128];
          strcpy(szFile, FOLDER_CONFIG);
          strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-         sprintf(szBuff, "cp -rf %s tmp/model.mdl 2>/dev/null", szFile);
-         hw_execute_bash_command(szBuff, NULL);
-         hw_execute_bash_command("tar -cf tmp/model.tar tmp/model.mdl 2>&1", NULL);
-         hw_execute_bash_command("gzip tmp/model.tar 2>&1", NULL);
+         sprintf(szComm, "cp -rf %s %s/model.mdl 2>/dev/null", szFile, FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "tar -C %s -cf %s/model.tar model.mdl 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "gzip %s/model.tar 2>&1", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
 
          s_ZIPParams_Model_BufferLength = 0;
-         FILE* fd = fopen("tmp/model.tar.gz", "rb");
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, "model.tar.gz");
+         FILE* fd = fopen(szFile, "rb");
          if ( NULL != fd )
          {
             s_ZIPParams_Model_BufferLength = fread(s_ZIPParams_Model_Buffer, 1, 2500, fd);
+            log_line("Read compressed model settings. %d bytes", s_ZIPParams_Model_BufferLength);
             fclose(fd);
          }
          else
-            log_error_and_alarm("Failed to load current vehicle configuration from file: model.tar.gz");
+            log_error_and_alarm("Failed to load current vehicle configuration from file: [%s]", szFile);
 
-         hw_execute_bash_command("rm -rf tmp/model.tar*", NULL);
-         hw_execute_bash_command("rm -rf tmp/model.mdl", NULL);
+         sprintf(szComm, "rm -rf %s/model.tar*", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
 
          if ( 0 == s_ZIPParams_Model_BufferLength || s_ZIPParams_Model_BufferLength > MAX_PACKET_PAYLOAD )
          {
@@ -3464,7 +3525,7 @@ void _periodic_loop()
       process_sw_upload_check_timeout(g_TimeNow);
 }
 
-void handle_sigint(int sig) 
+void handle_sigint_rc(int sig) 
 { 
    log_line("--------------------------");
    log_line("Caught signal to stop: %d", sig);
@@ -3472,22 +3533,17 @@ void handle_sigint(int sig)
    g_bQuit = true;
 } 
 
-int main(int argc, char *argv[])
+int r_start_commands_rx(int argc, char* argv[])
 {
-   signal(SIGINT, handle_sigint);
-   signal(SIGTERM, handle_sigint);
-   signal(SIGQUIT, handle_sigint);
+   signal(SIGINT, handle_sigint_rc);
+   signal(SIGTERM, handle_sigint_rc);
+   signal(SIGQUIT, handle_sigint_rc);
 
 
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
       printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
       return 0;
-   }
-
-   if ( strcmp(argv[argc-1], "-rc") == 0 )
-   {
-      return r_start_rx_rc(argc, argv);
    }
 
    log_init("RX_Commands");

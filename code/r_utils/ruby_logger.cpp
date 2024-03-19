@@ -69,11 +69,10 @@ void handle_sigint(int sig)
 
 int _open_msg_queue()
 {
-   key_t key;
    int iLogMsgQueue = -1;
    type_log_message_buffer logMessage;
 
-   key = ftok("ruby_logger", LOGGER_MESSAGE_QUEUE_ID);
+   key_t key = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
    iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
    if ( iLogMsgQueue < 0 )
    {

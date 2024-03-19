@@ -516,7 +516,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( access(szFullPath, R_OK) == -1 )
       sprintf(szFullPath, "%s%s", FOLDER_BINARIES, szProcess);
 
-   if ( access("tmp/debug", R_OK) != -1 )
+   if ( access("/tmp/debug", R_OK) != -1 )
       sprintf(szFullPath, "/tmp/%s", szProcess);
 
    if ( access(szFullPath, R_OK) == -1 )
