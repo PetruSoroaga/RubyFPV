@@ -249,6 +249,11 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexPlugins == m_SelectedIndex )
    {
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
       if ( handle_commands_has_received_vehicle_core_plugins_info() )
       {
          add_menu_to_stack(new MenuVehicleManagePlugins());
@@ -338,6 +343,11 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexUpdate == m_SelectedIndex )
    {
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
       if ( checkIsArmed() )
          return;
       if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )

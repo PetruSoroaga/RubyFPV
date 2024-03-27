@@ -1662,10 +1662,10 @@ static int s_iThreadGenerateUploadCounter = 0;
 static void * _thread_generate_upload(void *argument)
 {
    char szComm[256];
-   char* szFileName = (char*)argument;
+   char* szFileNameArchive = (char*)argument;
    if ( NULL == argument )
       return NULL;
-   log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileName);
+   log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileNameArchive);
 
    // Add update info file
    char szFile[MAX_FILE_PATH_SIZE];
@@ -1684,23 +1684,23 @@ static void * _thread_generate_upload(void *argument)
       }
    }
 
-   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, szFileName);
+   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, szFileNameArchive);
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "cp -rf %s/ruby_update %s/ruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
-   // Generate dummy ruby_vehicle binary for older versions of vehicles
-   bool bAddDummyBinary = false;
+   bool bVersion82Older = false;
    if ( NULL == g_pCurrentModel )
-      bAddDummyBinary = true;
+      bVersion82Older = true;
    else if ( ((g_pCurrentModel->sw_version>>8) & 0xFF) < 8 )
-      bAddDummyBinary = true;
+      bVersion82Older = true;
    else if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && (((g_pCurrentModel->sw_version & 0xFF) <= 30)) )
-      bAddDummyBinary = true;
+      bVersion82Older = true;
 
-   if ( bAddDummyBinary )
+   // Generate dummy ruby_vehicle binary for older versions of vehicles
+   if ( bVersion82Older )
    {
       sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", FOLDER_BINARIES);
       hw_execute_bash_command(szComm, NULL);
@@ -1708,14 +1708,17 @@ static void * _thread_generate_upload(void *argument)
       hw_execute_bash_command(szComm, NULL);
    }
 
+   if ( bVersion82Older )
+      sprintf(szComm, "tar -czf %s%s ruby_* 2>&1", FOLDER_RUBY_TEMP, szFileNameArchive);
+   else
+      sprintf(szComm, "tar -C %s -czf %s%s %s/ruby_* 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP, szFileNameArchive, FOLDER_BINARIES);
 
-   sprintf(szComm, "tar -C %s -czf %s%s %s/ruby_* 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP, szFileName, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("Save last generated update archive...");
    sprintf(szComm, "rm -rf %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %s%s %s/last_uploaded_archive.tar", FOLDER_RUBY_TEMP, szFileName, FOLDER_RUBY_TEMP);
+   sprintf(szComm, "cp -rf %s%s %s/last_uploaded_archive.tar", FOLDER_RUBY_TEMP, szFileNameArchive, FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
@@ -1727,7 +1730,7 @@ static void * _thread_generate_upload(void *argument)
 
 bool Menu::uploadSoftware()
 {
-   log_line("Menu: Start upload procedure.");
+   log_line("Menu: Start upload procedure for vehicle software version %d.%d...", ((g_pCurrentModel->sw_version)>>8) & 0xFF, ((g_pCurrentModel->sw_version) & 0xFF));
 
    ruby_pause_watchdog();
    g_bUpdateInProgress = true;
@@ -1746,35 +1749,10 @@ bool Menu::uploadSoftware()
    static char s_szArchiveToUpload[256];
    s_szArchiveToUpload[0] = 0;
 
-   //bool bForceUseBinaries = false;
-   //if ( (((g_pCurrentModel->sw_version)>>8) & 0xFF) == 6 )
-   //if ( ((g_pCurrentModel->sw_version) & 0xFF) < 30 )
-   //   bForceUseBinaries = true;
-   bool bForceUseBinaries = true;
+   log_line("Using controller binaries for update.");
+   
    int iUpdateType = -1;
 
-   if ( bForceUseBinaries )
-      log_line("Using controller binaries for update.");
-   /*
-   else
-   {
-      if ( (g_nFailedOTAUpdates == 0) && (g_nSucceededOTAUpdates == 0) )
-      {
-         sprintf(szComm, "find %s/ruby_update_%d.%d.zip 2>/dev/null", FOLDER_UPDATES, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
-         hw_execute_bash_command(szComm, szBuff);
-         if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "ruby_update") )
-         {
-            log_line("Found zip update archive to upload to vehicle: [%s]", szBuff);
-            strcpy(s_szArchiveToUpload, szBuff);
-            iUpdateType = 0;
-         }
-         else
-            log_line("Zip update archive to upload to vehicle not found. Using regular update of binary files.");
-      }
-      else
-         log_line("There are previous updates done or failed. Using regular update of binary files.");
-   }
-   */
    // Always will do this
    if ( iUpdateType == -1 )
    {
@@ -2231,7 +2209,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    str_format_bitrate(pModel->video_link_profiles[iProfile].bitrate_fixed_bps, szBRVideo);
    str_format_bitrate(uMaxVideoRate, szBRRadio);
    str_format_bitrate(uMaxVideoRadioDataRate, szMaxRadioVideo);
-   snprintf(szLine1, 255, "Your current video bitrate of %s is bigger than %d%% of your maximum current radio links datarates capacity of %s.",
+   snprintf(szLine1, 255, "Your current video bitrate of %s is bigger than %d%% of your maximum safe allowed current radio links datarates capacity of %s.",
        szBRVideo, DEFAULT_VIDEO_LINK_LOAD_PERCENT,szMaxRadioVideo);
    strcpy(szLine2, "Lower your set video bitrate or increase the radio datarates on your radio links, otherways you will experience delays in the video stream.");
    

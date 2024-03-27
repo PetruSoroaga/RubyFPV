@@ -24,8 +24,11 @@
 #define BOARD_TYPE_PI3BPLUS 16
 #define BOARD_TYPE_PI4B     20
 
-#define BOARD_TYPE_OPENIPC_GOKE 30
-#define BOARD_TYPE_OPENIPC_SIGMASTER 31
+#define BOARD_TYPE_OPENIPC_GOKE200 30
+#define BOARD_TYPE_OPENIPC_GOKE210 31
+#define BOARD_TYPE_OPENIPC_GOKE300 32
+
+#define BOARD_TYPE_OPENIPC_SIGMASTER_338Q 40
 
 
 #define CAMERA_TYPE_NONE 0
@@ -36,12 +39,12 @@
 #define CAMERA_TYPE_HDMI  7
 #define CAMERA_TYPE_USB   8
 #define CAMERA_TYPE_IP    9
-#define CAMERA_TYPE_OPENIPC_GOKE 20
-#define CAMERA_TYPE_OPENIPC_SIGMASTER335 21
+#define CAMERA_TYPE_OPENIPC_IMX307 20
+#define CAMERA_TYPE_OPENIPC_IMX335 21
 
 
 #define MAX_JOYSTICK_INTERFACE_NAME 128
-#define MAX_JOYSTICK_INTERFACES 6
+#define MAX_JOYSTICK_INTERFACES 4
 #define MAX_JOYSTICK_AXES 24
 #define MAX_JOYSTICK_BUTTONS 24
 
@@ -77,6 +80,8 @@ int hardware_detectBoardType();
 int hardware_getBoardType();
 int hardware_getWifiType();
 u32 hardware_get_base_ruby_version();
+
+int hardware_board_is_openipc(int iBoardType);
 
 void hardware_enum_joystick_interfaces();
 int hardware_get_joystick_interfaces_count();
@@ -119,6 +124,7 @@ char* hardware_get_mounted_usb_name();
 int hardware_detectSystemType();
 int hardware_is_station();
 int hardware_is_vehicle();
+int hardware_is_running_on_openipc();
 
 u32 _hardware_detect_camera_type();
 int hardware_hasCamera();

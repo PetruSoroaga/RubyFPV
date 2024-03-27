@@ -758,7 +758,7 @@ void fbg_pixela(struct _fbg *fbg, int x, int y, unsigned char r, unsigned char g
    }
 }
 
-void fbg_pixela_fast(struct _fbg *fbg, char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+void fbg_pixela_fast(struct _fbg *fbg, unsigned char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
     if ( *(pixel+3) == 255 )
     {
@@ -796,7 +796,7 @@ void fbg_plot(struct _fbg *fbg, int index, unsigned char value) {
 void fbg_hline(struct _fbg *fbg, int x, int y, int w, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
     int xx;
 
-    char *pix_pointer = (char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
+    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
     for (xx = 0; xx < w; xx += 1)
    {
@@ -809,7 +809,7 @@ void fbg_vline(struct _fbg *fbg, int x, int y, int h, unsigned char r, unsigned 
 {
     int yy;
 
-    char *pix_pointer = (char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
+    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
     for (yy = 0; yy < h; yy += 1) {
       fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
@@ -839,7 +839,7 @@ void fbg_line(struct _fbg *fbg, int x1, int y1, int x2, int y2, unsigned char r,
        return;
     if ( y1 >= fbg->height || y2 >= fbg->height )
        return;
-    char *pix_pointer = (char *)(fbg->back_buffer + (py * fbg->line_length + px * fbg->components));
+    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (py * fbg->line_length + px * fbg->components));
 
     if ( px >= 0 && py >= 0 )
        fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
@@ -900,7 +900,7 @@ void fbg_polygon(struct _fbg *fbg, int num_vertices, int *vertices, unsigned cha
 void fbg_recta(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
     int xx = 0, yy = 0, w4 = w * fbg->components;
 
-    char *pix_pointer = (char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
+    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
     for (yy = 0; yy < h; yy += 1)
     {
@@ -1546,7 +1546,7 @@ void fbg_imageClipA(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx
     unsigned char *img_pointer = (unsigned char *)(img->data + (cy * img->width * fbg->components + cx * fbg->components));
 
     int i = 0;
-    int w4 = _FBG_MIN(cw * fbg->components, (fbg->width - x) * fbg->components);
+    //int w4 = _FBG_MIN(cw * fbg->components, (fbg->width - x) * fbg->components);
     int h = ch;
 
     for (i = 0; i < h; i += 1) 
@@ -1568,7 +1568,7 @@ void fbg_imageClipAColor(struct _fbg *fbg, struct _fbg_img *img, int x, int y, i
     unsigned char *img_pointer = (unsigned char *)(img->data + (cy * img->width * fbg->components + cx * fbg->components));
 
     int i = 0;
-    int w4 = _FBG_MIN(cw * fbg->components, (fbg->width - x) * fbg->components);
+    //int w4 = _FBG_MIN(cw * fbg->components, (fbg->width - x) * fbg->components);
     int h = ch;
 
     char r,g,b,a;

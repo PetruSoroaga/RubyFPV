@@ -32,7 +32,7 @@ class ProcessorTxVideo
       
       void setLastRequestedKeyframeFromController(int iKeyframeIntervalMs);
       void setLastRequestedAdaptiveVideoLevelFromController(int iLevel);
-      void setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue);
+      void setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue, int iSource);
 
       int getLastRequestedKeyframeFromController();
       int getLastRequestedAdaptiveVideoLevelFromController();
@@ -47,6 +47,7 @@ class ProcessorTxVideo
       int m_iCameraIndex;
       int m_iLastRequestedKeyframeIntervalFromController;
       int m_iLastRequestedAdaptiveVideoLevelFromController;
+      u32 m_uInitialSetCaptureVideoBitrate;
       u32 m_uLastSetCaptureVideoBitrate;
 
       u32 m_uIntervalMSComputeVideoBitrateSample;

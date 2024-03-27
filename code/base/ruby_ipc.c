@@ -42,20 +42,20 @@
 //#define RUBY_USE_FIFO_PIPES 1
 #define RUBY_USES_MSGQUEUES 1
 
-#define FIFO_RUBY_ROUTER_TO_CENTRAL "tmp/ruby/fiforoutercentral"
-#define FIFO_RUBY_CENTRAL_TO_ROUTER "tmp/ruby/fifocentralrouter"
-#define FIFO_RUBY_ROUTER_TO_COMMANDS "tmp/ruby/fiforoutercommands"
-#define FIFO_RUBY_COMMANDS_TO_ROUTER "tmp/ruby/fifocommandsrouter"
-#define FIFO_RUBY_ROUTER_TO_TELEMETRY "tmp/ruby/fiforoutertelemetry"
-#define FIFO_RUBY_TELEMETRY_TO_ROUTER "tmp/ruby/fifotelemetryrouter"
-#define FIFO_RUBY_ROUTER_TO_RC "tmp/ruby/fiforouterrc"
-#define FIFO_RUBY_RC_TO_ROUTER "tmp/ruby/fiforcrouter"
+#define FIFO_RUBY_ROUTER_TO_CENTRAL "/tmp/ruby/fiforoutercentral"
+#define FIFO_RUBY_CENTRAL_TO_ROUTER "/tmp/ruby/fifocentralrouter"
+#define FIFO_RUBY_ROUTER_TO_COMMANDS "/tmp/ruby/fiforoutercommands"
+#define FIFO_RUBY_COMMANDS_TO_ROUTER "/tmp/ruby/fifocommandsrouter"
+#define FIFO_RUBY_ROUTER_TO_TELEMETRY "/tmp/ruby/fiforoutertelemetry"
+#define FIFO_RUBY_TELEMETRY_TO_ROUTER "/tmp/ruby/fifotelemetryrouter"
+#define FIFO_RUBY_ROUTER_TO_RC "/tmp/ruby/fiforouterrc"
+#define FIFO_RUBY_RC_TO_ROUTER "/tmp/ruby/fiforcrouter"
 
 
 //#define PROFILE_IPC 1
 #define PROFILE_IPC_MAX_TIME 20
 
-#define MAX_CHANNELS 32
+#define MAX_CHANNELS 16
 
 int s_iRubyIPCChannelsUniqueIds[MAX_CHANNELS];
 int s_iRubyIPCChannelsFd[MAX_CHANNELS];
@@ -192,8 +192,8 @@ void _check_ruby_ipc_consistency()
 
 int ruby_init_ipc_channels()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[256];
-
    sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CAMERA1 );
    hw_execute_bash_command(szBuff, NULL);
       
@@ -205,6 +205,7 @@ int ruby_init_ipc_channels()
 
    sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH );
    hw_execute_bash_command(szBuff, NULL);
+   #endif
 
    #ifdef RUBY_USE_FIFO_PIPES
 

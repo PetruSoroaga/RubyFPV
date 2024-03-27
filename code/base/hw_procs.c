@@ -504,9 +504,9 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( (NULL == szProcess) || (0 == szProcess[0]) )
       return;
    if ( (NULL != szPrefixes) && (0 != szPrefixes[0]) )
-      log_line("Executing Ruby process: [%s], prefixes: [%s], wait: %s", szProcess, szPrefixes, (iWait?"yes":"no"));
+      log_line("Executing Ruby process: [%s], prefixes: [%s], params: [%s], wait: %s", szProcess, szPrefixes, ((NULL != szParams)?szParams:"None"), (iWait?"yes":"no"));
    else
-      log_line("Executing Ruby process: [%s], no prefixes.: wait: %s", szProcess, (iWait?"yes":"no"));
+      log_line("Executing Ruby process: [%s], no prefixes, params: [%s], wait: %s", szProcess, ((NULL != szParams)?szParams:"None"), (iWait?"yes":"no"));
 
    if ( NULL != szOutput )
       szOutput[0] = 0;
@@ -569,8 +569,9 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       log_line("Launched Ruby process: [%s]", szCommand);
 }
 
-void hw_increase_current_thread_priority(const char* szLogPrefix)
+void hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriority)
 {   
+   #ifdef HW_PLATFORM_RASPBERRY
    char szTmp[2];
    szTmp[0] = 0;
    char* szPrefix = szTmp;
@@ -587,11 +588,7 @@ void hw_increase_current_thread_priority(const char* szLogPrefix)
    
    log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
 
-   // To fix : enable this for OpenIPC too
-
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   params.sched_priority = DEFAULT_PRORITY_THREAD_RADIO_RX;
+   params.sched_priority = iNewPriority;
    ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
    if ( ret != 0 )
       log_softerror_and_alarm("%s Failed to set thread schedule class, error: %d, %s", szPrefix, errno, strerror(errno));

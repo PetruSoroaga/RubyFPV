@@ -30,7 +30,6 @@
 #include "process_radio_in_packets.h"
 #include "processor_rx_audio.h"
 #include "processor_rx_video.h"
-#include "processor_rx_video_wfbohd.h"
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
@@ -781,23 +780,6 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
    u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
    if ( uStreamId >= MAX_RADIO_STREAMS )
       uStreamId = 0;
-
-   /*   
-   if ( g_bDebug )
-   {
-      if ( ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) &&
-           ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL ) )
-         {
-             t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));
-             u8 uVideoStreamIndexAndType = pPHVFNew->video_stream_and_type;
-             u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0x0F) >> 4);
-             log_line("DEBUG recv radio video packet %d bytes, radio packet index: %u: video type: %d, video block/packet: [%u/%d]",
-               pPH->total_length, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX,  (int)uVideoStreamType, pPHVFNew->video_block_index, pPHVFNew->video_block_packet_index);
-         }
-      else
-         log_line("DEBUG recv radio packet %d bytes: %s", pPH->total_length, str_get_packet_type(pPH->packet_type));
-   }
-   */
 
    bool bNewVehicleId = true;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )

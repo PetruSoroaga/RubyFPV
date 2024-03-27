@@ -381,13 +381,19 @@ int hardware_getBoardType()
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
-   s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
+   s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE200;
    hw_execute_bash_command("ipcinfo -c 2>/dev/null", szBuff);
    log_line("Detected board type: %s", szBuff);
    if ( NULL != strstr(szBuff, "gk72") )
-      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE;
-   if ( NULL != strstr(szBuff, "ssc335") )
-      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_SIGMASTER;
+   {
+      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE200;
+      if ( NULL != strstr(szBuff, "v210") )
+         s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE210;
+      if ( NULL != strstr(szBuff, "v300") )
+         s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE300;
+   }
+   if ( NULL != strstr(szBuff, "ssc338") )
+      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
 
    #endif
 
@@ -487,6 +493,18 @@ u32 hardware_get_base_ruby_version()
    }
    log_softerror_and_alarm("[Hardware] Failed to parse base Ruby version from file (%s).", szFile);
    return s_uBaseRubyVersion;
+}
+
+
+int hardware_board_is_openipc(int iBoardType)
+{
+   if ( iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
+        iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
+        iBoardType == BOARD_TYPE_OPENIPC_GOKE300 )
+      return 1;
+   if ( iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+      return 1;
+   return 0;
 }
 
 int hardware_detectBoardType()
@@ -1789,15 +1807,15 @@ u32 _hardware_detect_camera_type()
 
    s_bHardwareHasCamera = 1;
    s_iHardwareCameraI2CBus = -1;
-   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
 
-   hw_execute_bash_command("ipcinfo -c 2>/dev/null", szOutput);
-   log_line("Detected board type: %s", szOutput);
-   if ( NULL != strstr(szOutput, "gk72") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_GOKE;
-   if ( NULL != strstr(szOutput, "ssc335") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_SIGMASTER335;
+   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
 
+   hw_execute_bash_command("ipcinfo -s 2>/dev/null", szOutput);
+   log_line("Detected camera sensor type: %s", szOutput);
+   if ( NULL != strstr(szOutput, "imx307") )
+      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
+   if ( NULL != strstr(szOutput, "imx335") )
+      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX335;
    #endif
 
    if ( s_bHardwareHasCamera == 0 )
@@ -1931,6 +1949,14 @@ int hardware_is_vehicle()
    if ( ! s_bHarwareHasDetectedSystemType )
       _hardware_load_system_type();
    return s_iHardwareSystemIsVehicle;
+}
+
+int hardware_is_running_on_openipc()
+{
+   if ( ! s_bHarwareHasDetectedSystemType )
+      _hardware_load_system_type();
+
+   return hardware_board_is_openipc(hardware_getBoardType());
 }
 
 int hardware_hasCamera()

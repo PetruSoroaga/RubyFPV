@@ -51,7 +51,6 @@ void _set_radio_region()
    hw_execute_bash_command("iw reg set BO", NULL);
 }
 
-
 bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
 {
    if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= hardware_get_radio_interfaces_count()) )

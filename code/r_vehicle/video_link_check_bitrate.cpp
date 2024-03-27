@@ -329,7 +329,7 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_IGNORE_TX_SPIKES )
       uMaxTxTime = 900;
 
-   // This is in Mbps. 1 = 1 Mbps
+   // This is in Mbps: 1 = 1 Mbps
    int iMinVideoRadioTxBitrateUsed = get_last_tx_video_datarate_mbps();
    if ( iMinVideoRadioTxBitrateUsed < 2 )
    {
@@ -358,8 +358,6 @@ void video_link_check_adjust_bitrate_for_overload()
    {
       bIsDataOverloadCondition = true;
       bIsDataRateOverloadCondition = true;
-      //log_line("DEBUG overload: sent %u, %u, avg: %u, %u", uTotalSentVideoBitRateFast, (u32)iMaxAllowedThreshold, 
-      //   uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThresholdAlarm);
    }
 
    if ( g_uTimeLastVideoTxOverload > g_TimeNow - 4000 )
@@ -389,6 +387,8 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateUpOnTxOverload + 250 )
    if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRateFast) )
    {
+      log_line("DEBUG in overload condition, decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
+      log_line("DEBUG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
       g_uTimeLastVideoTxOverload = 0;
       g_TimeLastOverwriteBitrateDownOnTxOverload = g_TimeNow;
 

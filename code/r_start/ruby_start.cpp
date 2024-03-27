@@ -39,6 +39,7 @@
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/hardware_radio_serial.h"
+#include "../base/vehicle_settings.h"
 #include "../radio/radioflags.h"
 #include "../base/ruby_ipc.h"
 
@@ -52,6 +53,7 @@
 #include "r_initradio.h"
 #include "../r_vehicle/ruby_rx_commands.h"
 #include "../r_vehicle/ruby_rx_rc.h"
+#include "first_boot.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 
@@ -269,105 +271,6 @@ void _check_files()
       printf("Ruby: Checked files consistency: ok.\n");
 }
 
-void _create_default_model()
-{
-   log_line("Creating a default model.");
-   Model m;
-   m.resetToDefaults(true);
-
-   if ( s_isVehicle )
-   {
-      #ifdef HW_PLATFORM_RASPBERRY
-
-      hardware_mount_boot();
-      hardware_sleep_ms(50);
-      hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
-
-      m.hwCapabilities.iBoardType = board_type;
-      m.iFreqARM = 900;
-      if ( board_type == BOARD_TYPE_PIZERO2 )
-         m.iFreqARM = 1000;
-      else if ( board_type == BOARD_TYPE_PI3B )
-         m.iFreqARM = 1200;
-      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
-         m.iFreqARM = 1400;
-      else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
-               && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
-         m.iFreqARM = 1200;
-
-      config_file_set_value("config.txt", "arm_freq", m.iFreqARM);
-      config_file_set_value("config.txt", "arm_freq_min", m.iFreqARM);
-      // Enable hdmi, we might need it for debug
-      config_file_force_value("config.txt", "hdmi_force_hotplug", 1);
-      config_file_force_value("config.txt", "ignore_lcd", 0);
-      //config_file_force_value("config.txt", "hdmi_safe", 1);
-        
-      hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
-      #endif
-
-      bool bHasAtheros = false;
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-         if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
-            bHasAtheros = true;
-         if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK )
-            bHasAtheros = true;
-      }
-
-      m.setDefaultVideoBitrate();
-      
-      if ( bHasAtheros )
-      {
-         for( int i=0; i<m.radioLinksParams.links_count; i++ )
-         {
-            m.radioLinksParams.link_datarate_video_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
-            m.radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
-         }
-         for( int i=0; i<m.radioInterfacesParams.interfaces_count; i++ )
-         {
-            m.radioInterfacesParams.interface_datarate_video_bps[i] = 0;
-            m.radioInterfacesParams.interface_datarate_data_bps[i] = 0;
-         }
-         m.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
-         m.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;
-         m.video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = 5000000;
-         m.video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps = 5000000;
-      }
-
-      char szFile[128];
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-      m.saveToFile(szFile, false);
-      _set_default_sik_params_for_vehicle(&m);
-   }
-   else
-   {
-      m.resetRadioLinksParams();
-
-      m.radioInterfacesParams.interfaces_count = 1;
-      m.radioInterfacesParams.interface_type_and_driver[0] = 0xFF0000;
-      m.radioInterfacesParams.interface_supported_bands[0] = RADIO_HW_SUPPORTED_BAND_24;
-      strcpy(m.radioInterfacesParams.interface_szMAC[0], "YYYYYY");
-      strcpy(m.radioInterfacesParams.interface_szPort[0], "Y");
-      m.radioInterfacesParams.interface_current_frequency_khz[0] = DEFAULT_FREQUENCY;
-      m.radioInterfacesParams.interface_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
-      m.radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-
-      m.radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-      m.radioLinksParams.link_datarate_video_bps[0] = DEFAULT_RADIO_DATARATE_VIDEO;
-      m.radioLinksParams.link_datarate_data_bps[0] = DEFAULT_RADIO_DATARATE_DATA;
-
-      m.populateRadioInterfacesInfoFromHardware();
-
-      m.b_mustSyncFromVehicle = true;
-      m.is_spectator = false;
-      char szFile[128];
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-      m.saveToFile(szFile, false);
-   }
-}
 
 bool _check_for_update_from_boot()
 {
@@ -433,122 +336,6 @@ bool _check_for_update_from_boot()
    #else
    return false;
    #endif
-}
-
-void do_first_boot_initialization()
-{
-   log_line("-------------------------------------------------------");
-   log_line("First Boot detected. Doing first boot initialization...");
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   if ( s_isVehicle )
-   {
-      hw_execute_bash_command("sudo sed -i 's/ruby/r-vehicle/g' /etc/hosts", NULL);
-      hw_execute_bash_command("sudo sed -i 's/ruby/r-vehicle/g' /etc/hostname", NULL);
-   }
-   else
-   {
-      hw_execute_bash_command("sudo sed -i 's/ruby/r-controller/g' /etc/hosts", NULL);
-      hw_execute_bash_command("sudo sed -i 's/ruby/r-controller/g' /etc/hostname", NULL);
-   }
-   #endif
-
-   char szBuff[128];
-   hardware_sleep_ms(200);
-   hardware_mount_boot();
-
-   if ( board_type == BOARD_TYPE_PIZERO || board_type == BOARD_TYPE_PIZEROW )
-   {
-      log_line("Raspberry Pi Zero detected on the first boot ever of the system. Updating settings for Pi Zero.");
-      //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
-      //execute_bash_command(szBuff);
-   }
-   if ( board_type == BOARD_TYPE_PIZERO2 )
-   {
-      log_line("Raspberry Pi Zero 2 detected on the first boot ever of the system. Updating settings for Pi Zero 2.");
-      //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
-      //execute_bash_command(szBuff);
-   }
-
-   _create_default_model();
-
-   if ( s_isVehicle )
-   {
-      if ( access( "config/reset_info.txt", R_OK ) != -1 )
-      {
-         log_line("Found info for reset to defaults. Using it.");
-         Model m;
-         char szFile[128];
-         strcpy(szFile, FOLDER_CONFIG);
-         strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-         if ( ! m.loadFromFile(szFile, true) )
-         {
-            m.resetToDefaults(true);
-            m.is_spectator = false;
-         }
-         FILE* fd = fopen("config/reset_info.txt", "rb");
-         if ( NULL != fd )
-         {
-            fscanf(fd, "%u %u %d %d %d %s",
-               &m.uVehicleId, &m.uControllerId,
-               &m.radioLinksParams.link_frequency_khz[0],
-               &m.radioLinksParams.link_frequency_khz[1],
-               &m.radioLinksParams.link_frequency_khz[2],
-               szBuff);
-            fclose(fd);
-         
-            if ( szBuff[0] == '*' && szBuff[1] == 0 )
-               szBuff[0] = 0;
-
-            for( int i=0; i<(int)strlen(szBuff); i++ )
-               if ( szBuff[i] == '_' )
-                  szBuff[i] = ' ';
-
-            strcpy(m.vehicle_name, szBuff);
-         }
-         m.saveToFile(szFile, false);
-         
-         hw_execute_bash_command("rm -rf config/reset_info.txt", NULL);
-      }
-   }
-   else
-   {
-      #ifdef HW_PLATFORM_RASPBERRY
-      load_ControllerSettings(); 
-      ControllerSettings* pcs = get_ControllerSettings();
-      if ( NULL != pcs )
-      {
-         pcs->iFreqARM = 900;
-         if ( board_type == BOARD_TYPE_PIZERO2 )
-            pcs->iFreqARM = 1000;
-         else if ( board_type == BOARD_TYPE_PI3B )
-            pcs->iFreqARM = 1200;
-         else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
-            pcs->iFreqARM = 1400;
-         else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
-               && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
-            pcs->iFreqARM = 1200;
-
-         hardware_mount_boot();
-         hardware_sleep_ms(50);
-         hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
-
-         config_file_set_value("config.txt", "arm_freq", pcs->iFreqARM);
-         config_file_set_value("config.txt", "arm_freq_min", pcs->iFreqARM);
-
-         hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
-      }
-      #endif
-   }
-
-   sprintf(szBuff, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
-   hw_execute_bash_command_silent(szBuff, NULL);
-   hardware_sleep_ms(50);
-   //if ( ! s_isVehicle )
-   //   execute_bash_command("raspi-config --expand-rootfs > /dev/null 2>&1", NULL);   
-
-   log_line("First Boot detected. First boot initialization completed.");
-   log_line("---------------------------------------------------------");
 }
 
 bool _init_timestamp_and_boot_count()
@@ -731,7 +518,7 @@ void handle_sigint(int sig)
    s_bQuit = true;
 } 
   
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    signal(SIGPIPE, SIG_IGN);
    signal(SIGINT, handle_sigint);
@@ -791,7 +578,9 @@ int main (int argc, char *argv[])
    char *tty_name = ttyname(STDIN_FILENO);
    bool foundGoodConsole = false;
   
-   printf("\nRuby: Start on console (%s)\n", tty_name != NULL ? tty_name:"N/A");
+   sprintf(szComm, "echo 'Ruby console to start in: [%s]' >> /tmp/ruby_boot.log", ((tty_name != NULL)?tty_name:"N/A"));
+   hw_execute_bash_command_silent(szComm, NULL);
+   printf("\nRuby: Start on console (%s)\n", ((tty_name != NULL)? tty_name:"N/A"));
    fflush(stdout);
       
    if ( g_bDebug )
@@ -801,14 +590,32 @@ int main (int argc, char *argv[])
    if ( (NULL != tty_name) && strcmp(tty_name, "/dev/pts/0") == 0 )
       foundGoodConsole = true;
 
-   if ( NULL == tty_name || (!foundGoodConsole) )
+   #ifdef HW_PLATFORM_RASPBERRY   
+   sprintf(szComm, "echo 'Ruby execute for Raspberry platform' >> /tmp/ruby_boot.log");
+   hw_execute_bash_command_silent(szComm, NULL);
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   sprintf(szComm, "echo 'Ruby execute for OpenIPC platform' >> /tmp/ruby_boot.log");
+   hw_execute_bash_command_silent(szComm, NULL);
+   foundGoodConsole = true;
+   char szConsoleName[12];
+   strcpy(szConsoleName, "OpenIPCCon");
+   tty_name = szConsoleName;
+   #endif
+
+   if ( (NULL == tty_name) || (!foundGoodConsole) )
    {
+      sprintf(szComm, "echo 'Ruby execute in wrong console. Abort.' >> /tmp/ruby_boot.log");
+      hw_execute_bash_command_silent(szComm, NULL);
       printf("\nRuby: Try to execute in wrong console (%s). Exiting.\n", tty_name != NULL ? tty_name:"N/A");
       fflush(stdout);
       return 0;
    }
    
-   s_pSemaphoreStarted = sem_open("RUBY_STARTED_SEMAPHORE", O_CREAT | O_EXCL, S_IWUSR | S_IRUSR, 0);
+   sprintf(szComm, "echo 'Ruby check semaphore...' >> /tmp/ruby_boot.log");
+   hw_execute_bash_command_silent(szComm, NULL);
+   s_pSemaphoreStarted = sem_open("/RUBY_STARTED_SEMAPHORE", O_CREAT | O_EXCL, S_IWUSR | S_IRUSR, 0);
    if ( s_pSemaphoreStarted == SEM_FAILED && (!g_bDebug) )
    {
       printf("\nRuby (v %d.%d b.%d) is starting...\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
@@ -816,7 +623,9 @@ int main (int argc, char *argv[])
       sleep(8);
       return -1;
    }
-  
+   sprintf(szComm, "echo 'Ruby processes are starting...' >> /tmp/ruby_boot.log");
+   hw_execute_bash_command_silent(szComm, NULL);
+
    printf("\nRuby is starting...\n");
    fflush(stdout);
 
@@ -880,6 +689,9 @@ int main (int argc, char *argv[])
       hardware_sleep_ms(100);
       #endif
 
+      // For temporary fifo-s, same tmp root folder on all platforms
+      hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
+
       sprintf(szComm, "mkdir -p %s", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
       sprintf(szComm, "chmod -p %s", FOLDER_RUBY_TEMP);
@@ -942,19 +754,35 @@ int main (int argc, char *argv[])
       if ( NULL == fd )
          continue;
 
-      fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, tty_name);
-      fclose(fd);
-      fd = NULL;
+      fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, ((tty_name != NULL)?tty_name:"N/A"));
 
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_BOOT_COUNT);
-      fd = fopen(szFile, "w");
-      if ( NULL == fd )
+      FILE* fd2 = fopen(szFile, "wb");
+      if ( NULL == fd2 )
+      {
+         fprintf(fd, "Failed to open boot count config file for write [%s].", szFile);
+         fclose(fd);
+         fd = NULL;
          continue;
-      fprintf(fd, "%d\n", s_iBootCount);
-      fclose(fd);
+      }
+      fprintf(fd2, "%d\n", s_iBootCount);
+      fclose(fd2);
+      fd2 = NULL;
 
+      fclose(fd);
+      fd = NULL;
       readWriteOk = true;
+   }
+
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_START);
+   fd = fopen(szFile, "a+");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "Access to files ok. Boot count now: %d\n", s_iBootCount);
+      fclose(fd);
+      fd = NULL;
    }
 
    printf("Ruby: Access to files: Ok.\n");
@@ -965,7 +793,7 @@ int main (int argc, char *argv[])
    fd = fopen(szFile, "a+");
    if ( NULL != fd )
    {
-      fprintf(fd, "Starting run number %d; Starting Ruby on TTY name: %s\n\n", s_iBootCount, tty_name);
+      fprintf(fd, "Starting run number %d; Starting Ruby on TTY name: %s\n\n", s_iBootCount, ((tty_name != NULL)?tty_name:"N/A"));
       fclose(fd);
       fd = NULL;
    }
@@ -1313,12 +1141,12 @@ int main (int argc, char *argv[])
    }
 
    if ( bIsFirstBoot )
-      do_first_boot_initialization();
+      do_first_boot_initialization(s_isVehicle, board_type);
    
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( access( szFile, R_OK) == -1 )
-      _create_default_model();
+      first_boot_create_default_model(s_isVehicle, board_type);
    
    hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
    log_line("ruby_start: [%s]", szOutput);
@@ -1429,6 +1257,14 @@ int main (int argc, char *argv[])
       printf("\n\n\n");
       log_line("Ruby: First install initialization complete. Rebooting now...");
       fflush(stdout);
+      #ifdef HW_PLATFORM_RASPBERRY
+      hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_start.txt /home/pi/ruby/logs/log_firstboot_start.txt", NULL);
+      hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_system.txt /home/pi/ruby/logs/log_firstboot.txt", NULL);
+      #endif
+      #ifdef HW_PLATFORM_OPENIPC_CAMERA
+      hw_execute_bash_command("cp -rf /tmp/logs/log_start.txt /root/ruby/log_firstboot_start.txt", NULL);
+      hw_execute_bash_command("cp -rf /tmp/logs/log_system.txt /root/ruby/log_firstboot.txt", NULL);
+      #endif
       hardware_sleep_ms(500);
       if ( ! g_bDebug )
          hw_execute_bash_command("sudo reboot -f", NULL);
@@ -1643,7 +1479,14 @@ int main (int argc, char *argv[])
       #endif
    }
    
-   for( int i=0; i<15; i++ )
+   printf("Ruby: Started processes. Checking if all ok...\n");
+   fflush(stdout);
+
+   for( int i=0; i<5; i++ )
+      hardware_sleep_ms(500);
+
+   if ( ! g_bDebug )
+   for( int i=0; i<10; i++ )
       hardware_sleep_ms(500);
    
    log_line("Checking processes start...");
@@ -1712,7 +1555,7 @@ int main (int argc, char *argv[])
          {
             u32 uTimeNow = get_current_timestamp_ms();
             char szTime[128];
-            sprintf(szTime,"%d %d:%02d:%02d", s_iBootCount, (int)(uTimeNow/1000/60/60), (int)(uTimeNow/1000/60)%60, (int)((uTimeNow/1000)%60));
+            sprintf(szTime,"%d %d:%02d:%02d.%03d", s_iBootCount, (int)(uTimeNow/1000/60/60), (int)(uTimeNow/1000/60)%60, (int)((uTimeNow/1000)%60), (int)(uTimeNow%1000));
             printf("%s All processes are running fine.\n", szTime);
          }
          fflush(stdout);
@@ -1721,7 +1564,7 @@ int main (int argc, char *argv[])
          if ( g_bDebug )
             break;
            
-         for( int i=0; i<30; i++ )
+         for( int i=0; i<10; i++ )
             hardware_sleep_ms(500);
       }
    }

@@ -19,7 +19,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include <time.h>
 #include <sys/resource.h>
 
-#define MAX_PACKET_LENGTH_PCAP 4192
+#define MAX_PACKET_LENGTH_PCAP 2048
 
 #define RADIO_PROCESSING_ERROR_NO_ERROR 0x00
 #define RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED 0x01

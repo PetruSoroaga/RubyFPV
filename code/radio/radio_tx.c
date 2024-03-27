@@ -28,6 +28,7 @@
 */
 
 #include "../base/base.h"
+#include "../base/hw_procs.h"
 #include "../base/hardware_radio_sik.h"
 #include <pthread.h>
 #include <sys/types.h>
@@ -170,25 +171,7 @@ static void * _thread_radio_tx(void *argument)
 {
    log_line("[RadioTxThread] Started.");
 
-   pthread_t this_thread = pthread_self();
-   struct sched_param params;
-   int policy = 0;
-   int ret = 0;
-
-   ret = pthread_getschedparam(this_thread, &policy, &params);
-   if ( ret != 0 )
-     log_softerror_and_alarm("[RadioTxThread] Failed to get schedule param");
-   log_line("[RadioTxThread] Current thread policy/priority: %d/%d", policy, params.sched_priority);
-
-   params.sched_priority = DEFAULT_PRORITY_THREAD_RADIO_RX;
-   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
-   if ( ret != 0 )
-      log_softerror_and_alarm("[RadioTxThread] Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
-
-   ret = pthread_getschedparam(this_thread, &policy, &params);
-   if ( ret != 0 )
-     log_softerror_and_alarm("[RadioTxThread] Failed to get schedule param");
-   log_line("[RadioTxThread] Current new thread policy/priority: %d/%d", policy, params.sched_priority);
+   hw_increase_current_thread_priority("[RadioTxThread]", DEFAULT_PRIORITY_THREAD_RADIO_TX );
 
    log_line("[RadioTxThread] SiK packet size is: %d bytes (of which %d bytes are the header)", s_iRadioTxSiKPacketSize, (int)sizeof(t_packet_header_short));
    log_line("[RadioTxThread] Initialized State. Waiting for tx messages...");

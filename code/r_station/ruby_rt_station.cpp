@@ -1198,17 +1198,14 @@ void _process_and_send_packets(int iCountPendingVideoRetransmissionsRequests)
 
             int iProfile = pPHCamP->iCurrentProfile;
             
-            log_line("Sending cam params: br: %d, co: %d, sa: %d, sh: %d, exp: %d, drc: %d",
+            log_line("Sending cam params: br: %d, co: %d, sa: %d, sh: %d, hue: %d, exp: %d, drc: %d",
                (int)pPHCamP->profiles[iProfile].brightness,
                (int)pPHCamP->profiles[iProfile].contrast,
                (int)pPHCamP->profiles[iProfile].saturation,
                (int)pPHCamP->profiles[iProfile].sharpness,
+               (int)pPHCamP->profiles[iProfile].hue,
                (int)pPHCamP->profiles[iProfile].exposure,
                (int)pPHCamP->profiles[iProfile].drc );
-            //log_line("Sending cam params2: %f",
-            //   (float)(pPHCamP->profiles[iProfile].awbGainR) );
-            // Avoid spike in video bitrate? don't remember
-            // video_link_adaptive_switch_to_med_level(pPH->vehicle_id_dest);
          }
       }
 
@@ -1581,7 +1578,7 @@ int _consume_radio_rx_packets()
    if ( g_TimeNow >= s_uLastCountFrames + 1000 )
    {
       s_uLastCountFrames = g_TimeNow;
-      log_line("DEBUG fps: %d", s_iCountFrames);
+      log_line("DBG fps: %d", s_iCountFrames);
       s_iCountFrames = 0;
    }
    */
@@ -2096,7 +2093,7 @@ int main (int argc, char *argv[])
    for( int i=0; i<(int)sizeof(s_ReceivedRadioPacketsBuffer)/(int)sizeof(s_ReceivedRadioPacketsBuffer[0]); i++ )
       s_ReceivedRadioPacketsBuffer[i].pPacketData = (u8*)malloc(MAX_PACKET_TOTAL_SIZE);
 
-   hw_increase_current_thread_priority(NULL);
+   hw_increase_current_thread_priority(NULL, DEFAULT_PRIORITY_THREAD_ROUTER);
 
    log_line("");
    log_line("");

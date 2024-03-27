@@ -1109,6 +1109,7 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId) )
       bIsNew = true;
 
+   if ( ! bIsNew )
    if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 14) )
       bIsNew = true;
      

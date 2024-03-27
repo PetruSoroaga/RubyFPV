@@ -11,8 +11,8 @@ class MenuItemSelectBase: public MenuItem
      virtual ~MenuItemSelectBase();
 
      void removeAllSelections();
-     void addSelection(const char* szText);
-     void addSelection(const char* szText, bool bEnabled);
+     int addSelection(const char* szText);
+     int addSelection(const char* szText, bool bEnabled);
      void setSelection(int index);
      void setSelectedIndex(int index);
      void setSelectionIndexDisabled(int index);

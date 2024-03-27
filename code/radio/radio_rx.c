@@ -620,7 +620,7 @@ static void * _thread_radio_rx(void *argument)
 {
    log_line("[RadioRxThread] Started.");
 
-   hw_increase_current_thread_priority("[RadioRxThread]");
+   hw_increase_current_thread_priority("[RadioRxThread]", DEFAULT_PRIORITY_THREAD_RADIO_RX);
    
    log_line("[RadioRxThread] Initialized State. Waiting for rx messages...");
 

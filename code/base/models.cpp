@@ -218,6 +218,16 @@ int Model::getLoadedFileVersion()
    return iLoadedFileVersion;
 }
 
+bool Model::isRunningOnOpenIPCHardware()
+{
+   if ( hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
+        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
+        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE300 ||
+        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+      return true;
+   return false;
+}
+
 bool Model::reloadIfChanged(bool bLoadStats)
 {
    char szFile[MAX_FILE_PATH_SIZE];
@@ -517,7 +527,7 @@ bool Model::loadVersion8(FILE* fd)
    telemetry_params.bControllerHasOutputTelemetry = (bool) tmp1;
    telemetry_params.bControllerHasInputTelemetry = (bool) tmp2;
 
-   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.dummy1, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
+   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.iVideoBitrateHistoryGraphSampleInterval, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
       { log_softerror_and_alarm("Load model8: Error on line 13"); return false; }
 
    if ( 3 != fscanf(fd, "%d %d %d", &telemetry_params.vehicle_mavlink_id, &telemetry_params.controller_mavlink_id, &telemetry_params.flags) )
@@ -544,7 +554,7 @@ bool Model::loadVersion8(FILE* fd)
 
    if ( 1 != fscanf(fd, "%u", &video_params.uMaxAutoKeyframeIntervalMs) )
       { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > 20000 )
+   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL )
        video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
 
    if ( 1 != fscanf(fd, "%u", &video_params.uVideoExtraFlags) )
@@ -666,11 +676,15 @@ bool Model::loadVersion8(FILE* fd)
          else
             camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
            
-         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummy)/sizeof(camera_params[k].profiles[i].dummy[0])); j++ )
+         if ( 1 != fscanf(fd, "%d", &tmp1) )
+            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
+         else
+            camera_params[k].profiles[i].hue = (u8)tmp1;
+         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
          {
             if ( 1 != fscanf(fd, "%d", &tmp1) )
                { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
-            camera_params[k].profiles[i].dummy[j] = tmp1;
+            camera_params[k].profiles[i].dummyCamP[j] = tmp1;
          }
       }
 
@@ -1120,7 +1134,7 @@ bool Model::loadVersion9(FILE* fd)
    telemetry_params.bControllerHasOutputTelemetry = (bool) tmp1;
    telemetry_params.bControllerHasInputTelemetry = (bool) tmp2;
 
-   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.dummy1, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
+   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.iVideoBitrateHistoryGraphSampleInterval, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
       { log_softerror_and_alarm("Load model8: Error on line 13"); return false; }
 
    if ( 3 != fscanf(fd, "%d %d %d", &telemetry_params.vehicle_mavlink_id, &telemetry_params.controller_mavlink_id, &telemetry_params.flags) )
@@ -1147,7 +1161,7 @@ bool Model::loadVersion9(FILE* fd)
 
    if ( 1 != fscanf(fd, "%u", &video_params.uMaxAutoKeyframeIntervalMs) )
       { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > 20000 )
+   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL )
        video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
 
    if ( 1 != fscanf(fd, "%u", &video_params.uVideoExtraFlags) )
@@ -1266,11 +1280,16 @@ bool Model::loadVersion9(FILE* fd)
          else
             camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
            
-         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummy)/sizeof(camera_params[k].profiles[i].dummy[0])); j++ )
+         if ( 1 != fscanf(fd, "%d", &tmp1) )
+            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
+         else
+            camera_params[k].profiles[i].hue = (u8)tmp1;
+
+         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
          {
             if ( 1 != fscanf(fd, "%d", &tmp1) )
                { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
-            camera_params[k].profiles[i].dummy[j] = tmp1;
+            camera_params[k].profiles[i].dummyCamP[j] = tmp1;
          }
       }
 
@@ -1707,7 +1726,7 @@ bool Model::loadVersion10(FILE* fd)
    telemetry_params.bControllerHasOutputTelemetry = (bool) tmp1;
    telemetry_params.bControllerHasInputTelemetry = (bool) tmp2;
 
-   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.dummy1, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
+   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.iVideoBitrateHistoryGraphSampleInterval, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
       { log_softerror_and_alarm("Load model8: Error on line 13"); return false; }
 
    if ( 3 != fscanf(fd, "%d %d %d", &telemetry_params.vehicle_mavlink_id, &telemetry_params.controller_mavlink_id, &telemetry_params.flags) )
@@ -1734,7 +1753,7 @@ bool Model::loadVersion10(FILE* fd)
 
    if ( 1 != fscanf(fd, "%u", &video_params.uMaxAutoKeyframeIntervalMs) )
       { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > 20000 )
+   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL )
        video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
 
    if ( 1 != fscanf(fd, "%u", &video_params.uVideoExtraFlags) )
@@ -1853,11 +1872,16 @@ bool Model::loadVersion10(FILE* fd)
          else
             camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
            
-         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummy)/sizeof(camera_params[k].profiles[i].dummy[0])); j++ )
+         if ( 1 != fscanf(fd, "%d", &tmp1) )
+            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
+         else
+            camera_params[k].profiles[i].hue = (u8)tmp1;
+
+         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
          {
             if ( 1 != fscanf(fd, "%d", &tmp1) )
                { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
-            camera_params[k].profiles[i].dummy[j] = tmp1;
+            camera_params[k].profiles[i].dummyCamP[j] = tmp1;
          }
       }
 
@@ -2332,7 +2356,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
 
    sprintf(szSetting, "telem: %d %d %d %d %d\n", telemetry_params.fc_telemetry_type, telemetry_params.controller_telemetry_type, telemetry_params.update_rate, telemetry_params.bControllerHasOutputTelemetry, telemetry_params.bControllerHasInputTelemetry);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %u %d %u\n", telemetry_params.dummy1, telemetry_params.dummy2, telemetry_params.dummy3, telemetry_params.dummy4);
+   sprintf(szSetting, "%d %u %d %u\n", telemetry_params.iVideoBitrateHistoryGraphSampleInterval, telemetry_params.dummy2, telemetry_params.dummy3, telemetry_params.dummy4);
    strcat(szModel, szSetting);
    sprintf(szSetting, "%d %d %d\n", telemetry_params.vehicle_mavlink_id, telemetry_params.controller_mavlink_id, telemetry_params.flags);
    strcat(szModel, szSetting);
@@ -2372,7 +2396,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
       strcat(szModel, szSetting);
-      sprintf(szSetting, "%d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].packet_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
+      sprintf(szSetting, "   %d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].packet_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d %d %d %d\n", video_link_profiles[i].h264profile, video_link_profiles[i].h264level, video_link_profiles[i].h264refresh, video_link_profiles[i].h264quantization, video_link_profiles[i].insertPPS);
       strcat(szModel, szSetting);
@@ -2426,12 +2450,12 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       sprintf(szSetting, "%d\n", (int)camera_params[k].profiles[i].wdr); 
       strcat(szModel, szSetting);
 
-      sprintf(szSetting, "%d ", (int)camera_params[k].profiles[i].dayNightMode); 
+      sprintf(szSetting, "%d %d \n", (int)camera_params[k].profiles[i].dayNightMode, (int)camera_params[k].profiles[i].hue);
       strcat(szModel, szSetting);
 
-      for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummy)/sizeof(camera_params[k].profiles[i].dummy[0])); j++ )
+      for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
       {
-         sprintf(szSetting, " %d", camera_params[k].profiles[i].dummy[j]); 
+         sprintf(szSetting, " %d", camera_params[k].profiles[i].dummyCamP[j]); 
          strcat(szModel, szSetting);
       }
       sprintf(szSetting, "\n");      
@@ -2605,14 +2629,14 @@ void Model::resetVideoParamsToDefaults()
    video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
    video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
    video_params.uVideoExtraFlags = 0;
-   resetVideoLinkProfiles();
+   resetVideoLinkProfiles(-1);
 }
 
 void Model::resetVideoLinkProfiles(int iProfile)
 {
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      if ( iProfile != -1 && iProfile != i )
+      if ( (iProfile != -1) && (iProfile != i) )
          continue;
       video_link_profiles[i].flags = 0;
       video_link_profiles[i].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
@@ -2635,9 +2659,6 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-
-      if ( hardware_getBoardType() == BOARD_TYPE_PIZERO || hardware_getBoardType() == BOARD_TYPE_PIZEROW )
-         video_link_profiles[i].bitrate_fixed_bps = 4000000;
 
       if ( hardware_isCameraVeye() || hardware_isCameraHDMI() )
       {
@@ -2759,6 +2780,28 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].h264refresh = video_link_profiles[video_params.user_selected_video_link_profile].h264refresh;
       video_link_profiles[i].insertPPS = video_link_profiles[video_params.user_selected_video_link_profile].insertPPS;
    }
+
+   // To fix : reenable adaptive video & keyframe in openIPC when majestic bitrate and keyframe can be changed
+   bool bDisableAdaptive = false;
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   bDisableAdaptive = true;
+   #endif
+   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
+      bDisableAdaptive = true;
+
+   if ( bDisableAdaptive )
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( (iProfile != -1) && (iProfile != i) )
+         continue;
+
+      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      video_link_profiles[i].keyframe_ms = 300;
+   }
+
+   if ( -1 == iProfile )
+      setDefaultVideoBitrate();
 }
 
 
@@ -3486,7 +3529,7 @@ int Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, t
    return iDifferences;
 }
 
-bool Model::validate_camera_settings()
+bool Model::find_and_validate_camera_settings()
 {
    if ( hardware_is_station() )
       return false;
@@ -3626,6 +3669,8 @@ bool Model::validate_settings()
    if ( rc_params.channelsCount < 2 || rc_params.channelsCount > MAX_RC_CHANNELS )
       rc_params.channelsCount = 8;
 
+   if ( (telemetry_params.iVideoBitrateHistoryGraphSampleInterval < 10) || (telemetry_params.iVideoBitrateHistoryGraphSampleInterval > 1000) )
+      telemetry_params.iVideoBitrateHistoryGraphSampleInterval = 200;
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       if ( (radioLinksParams.uUplinkDataDataRateType[i] <= 0) || (radioLinksParams.uUplinkDataDataRateType[i] > 3) )
@@ -3898,7 +3943,7 @@ bool Model::validate_relay_links_flags()
 
 void Model::resetToDefaults(bool generateId)
 {
-   log_line("Reseting vehicle settings to default.");
+   log_line("Reseting vehicle settings to default...");
    strcpy(vehicle_name, DEFAULT_VEHICLE_NAME);
    iLoadedFileVersion = 0;
 
@@ -3988,6 +4033,7 @@ void Model::resetToDefaults(bool generateId)
    resetTelemetryParams();
 
    resetFunctionsParamsToDefaults();
+   log_line("Reseting vehicle settings to default: complete.");
 }
 
 void Model::resetHWCapabilities()
@@ -4129,6 +4175,7 @@ void Model::resetTelemetryParams()
 
    telemetry_params.fc_telemetry_type = TELEMETRY_TYPE_MAVLINK;
    
+   telemetry_params.iVideoBitrateHistoryGraphSampleInterval = 200;
    telemetry_params.dummy5 = 0;
    telemetry_params.dummy6 = 0;
    telemetry_params.bControllerHasInputTelemetry = false;
@@ -4203,7 +4250,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
 {
    for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
    {
-      if ( iCameraIndex != -1 && iCameraIndex != k )
+      if ( (iCameraIndex != -1) && (iCameraIndex != k) )
          continue;
       if ( iCameraIndex == -1 )
       {
@@ -4225,7 +4272,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
             camera_params[k].profiles[i].sharpness = 110; // 100 is zero
             camera_params[k].profiles[i].whitebalance = 1; //auto
             camera_params[k].profiles[i].shutterspeed = 0; //auto
-            camera_params[k].profiles[i].awbGainR = 40; // hue for imx307 camera
+            camera_params[k].profiles[i].hue = 40;
             if ( (hardware_getCameraType() == CAMERA_TYPE_VEYE307) || (hardware_getCameraType() == CAMERA_TYPE_VEYE290) )
                camera_params[k].profiles[i].drc = 0;
             if ( hardware_getCameraType() == CAMERA_TYPE_VEYE327 )
@@ -4240,10 +4287,10 @@ void Model::resetCameraToDefaults(int iCameraIndex)
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].contrast = 50;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].saturation = 60;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].sharpness = 100;
+      if ( hardware_isCameraVeye() )
+         camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].hue = 40;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].analogGain = 2.0;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainB = 1.5;
-      if ( hardware_isCameraVeye() )
-         camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainR = 40; // hue for imx307 camera
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].awbGainR = 1.4;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].vstab = 0;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].drc = 0;
@@ -4259,6 +4306,7 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->brightness = 47;
    pCamParams->contrast = 50;
    pCamParams->saturation = 80;
+   pCamParams->hue = 50;
    pCamParams->sharpness = 110;
    pCamParams->exposure = 3; // sports   2; //backlight
    pCamParams->whitebalance = 1; //auto
@@ -4274,8 +4322,8 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->iso = 0; // auto
    pCamParams->shutterspeed = 0; //auto
    pCamParams->dayNightMode = 0; // day mode
-   for( int i=0; i<(int)(sizeof(pCamParams->dummy)/sizeof(pCamParams->dummy[0])); i++ )
-      pCamParams->dummy[i] = 0;
+   for( int i=0; i<(int)(sizeof(pCamParams->dummyCamP)/sizeof(pCamParams->dummyCamP[0])); i++ )
+      pCamParams->dummyCamP[i] = 0;
 }
 
 void Model::resetFunctionsParamsToDefaults()
@@ -4723,7 +4771,7 @@ bool Model::setCameraName(int iCameraIndex, const char* szCamName)
       return false;
 
    bool bReturn = false;
-   if ( NULL == szCamName || 0 == szCamName[0] )
+   if ( (NULL == szCamName) || (0 == szCamName[0]) )
    {
       if ( 0 != camera_params[iCameraIndex].szCameraName[0] )
          bReturn = true;
@@ -4734,6 +4782,16 @@ bool Model::setCameraName(int iCameraIndex, const char* szCamName)
       bReturn = true;
    strncpy(camera_params[iCameraIndex].szCameraName, szCamName, MAX_CAMERA_NAME_LENGTH-1);
    camera_params[iCameraIndex].szCameraName[MAX_CAMERA_NAME_LENGTH-1] = 0;
+
+   for( int i=0; i<(int)strlen(camera_params[iCameraIndex].szCameraName); i++ )
+   {
+      if (camera_params[iCameraIndex].szCameraName[i] < 32 )
+      {
+         camera_params[iCameraIndex].szCameraName[i] = 0;
+         break;
+      }
+   }
+
    log_line("Did set camera index %d name to: [%s]", iCameraIndex, szCamName);
    return bReturn;
 }
@@ -4839,6 +4897,23 @@ bool Model::isActiveCameraCSICompatible()
    return false;
 }
 
+
+bool Model::isActiveCameraCSI()
+{
+   if ( iCameraCount <= 0 )
+      return false;
+
+   if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
+      return false;
+
+   int iCameraType = camera_params[iCurrentCamera].iCameraType;
+   if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
+      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
+   if ( iCameraType == CAMERA_TYPE_CSI )
+      return true;
+   return false;
+}
+
 bool Model::isActiveCameraOpenIPC()
 {
    if ( iCameraCount <= 0 )
@@ -4851,8 +4926,9 @@ bool Model::isActiveCameraOpenIPC()
    if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
       iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
    
-   if ( iCameraType == CAMERA_TYPE_OPENIPC_GOKE ||
-        iCameraType == CAMERA_TYPE_OPENIPC_SIGMASTER335 )
+   if ( isRunningOnOpenIPCHardware() )
+   if ( iCameraType == CAMERA_TYPE_OPENIPC_IMX307 ||
+        iCameraType == CAMERA_TYPE_OPENIPC_IMX335 )
       return true;
    return false;
 }
@@ -4901,10 +4977,8 @@ void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamPro
       log_line(" * Cam wdr is different: %u - %u", pCamProfile1->wdr, pCamProfile2->wdr);
    if ( pCamProfile1->dayNightMode != pCamProfile2->dayNightMode )
       log_line(" * Cam dayNightMode is different: %u - %u", pCamProfile1->dayNightMode, pCamProfile2->dayNightMode);
-   if ( pCamProfile1->dummy[0] != pCamProfile2->dummy[0] )
-      log_line(" * Cam dummy[0] is different: %u - %u", pCamProfile1->dummy[0], pCamProfile2->dummy[0]);
-   if ( pCamProfile1->dummy[1] != pCamProfile2->dummy[1] )
-      log_line(" * Cam dummy[1] is different: %u - %u", pCamProfile1->dummy[1], pCamProfile2->dummy[1]);
+   if ( pCamProfile1->dummyCamP[0] != pCamProfile2->dummyCamP[0] )
+      log_line(" * Cam dummy[0] is different: %u - %u", pCamProfile1->dummyCamP[0], pCamProfile2->dummyCamP[0]);
 
    if ( fabsf(pCamProfile1->analogGain - pCamProfile2->analogGain) > 0.000001 )
       log_line(" * Cam analogGain is different: %f - %f", pCamProfile1->analogGain, pCamProfile2->analogGain);
@@ -4934,16 +5008,21 @@ void Model::setDefaultVideoBitrate()
    int board_type = hardware_detectBoardType();
 
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
    video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
-   if ( board_type == BOARD_TYPE_PIZERO ||
-        board_type == BOARD_TYPE_PIZEROW ||
-        board_type == BOARD_TYPE_NONE )
+   // Lower video bitrate on all video profiles if running on a single core CPU
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
-      video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      if ( (board_type == BOARD_TYPE_OPENIPC_GOKE200) || (board_type == BOARD_TYPE_OPENIPC_GOKE210) ||
+           (board_type == BOARD_TYPE_PIZERO) || (board_type == BOARD_TYPE_PIZEROW) || (board_type == BOARD_TYPE_NONE) )
+      {
+         if ( video_link_profiles[i].bitrate_fixed_bps > 4000000 )
+            video_link_profiles[i].bitrate_fixed_bps -= 1000000;
+         else if ( video_link_profiles[i].bitrate_fixed_bps > 3000000 )
+            video_link_profiles[i].bitrate_fixed_bps -= 500000;
+         log_line("Model: Lowered video bitrate for video profile %d (single core CPU) to %u", i, video_link_profiles[i].bitrate_fixed_bps);
+      }
    }
 }
 
@@ -5602,6 +5681,19 @@ int Model::get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* pi
       *piEC = iECCount;
 
    return iVideoProfile;
+}
+
+int Model::get_current_max_video_packets_for_all_profiles()
+{
+   int iMax = 0;
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( video_link_profiles[i].block_packets + video_link_profiles[i].block_fecs > iMax )
+         iMax = video_link_profiles[i].block_packets + video_link_profiles[i].block_fecs;
+      if ( 2*video_link_profiles[i].block_packets > iMax )
+         iMax = 2*video_link_profiles[i].block_packets;
+   }
+   return iMax;
 }
 
 const char* Model::getShortName()

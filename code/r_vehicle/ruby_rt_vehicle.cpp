@@ -95,7 +95,7 @@
 #include "processor_relay.h"
 #include "test_link_params.h"
 #include "video_source_csi.h"
-#include "video_source_udp.h"
+#include "video_source_majestic.h"
 
 #define MAX_RECV_UPLINK_HISTORY 12
 #define SEND_ALARM_MAX_COUNT 5
@@ -127,8 +127,6 @@ extern u32 s_uLastAlarmsFlags1;
 extern u32 s_uLastAlarmsFlags2;
 extern u32 s_uLastAlarmsTime;
 extern u32 s_uLastAlarmsCount;
-
-pthread_t s_pThreadWatchDogVideoCapture;
 
 u32 s_uTimeLastTryReadIPCMessages = 0;
 
@@ -333,16 +331,18 @@ void send_radio_reinitialized_message()
 }
 
 
-void mark_needs_video_source_capture_restart()
+void mark_needs_video_source_capture_restart(int iChangeType)
 {
-   log_line("Router was flagged to restart video capture");
+   log_line("Router was flagged to restart video capture (reason: %d (%s))", iChangeType, str_get_model_change_type(iChangeType));
    if ( (NULL == g_pCurrentModel) || (!g_pCurrentModel->hasCamera()) )
    {
       log_line("Vehicle has no camera. Do not flag need for restarting video capture.");
       return;
    }
 
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      video_source_majestic_request_restart_program(iChangeType);
+   else if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_request_restart_program();
 }
 
@@ -657,12 +657,16 @@ void _read_ipc_pipes(u32 uTimeNow)
 
    while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromCommands, s_PipeTmpBufferCommandsReply, &s_PipeTmpBufferCommandsReplyPos, s_BufferCommandsReply)) )
    {
+      //log_line("DBG read cmd msg");
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferCommandsReply;      
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferCommandsReply); 
       else
+      {
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferCommandsReply);
+         //log_line("DBG queue cmd msg");
+      }
    } 
    if ( maxToRead - maxPacketsToRead > 6 )
       log_line("Read %d messages from commands msgqueue.", maxToRead - maxPacketsToRead);
@@ -670,12 +674,14 @@ void _read_ipc_pipes(u32 uTimeNow)
    maxPacketsToRead = maxToRead;
    while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromTelemetry, s_PipeTmpBufferTelemetryDownlink, &s_PipeTmpBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink)) )
    {
+      //log_line("DBG read telem msg");
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferTelemetryDownlink;      
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferTelemetryDownlink); 
       else
       {
+         //log_line("DBG queued telem sg");
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferTelemetryDownlink); 
          /*
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
@@ -800,6 +806,7 @@ void process_and_send_packets()
 
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
       {
+         //log_line("DBG send telem to radio");
          // Update Ruby telemetry info if we are sending Ruby telemetry to controller
          // Update also the telemetry extended extra info: retransmissions info
 
@@ -831,10 +838,10 @@ void process_and_send_packets()
                // positive: regular datarates, negative: mcs rates;
                pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate(i, 0);
                pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate(i, 1);
-               //log_line("DEBUG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
+               //log_line("DBG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
 
                pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
-               //log_line("DEBUG set last recv data rate for %d: %d", i, pPHRTE->last_recv_datarate_bps[i]);
+               //log_line("DBG set last recv data rate for %d: %d", i, pPHRTE->last_recv_datarate_bps[i]);
                  
                pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
                pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
@@ -888,100 +895,6 @@ void process_and_send_packets()
       send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
    }
 }
-
-#ifdef HW_PLATFORM_RASPBERRY
-static void * _thread_watchdog_video_capture(void *ignored_argument)
-{
-   int iCount = 0;
-   while ( ! g_bQuit )
-   {
-      for( int i=0; i<10; i++)
-      {
-         hardware_sleep_ms(200);
-         if ( g_bQuit )
-            return NULL;
-      }
-
-      iCount++;
-
-      // If video capture is not started, do nothing
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      if ( ! video_source_csi_is_program_started() )
-         continue;
-
-      // If video capture was flagged or is in the process of restarting, do not check video capture running
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      if ( video_source_csi_is_restart_requested() )
-         continue;
-
-      // Check video capture program up and running
-   
-      if ( g_pCurrentModel->hasCamera() && (video_source_cs_get_program_start_time() > 0) && (g_TimeNow > video_source_cs_get_program_start_time()+5000) )
-      if ( ! g_bVideoPaused )
-      //if ( g_TimeNow > g_TimeLastVideoCaptureProgramRunningCheck + 2000 )
-      {
-         g_TimeLastVideoCaptureProgramRunningCheck = g_TimeNow;
-
-         bool bProgramRunning = false;
-         bool bNeedsRestart = false;
-         if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND) )
-            bProgramRunning = true;
-         if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE) )
-            bProgramRunning = true;
-         if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE307) )
-            bProgramRunning = true;
-         if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME) )
-            bProgramRunning = true;
-
-         if ( ! bProgramRunning )
-         {
-            log_line("Can't find the running video capture program. Search for it.");
-            char szOutput[2048];
-            hw_execute_bash_command("pidof ruby_capture_raspi", szOutput);
-            log_line("PID of ruby capture: [%s]", szOutput);
-            hw_execute_bash_command_raw("ps -aef | grep ruby 2>&1", szOutput);
-            log_line("Current running Ruby processes: [%s]", szOutput);
-            if ( NULL != strstr(szOutput, "ruby_capture_") )
-            {
-               log_line("Video capture is still running. Do not restart it.");
-            }
-            else
-            {
-               log_softerror_and_alarm("The video capture program has crashed (no process). Restarting it.");
-               bNeedsRestart = true;
-            }
-         }
-         if ( bProgramRunning )
-         {
-            if ( (iCount % 5) == 0 )
-               log_line("Video capture watchdog: capture is running ok.");
-              
-            static int s_iCheckVideoOutputBitrateCounter = 0;
-            if ( relay_current_vehicle_must_send_own_video_feeds() &&
-                (g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(1000) < 100000) )
-            {
-               log_softerror_and_alarm("Current output video bitrate is less than 100 kbps!");
-               s_iCheckVideoOutputBitrateCounter++;
-               if ( s_iCheckVideoOutputBitrateCounter >= 3 )
-               {
-                  log_softerror_and_alarm("The video capture program has crashed (no video output). Restarting it.");
-                  bNeedsRestart = true;
-               }
-            }
-            else
-               s_iCheckVideoOutputBitrateCounter = 0;
-         }
-         if ( bNeedsRestart )
-         {
-            send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED,0,0, 5);
-            log_line("Signaled router main thread to restart video capture.");
-            video_source_csi_request_restart_program();
-         }
-      }
-   }
-   return NULL;
-}
-#endif
 
 void _synchronize_shared_mems()
 {
@@ -1039,7 +952,7 @@ void cleanUp()
       vehicle_stop_audio_capture(g_pCurrentModel);
 
    video_source_csi_close();
-   video_source_udp_close();
+   video_source_majestic_close();
 
    ruby_close_ipc_channel(s_fIPCRouterToCommands);
    ruby_close_ipc_channel(s_fIPCRouterFromCommands);
@@ -1519,7 +1432,7 @@ int main (int argc, char *argv[])
       }
 
       if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      if ( video_source_udp_open(5600) <= 0 )
+      if ( video_source_majestic_open(5600) <= 0 )
       {
          cleanUp();
          return -1;
@@ -1593,6 +1506,9 @@ int main (int argc, char *argv[])
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
+   hardware_sleep_ms(50);
+   log_line("Start sequence: Init radio queues...");
+
    packets_queue_init(&g_QueueRadioPacketsOut);
    packets_queue_init(&s_QueueControlPackets);
 
@@ -1636,7 +1552,8 @@ int main (int argc, char *argv[])
 
    memset((u8*)&g_SM_DevVideoBitrateHistory, 0, sizeof(shared_mem_dev_video_bitrate_history));
    g_SM_DevVideoBitrateHistory.uGraphSliceInterval = 100;
-   g_SM_DevVideoBitrateHistory.uSlices = MAX_INTERVALS_VIDEO_BITRATE_HISTORY;
+   g_SM_DevVideoBitrateHistory.uTotalDataPoints = MAX_INTERVALS_VIDEO_BITRATE_HISTORY;
+   g_SM_DevVideoBitrateHistory.uCurrentDataPoint = 0;
 
    log_line("Start sequence: Done setting up stats structures.");
 
@@ -1657,12 +1574,13 @@ int main (int argc, char *argv[])
    else
       log_line("Vehicle has no camera. Video capture not started.");
 
-   log_line("Start sequence: Done opening camera.");
-
+   log_line("Start sequence: Done starting camera.");
+   
    g_pProcessorTxVideo = new ProcessorTxVideo(0,0);
+   g_pProcessorTxVideo->init();
          
    log_line("Start sequence: Done creating video processor.");
-
+   
    g_pSM_VideoInfoStats = shared_mem_video_info_stats_open_for_write();
    if ( NULL == g_pSM_VideoInfoStats )
       log_error_and_alarm("Start sequence: Failed to open shared mem video info stats for write!");
@@ -1691,6 +1609,8 @@ int main (int argc, char *argv[])
    log_line("----------------------------------------------"); 
    log_line("");
    log_line("");
+
+   hardware_sleep_ms(20);
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
@@ -1722,17 +1642,7 @@ int main (int argc, char *argv[])
 
    u32 uLastTotalTxPackets = 0;
    u32 uLastTotalTxBytes = 0;
-   
-   #ifdef HW_PLATFORM_RASPBERRY 
-   if ( g_pCurrentModel->hasCamera() )
-   {
-      if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, NULL, &_thread_watchdog_video_capture, NULL) )
-         log_softerror_and_alarm("[Router] Failed to create thread for watchdog.");
-      else
-         log_line("[Router] Created thread for watchdog.");
-   }
-   #endif
-   
+      
    _broadcast_router_ready();
 
 
@@ -1748,7 +1658,7 @@ int main (int argc, char *argv[])
    if( access( "novideo", R_OK ) != -1 )
       bDebugNoVideoOutput = true;
 
-   hw_increase_current_thread_priority(NULL);
+   hw_increase_current_thread_priority(NULL, DEFAULT_PRIORITY_THREAD_ROUTER);
 
    while ( !g_bQuit )
    {
@@ -1788,7 +1698,7 @@ int main (int argc, char *argv[])
          if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
             video_source_csi_periodic_checks();
          if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            video_source_udp_periodic_checks();
+            video_source_majestic_periodic_checks();
       }
       u32 tTimeD1 = get_current_timestamp_ms();
 
@@ -1827,7 +1737,7 @@ int main (int argc, char *argv[])
             if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
                pVideoData = video_source_csi_read(&iVideoDataSize);
             if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-               pVideoData = video_source_udp_read(&iVideoDataSize, true);
+               pVideoData = video_source_majestic_read(&iVideoDataSize, true);
 
             if ( (NULL != pVideoData) && (iVideoDataSize > 0) )
             if ( ! bDebugNoVideoOutput )
@@ -1891,8 +1801,6 @@ int main (int argc, char *argv[])
    }
 
    log_line("Stopping...");
-   if ( g_pCurrentModel->hasCamera() )
-      pthread_cancel(s_pThreadWatchDogVideoCapture);
 
    radio_rx_stop_rx_thread();
    radio_link_cleanup();

@@ -16,9 +16,10 @@ class MenuVehicleCamera: public Menu
       virtual void valuesToUI();
             
    private:
+      void resetIndexes();
       void addItems();
       void updateUIValues(int iCameraProfileIndex);
-      bool canSendLiveUpdates();
+      bool canSendLiveUpdates(int iItemIndex);
       void sendCameraParams(int itemIndex, bool bQuick);
 
       MenuItemSlider* m_pItemsSlider[25];

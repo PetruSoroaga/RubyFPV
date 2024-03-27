@@ -1045,8 +1045,6 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    video_block_packet_index = pPHVFNew->video_block_packet_index;
    block_packets = pPHVFNew->block_packets;
    block_fecs = pPHVFNew->block_fecs;
-
-   //log_line("DEBUG recv (%d/%d) [%u/%u]", block_packets, block_fecs, video_block_index, video_block_packet_index);
    
    #ifdef PROFILE_RX
    u32 dTime1 = get_current_timestamp_ms() - uTimeStart;
@@ -1662,9 +1660,6 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
                  countToRequestForBlock = iMaxBlockPacketIndexReceived;
             }
          }
-         //if ( countToRequestForBlock > 0 )
-         //   log_line("DEBUG request %d packets for top block, index %d, recv data: %d of %d, recv fec: %d of %d",
-         //       countToRequestForBlock, i, m_pRXBlocksStack[i]->received_data_packets, m_pRXBlocksStack[i]->data_packets, m_pRXBlocksStack[i]->received_fec_packets, m_pRXBlocksStack[i]->fec_packets);
       }
       else
          countToRequestForBlock = m_pRXBlocksStack[i]->data_packets - m_pRXBlocksStack[i]->received_data_packets - m_pRXBlocksStack[i]->received_fec_packets;
@@ -1805,7 +1800,7 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
    // Log info
    /*
    char szBuff[1024];
-   sprintf(szBuff, "DEBUG requested %d packets for retransmission (last output video block: %u, first video block in stack: %u, stack top: %d): ",
+   sprintf(szBuff, "DBG requested %d packets for retransmission (last output video block: %u, first video block in stack: %u, stack top: %d): ",
      totalCountRequested, m_uLastOutputVideoBlockIndex, m_pRXBlocksStack[0]->video_block_index, m_iRXBlocksStackTopIndex );
    u8* pTmp = &buffer[6];
    for( int i=0; i<totalCountRequested; i++ )
@@ -1974,7 +1969,7 @@ void ProcessorRxVideo::addPacketToReceivedBlocksBuffers(u8* pBuffer, int length,
       if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uLastSetVideoBitrate != uLastSetVideoBitrate )
       {
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uLastSetVideoBitrate = uLastSetVideoBitrate;
-         log_line("Received video info (video block index: %u) from VID %u (%u) that video bitrate was set to %u bps", video_block_index, pPH->vehicle_id_src, m_uVehicleId, (uLastSetVideoBitrate & 0x7FFFFFFF));
+         //log_line("Received video info (video block index: %u) from VID %u (%u) that video bitrate was set to %u bps", video_block_index, pPH->vehicle_id_src, m_uVehicleId, (uLastSetVideoBitrate & 0x7FFFFFFF));
       }
    }
 
@@ -2103,11 +2098,6 @@ int ProcessorRxVideo::processReceivedVideoPacket(u8* pBuffer, int length)
    video_block_packet_index = pPHVFNew->video_block_packet_index;
    block_packets = pPHVFNew->block_packets;
    block_fecs = pPHVFNew->block_fecs;
-
-   //log_line("DEBUG [%u/%u], top: %d, [0] = [%u, %d/%d]",
-   //   video_block_index, video_block_packet_index, m_iRXBlocksStackTopIndex, 
-   //   m_pRXBlocksStack[0]->video_block_index, m_pRXBlocksStack[0]->received_data_packets,
-   //   m_pRXBlocksStack[0]->received_fec_packets);
 
    // Find a position in blocks buffer where to put it
 
@@ -2391,7 +2381,6 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
 
           gap += (block_packets) * (video_block_index - prevRecvVideoBlockIndex - 1);
       }
-      //log_line("DEBUG [%u/%u] (%u, %u) gap: %d", video_block_index, video_block_packet_index, prevRecvVideoBlockIndex, prevRecvVideoBlockPacketIndex, gap);
       if ( gap > m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] )
          m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] = (gap>255) ? 255:gap;
    }

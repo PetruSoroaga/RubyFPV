@@ -75,8 +75,8 @@ void _osd_widgets_add(u32 uGUID, int iVersion, const char* szName)
       s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].bShow = false;
       s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fXPos = 0.7;
       s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fYPos = 0.2;
-      s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fWidth = 0.2;
-      s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fHeight = 0.2;
+      s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fWidth = 0;
+      s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].fHeight = 0;
    }
    s_iListOSDWidgetsCount++;
 }
@@ -221,14 +221,14 @@ bool osd_widgets_save()
          if ( s_ListOSDWidgets[i].display_info[k][0].uVehicleId != MAX_U32 )
             iCountModels++;
       }
-      fprintf(fd, "models: %d profiles: %d\n", iCountModels, MODEL_MAX_OSD_PROFILES);
+      fprintf(fd, "   models: %d profiles: %d\n", iCountModels, MODEL_MAX_OSD_PROFILES);
       for( int k=0; k<MAX_MODELS; k++ )
       {
          if ( (s_ListOSDWidgets[i].display_info[k][0].uVehicleId == 0) || (s_ListOSDWidgets[i].display_info[k][0].uVehicleId == MAX_U32) )
              continue;
          for( int j=0; j<MODEL_MAX_OSD_PROFILES; j++ )
          {
-             fprintf(fd, "%u %d %.2f %.2f %.2f %.2f\n",
+             fprintf(fd, "      %u %d %.2f %.2f %.2f %.2f\n",
                 s_ListOSDWidgets[i].display_info[k][j].uVehicleId,
                 (int) s_ListOSDWidgets[i].display_info[k][j].bShow,
                 s_ListOSDWidgets[i].display_info[k][j].fXPos,
@@ -236,7 +236,7 @@ bool osd_widgets_save()
                 s_ListOSDWidgets[i].display_info[k][j].fWidth,
                 s_ListOSDWidgets[i].display_info[k][j].fHeight );
 
-             fprintf(fd, "params %d ", s_ListOSDWidgets[i].display_info[k][j].iParamsCount);
+             fprintf(fd, "      params %d ", s_ListOSDWidgets[i].display_info[k][j].iParamsCount);
              for( int iParam=0; iParam < s_ListOSDWidgets[i].display_info[k][j].iParamsCount; iParam ++ )
                 fprintf(fd, "%d ", s_ListOSDWidgets[i].display_info[k][j].iParams[iParam]);
              fprintf(fd, "\n");

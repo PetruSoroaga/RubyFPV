@@ -634,8 +634,10 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypePi3BP = "Raspberry Pi 3B+";
    static const char* s_szBoardTypePi4B = "Raspberry Pi 4B";
    #endif
-   static const char* s_szBoardTypeOpenIPCGoke = "OpenIPC Goke";
-   static const char* s_szBoardTypeOpenIPCSigmaster335 = "OpenIPC Sigmaster SSC335";
+   static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
+   static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
+   static const char* s_szBoardTypeOpenIPCGoke300 = "OpenIPC Goke300";
+   static const char* s_szBoardTypeOpenIPCSigmaster338Q = "OpenIPC SSC338Q";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( board_type == BOARD_TYPE_PIZERO )
@@ -660,10 +662,14 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypePi4B;
    #endif
 
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE )
-      return s_szBoardTypeOpenIPCGoke;
-   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER )
-      return s_szBoardTypeOpenIPCSigmaster335;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE200 )
+      return s_szBoardTypeOpenIPCGoke200;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE210 )
+      return s_szBoardTypeOpenIPCGoke210;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE300 )
+      return s_szBoardTypeOpenIPCGoke300;
+   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+      return s_szBoardTypeOpenIPCSigmaster338Q;
 
    return s_szBoardTypeUnknown;
 }
@@ -684,8 +690,10 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypePi4B = "Pi 4B";
    #endif
 
-   static const char* s_szBoardSTypeOpenIPCGoke = "Goke";
-   static const char* s_szBoardSTypeOpenIPCSigmaster335 = "Sigmaster SSC335";
+   static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
+   static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
+   static const char* s_szBoardSTypeOpenIPCGoke300 = "Goke300";
+   static const char* s_szBoardSTypeOpenIPCSigmaster338Q = "SSC338Q";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( board_type == BOARD_TYPE_PIZERO )
@@ -710,10 +718,14 @@ const char* str_get_hardware_board_name_short(u32 board_type)
       return s_szBoardSTypePi4B;
    #endif
 
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE )
-      return s_szBoardSTypeOpenIPCGoke;
-   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER )
-      return s_szBoardSTypeOpenIPCSigmaster335;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE200 )
+      return s_szBoardSTypeOpenIPCGoke200;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE210 )
+      return s_szBoardSTypeOpenIPCGoke210;
+   if ( board_type == BOARD_TYPE_OPENIPC_GOKE300 )
+      return s_szBoardSTypeOpenIPCGoke300;
+   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+      return s_szBoardSTypeOpenIPCSigmaster338Q;
 
    return s_szBoardSTypeUnknown;
 }
@@ -766,10 +778,10 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
       strcpy(szOutput, "IP");
    #endif
 
-   if ( camType == CAMERA_TYPE_OPENIPC_GOKE )
-      strcpy(szOutput, "Goke OpenIPC");
-   else if ( camType == CAMERA_TYPE_OPENIPC_SIGMASTER335 )
-      strcpy(szOutput, "Sigmaster SSC335 OpenIPC");
+   if ( camType == CAMERA_TYPE_OPENIPC_IMX307 )
+      strcpy(szOutput, "Sony IMX307");
+   else if ( camType == CAMERA_TYPE_OPENIPC_IMX335 )
+      strcpy(szOutput, "Sony IMX335");
 }
 
 void str_get_supported_bands_string(u32 bands, char* szOut)
@@ -1281,6 +1293,8 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE");
    else if ( iModelChangeType == MODEL_CHANGED_VIDEO_H264_QUANTIZATION )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_H264_QUANTIZATION");
+   else if ( iModelChangeType == MODEL_CHANGED_VIDEO_RESOLUTION )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_RESOLUTION");
 
    else if ( iModelChangeType == MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME");

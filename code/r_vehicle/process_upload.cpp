@@ -37,6 +37,7 @@
 #include "launchers_vehicle.h"
 #include "process_upload.h"
 #include "ruby_rx_commands.h"
+#include "video_source_csi.h"
 #include "shared_vars.h"
 #include "timers.h"
 

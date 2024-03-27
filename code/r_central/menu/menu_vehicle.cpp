@@ -337,7 +337,16 @@ void MenuVehicle::onSelectItem()
          add_menu_to_stack(new MenuVehicleVideo());
    }
    if ( m_IndexAudio == m_SelectedIndex )
+   {
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
+
       add_menu_to_stack(new MenuVehicleAudio());
+   }
+
    if ( m_IndexTelemetry == m_SelectedIndex )
    {
       if ( handle_commands_has_received_vehicle_core_plugins_info() )
@@ -418,7 +427,15 @@ void MenuVehicle::onSelectItem()
    }
 
    if ( m_IndexCPU == m_SelectedIndex )
+   {
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
+
       add_menu_to_stack(new MenuVehicleExpert());
+   }
 
    if ( m_IndexAlarms == m_SelectedIndex )
    {

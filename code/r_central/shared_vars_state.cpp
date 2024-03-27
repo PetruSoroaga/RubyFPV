@@ -86,6 +86,8 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
 
    if ( pInfo == &g_SearchVehicleRuntimeInfo )
       log_line("Reset vehicle runtime info for searching.");
+   else if ( pInfo == &g_UnexpectedVehicleRuntimeInfo )
+      log_line("Reset vehicle runtime info for unexpected vehicles.");
    else
       log_line("Reset vehicle runtime info for VID %u", pInfo->uVehicleId);
 

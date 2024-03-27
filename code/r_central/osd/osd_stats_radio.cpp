@@ -30,7 +30,6 @@
 #include "../../base/base.h"
 #include "../../base/config.h"
 #include "../../base/shared_mem.h"
-#include "../../base/hdmi_video.h"
 #include "../../base/ctrl_settings.h"
 #include "../../base/ctrl_interfaces.h"
 #include "../../common/string_utils.h"

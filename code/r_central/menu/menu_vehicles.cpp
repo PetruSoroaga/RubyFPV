@@ -45,6 +45,7 @@ MenuVehicles::MenuVehicles(void)
    m_Width = 0.33;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
    m_IndexSelectedVehicle = -1;
+   m_iLastSelectedVehicle = -1;
 
    log_line("[Menu] MenuVehicles: On open, this is the current radio interfaces configuration:");
    hardware_load_radio_info();
@@ -97,13 +98,17 @@ void MenuVehicles::onShow()
 
       MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);
       pItem->setVehicleIndex(i, false);
-      addMenuItem( pItem );
+      int iIndexItem = addMenuItem( pItem );
       if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
       if ( (g_uActiveControllerModelVID == p->uVehicleId) && (g_pCurrentModel->uVehicleId == p->uVehicleId) )
       {
          log_line("[Menu] MenuVehicles: Found current vehicle in the list.");
          bCurrentVehicleFound = true;
       }
+
+      if ( -1 != m_iLastSelectedVehicle )
+      if ( (i-1) == m_iLastSelectedVehicle )
+         m_SelectedIndex = iIndexItem;
    }
 
    if ( ! bCurrentVehicleFound )
@@ -209,6 +214,7 @@ void MenuVehicles::onSelectItem()
    }
 
    m_IndexSelectedVehicle = m_SelectedIndex;
+   m_iLastSelectedVehicle = m_SelectedIndex;
    log_line("[Menu] MenuVehicles: Adding menu selector for vehicle index %d", m_IndexSelectedVehicle);
    
    MenuVehicleSelector* pMenu = new MenuVehicleSelector();

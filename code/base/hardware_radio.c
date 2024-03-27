@@ -43,13 +43,14 @@
 
 #include "base.h"
 #include "config.h"
+#include "hardware.h"
 #include "hardware_radio.h"
 #include "hardware_serial.h"
 #include "hardware_radio_sik.h"
 #include "hw_procs.h"
 #include "../common/string_utils.h"
 
-#define MAX_USB_DEVICES_INFO 16
+#define MAX_USB_DEVICES_INFO 12
 
 static usb_radio_interface_info_t s_USB_RadioInterfacesInfo[MAX_USB_DEVICES_INFO];
 static int s_iFoundUSBRadioInterfaces = 0;
@@ -710,7 +711,7 @@ int _hardware_enumerate_wifi_radios()
       szDriver[0] = 0;
 
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
-      sprintf(szComm, "ls -al /sys/class/net/%s/device/ | grep driver", sRadioInfo[i].szName);
+      sprintf(szComm, "ls -Al /sys/class/net/%s/device/ | grep driver", sRadioInfo[i].szName);
       hw_execute_bash_command_raw(szComm, szDriver);
       #else
       sprintf(szComm, "cat /sys/class/net/%s/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'", sRadioInfo[i].szName);
@@ -718,24 +719,37 @@ int _hardware_enumerate_wifi_radios()
       #endif
 
       log_line("[HardwareRadio] Driver for %s: <<<%s>>>", sRadioInfo[i].szName, szDriver);
+      log_line("[HardwareRadio] Driver for %s (last part): <<<%s>>>", sRadioInfo[i].szName, &szDriver[strlen(szDriver)/2]);
+      char* pszDriver = szDriver;
+      if ( strlen(szDriver) > 0 )
+      for( int i=strlen(szDriver)-1; i>0; i-- )
+      {
+         if ( szDriver[i] == '/' )
+         {
+            pszDriver = &szDriver[i];
+            break;
+         }
+      }
+      log_line("[HardwareRadio] Minimised driver string: <<<%s>>>", pszDriver);
+
       sRadioInfo[i].isSupported = 0;
-      if ( (NULL != strstr(szDriver,"rtl88xxau")) ||
-           (NULL != strstr(szDriver,"8812au")) ||
-           (NULL != strstr(szDriver,"rtl8812au")) ||
-           (NULL != strstr(szDriver,"rtl88XXau")) )
+      if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
+           (NULL != strstr(pszDriver,"8812au")) ||
+           (NULL != strstr(pszDriver,"rtl8812au")) ||
+           (NULL != strstr(pszDriver,"rtl88XXau")) )
       {
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Realtek");
-         if ( (NULL != strstr(szDriver,"rtl88xxau")) ||
-              (NULL != strstr(szDriver,"rtl88XXau")) )
+         if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
+              (NULL != strstr(pszDriver,"rtl88XXau")) )
             sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL88XXAU<<8);
-         if ( NULL != strstr(szDriver,"8812au") )
+         if ( NULL != strstr(pszDriver,"8812au") )
             sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
-         if ( NULL != strstr(szDriver,"rtl8812au") )
+         if ( NULL != strstr(pszDriver,"rtl8812au") )
             sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL8812AU<<8);
       }
       // Experimental
-      if ( NULL != strstr(szDriver,"rtl88x2bu") )
+      if ( NULL != strstr(pszDriver,"rtl88x2bu") )
       {
          sRadioInfo[i].isSupported = 1;
          sRadioInfo[i].isTxCapable = 0;
@@ -743,19 +757,19 @@ int _hardware_enumerate_wifi_radios()
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL88X2BU<<8);
       }
 
-      if ( NULL != strstr(szDriver,"rt2800usb") )
+      if ( NULL != strstr(pszDriver,"rt2800usb") )
       {
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Ralink");
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_RALINK | (RADIO_HW_DRIVER_RALINK<<8);
       }
-      if ( NULL != strstr(szDriver, "mt7601u") )
+      if ( NULL != strstr(pszDriver, "mt7601u") )
       {
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Mediatek");
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_MEDIATEK | (RADIO_HW_DRIVER_MEDIATEK<<8);
       }
-      if ( NULL != strstr(szDriver, "ath9k_htc") )
+      if ( NULL != strstr(pszDriver, "ath9k_htc") )
       {
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Atheros");
@@ -765,6 +779,8 @@ int _hardware_enumerate_wifi_radios()
       int iCopyPos = strlen(szDriver);
       while ( iCopyPos >= 0 )
       {
+         if ( (szDriver[iCopyPos] == 10) || (szDriver[iCopyPos] == 13) )
+            szDriver[iCopyPos] = 0;
          if ( szDriver[iCopyPos] == '/' )
             break;
          iCopyPos--;
@@ -773,7 +789,8 @@ int _hardware_enumerate_wifi_radios()
 
       if ( ! sRadioInfo[i].isSupported )
          log_softerror_and_alarm("Found unsupported radio (%s), driver %s, skipping.", sRadioInfo[i].szName, szDriver);
-
+      else
+         log_line("[HardwareRadio] Found supported radio type: %s, driver: %s, driver string short: %s, driver string: [%s]", str_get_radio_type_description(sRadioInfo[i].typeAndDriver), str_get_radio_driver_description(sRadioInfo[i].typeAndDriver), sRadioInfo[i].szDriver, pszDriver);
       sRadioInfo[i].iCardModel = 0;
 
       for( int kk=0; kk<(int)(sizeof(sRadioInfo[i].szUSBPort)/sizeof(sRadioInfo[i].szUSBPort[0])); kk++ )
@@ -854,6 +871,10 @@ int _hardware_enumerate_wifi_radios()
       hw_execute_bash_command_raw(szComm, szBuff);
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_58;
+
+      char szBands[128];
+      str_get_supported_bands_string(sRadioInfo[i].supportedBands, szBands);
+      log_line("[HardwareRadio] Interface %s supported bands: [%s]", sRadioInfo[i].szName, szBands);
    }
 
    _hardware_assign_usb_from_physical_ports();
@@ -965,7 +986,7 @@ int hardware_radio_load_radio_modules()
        if ( ! iRTLLoaded )
        {
           log_line("[HardwareRadio] Found RTL8812 card. Loading module...");
-          hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=10", NULL);
+          hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=40", NULL);
           iRTLLoaded = 1;
           iCountDetected++;
        }
@@ -973,7 +994,7 @@ int hardware_radio_load_radio_modules()
        if ( ! iAtherosLoaded )
        {
           log_line("[HardwareRadio] Found RTL8812 card. Loading module...");
-          hw_execute_bash_command("ath9k_hw txpower=10", NULL);
+          hw_execute_bash_command("modprobe ath9k_hw txpower=10", NULL);
           hw_execute_bash_command("modprobe ath9k_htc", NULL);
           iAtherosLoaded = 1;
           iCountDetected++;
@@ -1321,6 +1342,22 @@ int hardware_get_radio_tx_power_rtl()
    log_line("Hardware: Read RTL radio configuration ok. RTL radio config tx power: %d", iTxPower);
    return iTxPower;
    #endif
+
+   if ( hardware_is_running_on_openipc() )
+   {
+      int iTxPower = 0;
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat( szFile, FILE_CONFIG_RTL_POWER);
+      FILE* fd = fopen(szFile, "rb");
+      if ( NULL != fd )
+      {
+         fscanf(fd, "%d", &iTxPower);
+         fclose(fd);
+         return iTxPower;
+      }
+      log_softerror_and_alarm("Failed to read RTL tx power from config file [%s]", szFile);
+   }
    return DEFAULT_RADIO_TX_POWER;
 }
 
@@ -1425,6 +1462,35 @@ int hardware_set_radio_tx_power_rtl(int txPower)
    if ( 0 != szBuff[0] )
       hw_execute_bash_command(szBuff, NULL);
    #endif
+
+   if ( hardware_is_running_on_openipc() )
+   {
+      char szComm[256];
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_REALTEK) ||
+              ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+         { 
+            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*txPower);
+            hw_execute_bash_command(szComm, NULL);
+         }
+      }
+   }
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat( szFile, FILE_CONFIG_RTL_POWER);
+   FILE* fd = fopen(szFile, "wb");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%d\n", txPower);
+      fclose(fd);
+   }
+   else
+      log_softerror_and_alarm("Failed to write RTL tx power to config file [%s]", szFile);
 
    int val = hardware_get_radio_tx_power_rtl();
    log_line("RTL TX Power changed to: %d", val);

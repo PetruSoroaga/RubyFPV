@@ -211,10 +211,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSelect[k*20+18]->setIsEditable();
       m_IndexVideoProfile_AutoECScheme[k] = addMenuItem(m_pItemsSelect[k*20+18]);
 
-      m_pItemsSlider[k*20+12] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2,MAX_DATA_PACKETS_IN_BLOCK,MAX_DATA_PACKETS_IN_BLOCK/2, fSliderWidth);
+      int iMaxPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
+      if ( NULL != g_pCurrentModel )
+         iMaxPackets = g_pCurrentModel->hwCapabilities.iMaxTxVideoBlockPackets;
+      m_pItemsSlider[k*20+12] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
       m_IndexVideoProfile_BlockPackets[k] = addMenuItem(m_pItemsSlider[k*20+12]);
 
-      m_pItemsSlider[k*20+13] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0,MAX_FECS_PACKETS_IN_BLOCK,MAX_FECS_PACKETS_IN_BLOCK/2, fSliderWidth);
+      m_pItemsSlider[k*20+13] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
       m_IndexVideoProfile_BlockFECs[k] = addMenuItem(m_pItemsSlider[k*20+13]);
 
       m_pItemsSlider[k*20+15] = new MenuItemSlider("Max Retransmission Window", "Maximum window size (in miliseconds) to send/retry and wait for retransmissions to happen.", 0,1000,10, fSliderWidth);

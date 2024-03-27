@@ -14,4 +14,5 @@ class MenuVehicles: public Menu
    protected:
       int m_IndexImport;
       int m_IndexSelectedVehicle;
+      int m_iLastSelectedVehicle;
 };

@@ -97,7 +97,7 @@ static int video_decode()
    }
 
    int iPipeRead = -1;
-   iPipeRead = open("tmp/ruby/fifovidstream", O_RDONLY);
+   iPipeRead = open("/tmp/ruby/fifovidstream", O_RDONLY);
    if ( iPipeRead < 0 )
       return -1;
 

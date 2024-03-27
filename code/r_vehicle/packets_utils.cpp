@@ -124,6 +124,20 @@ int _compute_packet_datarate(bool bIsVideoPacket, bool bIsRetransmited, int iVeh
       //if ( bIsRetransmited )
       //   nRateTx = video_stats_overwrites_get_next_level_down_radio_datarate_video(iVehicleRadioLinkId, iRadioInterface);
       
+      // To fix : OpenIPC uses now user set video profile radio datarate or radio link data rate
+      #ifdef HW_PLATFORM_OPENIPC_CAMERA
+      
+      nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLinkId];
+      if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
+         nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
+
+      int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
+      if ( 0 != nRateUserVideoProfile )
+      if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) )
+         nRateTx = nRateUserVideoProfile;
+
+      #endif
+
       if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
       if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface]) < getRealDataRateFromRadioDataRate(nRateTx) )
          nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
@@ -349,7 +363,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    if ( bHasVideoPacket && (nLastRateTxVideo != nRateTx) )
    {
       nLastRateTxVideo = nRateTx;
-      //log_line("DEBUG Switched video data rate to %d (retransmitted: %s)", nRateTx, bIsRetransmited?"yes":"no");
+      //log_line("DBG Switched video data rate to %d (retransmitted: %s)", nRateTx, bIsRetransmited?"yes":"no");
    }
 
    radio_set_out_datarate(nRateTx);
@@ -877,7 +891,7 @@ void send_pending_alarms_to_controller()
    if ( s_AlarmsPendingInQueue == 0 )
       return;
 
-   if ( g_TimeNow < s_uTimeLastAlarmSentToRouter + 50 )
+   if ( g_TimeNow < s_uTimeLastAlarmSentToRouter + 150 )
       return;
 
    if ( s_AlarmsQueue[0].uRepeatCount == 0 )

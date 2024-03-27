@@ -137,22 +137,31 @@ typedef struct
 } __attribute__((packed)) shared_mem_video_link_graphs;
 
 
-#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 20
+#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 30
+
+typedef struct
+{
+   u8  uMaxVideoDataRateMbps; // in Mbps (mcs is converted to Mbps)
+   u8  uVideoQuantization; // H264 quantization
+   u16 uVideoBitrateCurrentProfileKb; // set video bitrate for current video profile
+   u16 uVideoBitrateTargetKb; // target video bitrate for current video profile and overwrites
+   u16 uVideoBitrateKb; // only video data
+   u16 uVideoBitrateAvgKb; // only video data
+   u16 uTotalVideoBitrateKb; // video data + EC + radio headers
+   u16 uTotalVideoBitrateAvgKb; // video data + EC + radio headers
+   u8  uVideoProfileSwitches; // bit 0..3 - level, bit 4..7 - profile 
+} __attribute__((packed)) shared_mem_dev_video_bitrate_history_datapoint;
 
 typedef struct
 {
    u32 uGraphSliceInterval;
    u32 uLastGraphSliceTime;
-   u8  uSlices;
+   u8  uTotalDataPoints;
+   u8  uCurrentDataPoint;
    u8  uQuantizationOverflowValue;
    u32 uCurrentTargetVideoBitrate;
 
-   u8  uHistMaxVideoDataRateMbps[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // in Mbps (mcs is converted to Mbps
-   u8  uHistVideoQuantization[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // H264 quantization
-   u16 uHistVideoBitrateKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // only video data
-   u16 uHistVideoBitrateAvgKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // only video data
-   u16 uHistTotalVideoBitrateAvgKb[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // video data + EC + radio headers
-   u8  uHistoryVideoSwitches[MAX_INTERVALS_VIDEO_BITRATE_HISTORY]; // bit 0..3 - level, bit 4..7 - profile
+   shared_mem_dev_video_bitrate_history_datapoint  history[MAX_INTERVALS_VIDEO_BITRATE_HISTORY];
 } __attribute__((packed)) shared_mem_dev_video_bitrate_history;
 
 

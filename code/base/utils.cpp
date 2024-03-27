@@ -610,6 +610,8 @@ u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
    return uMaxVideoBitrateBPSForRadioRate;
 }
 
+
+// Returns the video bitrate for a video profile
 u32 utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(Model* pModel, int iProfile)
 {
    u32 uMaxVideoBitrateBPSForRadioRate = utils_get_max_allowed_video_bitrate_for_profile(pModel, iProfile);
@@ -1132,24 +1134,34 @@ int check_write_filesystem()
    strcat(szFile, "testwrite.txt");
    FILE* fd = fopen(szFile, "wb");
    if ( NULL == fd )
+   {
+      log_softerror_and_alarm("Check write file system failed: error -1");
       return -1;
-
+   }
    fprintf(fd, "test1234\n");
    fclose(fd);
 
    fd = fopen(szFile, "rb");
    if ( NULL == fd )
+   {
+      log_softerror_and_alarm("Check write file system failed: error -2");
       return -2;
-   
+   }
    if ( 1 != fscanf(fd, "%s", szComm) )
+   {
+      log_softerror_and_alarm("Check write file system failed: error -3");
       return -3;
-  
+   }
+
    if ( 0 != strcmp(szComm, "test1234") )
+   {
+      log_softerror_and_alarm("Check write file system failed: error -4");
       return -4;
-   
+   }
    fclose(fd);
 
    sprintf(szComm, "rm -rf %s/testwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    return 0;
 }
+

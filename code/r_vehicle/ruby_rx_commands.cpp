@@ -50,6 +50,7 @@
 #include <ctype.h>
 
 #include "launchers_vehicle.h"
+#include "video_source_csi.h"
 #include "shared_vars.h"
 #include "timers.h"
 #include "utils_vehicle.h"
@@ -127,13 +128,20 @@ bool _populate_camera_name()
    log_line("Populating camera name buffer...");
    bool bCameraNameUpdated = false;
 
-   #ifdef HW_PLATFORM_OPENIPC
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
    char szBuff[128];
    szBuff[0] = 0;
    hw_execute_bash_command("ipcinfo -s 2>/dev/null", szBuff);
-   for( int i=0; i<strlen(szBuff); i++ )
+   for( int i=0; i<(int)strlen(szBuff); i++ )
+   {
+      if ( (szBuff[i] == 10) || (szBuff[i] == 13) )
+      {
+         szBuff[i] = 0;
+         break;
+      }
       szBuff[i] = toupper(szBuff[i]);
+   }
    bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, szBuff);
    
    #else
@@ -1087,7 +1095,7 @@ bool process_command(u8* pBuffer, int length)
       {
          strcpy(szBuffer, "Modules versions: #");
 
-         hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
+         hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
          if ( strlen(szOutput)> 0 )
          if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
             szOutput[strlen(szOutput)-1] = 0;
@@ -1097,7 +1105,7 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, "ruby_start: ");
          strcat(szBuffer, szOutput);
 
-         hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
+         hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
          if ( strlen(szOutput)> 0 )
          if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
             szOutput[strlen(szOutput)-1] = 0;
@@ -1107,7 +1115,7 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, ", ruby_rt_vehicle: ");
          strcat(szBuffer, szOutput);
          
-         hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
+         hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
          if ( strlen(szOutput)> 0 )
          if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
             szOutput[strlen(szOutput)-1] = 0;
@@ -1117,6 +1125,7 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, ", ruby_tx_telemetry: ");
          strcat(szBuffer, szOutput);
 
+         #ifdef HW_PLATFORM_RASPBERRY
          hw_execute_bash_command_raw_silent("./ruby_capture_raspi -ver", szOutput);
          if ( strlen(szOutput)> 0 )
          if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
@@ -1136,7 +1145,7 @@ bool process_command(u8* pBuffer, int length)
             szOutput[strlen(szOutput)-1] = 0;
          strcat(szBuffer, ", ruby_capture_veye: ");
          strcat(szBuffer, szOutput);
-
+         #endif
 
          strcat(szBuffer, " #");     
 
@@ -1742,7 +1751,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bSentUsingPipe )
          return true;
 
-      if ( g_pCurrentModel->isActiveCameraVeye307() && (fabs(oldParams.awbGainR - pCamParams->awbGainR) > 0.1 ) )
+      if ( g_pCurrentModel->isActiveCameraVeye307() && (fabs(oldParams.hue - pCamParams->hue) > 0.1 ) )
          vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->isActiveCameraVeye327290() )
          vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
@@ -1753,7 +1762,7 @@ bool process_command(u8* pBuffer, int length)
          if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags) & CAMERA_FLAG_AWB_MODE_OLD) )
             g_pCurrentModel->setAWBMode();
 
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       return true;
    }
@@ -1783,7 +1792,7 @@ bool process_command(u8* pBuffer, int length)
       if ( ! g_pCurrentModel->isActiveCameraCSICompatible() )
       if ( ! g_pCurrentModel->isActiveCameraVeye() )
       {
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
          return true;
       }
 
@@ -1801,8 +1810,8 @@ bool process_command(u8* pBuffer, int length)
       oldCamParamsCheck.contrast = pCamParams->contrast;
       oldCamParamsCheck.saturation = pCamParams->saturation;
       oldCamParamsCheck.sharpness = pCamParams->sharpness;
-      for( int i=0; i<(int)sizeof(oldCamParamsCheck.dummy)/(int)sizeof(oldCamParamsCheck.dummy[0]); i++ )
-         oldCamParamsCheck.dummy[i] = pCamParams->dummy[i];
+      for( int i=0; i<(int)sizeof(oldCamParamsCheck.dummyCamP)/(int)sizeof(oldCamParamsCheck.dummyCamP[0]); i++ )
+         oldCamParamsCheck.dummyCamP[i] = pCamParams->dummyCamP[i];
       oldCamParamsCheck.fovV = pCamParams->fovV;
       oldCamParamsCheck.fovH = pCamParams->fovH;
       if ( 0 == memcmp(&oldCamParamsCheck, pCamParams, sizeof(camera_profile_parameters_t)) )
@@ -1841,7 +1850,7 @@ bool process_command(u8* pBuffer, int length)
       if ( ! bSentUsingPipe )
       {
          log_line("Send command to restart video stream");
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       return true;
    }
@@ -1857,7 +1866,7 @@ bool process_command(u8* pBuffer, int length)
          signalReloadModel(0, 0);
 
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       else
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
@@ -2393,7 +2402,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bVideoResolutionChanged || bMustRestartCapture )
       {
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
          signalReloadModel(0, 0);
       }
       if ( bMustSignalTXVideo )
@@ -2490,7 +2499,7 @@ bool process_command(u8* pBuffer, int length)
          {          
             log_line("[RX Commands]: Signal bitrate change by capture restart.");
             signalReloadModel(MODEL_CHANGED_VIDEO_BITRATE, 0);
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_BITRATE);
          }
          return true;
       }
@@ -2509,7 +2518,7 @@ bool process_command(u8* pBuffer, int length)
       if ( true )
       {   
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, 0);
          signalReloadModel(0, 0);
       }
       if ( true )
@@ -3191,8 +3200,10 @@ bool process_command(u8* pBuffer, int length)
       {
          if ( bUpdatedWiFi )
          {
+            #ifdef HW_PLATFORM_RASPBERRY 
             system("sudo mount -o remount,rw /");
             system("sudo mount -o remount,rw /boot");
+            #endif
 
             if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > 0 )
                hardware_set_radio_tx_power_atheros((int)g_pCurrentModel->radioInterfacesParams.txPowerAtheros);

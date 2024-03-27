@@ -198,7 +198,9 @@ t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
    if ( g_bSearching )
    {
       g_SearchVehicleRuntimeInfo.uVehicleId = pPH->vehicle_id_src;
-      g_SearchVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 40);
+      g_SearchVehicleRuntimeInfo.pModel = NULL;
+      if ( controllerHasModelWithId(pPH->vehicle_id_src) )
+         g_SearchVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 40);
       return &g_SearchVehicleRuntimeInfo;
    }
 

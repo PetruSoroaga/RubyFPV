@@ -646,6 +646,7 @@ int MenuTXInfo::onBack()
    }
 
    if ( m_bValuesChangedVehicle )
+   if ( (g_pCurrentModel != NULL) && (! g_pCurrentModel->isRunningOnOpenIPCHardware() ) )
    {
       MenuConfirmation* pMC = new MenuConfirmation("Restart Required","You need to restart the vehicle for the power changes to take effect.", 3);
       pMC->m_yPos = 0.3;

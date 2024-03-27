@@ -46,7 +46,7 @@
 #include "../shared_vars.h"
 #include "../colors.h"
 #include "../../base/config.h"
-#include "../../base/hdmi_video.h"
+#include "../../base/video_capture_res.h"
 #include "../../base/models.h"
 #include "../../base/ctrl_interfaces.h"
 #include "../../base/ctrl_settings.h"
@@ -1823,12 +1823,14 @@ void _render_osd_left_right()
       {
          strcpy(szBuff, "N/A");
          for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-            if ( g_iOptionsVideoWidth[i] == pVDS->width )
-            if ( g_iOptionsVideoHeight[i] == pVDS->height )
+         {
+            if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
+            if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
             {
-               strcpy(szBuff, g_szOptionsVideoRes[i]);
+               strcpy(szBuff, g_listCaptureResolutions[i].szName);
                break;
             }
+         }
       }
       else
          sprintf(szBuff, "[waiting]");
@@ -2182,13 +2184,16 @@ void osd_render_elements()
       {
          //sprintf(szBuff, "%d x %d  %d fps", g_SM_VideoDecodeStats.width, g_SM_VideoDecodeStats.height, g_SM_VideoDecodeStats.fps);
          strcpy(szBuff, "N/A");
+
          for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-            if ( g_iOptionsVideoWidth[i] == pVDS->width )
-            if ( g_iOptionsVideoHeight[i] == pVDS->height )
+         {
+            if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
+            if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
             {
-               sprintf(szBuff, "%s %d fps", g_szOptionsVideoRes[i], pVDS->fps);
+               sprintf(szBuff, "%s %d fps", g_listCaptureResolutions[i].szName, pVDS->fps);
                break;
             }
+         }
       }
       else
          sprintf(szBuff, "[waiting]");

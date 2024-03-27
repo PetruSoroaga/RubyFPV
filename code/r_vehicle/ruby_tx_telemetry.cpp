@@ -928,10 +928,6 @@ void onRebootRequest()
    save_model();
 
    vehicle_stop_tx_router();
-   if ( g_pCurrentModel->hasCamera() ) 
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      vehicle_stop_video_capture_csi(g_pCurrentModel);
-
    vehicle_stop_rx_commands();
    vehicle_stop_rx_rc();
    hardware_sleep_ms(100);

@@ -377,7 +377,7 @@ Model* findModelWithId(u32 uVehicleId, u32 uSrcId)
       if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
          return s_pModelsSpectator[i];
 
-   log_softerror_and_alarm("Tried to find an invalid VID: %u (source id: %u). Current loaded vehicles:", uVehicleId, uSrcId);
+   log_softerror_and_alarm("Tried to find an inexistent VID: %u (source id: %u). Current loaded vehicles:", uVehicleId, uSrcId);
    for( int i=0; i<s_iModelsCount; i++ )
       log_softerror_and_alarm("Vehicle Ctrlr %d: %u", i, s_pModels[i]->uVehicleId);
    for( int i=0; i<s_iModelsSpectatorCount; i++ )

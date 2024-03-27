@@ -21,7 +21,3 @@ void  osd_render_stats_video_graphs(float xPos, float yPos);
 float osd_render_stats_graphs_vehicle_tx_gap_get_height();
 float osd_render_stats_graphs_vehicle_tx_gap_get_width();
 void  osd_render_stats_graphs_vehicle_tx_gap(float xPos, float yPos);
-
-float osd_render_stats_video_bitrate_history_get_height();
-float osd_render_stats_video_bitrate_history_get_width();
-void  osd_render_stats_video_bitrate_history(float xPos, float yPos);

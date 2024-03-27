@@ -29,6 +29,7 @@
 
 #include "../base/config_hw.h"
 #include "../base/base.h"
+#include "../base/hw_procs.h"
 #include "../base/config.h"
 #include "../base/models.h"
 #include "../base/radio_utils.h"
@@ -269,6 +270,32 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
    }
    hardware_save_radio_info();
    hardware_sleep_ms(50);
+
+   if ( hardware_is_running_on_openipc() )
+   {
+      char szComm[256];
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+         {
+            log_error_and_alarm("Failed to get radio info for interface %d.", i+1);
+            continue;
+         }
+         if ( ! pRadioHWInfo->isConfigurable )
+         {
+            log_line("Configuring radio interface %d (%s): radio interface is not configurable. Skipping it.", i+1, pRadioHWInfo->szName);
+            continue;
+         }
+         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_REALTEK) ||
+              ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+         {
+            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*pModel->radioInterfacesParams.txPowerRTL);
+            hw_execute_bash_command(szComm, NULL);          
+         }
+      }
+   }
+
    log_line("CONFIGURE RADIO END ---------------------------------------------------------");
 
    return bMissmatch;

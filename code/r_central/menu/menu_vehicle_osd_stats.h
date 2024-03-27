@@ -23,7 +23,7 @@ class MenuVehicleOSDStats: public Menu
       int m_IndexRadioRxGraphController;
       int m_IndexAudioDecodeStats;
       int m_IndexRadioRefreshInterval, m_IndexVideoRefreshInterval, m_IndexSnapshot, m_IndexSnapshotTimeout;
-      int m_IndexStatsVideoStreamInfo;
+      int m_IndexStatsVideoStreamInfo, m_IndexRefreshIntervalVideoBitrateHistory;
       int m_IndexTelemetryStats;
       int m_IndexShowControllerAdaptiveInfoStats;
       int m_IndexStatsVideoExtended, m_IndexStatsAdaptiveVideoGraph, m_IndexStatsEff, m_IndexStatsRC;

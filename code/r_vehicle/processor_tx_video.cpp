@@ -65,10 +65,12 @@ typedef struct
    u8 block_fecs;
    int video_data_length;
    type_tx_packet_info packetsInfo[MAX_TOTAL_PACKETS_IN_BLOCK];
+   int iAllocatedPackets = 0;
 }
 type_tx_block_info;
 
 type_tx_block_info s_BlocksTxBuffers[MAX_RXTX_BLOCKS_BUFFER];
+int s_iCurrentMaxTxPacketsInAVideoBlock = 0;
 
 u8* p_fec_data_packets[MAX_DATA_PACKETS_IN_BLOCK];
 u8* p_fec_data_fecs[MAX_FECS_PACKETS_IN_BLOCK];
@@ -143,6 +145,7 @@ ProcessorTxVideo::ProcessorTxVideo(int iVideoStreamIndex, int iCameraIndex)
 
    m_iLastRequestedKeyframeIntervalFromController = 0;
    m_iLastRequestedAdaptiveVideoLevelFromController = 0;
+   m_uInitialSetCaptureVideoBitrate = 0;
    m_uLastSetCaptureVideoBitrate = 0;
 
    for( int i=0; i<MAX_VIDEO_BITRATE_HISTORY_VALUES; i++ )
@@ -172,6 +175,12 @@ bool ProcessorTxVideo::init()
 
    log_line("[VideoTX] Initialize video processor Tx instance number %d.", m_iInstanceIndex+1);
 
+   if ( NULL != g_pCurrentModel )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      log_line("[VideoTx] Set initial majestic caputure bitrate as %u bps", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate);
+      setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, true, 0);
+   }
    m_bInitialized = true;
 
    return true;
@@ -221,7 +230,6 @@ u32 ProcessorTxVideo::getCurrentVideoBitrateAverageLastMs(u32 uMilisec)
    return uSum/uCount;
 }
 
-
 // Returns bps
 u32 ProcessorTxVideo::getCurrentTotalVideoBitrate()
 {
@@ -265,13 +273,18 @@ void ProcessorTxVideo::setLastRequestedAdaptiveVideoLevelFromController(int iLev
    m_iLastRequestedAdaptiveVideoLevelFromController = iLevel;
 }
 
-void ProcessorTxVideo::setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue)
+void ProcessorTxVideo::setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue, int iSource)
 {
+   log_line("DEBUG set video bitrate to %u, source %d", uBitrate, iSource);
+   log_line("DEBUG initial bitrate: %u, last set bitrate: %u (%u)",
+      m_uInitialSetCaptureVideoBitrate, m_uLastSetCaptureVideoBitrate & VIDEO_BITRATE_FIELD_MASK, uBitrate);
    m_uLastSetCaptureVideoBitrate = uBitrate;
-   if ( bInitialValue )
-      m_uLastSetCaptureVideoBitrate |= (((u32)1) << 31);
-   else
-      m_uLastSetCaptureVideoBitrate &= ~(((u32)1) << 31);
+   if ( bInitialValue || (0 == m_uInitialSetCaptureVideoBitrate) )
+      m_uInitialSetCaptureVideoBitrate = uBitrate;
+
+   m_uLastSetCaptureVideoBitrate |= VIDEO_BITRATE_FLAG_ADJUSTED;
+   if ( bInitialValue || ((m_uLastSetCaptureVideoBitrate & VIDEO_BITRATE_FIELD_MASK) == m_uInitialSetCaptureVideoBitrate) )
+      m_uLastSetCaptureVideoBitrate &= ~VIDEO_BITRATE_FLAG_ADJUSTED;
 }
 
 int ProcessorTxVideo::getLastRequestedKeyframeFromController()
@@ -1018,6 +1031,30 @@ bool _onNewCompletePacketReadFromInput()
    g_PHVehicleTxStats.tmp_uVideoIntervalsCount++;
    g_PHVehicleTxStats.tmp_uVideoIntervalsSum += uTimeDiff;
    
+   int iMaxPackets = s_CurrentPHVF.block_fecs + s_CurrentPHVF.block_packets;
+   if ( s_CurrentPHVF.block_packets > s_CurrentPHVF.block_fecs )
+      iMaxPackets = s_CurrentPHVF.block_packets*2;
+   if ( iMaxPackets > s_iCurrentMaxTxPacketsInAVideoBlock )
+   {
+      log_line("[VideoTx] Must increase block packets buffer from %d to %d", s_iCurrentMaxTxPacketsInAVideoBlock, iMaxPackets );
+
+      for( int i=0; i<MAX_RXTX_BLOCKS_BUFFER; i++ )
+      {
+         s_BlocksTxBuffers[i].iAllocatedPackets = iMaxPackets;
+         for( int k=s_iCurrentMaxTxPacketsInAVideoBlock; k<s_BlocksTxBuffers[i].iAllocatedPackets; k++ )
+         {
+            s_BlocksTxBuffers[i].packetsInfo[k].pRawData = (u8*) malloc(MAX_PACKET_TOTAL_SIZE);
+            if ( NULL == s_BlocksTxBuffers[i].packetsInfo[k].pRawData )
+            {
+               log_error_and_alarm("[VideoTx] Failed to alocate memory for buffers.");
+               s_BlocksTxBuffers[i].iAllocatedPackets = k;
+               break;
+            }
+         }
+      }
+      s_iCurrentMaxTxPacketsInAVideoBlock = iMaxPackets;
+   }
+
    // Save the new packet in the tx buffers
 
    s_BlocksTxBuffers[s_currentReadBufferIndex].video_block_index = s_CurrentPHVF.video_block_index;
@@ -1043,16 +1080,19 @@ bool _onNewCompletePacketReadFromInput()
    memcpy(pHeader, &s_CurrentPH, sizeof(t_packet_header));
    memcpy(pVideo, &s_CurrentPHVF, sizeof(t_packet_header_video_full_77));
 
+   // Go to next packet in the buffer
+
    s_currentReadBlockPacketIndex++;
    s_CurrentPHVF.video_block_packet_index++;
 
-   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_EMPTY;
-   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
-   s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
-      
    // Still on the data packets ?
    if ( s_currentReadBlockPacketIndex < s_CurrentPHVF.block_packets )
+   {
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].flags = PACKET_FLAG_EMPTY;
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].packetLength = sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
+      s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].currentReadPosition = 0;
       return false;
+   }      
 
    // Generate and add EC packets if EC is enabled
 
@@ -1097,7 +1137,7 @@ bool _onNewCompletePacketReadFromInput()
       s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
    }
 
-   // We read the end of a video block
+   // We read to the end of a video block
    // Move to next video block in the tx queue
 
    s_CurrentPHVF.video_block_index++;
@@ -1143,17 +1183,24 @@ bool _onNewCompletePacketReadFromInput()
 bool process_data_tx_video_init()
 {
    log_line("[VideoTx] Allocating tx buffers (%d blocks, max %d packets/block)...", MAX_RXTX_BLOCKS_BUFFER, MAX_TOTAL_PACKETS_IN_BLOCK);
+   s_iCurrentMaxTxPacketsInAVideoBlock = g_pCurrentModel->get_current_max_video_packets_for_all_profiles();
+
+   log_line("[VideoTx] Current model max packets needed in a block (data+ec): %d", s_iCurrentMaxTxPacketsInAVideoBlock);
    for( int i=0; i<MAX_RXTX_BLOCKS_BUFFER; i++ )
-   for( int k=0; k<MAX_TOTAL_PACKETS_IN_BLOCK; k++ )
    {
-      s_BlocksTxBuffers[i].packetsInfo[k].pRawData = (u8*) malloc(MAX_PACKET_TOTAL_SIZE);
-      if ( NULL == s_BlocksTxBuffers[i].packetsInfo[k].pRawData )
+      s_BlocksTxBuffers[i].iAllocatedPackets = s_iCurrentMaxTxPacketsInAVideoBlock;
+      for( int k=0; k<s_BlocksTxBuffers[i].iAllocatedPackets; k++ )
       {
-         log_error_and_alarm("[VideoTx] Failed to alocate memory for buffers.");
-         return false;
+         s_BlocksTxBuffers[i].packetsInfo[k].pRawData = (u8*) malloc(MAX_PACKET_TOTAL_SIZE);
+         if ( NULL == s_BlocksTxBuffers[i].packetsInfo[k].pRawData )
+         {
+            log_error_and_alarm("[VideoTx] Failed to alocate memory for buffers.");
+            s_BlocksTxBuffers[i].iAllocatedPackets = k;
+            return false;
+         }
       }
    }
-   log_line("[VideoTx] Allocated tx buffers (%d blocks, max %d packets/block).", MAX_RXTX_BLOCKS_BUFFER, MAX_TOTAL_PACKETS_IN_BLOCK);
+   log_line("[VideoTx] Allocated tx buffers (%d blocks, max %d packets/block).", MAX_RXTX_BLOCKS_BUFFER, s_iCurrentMaxTxPacketsInAVideoBlock);
 
    s_uParseNALStartSequence = MAX_U32;
    s_uParseNALStartSequenceRadioOut = MAX_U32;
@@ -1165,7 +1212,7 @@ bool process_data_tx_video_init()
    s_uCountEncodingChanges = 0;
    _reset_tx_buffers();
 
-   log_line("[VideoTx] Allocated %u Mb for video Tx buffers (%d blocks)", (u32)MAX_RXTX_BLOCKS_BUFFER * (u32)MAX_TOTAL_PACKETS_IN_BLOCK * (u32) MAX_PACKET_TOTAL_SIZE / 1000 / 1000, MAX_RXTX_BLOCKS_BUFFER );
+   log_line("[VideoTx] Allocated %u Mb for video Tx buffers (%d blocks)", (u32)MAX_RXTX_BLOCKS_BUFFER * (u32)s_iCurrentMaxTxPacketsInAVideoBlock * (u32) MAX_PACKET_TOTAL_SIZE / 1000 / 1000, MAX_RXTX_BLOCKS_BUFFER );
 
    radio_packet_init(&s_CurrentPH, PACKET_COMPONENT_VIDEO | PACKET_FLAGS_BIT_HEADERS_ONLY_CRC, PACKET_TYPE_VIDEO_DATA_FULL, STREAM_ID_VIDEO_1);
 
@@ -1229,7 +1276,7 @@ bool process_data_tx_video_init()
    float miliPerBlock = (float)((u32)(1000 * 8 * (u32)g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].packet_length * (u32)g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets)) / (float)videoBitrate;
    u32 uMaxWindowMS = 500;
    u32 bytesToBuffer = (((float)videoBitrate / 1000.0) * uMaxWindowMS)/8.0;
-   log_line("[VideoTx] Need buffers to cache %u bits of video (%u bytes of video)", bytesToBuffer*8, bytesToBuffer);
+   log_line("[VideoTx] Need buffers to cache %u bits of video (%u bytes of video for %u ms of video)", bytesToBuffer*8, bytesToBuffer, uMaxWindowMS);
    u32 uMaxBlocksToBuffer = 2 + bytesToBuffer/g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].packet_length/g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets;
    
    // Add extra time for last retransmissions (50 milisec)

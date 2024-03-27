@@ -496,7 +496,7 @@ void do_update_to_74()
       if ( hardware_isCameraVeye() )
       if ( pModel->isActiveCameraVeye307() )
       {
-         pModel->camera_params[pModel->iCurrentCamera].profiles[pModel->camera_params[pModel->iCurrentCamera].iCurrentProfile].awbGainR = 50.0;
+         pModel->camera_params[pModel->iCurrentCamera].profiles[pModel->camera_params[pModel->iCurrentCamera].iCurrentProfile].hue = 50.0;
       }
 
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )

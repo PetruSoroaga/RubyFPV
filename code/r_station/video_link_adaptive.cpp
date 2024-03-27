@@ -87,6 +87,8 @@ void video_link_adaptive_set_intial_video_adjustment_level(u32 uVehicleId, int i
    if ( NULL == pModel )
       return;
 
+   log_line("Adaptive video: received initial video stream from vehicle %u: video profile: %d (%s), data/ec: %d/%d",
+      uVehicleId, iCurrentVideoProfile, str_get_video_profile_name((u32)iCurrentVideoProfile), uDataPackets, uECPackets);
    if ( iCurrentVideoProfile < 0 || iCurrentVideoProfile >= MAX_VIDEO_LINK_PROFILES )
       iCurrentVideoProfile = pModel->video_params.user_selected_video_link_profile;
     
@@ -101,7 +103,11 @@ void video_link_adaptive_set_intial_video_adjustment_level(u32 uVehicleId, int i
    else
       g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift = pModel->get_video_profile_total_levels(pModel->video_params.user_selected_video_link_profile) + pModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
 
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift += ((int)uECPackets - pModel->video_link_profiles[iCurrentVideoProfile].block_fecs);
+   if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift < 0 )
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift = 0;
+   
+   if ( (int)uECPackets > pModel->video_link_profiles[iCurrentVideoProfile].block_fecs )
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift += ((int)uECPackets - pModel->video_link_profiles[iCurrentVideoProfile].block_fecs);
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedLevelShift = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedLevelShiftRetryCount = 0;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastLevelShiftDown = g_TimeNow+1000;
@@ -110,7 +116,8 @@ void video_link_adaptive_set_intial_video_adjustment_level(u32 uVehicleId, int i
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastAckLevelShift = 0;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastLevelShiftCheckConsistency = g_TimeNow;
    s_uTimeStartGoodIntervalForProfileShiftUp = 0;
-   log_line("Adaptive video did set initial/current adaptive video level to %d, from received video stream for VID %u", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift, uVehicleId);
+   log_line("Adaptive video did set initial/current adaptive video level to %d, from received video stream for VID %u, last received video profile: %d",
+     g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift, uVehicleId, iCurrentVideoProfile);
 }
 
 void _video_link_adaptive_check_send_to_vehicle(u32 uVehicleId, bool bForce)
@@ -175,9 +182,19 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    }
 
    int iVehicleIndex = getVehicleRuntimeIndex(uVehicleId);
-
    if ( -1 == iVehicleIndex )
       return;
+
+   ProcessorRxVideo* pProcessorVideo = NULL;
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL != g_pVideoProcessorRxList[i] )
+      if ( g_pVideoProcessorRxList[i]->m_uVehicleId == uVehicleId )
+      {
+         pProcessorVideo = g_pVideoProcessorRxList[i];
+         break;
+      }
+   }
 
    if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown + 50 )
       return;
@@ -191,6 +208,9 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    iMaxLevels +=  iLevelsMQ;
    if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       iMaxLevels += iLevelsLQ;
+
+   if ( hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
+      iMaxLevels = iLevelsHQ;
 
    float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
    
@@ -227,28 +247,21 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
             break;
          }
       }
-      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+      if ( bHasRecentRxData && (NULL != pProcessorVideo) )
       {
-         if ( NULL == g_pVideoProcessorRxList[i] )
-            break;
-         if ( g_pVideoProcessorRxList[i]->m_uVehicleId != uVehicleId )
-            continue;
-         if ( ! bHasRecentRxData )
-            continue;
-
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift < iLevelsHQ )
          {
-            if ( g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_USER )
-            if ( g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_HIGH_QUALITY )
-            if ( g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_BEST_PERF )
+            if ( pProcessorVideo->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_USER )
+            if ( pProcessorVideo->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_HIGH_QUALITY )
+            if ( pProcessorVideo->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_BEST_PERF )
             {
                char szTmp[64];
                strcpy(szTmp, str_get_video_profile_name(pModel->video_params.user_selected_video_link_profile));
-               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
+               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(pProcessorVideo->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
                _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
-               u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
+               u32 uParam = (u32)pProcessorVideo->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
                if ( pModel->bDeveloperMode )
                   send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH, uParam );
@@ -256,15 +269,15 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
          }
          else if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift < iLevelsHQ + iLevelsMQ )
          {
-            if ( g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_MQ )
+            if ( pProcessorVideo->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_MQ )
             {
                char szTmp[64];
                strcpy(szTmp, str_get_video_profile_name(VIDEO_PROFILE_MQ));
-               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
+               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(pProcessorVideo->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
                _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
-               u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
+               u32 uParam = (u32)pProcessorVideo->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
                if ( pModel->bDeveloperMode )
                   send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH, uParam );
@@ -272,15 +285,15 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
          }
          else if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift < iLevelsHQ + iLevelsMQ + iLevelsLQ )
          {
-            if ( g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_LQ )
+            if ( pProcessorVideo->getCurrentlyReceivedVideoProfile() != VIDEO_PROFILE_LQ )
             {
                char szTmp[64];
                strcpy(szTmp, str_get_video_profile_name(VIDEO_PROFILE_LQ));
-               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile()));
+               log_softerror_and_alarm("Adaptive video: Missmatch between last requested video profile (%s) and currently received video profile (%s)", szTmp, str_get_video_profile_name(pProcessorVideo->getCurrentlyReceivedVideoProfile()));
                g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastAcknowledgedLevelShift = -1;
                _video_link_adaptive_check_send_to_vehicle(uVehicleId, false);
 
-               u32 uParam = (u32)g_pVideoProcessorRxList[i]->getCurrentlyReceivedVideoProfile();
+               u32 uParam = (u32)pProcessorVideo->getCurrentlyReceivedVideoProfile();
                uParam = uParam | (((u32)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift)<<16);
                if ( pModel->bDeveloperMode )
                   send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH, uParam );
@@ -399,7 +412,9 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       uMinTimeSinceLastShift = 500;
    if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown + uMinTimeSinceLastShift )
    {
+      // To fix : on openIPC reenable lower video profile when majestic bitrate can be changed
       if ( iCountRetransmissionsDown > iThresholdRetransmissionsDown )
+      if ( ! hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
       {
          bTriedAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;

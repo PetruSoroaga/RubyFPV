@@ -5,7 +5,7 @@ extern "C" {
 #endif 
 
 #define MAX_SERIAL_PORT_NAME 64
-#define MAX_SERIAL_PORTS 10
+#define MAX_SERIAL_PORTS 6
 
 #define SERIAL_PORT_USAGE_NONE 0
 #define SERIAL_PORT_USAGE_TELEMETRY 2

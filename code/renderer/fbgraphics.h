@@ -425,7 +425,7 @@ extern "C" {
       \sa fbg_fpixel(), fbg_pixel()
     */
     extern void fbg_pixela(struct _fbg *fbg, int x, int y, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
-    extern void fbg_pixela_fast(struct _fbg *fbg, char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+    extern void fbg_pixela_fast(struct _fbg *fbg, unsigned char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
     //! fast pixel drawing which use the fill color set by fbg_fill()
     /*!

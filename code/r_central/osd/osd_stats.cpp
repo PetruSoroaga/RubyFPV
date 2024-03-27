@@ -30,7 +30,7 @@
 #include "../../base/base.h"
 #include "../../base/config.h"
 #include "../../base/shared_mem.h"
-#include "../../base/hdmi_video.h"
+#include "../../base/video_capture_res.h"
 #include "../../base/ctrl_settings.h"
 #include "../../base/ctrl_interfaces.h"
 #include "../../common/string_utils.h"
@@ -43,6 +43,7 @@
 #include "osd_common.h"
 #include "osd.h"
 #include "osd_stats_dev.h"
+#include "osd_stats_video_bitrate.h"
 #include "osd_stats_radio.h"
 #include "osd_widgets.h"
 #include "../local_stats.h"
@@ -537,13 +538,14 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       {
          strcpy(szBuff, "N/A");
          for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-            if ( g_iOptionsVideoWidth[i] == pVDS->width )
-            if ( g_iOptionsVideoHeight[i] == pVDS->height )
+         {
+            if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
+            if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
             {
-               snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps %d ms KF", szCurrentProfile, g_szOptionsVideoRes[i], pVDS->fps, pVDS->keyframe_ms);
+               snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps %d ms KF", szCurrentProfile, g_listCaptureResolutions[i].szName, pVDS->fps, pVDS->keyframe_ms);
                break;
             }
-
+         }
       }
       else
          sprintf(szBuff, "Stream: N/A");
@@ -761,11 +763,11 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing; // line 4
 
       char szBuff2[64];
-      str_format_bitrate((int)(pVDS->uLastSetVideoBitrate & 0x7FFFFFFF), szBuff);
-      if ( pVDS->uLastSetVideoBitrate & (1<<31) )
-         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "(Def) %s", szBuff);
-      else
+      str_format_bitrate((int)(pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FIELD_MASK), szBuff);
+      if ( pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FLAG_ADJUSTED )
          snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "(Adj) %s", szBuff);
+      else
+         snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "(Def) %s", szBuff);
       
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Set bitrate: %s", szBuff2);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
@@ -4711,11 +4713,13 @@ void osd_render_stats_panels()
                continue;
 
             // Right side widget?
+            if ( pWDI->fXPos > 0.75 )
             if ( pWDI->fXPos + pWDI->fWidth > 0.9 )
-               s_fOSDStatsMarginHRight += pWidget->display_info[iModel][iOSDLayoutIndex].fWidth;
+               s_fOSDStatsMarginHRight += pWDI->fWidth + (1.0 - pWDI->fXPos - pWDI->fWidth);
             // Left side widget?
+
             if ( pWDI->fXPos < 0.1 )
-               s_fOSDStatsMarginHLeft += pWidget->display_info[iModel][iOSDLayoutIndex].fWidth;
+               s_fOSDStatsMarginHLeft += pWDI->fWidth + pWDI->fXPos;
          }
       }
    }

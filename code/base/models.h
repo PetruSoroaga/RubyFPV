@@ -23,9 +23,9 @@ typedef struct
 {
    u32 flags;
    u8 flip_image;
-   u8 brightness;
-   u8 contrast;
-   u8 saturation;
+   u8 brightness; // 0...100
+   u8 contrast;   // 0...100
+   u8 saturation; // 0...200,  100 is middle (0)
    u8 sharpness;
    u8 exposure;
    u8 whitebalance;
@@ -42,7 +42,8 @@ typedef struct
    u16 shutterspeed; // in 1/x of a second, 0 for off, min is 30, max is 30000 (1/30 to 1/30000);
    u8 wdr; // used for IMX327 camera for WDR mode
    u8 dayNightMode; // 0 - day mode, 1 - night mode, only for Veye cameras
-   u8 dummy[2];
+   u8 hue; // 0...100
+   u8 dummyCamP[1];
 } camera_profile_parameters_t;
 
 typedef struct
@@ -222,7 +223,7 @@ typedef struct
 {
    int fc_telemetry_type; // 0 = None, 1 = MAVLink, 2 == LTM
 
-   int dummy1;
+   int iVideoBitrateHistoryGraphSampleInterval;
    u32 dummy2;
 
    int dummy5;
@@ -522,6 +523,7 @@ class Model
       bool loadFromFile(const char* filename, bool bLoadStats = false);
       bool saveToFile(const char* filename, bool isOnController);
       int getLoadedFileVersion();
+      bool isRunningOnOpenIPCHardware();
       void populateHWInfo();
       bool populateVehicleSerialPorts();
       void resetRadioLinkParams(int iRadioLink);
@@ -545,7 +547,7 @@ class Model
       void logVehicleRadioInfo();
       int logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2);
       
-      bool validate_camera_settings();
+      bool find_and_validate_camera_settings();
       bool validate_settings();
       bool validate_relay_links_flags();
       void updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
@@ -570,6 +572,7 @@ class Model
       bool isActiveCameraVeye307();
       bool isActiveCameraVeye327290();
       bool isActiveCameraCSICompatible();
+      bool isActiveCameraCSI();
       bool isActiveCameraOpenIPC();
       void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
       bool isVideoLinkFixedOneWay();
@@ -590,6 +593,7 @@ class Model
       int get_video_profile_level_shift_from_total_levels_shift(int iTotalLevelsShift);
       int get_video_profile_ec_scheme(int iVideoProfile, int* piData, int* piEC);
       int get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* piEC);
+      int get_current_max_video_packets_for_all_profiles();
 
       void constructLongName();
       const char* getShortName();

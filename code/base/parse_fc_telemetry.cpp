@@ -254,7 +254,7 @@ bool _check_add_fc_message(char* szMessage)
 
    for( int i=0; i<s_iNextMessageIndex; i++ )
    {
-      if ( 0 != s_szLastMessages[i] )
+      if ( 0 != s_szLastMessages[i][0] )
       if ( 0 == strcmp(szTmpMsg, s_szLastMessages[i]) )
       {
          bDuplicateMessage = true;
@@ -274,7 +274,7 @@ bool _check_add_fc_message(char* szMessage)
 
    for( int i=0; i<s_iNextMessageIndex; i++ )
    {
-      if ( 0 == s_szLastMessages[i] )
+      if ( 0 == s_szLastMessages[i][0] )
          continue;
       if ( 0 != strcmp(szTmpMsg, s_szLastMessages[i]) )
          continue;

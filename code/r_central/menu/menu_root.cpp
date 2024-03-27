@@ -307,8 +307,9 @@ void MenuRoot::createAboutInfo(Menu* pm)
    pm->addTopLine("---");
    pm->addTopLine(" ");
    pm->addTopLine("Developed by: Petru Soroaga");
-   pm->addTopLine("Contributors: Tree Orbit, Piotr Kujawski, Alexey Belyaev");
-   pm->addTopLine("Uses platform from: OpenIPC ");
+   pm->addTopLine("IP cameras firmware support provided by:");
+   pm->addTopLine("OpenIPC: https://openipc.org");
+   pm->addTopLine("https://github.com/OpenIPC");
    pm->addTopLine(" ");
    pm->addTopLine("For info on the licence terms, check the licence.txt file.");
    pm->addTopLine(" ");

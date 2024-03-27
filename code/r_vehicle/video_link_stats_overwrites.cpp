@@ -291,8 +291,7 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    
    if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
-         
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 1);
    
    // Prevent video bitrate changes due to overload or underload right after a profile change;
    // (A profile change usually sets a new, different video bitrate, so ignore this delta for a while)
@@ -383,7 +382,7 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    
    if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 2);
          
    int nTargetFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
    if ( 0 == nTargetFPS )
@@ -439,7 +438,7 @@ void _video_stats_overwrites_apply_ec_bitrate_changes(bool bDownDirection)
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    
    if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 3);
          
    // Signal other components (rx_command) to refresh their copy of current video overwrites structure
 
@@ -1113,7 +1112,7 @@ bool video_stats_overwrites_increase_videobitrate_overwrite(u32 uCurrentTotalBit
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    
    if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 4);
    return true;
 }
 
@@ -1155,7 +1154,7 @@ bool video_stats_overwrites_decrease_videobitrate_overwrite()
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
    if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false);
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 5);
    return true;
 }
 

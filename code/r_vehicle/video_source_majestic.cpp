@@ -30,6 +30,8 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/shared_mem.h"
+#include "../base/hardware_camera.h"
+#include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
 #include "../base/utils.h"
 #include "../common/string_utils.h"
@@ -42,7 +44,7 @@
 #include <getopt.h>
 #include <poll.h>
 
-#include "video_source_udp.h"
+#include "video_source_majestic.h"
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
@@ -57,7 +59,10 @@ u32 s_uDebugTimeLastUDPVideoInputCheck = 0;
 u32 s_uDebugUDPInputBytes = 0;
 u32 s_uDebugUDPInputReads = 0;
 
-void video_source_udp_close()
+bool s_bRequestedVideoMajesticCaptureRestart = false;
+int s_iRequestedVideoMajesticCaptureRestartReason = 0;
+
+void video_source_majestic_close()
 {
    if ( -1 != s_fInputVideoStreamUDPSocket )
    {
@@ -69,7 +74,7 @@ void video_source_udp_close()
    s_fInputVideoStreamUDPSocket = -1;
 }
 
-int video_source_udp_open(int iUDPPort)
+int video_source_majestic_open(int iUDPPort)
 {
    if ( -1 != s_fInputVideoStreamUDPSocket )
       return s_fInputVideoStreamUDPSocket;
@@ -114,6 +119,22 @@ int video_source_udp_open(int iUDPPort)
    return s_fInputVideoStreamUDPSocket;
 }
 
+void video_source_majestic_start_capture_program()
+{
+   hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
+}
+
+void video_source_majestic_stop_capture_program()
+{
+   hw_execute_bash_command("killall majestic", NULL);
+}
+
+void video_source_majestic_request_restart_program(int iChangeReason)
+{
+   log_line("[VideoSourceUDP] Majestic was flagged for restart (reason: %d, %s)", iChangeReason, str_get_model_change_type(iChangeReason));
+   s_bRequestedVideoMajesticCaptureRestart = true;
+   s_iRequestedVideoMajesticCaptureRestartReason = iChangeReason;
+}
 
 uint32_t extract_udp_rxq_overflow(struct msghdr *msg)
 {
@@ -130,7 +151,7 @@ uint32_t extract_udp_rxq_overflow(struct msghdr *msg)
 }
 
 // Returns the buffer and number of bytes read
-u8* video_source_udp_read(int* piReadSize, bool bAsync)
+u8* video_source_majestic_read(int* piReadSize, bool bAsync)
 {
    if ( (NULL == piReadSize) )
       return NULL;
@@ -316,7 +337,7 @@ u8* video_source_udp_read(int* piReadSize, bool bAsync)
    return s_uOutputUDPNALFrameSegment;
 }
 
-void video_source_udp_periodic_checks()
+void video_source_majestic_periodic_checks()
 {
    if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+1000 )
    {
@@ -325,5 +346,19 @@ void video_source_udp_periodic_checks()
       s_uDebugTimeLastUDPVideoInputCheck = g_TimeNow;
       s_uDebugUDPInputBytes = 0;
       s_uDebugUDPInputReads = 0;
+   }
+
+   if ( s_bRequestedVideoMajesticCaptureRestart )
+   {
+      s_bRequestedVideoMajesticCaptureRestart = false;
+      camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
+      type_video_link_profile* pVideoParams = &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
+      
+      if ( s_iRequestedVideoMajesticCaptureRestartReason == MODEL_CHANGED_CAMERA_PARAMS )
+         hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
+      else
+         hardware_camera_apply_all_majestic_settings(pCameraParams, pVideoParams);
+
+      s_iRequestedVideoMajesticCaptureRestartReason = 0;
    }
 }

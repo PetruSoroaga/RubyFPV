@@ -146,9 +146,9 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    else
    {
       if ( g_VehiclesRuntimeInfo[iIndexRuntime].uTimeLastReceivedModelSettings == MAX_U32 )
-         log_line("[Commands] First time receiving full model settings for vehicle runtime index %d", iIndexRuntime);
+         log_line("[Commands] First time receiving full model settings for vehicle runtime index %d, sw version: %d.%d", iIndexRuntime, (g_VehiclesRuntimeInfo[iIndexRuntime].pModel->sw_version >> 8) & 0xFF, (g_VehiclesRuntimeInfo[iIndexRuntime].pModel->sw_version & 0xFF)/10);
       else
-         log_line("[Commands] Last time received full model settings for vehicle runtime index %d was %u ms ago", iIndexRuntime, g_TimeNow - g_VehiclesRuntimeInfo[iIndexRuntime].uTimeLastReceivedModelSettings);
+         log_line("[Commands] Last time received full model settings for vehicle runtime index %d, sw version: %d, %d, was %u ms ago", iIndexRuntime, (g_VehiclesRuntimeInfo[iIndexRuntime].pModel->sw_version >> 8) & 0xFF, (g_VehiclesRuntimeInfo[iIndexRuntime].pModel->sw_version & 0xFF)/10, g_TimeNow - g_VehiclesRuntimeInfo[iIndexRuntime].uTimeLastReceivedModelSettings);
    }
 
    if ( g_VehiclesRuntimeInfo[iIndexRuntime].uTimeLastReceivedModelSettings != MAX_U32 )
@@ -201,9 +201,12 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
       sprintf(szComm, "tar -C %s -xf %s/last_recv_model.tar 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);    
    }
+
    char szFile[MAX_FILE_PATH_SIZE];
    sprintf(szFile, "%s/model.mdl", FOLDER_RUBY_TEMP);
-
+   if ( 0 == iResponseParam )
+      sprintf(szFile, "%s/tmp/model.mdl", FOLDER_RUBY_TEMP);
+   
    fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
@@ -223,7 +226,10 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
       log_softerror_and_alarm("Failed to load temporary model file (%s).", szFile);
       sprintf(szComm, "cp -rf %s/last_recv_model.tar %s/last_error_model.tar", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "cp -rf %s/model.mdl %s/last_error_model.mdl", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      if ( 0 == iResponseParam )
+         sprintf(szComm, "cp -rf %s/tmp/model.mdl %s/last_error_model.mdl", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
+      else
+         sprintf(szComm, "cp -rf %s/model.mdl %s/last_error_model.mdl", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
       return -1;
    }
@@ -304,6 +310,9 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
       log_line("[Commands] Received model settings for a different vehicle (%u) than the current model (%u)", modelTemp.uVehicleId, g_pCurrentModel->uVehicleId);
 
    sprintf(szFile, "%s/model.mdl", FOLDER_RUBY_TEMP);
+   if ( 0 == iResponseParam )
+      sprintf(szFile, "%s/tmp/model.mdl", FOLDER_RUBY_TEMP);
+
    fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
@@ -316,7 +325,10 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
    fclose(fd);
    
    onEventReceivedModelSettings(modelTemp.uVehicleId, uBuffer, length, false);
-   sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
+   if ( 0 == iResponseParam )
+      sprintf(szComm, "rm -rf %s/tmp/model.mdl", FOLDER_RUBY_TEMP);
+   else
+      sprintf(szComm, "rm -rf %s/model.mdl", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
 
    s_CommandType = 0;

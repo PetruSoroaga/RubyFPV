@@ -63,10 +63,10 @@ void MenuItemSelectBase::removeAllSelections()
    m_SelectionsCount = 0;
 }
 
-void MenuItemSelectBase::addSelection(const char* szText)
+int MenuItemSelectBase::addSelection(const char* szText)
 {
    if ( NULL == szText || m_SelectionsCount >= MAX_MENU_ITEM_SELECTIONS - 1 )
-      return;
+      return -1;
 
    if ( -1 == m_SelectedIndex )
       m_SelectedIndex = 0;
@@ -75,13 +75,15 @@ void MenuItemSelectBase::addSelection(const char* szText)
    strcpy(m_szSelections[m_SelectionsCount], szText);
    m_bEnabledItems[m_SelectionsCount] = true;
    m_SelectionsCount++;
+   return m_SelectionsCount-1;
 }
 
-void MenuItemSelectBase::addSelection(const char* szText, bool bEnabled)
+int MenuItemSelectBase::addSelection(const char* szText, bool bEnabled)
 {
-   addSelection(szText);
+   int i = addSelection(szText);
    if ( ! bEnabled )
       setSelectionIndexDisabled(m_SelectionsCount-1);
+   return i;
 }
 
 void MenuItemSelectBase::setSelection(int index)

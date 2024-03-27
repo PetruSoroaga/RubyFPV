@@ -31,7 +31,7 @@
 #include "../../base/hardware.h"
 #include "../../base/hardware_radio.h"
 #include "../../base/config.h"
-#include "../../base/hdmi_video.h"
+#include "../../base/video_capture_res.h"
 #include "../../base/models.h"
 #include "../../base/ctrl_interfaces.h"
 #include "../../common/string_utils.h"

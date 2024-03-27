@@ -263,6 +263,15 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_pItemsSelect[19]->setUseMultiViewLayout();
    m_IndexDevVehicleVideoBitrateHistory = addMenuItem(m_pItemsSelect[19]);
 
+
+   m_pItemsSelect[33] = new MenuItemSelect("    Graphs Resolution", "The resolution of the graphs, in miliseconds / bar.");  
+   m_pItemsSelect[33]->addSelection("500 ms/bar");
+   m_pItemsSelect[33]->addSelection("200 ms/bar");
+   m_pItemsSelect[33]->addSelection("100 ms/bar");
+   m_pItemsSelect[33]->addSelection("50 ms/bar");
+   m_pItemsSelect[33]->setIsEditable();
+   m_IndexRefreshIntervalVideoBitrateHistory = addMenuItem(m_pItemsSelect[33]);
+
    m_pItemsSelect[23] = new MenuItemSelect("Video: Keyframe Stats", "Show statistics about the video stream keyframe intervals and auto adjustments.");
    m_pItemsSelect[23]->addSelection("Off");
    m_pItemsSelect[23]->addSelection("Compact");
@@ -493,10 +502,21 @@ void MenuVehicleOSDStats::valuesToUI()
    m_pItemsSelect[6]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_STATS_RC)?1:0);
 
    m_pItemsSelect[19]->setSelectedIndex(0);
+   m_pItemsSelect[33]->setEnabled(false);
    if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY )
+   {
       m_pItemsSelect[19]->setSelectedIndex(1);
-
+      m_pItemsSelect[33]->setEnabled(true);
+      if ( g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval >= 500 )
+         m_pItemsSelect[33]->setSelectedIndex(0);
+      else if ( g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval >= 200 )
+         m_pItemsSelect[33]->setSelectedIndex(1);
+      else if ( g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval >= 100 )
+         m_pItemsSelect[33]->setSelectedIndex(2);
+      else if ( g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval >= 50 )
+         m_pItemsSelect[33]->setSelectedIndex(3);
+   }
 
    if ( pCS->iDeveloperMode )
    {
@@ -883,6 +903,26 @@ void MenuVehicleOSDStats::onSelectItem()
       if ( 1 == m_pItemsSelect[19]->getSelectedIndex() )
          params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY;
       sendToVehicle = true;
+   }
+
+   if ( m_IndexRefreshIntervalVideoBitrateHistory == m_SelectedIndex )
+   {
+      telemetry_parameters_t params;
+      memcpy(&params, &g_pCurrentModel->telemetry_params, sizeof(telemetry_parameters_t));
+   
+      int iIndex = m_pItemsSelect[33]->getSelectedIndex();
+      if ( 0 == iIndex )
+         params.iVideoBitrateHistoryGraphSampleInterval = 500;
+      if ( 1 == iIndex )
+         params.iVideoBitrateHistoryGraphSampleInterval = 200;
+      if ( 2 == iIndex )
+         params.iVideoBitrateHistoryGraphSampleInterval = 100;
+      if ( 3 == iIndex )
+         params.iVideoBitrateHistoryGraphSampleInterval = 50;
+  
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TELEMETRY_PARAMETERS, 0, (u8*)&params, sizeof(telemetry_parameters_t)) )
+         valuesToUI();
+      return;
    }
 
    if ( m_IndexDevStatsVehicleTx == m_SelectedIndex )

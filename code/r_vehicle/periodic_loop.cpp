@@ -217,7 +217,7 @@ void _check_write_filesystem()
    {
       log_line("Checking the file system for write access...");
       s_bRouterCheckedForWriteFileSystem = true;
-      s_bRouterWriteFileSystemOk = false;
+      s_bRouterWriteFileSystemOk = true;
 
       g_pCurrentModel->alarms &= ~(ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR);
       if ( check_write_filesystem() < 0 )
@@ -422,37 +422,39 @@ void _periodic_loop_check_ping()
 }
 
 
-void _update_videobitrate_history()
+void _update_videobitrate_history_data()
 {
    if ( g_bVideoPaused )
       return;
    if ( ! (g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.layout] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY) )
       return;
+
+   g_SM_DevVideoBitrateHistory.uGraphSliceInterval = g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval;
+
    if ( g_TimeNow < g_SM_DevVideoBitrateHistory.uLastGraphSliceTime + g_SM_DevVideoBitrateHistory.uGraphSliceInterval )
       return;
 
    g_SM_DevVideoBitrateHistory.uLastGraphSliceTime = g_TimeNow;
-   
+   g_SM_DevVideoBitrateHistory.uCurrentDataPoint++;
+   if ( g_SM_DevVideoBitrateHistory.uCurrentDataPoint >= MAX_INTERVALS_VIDEO_BITRATE_HISTORY )
+      g_SM_DevVideoBitrateHistory.uCurrentDataPoint = 0;
+   int iIndex = (int)g_SM_DevVideoBitrateHistory.uCurrentDataPoint;
+
    g_SM_DevVideoBitrateHistory.uQuantizationOverflowValue = video_link_get_oveflow_quantization_value();
    g_SM_DevVideoBitrateHistory.uCurrentTargetVideoBitrate = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate;
-
-   for( int i=MAX_INTERVALS_VIDEO_BITRATE_HISTORY-1; i>0; i-- )
-   {
-      g_SM_DevVideoBitrateHistory.uHistMaxVideoDataRateMbps[i] = g_SM_DevVideoBitrateHistory.uHistMaxVideoDataRateMbps[i-1]; 
-      g_SM_DevVideoBitrateHistory.uHistVideoQuantization[i] = g_SM_DevVideoBitrateHistory.uHistVideoQuantization[i-1]; 
-      g_SM_DevVideoBitrateHistory.uHistVideoBitrateKb[i] = g_SM_DevVideoBitrateHistory.uHistVideoBitrateKb[i-1]; 
-      g_SM_DevVideoBitrateHistory.uHistVideoBitrateAvgKb[i] = g_SM_DevVideoBitrateHistory.uHistVideoBitrateAvgKb[i-1]; 
-      g_SM_DevVideoBitrateHistory.uHistTotalVideoBitrateAvgKb[i] = g_SM_DevVideoBitrateHistory.uHistTotalVideoBitrateAvgKb[i-1]; 
-      g_SM_DevVideoBitrateHistory.uHistoryVideoSwitches[i] = g_SM_DevVideoBitrateHistory.uHistoryVideoSwitches[i-1]; 
-   }
-   g_SM_DevVideoBitrateHistory.uHistVideoQuantization[0] = g_SM_VideoLinkStats.overwrites.currentH264QUantization;
-   g_SM_DevVideoBitrateHistory.uHistMaxVideoDataRateMbps[0] = get_last_tx_video_datarate_mbps();
-   g_SM_DevVideoBitrateHistory.uHistVideoBitrateKb[0] = g_pProcessorTxVideo->getCurrentVideoBitrate()/1000;
-   g_SM_DevVideoBitrateHistory.uHistVideoBitrateAvgKb[0] = g_pProcessorTxVideo->getCurrentVideoBitrateAverage()/1000;
-   g_SM_DevVideoBitrateHistory.uHistTotalVideoBitrateAvgKb[0] = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage()/1000;
-   g_SM_DevVideoBitrateHistory.uHistoryVideoSwitches[0] = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
+  
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoQuantization = g_SM_VideoLinkStats.overwrites.currentH264QUantization;
    if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 3000) )
-      g_SM_DevVideoBitrateHistory.uHistVideoQuantization[0] = 0xFF;
+      g_SM_DevVideoBitrateHistory.history[iIndex].uVideoQuantization = 0xFF;
+
+   g_SM_DevVideoBitrateHistory.history[iIndex].uMaxVideoDataRateMbps = get_last_tx_video_datarate_mbps();
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateCurrentProfileKb = g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateTargetKb = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateKb = g_pProcessorTxVideo->getCurrentVideoBitrate()/1000;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentVideoBitrateAverage()/1000;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uTotalVideoBitrateKb = g_pProcessorTxVideo->getCurrentTotalVideoBitrate()/1000;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uTotalVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage()/1000;
+   g_SM_DevVideoBitrateHistory.history[iIndex].uVideoProfileSwitches = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY, STREAM_ID_DATA);
@@ -810,7 +812,7 @@ int periodicLoop()
       g_PHVehicleTxStats.tmp_uVideoIntervalsCount = 0;
    }
   
-   _update_videobitrate_history();
+   _update_videobitrate_history_data();
 
    // If relay params have changed and we have not processed the notification, do it after one second after the change
    if ( g_TimeLastNotificationRelayParamsChanged != 0 )

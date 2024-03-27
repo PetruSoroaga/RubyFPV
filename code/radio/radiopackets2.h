@@ -17,7 +17,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "radiopackets_short.h"
 
 #ifdef HW_PLATFORM_RASPBERRY
-#define MAX_RXTX_BLOCKS_BUFFER 200
+#define MAX_RXTX_BLOCKS_BUFFER 100
 #define MAX_TOTAL_PACKETS_IN_BLOCK 64
 #define MAX_DATA_PACKETS_IN_BLOCK 32
 #define MAX_FECS_PACKETS_IN_BLOCK 32
@@ -675,6 +675,9 @@ byte 0: command type:
          4 - stop video recording
          5 - start AV recording
          6 - stop AV recording
+         10 - notif: video recording started
+         11 - notif: video recording stopped
+         7 - notif: video recording restarted due to resolution change
 */
 
 #define PACKET_TYPE_TEST_RADIO_LINK 51

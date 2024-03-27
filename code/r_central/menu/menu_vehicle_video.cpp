@@ -27,7 +27,7 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "../../base/hdmi_video.h"
+#include "../../base/video_capture_res.h"
 #include "../../base/utils.h"
 #include "../../base/controller_utils.h"
 #include "menu.h"
@@ -69,40 +69,51 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pMenuItemVideoWarning->setHidden(true);
    addMenuItem(m_pMenuItemVideoWarning);
 
-   m_pItemsSelect[0] = new MenuItemSelect("Resolution", "Sets the resolution of the video stream.");
+   m_pVideoResolutions = &(g_listCaptureResolutions[0]);
+   m_iVideoResolutionsCount = getOptionsVideoResolutionsCount();
+
    if ( g_pCurrentModel->isActiveCameraVeye() )
    {
-      if ( g_pCurrentModel->isActiveCameraVeye307() )
-      {
-         sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex720p], g_iOptionsVideoWidth[g_iOptionsVideoIndex720p], g_iOptionsVideoHeight[g_iOptionsVideoIndex720p]);
-         m_pItemsSelect[0]->addSelection(szBuff);
-      }
-      sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[g_iOptionsVideoIndex1080p], g_iOptionsVideoWidth[g_iOptionsVideoIndex1080p], g_iOptionsVideoHeight[g_iOptionsVideoIndex1080p]);
-      m_pItemsSelect[0]->addSelection(szBuff);
+      m_pVideoResolutions = &(g_listCaptureResolutionsVeye[0]);
+      m_iVideoResolutionsCount = g_iListCaptureResolutionsVeyeCount;
    }
-   else 
+
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
    {
-      for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-      {
-         sprintf(szBuff, "%s (%d x %d)", g_szOptionsVideoRes[i], g_iOptionsVideoWidth[i], g_iOptionsVideoHeight[i]);
-         m_pItemsSelect[0]->addSelection(szBuff);
-      }
+      m_pVideoResolutions = &(g_listCaptureResolutionsOpenIPC[0]);
+      m_iVideoResolutionsCount = g_iListCaptureResolutionsOpenIPCCount;
    }
+
+   m_pItemsSelect[0] = new MenuItemSelect("Resolution", "Sets the resolution of the video stream.");
+   
+   for( int i=0; i<m_iVideoResolutionsCount; i++ )
+   {
+      sprintf(szBuff, "%s (%d x %d)", m_pVideoResolutions[i].szName, m_pVideoResolutions[i].iWidth, m_pVideoResolutions[i].iHeight);
+
+      if ( (i==0) && ( g_pCurrentModel->isActiveCameraVeye() ) && ( ! g_pCurrentModel->isActiveCameraVeye307() ) )
+         m_pItemsSelect[0]->addSelection(szBuff, false);
+      else
+         m_pItemsSelect[0]->addSelection(szBuff);
+   }
+
 
    m_pItemsSelect[0]->setIsEditable();
    m_IndexRes = addMenuItem(m_pItemsSelect[0]);
 
-   //if ( ! g_pCurrentModel->isActiveCameraVeye() )
+   m_IndexForceCameraMode = -1;
+   //if ( g_pCurrentModel->isActiveCameraCSI() )
    //{
    //   m_pItemsSelect[10] = new MenuItemSelect("Force Camera Mode 1", "Force the camera sensor to 1920x1080 mode, non binned. Works only for Raspberry Pi cameras.");  
    //   m_pItemsSelect[10]->addSelection("No");
    //   m_pItemsSelect[10]->addSelection("Yes");
    //   m_IndexForceCameraMode = addMenuItem(m_pItemsSelect[10]);
    //}
-   //else
-      m_IndexForceCameraMode = -1;
+      
 
-   m_pItemsSlider[0] = new MenuItemSlider("FPS", "Sets the FPS of the video stream.", 2,90, 30, fSliderWidth);
+   int iMaxFPS = 90;
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      iMaxFPS = 120;
+   m_pItemsSlider[0] = new MenuItemSlider("FPS", "Sets the FPS of the video stream.", 2,iMaxFPS, 30, fSliderWidth);
    m_IndexFPS = addMenuItem(m_pItemsSlider[0]);
 
    m_pItemsSlider[1] = new MenuItemSlider("Keyframe interval (ms)", "A keyframe is added every [n] miliseconds. Bigger keyframe values usually results in better quality video and lower bandwidth requirements but longer breakups if any.", 50,20000,200, fSliderWidth);
@@ -172,40 +183,21 @@ void MenuVehicleVideo::valuesToUI()
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfile]);
 
    if ( m_IndexForceCameraMode != -1 )
-   if ( ! g_pCurrentModel->isActiveCameraVeye() )
+   if ( g_pCurrentModel->isActiveCameraCSI() )
       m_pItemsSelect[10]->setSelection(pCamProfile->flags & CAMERA_FLAG_FORCE_MODE_1 ? 1:0);
 
-   if ( g_pCurrentModel->isActiveCameraVeye() )
+   
+   for(int i=0; i<m_iVideoResolutionsCount; i++ )
    {
-      if ( g_iOptionsVideoWidth[g_iOptionsVideoIndex720p] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
-      if ( g_iOptionsVideoHeight[g_iOptionsVideoIndex720p] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
+      if ( m_pVideoResolutions[i].iWidth == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
+      if ( m_pVideoResolutions[i].iHeight == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
       {
-         m_pItemsSelect[0]->setSelection(0);
+         m_pItemsSelect[0]->setSelection(i);
          found = true;
-      }
-      if ( g_iOptionsVideoWidth[g_iOptionsVideoIndex1080p] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
-      if ( g_iOptionsVideoHeight[g_iOptionsVideoIndex1080p] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
-      {
-         if ( g_pCurrentModel->isActiveCameraVeye327290() )
-            m_pItemsSelect[0]->setSelection(0);
-         else
-            m_pItemsSelect[0]->setSelection(1);
-         found = true;
+         break;
       }
    }
-   else
-   {
-      for(int i=0; i<m_pItemsSelect[0]->getSelectionsCount(); i++ )
-      {
-         if ( g_iOptionsVideoWidth[i] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
-         if ( g_iOptionsVideoHeight[i] == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
-         {
-            m_pItemsSelect[0]->setSelection(i);
-            found = true;
-            break;
-         }
-      }
-   }
+
    if ( ! found )
    {
       sprintf(szBuff, "Info: You are using a custom resolution (%d x %d) on this %s.", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height, g_pCurrentModel->getVehicleTypeString());
@@ -299,7 +291,7 @@ void MenuVehicleVideo::checkAddWarningInMenu()
       str_format_bitrate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps, szBuff);
       str_format_bitrate(uMaxVideoRate, szBuff2);
       str_format_bitrate(uMaxVideoRadioDataRate, szBuff3);
-      log_line("MenuVehicleVideo: Current video profile (%s) set video bitrate (%s) is greater than %d%% of max allowed radio datarate (%s of max radio datarate of %s). Show warning.",
+      log_line("MenuVehicleVideo: Current video profile (%s) set video bitrate (%s) is greater than %d%% of maximum safe allowed radio datarate (%s of max radio datarate of %s). Show warning.",
          str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), szBuff, DEFAULT_VIDEO_LINK_LOAD_PERCENT, szBuff2, szBuff3);
       bShowWarning = true;
    }
@@ -333,8 +325,9 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    type_video_link_profile* pProfile = &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
 
-   int videoMode = m_pItemsSelect[0]->getSelectedIndex();
+   int videoResolutionIndex = m_pItemsSelect[0]->getSelectedIndex();
    bool forceUpdates = false;
+   /*
    if ( g_pCurrentModel->isActiveCameraVeye() )
    {
       if ( pProfile->fps != m_pItemsSlider[0]->getCurrentValue() )
@@ -353,7 +346,7 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
          }
       }
 
-      if ( 0 == videoMode )
+      if ( 0 == videoResolutionIndex )
       {
          if ( g_pCurrentModel->isActiveCameraVeye327290() )
          {
@@ -368,7 +361,7 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
             pProfile->height = g_iOptionsVideoHeight[g_iOptionsVideoIndex720p];
          }
       }
-      if ( 1 == videoMode )
+      if ( 1 == videoResolutionIndex )
       {
          pProfile->width = g_iOptionsVideoWidth[g_iOptionsVideoIndex1080p];
          pProfile->height = g_iOptionsVideoHeight[g_iOptionsVideoIndex1080p];
@@ -381,17 +374,18 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
       forceUpdates = true;
    }
    else
+   */
    {
-      pProfile->width = g_iOptionsVideoWidth[videoMode];
-      pProfile->height = g_iOptionsVideoHeight[videoMode];
+      pProfile->width = m_pVideoResolutions[videoResolutionIndex].iWidth;
+      pProfile->height = m_pVideoResolutions[videoResolutionIndex].iHeight;
       pProfile->fps = m_pItemsSlider[0]->getCurrentValue();
+      if ( pProfile->fps > m_pVideoResolutions[videoResolutionIndex].iMaxFPS )
+      {
+         pProfile->fps = m_pVideoResolutions[videoResolutionIndex].iMaxFPS;
+         showFPSWarning(pProfile->width, pProfile->height, pProfile->fps);
+      }
    }
 
-   if ( pProfile->fps > g_iOptionsVideoMaxFPS[videoMode] )
-   {
-      pProfile->fps = g_iOptionsVideoMaxFPS[videoMode];
-      showFPSWarning(g_iOptionsVideoWidth[videoMode], g_iOptionsVideoHeight[videoMode], g_iOptionsVideoMaxFPS[videoMode]);
-   }
    
    if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
       pProfile->keyframe_ms = m_pItemsSlider[1]->getCurrentValue();
@@ -479,6 +473,13 @@ void MenuVehicleVideo::onSelectItem()
          cparams.profiles[iCameraProfile].flags |= CAMERA_FLAG_FORCE_MODE_1;
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_CAMERA_PARAMETERS, g_pCurrentModel->iCurrentCamera, (u8*)(&cparams), sizeof(type_camera_parameters)) )
          valuesToUI();
+      return;
+   }
+
+   if ( (m_IndexAutoKeyframe == m_SelectedIndex) || (m_IndexAdaptiveVideo == m_SelectedIndex) || (m_IndexAutoQuantization == m_SelectedIndex) )
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+   {
+      addUnsupportedMessageOpenIPC(NULL);
       return;
    }
 

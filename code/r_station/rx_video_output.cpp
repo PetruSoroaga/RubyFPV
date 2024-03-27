@@ -121,7 +121,7 @@ bool s_bRecording = false;
 
 u32 s_TimeStartRecording = MAX_U32;
 char s_szFileRecording[1024];
-int s_iFileVideo = -1;
+int s_iFileVideoRecording = -1;
 
 u32 s_TimeLastPeriodicChecksVideoRecording = 0;
 u32 s_TimeLastPeriodicChecksUSBForward = 0;
@@ -369,11 +369,11 @@ void _start_recording()
       hw_execute_bash_command(szComm, NULL);
    }
 
-   if ( s_iFileVideo > 0 )
-      close(s_iFileVideo);
+   if ( s_iFileVideoRecording > 0 )
+      close(s_iFileVideoRecording);
 
-   s_iFileVideo = open(s_szFileRecording, O_CREAT | O_WRONLY | O_NONBLOCK);
-   if ( -1 == s_iFileVideo )
+   s_iFileVideoRecording = open(s_szFileRecording, O_CREAT | O_WRONLY | O_NONBLOCK);
+   if ( -1 == s_iFileVideoRecording )
    {
       char szFile[128];
       strcpy(szFile, FOLDER_RUBY_TEMP);
@@ -384,19 +384,19 @@ void _start_recording()
    }
 
    if ( RUBY_PIPES_EXTRA_FLAGS & O_NONBLOCK )
-   if ( 0 != fcntl(s_iFileVideo, F_SETFL, O_NONBLOCK) )
+   if ( 0 != fcntl(s_iFileVideoRecording, F_SETFL, O_NONBLOCK) )
       log_softerror_and_alarm("[VideoOutput] Failed to set nonblock flag on video recording file");
 
-   log_line("[VideoOutput] Video recording file flags: %s", str_get_pipe_flags(fcntl(s_iFileVideo, F_GETFL)));
+   log_line("[VideoOutput] Video recording file flags: %s", str_get_pipe_flags(fcntl(s_iFileVideoRecording, F_GETFL)));
   
    s_bRecording = true;
 }
 
 void _stop_recording()
 {
-   if ( -1 != s_iFileVideo )
-      close(s_iFileVideo);
-   s_iFileVideo = -1;
+   if ( -1 != s_iFileVideoRecording )
+      close(s_iFileVideoRecording);
+   s_iFileVideoRecording = -1;
 
    log_line("[VideoOutput] Received request to stop recording video.");
    if ( ! s_bRecording )
@@ -886,9 +886,9 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
       write(s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile, pBuffer, length);
    }
 
-   if ( s_bRecording && -1 != s_iFileVideo )
+   if ( s_bRecording && -1 != s_iFileVideoRecording )
    {
-      int iRes = write(s_iFileVideo, pBuffer, length);
+      int iRes = write(s_iFileVideoRecording, pBuffer, length);
       if ( iRes != length )
       {
          u32 uFlags = 0;

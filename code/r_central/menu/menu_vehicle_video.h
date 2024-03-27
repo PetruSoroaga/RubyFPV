@@ -4,6 +4,7 @@
 #include "menu_item_slider.h"
 #include "menu_item_radio.h"
 #include "menu_item_checkbox.h"
+#include "../../base/video_capture_res.h"
 
 class MenuVehicleVideo: public Menu
 {
@@ -16,6 +17,8 @@ class MenuVehicleVideo: public Menu
       virtual void valuesToUI();
             
    private:
+      type_video_capture_resolution_info* m_pVideoResolutions;
+      int m_iVideoResolutionsCount;
       int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
       int m_IndexVideoBitrate;
       int m_IndexVideoProfile;

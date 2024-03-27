@@ -17,5 +17,8 @@ void video_source_csi_request_restart_program();
 bool video_source_csi_is_restart_requested();
 
 void video_source_csi_send_control_message(u8 parameter, u8 value);
-
 void video_source_csi_periodic_checks();
+
+bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites);
+void vehicle_stop_video_capture_csi(Model* pModel);
+void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex);

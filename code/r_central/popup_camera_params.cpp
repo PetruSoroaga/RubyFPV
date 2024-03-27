@@ -112,7 +112,8 @@ void PopupCameraParams::onShow()
       m_iTotalParams++;
    }
 
-   if ( g_pCurrentModel->isActiveCameraVeye307() )
+   if ( g_pCurrentModel->isActiveCameraVeye307() ||
+        g_pCurrentModel->isActiveCameraOpenIPC() )
    {
       m_bHasHue = true;
       m_iIndexParamHue = m_iTotalParams;
@@ -206,7 +207,7 @@ void PopupCameraParams::Render()
    }
    if ( m_iParamToAdjust == m_iIndexParamHue )
    {
-      value = pCamProfile->awbGainR;
+      value = pCamProfile->hue;
       value_min = 0;
       value_max = 100;
       strcpy(szText, "Hue");
@@ -385,19 +386,19 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
 
    if ( m_iParamToAdjust == m_iIndexParamHue )
    {
-      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].awbGainR > 0 )
-         cparams.profiles[iProfile].awbGainR -= 1;
-      if ( bFastCCW && cparams.profiles[iProfile].awbGainR > 0 )
-         cparams.profiles[iProfile].awbGainR -= 1;
+      if ( (bCCW || bFastCCW) && cparams.profiles[iProfile].hue > 0 )
+         cparams.profiles[iProfile].hue -= 1;
+      if ( bFastCCW && cparams.profiles[iProfile].hue > 0 )
+         cparams.profiles[iProfile].hue -= 1;
 
-      if ( (bCW || bFastCW) && cparams.profiles[iProfile].awbGainR < 100 )
-         cparams.profiles[iProfile].awbGainR += 1;
-      if ( bFastCW && cparams.profiles[iProfile].awbGainR < 100 )
-         cparams.profiles[iProfile].awbGainR += 1;
+      if ( (bCW || bFastCW) && cparams.profiles[iProfile].hue < 100 )
+         cparams.profiles[iProfile].hue += 1;
+      if ( bFastCW && cparams.profiles[iProfile].hue < 100 )
+         cparams.profiles[iProfile].hue += 1;
 
-      log_line("PopupCamera: hue (R) changed to: %f", cparams.profiles[iProfile].awbGainR);
+      log_line("PopupCamera: hue (R) changed to: %f", cparams.profiles[iProfile].hue);
 
-      if ( fabs(cparams.profiles[iProfile].awbGainR - g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].awbGainR) >= 1.0 )
+      if ( fabs(cparams.profiles[iProfile].hue - g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].hue) >= 1.0 )
          bToSend = true;
    }
 

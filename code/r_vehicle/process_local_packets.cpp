@@ -621,7 +621,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          else
          {
             g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
-            mark_needs_video_source_capture_restart();
+            mark_needs_video_source_capture_restart(MODEL_CHANGED_VIDEO_H264_QUANTIZATION);
          }
       }
       else
@@ -1058,11 +1058,9 @@ void process_local_control_packet(t_packet_header* pPH)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM )
    {
-      log_line("Received controll message to restart video capture program. Parameter: %u", pPH->vehicle_id_dest);
+      log_line("Received controll message to restart video capture program. Parameter: %u (%s)", pPH->vehicle_id_dest, str_get_model_change_type((int)(pPH->vehicle_id_dest)));
       if ( g_pCurrentModel->hasCamera() )
-      {
-         mark_needs_video_source_capture_restart();
-      } 
+         mark_needs_video_source_capture_restart((int)(pPH->vehicle_id_dest));
       return;
    }
 

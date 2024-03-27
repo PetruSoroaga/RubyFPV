@@ -56,6 +56,7 @@
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
 #include "../r_vehicle/launchers_vehicle.h"
+#include "../r_vehicle/video_source_csi.h"
 #include "../r_vehicle/shared_vars.h"
 #include "../r_vehicle/timers.h"
 #include "../r_vehicle/utils_vehicle.h"
@@ -311,6 +312,8 @@ void try_open_process_stats()
       else
          log_line("Opened shared mem to commands Rx process watchdog for reading.");
    }
+
+   if ( modelVehicle.rc_params.rc_enabled )
    if ( NULL == s_pProcessStatsRC )
    {
       s_pProcessStatsRC = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_RX);
@@ -528,7 +531,7 @@ int r_start_vehicle(int argc, char *argv[])
 
    // Validate camera/video settings
 
-   if ( modelVehicle.validate_camera_settings() )
+   if ( modelVehicle.find_and_validate_camera_settings() )
       bMustSave = true;
 
    // Validate encryption settings
@@ -708,7 +711,7 @@ int r_start_vehicle(int argc, char *argv[])
          g_TimeLastCheckRadioSilenceFailsafe = g_TimeNow;
 
          log_line("Vehicle is alive. Total restarts count: %d", iRestartCount);
-         if ( NULL == s_pProcessStatsRouter || NULL == s_pProcessStatsTelemetry || NULL == s_pProcessStatsCommands || NULL == s_pProcessStatsRC )
+         if ( NULL == s_pProcessStatsRouter || NULL == s_pProcessStatsTelemetry || NULL == s_pProcessStatsCommands || ((NULL == s_pProcessStatsRC) && modelVehicle.rc_params.rc_enabled) )
             try_open_process_stats();
          if ( NULL == s_pProcessStatsRouter )
             continue;
@@ -757,7 +760,7 @@ int r_start_vehicle(int argc, char *argv[])
 
       modelVehicle.reloadIfChanged(true);
 
-      if ( NULL == s_pProcessStatsRouter || NULL == s_pProcessStatsTelemetry || NULL == s_pProcessStatsCommands || NULL == s_pProcessStatsRC )
+      if ( (NULL == s_pProcessStatsRouter) || (NULL == s_pProcessStatsTelemetry) || (NULL == s_pProcessStatsCommands) || ((NULL == s_pProcessStatsRC) && modelVehicle.rc_params.rc_enabled))
          try_open_process_stats();
       
       bMustRestart = false;

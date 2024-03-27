@@ -141,10 +141,13 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSlider[0]->setStep(10);
    m_IndexPacketSize = addMenuItem(m_pItemsSlider[0]);
 
-   m_pItemsSlider[1] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2,MAX_DATA_PACKETS_IN_BLOCK,MAX_DATA_PACKETS_IN_BLOCK/2, fSliderWidth);
+   int iMaxPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
+   if ( NULL != g_pCurrentModel )
+      iMaxPackets = g_pCurrentModel->hwCapabilities.iMaxTxVideoBlockPackets;
+   m_pItemsSlider[1] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
    m_IndexBlockPackets = addMenuItem(m_pItemsSlider[1]);
 
-   m_pItemsSlider[2] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0,MAX_FECS_PACKETS_IN_BLOCK,MAX_FECS_PACKETS_IN_BLOCK/2, fSliderWidth);
+   m_pItemsSlider[2] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
    m_IndexBlockFECs = addMenuItem(m_pItemsSlider[2]);
 
    m_pItemsSlider[2]->setExtraHeight( (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall));
