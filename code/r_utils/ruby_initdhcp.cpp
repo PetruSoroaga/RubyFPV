@@ -102,15 +102,15 @@ int main(int argc, char *argv[])
 
    bool bIsStation = hardware_is_station();
 
-   int board_type = 0;
+   u32 board_type = 0;
    char szBoardId[256];
    char szFile[128];
-   strcpy(szFile, FOLDER_CONFIG);
+   strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
-      fscanf(fd, "%d %s", &board_type, szBoardId);
+      fscanf(fd, "%u %s", &board_type, szBoardId);
       fclose(fd);
    }
    log_line("Board type: %d -> %s", board_type, str_get_hardware_board_name(board_type));

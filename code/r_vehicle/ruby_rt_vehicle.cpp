@@ -331,9 +331,9 @@ void send_radio_reinitialized_message()
 }
 
 
-void mark_needs_video_source_capture_restart(int iChangeType)
+void video_source_capture_mark_needs_update_or_restart(u32 uChangeType)
 {
-   log_line("Router was flagged to restart video capture (reason: %d (%s))", iChangeType, str_get_model_change_type(iChangeType));
+   log_line("Router was flagged to restart video capture (reason: %d (%s))", uChangeType & 0xFF, str_get_model_change_type(uChangeType & 0xFF));
    if ( (NULL == g_pCurrentModel) || (!g_pCurrentModel->hasCamera()) )
    {
       log_line("Vehicle has no camera. Do not flag need for restarting video capture.");
@@ -341,7 +341,7 @@ void mark_needs_video_source_capture_restart(int iChangeType)
    }
 
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      video_source_majestic_request_restart_program(iChangeType);
+      video_source_majestic_request_update_program(uChangeType);
    else if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_request_restart_program();
 }
@@ -1322,7 +1322,7 @@ u32 get_video_capture_start_program_time()
 
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       return video_source_cs_get_program_start_time();
-   return 0;
+   return video_source_majestic_get_program_start_time();
 }
 
 void _broadcast_router_ready()
@@ -1354,7 +1354,7 @@ void handle_sigint(int sig)
 // To remove
 bool bDebugNoVideoOutput = false;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    signal(SIGINT, handle_sigint);
    signal(SIGTERM, handle_sigint);
@@ -1411,6 +1411,13 @@ int main (int argc, char *argv[])
 
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
+
+
+   if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+   {
+      log_line("Log is disabled on vehicle. Disabled logs.");
+      log_disable();
+   }
 
    if ( NULL != g_pProcessStats )
    {

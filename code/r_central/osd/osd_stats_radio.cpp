@@ -695,7 +695,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          szDRV[0] = 0;
          szDRD[0] = 0;
          str_getDataRateDescriptionNoSufix(pStats->radio_interfaces[i].lastRecvDataRateVideo, szDRV);
-         str_getDataRateDescription(pStats->radio_interfaces[i].lastRecvDataRateData, szDRD);
+         str_getDataRateDescription(pStats->radio_interfaces[i].lastRecvDataRateData, 0, szDRD);
          snprintf(szDR, sizeof(szDR)/sizeof(szDR[0]), " V/D: %s/%s", szDRV, szDRD);
          strcat(szBuff, szDR);
       }
@@ -958,7 +958,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
             szDRV[0] = 0;
             szDRD[0] = 0;
             str_getDataRateDescriptionNoSufix(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastRecvDataRateVideo, szDRV);
-            str_getDataRateDescription(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastRecvDataRateData, szDRD);
+            str_getDataRateDescription(g_VehiclesRuntimeInfo[iRuntimeInfoToUse].SMVehicleRxStats[i].lastRecvDataRateData, 0, szDRD);
             snprintf(szDR, sizeof(szDR)/sizeof(szDR[0]), " V/D: %s/%s", szDRV, szDRD);
             strcat(szBuff, szDR);
          }

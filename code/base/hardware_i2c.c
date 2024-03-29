@@ -187,7 +187,7 @@ void hardware_enumerate_i2c_busses()
    int countDevicesTotal = 0;
 
 #ifdef HW_CAPABILITY_I2C
-   int boardType = hardware_getBoardType();
+   u32 uBoardType = hardware_getOnlyBoardType();
    char szOutput[1024];
    for( int i=0; i<s_iHardwareI2CBusCount; i++ )
    {
@@ -204,7 +204,7 @@ void hardware_enumerate_i2c_busses()
          if ( k == 7 )
             addrEnd = (7*16)+7;
 
-         if ( (boardType == BOARD_TYPE_PI4B) && (0 == s_HardwareI2CBusInfo[i].nBusNumber) )
+         if ( (uBoardType == BOARD_TYPE_PI4B) && (0 == s_HardwareI2CBusInfo[i].nBusNumber) )
          {
             if ( k == 0 )
                addrStart = addrEnd = I2C_DEVICE_ADDRESS_CAMERA_HDMI;
@@ -297,9 +297,6 @@ void hardware_recheck_i2c_cameras()
       return;
    }
 #ifdef HW_CAPABILITY_I2C
-
-   int boardType = hardware_getBoardType();
-   boardType = boardType & 0xFF;
 
    char szBuff[256];
    char szOutput[1024];

@@ -271,7 +271,7 @@ int load_ControllerInterfacesSettings()
          }
          char szDatarate[64];
          char szFlags[128];
-         str_getDataRateDescription(s_CIS.listRadioInterfaces[i].datarateBPSMCS, szDatarate);
+         str_getDataRateDescription(s_CIS.listRadioInterfaces[i].datarateBPSMCS, 0, szDatarate);
          str_get_radio_capabilities_description(s_CIS.listRadioInterfaces[i].capabilities_flags, szFlags);
          log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], custom datarate: %s, flags: %s",
             i, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].szUserDefinedName,
@@ -406,7 +406,7 @@ void controllerRadioInterfacesLogInfo()
          log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       u32 uFlags = controllerGetCardFlags(pRadioInfo->szMAC);
       char szDataRate[64];
-      str_getDataRateDescription(controllerGetCardDataRate(pRadioInfo->szMAC), szDataRate);
+      str_getDataRateDescription(controllerGetCardDataRate(pRadioInfo->szMAC), 0, szDataRate);
       szBuff[0] = 0;
       str_get_radio_capabilities_description(uFlags, szBuff);
       log_line("      Controller set rate: %s, set flags: %s", szDataRate, szBuff);

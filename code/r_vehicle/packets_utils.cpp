@@ -102,10 +102,10 @@ int get_last_tx_video_datarate_mbps()
       if ( (NULL == pRadioInfo) || (! pRadioInfo->isHighCapacityInterface) )
          continue;
         
-      if ( getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0]) > nMaxRate )
-         nMaxRate = getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0]);
-      if ( getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0]) < nMinRate )
-         nMinRate = getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0]);
+      if ( getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0], 0) > nMaxRate )
+         nMaxRate = getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0], 0);
+      if ( getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0], 0) < nMinRate )
+         nMinRate = getRealDataRateFromRadioDataRate(s_LastTxDataRates[i][0], 0);
    }
    if ( nMinRate == MAX_U32 )
       return DEFAULT_RADIO_DATARATE_VIDEO;
@@ -133,13 +133,13 @@ int _compute_packet_datarate(bool bIsVideoPacket, bool bIsRetransmited, int iVeh
 
       int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
       if ( 0 != nRateUserVideoProfile )
-      if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) )
+      if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
          nRateTx = nRateUserVideoProfile;
 
       #endif
 
       if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
-      if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface]) < getRealDataRateFromRadioDataRate(nRateTx) )
+      if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface], 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
          nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
 
       if ( 0 == nRateTx )
@@ -201,20 +201,20 @@ int _compute_packet_datarate(bool bIsVideoPacket, bool bIsRetransmited, int iVeh
          {
          nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLinkId];
          if ( 0 != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
-         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps) < getRealDataRateFromRadioDataRate(nRateTx) )
+         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
             nRateTx = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0 && g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES )
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != g_pCurrentModel->video_params.user_selected_video_link_profile )
          {
             int nRate = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video_bps;
             if ( nRate != 0 )
-            if ( getRealDataRateFromRadioDataRate(nRate) < getRealDataRateFromRadioDataRate(nRateTx) )
+            if ( getRealDataRateFromRadioDataRate(nRate, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
                   nRateTx = nRate;
          }
 
          nRateTxVideo = video_stats_overwrites_get_current_radio_datarate_video(iVehicleRadioLinkId, iRadioInterface);
          if ( nRateTxVideo != 0 )
-         if ( getRealDataRateFromRadioDataRate(nRateTxVideo) < getRealDataRateFromRadioDataRate(nRateTx) )
+         if ( getRealDataRateFromRadioDataRate(nRateTxVideo, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
             nRateTx = nRateTxVideo;
          }
          break;

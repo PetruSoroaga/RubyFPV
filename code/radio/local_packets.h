@@ -9,7 +9,7 @@
 
 #define PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO 151
 #define PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO 152
-#define PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM 153
+#define PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM 153
 #define PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED 154  // vehicle_id_src is the component id that triggered the change (first byte) and the type of change (second byte)
 #define PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED 156 // video encodings have changed and tx video must update.
 #define PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED 157  // vehicle_id_src is the component id that triggered the change

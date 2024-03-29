@@ -124,6 +124,14 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
       return;
    if ( g_bVideoPaused )
       return;
+
+   // To fix : add autoquantization to sigmastar boards
+   if ( hardware_board_is_openipc(hardware_getBoardType()) )
+      return;
+
+   if ( hardware_board_is_goke(hardware_getBoardType()) )
+      return;
+     
    if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 4000) )
       return;
    
@@ -307,6 +315,8 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
 void video_link_check_adjust_bitrate_for_overload()
 {
    if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 5000) )
+      return;
+   if ( hardware_board_is_goke(hardware_getBoardType()) )
       return;
 
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK )

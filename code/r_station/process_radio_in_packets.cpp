@@ -1041,7 +1041,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       {
          if ( pPHCR->origin_command_counter != g_uLastInterceptedCommandCounterToSetRadioFlags )
          {
-            log_line("Intercepted command response Ok to command sent to set radio flags and radio data datarate on radio link %u to %u bps (%d datarate).", g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand+1, getRealDataRateFromRadioDataRate(g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand), g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand);
+            log_line("Intercepted command response Ok to command sent to set radio flags and radio data datarate on radio link %u to %u bps (%d datarate).", g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand+1, getRealDataRateFromRadioDataRate(g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand, 0), g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand);
             g_uLastInterceptedCommandCounterToSetRadioFlags = pPHCR->origin_command_counter;
 
             for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )

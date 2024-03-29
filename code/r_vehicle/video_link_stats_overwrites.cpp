@@ -42,6 +42,7 @@
 #include "utils_vehicle.h"
 #include "packets_utils.h"
 #include "video_source_csi.h"
+#include "video_source_majestic.h"
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
@@ -58,6 +59,23 @@ u32 s_TimeLastHistorySwitchUpdate = 0;
 int s_iLastTargetVideoFPS = 0;
 
 u32 s_uTimeStartGoodIntervalForProfileShiftUp = 0;
+
+
+void _video_overwrites_set_capture_video_bitrate(u32 uBitrateBPS, bool bIsInitialValue, int iReason)
+{
+   log_line("DEBUG set video bitrate to %u bps, initial: %d, reason: %d", uBitrateBPS, bIsInitialValue, iReason);
+
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000);
+   
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      video_source_majestic_set_videobitrate_value(uBitrateBPS);
+   
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(uBitrateBPS, bIsInitialValue, 1);
+}
 
 
 // Needs to be sent to other processes when we change the currently selected video profile
@@ -201,7 +219,7 @@ u32 _get_bitrate_for_current_level_and_profile_including_overwrites()
    // Minimum for MQ profile, for 12 Mb datarate is at least 2Mb, do not go below that
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
    if ( g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps == 0 )
-   if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps) >= 12000000 )
+   if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps, 0) >= 12000000 )
    if ( uTargetVideoBitrate < 2000000 )
       uTargetVideoBitrate = 2000000;
      
@@ -286,12 +304,7 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
       video_link_quantization_shift(2);
    }
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
-   
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 1);
+   _video_overwrites_set_capture_video_bitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 1);
    
    // Prevent video bitrate changes due to overload or underload right after a profile change;
    // (A profile change usually sets a new, different video bitrate, so ignore this delta for a while)
@@ -377,12 +390,7 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
-   
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 2);
+   _video_overwrites_set_capture_video_bitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 2);
          
    int nTargetFPS = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].fps;
    if ( 0 == nTargetFPS )
@@ -433,12 +441,7 @@ void _video_stats_overwrites_apply_ec_bitrate_changes(bool bDownDirection)
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
-   
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 3);
+   _video_overwrites_set_capture_video_bitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 3);
          
    // Signal other components (rx_command) to refresh their copy of current video overwrites structure
 
@@ -993,7 +996,8 @@ void video_stats_overwrites_periodic_loop()
       return;
    if ( g_bVideoPaused )
       return;
-
+   if ( hardware_board_is_goke(hardware_getBoardType()) )
+      return;
    if ( g_TimeNow >= g_SM_VideoLinkGraphs.timeLastStatsUpdate + VIDEO_LINK_STATS_REFRESH_INTERVAL_MS )
    {
       g_SM_VideoLinkGraphs.timeLastStatsUpdate = g_TimeNow;
@@ -1107,12 +1111,8 @@ bool video_stats_overwrites_increase_videobitrate_overwrite(u32 uCurrentTotalBit
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
-   
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 4);
+   _video_overwrites_set_capture_video_bitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 4);
+
    return true;
 }
 
@@ -1150,11 +1150,8 @@ bool video_stats_overwrites_decrease_videobitrate_overwrite()
    if ( g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate < 200000 )
       g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = 200000;
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000);
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 5);
+   _video_overwrites_set_capture_video_bitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, false, 5);
+
    return true;
 }
 
@@ -1186,7 +1183,7 @@ int _video_stats_overwrites_get_lower_datarate_value(int iDataRateBPS, int iLeve
    for( int i=0; i<iLevelsDown; i++ )
    {
       if ( (iCurrentIndex > 0) )
-      if ( getRealDataRateFromRadioDataRate(getDataRatesBPS()[iCurrentIndex]) > 6000000)
+      if ( getRealDataRateFromRadioDataRate(getDataRatesBPS()[iCurrentIndex], 0) > 6000000)
          iCurrentIndex--;
    }
 
@@ -1203,7 +1200,7 @@ int video_stats_overwrites_get_current_radio_datarate_video(int iRadioLink, int 
 
    int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps;
    if ( 0 != nRateUserVideoProfile )
-   if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) )
+   if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
       nRateTx = nRateUserVideoProfile;
 
    // nRateTx is now the top radio rate (highest one)
@@ -1212,7 +1209,7 @@ int video_stats_overwrites_get_current_radio_datarate_video(int iRadioLink, int 
       return nRateTx;
 
    int nRateCurrentVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video_bps;
-   if ( (0 != nRateCurrentVideoProfile) && ( getRealDataRateFromRadioDataRate(nRateCurrentVideoProfile) < getRealDataRateFromRadioDataRate(nRateTx) ) )
+   if ( (0 != nRateCurrentVideoProfile) && ( getRealDataRateFromRadioDataRate(nRateCurrentVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) ) )
       nRateTx = nRateCurrentVideoProfile;
 
    // Decrease nRateTx for MQ, LQ profiles

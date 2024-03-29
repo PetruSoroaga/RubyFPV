@@ -5,7 +5,7 @@ bool g_bDebug = false;
 Model* g_pCurrentModel = NULL;
 
 shared_mem_process_stats* g_pProcessStats = NULL;
-int g_iBoardType = 0;
+u32 g_uBoardType = 0;
 
 t_packet_queue s_QueueControlPackets;
 

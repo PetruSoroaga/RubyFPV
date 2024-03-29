@@ -379,17 +379,17 @@ int r_start_vehicle(int argc, char *argv[])
    
    ruby_clear_all_ipc_channels();
 
-   g_iBoardType = 0;
+   g_uBoardType = 0;
    char szBoardId[256];
-   strcpy(szFile, FOLDER_CONFIG);
+   strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
-      fscanf(fd, "%d %s", &g_iBoardType, szBoardId);
+      fscanf(fd, "%u %s", &g_uBoardType, szBoardId);
       fclose(fd);
    }
-   log_line("Start sequence: Board type: %d -> %s", g_iBoardType, str_get_hardware_board_name(g_iBoardType));
+   log_line("Start sequence: Board type: %u -> %s", g_uBoardType, str_get_hardware_board_name(g_uBoardType));
 
 
    sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
@@ -413,6 +413,12 @@ int r_start_vehicle(int argc, char *argv[])
           (int)((modelVehicle.uDeveloperFlags >> 8) & 0xFF) );
    log_line("Start sequence: Model has vehicle developer video link stats flag on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no");
    log_line("Start sequence: Model has vehicle developer video link stats graphs on: %s", (modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
+
+   if ( modelVehicle.uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+   {
+      log_line("Log is disabled on vehicle. Disabled logs.");
+      log_disable();
+   }
 
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_VEHICLE_REBOOT_CACHE);
@@ -545,6 +551,7 @@ int r_start_vehicle(int argc, char *argv[])
    }
 
    // Check logger service flag change
+
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, LOG_USE_PROCESS);
 

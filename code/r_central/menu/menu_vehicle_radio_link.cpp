@@ -148,14 +148,12 @@ MenuVehicleRadioLink::MenuVehicleRadioLink(int iRadioLink)
    m_pItemsSelect[03] = new MenuItemSelect("Radio Data Rate (for Video)", "Sets the physical radio data rate to use on this radio link for video data. If adaptive radio links is enabled, this will get lowered automatically by Ruby as needed.");
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      //sprintf(szBuff, "%d Mbps", getDataRatesBPS()[i]);
-      str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
       m_pItemsSelect[03]->addSelection(szBuff);
    }
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      //sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
-      str_getDataRateDescription(-1-i, szBuff);
+      str_getDataRateDescription(-1-i, 0, szBuff);
       m_pItemsSelect[03]->addSelection(szBuff);
    }
    m_pItemsSelect[03]->setIsEditable();
@@ -171,14 +169,12 @@ MenuVehicleRadioLink::MenuVehicleRadioLink(int iRadioLink)
    m_pItemsSelect[05] = new MenuItemSelect("   Fixed Radio Data Rate (data downlink)", "Sets the physical radio downlink data rate for data packets (excluding video packets).");
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      //sprintf(szBuff, "%d Mbps", getDataRatesBPS()[i]);
-      str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
       m_pItemsSelect[05]->addSelection(szBuff);
    }
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      //sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
-      str_getDataRateDescription(-1-i, szBuff);
+      str_getDataRateDescription(-1-i, 0, szBuff);
       m_pItemsSelect[05]->addSelection(szBuff);
    }
    m_pItemsSelect[05]->setIsEditable();
@@ -194,14 +190,12 @@ MenuVehicleRadioLink::MenuVehicleRadioLink(int iRadioLink)
    m_pItemsSelect[07] = new MenuItemSelect("   Fixed Radio Data Rate (data uplink)", "Sets the physical radio uplink data rate for data packets.");
    for( int i=0; i<getDataRatesCount(); i++ )
    {
-      //sprintf(szBuff, "%d Mbps", getDataRatesBPS()[i]);
-      str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
       m_pItemsSelect[07]->addSelection(szBuff);
    }
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      //sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
-      str_getDataRateDescription(-1-i, szBuff);
+      str_getDataRateDescription(-1-i, 0, szBuff);
       m_pItemsSelect[07]->addSelection(szBuff);
    }
    m_pItemsSelect[07]->setIsEditable();

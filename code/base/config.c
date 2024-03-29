@@ -366,29 +366,32 @@ int getSupportedChannels(u32 supportedBands, int includeSeparator, u32* pOutChan
 int *getDataRatesBPS() { return s_WiFidataRates; }
 int getDataRatesCount() { return sizeof(s_WiFidataRates)/sizeof(s_WiFidataRates[0]); }
 
-u32 getRealDataRateFromMCSRate(int mcsIndex)
+u32 getRealDataRateFromMCSRate(int mcsIndex, int iHT40)
 {
+   u32 uMul = 1;
+   if ( iHT40 )
+      uMul = 2;
    if ( 0 == mcsIndex )
-      return 6000000;
+      return 6000000*uMul;
    if ( 1 == mcsIndex )
-      return 13000000;
+      return 13000000*uMul;
    if ( 2 == mcsIndex )
-      return 19000000;
+      return 19000000*uMul;
    if ( 3 == mcsIndex )
-      return 26000000;
+      return 26000000*uMul;
    if ( 4 == mcsIndex )
-      return 39000000;
+      return 39000000*uMul;
    if ( 5 == mcsIndex )
-      return 52000000;
+      return 52000000*uMul;
    if ( 6 == mcsIndex )
-      return 58000000;
-   return 58000000;
+      return 58000000*uMul;
+   return 58000000*uMul;
 }
 
-u32 getRealDataRateFromRadioDataRate(int dataRateBPS)
+u32 getRealDataRateFromRadioDataRate(int dataRateBPS, int iHT40)
 {
    if ( dataRateBPS < 0 )
-      return getRealDataRateFromMCSRate(-dataRateBPS-1);
+      return getRealDataRateFromMCSRate(-dataRateBPS-1, iHT40);
    else if ( dataRateBPS <= 56 )
       return ((u32)(dataRateBPS))*1000*1000;
    else

@@ -60,9 +60,10 @@ MenuSystemDevLogs::MenuSystemDevLogs(void)
    m_pItemsSelect[0]->setIsEditable();
    m_IndexLogServiceController = addMenuItem(m_pItemsSelect[0]);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Log System (Vehicle)", "Sets the type of log system to use: directly to files or using a service. Requires a reboot after the change.");
+   m_pItemsSelect[1] = new MenuItemSelect("Log System (Vehicle)", "Sets the type of log system to use: directly to files or using a service or disabled completly. Requires a reboot after the change.");
    m_pItemsSelect[1]->addSelection("Files");
    m_pItemsSelect[1]->addSelection("Service");
+   m_pItemsSelect[1]->addSelection("Disabled");
    m_pItemsSelect[1]->setIsEditable();
    m_IndexLogServiceVehicle = addMenuItem(m_pItemsSelect[1]);
 
@@ -120,13 +121,18 @@ void MenuSystemDevLogs::valuesToUI()
       m_pItemsSelect[1]->setEnabled(true);
       if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE )
          m_pItemsSelect[1]->setSelectedIndex(1);
+      else if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+         m_pItemsSelect[1]->setSelectedIndex(2);
       else
          m_pItemsSelect[1]->setSelectedIndex(0);
 
       m_pItemsSelect[2]->setEnabled(true);
       m_pItemsSelect[2]->setSelection( (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?1:0 );
 
-      m_pItemsSelect[6]->setEnabled(true);
+      if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+         m_pItemsSelect[6]->setEnabled(false);
+      else
+         m_pItemsSelect[6]->setEnabled(true);
       m_pItemsSelect[6]->setSelectedIndex(0);
       if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
          m_pItemsSelect[6]->setSelectedIndex(1);
@@ -310,10 +316,19 @@ void MenuSystemDevLogs::onSelectItem()
          return;
       int val = m_pItemsSelect[1]->getSelectedIndex();
       u32 uFlags = g_pCurrentModel->uModelFlags;
+      if ( 0 == val )
+      {
+         uFlags &= ~ (MODEL_FLAG_USE_LOGER_SERVICE | MODEL_FLAG_DISABLE_ALL_LOGS);
+      }
       if ( 1 == val )
+      {
         uFlags |= MODEL_FLAG_USE_LOGER_SERVICE;
-      else
-         uFlags &= ~MODEL_FLAG_USE_LOGER_SERVICE;
+        uFlags &= ~ MODEL_FLAG_DISABLE_ALL_LOGS;
+      }
+      if ( 2 == val )
+      {
+         uFlags |= MODEL_FLAG_DISABLE_ALL_LOGS;
+      }
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_MODEL_FLAGS, uFlags, NULL, 0) )
          valuesToUI();  
       return;

@@ -122,13 +122,13 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    {
       if ( getDataRatesBPS()[i] < 3000000 )
          continue;
-      str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
       m_pItemsSelect[16]->addSelection(szBuff);
    }
    if ( NULL != g_pCurrentModel && ((g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58) || (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58)) )
    for( int i=0; i<=MAX_MCS_INDEX; i++ )
    {
-      str_getDataRateDescription(-1-i, szBuff);
+      str_getDataRateDescription(-1-i, 0, szBuff);
       m_pItemsSelect[16]->addSelection(szBuff);
    }
    m_pItemsSelect[16]->setIsEditable();

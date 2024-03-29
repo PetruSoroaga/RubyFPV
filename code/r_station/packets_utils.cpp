@@ -204,7 +204,7 @@ int _get_lower_datarate_value(int iDataRate, int iLevelsDown )
    for( int i=0; i<iLevelsDown; i++ )
    {
       if ( (iCurrentIndex > 0) )
-      if ( getRealDataRateFromRadioDataRate(getDataRatesBPS()[iCurrentIndex]) > DEFAULT_RADIO_DATARATE_LOWEST)
+      if ( getRealDataRateFromRadioDataRate(getDataRatesBPS()[iCurrentIndex], 0) > DEFAULT_RADIO_DATARATE_LOWEST)
          iCurrentIndex--;
    }
 
@@ -246,14 +246,14 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
       case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO:
          nRateTx = pRadioLinksParams->link_datarate_video_bps[iVehicleRadioLink];
          if ( 0 != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
-         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps) < getRealDataRateFromRadioDataRate(nRateTx) )
+         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
             nRateTx = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
          if ( nVideoProfile >= 0 && nVideoProfile < MAX_VIDEO_LINK_PROFILES )
          if ( nVideoProfile != g_pCurrentModel->video_params.user_selected_video_link_profile )
          {
             int nRate = g_pCurrentModel->video_link_profiles[nVideoProfile].radio_datarate_video_bps;
             if ( nRate != 0 )
-            if ( getRealDataRateFromRadioDataRate(nRate) < getRealDataRateFromRadioDataRate(nRateTx) )
+            if ( getRealDataRateFromRadioDataRate(nRate, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
                   nRateTx = nRate;
          }
          break;
@@ -269,7 +269,7 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
    
    int nRateTxCard = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
    if ( nRateTxCard != 0 )
-   if ( getRealDataRateFromRadioDataRate(nRateTxCard) < getRealDataRateFromRadioDataRate(nRateTx) )
+   if ( getRealDataRateFromRadioDataRate(nRateTxCard, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
       nRateTx = nRateTxCard;
 
 

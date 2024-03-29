@@ -411,7 +411,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
       if ( dataRateCard == 0 )
          strcat(szBuff, "Same as vehicle");
       else
-         str_getDataRateDescription(dataRateCard, szTemp);
+         str_getDataRateDescription(dataRateCard, 0, szTemp);
       
       if ( i < hardware_get_radio_interfaces_count()-1 )
          strcat(szBuff, ", ");
@@ -435,7 +435,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
          strcat(szBuff,", ");
       if ( g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] < 0 )
       {
-         sprintf(szTemp, "MCS-%d (%d Mbps), STBC: %s", -g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, getRealDataRateFromMCSRate(-g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1)/1000/1000, (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[i] & RADIO_FLAG_STBC_VEHICLE)?"Yes":"No");
+         sprintf(szTemp, "MCS-%d (%d Mbps), STBC: %s", -g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, getRealDataRateFromMCSRate(-g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, 0)/1000/1000, (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[i] & RADIO_FLAG_STBC_VEHICLE)?"Yes":"No");
          strcat(szBuff, szTemp);
       }
       else

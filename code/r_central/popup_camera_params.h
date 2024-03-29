@@ -1,7 +1,7 @@
 #pragma once
 #include "popup.h"
 #include "menu_item_slider.h"
-
+#include "../../base/models.h"
 
 class PopupCameraParams: public Popup
 {
@@ -16,6 +16,9 @@ class PopupCameraParams: public Popup
 
    protected:
       bool m_bCanAdjust;
+      bool m_bCanSendQuick;
+      bool m_bHasPendingChanges;
+      type_camera_parameters m_PendingCameraChanges;
       bool m_bHasSharpness;
       bool m_bHasHue;
       bool m_bHasAGC;
@@ -27,5 +30,6 @@ class PopupCameraParams: public Popup
       int m_iIndexParamAGC;
       int m_iTotalParams;
       int m_iParamToAdjust;
+      u32 m_uTimeLastChange;
       MenuItemSlider* m_pSlider;
 };

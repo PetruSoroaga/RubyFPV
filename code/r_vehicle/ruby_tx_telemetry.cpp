@@ -33,6 +33,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "../base/config.h"
 #include "../base/shared_mem.h"
 #include "../base/hw_procs.h"
+#include "../base/hardware_camera.h"
 #include "../base/models.h"
 #include "../base/models_list.h"
 #include "../base/commands.h"
@@ -2188,7 +2189,7 @@ void handle_sigint(int sig)
    g_bQuit = true;
 } 
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    signal(SIGINT, handle_sigint);
    signal(SIGTERM, handle_sigint);
@@ -2215,6 +2216,12 @@ int main (int argc, char *argv[])
    loadAllModels();
    g_pCurrentModel = getCurrentModel();
  
+   if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+   {
+      log_line("Log is disabled on vehicle. Disabled logs.");
+      log_disable();
+   }
+
    _open_pipes(true, false);
    
    open_shared_mem_objects();

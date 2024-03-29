@@ -43,6 +43,7 @@
 #include "packets_utils.h"
 #include "utils_vehicle.h"
 #include "video_source_csi.h"
+#include "video_source_majestic.h"
 #include <semaphore.h>
 
 #define PACKET_FLAG_EMPTY 0
@@ -1668,10 +1669,19 @@ void _parse_h264_data(u8* pData, int iDataSize)
                   uKeyframeCount = 254;
             }
             if ( g_pCurrentModel->hasCamera() )
-            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
             {
-               log_line("[KeyFrame] Sending keyframe count %d to the video capture program (for current fps %d and keyframe interval: %d ms)", uKeyframeCount, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
-               video_source_csi_send_control_message(RASPIVID_COMMAND_ID_KEYFRAME, uKeyframeCount);
+               if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+               {
+                  log_line("DEBUG [KeyFrame] Sending keyframe count %d to the video capture program (for current fps %d and keyframe interval: %d ms)", uKeyframeCount, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
+                  video_source_csi_send_control_message(RASPIVID_COMMAND_ID_KEYFRAME, uKeyframeCount);
+               }
+               if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+               {
+                  float fGOP = 1.0;
+                  fGOP = ((float)s_iCurrentKeyFrameIntervalMs)/1000.0;
+                  log_line("DEBUG [KeyFrame] Sending keyframe gop %.1f to the majestic capture program (for current fps %d and keyframe interval: %d ms)", fGOP, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
+                  video_source_majestic_set_keyframe_value(fGOP);                
+               }
             }
          }
       }

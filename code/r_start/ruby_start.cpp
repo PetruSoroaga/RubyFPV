@@ -37,6 +37,7 @@
 #include "../base/models.h"
 #include "../base/models_list.h"
 #include "../base/hardware.h"
+#include "../base/hardware_camera.h"
 #include "../base/hw_procs.h"
 #include "../base/hardware_radio_serial.h"
 #include "../base/vehicle_settings.h"
@@ -98,7 +99,7 @@ void power_leds(int onoff)
 void initLogFiles()
 {
    char szComm[256];
-   char szSrcFile[128];
+   char szSrcFile[MAX_FILE_PATH_SIZE];
    sprintf(szComm, "rm -rf %s%s", FOLDER_LOGS, LOG_FILE_LOGGER);
    hw_execute_bash_command_silent(szComm, NULL);
 
@@ -182,8 +183,6 @@ void initLogFiles()
 
 void detectSystemType()
 {
-   hardware_detectSystemType();
-
    if ( hardware_is_vehicle() )
    {
       log_line("Detected system as vehicle/relay.");
@@ -653,6 +652,7 @@ int main(int argc, char *argv[])
 
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, LOG_USE_PROCESS);
+
    if( access( szFile, R_OK ) != -1 )
    if ( ! hw_process_exists("ruby_logger") )
    {
@@ -824,10 +824,6 @@ int main(int argc, char *argv[])
      
    hardware_sleep_ms(50);
 
-   #ifdef HW_PLATFORM_RASPBERRY
-   hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
-   #endif
-
    hw_execute_bash_command_raw("lsusb", szOutput);
    strcat(szOutput, "\n*END*\n");
    log_line("USB Devices:");
@@ -843,6 +839,7 @@ int main(int argc, char *argv[])
    log_line("I2C buses:");
    log_line(szOutput);      
    #endif
+
 
    int iCount = 0;
    bool bWiFiDetected = false;
@@ -919,7 +916,9 @@ int main(int argc, char *argv[])
       }
    }
 
-   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_SYSTEM_TYPE);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_SYSTEM_TYPE);
+   hw_execute_bash_command_silent(szComm, NULL);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_CAMERA_TYPE);
    hw_execute_bash_command_silent(szComm, NULL);
 
    init_hardware_only_status_led();
@@ -934,7 +933,7 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(900);
    }
 
-   board_type = hardware_detectBoardType();
+   board_type = hardware_getOnlyBoardType();
 
    #ifdef HW_CAPABILITY_I2C
    // Initialize I2C bus 0 for different boards types
@@ -978,6 +977,15 @@ int main(int argc, char *argv[])
    #endif
 
    fflush(stdout);
+
+   // Detect hardware
+   hardware_getCameraType();
+   hardware_getBoardType();
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
+   #endif
+
    detectSystemType();
 
    hardware_release();

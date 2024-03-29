@@ -36,6 +36,7 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include "../base/hardware_camera.h"
 #include "../base/models_list.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
@@ -97,6 +98,8 @@ void do_update_to_83()
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
       pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;   
+
       save_ControllerSettings();
 
       //load_Preferences();
@@ -126,9 +129,6 @@ void do_update_to_83()
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags &= 0xFFFF00FF;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
 
    pModel->video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
    pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;

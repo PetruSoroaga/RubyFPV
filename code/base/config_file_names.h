@@ -29,6 +29,7 @@
 #define FILE_CONFIG_FIRST_BOOT "firstboot.txt"
 #define FILE_CONFIG_FIRST_PAIRING_DONE "firstpairingdone"
 #define FILE_CONFIG_SYSTEM_TYPE "system_type.txt"
+#define FILE_CONFIG_CAMERA_TYPE "camera_type.txt"
 #define FILE_CONFIG_BOARD_TYPE "board.txt"
 #define FILE_VEHICLE_SPECTATOR "spect-%d.mdl"
 #define FILE_VEHICLE_CONTROLL "ctrl-%d.mdl"

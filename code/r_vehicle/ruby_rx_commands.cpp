@@ -37,6 +37,7 @@
 #include "../base/models_list.h"
 #include "../base/radio_utils.h"
 #include "../base/hardware.h"
+#include "../base/hardware_camera.h"
 #include "../base/hardware_radio.h"
 #include "../base/hardware_radio_sik.h"
 #include "../base/encr.h"
@@ -1041,7 +1042,7 @@ bool process_command(u8* pBuffer, int length)
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       #ifdef HW_PLATFORM_RASPBERRY
-      int board_type = hardware_detectBoardType();
+      int board_type = hardware_getBoardType();
       g_pCurrentModel->iFreqARM = 900;
       if ( board_type == BOARD_TYPE_PIZERO2 )
          g_pCurrentModel->iFreqARM = 1000;
@@ -1074,6 +1075,9 @@ bool process_command(u8* pBuffer, int length)
          #endif
          #ifdef HW_PLATFORM_OPENIPC_CAMERA
          strcpy(szBuffer, "Platform: OpenIPC#");
+         strcat(szBuffer, "SOC: ");
+         strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType));
+         strcat(szBuffer, "#");
          #endif
 
          hw_execute_bash_command_raw("cat /proc/device-tree/model", szOutput);
@@ -1748,9 +1752,37 @@ bool process_command(u8* pBuffer, int length)
             signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
          }
       }
+      log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType));
+      if ( hardware_is_running_on_openipc() )
+      if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         if ( oldParams.brightness != pCamParams->brightness )
+         {
+            bSentUsingPipe = true;
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_BRIGHTNESS | (pCamParams->brightness << 16));
+         }
+         if ( oldParams.contrast != pCamParams->contrast )
+         {
+            bSentUsingPipe = true;
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_CONTRAST | (pCamParams->contrast << 16));
+         }
+         if ( oldParams.saturation != pCamParams->saturation )
+         {
+            bSentUsingPipe = true;
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_SATURATION | (pCamParams->saturation << 16));
+         }
+         if ( oldParams.hue != pCamParams->hue )
+         {
+            bSentUsingPipe = true;
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_HUE | (pCamParams->hue << 16));
+         }
+      }
+      
       if ( bSentUsingPipe )
+      {
+         log_line("Sent using pipes");
          return true;
-
+      }
       if ( g_pCurrentModel->isActiveCameraVeye307() && (fabs(oldParams.hue - pCamParams->hue) > 0.1 ) )
          vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->isActiveCameraVeye327290() )
@@ -1762,7 +1794,7 @@ bool process_command(u8* pBuffer, int length)
          if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags) & CAMERA_FLAG_AWB_MODE_OLD) )
             g_pCurrentModel->setAWBMode();
 
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       return true;
    }
@@ -1792,7 +1824,7 @@ bool process_command(u8* pBuffer, int length)
       if ( ! g_pCurrentModel->isActiveCameraCSICompatible() )
       if ( ! g_pCurrentModel->isActiveCameraVeye() )
       {
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
          return true;
       }
 
@@ -1850,7 +1882,7 @@ bool process_command(u8* pBuffer, int length)
       if ( ! bSentUsingPipe )
       {
          log_line("Send command to restart video stream");
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       return true;
    }
@@ -1866,7 +1898,7 @@ bool process_command(u8* pBuffer, int length)
          signalReloadModel(0, 0);
 
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
       }
       else
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
@@ -2038,8 +2070,10 @@ bool process_command(u8* pBuffer, int length)
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       bool bHadServiceLog = (g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE)?true:false;
+      if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+         bHadServiceLog = false;
       g_pCurrentModel->uModelFlags = pPHC->command_param;
-      if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE )
+      if ( (g_pCurrentModel->uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE) && ! (g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS) )
       {
          if ( ! bHadServiceLog )
          {
@@ -2402,7 +2436,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bVideoResolutionChanged || bMustRestartCapture )
       {
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
          signalReloadModel(0, 0);
       }
       if ( bMustSignalTXVideo )
@@ -2499,7 +2533,7 @@ bool process_command(u8* pBuffer, int length)
          {          
             log_line("[RX Commands]: Signal bitrate change by capture restart.");
             signalReloadModel(MODEL_CHANGED_VIDEO_BITRATE, 0);
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_BITRATE);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_BITRATE);
          }
          return true;
       }
@@ -2515,10 +2549,20 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
+      bool bVideoResolutionChanged = false;
+      if ( g_pCurrentModel->video_link_profiles[oldVideoParams.user_selected_video_link_profile].width != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width ||
+           g_pCurrentModel->video_link_profiles[oldVideoParams.user_selected_video_link_profile].height != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
+         bVideoResolutionChanged = true;
+
       if ( true )
       {   
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM, 0);
+         {
+            if ( bVideoResolutionChanged )
+               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+            else
+               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, 0);
+         }
          signalReloadModel(0, 0);
       }
       if ( true )
@@ -3053,7 +3097,7 @@ bool process_command(u8* pBuffer, int length)
 
       if ( restartVideo )
       if ( g_pCurrentModel->hasCamera() )
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM,0);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
 
       return true;
    }
@@ -3577,6 +3621,12 @@ int r_start_commands_rx(int argc, char* argv[])
 
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
+
+   if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
+   {
+      log_line("Log is disabled on vehicle. Disabled logs.");
+      log_disable();
+   }
 
    hw_set_priority_current_proc(g_pCurrentModel->niceOthers);
 

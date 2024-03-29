@@ -197,6 +197,7 @@ void video_link_keyframe_periodic_loop()
 {
    if ( g_bSearching || NULL == g_pCurrentModel || g_bUpdateInProgress )
       return;
+
    if ( ! s_bReceivedKeyFrameFromVideoStream )
       return;
      
@@ -218,6 +219,9 @@ void video_link_keyframe_periodic_loop()
       Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 155);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
+      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
+         continue;
+
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;
 
@@ -236,6 +240,8 @@ void video_link_keyframe_periodic_loop()
          continue;
       Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 156);
       if ( (NULL == pModel) || (pModel->is_spectator) )
+         continue;
+      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
          continue;
 
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )

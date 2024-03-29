@@ -570,7 +570,7 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
       szDatarate[0] = 0;
       szFlags[0] = 0;
       if ( NULL != pRadioInfo )
-         str_getDataRateDescription(pRadioInfo->datarateBPSMCS, szDatarate);
+         str_getDataRateDescription(pRadioInfo->datarateBPSMCS, 0, szDatarate);
       str_get_radio_capabilities_description(flags, szFlags);
          
       log_line("Checking controller radio interface %d (%s) settings: MAC: [%s], custom datarate: %s, flags: %s",

@@ -65,6 +65,7 @@ void MenuVehicles::onShow()
    removeAllTopLines();
    removeAllItems();
 
+   log_line("[Menu] MenuVehicles: Last selected vehicle index: %d", m_iLastSelectedVehicle);
    m_IndexSelectedVehicle = -1;
 
    addTopLine("Select the vehicle to control:");
@@ -73,7 +74,7 @@ void MenuVehicles::onShow()
    for( int i=0; i<getControllerModelsCount(); i++ )
    {
       Model *p = getModelAtIndex(i);
-      log_line("[Menu] MenuVehicles: Iterating vehicles: id: %u", p->uVehicleId);
+      log_line("[Menu] MenuVehicles: Iterating vehicles %d: id: %u", i, p->uVehicleId);
       char szBuff[256];
       if ( 1 == p->radioLinksParams.links_count )
          sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
@@ -102,13 +103,16 @@ void MenuVehicles::onShow()
       if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
       if ( (g_uActiveControllerModelVID == p->uVehicleId) && (g_pCurrentModel->uVehicleId == p->uVehicleId) )
       {
-         log_line("[Menu] MenuVehicles: Found current vehicle in the list.");
+         log_line("[Menu] MenuVehicles: Found current vehicle in the list at position %d. Added as menu item index %d.", i, iIndexItem);
          bCurrentVehicleFound = true;
       }
 
       if ( -1 != m_iLastSelectedVehicle )
       if ( (i-1) == m_iLastSelectedVehicle )
+      {
+         log_line("[MenuVehicles] Set selected menu item index to %d, for vehicle index %d", iIndexItem, i);
          m_SelectedIndex = iIndexItem;
+      }
    }
 
    if ( ! bCurrentVehicleFound )

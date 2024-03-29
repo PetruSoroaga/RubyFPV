@@ -201,6 +201,9 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftUp + 50 )
       return;
 
+   if ( hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
+      return;
+     
    int iLevelsHQ = pModel->get_video_profile_total_levels(pModel->video_params.user_selected_video_link_profile);
    int iLevelsMQ = pModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
    int iLevelsLQ = pModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
@@ -208,9 +211,6 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    iMaxLevels +=  iLevelsMQ;
    if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       iMaxLevels += iLevelsLQ;
-
-   if ( hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
-      iMaxLevels = iLevelsHQ;
 
    float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
    
@@ -509,6 +509,8 @@ void video_link_adaptive_periodic_loop()
          continue;
       Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 144);
       if ( (NULL == pModel) || (pModel->is_spectator) )
+         continue;
+      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
          continue;
       if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
          continue;

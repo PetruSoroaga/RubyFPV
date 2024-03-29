@@ -149,7 +149,7 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[6]->setMargin(dxMargin);
    m_IndexAdaptiveVideo = addMenuItem(m_pItemsSelect[6]);
 
-   m_pItemsSelect[8] = new MenuItemSelect("Auto Bitrate", "Adjust the camera H264 quantization to try to maintain a constant video bitrate.");
+   m_pItemsSelect[8] = new MenuItemSelect("Auto Bitrate", "Adjust the camera H264/H265 quantization to try to maintain a constant video bitrate.");
    m_pItemsSelect[8]->addSelection("Off");
    m_pItemsSelect[8]->addSelection("On");
    m_pItemsSelect[8]->setIsEditable();
@@ -476,10 +476,19 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( (m_IndexAutoKeyframe == m_SelectedIndex) || (m_IndexAdaptiveVideo == m_SelectedIndex) || (m_IndexAutoQuantization == m_SelectedIndex) )
+   if ( (m_IndexAutoKeyframe == m_SelectedIndex) || (m_IndexAdaptiveVideo == m_SelectedIndex) )
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   {
+      addUnsupportedMessageOpenIPCGoke(NULL);
+      valuesToUI();
+      return;
+   }
+
+   if ( m_IndexAutoQuantization == m_SelectedIndex)
    if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
    {
       addUnsupportedMessageOpenIPC(NULL);
+      valuesToUI();
       return;
    }
 

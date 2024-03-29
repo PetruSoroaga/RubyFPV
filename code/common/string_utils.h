@@ -12,7 +12,7 @@ char* str_capitalize_first_letter(char* szText);
 char* str_format_time(u32 miliseconds);
 
 
-void str_getDataRateDescription(int dataRateBPS, char* szOutput);
+void str_getDataRateDescription(int dataRateBPS, int iHT40, char* szOutput);
 void str_getDataRateDescriptionNoSufix(int dataRateBPS, char* szOutput);
 void str_format_bitrate(int bitrate_bps, char* szBuffer);
 void str_format_bitrate_no_sufix(int bitrate_bps, char* szBuffer);

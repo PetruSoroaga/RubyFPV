@@ -34,6 +34,7 @@
 #include "config.h"
 #include "ctrl_preferences.h"
 #include "hardware.h"
+#include "hardware_camera.h"
 #include "hw_procs.h"
 #include "hardware_i2c.h"
 #include "utils.h"
@@ -182,7 +183,6 @@ Model::Model(void)
    b_mustSyncFromVehicle = false;
    iCameraCount = 0;
    iCurrentCamera = -1;
-   resetCameraToDefaults(-1);
    vehicle_name[0] = 0;
    vehicle_long_name[0] = 0;
    iLoadedFileVersion = 0;
@@ -220,10 +220,7 @@ int Model::getLoadedFileVersion()
 
 bool Model::isRunningOnOpenIPCHardware()
 {
-   if ( hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
-        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
-        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_GOKE300 ||
-        hwCapabilities.iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
       return true;
    return false;
 }
@@ -2781,12 +2778,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].insertPPS = video_link_profiles[video_params.user_selected_video_link_profile].insertPPS;
    }
 
-   // To fix : reenable adaptive video & keyframe in openIPC when majestic bitrate and keyframe can be changed
+   // Adaptive video & keyframe in openIPC goke cameras is not supported. (majestic bitrate and keyframe can't be changed)
    bool bDisableAdaptive = false;
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   bDisableAdaptive = true;
-   #endif
-   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(hwCapabilities.iBoardType) )
       bDisableAdaptive = true;
 
    if ( bDisableAdaptive )
@@ -2798,6 +2792,20 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
       video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
       video_link_profiles[i].keyframe_ms = 300;
+   }
+
+   // Auto H264 quantization is not implemented in openIPC
+   bool bDisableQuantization = false;
+   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
+      bDisableQuantization = true;
+
+   if ( bDisableQuantization )
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( (iProfile != -1) && (iProfile != i) )
+         continue;
+
+      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
    }
 
    if ( -1 == iProfile )
@@ -3422,12 +3430,12 @@ void Model::logVehicleRadioInfo()
       char szDR1[32];
       char szDR2[32];
       if ( radioInterfacesParams.interface_datarate_video_bps[i] != 0 )
-         str_getDataRateDescription(radioInterfacesParams.interface_datarate_video_bps[i], szDR1);
+         str_getDataRateDescription(radioInterfacesParams.interface_datarate_video_bps[i], 0, szDR1);
       else
          strcpy(szDR1, "auto");
 
       if ( radioInterfacesParams.interface_datarate_data_bps[i] != 0 )
-         str_getDataRateDescription(radioInterfacesParams.interface_datarate_data_bps[i], szDR2);
+         str_getDataRateDescription(radioInterfacesParams.interface_datarate_data_bps[i], 0, szDR2);
       else
          strcpy(szDR2, "auto");
       
@@ -3747,7 +3755,7 @@ bool Model::validate_settings()
    }
    for( int i=0; i<radioLinksParams.links_count; i++ )
    {
-      if ( getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[i]) < 500000 )
+      if ( getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[i], 0) < 500000 )
       if ( radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
       {
          if ( ! radioLinkIsSiKRadio(i) )
@@ -3756,7 +3764,7 @@ bool Model::validate_settings()
             log_softerror_and_alarm("Invalid radio video data rates. Reseting to default (%d).", radioLinksParams.link_datarate_video_bps[i]);
          }
       }
-      if ( getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_data_bps[i]) < 500 )
+      if ( getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_data_bps[i], 0) < 500 )
       if ( radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
       {
          if ( radioLinkIsSiKRadio(i) )
@@ -3956,6 +3964,8 @@ void Model::resetToDefaults(bool generateId)
       log_line("Reusing the same unique vehicle ID (%u).", uVehicleId);
 
    hwCapabilities.iBoardType = 0;
+   if ( hardware_is_vehicle() )
+      hwCapabilities.iBoardType = hardware_getOnlyBoardType();
    resetHWCapabilities();
 
    uControllerId = 0;
@@ -3967,7 +3977,7 @@ void Model::resetToDefaults(bool generateId)
 
    enc_flags = 0;
    alarms = 0;
-   uModelFlags = 0;
+   uModelFlags = MODEL_FLAG_USE_LOGER_SERVICE;
    m_iRadioInterfacesGraphRefreshInterval = 3;
 
    radioInterfacesParams.interfaces_count = 0;
@@ -3993,6 +4003,7 @@ void Model::resetToDefaults(bool generateId)
    enableDHCP = false;
    bDeveloperMode = false;
    uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
+   uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
 
    resetRelayParamsToDefaults(&relay_params);
 
@@ -4359,7 +4370,7 @@ u32 Model::getLinkRealDataRate(int nLinkId)
    int nRet = 0;
 
    if ( nLinkId >= 0 && nLinkId < radioLinksParams.links_count )
-      nRet = getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[nLinkId]);
+      nRet = getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[nLinkId], 0);
    return nRet;
 }
 
@@ -4921,14 +4932,8 @@ bool Model::isActiveCameraOpenIPC()
 
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
-
-   int iCameraType = camera_params[iCurrentCamera].iCameraType;
-   if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
-      iCameraType = camera_params[iCurrentCamera].iForcedCameraType;
    
    if ( isRunningOnOpenIPCHardware() )
-   if ( iCameraType == CAMERA_TYPE_OPENIPC_IMX307 ||
-        iCameraType == CAMERA_TYPE_OPENIPC_IMX335 )
       return true;
    return false;
 }
@@ -5005,7 +5010,7 @@ bool Model::isVideoLinkFixedOneWay()
 
 void Model::setDefaultVideoBitrate()
 {
-   int board_type = hardware_detectBoardType();
+   u32 board_type = hardware_getBoardType();
 
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;

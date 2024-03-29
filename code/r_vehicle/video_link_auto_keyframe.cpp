@@ -73,6 +73,8 @@ void video_link_auto_keyframe_periodic_loop()
 {
    if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) || (g_pCurrentModel->isVideoLinkFixedOneWay()) )
       return;
+   if ( hardware_board_is_goke(hardware_getBoardType()) )
+      return;
 
    if ( (g_TimeNow < g_TimeStart + 5000) ||
         (g_TimeNow < get_video_capture_start_program_time() + 3000) )

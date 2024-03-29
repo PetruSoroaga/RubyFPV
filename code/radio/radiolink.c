@@ -359,8 +359,8 @@ int radio_set_out_datarate(int rate_bps)
          s_iLogCount_RadioRate = 0;
       char szBuff[64];
       char szBuff2[64];
-      str_getDataRateDescription(rate_bps, szBuff);
-      str_getDataRateDescription(sRadioDataRate_bps, szBuff2);
+      str_getDataRateDescription(rate_bps, 0, szBuff);
+      str_getDataRateDescription(sRadioDataRate_bps, 0, szBuff2);
       log_line("Radio: Set TX DR to: %s (prev was: %s, %u pckts sent on it)", szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioRate);
       if ( s_iLogCount_RadioRate == 3 )
          log_line("Radio: Too many radio datarate changes, pausing log.");
@@ -1158,7 +1158,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
       switch (rti.this_arg_index)
       {
          case IEEE80211_RADIOTAP_RATE:
-	           pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = getRealDataRateFromRadioDataRate((int)(*((u8*)(rti.this_arg)))/2);
+	           pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = getRealDataRateFromRadioDataRate((int)(*((u8*)(rti.this_arg)))/2, 0);
             //log_line("recv datarate: %d", (int)(*((u8*)(rti.this_arg))));
             break;
 

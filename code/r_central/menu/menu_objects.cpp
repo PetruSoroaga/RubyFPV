@@ -2218,7 +2218,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
 
    if ( 0 != pModel->video_link_profiles[iProfile].radio_datarate_video_bps )
    {
-      uMaxVideoRate = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[iProfile].radio_datarate_video_bps);
+      uMaxVideoRate = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[iProfile].radio_datarate_video_bps, 0);
       if ( uMaxVideoRate < pModel->video_link_profiles[iProfile].bitrate_fixed_bps )
       {
           str_format_bitrate(uMaxVideoRate, szBRRadio);
@@ -2235,11 +2235,11 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
    {
       if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
-      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]) < 2000000)
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], 0) < 2000000)
          continue;
 
       if ( 0 == uMaxRadioDataRateBPS )
-         uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i]);
+         uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], 0);
 
       if ( 0 == iMaxRadioDataRate )
          iMaxRadioDataRate = pModel->radioLinksParams.link_datarate_video_bps[i];
@@ -2249,7 +2249,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
 
    if ( 0 != pModel->video_link_profiles[iProfile].radio_datarate_video_bps )
    {
-      uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[iProfile].radio_datarate_video_bps);
+      uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->video_link_profiles[iProfile].radio_datarate_video_bps, 0);
       iMaxRadioDataRate = pModel->video_link_profiles[iProfile].radio_datarate_video_bps;
    }
    */

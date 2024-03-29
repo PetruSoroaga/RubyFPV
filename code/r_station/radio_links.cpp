@@ -372,7 +372,7 @@ void radio_links_open_rxtx_radio_interfaces()
          {
             nRateTx = compute_packet_uplink_datarate(nVehicleRadioLinkId, i, &(g_pCurrentModel->radioLinksParams));
             log_line("Current model uplink radio datarate for vehicle radio link %d (%s): %d, %u, uplink rate type: %d",
-               nVehicleRadioLinkId+1, pRadioHWInfo->szName, nRateTx, getRealDataRateFromRadioDataRate(nRateTx),
+               nVehicleRadioLinkId+1, pRadioHWInfo->szName, nRateTx, getRealDataRateFromRadioDataRate(nRateTx, 0),
                g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[nVehicleRadioLinkId]);
          }
          Preferences* pP = get_Preferences();

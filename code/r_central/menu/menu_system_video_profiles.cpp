@@ -145,15 +145,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
          m_pItemsSelect[k*20+11]->addSelection("Auto (Radio-2)");
       for( int i=0; i<getDataRatesCount(); i++ )
       {
-         //sprintf(szBuff, "%d Mbps", getDataRates()[i]);
-         str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+         str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
          m_pItemsSelect[k*20+11]->addSelection(szBuff);
       }
       if ( NULL != g_pCurrentModel && (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 || g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58) )
       for( int i=0; i<=MAX_MCS_INDEX; i++ )
       {
-         //sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
-         str_getDataRateDescription(-1-i, szBuff);
+         str_getDataRateDescription(-1-i, 0, szBuff);
          m_pItemsSelect[k*20+11]->addSelection(szBuff);
       }
       m_pItemsSelect[k*20+11]->setIsEditable();
@@ -166,15 +164,13 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
          m_pItemsSelect[k*20+12]->addSelection("Auto (Radio-2)");
       for( int i=0; i<getDataRatesCount(); i++ )
       {
-         //sprintf(szBuff, "%d Mbps", getDataRates()[i]);
-         str_getDataRateDescription(getDataRatesBPS()[i], szBuff);
+         str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
          m_pItemsSelect[k*20+12]->addSelection(szBuff);
       }
       if ( NULL != g_pCurrentModel && (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 || g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58) )
       for( int i=0; i<=MAX_MCS_INDEX; i++ )
       {
-         //sprintf(szBuff, "MCS-%d (%u Mbps)", i, getRealDataRateFromMCSRate(i)/1000/1000);
-         str_getDataRateDescription(-1-i, szBuff);
+         str_getDataRateDescription(-1-i, 0, szBuff);
          m_pItemsSelect[k*20+12]->addSelection(szBuff);
       }
       m_pItemsSelect[k*20+12]->setIsEditable();

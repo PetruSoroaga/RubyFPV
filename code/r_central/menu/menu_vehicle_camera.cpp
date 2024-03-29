@@ -162,6 +162,7 @@ void MenuVehicleCamera::addItems()
    m_pItemsSelect[12]->addSelection("Veye 327");
    m_pItemsSelect[12]->addSelection("OpenIPC IMX307");
    m_pItemsSelect[12]->addSelection("OpenIPC IMX335");
+   m_pItemsSelect[12]->addSelection("OpenIPC IMX415");
    m_pItemsSelect[12]->addSelection("USB Camera", false);
    m_pItemsSelect[12]->addSelection("IP Camera", false);
    m_pItemsSelect[12]->setIsEditable();
@@ -194,7 +195,7 @@ void MenuVehicleCamera::addItems()
    {
       m_pItemsSlider[8] = new MenuItemSlider("Hue", 0,100,0, fSliderWidth);
       m_pItemsSlider[8]->setMargin(fMargin);
-      m_IndexHue = addMenuItem(m_pItemsSlider[8]);     
+      m_IndexHue = addMenuItem(m_pItemsSlider[8]);
    }
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() || g_pCurrentModel->isActiveCameraCSICompatible() )
@@ -401,10 +402,12 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
       m_pItemsSelect[12]->setSelection(6);
    else if ( CAMERA_TYPE_OPENIPC_IMX335 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       m_pItemsSelect[12]->setSelection(7);
-   else if ( CAMERA_TYPE_USB == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
+   else if ( CAMERA_TYPE_OPENIPC_IMX415 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       m_pItemsSelect[12]->setSelection(8);
-   else if ( CAMERA_TYPE_IP == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
+   else if ( CAMERA_TYPE_USB == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       m_pItemsSelect[12]->setSelection(9);
+   else if ( CAMERA_TYPE_IP == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
+      m_pItemsSelect[12]->setSelection(10);
    else
       m_pItemsSelect[12]->setSelection(0);
 
@@ -553,7 +556,7 @@ bool MenuVehicleCamera::canSendLiveUpdates(int iItemIndex)
    if ( (iItemIndex != m_IndexAGC) || (! g_pCurrentModel->isActiveCameraVeye327290()) )
       return false;
 
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() )
+   if ( g_pCurrentModel->isActiveCameraCSI() )
       return true;
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() )
@@ -562,6 +565,10 @@ bool MenuVehicleCamera::canSendLiveUpdates(int iItemIndex)
    if ( g_pCurrentModel->isActiveCameraVeye307() )
       return true;
 
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+      return true;
+     
    return false;
 }
 
@@ -770,6 +777,7 @@ void MenuVehicleCamera::onSelectItem()
          case 5: iCamType = CAMERA_TYPE_VEYE327; break;
          case 6: iCamType = CAMERA_TYPE_OPENIPC_IMX307; break;
          case 7: iCamType = CAMERA_TYPE_OPENIPC_IMX335; break;
+         case 8: iCamType = CAMERA_TYPE_OPENIPC_IMX415; break;
       }
       if ( iCamType != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_FORCE_CAMERA_TYPE, iCamType, NULL, 0) )

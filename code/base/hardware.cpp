@@ -44,6 +44,7 @@
 #include "gpio.h"
 #include "config.h"
 #include "hw_procs.h"
+#include "hardware_camera.h"
 #include "hardware_i2c.h"
 #include "../common/string_utils.h"
 
@@ -98,7 +99,7 @@ static u32 s_long_press_repeat_time = 150;
 #endif
 int s_bBlockCurrentPressedKeys = 0;
 
-int s_hwWasSetup = 0;
+bool s_bHardwareWasSetup = false;
 u32 initSequenceTimeStart = 0;
 
 int hasCriticalError = 0;
@@ -111,13 +112,9 @@ int s_isRecordingLedOn = 0;
 int s_isRecordingLedBlinking = 0;
 u32 s_TimeLastRecordingLedBlink = 0;
 
-int s_bHarwareHasDetectedSystemType = 0;
-int s_iHardwareSystemIsVehicle = 0;
-int s_bHardwareHasCamera = 0;
-u32 s_uHardwareCameraType = 0;
-int s_iHardwareCameraI2CBus = -1;
-int s_iHardwareCameraDevId = -1;
-int s_iHardwareCameraHWVer = -1;
+bool s_bHarwareHasDetectedSystemType = false;
+u32  s_uHardwareBoardType = 0;
+int  s_iHardwareSystemIsVehicle = 0;
 
 int s_iHardwareJoystickCount = 0;
 hw_joystick_info_t s_HardwareJoystickInfo[MAX_JOYSTICK_INTERFACES];
@@ -125,6 +122,123 @@ hw_joystick_info_t s_HardwareJoystickInfo[MAX_JOYSTICK_INTERFACES];
 int s_iUSBMounted = 0;
 char s_szUSBMountName[64];
 
+u32 s_uBaseRubyVersion = 0;
+
+void _hardware_detectSystemType()
+{
+   log_line("[Hardware] Detecting system type...");
+   
+   char szBuff[256];
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
+   FILE* fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      if ( 2 == fscanf(fd, "%d %u", &s_iHardwareSystemIsVehicle, &s_uHardwareBoardType) )
+      {
+         s_bHarwareHasDetectedSystemType = true;
+         log_line("[Hardware] Loaded system Type: %s, board type: %s", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", str_get_hardware_board_name(s_uHardwareBoardType));
+         fclose(fd);
+         return;
+      }
+      log_softerror_and_alarm("[Hardware] Failed to parse system type config file [%s]", szFile); 
+      fclose(fd);
+   }
+
+   s_iHardwareSystemIsVehicle = 0;
+
+   #ifdef HW_CAPABILITY_GPIO
+   int val = GPIORead(GPIO_PIN_DETECT_TYPE_VEHICLE);
+   if ( val == 1 )
+   {
+      log_line("Hardware: Detected GPIO signal to start as vehicle or relay.");
+      s_iHardwareSystemIsVehicle = 1;
+   }
+   else if( (access( FILE_FORCE_VEHICLE, R_OK ) != -1) || (access( "/boot/forcevehicle.txt", R_OK ) != -1) )
+   {
+      log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
+      s_iHardwareSystemIsVehicle = 1;
+   }   
+   #endif
+
+   if( access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
+   {
+      log_line("Hardware: Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      s_iHardwareSystemIsVehicle = 1;
+   }   
+
+   if ( hardware_hasCamera() && (hardware_getCameraType() != CAMERA_TYPE_NONE) )
+   {
+      log_line("Hardware: Has Camera.");
+      s_iHardwareSystemIsVehicle = 1;
+   }
+
+   #ifdef HW_CAPABILITY_GPIO
+   val = GPIORead(GPIO_PIN_DETECT_TYPE_CONTROLLER);
+   if ( val == 1 )
+   {
+      log_line("Hardware: Detected GPIO signal to start as controller.");
+      s_iHardwareSystemIsVehicle = 0;
+   }
+   #endif
+
+   if ( s_iHardwareSystemIsVehicle )
+   {
+      if ( 0 == hardware_hasCamera() )
+         log_line("Hardware: Detected system as vehicle/relay without camera.");
+      else
+         log_line("Hardware: Detected system as vehicle/relay with camera.");
+   }
+   else
+      log_line("Hardware: Detected system as controller.");
+
+   hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
+   log_line("[Hardware] Board description string: %s", szBuff);
+
+   s_uHardwareBoardType = hardware_getOnlyBoardType();
+   strncpy(szBuff, str_get_hardware_board_name(s_uHardwareBoardType), 255);
+   if ( szBuff[0] == 0 )
+      strcpy(szBuff, "N/A");
+   log_line("[Hardware] Detected board type: %s", szBuff);
+
+   fd = fopen(szFile, "w");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%d %u\n", s_iHardwareSystemIsVehicle, s_uHardwareBoardType);
+      fclose(fd);
+   }
+
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
+   fd = fopen(szFile, "w");
+   if ( NULL == fd )
+      log_softerror_and_alarm("Failed to save board configuration to file: %s", szFile);
+   else
+   {
+      fprintf(fd, "%u %s\n", s_uHardwareBoardType, szBuff);
+      fclose(fd);
+   }
+
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   fd = fopen("/boot/ruby_board.txt", "w");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%u\n", s_uHardwareBoardType);
+      fclose(fd);
+   }
+   hw_execute_bash_command("cat /proc/device-tree/model > /boot/ruby_board_desc.txt", NULL);
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   hw_execute_bash_command("cat /proc/device-tree/model > /root/ruby/config/ruby_board_desc.txt", NULL);
+   #endif
+
+   log_line("[Hardware] Detected system Type: %s", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]");
+
+   s_bHarwareHasDetectedSystemType = true;
+}
 
 int init_hardware()
 {
@@ -235,8 +349,7 @@ int init_hardware()
    #endif
 
    s_iHardwareJoystickCount = 0;
-   s_hwWasSetup = 1;
-   s_bHarwareHasDetectedSystemType = 0;
+   s_bHardwareWasSetup = true;
 
    log_line("[Hardware] Initialization complete. %s.", failed?"Failed":"No errors");
 
@@ -288,8 +401,7 @@ int init_hardware_only_status_led()
    log_line("HW: GPIO setup successfully.");
    #endif
    s_iHardwareJoystickCount = 0;
-   s_hwWasSetup = 1;
-   s_bHarwareHasDetectedSystemType = 0;
+   s_bHardwareWasSetup = true;
    return 1;
 }
 
@@ -320,139 +432,87 @@ void hardware_swap_buttons(int swap)
    s_ihwSwapButtons = swap;
 }
 
-
-int hardware_getBoardType()
+u32 hardware_getOnlyBoardType()
 {
-   static int s_iHardwareLastDetectedBoardType = BOARD_TYPE_NONE;
-
-   if ( s_iHardwareLastDetectedBoardType != BOARD_TYPE_NONE )
-      return s_iHardwareLastDetectedBoardType;
-        
    char szBuff[256];
-   szBuff[0] = 0;
 
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
-   log_line("Detected board Id: %s", szBuff);
+   log_line("[Hardware] Detected board Id: %s", szBuff);
 
-   if ( strcmp(szBuff, "a03111") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03112") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03113") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03114") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03115") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03116") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03111") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03112") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03114") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03115") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03116") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03111") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03112") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03114") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03115") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03116") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03114") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03115") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03116") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03113") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "a03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "b03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "b03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "b03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "b03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "b03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "c03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "c03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "c03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "c03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "c03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "d03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "d03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBuff, "d03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
 
-   if ( strcmp(szBuff, "29020e0") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3APLUS;}
-   if ( strcmp(szBuff, "2a02082") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a22082") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a32082") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a52082") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a020d3") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI3BPLUS;}
+   if ( strcmp(szBuff, "29020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
+   if ( strcmp(szBuff, "2a02082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "2a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "2a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "2a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "2a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
 
-   if ( strcmp(szBuff, "1900093") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "19000c1") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZEROW;}
-   if ( strcmp(szBuff, "2900092") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "1900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "19000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBuff, "2900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
 
-   if ( strcmp(szBuff, "2900093") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "29000c1") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZEROW;}
-   if ( strcmp(szBuff, "2902120") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO2;}
+   if ( strcmp(szBuff, "2900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "29000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBuff, "2902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
 
-   if ( strcmp(szBuff, "2920092") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "2920093") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "2920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "2920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
 
-   if ( strcmp(szBuff, "2a01040") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2B;}
-   if ( strcmp(szBuff, "2a21041") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "2a01041") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "2a22042") == 0 ) { s_iHardwareLastDetectedBoardType = BOARD_TYPE_PI2BV12;}
+   if ( strcmp(szBuff, "2a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
+   if ( strcmp(szBuff, "2a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBuff, "2a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBuff, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
-   s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE200;
+   s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
    hw_execute_bash_command("ipcinfo -c 2>/dev/null", szBuff);
    log_line("Detected board type: %s", szBuff);
    if ( NULL != strstr(szBuff, "gk72") )
    {
-      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE200;
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
       if ( NULL != strstr(szBuff, "v210") )
-         s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE210;
+         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE210;
       if ( NULL != strstr(szBuff, "v300") )
-         s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_GOKE300;
+         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE300;
    }
    if ( NULL != strstr(szBuff, "ssc338") )
-      s_iHardwareLastDetectedBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
+   if ( NULL != strstr(szBuff, "ssc33x") )
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
 
    #endif
 
-   strncpy(szBuff, str_get_hardware_board_name(s_iHardwareLastDetectedBoardType), 255);
-   if ( szBuff[0] == 0 )
-      strcpy(szBuff, "N/A");
-   log_line("Current board type: %s", szBuff);
-
-   return s_iHardwareLastDetectedBoardType;
+   return s_uHardwareBoardType;
 }
 
-
-int hardware_getWifiType()
+u32 hardware_getBoardType()
 {
-   int wifi_type = WIFI_TYPE_NONE;
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   char szBuff[256];
-   szBuff[0] = 0;
-   hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
-   log_line("Detected board Id: %s", szBuff);
-
-   if ( strcmp(szBuff, "a03111") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "b03111") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "b03112") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "b03114") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "c03111") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "c03112") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "c03114") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "d03114") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-
-   if ( strcmp(szBuff, "29020e0") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "2a02082") == 0 ) { wifi_type = WIFI_TYPE_G; }
-   if ( strcmp(szBuff, "2a22082") == 0 ) { wifi_type = WIFI_TYPE_G; }
-   if ( strcmp(szBuff, "2a32082") == 0 ) { wifi_type = WIFI_TYPE_G; }
-   if ( strcmp(szBuff, "2a52082") == 0 ) { wifi_type = WIFI_TYPE_G; }
-   if ( strcmp(szBuff, "2a020d3") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-
-   if ( strcmp(szBuff, "1900093") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "19000c1") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "2900092") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-
-   if ( strcmp(szBuff, "2900093") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "29000c1") == 0 ) { wifi_type = WIFI_TYPE_AG; }
-   if ( strcmp(szBuff, "2902120") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-
-   if ( strcmp(szBuff, "2920092") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "2920093") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-
-   if ( strcmp(szBuff, "2a01040") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "2a21041") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "2a01041") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   if ( strcmp(szBuff, "2a22042") == 0 ) { wifi_type = WIFI_TYPE_NONE; }
-   #endif
-
-   return wifi_type;
+   if ( ! s_bHarwareHasDetectedSystemType )
+      _hardware_detectSystemType();
+   return s_uHardwareBoardType;
 }
-
-u32 s_uBaseRubyVersion = 0;
 
 u32 hardware_get_base_ruby_version()
 {
@@ -477,7 +537,7 @@ u32 hardware_get_base_ruby_version()
    fclose(fd);
    log_line("[Hardware] Read raw base Ruby version: [%s] from file (%s)", szBuff, szFile);
 
-   for( int i=0; i<strlen(szBuff); i++ )
+   for( int i=0; i<(int)strlen(szBuff); i++ )
    {
       if ( szBuff[i] == '.' )
       {
@@ -487,7 +547,7 @@ u32 hardware_get_base_ruby_version()
          sscanf(szBuff, "%d", &iMajor);
          sscanf(&szBuff[i+1], "%d", &iMinor);
          s_uBaseRubyVersion = (((u32)iMajor) << 8) | ((u32)iMinor);
-         log_line("[Hardware] Parsed base Ruby version: %u/%u", (s_uBaseRubyVersion>>8) & 0xFF, s_uBaseRubyVersion & 0xFF);
+         log_line("[Hardware] Parsed base Ruby version: %u.%u", (s_uBaseRubyVersion>>8) & 0xFF, s_uBaseRubyVersion & 0xFF);
          return s_uBaseRubyVersion;
       }
    }
@@ -498,85 +558,20 @@ u32 hardware_get_base_ruby_version()
 
 int hardware_board_is_openipc(int iBoardType)
 {
-   if ( iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
-        iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
-        iBoardType == BOARD_TYPE_OPENIPC_GOKE300 )
+   if ( hardware_board_is_goke(iBoardType) )
       return 1;
    if ( iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
       return 1;
    return 0;
 }
 
-int hardware_detectBoardType()
+int hardware_board_is_goke(int iBoardType)
 {
-   int wifi_type = WIFI_TYPE_NONE;
-   int board_type = BOARD_TYPE_NONE;
-
-   board_type = hardware_getBoardType();
-   wifi_type = hardware_getWifiType();
-
-   char szBuff[1024];
-   strncpy(szBuff, str_get_hardware_board_name(board_type), 1023);
-   if ( szBuff[0] == 0 )
-      strcpy(szBuff, "N/A");
-
-   log_line("");
-   log_line("---------------------------------------------------------------");
-   log_line("|   System Hardware: Board Type: %d (%s - %s), Built-in WiFi type: %s", board_type, szBuff, str_get_hardware_board_name(board_type), str_get_hardware_wifi_name(wifi_type));
-   log_line("---------------------------------------------------------------");
-   log_line("");
-   hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
-   log_line("Board description string: %s", szBuff);
-   log_line("");
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
-   FILE* fd = fopen(szFile, "w");
-   if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save board configuration to file: %s", szFile);
-   else
-   {
-      fprintf(fd, "%d %s\n", board_type, szBuff);
-      fclose(fd);
-   }
-
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, "wifi.txt");
-   
-   fd = fopen(szFile, "w");
-
-   if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save wifi configuration to file: %s", szFile);
-   else
-   {
-      fprintf(fd, "%d\n", wifi_type);
-      fclose(fd);
-   }
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   fd = fopen("/boot/ruby_board.txt", "w");
-   if ( NULL != fd )
-   {
-      fprintf(fd, "%d\n", board_type);
-      fclose(fd);
-   }
-
-   fd = fopen("/boot/ruby_wifi.txt", "w");
-   if ( NULL != fd )
-   {
-      fprintf(fd, "%d\n", wifi_type);
-      fclose(fd);
-   }
-
-   hw_execute_bash_command("cat /proc/device-tree/model > /boot/ruby_board_desc.txt", NULL);
-   #endif
-
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   hw_execute_bash_command("cat /proc/device-tree/model > /root/ruby/config/ruby_board_desc.txt", NULL);
-   #endif
-
-   return board_type;
+   if ( iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
+        iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
+        iBoardType == BOARD_TYPE_OPENIPC_GOKE300 )
+      return 1; 
+   return 0;
 }
 
 void hardware_enum_joystick_interfaces()
@@ -625,7 +620,7 @@ void hardware_enum_joystick_interfaces()
       if ( count_buttons > MAX_JOYSTICK_BUTTONS )
          count_buttons = MAX_JOYSTICK_BUTTONS;
 
-      for( int i=0; i<strlen(name); i++ )
+      for( int i=0; i<(int)strlen(name); i++ )
          uid += name[i]*i;
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].deviceIndex = i;
       strcpy(s_HardwareJoystickInfo[s_iHardwareJoystickCount].szName, name);
@@ -777,7 +772,6 @@ int hardware_read_joystick(int joystickIndex, int miliSec)
    #endif
 }
 
-
 u16 hardware_get_flags()
 {
    u16 retValue = 0xFFFF;
@@ -809,7 +803,7 @@ u16 hardware_get_flags()
 
 void gpio_read_buttons_loop()
 {
-   if ( ! s_hwWasSetup )
+   if ( ! s_bHardwareWasSetup )
       return;
 
    #ifdef HW_CAPABILITY_GPIO
@@ -857,7 +851,7 @@ void gpio_read_buttons_loop()
       return;
    }
    
-   if ( (0 == s_iButtonsWhereInited) && s_hwWasSetup )
+   if ( (0 == s_iButtonsWhereInited) && s_bHardwareWasSetup )
    {
       FILE* fp = fopen(szFile, "rb");
       int i1,i2,i3;
@@ -1182,7 +1176,7 @@ void gpio_read_buttons_loop()
 
 void hardware_loop()
 {
-   if ( ! s_hwWasSetup )
+   if ( ! s_bHardwareWasSetup )
       return;
 
    #ifdef HW_CAPABILITY_GPIO
@@ -1249,7 +1243,7 @@ void hardware_loop()
 
 void hardware_setCriticalErrorFlag()
 {
-   if ( ! s_hwWasSetup )
+   if ( ! s_bHardwareWasSetup )
       return;
 
    #ifdef HW_CAPABILITY_GPIO
@@ -1260,7 +1254,7 @@ void hardware_setCriticalErrorFlag()
 
 void hardware_setRecoverableErrorFlag()
 {
-   if ( ! s_hwWasSetup )
+   if ( ! s_bHardwareWasSetup )
       return;
    hasRecoverableError = 1;
    recoverableErrorStopTime = get_current_timestamp_ms()+1250;
@@ -1628,412 +1622,47 @@ void hardware_unmount_usb()
 
 char* hardware_get_mounted_usb_name()
 {
-   static char* s_szUSBNotMountedLabel = "Not Mounted";
+   static const char* s_szUSBNotMountedLabel = "Not Mounted";
    if ( 0 == s_iUSBMounted )
-      return s_szUSBNotMountedLabel;
+      return (char*)s_szUSBNotMountedLabel;
    return s_szUSBMountName;
 }
 
-// parses a string of format: "device id is 0xAB" or "device id is 0x A"
-int _hardware_get_camera_device_id_from_string(char* szDeviceId)
-{
-   if ( (NULL == szDeviceId) || (0 == szDeviceId[0]) )
-      return -1;
-   log_line("[Hardware] Parsing string to find camera device id: [%s]", szDeviceId);
-
-   char* szDevId = strstr(szDeviceId, "device id is");
-   if ( NULL == szDevId )
-      return -1;
-   if ( strlen(szDevId) < strlen("device id is")+3 )
-      return -1;
-         
-   int index = strlen(szDevId)-1;
-   while ( (index >0) && (szDevId[index] == 10 || szDevId[index] == 13) )
-      index--;
-   szDevId[index+1] = 0;
-   while ( (index>0) && ( isdigit(szDevId[index]) || (toupper(szDevId[index]) >= 'A' && toupper(szDevId[index]) <= 'F') ) )
-      index--;
-   index++;
-
-   if ( szDevId[index] == 0 )
-      return -1;
-
-   szDevId += index;
-   int iDevId = (int)strtol(szDevId, NULL, 16);
-   log_line("[Hardware] Found camera device id: [%s], as int: %d", szDevId, iDevId );
-   return iDevId;
-}
-
-
-// parses a string of format: "hardware version is 0xAB" or "hardware version is 0x A"
-int _hardware_get_camera_hardware_version_from_string(char* szHardwareId)
-{
-   if ( (NULL == szHardwareId) || (0 == szHardwareId[0]) )
-      return -1;
-   log_line("[Hardware] Parsing string to find camera hardware version: [%s]", szHardwareId);
-
-   char* szHWId = strstr(szHardwareId, "hardware version is");
-   if ( NULL == szHWId )
-      return -1;
-   if ( strlen(szHWId) < strlen("hardware version is")+3 )
-      return -1;
-         
-   int index = strlen(szHWId)-1;
-   while ( (index >0) && (szHWId[index] == 10 || szHWId[index] == 13) )
-      index--;
-   szHWId[index+1] = 0;
-   while ( (index>0) && ( isdigit(szHWId[index]) || (toupper(szHWId[index]) >= 'A' && toupper(szHWId[index]) <= 'F') ) )
-      index--;
-   index++;
-
-   if ( szHWId[index] == 0 )
-      return -1;
-
-   szHWId += index;
-   int iHWId = (int)strtol(szHWId, NULL, 16);
-   log_line("[Hardware] Found camera hardware version: [%s], as int: %d", szHWId, iHWId );
-   return iHWId;
-}
-
-u32 _hardware_detect_camera_type()
-{
-   char szBuff[256];
-
-   s_bHardwareHasCamera = 0;
-   s_uHardwareCameraType = CAMERA_TYPE_NONE;
-   s_iHardwareCameraI2CBus = -1;
-   char szOutput[512];
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   char szComm[256];
-
-   int retryCount = 3;
-    
-   if ( access(FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
-   {
-      log_line("File %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
-      retryCount = 0;
-   }
-
-   while ( retryCount > 0 )
-   {
-      if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_CAMERA_HDMI) )
-      {
-         s_iHardwareCameraI2CBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_HDMI);
-         log_line("Hardware: HDMI Camera detected on i2c bus %d.", s_iHardwareCameraI2CBus);
-         s_bHardwareHasCamera = 1;
-         s_uHardwareCameraType = CAMERA_TYPE_HDMI;
-         break;
-      }
-      
-      if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_CAMERA_VEYE) )
-      {
-         s_iHardwareCameraI2CBus =  hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
-         log_line("Hardware: Veye Camera detected on i2c bus %d.", s_iHardwareCameraI2CBus);
-         s_bHardwareHasCamera = 1;
-         s_uHardwareCameraType = CAMERA_TYPE_VEYE307;
-
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, s_iHardwareCameraI2CBus);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         int iDevId = _hardware_get_camera_device_id_from_string(szOutput);
-         if ( (iDevId <= 0) || (iDevId >= 255) )
-         {
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f devid -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, s_iHardwareCameraI2CBus);
-            hw_execute_bash_command_raw(szComm, szOutput);
-            iDevId = _hardware_get_camera_device_id_from_string(szOutput);
-         }
-  
-         sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, s_iHardwareCameraI2CBus);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         int iHWId = _hardware_get_camera_hardware_version_from_string(szOutput);
-         if ( (iHWId <= 0) || (iHWId >= 255) )
-         {
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -r -f hdver -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, s_iHardwareCameraI2CBus);
-            hw_execute_bash_command_raw(szComm, szOutput);
-            iHWId = _hardware_get_camera_hardware_version_from_string(szOutput);
-         }
-  
-         if ( (iDevId > 0) && (iDevId < 255) )
-         {
-            s_iHardwareCameraDevId = iDevId;
-            s_iHardwareCameraHWVer = iHWId;
-            log_line("Found veye camera device id: %d", iDevId);
-            if ( 6 == iDevId )
-            {
-               s_uHardwareCameraType = CAMERA_TYPE_VEYE327;
-               log_line("Veye camera type: 327, hardware version: %d", iHWId);
-            }
-            else if ( (iDevId == 33) || (iDevId == 34) || (iDevId == 51) || (iDevId == 52) )
-            {
-               s_uHardwareCameraType = CAMERA_TYPE_VEYE307;
-               log_line("Veye camera type: 307, hardware version: %d", iHWId);
-            }
-            else
-            {
-               s_uHardwareCameraType = CAMERA_TYPE_VEYE327;
-               log_line("Veye camera type: N/A (dev id: %d). Default to 327, hardware version: %d", iDevId, iHWId);
-            }
-         }
-         //if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE307 )
-         //   sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER307);
-         //else
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config; cd $current_dir", VEYE_COMMANDS_FOLDER);
-         hw_execute_bash_command(szComm, NULL);
-
-         break;
-      }
-
-      if ( 0 == s_bHardwareHasCamera )
-      {
-         szBuff[0] = 0;
-         hw_execute_bash_command_raw("vcgencmd get_camera", szBuff);
-         log_line("Camera detection response string: %s", szBuff);
-         if ( NULL != strstr(szBuff, "detected=1") || 
-              NULL != strstr(szBuff, "detected=2") )
-         {
-            log_line("Hardware: CSI Camera detected.");
-            s_bHardwareHasCamera = 1;
-            s_iHardwareCameraI2CBus = -1;
-            s_uHardwareCameraType = CAMERA_TYPE_CSI;
-            break;
-         }
-      }
-      hardware_sleep_ms(400);
-      retryCount--;
-   }
-   #endif
-
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-
-   s_bHardwareHasCamera = 1;
-   s_iHardwareCameraI2CBus = -1;
-
-   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
-
-   hw_execute_bash_command("ipcinfo -s 2>/dev/null", szOutput);
-   log_line("Detected camera sensor type: %s", szOutput);
-   if ( NULL != strstr(szOutput, "imx307") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
-   if ( NULL != strstr(szOutput, "imx335") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX335;
-   #endif
-
-   if ( s_bHardwareHasCamera == 0 )
-      log_line("Hardware: No camera detected.");
-   else
-   {
-      str_get_hardware_camera_type_string(s_uHardwareCameraType, szBuff);
-      log_line("Hardware: Detected camera type %d: %s", (int)s_uHardwareCameraType, szBuff);
-   }
-
-   return s_uHardwareCameraType;
-}
-
-
-int hardware_detectSystemType()
-{
-   if ( s_bHarwareHasDetectedSystemType )
-   {
-      log_line("Hardware: System type was already detected. Return it.");
-      return s_iHardwareSystemIsVehicle;
-   }
-   log_line("Hardware: Detecting system type...");
-
-   s_iHardwareSystemIsVehicle = 0;
-
-   #ifdef HW_CAPABILITY_GPIO
-   int val = GPIORead(GPIO_PIN_DETECT_TYPE_VEHICLE);
-   if ( val == 1 )
-   {
-      log_line("Hardware: Detected GPIO signal to start as vehicle or relay.");
-      s_iHardwareSystemIsVehicle = 1;
-   }
-   else if( (access( FILE_FORCE_VEHICLE, R_OK ) != -1) || (access( "/boot/forcevehicle.txt", R_OK ) != -1) )
-   {
-      log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
-      s_iHardwareSystemIsVehicle = 1;
-   }   
-   #endif
-
-   _hardware_detect_camera_type();
-
-   if( access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
-   {
-      log_line("Hardware: Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
-      s_iHardwareSystemIsVehicle = 1;
-   }   
-
-   if ( s_bHardwareHasCamera && (s_uHardwareCameraType != CAMERA_TYPE_NONE) )
-   {
-      log_line("Hardware: Has Camera.");
-      s_iHardwareSystemIsVehicle = 1;
-   }
-
-   #ifdef HW_CAPABILITY_GPIO
-   val = GPIORead(GPIO_PIN_DETECT_TYPE_CONTROLLER);
-   if ( val == 1 )
-   {
-      log_line("Hardware: Detected GPIO signal to start as controller.");
-      s_iHardwareSystemIsVehicle = 0;
-   }
-   #endif
-
-   if ( s_iHardwareSystemIsVehicle )
-   {
-      if ( 0 == s_bHardwareHasCamera )
-         log_line("Hardware: Detected system as vehicle/relay without camera.");
-      else
-         log_line("Hardware: Detected system as vehicle/relay with camera.");
-   }
-   else
-      log_line("Hardware: Detected system as controller.");
-
-   char szFile[128];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
-
-   FILE* fd = fopen(szFile, "w");
-   if ( NULL != fd )
-   {
-      fprintf(fd, "%d %d %u %d %d %d\n", s_iHardwareSystemIsVehicle, s_bHardwareHasCamera, s_uHardwareCameraType, s_iHardwareCameraI2CBus, s_iHardwareCameraDevId, s_iHardwareCameraHWVer);
-      fclose(fd);
-   }
-
-   log_line("Hardware: Detected system Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
-
-   s_bHarwareHasDetectedSystemType = 1;
-   return s_iHardwareSystemIsVehicle;
-}
-
-void _hardware_load_system_type()
-{
-   if ( s_bHarwareHasDetectedSystemType )
-      return;
-
-   log_line("Hardware: Loading system type config...");
-   char szFile[128];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
-   FILE* fd = fopen(szFile, "r");
-   if ( NULL != fd )
-   {
-      if ( 6 != fscanf(fd, "%d %d %u %d %d %d", &s_iHardwareSystemIsVehicle, &s_bHardwareHasCamera, &s_uHardwareCameraType, &s_iHardwareCameraI2CBus, &s_iHardwareCameraDevId, &s_iHardwareCameraHWVer) )
-      {
-         log_line("Hardware: Failed to load system type config, invalid config file.");
-         hardware_detectSystemType();
-      }
-      else
-      {
-         s_bHarwareHasDetectedSystemType = 1;
-         log_line("Hardware: Loaded system Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
-      }
-      fclose(fd);
-   }
-   else
-   {
-      log_line("Hardware: Failed to load system type config.");
-      hardware_detectSystemType();
-   }
-   log_line("Hardware: System Type: %s, has camera: %s, camera type: %u, camera i2c bus: %d", s_iHardwareSystemIsVehicle?"[vehicle]":"[controller]", s_bHardwareHasCamera?"yes":"no", s_uHardwareCameraType, s_iHardwareCameraI2CBus);
-}
 
 int hardware_is_station()
 {
    if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
+      _hardware_detectSystemType();
    return (s_iHardwareSystemIsVehicle==1)?0:1;
 }
 
 int hardware_is_vehicle()
 {
    if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
+      _hardware_detectSystemType();
    return s_iHardwareSystemIsVehicle;
 }
 
 int hardware_is_running_on_openipc()
 {
    if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
+      _hardware_detectSystemType();
 
    return hardware_board_is_openipc(hardware_getBoardType());
 }
 
-int hardware_hasCamera()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-   return s_bHardwareHasCamera;
-}
-
-u32 hardware_getCameraType()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-   return s_uHardwareCameraType;      
-}
-
-int hardware_getCameraI2CBus()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-   return s_iHardwareCameraI2CBus;
-}
-
-int hardware_getVeyeCameraDevId()
-{
-   return s_iHardwareCameraDevId;
-}
-
-int hardware_getVeyeCameraHWVer()
-{
-   return s_iHardwareCameraHWVer;
-}
-
-int hardware_isCameraVeye()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-
-   if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE290 ||
-        s_uHardwareCameraType == CAMERA_TYPE_VEYE307 ||
-        s_uHardwareCameraType == CAMERA_TYPE_VEYE327 )
-      return 1;
-   return 0;
-}
-
-int hardware_isCameraVeye307()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-
-   if ( s_uHardwareCameraType == CAMERA_TYPE_VEYE307 )
-      return 1;
-   return 0;
-}
-
-
-int hardware_isCameraHDMI()
-{
-   if ( ! s_bHarwareHasDetectedSystemType )
-      _hardware_load_system_type();
-
-   if ( s_uHardwareCameraType == CAMERA_TYPE_HDMI )
-      return 1;
-   return 0;
-}
 
 void hardware_sleep_ms(u32 miliSeconds)
 {
    //usleep(miliSeconds*1000);
-   struct timespec to_sleep = { 0, miliSeconds*1000*1000 };
+   struct timespec to_sleep = { 0, (long int)(miliSeconds*1000*1000) };
    nanosleep(&to_sleep, NULL);
 }
 
 void hardware_sleep_micros(u32 microSeconds)
 {
    //usleep(microSeconds);
-   struct timespec to_sleep = { 0, microSeconds*1000 };
+   struct timespec to_sleep = { 0, (long int)(microSeconds*1000) };
    nanosleep(&to_sleep, NULL);
 }
 

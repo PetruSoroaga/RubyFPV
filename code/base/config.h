@@ -24,7 +24,7 @@
 #define SYSTEM_NAME "Ruby"
 #define SYSTEM_SW_VERSION_MAJOR 8
 #define SYSTEM_SW_VERSION_MINOR 30
-#define SYSTEM_SW_BUILD_NUMBER  193
+#define SYSTEM_SW_BUILD_NUMBER  194
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117
@@ -172,8 +172,8 @@ int* getSiKAirDataRates();
 int  getSiKAirDataRatesCount();
 int* getDataRatesBPS();
 int getDataRatesCount();
-u32 getRealDataRateFromMCSRate(int mcsIndex);
-u32 getRealDataRateFromRadioDataRate(int dataRateBPS);
+u32 getRealDataRateFromMCSRate(int mcsIndex, int iHT40);
+u32 getRealDataRateFromRadioDataRate(int dataRateBPS, int iHT40);
 
 void getSystemVersionString(char* p, u32 swversion);
 

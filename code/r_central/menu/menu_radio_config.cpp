@@ -1550,20 +1550,20 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       strcat(szCapabilities, "Data Only,");
    }
 
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRVideo);
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLink], szDRDataD);
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iVehicleRadioLink], szDRDataU);
+   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRVideo);
+   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLink], 0, szDRDataD);
+   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iVehicleRadioLink], 0, szDRDataU);
 
    if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY )
    {
       if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
+         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRDataU);
       if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], szDRDataU);
+         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRDataU);
       if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataD);
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataD);
       if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, szDRDataU);
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataU);
    }
 
    szAuto[0] = 0;
@@ -2422,7 +2422,7 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
       if ( 0 != szBuff[0] )
          strcat(szBuff, ", ");
       char szTmp[64], szTmp2[64];
-      str_getDataRateDescription(controllerGetCardDataRate(pRadioHWInfo->szMAC), szTmp2);
+      str_getDataRateDescription(controllerGetCardDataRate(pRadioHWInfo->szMAC), 0, szTmp2);
       snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Datarate: %s", szTmp2);
       strcat(szBuff, szTmp);
    }

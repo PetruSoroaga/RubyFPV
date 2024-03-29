@@ -294,7 +294,7 @@ char* str_get_packet_type(int iPacketType)
 
       case PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO:           strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO:          strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RESTART_VIDEO_PROGRAM"); break;
+      case PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM"); break;
       case PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED:         strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED:    strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED"); break;
@@ -435,7 +435,7 @@ char* str_get_packet_test_link_command(int iTestCommandId)
    return s_szTestRadioLinkCommandType;
 }
 
-void str_getDataRateDescription(int dataRateBPS, char* szOutput)
+void str_getDataRateDescription(int dataRateBPS, int iHT40, char* szOutput)
 {
    if ( NULL == szOutput )
       return;
@@ -445,7 +445,7 @@ void str_getDataRateDescription(int dataRateBPS, char* szOutput)
    {
       int mcsIndex = -dataRateBPS-1;
       if ( mcsIndex <= MAX_MCS_INDEX )
-         sprintf(szOutput, "MCS-%d %u Mb", mcsIndex, getRealDataRateFromMCSRate(mcsIndex)/1000/1000 );
+         sprintf(szOutput, "MCS-%d %u Mb", mcsIndex, getRealDataRateFromMCSRate(mcsIndex, iHT40)/1000/1000 );
       else
          sprintf(szOutput, "MCS-?");
    }
@@ -782,6 +782,8 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
       strcpy(szOutput, "Sony IMX307");
    else if ( camType == CAMERA_TYPE_OPENIPC_IMX335 )
       strcpy(szOutput, "Sony IMX335");
+   else if ( camType == CAMERA_TYPE_OPENIPC_IMX415 )
+      strcpy(szOutput, "Sony IMX415");
 }
 
 void str_get_supported_bands_string(u32 bands, char* szOut)
@@ -1316,6 +1318,14 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RC_PARAMS");
    else if ( iModelChangeType == MODEL_CHANGED_RESET_RADIO_LINK )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RESET_RADIO_LINK");
+   else if ( iModelChangeType == MODEL_CHANGED_CAMERA_BRIGHTNESS )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_CAMERA_BRIGHTNESS");
+   else if ( iModelChangeType == MODEL_CHANGED_CAMERA_CONTRAST )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_CAMERA_CONTRAST");
+   else if ( iModelChangeType == MODEL_CHANGED_CAMERA_SATURATION )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_CAMERA_SATURATION");
+   else if ( iModelChangeType == MODEL_CHANGED_CAMERA_HUE )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_CAMERA_HUE");
    else
       strcpy(s_szModelChangeTypeString, "UNKNOWN");
    return s_szModelChangeTypeString;

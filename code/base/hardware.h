@@ -41,6 +41,7 @@
 #define CAMERA_TYPE_IP    9
 #define CAMERA_TYPE_OPENIPC_IMX307 20
 #define CAMERA_TYPE_OPENIPC_IMX335 21
+#define CAMERA_TYPE_OPENIPC_IMX415 22
 
 
 #define MAX_JOYSTICK_INTERFACE_NAME 128
@@ -71,17 +72,18 @@ typedef struct
 
 int init_hardware();
 int init_hardware_only_status_led();
+void _hardware_load_system_type();
 
 void hardware_release();
 void hardware_loop();
 void hardware_swap_buttons(int swap);
 
-int hardware_detectBoardType();
-int hardware_getBoardType();
-int hardware_getWifiType();
+u32 hardware_getOnlyBoardType();
+u32 hardware_getBoardType();
 u32 hardware_get_base_ruby_version();
 
 int hardware_board_is_openipc(int iBoardType);
+int hardware_board_is_goke(int iBoardType);
 
 void hardware_enum_joystick_interfaces();
 int hardware_get_joystick_interfaces_count();
@@ -121,21 +123,9 @@ int hardware_try_mount_usb();
 void hardware_unmount_usb();
 char* hardware_get_mounted_usb_name();
 
-int hardware_detectSystemType();
 int hardware_is_station();
 int hardware_is_vehicle();
 int hardware_is_running_on_openipc();
-
-u32 _hardware_detect_camera_type();
-int hardware_hasCamera();
-int hardware_getVeyeCameraDevId();
-int hardware_getVeyeCameraHWVer();
-int hardware_isCameraVeye();
-int hardware_isCameraVeye307();
-int hardware_isCameraHDMI();
-u32 hardware_getCameraType();
-int hardware_getCameraI2CBus();
-
 
 void hardware_sleep_ms(u32 miliSeconds);
 void hardware_sleep_micros(u32 microSeconds);

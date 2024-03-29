@@ -30,7 +30,7 @@ extern bool g_bDebug;
 
 extern Model* g_pCurrentModel;
 extern shared_mem_process_stats* g_pProcessStats;
-extern int g_iBoardType;
+extern u32 g_uBoardType;
 
 extern t_packet_queue s_QueueControlPackets;
  
