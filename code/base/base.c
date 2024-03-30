@@ -1,5 +1,5 @@
 /*
-    MIT Licence
+    Ruby Licence
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
@@ -10,6 +10,8 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
+        Copyright info and developer info must be preserved as is in the user
+        interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
@@ -440,6 +442,11 @@ void log_enable_stdout()
 
 void log_only_errors()
 {
+   if ( access("/tmp/debug", R_OK) != -1 )
+   {
+      log_line("Setting the log level to errors only overwritten by /tmp/debug flag.");
+      return;
+   }
    log_line("Setting the log level to errors only.");
    s_logOnlyErrors = 1;
 }
@@ -1232,6 +1239,13 @@ key_t generate_msgqueue_key(int iMsgQueueId)
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_BINARIES);
    strcat(szFile, "ruby_logger");
+   if ( access(szFile, R_OK) == -1 )
+   {
+      if ( access("/tmp/ruby_start", R_OK) != -1 )
+         strcpy(szFile, "/tmp/ruby_start");
+      else if ( access("/tmp/debug", R_OK) != -1 )
+         strcpy(szFile, "/tmp/debug");
+   }
    key_t key = ftok(szFile, iMsgQueueId);
    return key;
 }

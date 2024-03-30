@@ -30,7 +30,7 @@ You can read more about it and get the Ruby FPV system for free here: https://ru
 
 # Licences
 
-MIT Licence + military use prohibited
+Check LICENCE files
 
 Also, check the licences folder for additional licences terms.
 

@@ -1,5 +1,5 @@
 /*
-    MIT Licence
+    Ruby Licence
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
