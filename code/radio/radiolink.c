@@ -661,7 +661,7 @@ int radio_open_interface_for_write(int interfaceIndex)
    pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
 
    #ifdef USE_PCAP_FOR_TX
-
+   log_line("Using ppcap for tx packets.");
    char errbuf[PCAP_ERRBUF_SIZE];
 
    pRadioHWInfo->monitor_interface_write.ppcap = pcap_create(pRadioHWInfo->szName, errbuf);
@@ -686,6 +686,7 @@ int radio_open_interface_for_write(int interfaceIndex)
 
    #else
    
+   log_line("Using socket for tx packets.");
    struct sockaddr_ll ll_addr;
    struct ifreq ifr;
    pRadioHWInfo->monitor_interface_write.selectable_fd = socket(AF_PACKET, SOCK_RAW, 0);

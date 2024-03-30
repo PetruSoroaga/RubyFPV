@@ -445,6 +445,7 @@ void log_only_errors()
    if ( access("/tmp/debug", R_OK) != -1 )
    {
       log_line("Setting the log level to errors only overwritten by /tmp/debug flag.");
+      s_logOnlyErrors = 0;
       return;
    }
    log_line("Setting the log level to errors only.");

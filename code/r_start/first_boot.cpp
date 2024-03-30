@@ -94,13 +94,20 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
    do_first_boot_initialization_openipc(bIsVehicle, iBoardType);
    #endif
 
+   char szBuff[256];
+   char szComm[256];
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, LOG_USE_PROCESS);
+   sprintf(szComm, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
+   hw_execute_bash_command(szComm, szBuff);
+
    first_boot_create_default_model(bIsVehicle, iBoardType);
 
    if ( bIsVehicle )
    if ( access( "config/reset_info.txt", R_OK ) != -1 )
    {
       log_line("Found info for reset to defaults. Using it.");
-      char szFile[128];
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
       if ( ! s_ModelFirstBoot.loadFromFile(szFile, true) )
@@ -111,7 +118,6 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
       FILE* fd = fopen("config/reset_info.txt", "rb");
       if ( NULL != fd )
       {
-         char szBuff[128];
          fscanf(fd, "%u %u %d %d %d %s",
             &s_ModelFirstBoot.uVehicleId, &s_ModelFirstBoot.uControllerId,
             &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[0],
@@ -171,7 +177,6 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
       #endif
    }
 
-   char szComm[256];
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
    hw_execute_bash_command_silent(szComm, NULL);
    hardware_sleep_ms(50);

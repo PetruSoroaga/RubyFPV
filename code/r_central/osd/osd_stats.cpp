@@ -484,7 +484,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
          if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
             strcat(szMode, "-");
-     
+         if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+            strcat(szMode, "-1Way");
+
          sprintf(szBuff, "%s %.1f Mbs", szMode, frecv_video_mbps);
          if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
@@ -528,6 +530,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
    if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
       strcat(szCurrentProfile, "-");
+   if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+      strcat(szCurrentProfile, "-1Way");
 
    // Stream Info
 

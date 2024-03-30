@@ -613,9 +613,12 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
          bArmed = true;
+
+      // To fix : allow OTA updates of OpenIPC cameras
       if ( ! bArmed )
       if ( ! isMenuOn() )
       if ( ! g_bMenuPopupUpdateVehicleShown )
+      if ( ! pModel->isRunningOnOpenIPCHardware() )
       {
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;

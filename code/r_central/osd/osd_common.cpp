@@ -510,6 +510,8 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
    if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
      
+   if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+      strcat(szBuff, "-1Way");
    fWidth = g_pRenderEngine->textWidth(uFontId, szBuff);
 
    if ( bLeft )

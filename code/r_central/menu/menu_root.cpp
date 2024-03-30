@@ -299,70 +299,34 @@ void MenuRoot::Render()
 
 void MenuRoot::createAboutInfo(Menu* pm)
 {
-#ifdef FEATURE_CHECK_LICENCES
-   pm->addTopLine(" ");
-   pm->addTopLine(" ");
-   pm->addTopLine(" ");
-   pm->addTopLine("Developed by: Petru Soroaga");
-#else
    pm->addTopLine(" ");
    pm->addTopLine("---");
    pm->addTopLine(" ");
-   pm->addTopLine("Developed by: Petru Soroaga");
+   pm->addTopLine("Ruby system developed by: Petru Soroaga");
+   pm->addTopLine("");
    pm->addTopLine("IP cameras firmware support provided by:");
    pm->addTopLine("OpenIPC: https://openipc.org");
    pm->addTopLine("https://github.com/OpenIPC");
-   pm->addTopLine(" ");
-   pm->addTopLine("For info on the licence terms, check the licence.txt file.");
-   pm->addTopLine(" ");
+   pm->addTopLine("");
+   pm->addTopLine("For info on the licence terms, check the license.txt file.");
+   pm->addTopLine("For more info, questions and suggestions find us on www.rubyfpv.com");
    pm->addTopLine("---");
    pm->addTopLine(" ");
-
-   pm->addTopLine("For more info, questions and suggestions find us on www.rubyfpv.com");
-   pm->addTopLine(" ");
-#endif
 }
 
 void MenuRoot::createHWInfo(Menu* pm)
 {
    FILE* fp = NULL;
-   char szBuff[256];
+   char szBuff[512];
    char szTemp[256];
-   char szFileName[256];
-   int boardType = 0;
-   int wifiType = 0;
+   char szOutput[256];
 
    log_line("Menu System: create HW info.");
 
-   sprintf(szFileName, "%s/board.txt", FOLDER_CONFIG);
-   fp = fopen(szFileName,"r");
-   if ( NULL != fp )
-   {
-      fscanf(fp,"%d", &boardType);
-      fclose(fp);
-      fp = NULL;
-   }
-         
-   sprintf(szBuff, "Board: %s, ", str_get_hardware_board_name(boardType));
-   
-   sprintf(szFileName, "%s/wifi.txt", FOLDER_CONFIG);
-   fp = fopen(szFileName,"r");
-   if ( NULL != fp )
-   {
-      fscanf(fp,"%d",&wifiType);
-      fclose(fp);
-      fp = NULL;
-   }
-   if ( wifiType != 0 )
-   {
-      strcat(szBuff, "built in WiFi: ");
-      char szT[32];
-      sprintf(szT, "%s. ", str_get_hardware_wifi_name(wifiType));
-      strcat(szBuff, szT);
-   }
-   else
-      strcat(szBuff, "no built in WiFi. ");
+   hw_execute_bash_command_raw("cat /proc/device-tree/model", szOutput);
 
+   sprintf(szBuff, "Board: %s, ", szOutput);
+   
    int temp = 0;
    fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
    if ( NULL != fp )
@@ -389,7 +353,7 @@ void MenuRoot::show_MenuInfo()
    MenuSystem* pm = new MenuSystem();
    pm->m_xPos = menu_get_XStartPos(pm->m_Width);
    pm->m_yPos = 0.14;
-   pm->m_Width = 0.42;
+   pm->m_Width = 0.52;
 
    szBuff[0] = 0;      
    strcpy(szBuff, "Ruby base version: N/A");
@@ -436,6 +400,7 @@ void MenuRoot::show_MenuInfo()
       sprintf(szBuff, "System storage: %ld Mb free out of %ld Mb total.", lf, lu+lf);
       pm->addTopLine(szBuff);
    }
+   /*
    if ( 1 == hw_execute_bash_command_raw("free -m  | grep Mem", szBuff) )
    {
       char szTemp[1024];
@@ -444,7 +409,7 @@ void MenuRoot::show_MenuInfo()
       sprintf(szBuff, "System memory: %ld Mb free out of %ld Mb total.", lf, lt);
       pm->addTopLine(szBuff);
    }
-
+   */
    createAboutInfo(pm);
    add_menu_to_stack(pm);
    return;

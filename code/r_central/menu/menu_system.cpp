@@ -55,7 +55,7 @@ extern u32 g_idIconOpenIPC;
 MenuSystem::MenuSystem(void)
 :Menu(MENU_ID_SYSTEM, "System Info", NULL)
 {
-   m_Width = 0.34;
+   m_Width = 0.52;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.24;
    
    m_IndexAlarms = addMenuItem( new MenuItem("Alarms Settings") );
@@ -120,7 +120,8 @@ void MenuSystem::Render()
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    float iconHeight = 2.0*height_text;
    float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
-   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth, y - iconHeight - 5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
+   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, y - iconHeight - 8.5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconRuby);
+   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, y - iconHeight - 6*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
 
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
