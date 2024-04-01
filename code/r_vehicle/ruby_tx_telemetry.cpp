@@ -2222,7 +2222,7 @@ int main(int argc, char *argv[])
    }
 
 
-   log_init("TX Telemetry");
+   log_init("TX Telemetry2");
    log_arguments(argc, argv);
 
    //log_add_file("logs/log_tx_telemetry.log"); 

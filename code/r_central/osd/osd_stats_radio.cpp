@@ -1058,7 +1058,11 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
       height += height_text * s_OSDStatsLineSpacing * iCountRadioLinks;
    else
       height += height_text * s_OSDStatsLineSpacing * iCountRadioLinks * (1+iCountVehicles);
-    
+
+   // Retransmissions roundtrip
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+      height += 3.0 * height_text * s_OSDStatsLineSpacing;
+
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
       height += 5 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
@@ -1271,8 +1275,30 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
+
+      shared_mem_controller_retransmissions_stats* pCRS = NULL;
+      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+      {
+         if ( g_SM_ControllerRetransmissionsStats.video_streams[i].uVehicleId == uActiveVehicleId )
+         {
+            pCRS = &(g_SM_ControllerRetransmissionsStats.video_streams[i]);
+            break;
+         }
+      }
       g_pRenderEngine->setColors(get_Color_Dev());
 
+      if ( NULL != pCRS )
+      {
+         sprintf(szBuff, "%d ms", (int)pCRS->uMinPacketRetransmissionTime);
+         _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Retrans min time:", szBuff);
+         y += height_text_small*s_OSDStatsLineSpacing;
+         sprintf(szBuff, "%d ms", (int)pCRS->uMaxPacketRetransmissionTime);
+         _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Retrans max time:", szBuff);
+         y += height_text_small*s_OSDStatsLineSpacing;
+         sprintf(szBuff, "%d ms", (int)pCRS->uAvgPacketRetransmissionTime);
+         _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Retrans avg time:", szBuff);
+         y += height_text_small*s_OSDStatsLineSpacing;
+      }
       sprintf(szBuff, "%u ms ago", g_TimeNow - pRadioStats->uTimeLastReceivedAResponseFromVehicle);
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;

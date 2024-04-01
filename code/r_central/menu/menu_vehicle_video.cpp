@@ -64,7 +64,7 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[2]->addSelection("High Quality");
    m_pItemsSelect[2]->addSelection("User");
    m_pItemsSelect[2]->disableClick();
-   m_pItemsSelect[2]->setExtraHeight(Menu::getSelectionPaddingY());
+   m_pItemsSelect[2]->setExtraHeight(3.0*Menu::getSelectionPaddingY());
    m_IndexVideoProfile = addMenuItem(m_pItemsSelect[2]);
 
    m_pMenuItemVideoWarning = new MenuItemText("", true);

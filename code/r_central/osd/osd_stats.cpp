@@ -328,7 +328,7 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
 
       // Dev requested Retransmissions
       if ( iDeveloperMode )
-        height += 5.0*height_text*s_OSDStatsLineSpacing;
+        height += 6.0*height_text*s_OSDStatsLineSpacing;
    }
    return height;
 }
@@ -1595,7 +1595,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
-      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Retr Time (min/avg/max) ms:");
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Retr Time (min/max/avg):");
       
       u8 uMin = 0xFF;
       u8 uMax = 0;
@@ -1618,12 +1618,18 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( uCountValues > 0 )
          uAverage = uAverage/uCountValues;
       if ( uMin == 0xFF )
-         sprintf(szBuff, "0/0/0");
+         sprintf(szBuff, "0/0/0 ms");
       else
-         sprintf(szBuff, "%d/%d/%d", uMin, uAverage, uMax);
+         sprintf(szBuff, "%d/%d/%d ms", uMin, uMax, uAverage);
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
+
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Retr Time P (min/max/avg):");
       
+      sprintf(szBuff, "%d/%d/%d", pCRS->uMinPacketRetransmissionTime, pCRS->uMaxPacketRetransmissionTime, pCRS->uAvgPacketRetransmissionTime);
+      g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
+      y += height_text*s_OSDStatsLineSpacing;
+
       osd_set_colors();
    }
 

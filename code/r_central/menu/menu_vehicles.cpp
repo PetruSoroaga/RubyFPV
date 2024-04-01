@@ -72,7 +72,11 @@ void MenuVehicles::onShow()
 
    addTopLine("Select the vehicle to control:");
    bool bCurrentVehicleFound = false;
+   int iItemIndexToSelect = -1;
 
+   if ( m_iLastSelectedVehicle == getControllerModelsCount() )
+      m_iLastSelectedVehicle--;
+     
    for( int i=0; i<getControllerModelsCount(); i++ )
    {
       Model *p = getModelAtIndex(i);
@@ -110,10 +114,10 @@ void MenuVehicles::onShow()
       }
 
       if ( -1 != m_iLastSelectedVehicle )
-      if ( (i-1) == m_iLastSelectedVehicle )
+      if ( i == m_iLastSelectedVehicle )
       {
          log_line("[MenuVehicles] Set selected menu item index to %d, for vehicle index %d", iIndexItem, i);
-         m_SelectedIndex = iIndexItem;
+         iItemIndexToSelect = iIndexItem;
       }
    }
 
@@ -129,6 +133,9 @@ void MenuVehicles::onShow()
    m_IndexImport = addMenuItem(new MenuItem("Import Vehicle", "Imports a new vehicle from a model file on a USB stick."));
 
    Menu::onShow();
+
+   if ( -1 != iItemIndexToSelect )
+      m_SelectedIndex = iItemIndexToSelect;
 }
 
 

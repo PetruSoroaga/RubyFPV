@@ -49,6 +49,7 @@ char* str_get_osd_screen_name(int iOSDId);
 
 char* str_get_serial_port_usage(int iSerialPortUsage);
 
+char* str_get_model_flags(u32 uModelFlags);
 char* str_get_developer_flags(u32 uDeveloperFlags);
 
 char* str_get_command_response_flags_string(u32 uResponseFlags);

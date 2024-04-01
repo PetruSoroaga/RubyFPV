@@ -41,6 +41,7 @@ void radio_init_link_structures();
 void radio_link_cleanup();
 void radio_enable_crc_gen(int enable);
 void radio_set_debug_flag();
+void radio_set_use_pcap_for_tx(int iEnablePCAPTx);
 int radio_set_out_datarate(int rate_bps); // positive: classic in bps, negative: MCS; returns 1 if it was changed
 void radio_set_frames_flags(u32 frameFlags); // frame type, MSC Flags
 u32 radio_get_received_frames_type();

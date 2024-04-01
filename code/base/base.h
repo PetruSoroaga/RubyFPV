@@ -71,6 +71,7 @@ void log_enable_stdout();
 void log_only_errors();
 void log_format_time(u32 miliseconds, char* szOutTime);
 void log_line(const char* format, ...);
+void log_line_forced_to_file(const char* format, ...);
 void log_buffer(const u8* buffer, int size);
 void log_buffer1(const u8* buffer, int size, int delim1);
 void log_buffer2(const u8* buffer, int size, int delim1, int delim2);

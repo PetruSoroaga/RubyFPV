@@ -1190,6 +1190,22 @@ char* str_get_serial_port_usage(int iSerialPortUsage)
    return s_szSerialPortUsage;
 }
 
+char* str_get_model_flags(u32 uModelFlags)
+{
+   static char s_szModelFlagsDesc[1024];
+
+   s_szModelFlagsDesc[0] = 0;
+
+   if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK)
+      strcat(s_szModelFlagsDesc, " PRIORITIZE_UPLINK");
+   if ( uModelFlags & MODEL_FLAG_USE_LOGER_SERVICE)
+      strcat(s_szModelFlagsDesc, " USE_LOGER_SERVICE");
+   if ( uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS)
+      strcat(s_szModelFlagsDesc, " DISABLE_ALL_LOGS");
+
+   return s_szModelFlagsDesc;
+}
+
 char* str_get_developer_flags(u32 uDeveloperFlags)
 {
    static char s_szDeveloperFlagsDesc[1024];
@@ -1216,6 +1232,8 @@ char* str_get_developer_flags(u32 uDeveloperFlags)
       strcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS");
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_RECOVERABLE_VIDEO_FAULTS)
       strcat(s_szDeveloperFlagsDesc, " INJECT_VIDEO_FAULTS2");
+   if ( uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+      strcat(s_szDeveloperFlagsDesc, " USE_PCAP_RADIO_TX");
    
    return s_szDeveloperFlagsDesc;
 }

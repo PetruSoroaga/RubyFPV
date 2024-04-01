@@ -67,6 +67,8 @@ u32 s_uRequestedVideoMajesticCaptureUpdateReason = 0;
 bool s_bHasPendingMajesticRealTimeChanges = false;
 u32 s_uTimeLastMajesticImageRealTimeUpdate = 0;
 
+u32 s_uTimeLastCheckMajestic = 0;
+
 void video_source_majestic_close()
 {
    if ( -1 != s_fInputVideoStreamUDPSocket )
@@ -371,11 +373,24 @@ void video_source_majestic_periodic_checks()
 {
    if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+1000 )
    {
-      log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-         s_uDebugUDPInputBytes, s_uDebugUDPInputBytes*8, s_uDebugUDPInputReads);
+      //log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %u bps, %u reads/sec",
+      //   s_uDebugUDPInputBytes, s_uDebugUDPInputBytes*8, s_uDebugUDPInputReads);
       s_uDebugTimeLastUDPVideoInputCheck = g_TimeNow;
       s_uDebugUDPInputBytes = 0;
       s_uDebugUDPInputReads = 0;
+   }
+
+   if ( g_TimeNow > s_uTimeLastCheckMajestic + 10000 )
+   {
+      s_uTimeLastCheckMajestic = g_TimeNow;
+      char szOutput[128];
+      szOutput[0] = 0;
+      hw_execute_bash_command_silent("pidof majestic", szOutput);
+      if ( (strlen(szOutput) < 3) || (strlen(szOutput) > 5) )
+      {
+         log_softerror_and_alarm("[VideoSourceUDP] majestic is not running. starting it.");
+         video_source_majestic_start_capture_program();
+      }
    }
 
    if ( s_bHasPendingMajesticRealTimeChanges )

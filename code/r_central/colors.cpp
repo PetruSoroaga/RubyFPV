@@ -35,7 +35,7 @@
 #include "../base/ctrl_preferences.h"
 
 
-double COLOR_DEV[4] = { 170,220,255,0.9 };
+double COLOR_DEV[4] = { 170,220,255,1.0 };
 
 double COLOR_POPUP_BG[4] = { 0,0,0,0.76 };
 double COLOR_POPUP_BORDER[4] = { 250,240,220,0.4 };

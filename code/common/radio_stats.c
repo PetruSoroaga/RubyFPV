@@ -337,7 +337,7 @@ void radio_stats_enable_history_monitor(int iEnable)
 void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
 {
    static int sl_iEnableRadioStatsLog = 0;
-   static int sl_iEnableRadioStatsLogTx = 1;
+   static int sl_iEnableRadioStatsLogTx = 0;
 
    static u32 sl_uLastTimeLoggedRadioStats = 0;
 

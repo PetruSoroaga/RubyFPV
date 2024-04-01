@@ -121,7 +121,7 @@ void MenuSystem::Render()
    float iconHeight = 2.0*height_text;
    float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
    g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, y - iconHeight - 8.5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconRuby);
-   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, y - iconHeight - 6*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
+   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, y - iconHeight - 5.5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
 
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);

@@ -75,7 +75,7 @@ int _open_msg_queue()
    type_log_message_buffer logMessage;
 
    key_t key = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
-   iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
+   iLogMsgQueue = msgget(key, 0666 | IPC_CREAT);
    if ( iLogMsgQueue < 0 )
    {
       log_softerror_and_alarm("Failed to create logger message queue");

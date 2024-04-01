@@ -73,6 +73,22 @@ MenuSystemExpert::MenuSystemExpert(void)
    m_pItemsSlider[0]->setStep(10);
    m_IndexPacket = addMenuItem(m_pItemsSlider[0]);
 
+   char szTitle[128];
+   if ( NULL == g_pCurrentModel )
+     strcpy(szTitle, "Vehicle Radio Tx Type");
+   else
+   {
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+         strcpy(szTitle, "Vehicle Radio Tx Type (now PPCAP)");
+      else
+         strcpy(szTitle, "Vehicle Radio Tx Type (now socket)");
+   }
+   m_pItemsSelect[9] = new MenuItemSelect(szTitle, "What method the vehicle uses for transmitting radio packets. Requires a vehicle reboot on change.");
+   m_pItemsSelect[9]->addSelection("Sockets");
+   m_pItemsSelect[9]->addSelection("PPCAP");
+   m_pItemsSelect[9]->setIsEditable();
+   m_iIndexPCAPRadioTx = addMenuItem(m_pItemsSelect[9]);
+
    m_pItemsSelect[0] = new MenuItemSelect("RxTx Sync Type", "How the Rx/Tx time slots between vehicle and controller are synchronized.");
    m_pItemsSelect[0]->addSelection("None");
    m_pItemsSelect[0]->addSelection("Basic");
@@ -191,6 +207,7 @@ void MenuSystemExpert::valuesToUI()
       //m_pItemsSlider[3]->setCurrentValue(1);
       //m_pItemsSlider[4]->setCurrentValue(1);
 
+      m_pItemsSelect[9]->setEnabled(false);
       m_pItemsSelect[12]->setEnabled(false);
       m_pItemsSelect[15]->setEnabled(false);
       m_pMenuItems[m_IndexResetDev]->setEnabled(false);
@@ -211,6 +228,11 @@ void MenuSystemExpert::valuesToUI()
       //   m_pItemsSelect[4]->setSelection(1);
       //m_pItemsSlider[3]->setCurrentValue(g_pCurrentModel->slotTime);
       //m_pItemsSlider[4]->setCurrentValue(g_pCurrentModel->thresh62);
+
+      m_pItemsSelect[9]->setEnabled(true);
+      m_pItemsSelect[9]->setSelectedIndex(0);
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+         m_pItemsSelect[9]->setSelectedIndex(1);
 
       m_pItemsSelect[12]->setEnabled(true);
       m_pItemsSelect[12]->setSelectedIndex(0);
@@ -347,6 +369,19 @@ void MenuSystemExpert::onSelectItem()
       return;
    }
 
+   if ( m_iIndexPCAPRadioTx == m_SelectedIndex )
+   {
+      if ( NULL == g_pCurrentModel )
+         return;
+      if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
+         g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
+      else
+         g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+      if ( ! handle_commands_send_developer_flags() )
+         valuesToUI();
+      return;
+   }
+
    if ( m_IndexRadioSilence == m_SelectedIndex )
    {
       if ( NULL == g_pCurrentModel )
@@ -357,7 +392,8 @@ void MenuSystemExpert::onSelectItem()
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE;
       if ( ! handle_commands_send_developer_flags() )
-         valuesToUI();  
+         valuesToUI();
+      return;
    }
 
    if ( m_IndexFrameType == m_SelectedIndex && menu_check_current_model_ok_for_edit() )

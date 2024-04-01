@@ -278,9 +278,6 @@ void ProcessorTxVideo::setLastRequestedAdaptiveVideoLevelFromController(int iLev
 
 void ProcessorTxVideo::setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue, int iSource)
 {
-   log_line("DEBUG set video bitrate to %u, source %d", uBitrate, iSource);
-   log_line("DEBUG initial bitrate: %u, last set bitrate: %u (%u)",
-      m_uInitialSetCaptureVideoBitrate, m_uLastSetCaptureVideoBitrate & VIDEO_BITRATE_FIELD_MASK, uBitrate);
    m_uLastSetCaptureVideoBitrate = uBitrate;
    if ( bInitialValue || (0 == m_uInitialSetCaptureVideoBitrate) )
       m_uInitialSetCaptureVideoBitrate = uBitrate;
@@ -903,8 +900,6 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
    u32 uMicroTime = 0;
    if ( howMany > 5 )
       uMicroTime = get_current_timestamp_micros();
-
-   //log_line("DEBUG (%d/%d) ready to send: %d", s_iCurrentBufferIndexToSend, s_iCurrentBlockPacketIndexToSend, howMany);
 
    for( int i=0; i<howMany; i++ )
    {
@@ -1674,14 +1669,12 @@ void _parse_h264_data(u8* pData, int iDataSize)
             {
                if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
                {
-                  log_line("DEBUG [KeyFrame] Sending keyframe count %d to the video capture program (for current fps %d and keyframe interval: %d ms)", uKeyframeCount, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
                   video_source_csi_send_control_message(RASPIVID_COMMAND_ID_KEYFRAME, uKeyframeCount);
                }
                if ( g_pCurrentModel->isActiveCameraOpenIPC() )
                {
                   float fGOP = 1.0;
                   fGOP = ((float)s_iCurrentKeyFrameIntervalMs)/1000.0;
-                  log_line("DEBUG [KeyFrame] Sending keyframe gop %.1f to the majestic capture program (for current fps %d and keyframe interval: %d ms)", fGOP, iCurrentFPS, s_iCurrentKeyFrameIntervalMs);
                   video_source_majestic_set_keyframe_value(fGOP);                
                }
             }

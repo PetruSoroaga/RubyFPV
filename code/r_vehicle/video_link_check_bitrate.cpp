@@ -399,8 +399,8 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateUpOnTxOverload + 250 )
    if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRateFast) )
    {
-      log_line("DEBUG in overload condition, decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
-      log_line("DEBUG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
+      //log_line("DBG in overload condition, decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
+      //log_line("DBG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
       g_uTimeLastVideoTxOverload = 0;
       g_TimeLastOverwriteBitrateDownOnTxOverload = g_TimeNow;
 

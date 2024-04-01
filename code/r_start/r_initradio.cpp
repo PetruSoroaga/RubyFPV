@@ -46,11 +46,11 @@ int giDataRateMbAtheros = 0;
 
 void _set_radio_region()
 {
-   //system("iw reg set DE");
    //hw_execute_bash_command("iw reg set DE", NULL);
+   //system("iw reg set BO");
 
-   system("iw reg set BO");
-   hw_execute_bash_command("iw reg set BO", NULL);
+   char szOutput[256];
+   hw_execute_bash_command_raw("iw reg set 00", szOutput);
 }
 
 bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)

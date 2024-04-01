@@ -52,9 +52,8 @@
 //#define DEBUG_PACKET_RECEIVED
 //#define DEBUG_PACKET_SENT
 
-#define USE_PCAP_FOR_TX 1
-
 int s_bRadioDebugFlag = 0;
+int s_iUsePCAPForTx = 1;
 int s_iRadioInterfacesBroken = 0;
 int s_iRadioLastReadErrorCode = RADIO_READ_ERROR_NO_ERROR;
 
@@ -264,6 +263,11 @@ void radio_enable_crc_gen(int enable)
 void radio_set_debug_flag()
 {
    s_bRadioDebugFlag = 1;
+}
+
+void radio_set_use_pcap_for_tx(int iEnablePCAPTx)
+{
+   s_iUsePCAPForTx = iEnablePCAPTx;
 }
 
 // Returns 0 if the packet can't be sent (right now or ever)
@@ -660,80 +664,81 @@ int radio_open_interface_for_write(int interfaceIndex)
    pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
    pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
 
-   #ifdef USE_PCAP_FOR_TX
-   log_line("Using ppcap for tx packets.");
-   char errbuf[PCAP_ERRBUF_SIZE];
-
-   pRadioHWInfo->monitor_interface_write.ppcap = pcap_create(pRadioHWInfo->szName, errbuf);
-   if (pRadioHWInfo->monitor_interface_write.ppcap == NULL)
+   if ( s_iUsePCAPForTx )
    {
-      log_error_and_alarm("Failed to get ppcap for write");
-      return -1;
+      log_line("Using ppcap for tx packets.");
+      char errbuf[PCAP_ERRBUF_SIZE];
+
+      pRadioHWInfo->monitor_interface_write.ppcap = pcap_create(pRadioHWInfo->szName, errbuf);
+      if (pRadioHWInfo->monitor_interface_write.ppcap == NULL)
+      {
+         log_error_and_alarm("Failed to get ppcap for write");
+         return -1;
+      }
+      if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 4096) !=0) log_line("set_snaplen failed");
+      if (pcap_set_promisc(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("set_promisc failed");
+      if (pcap_set_timeout(pRadioHWInfo->monitor_interface_write.ppcap, -1) !=0) log_line("set_timeout failed");
+      if (pcap_set_immediate_mode(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("pcap_set_immediate_mode failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
+      if (pcap_activate(pRadioHWInfo->monitor_interface_write.ppcap) !=0) log_line("pcap_activate failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
+
+      pRadioHWInfo->monitor_interface_write.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->monitor_interface_write.ppcap);
+      log_line("PCAP returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->monitor_interface_write.ppcap, pRadioHWInfo->monitor_interface_write.selectable_fd);
+      
+      //if ( pRadioHWInfo->openedForRead )
+      //   pRadioHWInfo->monitor_interface_write.selectable_fd = pRadioHWInfo->monitor_interface_read.selectable_fd;
+      //else
+      //   log_line("Failed to reuse read interface for write.");
    }
-   if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 4096) !=0) log_line("set_snaplen failed");
-   if (pcap_set_promisc(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("set_promisc failed");
-   if (pcap_set_timeout(pRadioHWInfo->monitor_interface_write.ppcap, -1) !=0) log_line("set_timeout failed");
-   if (pcap_set_immediate_mode(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("pcap_set_immediate_mode failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
-   if (pcap_activate(pRadioHWInfo->monitor_interface_write.ppcap) !=0) log_line("pcap_activate failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
-
-   pRadioHWInfo->monitor_interface_write.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->monitor_interface_write.ppcap);
-   log_line("PCAP returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->monitor_interface_write.ppcap, pRadioHWInfo->monitor_interface_write.selectable_fd);
-   
-   //if ( pRadioHWInfo->openedForRead )
-   //   pRadioHWInfo->monitor_interface_write.selectable_fd = pRadioHWInfo->monitor_interface_read.selectable_fd;
-   //else
-   //   log_line("Failed to reuse read interface for write.");
-
-   #else
-   
-   log_line("Using socket for tx packets.");
-   struct sockaddr_ll ll_addr;
-   struct ifreq ifr;
-   pRadioHWInfo->monitor_interface_write.selectable_fd = socket(AF_PACKET, SOCK_RAW, 0);
-   if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1)
-   {
-      log_error_and_alarm("Error:\tSocket failed");
-      return -1;
-   }
-   ll_addr.sll_family = AF_PACKET;
-   ll_addr.sll_protocol = 0;
-   ll_addr.sll_halen = ETH_ALEN;
-
-   if ( strlen(pRadioHWInfo->szName) < IFNAMSIZ-1 )
-      strcpy(ifr.ifr_name, pRadioHWInfo->szName);
    else
-   {
-      char szBuff[64];
-      strcpy(szBuff, pRadioHWInfo->szName);
-      szBuff[IFNAMSIZ-1] = 0;
-      strcpy(ifr.ifr_name, szBuff);
+   {   
+      log_line("Using socket for tx packets.");
+      struct sockaddr_ll ll_addr;
+      struct ifreq ifr;
+      pRadioHWInfo->monitor_interface_write.selectable_fd = socket(AF_PACKET, SOCK_RAW, 0);
+      if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1)
+      {
+         log_error_and_alarm("Error:\tSocket failed");
+         return -1;
+      }
+      ll_addr.sll_family = AF_PACKET;
+      ll_addr.sll_protocol = 0;
+      ll_addr.sll_halen = ETH_ALEN;
+
+      if ( strlen(pRadioHWInfo->szName) < IFNAMSIZ-1 )
+         strcpy(ifr.ifr_name, pRadioHWInfo->szName);
+      else
+      {
+         char szBuff[64];
+         strcpy(szBuff, pRadioHWInfo->szName);
+         szBuff[IFNAMSIZ-1] = 0;
+         strcpy(ifr.ifr_name, szBuff);
+      }
+      if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFINDEX, &ifr) < 0)
+      {
+        	log_error_and_alarm("Error:\tioctl(SIOCGIFINDEX) failed");
+        	return -1;
+      }
+      ll_addr.sll_ifindex = ifr.ifr_ifindex;
+      if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFHWADDR, &ifr) < 0)
+      {
+         	log_error_and_alarm("Error:\tioctl(SIOCGIFHWADDR) failed");
+         	return -1;
+      }
+      memcpy(ll_addr.sll_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+      if (bind (pRadioHWInfo->monitor_interface_write.selectable_fd, (struct sockaddr *)&ll_addr, sizeof(ll_addr)) == -1)
+      {
+        	log_error_and_alarm("Error:\tbind failed");
+        	close(pRadioHWInfo->monitor_interface_write.selectable_fd);
+         pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
+   	     return -1;
+      }
+      if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1 ) 
+      {
+          log_error_and_alarm("Error:\tCannot open socket.\tInfo: Must be root with an 802.11 card with RFMON enabled");
+          return -1;
+      }
+      log_line("Opened socket for write fd=%d.", pRadioHWInfo->monitor_interface_write.selectable_fd);
    }
-   if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFINDEX, &ifr) < 0)
-   {
-     	log_error_and_alarm("Error:\tioctl(SIOCGIFINDEX) failed");
-     	return -1;
-   }
-   ll_addr.sll_ifindex = ifr.ifr_ifindex;
-   if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFHWADDR, &ifr) < 0)
-   {
-      	log_error_and_alarm("Error:\tioctl(SIOCGIFHWADDR) failed");
-      	return -1;
-   }
-   memcpy(ll_addr.sll_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
-   if (bind (pRadioHWInfo->monitor_interface_write.selectable_fd, (struct sockaddr *)&ll_addr, sizeof(ll_addr)) == -1)
-   {
-     	log_error_and_alarm("Error:\tbind failed");
-     	close(pRadioHWInfo->monitor_interface_write.selectable_fd);
-      pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
-	     return -1;
-   }
-   if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1 ) 
-   {
-       log_error_and_alarm("Error:\tCannot open socket.\tInfo: Must be root with an 802.11 card with RFMON enabled");
-       return -1;
-   }
-   log_line("Opened socket for write fd=%d.", pRadioHWInfo->monitor_interface_write.selectable_fd);
-   #endif
 
    pRadioHWInfo->openedForWrite = 1;
    log_line("Opened radio interface %d (%s) for writing on %s. Returned fd=%d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_write.selectable_fd);
@@ -789,21 +794,20 @@ void radio_close_interface_for_write(int interfaceIndex)
 
    log_line("Closed radio interface %d (%s) that was used for write. Selectable write fd: %d", interfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->monitor_interface_write.selectable_fd);
 
-   #ifdef USE_PCAP_FOR_TX
-
-   if ( NULL != pRadioHWInfo->monitor_interface_write.ppcap )
-      pcap_close(pRadioHWInfo->monitor_interface_write.ppcap);
+   if ( s_iUsePCAPForTx )
+   {
+      if ( NULL != pRadioHWInfo->monitor_interface_write.ppcap )
+         pcap_close(pRadioHWInfo->monitor_interface_write.ppcap);
+      else
+         log_line("Radio interface %d was not opened for read.", interfaceIndex+1);
+   }
    else
-      log_line("Radio interface %d was not opened for read.", interfaceIndex+1);
-
-   #else
-
-   if ( -1 != pRadioHWInfo->monitor_interface_write.selectable_fd )
-      close(pRadioHWInfo->monitor_interface_write.selectable_fd);
-   else
-      log_line("Radio interface %d was not opened for write.", interfaceIndex+1);
-   
-   #endif
+   {
+      if ( -1 != pRadioHWInfo->monitor_interface_write.selectable_fd )
+         close(pRadioHWInfo->monitor_interface_write.selectable_fd);
+      else
+         log_line("Radio interface %d was not opened for write.", interfaceIndex+1);
+   }
 
    pRadioHWInfo->monitor_interface_write.ppcap = NULL;
    pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
@@ -1489,40 +1493,39 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 
    int len = 0;
 
-   #ifdef USE_PCAP_FOR_TX
-
-   len = pcap_inject(pRadioHWInfo->monitor_interface_write.ppcap, pData, dataLength);
-   if ( len < dataLength )
+   if ( s_iUsePCAPForTx )
    {
-      log_softerror_and_alarm("RadioError: tx ppcap failed to send radio message (%d bytes sent of %d bytes).", len, dataLength);
-      pRadioHWInfo->monitor_interface_write.iErrorCount++;
-      #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
-      if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
-         pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
-      #endif
-      return 0;
+      len = pcap_inject(pRadioHWInfo->monitor_interface_write.ppcap, pData, dataLength);
+      if ( len < dataLength )
+      {
+         log_softerror_and_alarm("RadioError: tx ppcap failed to send radio message (%d bytes sent of %d bytes).", len, dataLength);
+         pRadioHWInfo->monitor_interface_write.iErrorCount++;
+         #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+         if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
+            pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
+         #endif
+         return 0;
+      }
+      else
+         pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
    }
    else
-      pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
-
-   #else
-
-   len = write(pRadioHWInfo->monitor_interface_write.selectable_fd, pData, dataLength);
-   if ( len < dataLength )
    {
-      log_softerror_and_alarm("RadioError: Failed to send radio message on radio interface %d, fd=%d (%d bytes sent of %d bytes).",
-        interfaceIndex+1, pRadioHWInfo->monitor_interface_write.selectable_fd, len, dataLength);
-      pRadioHWInfo->monitor_interface_write.iErrorCount++;
-      #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
-      if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
-         pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
-      #endif
-      return 0;
+      len = write(pRadioHWInfo->monitor_interface_write.selectable_fd, pData, dataLength);
+      if ( len < dataLength )
+      {
+         log_softerror_and_alarm("RadioError: Failed to send radio message on radio interface %d, fd=%d (%d bytes sent of %d bytes).",
+           interfaceIndex+1, pRadioHWInfo->monitor_interface_write.selectable_fd, len, dataLength);
+         pRadioHWInfo->monitor_interface_write.iErrorCount++;
+         #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
+         if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
+            pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
+         #endif
+         return 0;
+      }
+      else
+         pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
    }
-   else
-      pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
-
-   #endif
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )

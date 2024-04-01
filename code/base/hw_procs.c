@@ -511,14 +511,19 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( NULL != szOutput )
       szOutput[0] = 0;
    
-   char szFullPath[256];
+   char szFullPath[MAX_FILE_PATH_SIZE];
+   char szFullPathDebug[MAX_FILE_PATH_SIZE];
+   szFullPathDebug[0] = 0;
    strcpy(szFullPath, szProcess);
    if ( access(szFullPath, R_OK) == -1 )
       sprintf(szFullPath, "%s%s", FOLDER_BINARIES, szProcess);
 
    if ( access("/tmp/debug", R_OK) != -1 )
-      sprintf(szFullPath, "/tmp/%s", szProcess);
-
+   {
+      sprintf(szFullPathDebug, "/tmp/%s", szProcess);
+      if ( access(szFullPathDebug, R_OK) != -1 )
+         strcpy(szFullPath, szFullPathDebug);
+   }
    if ( access(szFullPath, R_OK) == -1 )
    {
       log_error_and_alarm("Can't execute Ruby process. Not found here: [%s] or here: [%s]", szProcess, szFullPath );

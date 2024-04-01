@@ -582,6 +582,7 @@ void _radio_rx_update_stats(u32 uTimeNow)
                s_RadioRxState.vehicles[i].iMinRxPacketsPerSec = s_RadioRxState.vehicles[i].uTmpRxPackets;
          }
 
+         /*
          if ( (s_iCounterRadioRxStatsUpdate % 10) == 0 )
          {
             log_line("[RadioRxThread] Received packets from VID %u: %u/sec (min: %d/sec, max: %d/sec)", 
@@ -590,7 +591,8 @@ void _radio_rx_update_stats(u32 uTimeNow)
             log_line("[RadioRxThread] Total recv packets from VID: %u: %u, bad: %u, lost: %u",
                s_RadioRxState.vehicles[i].uVehicleId, s_RadioRxState.vehicles[i].uTotalRxPackets, s_RadioRxState.vehicles[i].uTotalRxPacketsBad, s_RadioRxState.vehicles[i].uTotalRxPacketsLost );
          }
-
+         */
+         
          s_RadioRxState.vehicles[i].uTmpRxPackets = 0;
          s_RadioRxState.vehicles[i].uTmpRxPacketsBad = 0;
          s_RadioRxState.vehicles[i].uTmpRxPacketsLost = 0;

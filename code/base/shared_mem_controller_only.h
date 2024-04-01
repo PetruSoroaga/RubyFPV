@@ -138,6 +138,11 @@ typedef struct
    u8 uMaxRetransmissionRoundtripTime;
    u16 uAverageRetransmissionRoundtripTime;
 
+   u8 uMinRetransmissionRoundtripTimeSinglePacket;
+   u8 uMaxRetransmissionRoundtripTimeSinglePacket;
+   u16 uAvgRetransmissionRoundtripTimeSinglePacket;
+   u16 uCountReceivedSingleUniqueRetransmittedPackets;
+
    u16 uCountRequestedPacketsForRetransmission;
    u16 uCountReRequestedPacketsForRetransmission;
    u16 uCountReceivedRetransmissionPackets;
@@ -172,12 +177,16 @@ typedef struct
    u16 totalReceivedRetransmissionsLast500Ms;
    u16 totalRequestedVideoPackets;
    u16 totalReceivedVideoPackets;
+   u8 uMinPacketRetransmissionTime;
+   u8 uMaxPacketRetransmissionTime;
+   u8 uAvgPacketRetransmissionTime;
    controller_retransmissions_stats_element history[MAX_HISTORY_VIDEO_INTERVALS];
 
    u32 uGraphRefreshIntervalMs;
 
    controller_single_retransmission_state listActiveRetransmissions[MAX_HISTORY_STACK_RETRANSMISSION_INFO];
    int iCountActiveRetransmissions;
+
 
 } __attribute__((packed)) shared_mem_controller_retransmissions_stats;
 

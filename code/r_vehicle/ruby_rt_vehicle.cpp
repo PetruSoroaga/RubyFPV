@@ -1277,11 +1277,11 @@ void _check_free_storage_space()
       sl_uTimeLastMemoryCheck = g_TimeNow;
       
       int iFreeSpaceKb = hardware_get_free_space_kb();
-      int iMinFree = 100*1000;
+      int iMinFreeKb = 100*1000;
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
-      iMinFree = 1000;
+      iMinFreeKb = 100;
       #endif
-      if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFree) )
+      if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
       {
          char szComm[128];
          char szOutput[2048];
@@ -1302,11 +1302,27 @@ void _check_free_storage_space()
          {
             if ( szOutput[iSize] == 'M' || szOutput[iSize] == 'm' )
             {
+               for( int i=0; i<(int)strlen(szOutput); i++ )
+               {
+                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
+                 {
+                    szOutput[i] = 0;
+                    break;
+                 }
+               }
                sscanf(szOutput, "%u", &uLogSize);
                uLogSize *= 1000 * 1000;
             }
             if ( szOutput[iSize] == 'K' || szOutput[iSize] == 'k' )
             {
+               for( int i=0; i<(int)strlen(szOutput); i++ )
+               {
+                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
+                 {
+                    szOutput[i] = 0;
+                    break;
+                 }
+               }
                sscanf(szOutput, "%u", &uLogSize);
                uLogSize *= 1000;
             }
@@ -1401,15 +1417,16 @@ int main(int argc, char *argv[])
       }
    }
   
-   log_line("Start sequence: Loaded model. Developer flags: live log: %s, enable radio silence failsafe: %s, log only errors: %s, radio config guard interval: %d ms",
+   log_line_forced_to_file("Start sequence: Loaded model. Developer flags: live log: %s, enable radio silence failsafe: %s, log only errors: %s, radio config guard interval: %d ms",
          (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?"yes":"no",
          (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?"yes":"no",
          (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS)?"yes":"no",
           (int)((g_pCurrentModel->uDeveloperFlags >> 8) & 0xFF) );
-   log_line("Start sequence: Model has vehicle developer video link stats flag on: %s/%s", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
-
-   log_line("Start sequence: Vehicle has camera? %s", g_pCurrentModel->hasCamera()?"Yes":"No");
-   log_line("Start sequence: Board type: %s", str_get_hardware_board_name(hardware_getBoardType()));
+   log_line_forced_to_file("Start sequence: Model has vehicle developer video link stats flag on: %s/%s", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS)?"yes":"no", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)?"yes":"no");
+   log_line_forced_to_file("Model flags: %u (%s), developer flags: %u (%s)",
+      g_pCurrentModel->uModelFlags, str_get_model_flags(g_pCurrentModel->uModelFlags), g_pCurrentModel->uDeveloperFlags, str_get_developer_flags(g_pCurrentModel->uDeveloperFlags));
+   log_line_forced_to_file("Start sequence: Vehicle has camera? %s", g_pCurrentModel->hasCamera()?"Yes":"No");
+   log_line_forced_to_file("Start sequence: Board type: %s", str_get_hardware_board_name(hardware_getBoardType()));
 
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
@@ -1485,6 +1502,11 @@ int main(int argc, char *argv[])
   
    hardware_sleep_ms(50);
    radio_init_link_structures();
+   if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+      radio_set_use_pcap_for_tx(1);
+   else
+      radio_set_use_pcap_for_tx(0);
+   
    radio_enable_crc_gen(1);
    fec_init();
 

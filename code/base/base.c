@@ -59,6 +59,7 @@ static int s_logDisabled = 0;
 #endif
 
 static int s_logUseService = 0;
+static key_t s_logServiceKey = 0;
 static int s_logServiceMessageQueue = -1;
 static int s_logServiceAccessErrorCount = 0;
 
@@ -283,8 +284,19 @@ int _log_check_for_service_log_access()
    if ( s_logServiceMessageQueue >= 0 )
       return 1;
 
-   key_t key = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
-   s_logServiceMessageQueue = msgget(key, 0222);
+   if ( 0 == s_logServiceKey )
+   {
+      log_line_forced_to_file("Generate a new key for accessing logger message queue...");
+      s_logServiceKey = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
+   }
+   if ( 0 == s_logServiceKey )
+   {
+      log_line_forced_to_file("Failed to generate logger message queue key. Using regular log instead.");
+      s_logUseService = 0;
+      return 0;
+   }
+
+   s_logServiceMessageQueue = msgget(s_logServiceKey, 0666);
 
    if ( s_logServiceMessageQueue < 0 )
    {
@@ -294,13 +306,14 @@ int _log_check_for_service_log_access()
       else if ( s_logServiceAccessErrorCount == 10 )
       {
          log_softerror_and_alarm("Failed to access the logger service message queue. Using regular log instead.");
+         log_line_forced_to_file("Failed to access the logger service message queue. Using regular log instead.");
          s_logUseService = 0;
       }
       return 0;
    }
    else
    {
-      log_line("Got access to logger service. Using logger service for log. key id: %X, msgqueue id: %d", key, s_logServiceMessageQueue);
+      log_line_forced_to_file("Got access to logger service. Using logger service for log. key id: 0x%X, msgqueue id: %d", s_logServiceKey, s_logServiceMessageQueue);
    }
 
    return 1;
@@ -395,23 +408,23 @@ void log_init(const char* component_name)
 
    _log_check_for_service_log_access();
     
-   log_line("Starting...");
+   log_line_forced_to_file("Starting...");
 }
 
 void log_arguments(int argc, char *argv[])
 {
    if ( argc <= 0 )
    {
-      log_line("Executed with no arguments");
+      log_line_forced_to_file("Executed with no arguments");
       return;
    }
-   log_line("Executed with %d arguments:", argc);
+   log_line_forced_to_file("Executed with %d arguments:", argc);
    for( int i=0; i<argc; i++ )
    {
       if ( NULL == argv[i] )
-         log_line("Arg %d: NULL", i);
+         log_line_forced_to_file("Arg %d: NULL", i);
       else
-         log_line("Arg %d: [%s]", i, argv[i]);
+         log_line_forced_to_file("Arg %d: [%s]", i, argv[i]);
    }
 }
 
@@ -427,6 +440,12 @@ void log_add_file(const char* szFileName)
 
 void log_disable()
 {
+   if ( access("/tmp/debuglog", R_OK) != -1 )
+   {
+      log_line_forced_to_file("Setting the log to disabled overwritten by /tmp/debuglog flag.");
+      s_logDisabled = 0;
+      return;
+   }
    s_logDisabled = 1;
 }
 
@@ -442,13 +461,13 @@ void log_enable_stdout()
 
 void log_only_errors()
 {
-   if ( access("/tmp/debug", R_OK) != -1 )
+   if ( access("/tmp/debuglog", R_OK) != -1 )
    {
-      log_line("Setting the log level to errors only overwritten by /tmp/debug flag.");
+      log_line_forced_to_file("Setting the log level to errors only overwritten by /tmp/debuglog flag.");
       s_logOnlyErrors = 0;
       return;
    }
-   log_line("Setting the log level to errors only.");
+   log_line_forced_to_file("Setting the log level to errors only.");
    s_logOnlyErrors = 1;
 }
 
@@ -500,6 +519,73 @@ void log_line(const char* format, ...)
       printf("%s %s: ", s_szTimeLog, sszComponentName);
    if ( NULL != fd )
      fprintf(fd, "%s %s: ", s_szTimeLog, sszComponentName);
+
+   if ( 0 != s_szAdditionalLogFile[0] )
+   {
+      FILE* fdAux = fopen(s_szAdditionalLogFile, "a+");
+      if ( NULL != fdAux )
+      {
+         vfprintf(fdAux, format, args);
+         fclose(fdAux);
+      }
+   }
+
+   if ( NULL != fd )
+      vfprintf(fd, format, args);
+   if ( ! s_logDisabledStdout )
+      vprintf(format, args);
+
+   if ( 0 != s_szAdditionalLogFile[0] )
+   {
+      FILE* fdAux = fopen(s_szAdditionalLogFile, "a+");
+      if ( NULL != fdAux )
+      {
+         fprintf(fdAux, "\n");
+         fclose(fdAux);
+      }
+   }
+
+   if ( ! s_logDisabledStdout )
+      printf("\n");
+   if ( NULL != fd )
+     fprintf(fd, "\n");  
+
+   //if ( 0 == lock )
+   //   flock(fileno(fd), LOCK_UN);
+   if ( NULL != fd )
+      fclose(fd);
+}
+
+
+void log_line_forced_to_file(const char* format, ...)
+{
+   va_list args;
+   va_start(args, format);
+
+   s_szTimeLog[0] = 0;
+   if ( s_logAddTime )
+      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_LOGS);
+   strcat(szFile, LOG_FILE_SYSTEM);
+   FILE* fd = fopen(szFile, "a+");
+   //int lock = flock(fileno(fd), LOCK_EX);
+
+   if ( 0 != s_szAdditionalLogFile[0] )
+   {
+      FILE* fdAux = fopen(s_szAdditionalLogFile, "a+");
+      if ( NULL != fdAux )
+      {
+         fprintf(fdAux, "%s(F) %s: ", s_szTimeLog, sszComponentName);  
+         fclose(fdAux);
+      }
+   }
+
+   if ( ! s_logDisabledStdout )
+      printf("%s(F) %s: ", s_szTimeLog, sszComponentName);
+   if ( NULL != fd )
+     fprintf(fd, "%s(F) %s: ", s_szTimeLog, sszComponentName);
 
    if ( 0 != s_szAdditionalLogFile[0] )
    {
@@ -1242,11 +1328,13 @@ key_t generate_msgqueue_key(int iMsgQueueId)
    strcat(szFile, "ruby_logger");
    if ( access(szFile, R_OK) == -1 )
    {
-      if ( access("/tmp/ruby_start", R_OK) != -1 )
+      if ( access(szFile, R_OK) != -1 )
          strcpy(szFile, "/tmp/ruby_start");
       else if ( access("/tmp/debug", R_OK) != -1 )
          strcpy(szFile, "/tmp/debug");
    }
    key_t key = ftok(szFile, iMsgQueueId);
+
+   log_line_forced_to_file("Generated message queue key 0x%X for msg queue id %d, from file [%s]", key, iMsgQueueId, szFile);
    return key;
 }

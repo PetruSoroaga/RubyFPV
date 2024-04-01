@@ -35,6 +35,7 @@ class MenuSystemExpert: public Menu
       int m_IndexFreezeOSD;
       int m_IndexResetDev;
       int m_IndexDetailedPackets;
+      int m_iIndexPCAPRadioTx;
       int m_IndexRXScope;
       int m_IndexVersion;
       int m_IndexRxLoopTimeout;

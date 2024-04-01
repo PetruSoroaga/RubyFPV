@@ -458,6 +458,10 @@ void ProcessorRxVideo::resetRetransmissionsStats()
    m_SM_RetransmissionsStats.totalRequestedVideoPackets = 0;
    m_SM_RetransmissionsStats.totalReceivedVideoPackets = 0;
 
+   m_SM_RetransmissionsStats.uMinPacketRetransmissionTime = 0;
+   m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime = 0;
+   m_SM_RetransmissionsStats.uAvgPacketRetransmissionTime = 0;
+
    m_SM_RetransmissionsStats.iCountActiveRetransmissions = 0;
    
    for( int i=0; i<MAX_HISTORY_VIDEO_INTERVALS; i++ )
@@ -474,6 +478,11 @@ void ProcessorRxVideo::resetRetransmissionsStats()
       m_SM_RetransmissionsStats.history[i].uMinRetransmissionRoundtripTime = 0;
       m_SM_RetransmissionsStats.history[i].uMaxRetransmissionRoundtripTime = 0;
       m_SM_RetransmissionsStats.history[i].uAverageRetransmissionRoundtripTime = 0;
+
+      m_SM_RetransmissionsStats.history[i].uMinRetransmissionRoundtripTimeSinglePacket = 0;
+      m_SM_RetransmissionsStats.history[i].uMaxRetransmissionRoundtripTimeSinglePacket = 0;
+      m_SM_RetransmissionsStats.history[i].uAvgRetransmissionRoundtripTimeSinglePacket = 0;
+      m_SM_RetransmissionsStats.history[i].uCountReceivedSingleUniqueRetransmittedPackets = 0;
    }
 
    m_SM_VideoDecodeStats.total_DiscardedLostPackets = 0;
@@ -1231,6 +1240,46 @@ void ProcessorRxVideo::updateRetransmissionsHistoryStats(u32 uTimeNow)
       m_SM_RetransmissionsStats.iCountActiveRetransmissions -= iRemoveToIndex;
    }
 
+   if ( 0 != m_SM_RetransmissionsStats.history[0].uCountReceivedSingleUniqueRetransmittedPackets )
+      m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket /= m_SM_RetransmissionsStats.history[0].uCountReceivedSingleUniqueRetransmittedPackets;
+
+   bool bAllPrevIntervalsEmptyRetransmissions = true;
+   for( int i=1; i<MAX_HISTORY_VIDEO_INTERVALS; i++ )
+   {
+      if ( (0 != m_SM_RetransmissionsStats.history[i].uMinRetransmissionRoundtripTimeSinglePacket) ||
+         (0 != m_SM_RetransmissionsStats.history[i].uMaxRetransmissionRoundtripTimeSinglePacket ) )
+      {
+         bAllPrevIntervalsEmptyRetransmissions = false;
+         break;
+      }
+   }
+   if ( (0 != m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket) ||
+         (0 != m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket ) )
+   if ( bAllPrevIntervalsEmptyRetransmissions )
+   {
+      m_SM_RetransmissionsStats.uMinPacketRetransmissionTime = 0;
+      m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime = 0;
+      m_SM_RetransmissionsStats.uAvgPacketRetransmissionTime = 0;
+   }
+
+   if ( 0 == m_SM_RetransmissionsStats.uMinPacketRetransmissionTime )
+      m_SM_RetransmissionsStats.uMinPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket;
+   if ( 0 == m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime )
+      m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket;
+   if ( 0 == m_SM_RetransmissionsStats.uAvgPacketRetransmissionTime )
+      m_SM_RetransmissionsStats.uAvgPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket;
+
+   if ( m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket > 0 )
+   if ( m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket < m_SM_RetransmissionsStats.uMinPacketRetransmissionTime )
+      m_SM_RetransmissionsStats.uMinPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket;
+
+   if ( m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket > 0 )
+   if ( m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket > m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime )
+      m_SM_RetransmissionsStats.uMaxPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket;
+
+   if ( m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket > 0 )
+      m_SM_RetransmissionsStats.uAvgPacketRetransmissionTime = m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket;
+
    for( int i=MAX_HISTORY_VIDEO_INTERVALS-1; i>0; i-- )
    {
       m_SM_RetransmissionsStats.history[i].uCountRequestedRetransmissions = m_SM_RetransmissionsStats.history[i-1].uCountRequestedRetransmissions;
@@ -1242,6 +1291,11 @@ void ProcessorRxVideo::updateRetransmissionsHistoryStats(u32 uTimeNow)
       m_SM_RetransmissionsStats.history[i].uMaxRetransmissionRoundtripTime = m_SM_RetransmissionsStats.history[i-1].uMaxRetransmissionRoundtripTime;
       m_SM_RetransmissionsStats.history[i].uAverageRetransmissionRoundtripTime = m_SM_RetransmissionsStats.history[i-1].uAverageRetransmissionRoundtripTime;
       
+      m_SM_RetransmissionsStats.history[i].uMinRetransmissionRoundtripTimeSinglePacket = m_SM_RetransmissionsStats.history[i-1].uMinRetransmissionRoundtripTimeSinglePacket;
+      m_SM_RetransmissionsStats.history[i].uMaxRetransmissionRoundtripTimeSinglePacket = m_SM_RetransmissionsStats.history[i-1].uMaxRetransmissionRoundtripTimeSinglePacket;
+      m_SM_RetransmissionsStats.history[i].uAvgRetransmissionRoundtripTimeSinglePacket = m_SM_RetransmissionsStats.history[i-1].uAvgRetransmissionRoundtripTimeSinglePacket;
+      m_SM_RetransmissionsStats.history[i].uCountReceivedSingleUniqueRetransmittedPackets = m_SM_RetransmissionsStats.history[i-1].uCountReceivedSingleUniqueRetransmittedPackets;
+
       m_SM_RetransmissionsStats.history[i].uCountRequestedPacketsForRetransmission = m_SM_RetransmissionsStats.history[i-1].uCountRequestedPacketsForRetransmission;
       m_SM_RetransmissionsStats.history[i].uCountReRequestedPacketsForRetransmission = m_SM_RetransmissionsStats.history[i-1].uCountReRequestedPacketsForRetransmission;
       m_SM_RetransmissionsStats.history[i].uCountReceivedRetransmissionPackets = m_SM_RetransmissionsStats.history[i-1].uCountReceivedRetransmissionPackets;
@@ -1259,6 +1313,11 @@ void ProcessorRxVideo::updateRetransmissionsHistoryStats(u32 uTimeNow)
    m_SM_RetransmissionsStats.history[0].uCountReceivedRetransmissionPackets = 0;
    m_SM_RetransmissionsStats.history[0].uCountReceivedRetransmissionPacketsDuplicate = 0;
    m_SM_RetransmissionsStats.history[0].uCountReceivedRetransmissionPacketsDropped = 0;
+
+   m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket = 0;
+   m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = 0;
+   m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket = 0;
+   m_SM_RetransmissionsStats.history[0].uCountReceivedSingleUniqueRetransmittedPackets = 0;
 }
 
 void ProcessorRxVideo::updateHistoryStatsDiscaredAllStack()
@@ -1724,7 +1783,8 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
             if ( m_pRXBlocksStack[i]->packetsInfo[k].uRetrySentCount != 0 )
                continue;
 
-            m_pRXBlocksStack[i]->packetsInfo[k].uTimeFirstRetrySent = g_TimeNow;
+            if ( 0 == m_pRXBlocksStack[i]->packetsInfo[k].uTimeFirstRetrySent )
+               m_pRXBlocksStack[i]->packetsInfo[k].uTimeFirstRetrySent = g_TimeNow;
             m_pRXBlocksStack[i]->packetsInfo[k].uTimeLastRetrySent = g_TimeNow;
             m_pRXBlocksStack[i]->packetsInfo[k].uRetrySentCount = 1;
             totalCountRequestedNew++;
@@ -2227,6 +2287,36 @@ int ProcessorRxVideo::preProcessRetransmittedVideoPacket(int interfaceNb, u8* pB
          iRetransmissionIndex = i;
          pRetransmissionInfo = &(m_SM_RetransmissionsStats.listActiveRetransmissions[i]);
          break;
+      }
+   }
+
+   // Compute retransmission roundtrip for this packet
+
+   u32 uSinglePacketRetransmissionTime = 0;
+   if ( video_block_index >= m_pRXBlocksStack[0]->video_block_index )
+   if ( (m_iRXBlocksStackTopIndex >=0) && (video_block_index < m_pRXBlocksStack[m_iRXBlocksStackTopIndex]->video_block_index) )
+   {
+      int dest_stack_index = (video_block_index-m_pRXBlocksStack[0]->video_block_index);
+      if ( (dest_stack_index >= 0) && (dest_stack_index < m_iRXMaxBlocksToBuffer) )
+      if ( m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].state != RX_PACKET_STATE_RECEIVED )
+      if ( m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uTimeFirstRetrySent != 0 )
+      {
+         uSinglePacketRetransmissionTime = g_TimeNow - m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uTimeFirstRetrySent;
+      
+         m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket += uSinglePacketRetransmissionTime;
+         m_SM_RetransmissionsStats.history[0].uCountReceivedSingleUniqueRetransmittedPackets++;
+
+         if ( 0 == m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket )
+            m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
+         if ( 0 == m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket )
+            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
+         
+         if ( uSinglePacketRetransmissionTime < m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket )
+            m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
+         if ( (uSinglePacketRetransmissionTime < 255) && (uSinglePacketRetransmissionTime > m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket) )
+            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
+         if ( uSinglePacketRetransmissionTime >= 255 )
+            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = 255;
       }
    }
 

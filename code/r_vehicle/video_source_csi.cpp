@@ -482,8 +482,8 @@ void video_source_csi_periodic_checks()
 
    if ( g_TimeNow >= s_uDebugTimeLastCSIVideoInputCheck+1000 )
    {
-      log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-         s_uDebugCSIInputBytes, s_uDebugCSIInputBytes*8, s_uDebugCSIInputReads);
+      //log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %u bps, %u reads/sec",
+      //   s_uDebugCSIInputBytes, s_uDebugCSIInputBytes*8, s_uDebugCSIInputReads);
       s_uDebugTimeLastCSIVideoInputCheck = g_TimeNow;
       s_uDebugCSIInputBytes = 0;
       s_uDebugCSIInputReads = 0;

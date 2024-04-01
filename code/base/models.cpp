@@ -4007,6 +4007,7 @@ void Model::resetToDefaults(bool generateId)
    bDeveloperMode = false;
    uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
    uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
+   uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
 
    resetRelayParamsToDefaults(&relay_params);
 

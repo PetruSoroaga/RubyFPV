@@ -883,8 +883,8 @@ int main(int argc, char *argv[])
       printf("Ruby: Trying to detect 2.4/5.8 Ghz cards...\n");
       fflush(stdout);
       
-      hardware_sleep_ms(100);
-      for( int i=0; i<3; i++ )
+      hardware_sleep_ms(500);
+      for( int i=0; i<5; i++ )
       {
          power_leds(1);
          hardware_sleep_ms(170);

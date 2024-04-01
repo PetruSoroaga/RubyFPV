@@ -283,6 +283,9 @@ void MenuVehicleVideoEncodings::valuesToUI()
    int useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
    int controllerLinkLost = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST)?1:0;
    
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+      adaptive = 0;
+
    if ( adaptive )
    {
       if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
@@ -295,7 +298,6 @@ void MenuVehicleVideoEncodings::valuesToUI()
 
    m_pItemsSelect[9]->setSelectedIndex(useControllerInfo);
    m_pItemsSelect[10]->setSelectedIndex(controllerLinkLost);
-
    m_pItemsSlider[5]->setCurrentValue(g_pCurrentModel->video_params.videoAdjustmentStrength);
    
    m_pItemsSelect[2]->setSelectedIndex(retr);
@@ -552,6 +554,26 @@ void MenuVehicleVideoEncodings::onSelectItem()
       return;
    }
 
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( (m_IndexHDMIOutput == m_SelectedIndex) ||
+        (m_IndexH264Slices == m_SelectedIndex) ||
+        (m_IndexCustomQuant == m_SelectedIndex) ||
+        (m_IndexQuantValue == m_SelectedIndex) ||
+        (m_IndexEnableAdaptiveQuantization == m_SelectedIndex) ||
+        (m_IndexAdaptiveQuantizationStrength == m_SelectedIndex) )
+   {
+      addUnsupportedMessageOpenIPC(NULL);
+      valuesToUI();
+      return;    
+   }
+
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( (m_IndexAdaptiveLink == m_SelectedIndex) || (m_IndexMaxKeyFrame == m_SelectedIndex) )
+   {
+      addUnsupportedMessageOpenIPCGoke(NULL);
+      valuesToUI();
+      return;
+   }
 
    if ( m_IndexPacketSize == m_SelectedIndex || 
         m_IndexBlockPackets == m_SelectedIndex || 
@@ -623,6 +645,11 @@ void MenuVehicleVideoEncodings::onSelectItem()
 
    if ( m_IndexHDMIOutput == m_SelectedIndex )
    {
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      {
+         addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
       video_parameters_t paramsOld;
       memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
       int index = m_pItemsSelect[1]->getSelectedIndex();
