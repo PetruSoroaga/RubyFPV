@@ -207,7 +207,9 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( access(szFile, R_OK) != -1 )
    {
       m_bShownHDMIChangeNotif = true;
-      MenuConfirmation* pMC = new MenuConfirmation("HDMI Output Configuration Changed","You updated the HDMI output configuration. Do you want to reboot now for the changes to take effect?", 11);
+      MenuConfirmation* pMC = new MenuConfirmation("HDMI Output Configuration Changed","You updated the HDMI output configuration.", 11);
+      pMC->addTopLine("If the new resolution is not supported by your display, Ruby will reboot again with the old display configuration.");
+      pMC->addTopLine("Do you want to reboot now for the new changes to take effect?");
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return;

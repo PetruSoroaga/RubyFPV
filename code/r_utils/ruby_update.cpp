@@ -91,9 +91,9 @@ void validate_camera(Model* pModel)
    }
 }
 
-void do_update_to_83()
+void do_update_to_90()
 {
-   log_line("Doing update to 8.3");
+   log_line("Doing update to 9.0");
  
    if ( ! s_isVehicle )
    {
@@ -161,7 +161,7 @@ void do_update_to_83()
       pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
    }
 
-   log_line("Updated model VID %u (%s) to v8.3", pModel->uVehicleId, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v9.0", pModel->uVehicleId, pModel->getLongName());
 }
 
 void do_update_to_82()
@@ -1344,8 +1344,8 @@ int main(int argc, char *argv[])
       do_update_to_81();
    if ( (iMajor < 8) || (iMajor == 8 && iMinor <= 2) )
       do_update_to_82();
-   if ( (iMajor < 8) || (iMajor == 8 && iMinor <= 3) )
-      do_update_to_83();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor < 1) )
+      do_update_to_90();
 
    saveCurrentModel();
    

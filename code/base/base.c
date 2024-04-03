@@ -413,6 +413,8 @@ void log_init(const char* component_name)
 
 void log_arguments(int argc, char *argv[])
 {
+   log_line_forced_to_file("Process version: %d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+
    if ( argc <= 0 )
    {
       log_line_forced_to_file("Executed with no arguments");

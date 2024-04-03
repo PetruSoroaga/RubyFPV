@@ -559,11 +559,12 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( NULL != szOutput )
    {
       // Ruby processes output very little info (version only)
-      char szBuff[128];
-      if ( fgets(szBuff, 123, fp) != NULL)
+      char szBuff[256];
+      if ( fgets(szBuff, 254, fp) != NULL)
       {
-         szBuff[123] = 0;
-         sscanf(szBuff, "%s", szOutput);
+         szBuff[254] = 0;
+         if ( NULL != szOutput )
+            strcpy(szOutput, szBuff);
       }
       else
          log_line("Empty response from Ruby process.");
@@ -571,7 +572,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( -1 == pclose(fp) )
       log_softerror_and_alarm("Failed to launch and confirm Ruby process: [%s]", szCommand);
    else
-      log_line("Launched Ruby process: [%s]", szCommand);
+      log_line("Launched Ruby process result: [%s]", szCommand);
 }
 
 void hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriority)

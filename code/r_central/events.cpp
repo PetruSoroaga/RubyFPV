@@ -597,9 +597,11 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    bool bMustUpdate = false;  
    if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pModel->sw_version & 0xFFFF) )
       bMustUpdate = true;
-   if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR == (pModel->sw_version & 0xFFFF) )
+   
+   //if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR == (pModel->sw_version & 0xFFFF) )
    if ( SYSTEM_SW_BUILD_NUMBER > (pModel->sw_version >> 16) )
       bMustUpdate = true;
+
    if ( bMustUpdate )
    {
       char szBuff[256];
