@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -228,7 +228,9 @@ t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
    // Unexpected vehicle
 
    g_UnexpectedVehicleRuntimeInfo.uVehicleId = pPH->vehicle_id_src;
-   g_UnexpectedVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 41);
+   g_UnexpectedVehicleRuntimeInfo.pModel = NULL;
+   if ( controllerHasModelWithId(pPH->vehicle_id_src) )
+      g_UnexpectedVehicleRuntimeInfo.pModel = findModelWithId(pPH->vehicle_id_src, 41);
    return &(g_UnexpectedVehicleRuntimeInfo);
 }
 
@@ -907,7 +909,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    {
       if ( pPH->total_length != sizeof(t_packet_header) + 2*sizeof(shared_mem_video_info_stats) )
          return 0;
-      memcpy((u8*)&g_VideoInfoStatsFromVehicle, (u8*)(pPacketBuffer + sizeof(t_packet_header)), sizeof(shared_mem_video_info_stats));
+      memcpy((u8*)&g_VideoInfoStatsFromVehicleCameraOut, (u8*)(pPacketBuffer + sizeof(t_packet_header)), sizeof(shared_mem_video_info_stats));
       memcpy((u8*)&g_VideoInfoStatsFromVehicleRadioOut, (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(shared_mem_video_info_stats)), sizeof(shared_mem_video_info_stats));
       return 0;
    }
@@ -991,7 +993,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
       // Rx stats for a single card
       if ( (NULL != g_pCurrentModel) && (countCards < g_pCurrentModel->radioInterfacesParams.interfaces_count) && (pPH->total_length == (sizeof(t_packet_header) + sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact)) ) )
-      if ( (NULL != pRuntimeInfo) && (pRuntimeInfo->uTimeLastRecvVehicleRxStats < g_TimeNow-1000 ) )
+      if ( (NULL != pRuntimeInfo) && (pRuntimeInfo->uTimeLastRecvVehicleRxStats+1000 < g_TimeNow ) )
       if ( pPH->total_length == (sizeof(t_packet_header) + sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact)) )
       {
          shared_mem_radio_stats_radio_interface_compact statsCompact;

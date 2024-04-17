@@ -84,6 +84,7 @@ u32 hardware_get_base_ruby_version();
 
 int hardware_board_is_openipc(int iBoardType);
 int hardware_board_is_goke(int iBoardType);
+int hardware_board_is_sigmastar(int iBoardType);
 
 void hardware_enum_joystick_interfaces();
 int hardware_get_joystick_interfaces_count();

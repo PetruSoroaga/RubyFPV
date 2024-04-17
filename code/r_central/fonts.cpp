@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-          Copyright info and developer info must be preserved as is in the user
+          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
       * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -197,13 +197,16 @@ void applyFontScaleChanges()
    float fOSDScale = osd_getScaleOSD();
    float fOSDStatsScale = osd_getScaleOSDStats();
 
-   // Same scaling must be done in menu render width computation
+   // Same scaling must be done in menu render width computation. Search for AABBCC marker
    if ( NULL != pP )
    {
       if ( pP->iScaleMenus < 0 )
          fMenuFontSize *= (1.0 + 0.15*pP->iScaleMenus);
       if ( pP->iScaleMenus > 0 )
          fMenuFontSize *= (1.0 + 0.1*pP->iScaleMenus);
+
+      if ( pP->iMenuStyle == 1 )
+         fMenuFontSize *= 1.2;
    }
 
    log_line("Applying menu font size of: %d pixels (screen height: %d pixels)", (int)(hScreen * fMenuFontSize), (int) hScreen);

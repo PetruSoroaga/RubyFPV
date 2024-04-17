@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -1126,8 +1126,10 @@ char* str_get_radio_stream_name(int iStreamId)
    strcpy(s_szStreamName, "N/A");
    if ( iStreamId == STREAM_ID_DATA )
       strcpy(s_szStreamName, "Data Stream 1");
+   if ( iStreamId == STREAM_ID_TELEMETRY )
+      strcpy(s_szStreamName, "Telemetry Stream");
    else if ( iStreamId < STREAM_ID_VIDEO_1 )
-      sprintf(s_szStreamName, "Data Stream %d", iStreamId+1);
+      sprintf(s_szStreamName, "Data Stream %d", iStreamId);
    else
       sprintf(s_szStreamName, "Video Stream %d", iStreamId-STREAM_ID_VIDEO_1+1);
 

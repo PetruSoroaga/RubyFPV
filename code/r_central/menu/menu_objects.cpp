@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -63,6 +63,18 @@ float Menu::m_sfMenuPaddingY = 0.0;
 float Menu::m_sfSelectionPaddingX = 0.0;
 float Menu::m_sfSelectionPaddingY = 0.0;
 float Menu::m_sfScaleFactor = 1.0;
+int Menu::m_siRenderMode = 0;
+
+int Menu::getRenderMode()
+{
+   return m_siRenderMode;
+}
+
+void Menu::setRenderMode(int iMode)
+{
+   m_siRenderMode = iMode;
+}
+
 
 Menu::Menu(int id, const char* title, const char* subTitle)
 {
@@ -103,6 +115,7 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_iIndexFirstVisibleItem = 0;
    m_fSelectionWidth = 0;
 
+   m_fExtraHeightStart = 0.0;
    m_fExtraHeightEnd = 0.0;
    
    m_bDisableStacking = false;
@@ -111,6 +124,8 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    Preferences* pP = get_Preferences();
    if ( (NULL != pP) && (! pP->iMenusStacked) )
       m_fAlfaWhenInBackground = MENU_ALFA_WHEN_IN_BG*1.1;
+   if ( (NULL != pP) && ( pP->iMenuStyle == 1) )
+      m_fAlfaWhenInBackground = 0.95;
 
    m_szCurrentTooltip[0] = 0;
    m_szTitle[0] = 0;
@@ -384,6 +399,11 @@ u32 Menu::getOnReturnFromChildTime()
    return m_uOnChildCloseTime;
 }
 
+void Menu::addExtraHeightAtStart(float fExtraH)
+{
+   m_fExtraHeightStart = fExtraH;
+}
+
 void Menu::addExtraHeightAtEnd(float fExtraH)
 {
    m_fExtraHeightEnd = fExtraH;
@@ -451,13 +471,16 @@ float Menu::getUsableWidth()
    m_RenderWidth = m_Width;
    Preferences* pP = get_Preferences();
    m_sfScaleFactor = 1.0;
-   // Same scaling must be done in font scaling computation
+
+   // Same scaling must be done in font scaling computation. Search for AABBCC marker
    if ( NULL != pP )
    {
       if ( pP->iScaleMenus < 0 )
          m_sfScaleFactor = (1.0 + 0.15*pP->iScaleMenus);
       if ( pP->iScaleMenus > 0 )
          m_sfScaleFactor = (1.0 + 0.1*pP->iScaleMenus);
+      if ( pP->iMenuStyle == 1 )
+         m_sfScaleFactor *= 1.2;
    }
    m_RenderWidth *= m_sfScaleFactor;
    m_fRenderScrollBarsWidth = 0.015 * m_sfScaleFactor;
@@ -468,30 +491,11 @@ float Menu::getUsableWidth()
       return (m_RenderWidth - m_fIconSize - 2*m_sfMenuPaddingX);
 }
 
-void Menu::computeRenderSizes()
+float Menu::_computeRenderTopHeaderSize()
 {
-   m_fIconSize = 0.0;
-
-   m_RenderYPos = m_yPos;
-   getUsableWidth(); // Computes m_RenderWidth
-   m_RenderHeight = m_Height;
-   m_RenderTotalHeight = m_RenderHeight;
-   m_RenderHeaderHeight = 0.0;
-   m_RenderTitleHeight = 0.0;
-   m_RenderSubtitleHeight = 0.0;
-
-   m_RenderFooterHeight = 0.0;
-   m_RenderTooltipHeight = 0.0;
-   m_RenderMaxFooterHeight = 0.0;
-   m_RenderMaxTooltipHeight = 0.0;
-
-
-   m_sfMenuPaddingY = g_pRenderEngine->textHeight(g_idFontMenu) * MENU_MARGINS;
-   m_sfMenuPaddingX = 1.2*m_sfMenuPaddingY / g_pRenderEngine->getAspectRatio();
-
-   m_sfSelectionPaddingY = 0.54 * MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
-   m_sfSelectionPaddingX = 0.3* m_sfMenuPaddingX;
-
+   m_RenderHeaderHeight = 0;
+   m_RenderTitleHeight = 0;
+   m_RenderSubtitleHeight = 0;
    if ( 0 != m_szTitle[0] )
    {
       m_RenderTitleHeight = g_pRenderEngine->textHeight(g_idFontMenu);
@@ -504,6 +508,37 @@ void Menu::computeRenderSizes()
       m_RenderHeaderHeight += m_RenderSubtitleHeight;
       m_RenderHeaderHeight += 0.4*m_sfMenuPaddingY;
    }
+   return m_RenderHeaderHeight;
+}
+
+
+float Menu::_computeRenderTopPartSize()
+{
+   float fHeight = 0.0;
+   fHeight += m_fExtraHeightStart;
+   fHeight += 0.5*m_sfMenuPaddingY;
+
+   for (int i = 0; i<m_TopLinesCount; i++)
+   {
+       if ( 0 == strlen(m_szTopLines[i]) )
+          fHeight += g_pRenderEngine->textHeight(g_idFontMenu)*(1.0 + MENU_TEXTLINE_SPACING);
+       else
+       {
+          fHeight += g_pRenderEngine->getMessageHeight(m_szTopLines[i], MENU_TEXTLINE_SPACING, getUsableWidth() - m_fTopLinesDX[i], g_idFontMenu);
+          fHeight += g_pRenderEngine->textHeight(g_idFontMenu)*MENU_TEXTLINE_SPACING;
+       }
+   }
+
+   fHeight += 0.3*m_sfMenuPaddingY;
+   if ( 0 < m_TopLinesCount )
+      fHeight += 0.3*m_sfMenuPaddingY;
+   return fHeight;
+}
+
+float Menu::_computeRenderMaxBottomFooterSize()
+{
+   m_RenderTooltipHeight = 0.0;
+   m_RenderMaxTooltipHeight = 0.0;
 
    if ( 0 != m_szCurrentTooltip[0] )
    {
@@ -511,24 +546,59 @@ void Menu::computeRenderSizes()
        m_RenderMaxTooltipHeight = m_RenderTooltipHeight;
    }
 
-   m_RenderTotalHeight = m_RenderHeaderHeight;
-   m_RenderTotalHeight += 0.5*m_sfMenuPaddingY;
-
-   for (int i = 0; i<m_TopLinesCount; i++)
+   for( int i=0; i<m_ItemsCount; i++ )
    {
-       if ( 0 == strlen(m_szTopLines[i]) )
-          m_RenderTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu)*(1.0 + MENU_TEXTLINE_SPACING);
-       else
-       {
-          m_RenderTotalHeight += g_pRenderEngine->getMessageHeight(m_szTopLines[i], MENU_TEXTLINE_SPACING, getUsableWidth() - m_fTopLinesDX[i], g_idFontMenu);
-          m_RenderTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu)*MENU_TEXTLINE_SPACING;
-       }
+      if ( (NULL == m_pMenuItems[i]) || (m_pMenuItems[i]->isHidden()) )
+         continue;
+     
+      if ( NULL != m_pMenuItems[i]->getTooltip() )
+      {
+         float fHTooltip = g_pRenderEngine->getMessageHeight(m_pMenuItems[i]->getTooltip(), MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+         if ( fHTooltip > m_RenderMaxTooltipHeight )
+            m_RenderMaxTooltipHeight = fHTooltip;
+      }
    }
 
-   m_RenderTotalHeight += 0.3*m_sfMenuPaddingY;
-   if ( 0 < m_TopLinesCount )
-      m_RenderTotalHeight += 0.3*m_sfMenuPaddingY;
+   m_RenderFooterHeight = 0.4*m_sfMenuPaddingY;
+   m_RenderFooterHeight += m_RenderTooltipHeight;
+   m_RenderFooterHeight += 0.2*m_sfMenuPaddingY;
 
+   m_RenderMaxFooterHeight = 0.4*m_sfMenuPaddingY;
+   m_RenderMaxFooterHeight += m_RenderMaxTooltipHeight;
+   m_RenderMaxFooterHeight += 0.2*m_sfMenuPaddingY;
+
+   return m_RenderMaxFooterHeight;
+}
+
+
+void Menu::computeRenderSizes()
+{
+   m_fIconSize = 0.0;
+
+   m_RenderYPos = m_yPos;
+   if ( m_siRenderMode == 1 )
+   {
+      m_RenderYPos = 0.0;
+      m_xPos = menu_get_XStartPos(this, m_Width);
+      m_RenderXPos = m_xPos;
+   }
+
+   getUsableWidth(); // Computes m_RenderWidth
+   
+   m_RenderHeight = m_Height;
+   if ( m_siRenderMode == 1 )
+      m_RenderHeight = 1.0;
+
+   m_sfMenuPaddingY = g_pRenderEngine->textHeight(g_idFontMenu) * MENU_MARGINS;
+   m_sfMenuPaddingX = 1.2*m_sfMenuPaddingY / g_pRenderEngine->getAspectRatio();
+
+   m_sfSelectionPaddingY = 0.54 * MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
+   m_sfSelectionPaddingX = 0.3* m_sfMenuPaddingX;
+
+
+   m_RenderTotalHeight = _computeRenderTopHeaderSize();
+   m_RenderTotalHeight += _computeRenderTopPartSize();
+  
    m_fRenderItemsStartYPos = m_RenderYPos + m_RenderTotalHeight;
    
    m_fRenderItemsTotalHeight = 0.0;
@@ -556,12 +626,6 @@ void Menu::computeRenderSizes()
       m_RenderTotalHeight += fItemTotalHeight;
       m_fRenderItemsTotalHeight += fItemTotalHeight;
 
-      if ( NULL != m_pMenuItems[i]->getTooltip() )
-      {
-         float fHTooltip = g_pRenderEngine->getMessageHeight(m_pMenuItems[i]->getTooltip(), MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
-         if ( fHTooltip > m_RenderMaxTooltipHeight )
-            m_RenderMaxTooltipHeight = fHTooltip;
-      }
    }
    m_RenderTotalHeight += 0.5*m_sfMenuPaddingY;
    
@@ -570,13 +634,8 @@ void Menu::computeRenderSizes()
 
    // End: compute items total height and render total height
 
-   m_RenderFooterHeight = 0.4*m_sfMenuPaddingY;
-   m_RenderFooterHeight += m_RenderTooltipHeight;
-   m_RenderFooterHeight += 0.2*m_sfMenuPaddingY;
+   _computeRenderMaxBottomFooterSize();
 
-   m_RenderMaxFooterHeight = 0.4*m_sfMenuPaddingY;
-   m_RenderMaxFooterHeight += m_RenderMaxTooltipHeight;
-   m_RenderMaxFooterHeight += 0.2*m_sfMenuPaddingY;
 
    m_RenderTotalHeight += 0.4*m_sfMenuPaddingY;
    m_RenderTotalHeight += m_RenderMaxFooterHeight;
@@ -665,9 +724,20 @@ void Menu::computeRenderSizes()
       if ( m_fSelectionWidth < w )
          m_fSelectionWidth = w;
    }
+
+   if ( 1 == m_siRenderMode)
+   {
+      m_RenderHeight = 1.0;
+   }
+
    if ( m_bFullWidthSelection )
       m_fSelectionWidth = getUsableWidth();
    m_bInvalidated = false;
+
+   log_line("DEBUG xpos: %f, xrender: %f, th: %f, rh: %f, header: %f, items: %f, footer: %f, footermax: %f", 
+       m_xPos, m_RenderXPos,
+       m_RenderTotalHeight, m_RenderHeight, m_RenderHeaderHeight, m_fRenderItemsTotalHeight,
+       m_RenderFooterHeight, m_RenderMaxFooterHeight);
 }
 
 
@@ -694,11 +764,14 @@ void Menu::RenderPrepare()
    if ( ! m_bIsAnimationInProgress )
       return;
    
-   if ( m_bDisableStacking )
+   if ( m_bDisableStacking || (pP->iMenuStyle == 1) )
       return;
 
    float f = (g_TimeNow-m_uAnimationStartTime)/(float)m_uAnimationTotalDuration;
-   if ( f < 0.0 ) f = 0.0;
+
+   if ( f < 0.0 )
+      f = 0.0;
+
    if ( f < 1.0 )
       m_RenderXPos = m_fAnimationStartXPos +(m_fAnimationTargetXPos - m_fAnimationStartXPos)*f;
    else
@@ -716,7 +789,7 @@ void Menu::RenderPrepare()
 void Menu::Render()
 {
    RenderPrepare();
-
+   
    float yTop = RenderFrameAndTitle();
    float yPos = yTop;
 
@@ -748,6 +821,10 @@ float Menu::RenderFrameAndTitle()
       computeRenderSizes();
       m_bInvalidated = false;
    }
+
+   if ( m_siRenderMode == 1 )
+      return RenderFrameAndTitleSticky();
+
    static double topTitleBgColor[4] = {90,2,20,0.45};
 
    g_pRenderEngine->setColors(get_Color_MenuBg());
@@ -777,7 +854,7 @@ float Menu::RenderFrameAndTitle()
    }
 
    yPos = m_RenderYPos + m_RenderHeaderHeight + m_sfMenuPaddingY;
-
+   yPos += m_fExtraHeightStart;
    for (int i=0; i<m_TopLinesCount; i++)
    {
       if ( 0 == strlen(m_szTopLines[i]) )
@@ -875,50 +952,145 @@ float Menu::RenderFrameAndTitle()
 
 
    if ( s_bDebugMenuBoundingBoxes )
+      _debugDrawBoundingBoxes(yPos);
+   return yPos;
+}
+
+float Menu::RenderFrameAndTitleSticky()
+{
+   static double topTitleBgColor[4] = {90,2,20,0.45};
+
+   float fExtraWidth = 0.0;
+   if ( m_bEnableScrolling && m_bHasScrolling )
+      fExtraWidth = m_fRenderScrollBarsWidth;
+
+   g_pRenderEngine->setColors(get_Color_MenuBg());
+   g_pRenderEngine->setStroke(get_Color_MenuBg());
+   g_pRenderEngine->drawRect(m_RenderXPos, 0, m_RenderWidth + fExtraWidth, m_RenderHeight);
+
+   g_pRenderEngine->setColors(topTitleBgColor);
+   g_pRenderEngine->drawRect(m_RenderXPos, 0, m_RenderWidth + fExtraWidth, m_RenderHeaderHeight);
+
+
+   g_pRenderEngine->setStroke(get_Color_MenuBorder());
+   g_pRenderEngine->drawLine(m_RenderXPos, m_RenderHeaderHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderHeaderHeight);
+   g_pRenderEngine->drawLine(m_RenderXPos + m_RenderWidth + fExtraWidth, 0, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderHeight);
+
+
+   g_pRenderEngine->setColors(get_Color_MenuText());
+   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+
+   float yPos = m_RenderYPos + 0.56*m_sfMenuPaddingY;
+   g_pRenderEngine->drawText(m_RenderXPos+m_sfMenuPaddingX, yPos, g_idFontMenu, m_szTitle);
+   yPos += m_RenderTitleHeight;
+
+   if ( 0 != m_szSubTitle[0] )
    {
-      g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
-      g_pRenderEngine->setStroke(get_Color_IconError());
-      g_pRenderEngine->drawRect( m_RenderXPos - 6.0 * g_pRenderEngine->getPixelWidth(),
-          yPos - 6.0*g_pRenderEngine->getPixelHeight(),
-          m_RenderWidth + 12.0 * g_pRenderEngine->getPixelWidth(),
-          m_fRenderItemsTotalHeight  + 12.0*g_pRenderEngine->getPixelHeight()
-          );
-
-      double col[4] = {255,255,0,1};
-      g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
-      g_pRenderEngine->setStroke(col);
-      g_pRenderEngine->drawRect( m_RenderXPos - 4.0 * g_pRenderEngine->getPixelWidth(),
-          yPos - 4.0*g_pRenderEngine->getPixelHeight(),
-          m_RenderWidth + 8.0 * g_pRenderEngine->getPixelWidth(),
-          m_fRenderItemsVisibleHeight + 8.0*g_pRenderEngine->getPixelHeight()
-          );
-
-      double col2[4] = {50,105,255,1};
-      g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
-      g_pRenderEngine->setStroke(col2);
-      g_pRenderEngine->drawRect( m_RenderXPos - 2.0 * g_pRenderEngine->getPixelWidth(),
-          m_fRenderItemsStartYPos - 2.0*g_pRenderEngine->getPixelHeight(),
-          m_RenderWidth + 4.0 * g_pRenderEngine->getPixelWidth(),
-          (m_fRenderItemsStopYPos - m_fRenderItemsStartYPos) + 4.0*g_pRenderEngine->getPixelHeight()
-          );
-
-      double col3[4] = {100,255,100,1};
-      g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
-      g_pRenderEngine->setStroke(col3);
-      g_pRenderEngine->drawRect( m_RenderXPos - 12.0 * g_pRenderEngine->getPixelWidth(),
-          m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderTotalHeight);
-
-      g_pRenderEngine->drawRect( m_RenderXPos - 18.0 * g_pRenderEngine->getPixelWidth(),
-          m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderHeaderHeight);
-
-      g_pRenderEngine->drawRect( m_RenderXPos - 24.0 * g_pRenderEngine->getPixelWidth(),
-          m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxFooterHeight);
-
-      g_pRenderEngine->drawRect( m_RenderXPos - 30.0 * g_pRenderEngine->getPixelWidth(),
-          m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxTooltipHeight);
-      g_pRenderEngine->setColors(get_Color_MenuBg());
-      g_pRenderEngine->setStroke(get_Color_MenuText());
+      yPos += 0.4*m_sfMenuPaddingY;
+      g_pRenderEngine->drawText(m_RenderXPos+m_sfMenuPaddingX, yPos, g_idFontMenu, m_szSubTitle);
+      yPos += m_RenderSubtitleHeight;
    }
+
+   yPos = m_RenderYPos + m_RenderHeaderHeight + m_sfMenuPaddingY;
+   yPos += m_fExtraHeightStart;
+   for (int i=0; i<m_TopLinesCount; i++)
+   {
+      if ( 0 == strlen(m_szTopLines[i]) )
+        yPos += g_pRenderEngine->textHeight(g_idFontMenu)*(1.0 + MENU_TEXTLINE_SPACING);
+      else
+      {
+         if ( NULL != strstr(m_szTopLines[i], "---") )
+         {
+            g_pRenderEngine->setColors(get_Color_MenuBg());
+            g_pRenderEngine->setStroke(get_Color_MenuBorder());
+            g_pRenderEngine->drawLine(m_RenderXPos+m_sfMenuPaddingX, yPos + 0.5*g_pRenderEngine->textHeight(g_idFontMenu), m_RenderXPos+m_RenderWidth - m_sfMenuPaddingX, yPos + 0.5*g_pRenderEngine->textHeight(g_idFontMenu));
+
+            g_pRenderEngine->setColors(get_Color_MenuText());
+            g_pRenderEngine->setStrokeSize(0);
+            yPos += g_pRenderEngine->textHeight(g_idFontMenu)*(1+MENU_TEXTLINE_SPACING);
+         }
+         else
+         {
+            yPos += g_pRenderEngine->drawMessageLines(m_RenderXPos + m_sfMenuPaddingX + m_fIconSize + m_fTopLinesDX[i], yPos, m_szTopLines[i], MENU_TEXTLINE_SPACING, getUsableWidth()-m_fTopLinesDX[i], g_idFontMenu);
+            yPos += g_pRenderEngine->textHeight(g_idFontMenu)*MENU_TEXTLINE_SPACING;
+         }
+      }
+   }
+
+   yPos += 0.3*m_sfMenuPaddingY;
+   if ( 0 < m_TopLinesCount )
+      yPos += 0.3*m_sfMenuPaddingY;
+
+   if ( m_bEnableScrolling && m_bHasScrolling )
+   {
+      float wPixel = g_pRenderEngine->getPixelWidth();
+      float fScrollBarHeight = m_fRenderItemsStopYPos - m_fRenderItemsStartYPos - m_sfMenuPaddingY;
+      float fScrollButtonHeight = fScrollBarHeight * (fScrollBarHeight/m_fRenderItemsTotalHeight);
+      float xPos = m_RenderXPos + m_RenderWidth + fExtraWidth - fExtraWidth*0.8;
+      
+      float yButton = 0.0;
+      for( int k=0; k<m_iIndexFirstVisibleItem; k++ )
+      {
+         if ( m_pMenuItems[k]->isHidden() )
+            continue;
+         float fItemTotalHeight = 0.0;
+         if ( m_iColumnsCount < 2 )
+         {
+            fItemTotalHeight += m_pMenuItems[k]->getItemHeight(getUsableWidth() - m_pMenuItems[k]->m_fMarginX);
+            fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
+            if ( m_bHasSeparatorAfter[k] )
+               fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
+         }
+         else if ( (k%m_iColumnsCount) == 0 )
+         {
+            fItemTotalHeight += m_pMenuItems[k]->getItemHeight(getUsableWidth() - m_pMenuItems[k]->m_fMarginX);
+            fItemTotalHeight += MENU_ITEM_SPACING * g_pRenderEngine->textHeight(g_idFontMenu);
+            if ( m_bHasSeparatorAfter[k] )
+               fItemTotalHeight += g_pRenderEngine->textHeight(g_idFontMenu) * MENU_SEPARATOR_HEIGHT;
+         }
+         yButton += fItemTotalHeight;
+      }
+
+      yButton = yPos + yButton*(fScrollBarHeight/m_fRenderItemsTotalHeight);
+      
+      if ( yButton + fScrollButtonHeight > m_fRenderItemsStopYPos )
+         yButton = m_fRenderItemsStopYPos - fScrollButtonHeight;
+
+      double* pC = get_Color_MenuText();
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.18);
+      g_pRenderEngine->drawRect( xPos - wPixel*2.0, yPos, wPixel*4.0, fScrollBarHeight);
+
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.5);
+      
+      g_pRenderEngine->drawRoundRect(xPos - 0.24*fExtraWidth, yButton, fExtraWidth*0.48, fScrollButtonHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+   }
+
+   if ( 0 != m_szCurrentTooltip[0] )
+   {
+      static double bottomTooltipBgColor[4] = {250,30,50,0.1};
+      g_pRenderEngine->setColors(bottomTooltipBgColor);
+      g_pRenderEngine->drawRect(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderWidth + fExtraWidth, m_RenderFooterHeight);
+
+      float yTooltip = m_RenderYPos+m_RenderHeight-m_RenderFooterHeight;
+      yTooltip += 0.4 * m_sfMenuPaddingY;
+
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->drawMessageLines( m_RenderXPos+m_sfMenuPaddingX, yTooltip, m_szCurrentTooltip, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
+
+      g_pRenderEngine->setColors(get_Color_MenuBg());
+      g_pRenderEngine->setStroke(get_Color_MenuBorder());
+      g_pRenderEngine->drawLine(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight);
+   }
+
+
+   if ( s_bDebugMenuBoundingBoxes )
+      _debugDrawBoundingBoxes(yPos);
    return yPos;
 }
 
@@ -1045,6 +1217,52 @@ float Menu::_getMenuItemTotalRenderHeight(int iMenuItemIndex)
          fItemTotalHeight += height_text * MENU_SEPARATOR_HEIGHT;
    }
    return fItemTotalHeight;
+}
+
+void Menu::_debugDrawBoundingBoxes(float yPos)
+{
+   g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
+   g_pRenderEngine->setStroke(get_Color_IconError());
+   g_pRenderEngine->drawRect( m_RenderXPos - 6.0 * g_pRenderEngine->getPixelWidth(),
+       yPos - 6.0*g_pRenderEngine->getPixelHeight(),
+       m_RenderWidth + 12.0 * g_pRenderEngine->getPixelWidth(),
+       m_fRenderItemsTotalHeight  + 12.0*g_pRenderEngine->getPixelHeight()
+       );
+
+   double col[4] = {255,255,0,1};
+   g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
+   g_pRenderEngine->setStroke(col);
+   g_pRenderEngine->drawRect( m_RenderXPos - 4.0 * g_pRenderEngine->getPixelWidth(),
+       yPos - 4.0*g_pRenderEngine->getPixelHeight(),
+       m_RenderWidth + 8.0 * g_pRenderEngine->getPixelWidth(),
+       m_fRenderItemsVisibleHeight + 8.0*g_pRenderEngine->getPixelHeight()
+       );
+
+   double col2[4] = {50,105,255,1};
+   g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
+   g_pRenderEngine->setStroke(col2);
+   g_pRenderEngine->drawRect( m_RenderXPos - 2.0 * g_pRenderEngine->getPixelWidth(),
+       m_fRenderItemsStartYPos - 2.0*g_pRenderEngine->getPixelHeight(),
+       m_RenderWidth + 4.0 * g_pRenderEngine->getPixelWidth(),
+       (m_fRenderItemsStopYPos - m_fRenderItemsStartYPos) + 4.0*g_pRenderEngine->getPixelHeight()
+       );
+
+   double col3[4] = {100,255,100,1};
+   g_pRenderEngine->setColors(get_Color_MenuBg(), 0.0);
+   g_pRenderEngine->setStroke(col3);
+   g_pRenderEngine->drawRect( m_RenderXPos - 12.0 * g_pRenderEngine->getPixelWidth(),
+       m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderTotalHeight);
+
+   g_pRenderEngine->drawRect( m_RenderXPos - 18.0 * g_pRenderEngine->getPixelWidth(),
+       m_RenderYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderHeaderHeight);
+
+   g_pRenderEngine->drawRect( m_RenderXPos - 24.0 * g_pRenderEngine->getPixelWidth(),
+       m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxFooterHeight);
+
+   g_pRenderEngine->drawRect( m_RenderXPos - 30.0 * g_pRenderEngine->getPixelWidth(),
+       m_fRenderItemsStopYPos, 3.0 * g_pRenderEngine->getPixelWidth(), m_RenderMaxTooltipHeight);
+   g_pRenderEngine->setColors(get_Color_MenuBg());
+   g_pRenderEngine->setStroke(get_Color_MenuText());
 }
 
 void Menu::updateScrollingOnSelectionChange()
@@ -1542,6 +1760,11 @@ void Menu::startAnimationOnChildMenuAdd()
    if ( m_RenderXPos < -8.0 )
       m_RenderXPos = m_xPos;
 
+   if ( m_siRenderMode == 1 )
+   {
+      m_RenderXPos = m_xPos;
+      return;
+   }
    m_bIsAnimationInProgress = true;
    m_uAnimationStartTime = g_TimeNow;
    m_uAnimationLastStepTime = g_TimeNow;
@@ -1561,6 +1784,12 @@ void Menu::startAnimationOnChildMenuClosed()
 {
    if ( m_RenderXPos < -8.0 )
       m_RenderXPos = m_xPos;
+
+   if ( m_siRenderMode == 1 )
+   {
+      m_RenderXPos = m_xPos;
+      return;
+   }
 
    m_bIsAnimationInProgress = true;
    m_uAnimationStartTime = g_TimeNow;
@@ -1663,11 +1892,12 @@ static int s_iThreadGenerateUploadCounter = 0;
 
 static void * _thread_generate_upload(void *argument)
 {
-   char szComm[256];
+   char szComm[512];
    char* szFileNameArchive = (char*)argument;
    if ( NULL == argument )
       return NULL;
-   log_line("ThreadGenerateUpload started, counter %d, file: %s", s_iThreadGenerateUploadCounter, szFileNameArchive);
+
+   log_line("ThreadGenerateUpload started, counter %d, archive file to generate: %s", s_iThreadGenerateUploadCounter, szFileNameArchive);
 
    // Add update info file
    char szFile[MAX_FILE_PATH_SIZE];
@@ -1684,11 +1914,23 @@ static void * _thread_generate_upload(void *argument)
          sprintf(szComm, "cp %s %s%s 2>/dev/null", szVersionFile, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
          hw_execute_bash_command(szComm, NULL);
       }
+      else
+      {
+         log_line("ThreadGenerateUpload: can't access base version file. Generate new update version file...");
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_INFO_LAST_UPDATE);
+         FILE* fd = fopen(szFile, "w");
+         if ( NULL != fd )
+         {
+            fprintf(fd, "%d.%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10);
+            fclose(fd);
+         }
+      }
    }
 
-   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, szFileNameArchive);
+   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_UPDATES, szFileNameArchive);
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %s/ruby_update %s/ruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
+   sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
@@ -1711,23 +1953,78 @@ static void * _thread_generate_upload(void *argument)
    }
 
    if ( bVersion82Older )
-      sprintf(szComm, "tar -czf %s%s ruby_* 2>&1", FOLDER_RUBY_TEMP, szFileNameArchive);
+      sprintf(szComm, "tar -czf %s%s ruby_* 2>&1", FOLDER_UPDATES, szFileNameArchive);
    else
-      sprintf(szComm, "tar -C %s -czf %s%s %s/ruby_* 2>&1", FOLDER_RUBY_TEMP, FOLDER_RUBY_TEMP, szFileNameArchive, FOLDER_BINARIES);
-
+   {
+      sprintf(szComm, "mkdir -p %stempUploadFiles", FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/", FOLDER_BINARIES, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "tar -czf %s%s -C %stempUploadFiles/ . 2>&1", FOLDER_UPDATES, szFileNameArchive, FOLDER_RUBY_TEMP);
+   }
    hw_execute_bash_command(szComm, NULL);
 
-   log_line("Save last generated update archive...");
-   sprintf(szComm, "rm -rf %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
+   sprintf(szComm, "rm -rf %stempUploadFiles/*", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %s%s %s/last_uploaded_archive.tar", FOLDER_RUBY_TEMP, szFileNameArchive, FOLDER_RUBY_TEMP);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "chmod 777 %s/last_uploaded_archive.tar 2>&1", FOLDER_RUBY_TEMP);
+
+   sprintf(szComm, "chmod 777 %s%s 2>&1", FOLDER_UPDATES, szFileNameArchive);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("ThreadGenerateUpload finished, counter %d", s_iThreadGenerateUploadCounter);
    s_iThreadGenerateUploadCounter--;
    return NULL;
+}
+
+bool Menu::_generate_upload_archive(char* szArchiveName)
+{
+   g_TimeNow = get_current_timestamp_ms();
+   ruby_signal_alive();
+
+   pthread_t pThread;
+   if ( 0 != pthread_create(&pThread, NULL, &_thread_generate_upload, szArchiveName) )
+   {
+      render_commands_set_progress_percent(-1, true);
+      ruby_resume_watchdog();
+      g_bUpdateInProgress = false;
+      addMessage("There was an error generating software upload file.");
+      return false;
+   }
+   s_iThreadGenerateUploadCounter++;
+
+   // Wait for the thread to finish
+   u32 uTimeLastRender = 0;
+   while ( s_iThreadGenerateUploadCounter > 0 )
+   {
+      try_read_messages_from_router(5);
+      hardware_sleep_ms(5);
+      g_TimeNow = get_current_timestamp_ms();
+      g_TimeNowMicros = get_current_timestamp_micros();
+      if ( checkCancelUpload() )
+      {
+         render_commands_set_progress_percent(-1, true);
+         ruby_resume_watchdog();
+         g_bUpdateInProgress = false;
+         return false;
+      }
+
+      if ( g_TimeNow > (uTimeLastRender+100) )
+      {
+         uTimeLastRender = g_TimeNow;
+         render_commands_set_progress_percent(0, true);
+         g_pRenderEngine->startFrame();
+         //osd_render();
+         popups_render();
+         //menu_render();
+         render_commands();
+         popups_render_topmost();
+         g_pRenderEngine->endFrame();
+      }
+   }
+   if ( s_iThreadGenerateUploadCounter < 0 )
+      s_iThreadGenerateUploadCounter = 0;
+   g_TimeNow = get_current_timestamp_ms();
+   ruby_signal_alive();
+   return true;
 }
 
 bool Menu::uploadSoftware()
@@ -1744,74 +2041,23 @@ bool Menu::uploadSoftware()
    g_pRenderEngine->endFrame();
 
 
-   // See what we have available to upload:
-   // Either the latest update zip if present, either the binaries present on the controller
-   // If we had failed uploads, use the binaries on the controller
+   char szArchiveToUpload[MAX_FILE_PATH_SIZE];
+   strcpy(szArchiveToUpload, "last_uploaded_archive.tar");
 
-   static char s_szArchiveToUpload[256];
-   s_szArchiveToUpload[0] = 0;
-
-   log_line("Using controller binaries for update.");
-   
-   int iUpdateType = -1;
-
-   // Always will do this
-   if ( iUpdateType == -1 )
+   if ( ! _generate_upload_archive(szArchiveToUpload) )
    {
-      strcpy(s_szArchiveToUpload, "sw.tar");
-      iUpdateType = 1;
-
-      g_TimeNow = get_current_timestamp_ms();
-      ruby_signal_alive();
-
-      pthread_t pThread;
-      if ( 0 != pthread_create(&pThread, NULL, &_thread_generate_upload, s_szArchiveToUpload) )
-      {
-         render_commands_set_progress_percent(-1, true);
-         ruby_resume_watchdog();
-         g_bUpdateInProgress = false;
-         addMessage("There was an error updating your vehicle.");
-         return false;
-      }
-      s_iThreadGenerateUploadCounter++;
-
-      // Wait for the thread to finish
-      u32 uTimeLastRender = 0;
-      while ( s_iThreadGenerateUploadCounter > 0 )
-      {
-         try_read_messages_from_router(5);
-         hardware_sleep_ms(5);
-         g_TimeNow = get_current_timestamp_ms();
-         g_TimeNowMicros = get_current_timestamp_micros();
-         if ( checkCancelUpload() )
-         {
-            render_commands_set_progress_percent(-1, true);
-            ruby_resume_watchdog();
-            g_bUpdateInProgress = false;
-            return false;
-         }
-
-         if ( g_TimeNow > (uTimeLastRender+100) )
-         {
-            uTimeLastRender = g_TimeNow;
-            render_commands_set_progress_percent(0, true);
-            g_pRenderEngine->startFrame();
-            //osd_render();
-            popups_render();
-            //menu_render();
-            render_commands();
-            popups_render_topmost();
-            g_pRenderEngine->endFrame();
-         }
-      }
-      if ( s_iThreadGenerateUploadCounter < 0 )
-         s_iThreadGenerateUploadCounter = 0;
-      g_TimeNow = get_current_timestamp_ms();
-      ruby_signal_alive();
+      render_commands_set_progress_percent(-1, true);
+      ruby_resume_watchdog();
+      g_bUpdateInProgress = false;
+      addMessage("There was an error generating upload software archive.");
+      return false;
    }
-   log_line("Generated update archive to upload to vehicle.");
 
-   if ( ! _uploadVehicleUpdate(iUpdateType, s_szArchiveToUpload) )
+   int iUpdateType = 1;
+
+   log_line("Generated update archive to upload to vehicle (%s).", szArchiveToUpload);
+
+   if ( ! _uploadVehicleUpdate(iUpdateType, szArchiveToUpload) )
    {
       render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
@@ -1872,7 +2118,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
    long lSize = 0;
 
    char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcpy(szFile, FOLDER_UPDATES);
    strcat(szFile, szArchiveToUpload);
    FILE* fd = fopen(szFile, "rb");
    if ( NULL != fd )

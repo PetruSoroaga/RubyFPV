@@ -40,6 +40,8 @@ Code written by: Petru Soroaga, 2021-2023
 // (must be less than max radio streams - id of first video stream value below)
 
 #define STREAM_ID_DATA    ((u32)0)
+#define STREAM_ID_TELEMETRY ((u32)1)
+#define STREAM_ID_DATA2    ((u32)2)
 #define STREAM_ID_VIDEO_1 ((u32)3)
 
 // Packet flags is a byte and contains flags:
@@ -163,6 +165,16 @@ typedef struct
 
    u32 encoding_extra_flags2;
       // Byte 0: current h264 quantization value
+      // Byte 1:
+      //    bit 0  - 0/1: has debug timings info after the video data:
+      //                  u32 - delta ms between video packets
+      //                  u32 - local timestamp camera capture,
+      //                  u32 - local timestamp sent to radio processing;
+      //                  u32 - local timestamp sent to radio output;
+      //                  u32 - local timestamp received on radio;
+      //                  u32 - local timestamp sent to video processing;
+      //                  u32 - local timestamp sent to video output;
+      //    bit 1  - 0/1: is this video packet part of a I-frame
 
    u16 video_width;
    u16 video_height;
@@ -195,7 +207,7 @@ typedef struct
 #define PACKET_TYPE_RUBY_PING_CLOCK_REPLY 4
 // has:
 //  u8 original ping id after header
-//  u32 local time in micro seconds
+//  u32 local time in miliseconds
 //  u8 sender original local radio link id
 //  u8 reply local radio link id (vehicle local radio link)
 

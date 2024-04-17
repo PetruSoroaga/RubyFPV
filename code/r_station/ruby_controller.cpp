@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
       char szTime[64];
       if ( NULL != s_pProcessStatsCentral )
       {
-         if ( (g_TimeNow > maxTimeForProcess) && (s_pProcessStatsCentral->lastActiveTime < g_TimeNow - maxTimeForProcess) )
+         if ( (g_TimeNow > maxTimeForProcess) && (s_pProcessStatsCentral->lastActiveTime + maxTimeForProcess < g_TimeNow ) )
          {
             log_format_time(s_pProcessStatsCentral->lastActiveTime, szTime);
             log_line_watchdog("Ruby controller watchdog check failed: ruby_central process has stopped !!! Last active time: %s", szTime);

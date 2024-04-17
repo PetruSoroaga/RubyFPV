@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -1974,10 +1974,18 @@ void synchronize_shared_mems()
       memcpy((u8*)&g_SM_HistoryRxStats, g_pSM_HistoryRxStats, sizeof(shared_mem_radio_stats_rx_hist));
    if ( NULL != g_pSM_AudioDecodeStats )
       memcpy((u8*)&g_SM_AudioDecodeStats, g_pSM_AudioDecodeStats, sizeof(shared_mem_audio_decode_stats));
-   if ( NULL != g_pSM_VideoInfoStats )
-      memcpy((u8*)&g_SM_VideoInfoStats, g_pSM_VideoInfoStats, sizeof(shared_mem_video_info_stats));
-   if ( NULL != g_pSM_VideoInfoStatsRadioIn )
-      memcpy((u8*)&g_SM_VideoInfoStatsRadioIn, g_pSM_VideoInfoStatsRadioIn, sizeof(shared_mem_video_info_stats));
+   
+   if ( NULL != g_pCurrentModel )
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
+   {
+      if ( NULL != g_pSM_VideoInfoStatsOutput )
+      if ( g_TimeNow >= g_SM_VideoInfoStatsOutput.uTimeLastUpdate + 200 )
+         memcpy((u8*)&g_SM_VideoInfoStatsOutput, g_pSM_VideoInfoStatsOutput, sizeof(shared_mem_video_info_stats));
+      if ( NULL != g_pSM_VideoInfoStatsRadioIn )
+      if ( g_TimeNow >= g_SM_VideoInfoStatsRadioIn.uTimeLastUpdate + 200 )
+         memcpy((u8*)&g_SM_VideoInfoStatsRadioIn, g_pSM_VideoInfoStatsRadioIn, sizeof(shared_mem_video_info_stats));
+   }
+
    if ( NULL != g_pSM_VideoDecodeStats )
       memcpy((u8*)&g_SM_VideoDecodeStats, g_pSM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
    if ( NULL != g_pSM_VDS_history )
@@ -2315,6 +2323,8 @@ int main(int argc, char *argv[])
    ControllerSettings* pcs = get_ControllerSettings();
    hw_set_priority_current_proc(pcs->iNiceCentral); 
 
+   Menu::setRenderMode(p->iMenuStyle);
+
    if ( p->nLogLevel != 0 )
       log_only_errors();
 
@@ -2363,6 +2373,11 @@ int main(int argc, char *argv[])
       g_bFirstModelPairingDone = true;
  
    keyboard_init();
+
+   memset(&g_SM_VideoInfoStatsOutput, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_SM_VideoInfoStatsRadioIn, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_VideoInfoStatsFromVehicleCameraOut, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_info_stats));
 
    s_StartSequence = START_SEQ_PRE_LOAD_CONFIG;
    log_line("Started main loop.");

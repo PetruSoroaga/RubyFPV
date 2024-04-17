@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 
    hw_execute_bash_command(szComm, szFoundFile);
 
-   if ( 0 < strlen(szFoundFile) && NULL != strstr(szFoundFile, "ruby_update") )
+   if ( (0 < strlen(szFoundFile)) && (NULL != strstr(szFoundFile, "ruby_update")) )
    {
       szFoundFile[127] = 0;
       strcpy(szZipFile, szFoundFile);
@@ -271,17 +271,14 @@ int main(int argc, char *argv[])
       sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
       hw_execute_bash_command(szComm, NULL);
       
-      sprintf(szComm, "rm -rf %s/*", FOLDER_UPDATES);
+      sprintf(szComm, "cp -rf %s %s", szZipFile, FOLDER_UPDATES);
       hw_execute_bash_command(szComm, NULL);
 
-      sprintf(szComm, "cp -rf %s %s/", szZipFile, FOLDER_UPDATES);
+      sprintf(szComm, "mkdir -p %stmpUpdate", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
-
-      sprintf(szComm, "mkdir -p %s/tmpUpdate", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "chmod 777 %stmpUpdate", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/tmpUpdate", FOLDER_RUBY_TEMP);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "unzip %s -d %s/tmpUpdate", szZipFile, FOLDER_RUBY_TEMP);
+      sprintf(szComm, "unzip %s -d %stmpUpdate", szZipFile, FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
 
       bFoundZip = true;
@@ -299,18 +296,18 @@ int main(int argc, char *argv[])
    }
 
    bool bValidZip = false;
-   sprintf(szFile, "%s/tmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_SHORT_LAST_UPDATE);
+   sprintf(szFile, "%stmpUpdate/%s", FOLDER_RUBY_TEMP, FILE_INFO_SHORT_LAST_UPDATE);
    if( access( szFile, R_OK ) != -1 )
    {
       log_line("Found update info file in zip file: %s", szZipFile);
-      sprintf(szUpdateFromSrcFolder, "%s/tmpUpdate", FOLDER_RUBY_TEMP);
+      sprintf(szUpdateFromSrcFolder, "%stmpUpdate/", FOLDER_RUBY_TEMP);
       bValidZip = true;
    }
    if ( ! bValidZip )
    {
       char szOutput[4096];
       szOutput[0] = 0;
-      sprintf(szComm, "ls %s/tmpUpdate/", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "ls %stmpUpdate/", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, szOutput);
       log_line("Content of tmp update folder:");
       log_line("[%s]", szOutput);
@@ -333,27 +330,27 @@ int main(int argc, char *argv[])
 
    log_line("Copying update files from zip archive [%s], unpacked in folder [%s] ...", szZipFile, szUpdateFromSrcFolder);
 
-   sprintf(szComm, "cp -rf %s/res/* res/ 2>/dev/null", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %sres/* res/ 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_sleep_ms(50);
-   sprintf(szComm, "cp -rf %s/ruby_* .", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %sruby_* .", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(50);
 
 
    g_TimeNow = get_current_timestamp_ms();
 
-   sprintf(szComm, "cp -rf %s/raspi* .", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %sraspi* .", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/stop* .  2>/dev/null", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %sstop* .  2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/plugins/* plugins/ 2>/dev/null", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %splugins/* plugins/ 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "cp -rf %s/plugins/osd/* plugins/osd 2>/dev/null", szUpdateFromSrcFolder);
+   sprintf(szComm, "cp -rf %splugins/osd/* plugins/osd 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
    hw_execute_bash_command("chmod 777 ruby*", NULL);

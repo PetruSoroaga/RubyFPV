@@ -23,4 +23,7 @@ class MenuPreferencesUI: public Menu
       int m_IndexColorPickerAHI;
       int m_IndexOSDFont;
       int m_IndexMonitor;
+      int m_IndexUnits;
+      int m_IndexPersistentMessages;
+      int m_IndexLogWindow;
 };

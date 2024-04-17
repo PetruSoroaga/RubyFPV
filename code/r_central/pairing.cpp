@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -315,13 +315,13 @@ void _pairing_open_shared_mem()
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
-      if ( NULL != g_pSM_VideoInfoStats )
+      if ( NULL != g_pSM_VideoInfoStatsOutput )
          break;
-      g_pSM_VideoInfoStats = shared_mem_video_info_stats_open_for_read();
+      g_pSM_VideoInfoStatsOutput = shared_mem_video_info_stats_open_for_read();
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
-   if ( NULL == g_pSM_VideoInfoStats )
+   if ( NULL == g_pSM_VideoInfoStatsOutput )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -457,8 +457,8 @@ void _pairing_close_shared_mem()
    shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
    g_pSM_VideoLinkStats = NULL;
 
-   shared_mem_video_info_stats_close(g_pSM_VideoInfoStats);
-   g_pSM_VideoInfoStats = NULL;
+   shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsOutput);
+   g_pSM_VideoInfoStatsOutput = NULL;
 
    shared_mem_video_info_stats_radio_in_close(g_pSM_VideoInfoStatsRadioIn);
    g_pSM_VideoInfoStatsRadioIn = NULL;

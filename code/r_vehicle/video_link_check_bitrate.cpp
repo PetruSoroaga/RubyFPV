@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -372,7 +372,7 @@ void video_link_check_adjust_bitrate_for_overload()
       bIsDataRateOverloadCondition = true;
    }
 
-   if ( g_uTimeLastVideoTxOverload > g_TimeNow - 4000 )
+   if ( g_uTimeLastVideoTxOverload + 4000 > g_TimeNow )
    {
       bIsDataOverloadCondition = true;
       bIsLocalOverloadCondition = true;
@@ -399,8 +399,9 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateUpOnTxOverload + 250 )
    if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRateFast) )
    {
-      //log_line("DBG in overload condition, decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
-      //log_line("DBG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
+      log_line("DEBUG in overload condition (local: %d), decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", (int)bIsLocalOverloadCondition, uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
+      log_line("DEBUG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
+      log_line("DEBUG current EC scheme: %d/%d, current level shift: %d", (int)g_SM_VideoLinkStats.overwrites.currentDataBlocks, (int) g_SM_VideoLinkStats.overwrites.currentECBlocks, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
       g_uTimeLastVideoTxOverload = 0;
       g_TimeLastOverwriteBitrateDownOnTxOverload = g_TimeNow;
 

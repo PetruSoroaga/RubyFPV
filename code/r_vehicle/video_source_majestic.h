@@ -2,6 +2,7 @@
 #include "../base/base.h"
 #include "../base/models.h"
 
+void video_source_majestic_init_all_params();
 void video_source_majestic_close();
 int video_source_majestic_open(int iUDPPort);
 u32 video_source_majestic_get_program_start_time();

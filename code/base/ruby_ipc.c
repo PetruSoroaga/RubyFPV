@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -781,7 +781,7 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, u8* pTempBuffer, int* pTempB
 
    pReturn = NULL;
    
-   lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, ICP_CHANNEL_MAX_MSG_SIZE, 0, IPC_NOWAIT);
+   lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, ICP_CHANNEL_MAX_MSG_SIZE, 0, MSG_NOERROR | IPC_NOWAIT);
    if ( lenReadIPCMsgQueue > 6 )
    {
       int iMsgLen = ipcMessage.data[5] + 256*(int)ipcMessage.data[6];

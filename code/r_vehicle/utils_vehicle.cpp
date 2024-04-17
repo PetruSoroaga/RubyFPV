@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -78,12 +78,12 @@ bool videoLinkProfileIsOnlyECSchemeChanged(type_video_link_profile* pOldProfile,
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
    tmp.block_packets = pOldProfile->block_packets;
    tmp.block_fecs = pOldProfile->block_fecs;
-   tmp.packet_length = pOldProfile->packet_length;
+   tmp.video_data_length = pOldProfile->video_data_length;
 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
    if ( (pOldProfile->block_packets != pNewProfile->block_packets) ||
         (pOldProfile->block_fecs != pNewProfile->block_fecs) ||
-        (pOldProfile->packet_length != pNewProfile->packet_length) )
+        (pOldProfile->video_data_length != pNewProfile->video_data_length) )
       return true;
    return false;
 }
@@ -126,11 +126,6 @@ void video_overwrites_init(shared_mem_video_link_overwrites* pSMLVO, Model* pMod
    pSMLVO->currentProfileShiftLevel = 0;
    pSMLVO->currentH264QUantization = 0;
    
-   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
-      pSMLVO->uCurrentKeyframeMs = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms;
-   else
-      pSMLVO->uCurrentKeyframeMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
-      
    pSMLVO->hasEverSwitchedToLQMode = 0;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       pSMLVO->profilesTopVideoBitrateOverwritesDownward[i] = 0;

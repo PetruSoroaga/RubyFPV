@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
       * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -36,6 +36,7 @@
 #include "../common/string_utils.h"
 #include "ui_alarms.h"
 #include "colors.h"
+#include "osd/osd.h"
 #include "osd/osd_common.h"
 #include "osd/osd_stats_radio.h"
 #include "popup.h"
@@ -517,6 +518,13 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 
    if ( uAlarms & ALARM_ID_GENERIC )
    {
+      if ( uFlags1 == ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA )
+      {
+         log_line("DEBUG missed telemetry");
+         osd_start_flash_osd_elements();
+         return;
+      }
+
       if ( uFlags1 == ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY )
       {
          if ( (! s_bAlarmWrongOpenIPCKey) || (g_TimeNow > s_uTimeLastAlarmWrongOpenIPCKey + 10000) )

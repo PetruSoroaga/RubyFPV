@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -34,6 +34,7 @@
 #include "../base/shared_mem.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
+#include "../base/parser_h264.h"
 #include "../base/utils.h"
 #include "../common/string_utils.h"
 
@@ -50,6 +51,8 @@
 #include "shared_vars.h"
 
 #ifdef HW_PLATFORM_RASPBERRY
+
+extern ParserH264 s_ParserH264CameraOutput;
 
 pthread_t s_pThreadWatchDogVideoCapture;
 bool s_bIsFirstCameraParamsUpdate = true;
@@ -249,6 +252,11 @@ u8* video_source_csi_read(int* piReadSize)
    if ( (NULL == piReadSize) )
       return NULL;
 
+   struct timeval timePipeInput;
+   fd_set readset;
+   int iSelectResult = 0;
+   static bool s_bLastCameraReadTimedOut = false;
+
    *piReadSize = 0;
    if ( -1 == s_fInputVideoStreamCSIPipe )
    {
@@ -258,23 +266,24 @@ u8* video_source_csi_read(int* piReadSize)
          return NULL;
    }
 
-   fd_set readset;
    FD_ZERO(&readset);
    FD_SET(s_fInputVideoStreamCSIPipe, &readset);
 
-   // Check for exceptions first
+   // Check for exceptions first, only if we are not already getting a lot of data
 
-   struct timeval timePipeInput;
-   timePipeInput.tv_sec = 0;
-   timePipeInput.tv_usec = 100; // 0.1 miliseconds timeout
-
-   int iSelectResult = select(s_fInputVideoStreamCSIPipe+1, NULL, NULL, &readset, &timePipeInput);
-   if ( iSelectResult > 0 )
+   if ( s_bLastCameraReadTimedOut )
    {
-      log_softerror_and_alarm("[VideoSourceCSI] Exception on reading input pipe. Closing pipe.");
-      close(s_fInputVideoStreamCSIPipe);
-      s_fInputVideoStreamCSIPipe = -1;
-      return NULL;
+      timePipeInput.tv_sec = 0;
+      timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
+
+      iSelectResult = select(s_fInputVideoStreamCSIPipe+1, NULL, NULL, &readset, &timePipeInput);
+      if ( iSelectResult > 0 )
+      {
+         log_softerror_and_alarm("[VideoSourceCSI] Exception on reading input pipe. Closing pipe.");
+         close(s_fInputVideoStreamCSIPipe);
+         s_fInputVideoStreamCSIPipe = -1;
+         return NULL;
+      }
    }
 
    // Try read
@@ -283,7 +292,13 @@ u8* video_source_csi_read(int* piReadSize)
    FD_SET(s_fInputVideoStreamCSIPipe, &readset);
 
    timePipeInput.tv_sec = 0;
-   timePipeInput.tv_usec = 1000; // 1 miliseconds timeout
+
+   if ( s_bLastCameraReadTimedOut )
+      timePipeInput.tv_usec = 2000; // 2 miliseconds timeout
+   else
+      timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
+
+   s_bLastCameraReadTimedOut = true;
 
    iSelectResult = select(s_fInputVideoStreamCSIPipe+1, &readset, NULL, NULL, &timePipeInput);
    if ( iSelectResult <= 0 )
@@ -291,6 +306,8 @@ u8* video_source_csi_read(int* piReadSize)
 
    if( 0 == FD_ISSET(s_fInputVideoStreamCSIPipe, &readset) )
       return s_uInputVideoCSIPipeBuffer;
+
+   s_bLastCameraReadTimedOut = false;
 
    int iRead = read(s_fInputVideoStreamCSIPipe, s_uInputVideoCSIPipeBuffer, sizeof(s_uInputVideoCSIPipeBuffer)/sizeof(s_uInputVideoCSIPipeBuffer[0]));
    if ( iRead < 0 )
@@ -383,6 +400,11 @@ void video_source_csi_send_control_message(u8 parameter, u8 value)
    {
       log_line("[VideoSourceCSI] Video capture is not started, do not send command (%d) to video capture program.", parameter);
       return;
+   }
+
+   if ( parameter == RASPIVID_COMMAND_ID_KEYFRAME )
+   {
+      log_line("DEBUG set keyframe to %d frames", value);
    }
 
    if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
@@ -480,10 +502,11 @@ void video_source_csi_periodic_checks()
 
    #endif
 
-   if ( g_TimeNow >= s_uDebugTimeLastCSIVideoInputCheck+1000 )
+   if ( g_TimeNow >= s_uDebugTimeLastCSIVideoInputCheck+10000 )
    {
-      //log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-      //   s_uDebugCSIInputBytes, s_uDebugCSIInputBytes*8, s_uDebugCSIInputReads);
+      log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %u bps, %u reads/sec",
+         s_uDebugCSIInputBytes/10, s_uDebugCSIInputBytes/10*8, s_uDebugCSIInputReads/10);
+      log_line("[VideoSourceCSI] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
       s_uDebugTimeLastCSIVideoInputCheck = g_TimeNow;
       s_uDebugCSIInputBytes = 0;
       s_uDebugCSIInputReads = 0;
@@ -604,7 +627,9 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND, pModel->niceVideo, pModel->ioNiceVideo, 1 );
    }
    
-   log_line("Completed launching video capture.");
+   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = pModel->getInitialKeyframeIntervalMs(pModel->video_params.user_selected_video_link_profile);
+   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+   log_line("Completed launching video capture. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
    return bResult;
 }
 

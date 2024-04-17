@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -289,13 +289,15 @@ void link_watch_loop_unexpected_vehicles()
    if( ! g_bFirstModelPairingDone )
       return;
 
-   Model* pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 10);
+   Model* pModelTemp = NULL;
+   if ( controllerHasModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId) )
+      pModelTemp = findModelWithId(g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 10);
    
    // Received unexpected known vehicle
 
    if ( NULL != pModelTemp )
    {
-      if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry < g_TimeNow-5000 )
+      if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry+5000 < g_TimeNow )
       {
          s_bLinkWatchShownSwitchVehicleMenu = false;
          if ( menu_has_menu(MENU_ID_SWITCH_VEHICLE) )
@@ -319,7 +321,7 @@ void link_watch_loop_unexpected_vehicles()
    // Received unexpected unknown vehicle
 
    // Too old?
-   if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry < g_TimeNow-5000 )
+   if ( g_UnexpectedVehicleRuntimeInfo.uTimeLastRecvRubyTelemetry+5000 < g_TimeNow )
    {
       if ( NULL != g_pPopupWrongModel )
       {
@@ -692,12 +694,12 @@ void link_watch_loop_processes()
       s_TimeLastProcessesCheck = g_TimeNow;
       if ( pairing_isStarted() )
       {
-         if ( (NULL != g_pProcessStatsRouter) && (g_ProcessStatsRouter.lastActiveTime < g_TimeNow - 1100) )
+         if ( (NULL != g_pProcessStatsRouter) && (g_ProcessStatsRouter.lastActiveTime+1100 < g_TimeNow) )
             s_CountProcessRouterFailures++;
          else
             s_CountProcessRouterFailures = 0;
 
-         if ( (NULL != g_pProcessStatsTelemetry) && (g_ProcessStatsTelemetry.lastActiveTime < g_TimeNow - 1100) )
+         if ( (NULL != g_pProcessStatsTelemetry) && (g_ProcessStatsTelemetry.lastActiveTime+1100 < g_TimeNow) )
             s_CountProcessTelemetryFailures++;
          else
             s_CountProcessTelemetryFailures = 0;
@@ -986,7 +988,7 @@ bool link_is_relayed_vehicle_online()
       if ( g_VehiclesRuntimeInfo[i].uVehicleId != g_pCurrentModel->relay_params.uRelayedVehicleId )
          continue;
       if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-      if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry > g_TimeNow - 2000 )
+      if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvRubyTelemetry+2000 > g_TimeNow )
          return true;
    }
    return false;
@@ -999,7 +1001,7 @@ bool link_is_vehicle_online_now(u32 uVehicleId)
       if ( g_VehiclesRuntimeInfo[i].uVehicleId != uVehicleId )
          continue;
       if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-      if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvAnyRubyTelemetry > g_TimeNow - 2000 )
+      if ( g_VehiclesRuntimeInfo[i].uTimeLastRecvAnyRubyTelemetry+2000 > g_TimeNow )
          return true;
    }
    return false; 

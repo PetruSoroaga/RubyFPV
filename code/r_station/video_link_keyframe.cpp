@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -45,8 +45,6 @@
 
 extern t_packet_queue s_QueueRadioPackets;
 
-bool s_bReceivedKeyFrameFromVideoStream = false;
-
 void video_link_keyframe_init(u32 uVehicleId)
 {
    Model* pModel = findModelWithId(uVehicleId, 150);
@@ -61,8 +59,8 @@ void video_link_keyframe_init(u32 uVehicleId)
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastAcknowledgedKeyFrameMs = -1;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount = 0;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].uTimeLastRequestedKeyFrame = 0;
-   s_bReceivedKeyFrameFromVideoStream = false;
-   log_line("Initialized adaptive video keyframe info, default start keyframe interval: %d ms, for VID %u (name: %s)", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[0].iLastRequestedKeyFrameMs, uVehicleId, pModel->getLongName());
+   g_State.vehiclesRuntimeInfo[iInfoIndex].bReceivedKeyframeInfoInVideoStream = false;
+   log_line("Initialized adaptive video keyframe info, default start keyframe interval (last requested): %d ms, for VID %u (name: %s)", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[0].iLastRequestedKeyFrameMs, uVehicleId, pModel->getLongName());
 }
 
 void video_link_keyframe_set_intial_received_level(u32 uVehicleId, int iReceivedKeyframeMs)
@@ -85,7 +83,7 @@ void video_link_keyframe_set_intial_received_level(u32 uVehicleId, int iReceived
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastAcknowledgedKeyFrameMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMs;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount = 0;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].uTimeLastRequestedKeyFrame = g_TimeNow;
-   s_bReceivedKeyFrameFromVideoStream = true;
+   g_State.vehiclesRuntimeInfo[iInfoIndex].bReceivedKeyframeInfoInVideoStream = true;
    log_line("Done setting initial keyframe state for VID %u based on received keframe interval of %d ms from video stream.", uVehicleId, iReceivedKeyframeMs);
 
 }
@@ -101,7 +99,8 @@ void video_link_keyframe_set_current_level_to_request(u32 uVehicleId, int iKeyfr
    if ( -1 == iInfoIndex )
       return;
 
-   s_bReceivedKeyFrameFromVideoStream = true;
+   g_State.vehiclesRuntimeInfo[iInfoIndex].bReceivedKeyframeInfoInVideoStream = true;
+   
    if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMs == iKeyframeMs )
       return;
 
@@ -125,7 +124,7 @@ void _video_link_keyframe_check_send_to_vehicle(u32 uVehicleId)
    int iInfoIndex = getVehicleRuntimeIndex(uVehicleId);
    if ( -1 == iInfoIndex )
       return;
-   if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[iInfoIndex] )
+   if ( ! g_State.vehiclesRuntimeInfo[iInfoIndex].bIsPairingDone )
       return;
    if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMs == -1 )
       return;
@@ -197,10 +196,7 @@ void _video_link_keyframe_request_new_keyframe_interval(u32 uVehicleId, int iInt
 
 void video_link_keyframe_periodic_loop()
 {
-   if ( g_bSearching || NULL == g_pCurrentModel || g_bUpdateInProgress )
-      return;
-
-   if ( ! s_bReceivedKeyFrameFromVideoStream )
+   if ( g_bSearching || (NULL == g_pCurrentModel) || g_bUpdateInProgress )
       return;
      
    if ( g_bIsControllerLinkToVehicleLost || g_bIsVehicleLinkToControllerLost )
@@ -216,15 +212,19 @@ void video_link_keyframe_periodic_loop()
       
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+      if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
          continue;
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 155);
+      if ( ! g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
+         continue;
+      if ( ! g_State.vehiclesRuntimeInfo[i].bReceivedKeyframeInfoInVideoStream )
+         return;
+
+      Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 155);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
       if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
          continue;
-
-      if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
+      if ( pModel->isVideoLinkFixedOneWay() )
          continue;
 
       _video_link_keyframe_check_send_to_vehicle(pModel->uVehicleId);
@@ -238,18 +238,20 @@ void video_link_keyframe_periodic_loop()
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+      if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
          continue;
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 156);
+      if ( ! g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
+         continue;
+      if ( ! g_State.vehiclesRuntimeInfo[i].bReceivedKeyframeInfoInVideoStream )
+         return;
+
+      Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 156);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
       if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
          continue;
-
-      if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
-         continue;
         
-      if ( pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+      if ( pModel->isVideoLinkFixedOneWay() )
          continue;
 
       int iCurrentVideoProfile = 0;

@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -87,6 +87,16 @@ void _hardware_enumerate_serial_ports()
    s_HardwareSerialPortsInfo[0].lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
    s_HardwareSerialPortsInfo[0].iPortUsage = SERIAL_PORT_USAGE_NONE;
    s_iCountHardwareSerialPorts = 1;
+
+   if ( hardware_getOnlyBoardType() == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   {
+      strcpy(s_HardwareSerialPortsInfo[1].szName, "Serial-2");
+      strcpy(s_HardwareSerialPortsInfo[1].szPortDeviceName, "/dev/ttyS2");
+      s_HardwareSerialPortsInfo[1].iSupported = 1;
+      s_HardwareSerialPortsInfo[1].lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+      s_HardwareSerialPortsInfo[1].iPortUsage = SERIAL_PORT_USAGE_NONE;
+      s_iCountHardwareSerialPorts = 2;
+   }   
    #endif
 
    for( int i=0; i<MAX_SERIAL_PORTS-4; i++ )

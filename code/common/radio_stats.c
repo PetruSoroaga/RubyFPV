@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -42,10 +42,6 @@
 static u32 s_uControllerLinkStats_tmpRecv[MAX_RADIO_INTERFACES];
 static u32 s_uControllerLinkStats_tmpRecvBad[MAX_RADIO_INTERFACES];
 static u32 s_uControllerLinkStats_tmpRecvLost[MAX_RADIO_INTERFACES];
-
-#define MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY 5
-static u32 s_uLastLinkRTDelayValues[MAX_RADIO_INTERFACES][MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY];
-static u32 s_uLastCommandsRTDelayValues[5];
 
 static u32 s_uLastTimeDebugPacketRecvOnNoLink = 0;
 static int s_iRadioStatsEnableHistoryMonitor = 0;
@@ -178,13 +174,6 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
    if ( NULL == pSMRS )
       return;
 
-   for( int iLink=0; iLink<MAX_RADIO_INTERFACES; iLink++ )
-   for( int i=0; i<MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY; i++ )
-      s_uLastLinkRTDelayValues[iLink][i] = 1000;
-
-   for( int i=0; i<sizeof(s_uLastCommandsRTDelayValues)/sizeof(s_uLastCommandsRTDelayValues[0]); i++ )
-      s_uLastCommandsRTDelayValues[i] = 1000;
-
    pSMRS->refreshIntervalMs = 350;
    pSMRS->graphRefreshIntervalMs = graphRefreshInterval;
 
@@ -197,10 +186,6 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
 
    pSMRS->all_downlinks_tx_time_per_sec = 0;
    pSMRS->tmp_all_downlinks_tx_time_per_sec = 0;
-
-   pSMRS->uAverageCommandRoundtripMiliseconds = MAX_U32;
-   pSMRS->uMaxCommandRoundtripMiliseconds = MAX_U32;
-   pSMRS->uMinCommandRoundtripMiliseconds = MAX_U32;
 
    pSMRS->uTimeLastReceivedAResponseFromVehicle = 0;
    pSMRS->iMaxRxQuality = 0;
@@ -222,6 +207,8 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
       pSMRS->radio_streams[k][i].txPacketsPerSec = 0;
       pSMRS->radio_streams[k][i].timeLastRxPacket = 0;
       pSMRS->radio_streams[k][i].timeLastTxPacket = 0;
+      pSMRS->radio_streams[k][i].uLastRecvStreamPacketIndex = 0;
+      pSMRS->radio_streams[k][i].iHasMissingStreamPacketsFlag = 0;
 
       pSMRS->radio_streams[k][i].tmpRxBytes = 0;
       pSMRS->radio_streams[k][i].tmpTxBytes = 0;
@@ -306,9 +293,6 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
       pSMRS->radio_links[i].tmpTxPackets = 0;
       pSMRS->radio_links[i].tmpUncompressedTxPackets = 0;
 
-      pSMRS->radio_links[i].linkDelayRoundtripMsLastTime = 0;
-      pSMRS->radio_links[i].linkDelayRoundtripMs = MAX_U32;
-      pSMRS->radio_links[i].linkDelayRoundtripMinimMs = MAX_U32;
       pSMRS->radio_links[i].lastTxInterfaceIndex = -1;
       pSMRS->radio_links[i].lastSentDataRateVideo = 0;
       pSMRS->radio_links[i].lastSentDataRateData = 0;
@@ -767,52 +751,6 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
    return iReturn;
 }
 
-void radio_stats_set_radio_link_rt_delay(shared_mem_radio_stats* pSMRS, int iLocalRadioLink, u32 delay, u32 timeNow)
-{
-   if ( NULL == pSMRS || iLocalRadioLink < 0 || iLocalRadioLink >= MAX_RADIO_INTERFACES )
-      return;
-
-   u32 avg = 0;
-   for( int i=0; i<MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY-1; i++ )
-   {
-      s_uLastLinkRTDelayValues[iLocalRadioLink][i] = s_uLastLinkRTDelayValues[iLocalRadioLink][i+1];
-      avg += s_uLastLinkRTDelayValues[iLocalRadioLink][i];
-   }
-   s_uLastLinkRTDelayValues[iLocalRadioLink][MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY-1] = delay;
-   avg += delay;
-   avg /= MAX_RADIO_LINKS_ROUNDTRIP_TIMES_HISTORY;
-
-   pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMs = (avg*3 + delay)/4;
-   pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMsLastTime = timeNow;
-   if ( pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMs < pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMinimMs )
-      pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMinimMs = pSMRS->radio_links[iLocalRadioLink].linkDelayRoundtripMs;
-}
-
-void radio_stats_set_commands_rt_delay(shared_mem_radio_stats* pSMRS, u32 delay)
-{
-   if ( NULL == pSMRS )
-      return;
-
-   int count = sizeof(s_uLastCommandsRTDelayValues)/sizeof(s_uLastCommandsRTDelayValues[0]);
-   u32 avg = 0;
-   for( int i=0; i<count-1; i++ )
-   {
-      s_uLastCommandsRTDelayValues[i] = s_uLastCommandsRTDelayValues[i+1];
-      avg += s_uLastCommandsRTDelayValues[i];
-   }
-   s_uLastCommandsRTDelayValues[count-1] = delay;
-   avg += delay;
-   avg /= count;
-
-   pSMRS->uAverageCommandRoundtripMiliseconds = avg;
-
-   if ( pSMRS->uMaxCommandRoundtripMiliseconds == MAX_U32 )
-      pSMRS->uMaxCommandRoundtripMiliseconds = delay;
-
-   if ( pSMRS->uAverageCommandRoundtripMiliseconds < pSMRS->uMinCommandRoundtripMiliseconds )
-      pSMRS->uMinCommandRoundtripMiliseconds = pSMRS->uAverageCommandRoundtripMiliseconds;
-}
-
 void radio_stats_set_tx_card_for_radio_link(shared_mem_radio_stats* pSMRS, int iLocalRadioLink, int iTxCard)
 {
    if ( NULL == pSMRS )
@@ -1062,6 +1000,13 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
 
    // End - Update last received packet time
  
+   if ( uStreamPacketIndex > pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex )
+   {
+      if ( uStreamPacketIndex > pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex + 1 )
+         pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].iHasMissingStreamPacketsFlag = 1;
+
+      pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex = uStreamPacketIndex;
+   }
 
    if ( 0 ==  pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxPackets )
       log_line("[RadioStats] Start receiving radio stream %d (%s) from VID %u", (int)uStreamIndex, str_get_radio_stream_name(uStreamIndex), uVehicleId);
@@ -1285,4 +1230,26 @@ void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_
       pControllerStats->tmp_video_streams_blocks_max_ec_packets_used[i] = 0;
       pControllerStats->tmp_video_streams_requested_retransmission_packets[i] = 0;
    }
+}
+
+int radio_stats_get_reset_stream_lost_packets_flags(shared_mem_radio_stats* pSMRS, u32 uVehicleId, u32 uStreamIndex)
+{
+   if ( NULL == pSMRS )
+      return 0;
+
+   int iVehicleIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( uVehicleId == pSMRS->radio_streams[i][uStreamIndex].uVehicleId )
+      {
+         iVehicleIndex = i;
+         break;
+      }
+   }
+   if ( -1 == iVehicleIndex )
+      return -1;
+
+   int iRet = pSMRS->radio_streams[iVehicleIndex][uStreamIndex].iHasMissingStreamPacketsFlag;
+   pSMRS->radio_streams[iVehicleIndex][uStreamIndex].iHasMissingStreamPacketsFlag = 0;
+   return iRet;
 }

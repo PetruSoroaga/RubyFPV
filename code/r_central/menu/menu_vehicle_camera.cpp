@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -83,11 +83,11 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexAWBMode = -1;
    m_IndexEV = m_IndexEVValue = -1;
    m_IndexAGC = -1;
-   m_IndexExposure = m_IndexWhiteBalance = -1;
+   m_IndexExposureMode = m_IndexExposureValue = m_IndexWhiteBalance = -1;
    m_IndexAnalogGains = -1;
    m_IndexMetering = m_IndexDRC = -1;
    m_IndexISO = m_IndexISOValue = -1;
-   m_IndexShutter = m_IndexShutterValue = -1;
+   m_IndexShutterMode = m_IndexShutterValue = -1;
    m_IndexWDR = -1;
    m_IndexDayNight = -1;
    m_IndexVideoStab = m_IndexFlip = m_IndexReset = -1;
@@ -277,10 +277,23 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[7]->addSelection("Manual");
       m_pItemsSelect[7]->setIsEditable();
       m_pItemsSelect[7]->setMargin(fMargin);
-      m_IndexShutter = addMenuItem(m_pItemsSelect[7]);
+      m_IndexShutterMode = addMenuItem(m_pItemsSelect[7]);
    
       m_pItemsSlider[6] = new MenuItemSlider("", "Sets the shutter speed to 1/x of a second", 30,5000,1000, fSliderWidth);
       m_pItemsSlider[6]->setStep(30);
+      m_pItemsSlider[6]->setMargin(fMargin);
+      m_IndexShutterValue = addMenuItem(m_pItemsSlider[6]);
+   }
+   else if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      m_pItemsSelect[7] = new MenuItemSelect("Shutter Speed", "Sets the shutter speed to be auto controllerd by camera or manula set by user.");  
+      m_pItemsSelect[7]->addSelection("Auto");
+      m_pItemsSelect[7]->addSelection("Manual");
+      m_pItemsSelect[7]->setIsEditable();
+      m_pItemsSelect[7]->setMargin(fMargin);
+      m_IndexShutterMode = addMenuItem(m_pItemsSelect[7]);
+
+      m_pItemsSlider[6] = new MenuItemSlider("", "Sets the camera shutter speed, in miliseconds.", 1,100,10, fSliderWidth);
       m_pItemsSlider[6]->setMargin(fMargin);
       m_IndexShutterValue = addMenuItem(m_pItemsSlider[6]);
    }
@@ -298,7 +311,7 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[2]->addSelection("Off");
       m_pItemsSelect[2]->setIsEditable();
       m_pItemsSelect[2]->setMargin(fMargin);
-      m_IndexExposure = addMenuItem(m_pItemsSelect[2]);
+      m_IndexExposureMode = addMenuItem(m_pItemsSelect[2]);
    }
 
    if ( g_pCurrentModel->isActiveCameraCSI() )
@@ -476,16 +489,38 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
    if ( -1 != m_IndexAnalogGains )
       m_pMenuItems[m_IndexAnalogGains]->setEnabled(enableGains);
 
-   if ( (-1 != m_IndexShutter) && (NULL != m_pItemsSelect[7]) )
-      m_pItemsSelect[7]->setSelection(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed != 0);
-
-   if ( (-1 != m_IndexShutterValue) && (NULL != m_pItemsSlider[6]) )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
    {
-      m_pItemsSlider[6]->setCurrentValue((int)g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed);
-      m_pItemsSlider[6]->setEnabled(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed != 0);
+      if ( -1 != m_IndexShutterMode )
+      {
+         if ( 0 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed )
+         {
+            m_pItemsSelect[7]->setSelectedIndex(0);
+            if ( m_pItemsSlider[6] != NULL )
+               m_pItemsSlider[6]->setEnabled(false);
+         } 
+         if ( (m_IndexShutterValue != -1) && (m_pItemsSlider[6] != NULL) )
+         {
+            m_pItemsSelect[7]->setSelectedIndex(1);
+            m_pItemsSlider[6]->setEnabled(true);
+            m_pItemsSlider[6]->setCurrentValue(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed);
+         }
+      }
+   }
+   else
+   {
+      if ( (-1 != m_IndexShutterMode) && (NULL != m_pItemsSelect[7]) )
+         m_pItemsSelect[7]->setSelection(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed != 0);
+
+      if ( (-1 != m_IndexShutterValue) && (NULL != m_pItemsSlider[6]) )
+      {
+         m_pItemsSlider[6]->setCurrentValue((int)g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed);
+         m_pItemsSlider[6]->setEnabled(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed != 0);
+      }
    }
 
-   if ( (m_IndexExposure != -1) && (m_pItemsSelect[2] != NULL) )
+   if ( g_pCurrentModel->isActiveCameraCSI() )
+   if ( (m_IndexExposureMode != -1) && (m_pItemsSelect[2] != NULL) )
       m_pItemsSelect[2]->setSelection(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].exposure);
    
    if ( (m_IndexMetering != -1) && (m_pItemsSelect[4] != NULL) )
@@ -647,7 +682,8 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
          cparams.profiles[iProfile].ev = m_pItemsSlider[4]->getCurrentValue()+11;    
    }
 
-   if ( (m_IndexExposure != -1) && (m_pItemsSelect[2] != NULL) )
+   if ( g_pCurrentModel->isActiveCameraCSI() )
+   if ( (m_IndexExposureMode != -1) && (m_pItemsSelect[2] != NULL) )
       cparams.profiles[iProfile].exposure = m_pItemsSelect[2]->getSelectedIndex();
 
    if ( m_IndexWhiteBalance != -1 )
@@ -679,11 +715,22 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
          cparams.profiles[iProfile].iso = m_pItemsSlider[5]->getCurrentValue();
    }
 
-   if ( (m_IndexShutter != -1) && (m_IndexShutterValue != -1) )
+   if ( (m_IndexShutterMode != -1) && (m_IndexShutterValue != -1) )
    {
-      cparams.profiles[iProfile].shutterspeed = (m_pItemsSelect[7]->getSelectedIndex() == 0)?0:1000;
-      if ( m_pItemsSelect[7]->getSelectedIndex() != 0 )
-         cparams.profiles[iProfile].shutterspeed = m_pItemsSlider[6]->getCurrentValue();
+      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      {
+         cparams.profiles[iProfile].shutterspeed = 0;
+         if ( 0 == m_pItemsSelect[7]->getSelectedIndex() )
+            cparams.profiles[iProfile].shutterspeed = 0;
+         else if ( m_pItemsSlider[6] != NULL )
+            cparams.profiles[iProfile].shutterspeed = m_pItemsSlider[6]->getCurrentValue();
+      }
+      else
+      {
+         cparams.profiles[iProfile].shutterspeed = (m_pItemsSelect[7]->getSelectedIndex() == 0)?0:1000;
+         if ( m_pItemsSelect[7]->getSelectedIndex() != 0 )
+            cparams.profiles[iProfile].shutterspeed = m_pItemsSlider[6]->getCurrentValue();
+      }
    }
 
    if ( (m_IndexVideoStab != -1) && (m_pItemsSelect[8] != NULL) )
@@ -838,7 +885,12 @@ void MenuVehicleCamera::onSelectItem()
    if ( m_IndexEVValue == m_SelectedIndex )
       sendCameraParams(-1, false);
 
-   if ( m_IndexExposure == m_SelectedIndex )
+   if ( -1 != m_IndexExposureMode )
+   if ( m_IndexExposureMode == m_SelectedIndex )
+      sendCameraParams(-1, false);
+
+   if ( -1 != m_IndexExposureValue )
+   if ( m_IndexExposureValue == m_SelectedIndex )
       sendCameraParams(-1, false);
 
    if ( m_IndexWhiteBalance == m_SelectedIndex )
@@ -873,9 +925,11 @@ void MenuVehicleCamera::onSelectItem()
    if ( m_IndexISOValue == m_SelectedIndex )
       sendCameraParams(-1, false);
 
-   if ( m_IndexShutter == m_SelectedIndex )
+   if ( -1 !=  m_IndexShutterMode )
+   if ( m_IndexShutterMode == m_SelectedIndex )
       sendCameraParams(-1, false);
 
+   if ( -1 != m_IndexShutterValue )
    if ( m_IndexShutterValue == m_SelectedIndex )
       sendCameraParams(-1, false);
 

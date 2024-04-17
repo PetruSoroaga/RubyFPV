@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -65,7 +65,7 @@ u32 s_uTimeStartGoodIntervalForProfileShiftUp = 0;
 
 void _video_overwrites_set_capture_video_bitrate(u32 uBitrateBPS, bool bIsInitialValue, int iReason)
 {
-   //log_line("DBG set video bitrate to %u bps, initial: %d, reason: %d", uBitrateBPS, bIsInitialValue, iReason);
+   log_line("DEBUG set video bitrate to %u bps, initial: %d, reason: %d", uBitrateBPS, bIsInitialValue, iReason);
 
    if ( g_pCurrentModel->hasCamera() )
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
@@ -139,7 +139,6 @@ void video_stats_overwrites_init()
    video_overwrites_init(&(g_SM_VideoLinkStats.overwrites), g_pCurrentModel);
    onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
 
-   video_link_auto_keyframe_init();
    video_link_reset_overflow_quantization_value();
 
    g_SM_VideoLinkStats.backIntervalsToLookForDownStep = DEFAULT_MINIMUM_INTERVALS_FOR_VIDEO_LINK_ADJUSTMENT;
@@ -1020,8 +1019,7 @@ void video_stats_overwrites_periodic_loop()
    }
 
    video_link_check_adjust_quantization_for_overload_periodic_loop();
-   video_link_auto_keyframe_periodic_loop();
-
+   
    // On link from controller lost, switch to lower profile and keyframe
 
    int iThresholdControllerLinkMs = 500;

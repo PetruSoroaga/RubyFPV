@@ -84,7 +84,14 @@ typedef struct
    u8  currentECBlocks;
    u8  currentProfileShiftLevel;
    u8  currentH264QUantization;
-   u16 uCurrentKeyframeMs;
+
+   u16 uCurrentActiveKeyframeMs;
+   u16 uCurrentPendingKeyframeMs;
+   u16 uCurrentLocalRequestedKeyframeMs;
+   u16 uCurrentControllerRequestedKeyframeMs;
+   u32 uLastTimeLocalRequestedAKeyframe;
+   u32 uLastTimeControllerRequestedAKeyframe;
+
    u32 profilesTopVideoBitrateOverwritesDownward[MAX_VIDEO_LINK_PROFILES]; // How much to decrease the target top bitrate for each profile
 
 } __attribute__((packed)) shared_mem_video_link_overwrites;
@@ -169,20 +176,25 @@ typedef struct
 
 typedef struct
 {
-   u32 uTimeLastUpdate;
-   u8 uFramesTimes[MAX_FRAMES_SAMPLES];
+   u32 uTimeLastUpdate; // Last time statistics where updated
+   u8 uFramesDuration[MAX_FRAMES_SAMPLES]; // highest bit: 1 if keyframe interval was adjusted. lower 7 bits: frame duration in ms
    u8 uFramesTypesAndSizes[MAX_FRAMES_SAMPLES]; // Frame type and size in kbytes (frame type: highest bit: 0 regular, 1 keframe; lower 7 bits: frame size in kbytes)
-   u32 uLastIndex;
+   u32 uLastIndex; // Increases on each video frame detected
+
+   // Computed on H264 parser
+   u32 uDetectedFPS;
+   u32 uDetectedSlices;
+   
+   // Computed on OSD side
    u32 uAverageFPS;
    u32 uAverageFrameTime;
    u32 uAverageFrameSize; // in bits
+   u32 uAveragePFrameSize; // in bits
    u32 uMaxFrameDeltaTime;
    u16 uKeyframeIntervalMs;
    u32 uExtraValue1;
    u32 uExtraValue2;
    
-   u32 uTmpCurrentFrameSize;
-   u32 uTmpKeframeDeltaFrames;
 } __attribute__((packed)) shared_mem_video_info_stats;
 
 

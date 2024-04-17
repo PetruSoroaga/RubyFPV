@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -101,7 +101,8 @@ MenuController::MenuController(void)
    //m_pMenuItems[m_IndexEncryption]->setEnabled(false);
 
    m_IndexButtons = addMenuItem(new MenuItem("Buttons", "Change buttons actions."));
-   m_IndexPreferences = addMenuItem(new MenuItem("Preferences", "Change preferences about messages."));
+   m_IndexPreferences = -1;
+   //m_IndexPreferences = addMenuItem(new MenuItem("Preferences", "Change preferences about messages."));
    m_IndexPreferencesUI = addMenuItem(new MenuItem("User Interface", "Change user interface preferences."));
 
    addMenuItem(new MenuItemSection("Management"));
@@ -297,12 +298,13 @@ void MenuController::onSelectItem()
       return;
    }
 
+   /*
    if ( m_IndexPreferences == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuPreferences()); 
       return;    
    }
-
+   */
    if ( m_IndexPreferencesUI == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuPreferencesUI()); 

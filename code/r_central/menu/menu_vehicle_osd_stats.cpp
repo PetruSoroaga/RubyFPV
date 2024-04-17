@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -276,10 +276,11 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
 
    m_pItemsSelect[23] = new MenuItemSelect("Video: Keyframe Stats", "Show statistics about the video stream keyframe intervals and auto adjustments.");
    m_pItemsSelect[23]->addSelection("Off");
+   m_pItemsSelect[23]->addSelection("Minimal");
    m_pItemsSelect[23]->addSelection("Compact");
    m_pItemsSelect[23]->addSelection("Full");
    m_pItemsSelect[23]->setIsEditable();
-   m_IndexStatsVideoStreamInfo = addMenuItem(m_pItemsSelect[23]);
+   m_IndexStatsVideoStreamKeyFramesInfo = addMenuItem(m_pItemsSelect[23]);
    
    if ( pCS->iDeveloperMode )
    {
@@ -452,12 +453,14 @@ void MenuVehicleOSDStats::valuesToUI()
    m_pItemsSelect[26]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS)?1:0);
    m_pItemsSelect[17]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS)?1:0);
 
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
+   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO )
    {
-      if ( pCS->iShowVideoStreamInfoCompact )
-         m_pItemsSelect[23]->setSelectedIndex(1);
-      else
+      if ( 0 == pCS->iShowVideoStreamInfoCompactType )
+         m_pItemsSelect[23]->setSelectedIndex(3);
+      else if ( 1 == pCS->iShowVideoStreamInfoCompactType )
          m_pItemsSelect[23]->setSelectedIndex(2);
+      else
+         m_pItemsSelect[23]->setSelectedIndex(1);
    }
    else
       m_pItemsSelect[23]->setSelectedIndex(0);
@@ -808,17 +811,19 @@ void MenuVehicleOSDStats::onSelectItem()
       sendToVehicle = true;
    }
 
-   if ( m_IndexStatsVideoStreamInfo == m_SelectedIndex )
+   if ( m_IndexStatsVideoStreamKeyFramesInfo == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[23]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_STATS_VIDEO_INFO;
+         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO;
       else
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_STATS_VIDEO_INFO;
-         if ( 1 == m_pItemsSelect[23]->getSelectedIndex() )
-            pCS->iShowVideoStreamInfoCompact = 1;
+         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO;
+         if ( 3 == m_pItemsSelect[23]->getSelectedIndex() )
+            pCS->iShowVideoStreamInfoCompactType = 0;
+         else if ( 2 == m_pItemsSelect[23]->getSelectedIndex() )
+            pCS->iShowVideoStreamInfoCompactType = 1;
          else
-            pCS->iShowVideoStreamInfoCompact = 0;
+            pCS->iShowVideoStreamInfoCompactType = 2;
          save_ControllerSettings();
       }
       sendToVehicle = true;    

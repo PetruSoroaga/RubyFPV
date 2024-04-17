@@ -246,16 +246,15 @@ typedef struct
 typedef struct
 {
    u32 uVehiclesIds[MAX_CONCURENT_VEHICLES];
-   u32 uPairingRequestTime[MAX_CONCURENT_VEHICLES];
-   u32 uPairingRequestInterval[MAX_CONCURENT_VEHICLES];
-   u32 uPairingRequestId[MAX_CONCURENT_VEHICLES];
-   int iPairingDone[MAX_CONCURENT_VEHICLES];
+   u32 uPingRoundtripTimeVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
+   u32 uAverageCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
+   u32 uMaxCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
+   u32 uMinCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
 
-   u32 uRoundtripTimeVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
-   u32 uTimeLastPingSentToVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES][3];
-   u32 uTimeLastPingReplyReceivedFromVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
-   u8  uLastPingIdSentToVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES][3];
-   u8  uLastPingIdReceivedFromVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
+   u32 uRadioLinksDelayRoundtripMsLastTime[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
+   u32 uRadioLinksDelayRoundtripMs[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
+   u32 uRadioLinksDelayRoundtripMsMin[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
+
    shared_mem_controller_adaptive_video_info_vehicle vehicles_adaptive_video[MAX_CONCURENT_VEHICLES];
 } __attribute__((packed)) shared_mem_router_vehicles_runtime_info;
 

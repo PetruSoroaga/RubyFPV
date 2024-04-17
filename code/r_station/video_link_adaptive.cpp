@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -243,7 +243,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       bool bHasRecentRxData = false;
       for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
       {
-         if ( g_TimeNow > 2000 && g_SM_RadioStats.radio_links[i].timeLastRxPacket >= g_TimeNow-1000 )
+         if ( (g_TimeNow > 2000) && (g_SM_RadioStats.radio_links[i].timeLastRxPacket >= g_TimeNow-1000) )
          {
             bHasRecentRxData = true;
             break;
@@ -499,7 +499,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
 
 void video_link_adaptive_periodic_loop()
 {
-   if ( g_bSearching || NULL == g_pCurrentModel || g_bUpdateInProgress )
+   if ( g_bSearching || (NULL == g_pCurrentModel) || g_bUpdateInProgress )
       return;
    
    if ( g_bDebugState )
@@ -507,14 +507,19 @@ void video_link_adaptive_periodic_loop()
      
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+      if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
          continue;
-      Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], 144);
+      if ( ! g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
+         continue;
+      if ( ! g_State.vehiclesRuntimeInfo[i].bReceivedKeyframeInfoInVideoStream )
+         return;
+
+      Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 144);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
       if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
          continue;
-      if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[i] )
+      if ( ! g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
          continue;
         
       if ( pModel->isVideoLinkFixedOneWay() )
@@ -522,7 +527,7 @@ void video_link_adaptive_periodic_loop()
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift != 0 )
            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift = 0;
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastAcknowledgedLevelShift != 0 )
-            _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
+            _video_link_adaptive_check_send_to_vehicle(g_State.vehiclesRuntimeInfo[i].uVehicleId, false);
          continue;
       }
 
@@ -534,7 +539,7 @@ void video_link_adaptive_periodic_loop()
           if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift != 0 )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift = 0;
           if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastAcknowledgedLevelShift != 0 )
-             _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
+             _video_link_adaptive_check_send_to_vehicle(g_State.vehiclesRuntimeInfo[i].uVehicleId, false);
       }
 
       if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uLastUpdateTime + g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval )
@@ -578,18 +583,12 @@ void video_link_adaptive_periodic_loop()
 
       if ( (0 != s_uPauseAdjustmensUntilTime) && (g_TimeNow < s_uPauseAdjustmensUntilTime) )
       {
-         _video_link_adaptive_check_send_to_vehicle(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i], false);
+         _video_link_adaptive_check_send_to_vehicle(g_State.vehiclesRuntimeInfo[i].uVehicleId, false);
       }
       else if ( isAdaptiveVideoOn )
       {
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentTargetLevelShift != -1 )
-            _video_link_adaptive_check_adjust_video_params(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i]);
+            _video_link_adaptive_check_adjust_video_params(g_State.vehiclesRuntimeInfo[i].uVehicleId);
       }
    }
-
-   video_link_keyframe_periodic_loop();
-
-   if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
-   if ( (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[0].uCurrentIntervalIndex % 5) == 0 )
-      memcpy((u8*)g_pSM_RouterVehiclesRuntimeInfo, (u8*)&g_SM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
 }

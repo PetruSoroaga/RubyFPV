@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -64,13 +64,13 @@ shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;
 shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats = NULL;
 shared_mem_audio_decode_stats g_SM_AudioDecodeStats;
 
-shared_mem_video_info_stats* g_pSM_VideoInfoStats = NULL;
-shared_mem_video_info_stats g_SM_VideoInfoStats;
+shared_mem_video_info_stats* g_pSM_VideoInfoStatsOutput = NULL;
+shared_mem_video_info_stats g_SM_VideoInfoStatsOutput;
 
 shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioIn = NULL;
 shared_mem_video_info_stats g_SM_VideoInfoStatsRadioIn;
 
-shared_mem_video_info_stats g_VideoInfoStatsFromVehicle;
+shared_mem_video_info_stats g_VideoInfoStatsFromVehicleCameraOut;
 shared_mem_video_info_stats g_VideoInfoStatsFromVehicleRadioOut;
 
 shared_mem_video_stream_stats_rx_processors* g_pSM_VideoDecodeStats = NULL;

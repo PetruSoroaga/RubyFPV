@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -36,10 +36,12 @@
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #include "../base/ctrl_interfaces.h"
+#include "../base/ctrl_settings.h"
 #include "../base/encr.h"
 #include "../base/models_list.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
+#include "../base/parser_h264.h"
 #include "../base/camera_utils.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
@@ -65,12 +67,7 @@ u32 s_uTotalBadPacketsReceived = 0;
 u32 s_TimeLastLoggedSearchingRubyTelemetry = 0;
 u32 s_TimeLastLoggedSearchingRubyTelemetryVehicleId = 0;
 
-
-u32 s_uParseRadioInNALStartSequence = 0xFFFFFFFF;
-u32 s_uParseRadioInNALCurrentSlices = 0;
-u32 s_uParseRadioInLastNALTag = 0xFFFFFFFF;
-u32 s_uParseRadioInNALTotalParsedBytes = 0;
-u32 s_uLastRadioInVideoFrameTime = 0;
+ParserH264 s_ParserH264RadioInput;
 
 #define MAX_ALARMS_HISTORY 50
 
@@ -81,6 +78,8 @@ void init_radio_rx_structures()
 {
    for( int i=0; i<MAX_ALARMS_HISTORY; i++ )
       s_uLastReceivedAlarmsIndexes[i] = MAX_U32;
+
+   s_ParserH264RadioInput.init(camera_get_active_camera_h264_slices(g_pCurrentModel));
 }
 
 void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
@@ -224,14 +223,14 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
          return 0;
       }
 
-      if ( ! g_SM_RouterVehiclesRuntimeInfo.iPairingDone[iRuntimeIndex] )
+      if ( ! g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsPairingDone )
       {
          ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
          if ( NULL != g_pProcessStats )
             g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 
          send_alarm_to_central(ALARM_ID_CONTROLLER_PAIRING_COMPLETED, pPH->vehicle_id_src, 0);
-         g_SM_RouterVehiclesRuntimeInfo.iPairingDone[iRuntimeIndex] = 1;
+         g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsPairingDone = true;
       }
       return 0;
    }
@@ -333,6 +332,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+      log_line("Sent alarm to central");
       return 0;
    }
 
@@ -342,28 +342,36 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       g_uTimeLastReceivedResponseToAMessage = g_TimeNow;
       radio_stats_set_received_response_from_vehicle_now(&g_SM_RadioStats, g_TimeNow);
       u8 uPingId = 0;
-      u32 vehicleTime = 0;
+      u32 uVehicleLocalTimeMs = 0;
       u8 uOriginalLocalRadioLinkId = 0;
       u8 uReplyVehicleLocalRadioLinkId = 0;
 
       memcpy(&uPingId, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
-      memcpy(&vehicleTime, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u32));
+      memcpy(&uVehicleLocalTimeMs, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u32));
       memcpy(&uOriginalLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), sizeof(u8));
       if ( pPH->total_length > sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
          memcpy(&uReplyVehicleLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+2*sizeof(u8) + sizeof(u32), sizeof(u8));
+
+      //log_line("DEBUG ping: vtime: %u, localtime: %u", uVehicleLocalTimeMs, g_TimeNow);
          
       int iIndex = getVehicleRuntimeIndex(pPH->vehicle_id_src);
       if ( iIndex >= 0 )
       {
-         for( int k=0; k<3; k++ )
+         for( int k=0; k<MAX_RUNTIME_INFO_PINGS_HISTORY; k++ )
          {
-            if ( uPingId == g_SM_RouterVehiclesRuntimeInfo.uLastPingIdSentToVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId][k] )
-            if ( uPingId != g_SM_RouterVehiclesRuntimeInfo.uLastPingIdReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] )
+            if ( uPingId == g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId][k] )
+            if ( uPingId != g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] )
             {
-               g_SM_RouterVehiclesRuntimeInfo.uLastPingIdReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = uPingId;
-               g_SM_RouterVehiclesRuntimeInfo.uTimeLastPingReplyReceivedFromVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = g_TimeNow;
-               g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = get_current_timestamp_micros() - g_SM_RouterVehiclesRuntimeInfo.uTimeLastPingSentToVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId][k];
-               radio_stats_set_radio_link_rt_delay(&g_SM_RadioStats, uOriginalLocalRadioLinkId, g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId]/1000, g_TimeNow);
+               u32 uRoundtripMicros = get_current_timestamp_micros() - g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId][k];
+               u32 uRoundtripMilis = uRoundtripMicros / 1000;
+               //log_line("DEBUG ping handle rt: %u", uRoundtripMilis);
+               g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uPingId;
+               g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingReplyReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = g_TimeNow;
+
+               g_State.vehiclesRuntimeInfo[iIndex].uPingRoundtripTimeOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uRoundtripMicros;
+               g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = uRoundtripMicros;
+               addLinkRTTimeToRuntimeInfoIndex(iIndex, (int)uOriginalLocalRadioLinkId, uRoundtripMilis, uVehicleLocalTimeMs);
+
                if ( NULL != g_pProcessStats )
                   g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
                break;
@@ -540,87 +548,47 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
       return;
 
    t_packet_header* pPH = (t_packet_header*)pPacketData;
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 110);
-   if ( NULL == pModel )
-      return;
+   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
+   int iVideoDataLength = pPHVF->video_data_length;    
+   u8* pData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
 
-   int iVideoDataLength = 0;
-   u8* pTmp = NULL;
-   t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
-   iVideoDataLength = pPHVFNew->video_data_length;    
-   pTmp = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
-   
-   if ( pPHVFNew->video_block_packet_index >= pPHVFNew->block_packets )
+   bool bStartOfFrameDetected = s_ParserH264RadioInput.parseData(pData, iVideoDataLength, g_TimeNow);
+   if ( ! bStartOfFrameDetected )
       return;
-
-   int iFoundNALVideoFrame = 0;
-   int iFoundPosition = -1;
    
-   for( int k=0; k<iVideoDataLength; k++ )
+   if ( g_iDebugShowKeyFramesAfterRelaySwitch > 0 )
+   if ( s_ParserH264RadioInput.IsInsideIFrame() )
    {
-      s_uParseRadioInNALStartSequence = (s_uParseRadioInNALStartSequence<<8) | (*pTmp);
-      s_uParseRadioInNALTotalParsedBytes++;
-      pTmp++;
-
-      if ( (s_uParseRadioInNALStartSequence & 0xFFFFFF00) == 0x0100 )
-      {
-         s_uParseRadioInLastNALTag = s_uParseRadioInNALStartSequence & 0b11111;
-         if ( s_uParseRadioInLastNALTag == 1 || s_uParseRadioInLastNALTag == 5 )
-         {
-            s_uParseRadioInNALCurrentSlices++;
-            if ( (int)s_uParseRadioInNALCurrentSlices >= camera_get_active_camera_h264_slices(g_pCurrentModel) )
-            {
-               s_uParseRadioInNALCurrentSlices = 0;
-               iFoundNALVideoFrame = s_uParseRadioInLastNALTag;
-               g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize += k;
-               iFoundPosition = k;
-
-               if ( g_iShowVideoKeyframesAfterRelaySwitch > 0 )
-               {
-                  log_line("[Debug] Received video keyframe after relay switch, from VID: %u", pPH->vehicle_id_src);
-                  g_iShowVideoKeyframesAfterRelaySwitch--;
-               }
-            }
-         }
-      }
+      log_line("[Debug] Received video keyframe from VID %u after relay switch.", pPH->vehicle_id_src);
+      g_iDebugShowKeyFramesAfterRelaySwitch--;
    }
 
-   if ( iFoundNALVideoFrame )
-   {
-       u32 delta = g_TimeNow - s_uLastRadioInVideoFrameTime;
-       if ( delta > 254 )
-          delta = 254;
-       if ( delta == 0 )
-          delta = 1;
+   u32 uLastFrameDuration = s_ParserH264RadioInput.getTimeDurationOfLastCompleteFrame();
+   if ( uLastFrameDuration > 127 )
+      uLastFrameDuration = 127;
+   if ( uLastFrameDuration < 1 )
+      uLastFrameDuration = 1;
 
-       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize / 1000;
-       if ( g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize > 127 )
-          g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = 127;
+   u32 uLastFrameSize = s_ParserH264RadioInput.getSizeOfLastCompleteFrame();
+   uLastFrameSize /= 1000; // transform to kbytes
 
-       g_VideoInfoStatsRadioIn.uLastIndex = (g_VideoInfoStatsRadioIn.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-       g_VideoInfoStatsRadioIn.uFramesTimes[g_VideoInfoStatsRadioIn.uLastIndex] = delta;
-       g_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_VideoInfoStatsRadioIn.uLastIndex] = (g_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_VideoInfoStatsRadioIn.uLastIndex] & 0x80) | ((u8)g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize);
-       
-       u32 uNextIndex = (g_VideoInfoStatsRadioIn.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-       if ( iFoundNALVideoFrame == 5 )
-          g_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
-       else
-          g_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
-   
-       g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames++;
-       static u32 s_uLastTimeKeyFrameNALUnit = 0;
-       if ( iFoundNALVideoFrame == 5 )
-       {
-          g_VideoInfoStatsRadioIn.uKeyframeIntervalMs = g_TimeNow - s_uLastTimeKeyFrameNALUnit;
-          s_uLastTimeKeyFrameNALUnit = g_TimeNow;
-          g_VideoInfoStatsRadioIn.uTmpKeframeDeltaFrames = 0;
-       }
+   if ( uLastFrameSize > 127 )
+      uLastFrameSize = 127; // kbytes
 
-       s_uLastRadioInVideoFrameTime = g_TimeNow;
-       g_VideoInfoStatsRadioIn.uTmpCurrentFrameSize = iVideoDataLength-iFoundPosition;
-   }
+   g_SM_VideoInfoStatsRadioIn.uLastIndex = (g_SM_VideoInfoStatsRadioIn.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+   g_SM_VideoInfoStatsRadioIn.uFramesDuration[g_SM_VideoInfoStatsRadioIn.uLastIndex] = uLastFrameDuration;
+   g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastIndex] = (g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastIndex] & 0x80) | ((u8)uLastFrameSize);
+ 
+   u32 uNextIndex = (g_SM_VideoInfoStatsRadioIn.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+  
+   if ( s_ParserH264RadioInput.IsInsideIFrame() )
+      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
    else
-      g_VideoInfoStats.uTmpCurrentFrameSize += iVideoDataLength;
+      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
+
+   g_SM_VideoInfoStatsRadioIn.uKeyframeIntervalMs = s_ParserH264RadioInput.getCurrentlyDetectedKeyframeIntervalMs();
+   g_SM_VideoInfoStatsRadioIn.uDetectedFPS = s_ParserH264RadioInput.getDetectedFPS();
+   g_SM_VideoInfoStatsRadioIn.uDetectedSlices = (u32) s_ParserH264RadioInput.getDetectedSlices();
 }
 
 
@@ -657,6 +625,7 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, t_packet_he
 
    resetVehicleRuntimeInfo(0);
    g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[0] = pPH->vehicle_id_src;
+   g_State.vehiclesRuntimeInfo[0].uVehicleId = pPH->vehicle_id_src;
    
    // Notify central
    t_packet_header PH;
@@ -691,9 +660,10 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
 
    // Did we received a new video stream? Add info for it.
 
-   t_packet_header_video_full_77* pPHVFNew = (t_packet_header_video_full_77*) (pPacket+sizeof(t_packet_header));
-   u8 uVideoStreamIndexAndType = pPHVFNew->video_stream_and_type;
-   u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0x0F) >> 4);
+   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pPacket+sizeof(t_packet_header));
+   u8 uVideoStreamIndexAndType = pPHVF->video_stream_and_type;
+   u8 uVideoStreamIndex = (uVideoStreamIndexAndType & 0x0F);
+   u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0xF0) >> 4);
 
    int iRuntimeIndex = -1;
    int iFirstFreeSlot = -1;
@@ -720,19 +690,36 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
          log_softerror_and_alarm("No more free slots to create new video rx processor, for VID: %u, video stream index %d", uVehicleId, (uVideoStreamIndexAndType & 0x0F));
          return -1;
       }
-      u32 uVideoBlockIndex = pPHVFNew->video_block_index;
-
-      log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %d, video stream type: %d, at radio packet index: %u, video block index: %u", uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()), (int)(uVideoStreamIndexAndType & 0x0F), (int)uVideoStreamType, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
-      g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
+      u32 uVideoBlockIndex = pPHVF->video_block_index;
+      log_line("Start receiving new video stream: type: %d, profile: %d, %s, res: %dx%d, fps: %d, keyframe: %d, scheme: %d/%d, video data size: %d",
+         uVideoStreamType, pPHVF->video_link_profile & 0x0F, str_get_video_profile_name(pPHVF->video_link_profile & 0x0F),
+         pPHVF->video_width, pPHVF->video_height, pPHVF->video_fps,
+         pPHVF->video_keyframe_interval_ms,
+         pPHVF->block_packets, pPHVF->block_fecs, pPHVF->video_data_length);
+      log_line("Create new video Rx processor for VID %u, firmware type: %s, video stream %d, video stream type: %d, at radio packet index: %u, video block index: %u",
+         uVehicleId, str_format_firmware_type(pModel->getVehicleFirmwareType()),
+         (int)uVideoStreamIndex, (int)uVideoStreamType, pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, uVideoBlockIndex);
+         g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, (u32)(uVideoStreamIndexAndType & 0x0F));
       
       g_pVideoProcessorRxList[iFirstFreeSlot]->init();
       iRuntimeIndex = iFirstFreeSlot;
    }
 
    if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+   if ( pPHVF->video_block_packet_index < pPHVF->block_packets )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO )
+   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO )
+   if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
+
+   if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+   if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+   if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
+   {
+      u8* pExtraData = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
+      u32* pExtraDataU32 = (u32*)pExtraData;
+      pExtraDataU32[5] = get_current_timestamp_ms();
+   }
 
    int nRet = 0;
 
@@ -786,9 +773,9 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
    bool bNewVehicleId = true;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      if ( 0 == g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] )
+      if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
          break;
-      if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uVehicleId )
+      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
       {
          bNewVehicleId = false;
          break;
@@ -802,10 +789,10 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       int iFirstFree = -1;
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
-         if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] != 0 )
+         if ( g_State.vehiclesRuntimeInfo[i].uVehicleId != 0 )
             iCount++;
 
-         if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == 0 )
+         if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == 0 )
          if ( -1 == iFirstFree )
             iFirstFree = i;
       }
@@ -818,6 +805,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       {
          resetVehicleRuntimeInfo(iFirstFree);
          g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[iFirstFree] = uVehicleId;
+         g_State.vehiclesRuntimeInfo[iFirstFree].uVehicleId = uVehicleId;
       }
    }
 
@@ -834,7 +822,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       if ( -1 != iRuntimeIndex )
       {
          // Reset pairing info so that pairing is done again with this vehicle
-         resetPairingStateForRuntimeInfo(iRuntimeIndex);
+         resetPairingStateForVehicleRuntimeInfo(iRuntimeIndex);
       }
       for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
       {
@@ -1029,13 +1017,16 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       
-      if ( pPHCR->origin_command_counter == g_uLastCommandRequestIdSent && g_uLastCommandRequestIdSent != MAX_U32 )
-      if ( pPHCR->origin_command_resend_counter == g_uLastCommandRequestIdRetrySent && g_uLastCommandRequestIdRetrySent != MAX_U32 )
+      type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(pPH->vehicle_id_src);
+      if ( NULL != pRuntimeInfo )         
+      if ( pRuntimeInfo->uLastCommandIdSent != MAX_U32 )
+      if ( pRuntimeInfo->uLastCommandIdRetrySent != MAX_U32 )
+      if ( pPHCR->origin_command_counter == pRuntimeInfo->uLastCommandIdSent )
+      if ( pPHCR->origin_command_resend_counter == pRuntimeInfo->uLastCommandIdRetrySent ) 
       {
-         u32 dTime = g_TimeNow - g_uTimeLastCommandRequestSent;
-         g_uLastCommandRequestIdSent = MAX_U32;
-         g_uLastCommandRequestIdRetrySent = MAX_U32;
-         radio_stats_set_commands_rt_delay(&g_SM_RadioStats, dTime);
+         pRuntimeInfo->uLastCommandIdSent = MAX_U32;
+         pRuntimeInfo->uLastCommandIdRetrySent = MAX_U32;
+         addCommandRTTimeToRuntimeInfo(pRuntimeInfo, g_TimeNow - pRuntimeInfo->uTimeLastCommandIdSent);
       }
 
       if ( pPHCR->origin_command_type == COMMAND_ID_SET_RADIO_LINK_FLAGS )

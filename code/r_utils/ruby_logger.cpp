@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -45,6 +45,8 @@
 
 bool g_bQuit = false;
 int s_iCounter = 0;
+int s_iLogKeyId = LOGGER_MESSAGE_QUEUE_ID;
+
 char s_szLogMsg[256];
 
 void _log_logger_message(const char* szMsg)
@@ -58,7 +60,10 @@ void _log_logger_message(const char* szMsg)
    {
       fprintf(fd, "%d: %s\n", s_iCounter, szMsg);
       fclose(fd);
+      log_line("Write to logger (%s)", szFile);
    }
+   else
+      log_line("Failed to write to logger (%s)", szFile);
 }
 
 void handle_sigint(int sig) 
@@ -72,10 +77,9 @@ void handle_sigint(int sig)
 int _open_msg_queue()
 {
    int iLogMsgQueue = -1;
-   type_log_message_buffer logMessage;
 
-   key_t key = generate_msgqueue_key(LOGGER_MESSAGE_QUEUE_ID);
-   iLogMsgQueue = msgget(key, 0666 | IPC_CREAT);
+   key_t key = generate_msgqueue_key(s_iLogKeyId);
+   iLogMsgQueue = msgget(key, IPC_CREAT | S_IRUSR | S_IRGRP | S_IROTH);
    if ( iLogMsgQueue < 0 )
    {
       log_softerror_and_alarm("Failed to create logger message queue");
@@ -86,7 +90,7 @@ int _open_msg_queue()
          log_softerror_and_alarm("Queue already exists. Closing and recreating it.");
          _log_logger_message("Queue already exists. Closing and recreating it.");
          msgctl(iLogMsgQueue,IPC_RMID,NULL);
-         iLogMsgQueue = msgget(key, 0444 | IPC_CREAT);
+         iLogMsgQueue = msgget(key, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
          if ( iLogMsgQueue < 0 )
          {
             log_softerror_and_alarm("Failed to recreate logger message queue");
@@ -105,11 +109,41 @@ int _open_msg_queue()
    return iLogMsgQueue;
 }
 
+
+void _log_platform(bool bNewLine)
+{
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   printf("Built for OpenIPC camera.");
+   #elif defined(HW_PLATFORM_LINUX_GENERIC)
+   printf("Built for Linux");
+   #elif defined(HW_PLATFORM_RASPBERRY)
+   printf("Built for Raspberry");
+   #else
+   printf("Built for N/A");
+   #endif
+   if ( bNewLine )
+      printf("\n");
+}
+
+
 int main(int argc, char *argv[])
 {
    signal(SIGINT, handle_sigint);
    signal(SIGTERM, handle_sigint);
    signal(SIGQUIT, handle_sigint);
+
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
+   {
+      printf("%d.%d (b%d) ", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      _log_platform(false);
+      return 0;
+   }
+
+   if ( argc >= 2 )
+   if ( strcmp(argv[argc-2], "-id") == 0 )
+   {
+      s_iLogKeyId = atoi(argv[argc-1]);
+   }
 
    log_enable_stdout();
    log_init_local_only("RubyLogger");
@@ -142,9 +176,10 @@ int main(int argc, char *argv[])
    while ( !g_bQuit )
    {
       // This is blocking
-      int len = msgrcv(iLogMsgQueue, &logMessage, MAX_SERVICE_LOG_ENTRY_LENGTH, 0, 0);
+      int len = msgrcv(iLogMsgQueue, &logMessage, MAX_SERVICE_LOG_ENTRY_LENGTH, 0, MSG_NOERROR);
       if ( g_bQuit )
          break;
+      
       if ( len <= 0 )
       {
           sprintf(s_szLogMsg, "Failed to read log message queue. Error code: %d, (%s)", errno, strerror(errno));

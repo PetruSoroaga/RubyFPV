@@ -79,6 +79,7 @@ int radio_rx_get_timeout_count_and_reset(int iInterfaceIndex);
 void radio_rx_reset_interfaces_broken_state();
 t_radio_rx_state* radio_rx_get_state();
 
+int radio_rx_has_retransmissions_requests_to_consume();
 int radio_rx_has_packets_to_consume();
 u8* radio_rx_get_next_received_packet(int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex);
 int radio_rx_get_received_packets(int iCount, type_received_radio_packet* pOutputArray);

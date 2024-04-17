@@ -19,7 +19,7 @@ class MenuControllerExpert: public Menu
 
       int m_IndexNiceRouter, m_IndexIONiceRouter, m_IndexIONiceRouterValue;
       int m_IndexNiceCentral;
-      int m_IndexNiceRXVideo, m_IndexIONiceRXVideo, m_IndexIONiceValueRXVideo;
+      int m_IndexAutoRxVideo, m_IndexNiceRXVideo, m_IndexIONiceRXVideo, m_IndexIONiceValueRXVideo;
 
       int m_IndexCPUEnabled;
       int m_IndexGPUEnabled;

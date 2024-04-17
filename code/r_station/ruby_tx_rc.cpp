@@ -417,7 +417,7 @@ int main (int argc, char *argv[])
             }
          }
 
-         if ( s_uLastTimeStampRCInFrame < g_TimeNow - g_pCurrentModel->rc_params.rc_failsafe_timeout_ms )
+         if ( s_uLastTimeStampRCInFrame + g_pCurrentModel->rc_params.rc_failsafe_timeout_ms < g_TimeNow )
             g_PHRCFUpstream.flags &= ~RC_FULL_FRAME_FLAGS_HAS_INPUT;
       }
 

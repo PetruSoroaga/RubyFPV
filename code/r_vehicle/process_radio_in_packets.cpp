@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -504,8 +504,8 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
          if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
             memcpy( &uVideoStreamIndex, pData + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
 
-         if ( g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs != uNewKeyframeValueMs )
-            log_line("[KeyFrame] Recv request from controller for keyframe: %u ms (previous active was: %u ms)", uNewKeyframeValueMs, g_SM_VideoLinkStats.overwrites.uCurrentKeyframeMs);
+         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
+            log_line("[KeyFrame] Recv request from controller for keyframe: %u ms (previous requested was: %u ms)", uNewKeyframeValueMs, g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs);
          else
             log_line("[KeyFrame] Recv again request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
          

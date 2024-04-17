@@ -13,3 +13,5 @@ void osd_add_stats_flight_end();
 void osd_remove_stats_flight_end();
 bool osd_is_stats_flight_end_on();
 void osd_add_stats_total_flights();
+
+void osd_start_flash_osd_elements();

@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -918,7 +918,7 @@ bool process_command(u8* pBuffer, int length)
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
       hardware_sleep_ms(50);
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hw_execute_bash_command("reboot -f", NULL);
       return true;
    }
 
@@ -2277,7 +2277,7 @@ bool process_command(u8* pBuffer, int length)
            szName);
          fclose(fd);
       }
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hw_execute_bash_command("reboot -f", NULL);
       return true;
    }
 
@@ -3450,7 +3450,7 @@ bool process_command(u8* pBuffer, int length)
 
       saveCurrentModel();
       hardware_sleep_ms(400);
-      hw_execute_bash_command("sudo reboot -f", NULL); 
+      hw_execute_bash_command("reboot -f", NULL); 
       return true;
    }
 

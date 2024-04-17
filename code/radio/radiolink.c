@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -56,6 +56,7 @@ int s_bRadioDebugFlag = 0;
 int s_iUsePCAPForTx = 1;
 int s_iRadioInterfacesBroken = 0;
 int s_iRadioLastReadErrorCode = RADIO_READ_ERROR_NO_ERROR;
+int s_iVehicleBehindMilisec = 0;
 
 u8 sPayloadBufferRead[MAX_PACKET_LENGTH_PCAP];
 int sEnableCRCGen = 0;
@@ -263,6 +264,16 @@ void radio_enable_crc_gen(int enable)
 void radio_set_debug_flag()
 {
    s_bRadioDebugFlag = 1;
+}
+
+void radio_set_link_clock_delta(int iVehicleBehindMilisec)
+{
+   s_iVehicleBehindMilisec = iVehicleBehindMilisec;
+}
+
+int  radio_get_link_clock_delta()
+{
+   return s_iVehicleBehindMilisec;
 }
 
 void radio_set_use_pcap_for_tx(int iEnablePCAPTx)
@@ -534,7 +545,7 @@ int _radio_open_interface_for_read_with_filter(int interfaceIndex, char* szFilte
       log_softerror_and_alarm("Unable to open [%s]: %s", pRadioHWInfo->szName, szErrbuf);
       return -1;
    }
-   if ( pcap_set_snaplen(pRadioHWInfo->monitor_interface_read.ppcap, 4096) !=0 )
+   if ( pcap_set_snaplen(pRadioHWInfo->monitor_interface_read.ppcap, 9096) !=0 )
       log_softerror_and_alarm("Error setting [%s] snap buffer length: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
 
    if ( pcap_set_promisc(pRadioHWInfo->monitor_interface_read.ppcap, 1) != 0 )
@@ -618,7 +629,7 @@ int radio_open_interface_for_read(int interfaceIndex, int portNumber)
    else if ( portNumber == RADIO_PORT_ROUTER_DOWNLINK )
       log_line("Opened radio interface %d (%s) for reading on downlink on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
    else
-      log_line("Opened radio interface %d (%s) for reading on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
+      log_line("Opened radio interface %d (%s) for reading on custom port %d on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, portNumber, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
 
    return pRadioHWInfo->monitor_interface_read.selectable_fd;
 }
@@ -1079,7 +1090,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
             
             char szOutput[4096];
             szOutput[0] = 0;
-            hw_execute_bash_command_raw("sudo ifconfig -a | grep wlan", szOutput);
+            hw_execute_bash_command_raw("ifconfig -a | grep wlan", szOutput);
             
             log_line("Reinitializing radio interface %d (%s): found interfaces on ifconfig: [%s]",
                interfaceNumber+1, 
@@ -1124,8 +1135,10 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    {
       if ( 0 == retval )
       {
-         s_iRadioLastReadErrorCode = RADIO_READ_ERROR_TIMEDOUT;
-         log_softerror_and_alarm("Rx ppcap timedout reading a packet.");
+         //s_iRadioLastReadErrorCode = RADIO_READ_ERROR_TIMEDOUT;
+         //log_softerror_and_alarm("Rx ppcap timedout reading a packet.");
+         s_iRadioLastReadErrorCode = RADIO_READ_ERROR_NO_ERROR;
+         
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
             pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
@@ -1401,7 +1414,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    memcpy(pRawPacket, pPacketData, nInputLength);
    totalRadioLength += nInputLength;
 
-   if ( 0 < iExtraData && NULL != pExtraData )
+   if ( (0 < iExtraData) && (NULL != pExtraData) )
    {
       memcpy(pRawPacket+nInputLength, pExtraData, iExtraData);
       totalRadioLength += iExtraData;

@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -131,68 +131,28 @@ void _process_upload_apply()
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       vehicle_stop_video_capture_csi(g_pCurrentModel);
 
-   if ( 0 == s_iUpdateType )
-   {
-      log_line("Apply regular update using zip file...");
-      hw_execute_bash_command("./ruby_update_worker &", NULL);
-      
-      for( int i=0; i<10; i++ )
-      {
-         g_TimeNow = get_current_timestamp_ms();
-         if ( NULL != g_pProcessStats )
-            g_pProcessStats->lastActiveTime = g_TimeNow;
-         hardware_sleep_ms(100);
-      }
-      do
-      {
-         g_TimeNow = get_current_timestamp_ms();
-         if ( NULL != g_pProcessStats )
-            g_pProcessStats->lastActiveTime = g_TimeNow;
-
-         hardware_sleep_ms(100);
-      }
-      while ( hw_process_exists("ruby_update_worker") );
-
-      hw_execute_bash_command("chmod 777 ruby*", NULL);
-
-      _sw_update_close_remove_temp_files();
-      log_line("Done applying regular update using zip file.");
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastActiveTime = g_TimeNow;
-
-      signalReboot();
-      return;
-   }
-
    char szComm[512];
 
    log_line("Save received update archive for backup...");
-   sprintf(szComm, "rm -rf %s/last_update_received.tar 2>&1", FOLDER_RUBY_TEMP);
+   sprintf(szComm, "rm -rf %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %s %s/last_update_received.tar", s_szUpdateArchiveFile, FOLDER_RUBY_TEMP);
+   sprintf(szComm, "cp -rf %s %slast_update_received.tar", s_szUpdateArchiveFile, FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "chmod 777 %s/last_update_received.tar 2>&1", FOLDER_RUBY_TEMP);
+   sprintf(szComm, "chmod 777 %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
-   #ifdef HW_PLATFORM_RASPBERRY
-   sprintf(szComm, "rm -rf %s/last_update_received.tar 2>&1", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %s %s/last_update_received.tar", s_szUpdateArchiveFile, FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "chmod 777 %s/last_update_received.tar 2>&1", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   #endif
-
-   log_line("Apply update using controller mirrored files...");
+   log_line("Apply update using binaries files received from controller...");
    
    log_line("Binaries versions before update:");
    char szOutput[2048];
+   hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
+   log_line("ruby_start: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
    log_line("ruby_rt_vehicle: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
    
-   sprintf(szComm, "tar -C %s -zxf%s 2>&1", FOLDER_BINARIES, s_szUpdateArchiveFile);
+   sprintf(szComm, "tar -C %s -zxf %s 2>&1", FOLDER_BINARIES, s_szUpdateArchiveFile);
    hw_execute_bash_command_raw(szComm, NULL);
    hardware_sleep_ms(800);
    sprintf(szComm, "chmod 777 %s/ruby*", FOLDER_BINARIES);

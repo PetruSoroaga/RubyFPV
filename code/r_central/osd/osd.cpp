@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -73,6 +73,8 @@ bool s_bShowOSDFlightEndStats = false;
 
 bool s_ShowOSDFlightsStats = false;
 u32 s_TimeOSDFlightsStatsOn = 0;
+u32 s_uTimeStartFlashOSDElements = 0;
+
 
 bool osd_is_debug()
 {
@@ -1997,9 +1999,33 @@ void osd_render_elements()
    float height_text_small = osd_getFontHeightSmall();
    float x,y,y0;
 
+   osd_set_colors();
+
    Preferences* p = get_Preferences();
-   set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);
-   set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
+   if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST )
+   {
+      if ( g_TimeNow >= s_uTimeStartFlashOSDElements )
+      {
+         if ( g_TimeNow < s_uTimeStartFlashOSDElements + 50 )
+            return;
+         else if ( g_TimeNow < s_uTimeStartFlashOSDElements + 350 )
+         {
+            set_Color_OSDText( 250, 250, 100, 1.0);
+            set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
+         }
+         else if ( g_TimeNow < s_uTimeStartFlashOSDElements + 400 )
+            return;
+         else if ( g_TimeNow < s_uTimeStartFlashOSDElements + 750 )
+         {
+            set_Color_OSDText( 250, 250, 100, 1.0);
+            set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
+         }
+         else if ( g_TimeNow < s_uTimeStartFlashOSDElements + 800 )
+            return;
+         else
+            s_uTimeStartFlashOSDElements = 0;
+      }
+   }
    osd_set_colors();
 
    if ( (g_bToglleAllOSDOff || g_bToglleOSDOff) && (!s_bDebugOSDShowAll) )
@@ -2750,11 +2776,22 @@ void osd_render_all()
       g_pRenderEngine->setBackgroundBoundingBoxPadding(0.0);
    }
 
+   set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);
+   set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
+   osd_set_colors();
+
    if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
-   {
       osd_render_elements();
+
+   // Set again default OSD colors as OSD elements might have just flashed (yellow)
+
+   set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);
+   set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
+   osd_set_colors();
+
+   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
       osd_render_instruments();
-   }
+
 
    osd_widgets_render(pModel->uVehicleId, osd_get_current_layout_index());
    osd_plugins_render();
@@ -2781,4 +2818,10 @@ void osd_render_all()
 
    g_pRenderEngine->drawBackgroundBoundingBoxes(false);
    g_pRenderEngine->setGlobalAlfa(fAlfaOrg);
+}
+
+void osd_start_flash_osd_elements()
+{
+   if ( 0 == s_uTimeStartFlashOSDElements )
+      s_uTimeStartFlashOSDElements = g_TimeNow;
 }

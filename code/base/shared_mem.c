@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -318,48 +318,60 @@ void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats,
 
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      if ( pSMVIStats->uFramesTimes[i] > uMaxFrameTime )
-         uMaxFrameTime = pSMVIStats->uFramesTimes[i];
-      if ( pSMVIStats->uFramesTimes[i] < uMinFrameTime )
-         uMinFrameTime = pSMVIStats->uFramesTimes[i];
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) > uMaxFrameTime )
+         uMaxFrameTime = (pSMVIStats->uFramesDuration[i] & 0x7F);
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) < uMinFrameTime )
+         uMinFrameTime = (pSMVIStats->uFramesDuration[i] & 0x7F);
    }
 
    pSMVIStats->uAverageFPS = 0;
    pSMVIStats->uAverageFrameTime = 0;
    pSMVIStats->uAverageFrameSize = 0;
+   pSMVIStats->uAveragePFrameSize = 0;
 
    u32 uSumTime = 0;
    u32 uSumSizes = 0;
+   u32 uSumSizesP = 0;
    u32 uSumFramesCount = 0;
+   u32 uSumFramesPCount = 0;
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      //if ( pSMVIStats->uFramesTimes[i] == 0 || pSMVIStats->uFramesTimes[i] == uMinFrame || pSMVIStats->uFramesTimes[i] == uMaxFrame )
-      //   continue;
-      if ( pSMVIStats->uFramesTimes[i] == 0 || (pSMVIStats->uFramesTypesAndSizes[i] & (1<<7)) )
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) == 0 )
          continue;
-      uSumTime += pSMVIStats->uFramesTimes[i];
+      
+      if ( pSMVIStats->uFramesTypesAndSizes[i] & (1<<7) )
+         continue;
+      else
+      {
+         uSumSizesP += ((u32)(pSMVIStats->uFramesTypesAndSizes[i] & 0x7F)) * 8000;
+         uSumFramesPCount++;
+      }
+
+      uSumTime += (pSMVIStats->uFramesDuration[i] & 0x7F);
       uSumSizes += ((u32)(pSMVIStats->uFramesTypesAndSizes[i] & 0x7F)) * 8000;
       uSumFramesCount++;
    }
 
-   if ( 0 < uSumFramesCount && 0 < uSumTime )
+   if ( (0 < uSumFramesCount) && (0 < uSumTime) )
    {
       pSMVIStats->uAverageFPS = uSumFramesCount * 1000 / uSumTime;
       pSMVIStats->uAverageFrameTime = uSumTime / uSumFramesCount;
    }
 
-   if ( 0 < uSumFramesCount && 0 < uSumSizes )
+   if ( (0 < uSumFramesCount) && (0 < uSumSizes) )
       pSMVIStats->uAverageFrameSize = uSumSizes / uSumFramesCount;
+   if ( (0 < uSumFramesPCount) && (0 < uSumSizesP) )
+      pSMVIStats->uAveragePFrameSize = uSumSizesP / uSumFramesPCount;
 
    
    pSMVIStats->uMaxFrameDeltaTime = 0;
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      if ( pSMVIStats->uFramesTimes[i] == 0 )
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) == 0 )
          continue;
-      if ( pSMVIStats->uFramesTimes[i] > pSMVIStats->uAverageFrameTime )
-      if ( pSMVIStats->uFramesTimes[i] - pSMVIStats->uAverageFrameTime > pSMVIStats->uMaxFrameDeltaTime )
-         pSMVIStats->uMaxFrameDeltaTime = pSMVIStats->uFramesTimes[i] - pSMVIStats->uAverageFrameTime;
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) > pSMVIStats->uAverageFrameTime )
+      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) - pSMVIStats->uAverageFrameTime > pSMVIStats->uMaxFrameDeltaTime )
+         pSMVIStats->uMaxFrameDeltaTime = (pSMVIStats->uFramesDuration[i] & 0x7F) - pSMVIStats->uAverageFrameTime;
       //if ( pSMVIStats->uFramesTimes[i] < pSMVIStats->uAverageFrameTime )
       //if ( pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i] > pSMVIStats->uMaxFrameDeltaTime )
       //   pSMVIStats->uMaxFrameDeltaTime = pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i];

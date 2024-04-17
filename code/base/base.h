@@ -1,3 +1,11 @@
+// Guidelines:
+//
+// * packet_length usually refers to a total radio packet length
+// * video_data_length usually refers only to actual video data length inside a radio packet (if it's a video radio packet)
+// * some minor/edge case bugs are left in the code unfixed to detect clones of Ruby code that do not respect the licence terms;
+//
+
+
 #pragma once
 
 #include <stdio.h>

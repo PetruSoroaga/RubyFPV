@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -235,7 +235,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 
 void MenuVehicleVideoEncodings::valuesToUI()
 {
-   m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].packet_length);
+   m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length);
 
    m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets);
    m_pItemsSlider[1]->setEnabled(true);
@@ -420,7 +420,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 
    type_video_link_profile* pProfile = &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
 
-   pProfile->packet_length = m_pItemsSlider[0]->getCurrentValue();
+   pProfile->video_data_length = m_pItemsSlider[0]->getCurrentValue();
    pProfile->block_packets = m_pItemsSlider[1]->getCurrentValue();
    pProfile->block_fecs = m_pItemsSlider[2]->getCurrentValue();
    
@@ -515,7 +515,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    }
 
    if ( pProfile->radio_datarate_video_bps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
-   if ( pProfile->packet_length == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].packet_length )
+   if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length )
    if ( pProfile->block_packets == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets )
    if ( pProfile->block_fecs == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs )
    if ( pProfile->encoding_extra_flags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags )

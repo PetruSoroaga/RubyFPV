@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -362,6 +362,7 @@ void MenuVehicleManagement::onSelectItem()
       getSystemVersionString(szBuff2, g_pCurrentModel->sw_version);
 
       if ( ((g_pCurrentModel->sw_version) & 0xFFFF) >= (SYSTEM_SW_VERSION_MAJOR*256)+SYSTEM_SW_VERSION_MINOR )
+      if ( (g_pCurrentModel->sw_version >> 16) >= SYSTEM_SW_BUILD_NUMBER )
       {
          char szBuff[256];
 
@@ -372,10 +373,10 @@ void MenuVehicleManagement::onSelectItem()
          //pMC->addTopLine("Note: Do not keep the vehicle very close to the controller as the radio power might be too powerfull and generate noise.");
          return;
       }
-      char szBuff[256];
+      char szBuff[512];
       char szBuff3[64];
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      sprintf(szBuff, "Your vehicle has software version %s and software version %s is available on the controller. Do you want to upgrade vehicle?", szBuff2, szBuff3);
+      sprintf(szBuff, "Your vehicle has software version %s (b%d) and software version %s (b%d) is available on the controller. Do you want to upgrade vehicle?", szBuff2, (int)(g_pCurrentModel->sw_version >> 16), szBuff3, SYSTEM_SW_BUILD_NUMBER);
       MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, 2);
       add_menu_to_stack(pMC);
    }

@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -324,9 +324,11 @@ void relay_on_relay_mode_changed(u8 uOldMode, u8 uNewMode)
 
    if ( uOldMode & RELAY_MODE_REMOTE )
    if ( ! (uNewMode & RELAY_MODE_REMOTE) )
-      video_link_auto_keyframe_set_controller_requested_value(0, DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL);
+   {
+      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL, "relay mode changed");
+   }
 
-   g_iShowVideoKeyframesAfterRelaySwitch = 6;
+   g_iDebugShowKeyFramesAfterRelaySwitch = 6;
 }
 
 void relay_on_relay_flags_changed(u32 uNewFlags)

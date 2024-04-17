@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -293,7 +293,7 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
          log_line("[Commands] Reset temp model download buffers for VID %u, runtime index %d", g_VehiclesRuntimeInfo[i].uVehicleId, i);
       
          if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings != MAX_U32 )
-         if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings > g_TimeNow-5000 )
+         if ( g_VehiclesRuntimeInfo[i].uTimeLastReceivedModelSettings+5000 > g_TimeNow )
          {
             log_line("[Commands] Already has up to date model settings for vehicle id %u. Ignoring it.", modelTemp.uVehicleId);
             return 0;
@@ -2047,7 +2047,7 @@ bool _commands_check_download_file_segments()
       return false;
 
    if ( s_uFileToDownloadState != 1 )
-   if ( s_CommandStartTime < g_TimeNow - 4000 )
+   if ( s_CommandStartTime+4000 < g_TimeNow )
    {
       handle_commands_send_to_vehicle(COMMAND_ID_DOWNLOAD_FILE, s_uFileIdToDownload | 0xFF000000, NULL, 0);
       return true;

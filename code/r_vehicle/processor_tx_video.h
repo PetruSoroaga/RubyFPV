@@ -30,11 +30,9 @@ class ProcessorTxVideo
       u32 getCurrentTotalVideoBitrateAverage();
       u32 getCurrentTotalVideoBitrateAverageLastMs(u32 uMilisec);
       
-      void setLastRequestedKeyframeFromController(int iKeyframeIntervalMs);
       void setLastRequestedAdaptiveVideoLevelFromController(int iLevel);
       void setLastSetCaptureVideoBitrate(u32 uBitrate, bool bInitialValue, int iSource);
 
-      int getLastRequestedKeyframeFromController();
       int getLastRequestedAdaptiveVideoLevelFromController();
       u32 getLastSetCaptureVideoBitrate();
 
@@ -45,7 +43,6 @@ class ProcessorTxVideo
       int m_iInstanceIndex;
       int m_iVideoStreamIndex;
       int m_iCameraIndex;
-      int m_iLastRequestedKeyframeIntervalFromController;
       int m_iLastRequestedAdaptiveVideoLevelFromController;
       u32 m_uInitialSetCaptureVideoBitrate;
       u32 m_uLastSetCaptureVideoBitrate;
@@ -72,6 +69,7 @@ u8* process_data_tx_video_get_current_buffer_to_read_pointer();
 int process_data_tx_video_get_current_buffer_to_read_size();
 bool process_data_tx_video_on_new_data(u8* pData, int iDataSize);
 
+bool process_data_tx_is_on_iframe();
 int process_data_tx_video_has_packets_ready_to_send();
 int process_data_tx_video_send_packets_ready_to_send(int howMany);
 
@@ -80,8 +78,6 @@ void process_data_tx_video_signal_model_changed();
 
 void process_data_tx_video_pause_tx();
 void process_data_tx_video_resume_tx();
-
-void process_data_tx_video_set_current_keyframe_interval(int iKeyframeMs, const char* szReason);
 
 void process_data_tx_video_reset_retransmissions_history_info();
 

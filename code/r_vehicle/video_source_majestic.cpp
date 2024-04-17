@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -35,6 +35,7 @@
 #include "../base/hardware_camera.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
+#include "../base/parser_h264.h"
 #include "../base/utils.h"
 #include "../common/string_utils.h"
 #include "../radio/radiopackets2.h"
@@ -50,6 +51,8 @@
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
+
+extern ParserH264 s_ParserH264CameraOutput;
 
 int s_fInputVideoStreamUDPSocket = -1;
 int s_iInputVideoStreamUDPPort = 5600;
@@ -68,6 +71,16 @@ bool s_bHasPendingMajesticRealTimeChanges = false;
 u32 s_uTimeLastMajesticImageRealTimeUpdate = 0;
 
 u32 s_uTimeLastCheckMajestic = 0;
+
+
+void video_source_majestic_init_all_params()
+{
+   hardware_camera_apply_all_majestic_settings(&(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
+          &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]));
+   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+   log_line("Completed setting initial majestic params. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
+}
 
 void video_source_majestic_close()
 {
@@ -371,11 +384,12 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
 
 void video_source_majestic_periodic_checks()
 {
-   if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+1000 )
+   if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+10000 )
    {
-      //log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-      //   s_uDebugUDPInputBytes, s_uDebugUDPInputBytes*8, s_uDebugUDPInputReads);
+      log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %u bps, %u reads/sec",
+         s_uDebugUDPInputBytes/10, s_uDebugUDPInputBytes/10*8, s_uDebugUDPInputReads/10);
       s_uDebugTimeLastUDPVideoInputCheck = g_TimeNow;
+      log_line("[VideoSourceUDP] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
       s_uDebugUDPInputBytes = 0;
       s_uDebugUDPInputReads = 0;
    }
@@ -400,7 +414,7 @@ void video_source_majestic_periodic_checks()
       s_bHasPendingMajesticRealTimeChanges = false;
       s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
       camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      // Save image settings to yaml file
+      // Save image settings to yaml file, but do not restart majestic
       hardware_camera_apply_all_majestic_camera_settings(pCameraParams, false);
    }
 

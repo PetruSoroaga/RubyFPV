@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -366,6 +366,21 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    else
       hw_execute_bash_command_raw("cli -s .image.flip false", NULL);
 
+   if ( 0 == pCameraParams->shutterspeed )
+   {
+      sprintf(szComm, "cli -d .isp.exposure");
+      hw_execute_bash_command_raw(szComm, NULL);      
+   }
+   else
+   {
+      // exposure is in milisec for ssc338q and in seconds for goke
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
+         sprintf(szComm, "cli -s .isp.exposure %.2f", (float)pCameraParams->shutterspeed/1000.0);
+      else
+         sprintf(szComm, "cli -s .isp.exposure %d", pCameraParams->shutterspeed);
+      hw_execute_bash_command_raw(szComm, NULL);
+   }
+
    if ( bForceUpdate )
       hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
@@ -380,7 +395,7 @@ void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pC
    char szComm[128];
 
    hw_execute_bash_command_raw("cli -s .watchdog.enabled false", NULL);
-   hw_execute_bash_command_raw("cli -s .system.logLevel none", NULL);
+   hw_execute_bash_command_raw("cli -s .system.logLevel info", NULL);
    hw_execute_bash_command_raw("cli -s .video1.enabled false", NULL);
    hw_execute_bash_command_raw("cli -s .video0.enabled true", NULL);
    hw_execute_bash_command_raw("cli -s .video0.codec h264", NULL);

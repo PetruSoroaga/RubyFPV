@@ -39,13 +39,13 @@ extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;
 extern shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats;
 extern shared_mem_audio_decode_stats g_SM_AudioDecodeStats;
 
-extern shared_mem_video_info_stats* g_pSM_VideoInfoStats;
-extern shared_mem_video_info_stats g_SM_VideoInfoStats;
+extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsOutput;
+extern shared_mem_video_info_stats g_SM_VideoInfoStatsOutput;
 
 extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioIn;
 extern shared_mem_video_info_stats g_SM_VideoInfoStatsRadioIn;
 
-extern shared_mem_video_info_stats g_VideoInfoStatsFromVehicle;
+extern shared_mem_video_info_stats g_VideoInfoStatsFromVehicleCameraOut;
 extern shared_mem_video_info_stats g_VideoInfoStatsFromVehicleRadioOut;
 
 extern shared_mem_video_stream_stats_rx_processors* g_pSM_VideoDecodeStats;

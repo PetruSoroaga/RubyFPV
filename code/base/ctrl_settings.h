@@ -25,7 +25,7 @@ typedef struct
    int iNiceRouter; // 0 - disabled
    int ioNiceRouter; // 0 or negative - disabled
    int iNiceCentral; // 0 - disabled
-   int iNiceRXVideo;
+   int iNiceRXVideo; // 0 - auto
    int ioNiceRXVideo; // 0 or negative - disabled
    int iVideoForwardUSBType; // 0 - none, 1 - raw (h264)
    int iVideoForwardUSBPort;
@@ -60,7 +60,7 @@ typedef struct
    int iFreezeOSD;
    int iDevSwitchVideoProfileUsingQAButton;
    int iShowControllerAdaptiveInfoStats;
-   int iShowVideoStreamInfoCompact;
+   int iShowVideoStreamInfoCompactType;
 
    int iSearchSiKAirRate;
    int iSearchSiKECC;

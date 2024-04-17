@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -271,7 +271,7 @@ void osd_warnings_render()
       static float s_fOSDWarningsAverageThrottle = 0.0;
       static float s_fOSDWarningsAverageCurrent = 0.0;
 
-      if ( g_RouterIsReadyTimestamp > g_TimeNow-4000 )
+      if ( g_RouterIsReadyTimestamp + 4000 > g_TimeNow )
       {
          s_fOSDWarningsAverageThrottle = g_VehiclesRuntimeInfo[i].headerFCTelemetry.throttle;
          s_fOSDWarningsAverageCurrent = g_VehiclesRuntimeInfo[i].headerFCTelemetry.current/1000.0;
@@ -283,7 +283,7 @@ void osd_warnings_render()
       }
 
       bool bShowMotorAlarm = false;
-      if ( g_RouterIsReadyTimestamp < g_TimeNow-5000 )
+      if ( g_RouterIsReadyTimestamp + 5000 < g_TimeNow )
       if ( g_VehiclesRuntimeInfo[i].pModel->alarms_params.uAlarmMotorCurrentThreshold & (1<<7) )
       if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK )
       if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )

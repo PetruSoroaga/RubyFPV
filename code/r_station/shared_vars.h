@@ -8,6 +8,8 @@
 #include "../base/shared_mem_controller_only.h"
 #include "../base/utils.h"
 
+#include "shared_vars_state.h"
+
 #include "processor_rx_video.h"
 
 // Define this to get profile logs about receiving and processing rx packets times
@@ -39,9 +41,9 @@ extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 extern shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats;
 
-extern shared_mem_video_info_stats g_VideoInfoStats;
-extern shared_mem_video_info_stats g_VideoInfoStatsRadioIn;
-extern shared_mem_video_info_stats* g_pSM_VideoInfoStats;
+extern shared_mem_video_info_stats g_SM_VideoInfoStatsOutput;
+extern shared_mem_video_info_stats g_SM_VideoInfoStatsRadioIn;
+extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsOutput;
 extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioIn;
 
 extern shared_mem_router_vehicles_runtime_info g_SM_RouterVehiclesRuntimeInfo;
@@ -90,17 +92,8 @@ extern int g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand;
 extern bool g_bIsVehicleLinkToControllerLost;
 extern bool g_bIsControllerLinkToVehicleLost;
 
-extern u32 g_uLastCommandRequestIdSent;
-extern u32 g_uLastCommandRequestIdRetrySent;
-
-extern int g_iShowVideoKeyframesAfterRelaySwitch;
+extern int g_iDebugShowKeyFramesAfterRelaySwitch;
 
 extern int g_iGetSiKConfigAsyncResult;
 extern int g_iGetSiKConfigAsyncRadioInterfaceIndex;
 extern u8 g_uGetSiKConfigAsyncVehicleLinkIndex;
-
-void resetVehicleRuntimeInfo(int iIndex);
-void removeVehicleRuntimeInfo(int iIndex);
-int  getVehicleRuntimeIndex(u32 uVehicleId);
-void resetPairingStateForRuntimeInfo(int iIndex);
-void logCurrentVehiclesRuntimeInfo();

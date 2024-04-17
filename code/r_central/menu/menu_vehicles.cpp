@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -111,6 +111,8 @@ void MenuVehicles::onShow()
       {
          log_line("[Menu] MenuVehicles: Found current vehicle in the list at position %d. Added as menu item index %d.", i, iIndexItem);
          bCurrentVehicleFound = true;
+         if ( -1 == m_iLastSelectedVehicle )
+            m_iLastSelectedVehicle = i;
       }
 
       if ( -1 != m_iLastSelectedVehicle )

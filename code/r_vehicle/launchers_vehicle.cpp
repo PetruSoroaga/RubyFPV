@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -241,6 +241,7 @@ void vehicle_stop_audio_capture(Model* pModel)
 #ifdef HW_PLATFORM_RASPBERRY
 static bool s_bThreadBgAffinitiesStarted = false;
 static int s_iCPUCoresCount = -1;
+static bool s_bAdjustAffinitiesIsVeyeCamera = false;
 
 static void * _thread_adjust_affinities_vehicle(void *argument)
 {
@@ -251,7 +252,7 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
       bool* pB = (bool*)argument;
       bVeYe = *pB;
    }
-   log_line("Started background thread to adjust processes affinities (arg: %p, veye: %d)...", argument, (int)bVeYe);
+   log_line("Started background thread to adjust processes affinities (arg: %p, veye: %d (%d))...", argument, (int)bVeYe, (int)s_bAdjustAffinitiesIsVeyeCamera);
    
    if ( s_iCPUCoresCount < 1 )
    {
@@ -309,13 +310,13 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
 void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
 {
    #ifdef HW_PLATFORM_RASPBERRY
-
+   s_bAdjustAffinitiesIsVeyeCamera = bVeYe;
    log_line("Adjust processes affinities. Use thread: %s, veye camera: %s",
-      (bUseThread?"Yes":"No"), (bVeYe?"Yes":"No"));
+      (bUseThread?"Yes":"No"), (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
 
    if ( ! bUseThread )
    {
-      _thread_adjust_affinities_vehicle(&bVeYe);
+      _thread_adjust_affinities_vehicle(&s_bAdjustAffinitiesIsVeyeCamera);
       log_line("Adjusted processes affinities");
       return;
    }
@@ -328,14 +329,14 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
    s_bThreadBgAffinitiesStarted = true;
    pthread_t pThreadBgAffinities;
 
-   if ( 0 != pthread_create(&pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &bVeYe) )
+   if ( 0 != pthread_create(&pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &s_bAdjustAffinitiesIsVeyeCamera) )
    {
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
       s_bThreadBgAffinitiesStarted = false;
       return;
    }
 
-   log_line("Created thread for adjusting processes affinities (veye: %s)", (bVeYe?"Yes":"No"));
+   log_line("Created thread for adjusting processes affinities (veye: %s)", (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
 
    #endif
 }

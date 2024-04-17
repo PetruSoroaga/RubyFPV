@@ -58,7 +58,8 @@ typedef struct
    u32 txPacketsPerSec;
    u32 timeLastRxPacket;
    u32 timeLastTxPacket;
-
+   u32 uLastRecvStreamPacketIndex;
+   int iHasMissingStreamPacketsFlag;
    u32 tmpRxBytes;
    u32 tmpTxBytes;
    u32 tmpRxPackets;
@@ -179,9 +180,6 @@ typedef struct
    u32 tmpTxPackets;
    u32 tmpUncompressedTxPackets;
 
-   u32 linkDelayRoundtripMsLastTime;
-   u32 linkDelayRoundtripMs;
-   u32 linkDelayRoundtripMinimMs;
    int lastTxInterfaceIndex;
    int lastSentDataRateVideo; // positive: bps, negative: MCS, 0 - never
    int lastSentDataRateData;
@@ -206,9 +204,6 @@ typedef struct
    u32 all_downlinks_tx_time_per_sec;
    u32 tmp_all_downlinks_tx_time_per_sec;
 
-   u32 uAverageCommandRoundtripMiliseconds;
-   u32 uMaxCommandRoundtripMiliseconds;
-   u32 uMinCommandRoundtripMiliseconds;
    u32 uTimeLastReceivedAResponseFromVehicle;
    u32 timeLastRxPacket;
    

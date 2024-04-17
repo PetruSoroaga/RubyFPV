@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -1232,7 +1232,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
          {
             if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] != g_pCurrentModel->uVehicleId )
                continue;
-            uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
+            uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
             break;
          }
          sprintf(szBuff, "Link-%d RT delay:", iVehicleRadioLink+1);
@@ -1254,7 +1254,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       {
          if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] == 0 )
             continue;
-         u32 uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
+         u32 uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
          Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k], 31);
          if ( NULL != pModel )
             sprintf(szBuff, "%s:",pModel->getLongName());
@@ -1285,6 +1285,17 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
             break;
          }
       }
+
+      int iIndexVehicleRuntimeInfo = -1;
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
+         {
+            iIndexVehicleRuntimeInfo = i;
+            break;
+         }
+      }
+      
       g_pRenderEngine->setColors(get_Color_Dev());
 
       if ( NULL != pCRS )
@@ -1303,17 +1314,23 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;
 
-      if ( (pRadioStats->uAverageCommandRoundtripMiliseconds == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+      if ( -1 == iIndexVehicleRuntimeInfo )
+         strcpy(szBuff, "N/A");
+      else if ( (g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[iIndexVehicleRuntimeInfo] == MAX_U32) || (pActiveModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
          strcpy(szBuff, "N/A");
       else
-         sprintf(szBuff, "%d", pRadioStats->uAverageCommandRoundtripMiliseconds);
+         sprintf(szBuff, "%d", g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[iIndexVehicleRuntimeInfo]);
+
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay:", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
-      if ( (pRadioStats->uMinCommandRoundtripMiliseconds == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+      if ( -1 == iIndexVehicleRuntimeInfo )
+         strcpy(szBuff, "N/A");
+      if ( (g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[iIndexVehicleRuntimeInfo] == MAX_U32) || (pActiveModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
          strcpy(szBuff, "N/A");
       else
-         sprintf(szBuff, "%d", pRadioStats->uMinCommandRoundtripMiliseconds);
+         sprintf(szBuff, "%d", g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[iIndexVehicleRuntimeInfo]);
+      
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay (min):", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
    }

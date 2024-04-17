@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -32,6 +32,9 @@
 #include <stdio.h>
 #include <semaphore.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
 #include "../base/base.h"
 #include "../base/config.h"
@@ -332,7 +335,7 @@ bool _check_for_update_from_boot()
 
    log_line("Done executing update from /boot folder. Rebooting now.");
    fflush(stdout);
-   hw_execute_bash_command("sudo reboot -f", NULL);
+   hw_execute_bash_command("reboot -f", NULL);
    return true;
    #else
    return false;
@@ -498,6 +501,76 @@ void _test()
    close(socket_server);
 }
 
+void _test_log(int argc, char *argv[])
+{
+   log_enable_stdout();
+   log_init_local_only("RubyStart");
+   log_arguments(argc, argv);
+
+   int iKeyId = LOGGER_MESSAGE_QUEUE_ID;
+   if ( argc >= 2 )
+   if ( strcmp(argv[argc-2], "-testlog") == 0 )
+   {
+      iKeyId = atoi(argv[argc-1]);
+   }
+
+   log_line_forced_to_file("Test: Using initial message queue key id: %d", iKeyId);
+   
+   /*
+   hw_stop_process("ruby_logger");
+
+   if ( ! hw_process_exists("ruby_logger") )
+   {
+      if ( iKeyId == LOGGER_MESSAGE_QUEUE_ID )
+         hw_execute_ruby_process(NULL, "ruby_logger", NULL, NULL);
+      else
+      {
+         char szParams[128];
+         sprintf(szParams, "-id %d", iKeyId);
+         hw_execute_ruby_process(NULL, "ruby_logger", szParams, NULL);
+      }
+      hardware_sleep_ms(300);
+   }
+   */
+   key_t logServiceKey = 0;
+   int logServiceMessageQueue = -1;
+
+   logServiceKey = generate_msgqueue_key(iKeyId);
+   log_line_forced_to_file("Test: Generated logger msgqueue key: 0x%X", logServiceKey);
+   
+   logServiceMessageQueue = msgget(logServiceKey, S_IWUSR | S_IWGRP | S_IWOTH);
+   if ( logServiceMessageQueue == -1 )
+      log_line_forced_to_file("Test: Failed to get logger message queue id, error: %d, [%s]", errno,  strerror(errno));
+   else
+      log_line_forced_to_file("Test: Got logger message queue id: %d", logServiceMessageQueue);
+
+   type_log_message_buffer msg;
+   msg.type = 1;
+   msg.text[0] = 0;
+
+   strcpy(msg.text, "Test: Manual log entry sent directly to logger service, waiting for it.");
+
+   if ( msgsnd(logServiceMessageQueue, &msg, strlen(msg.text)+1, 0) < 0 )
+      log_line_forced_to_file("Test: Failed to send manual log entry (waiting for it).");
+   else
+      log_line_forced_to_file("Test: Sent successfully manual log entry (waiting for it)");
+
+
+   strcpy(msg.text, "Test: Manual log entry sent directly to logger service, no wait.");
+
+   if ( msgsnd(logServiceMessageQueue, &msg, strlen(msg.text)+1, IPC_NOWAIT) < 0 )
+      log_line_forced_to_file("Test: Failed to send manual log entry (no wait).");
+   else
+      log_line_forced_to_file("Test: Sent successfully manual log entry (no wait)");
+
+
+   log_line("Test log line automated");
+
+   //if ( bStartedLog )
+   //   hw_stop_process("ruby_logger");
+}
+
+
 void _log_platform(bool bNewLine)
 {
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
@@ -566,6 +639,19 @@ int main(int argc, char *argv[])
    if ( strcmp(argv[argc-1], "-test") == 0 )
    {
       _test();
+      return 0;
+   }
+
+   if ( strcmp(argv[argc-1], "-testlog") == 0 )
+   {
+      _test_log(argc, argv);
+      return 0;
+   }
+
+   if ( argc >= 2 )
+   if ( strcmp(argv[argc-2], "-testlog") == 0 )
+   {
+      _test_log(argc, argv);
       return 0;
    }
 
@@ -819,7 +905,7 @@ int main(int argc, char *argv[])
    szOutput[0] = 0;
 
    #ifdef HW_CAPABILITY_I2C
-   hw_execute_bash_command("sudo modprobe i2c-dev", NULL);
+   hw_execute_bash_command("modprobe i2c-dev", NULL);
    #endif
 
    hardware_radio_load_radio_modules();
@@ -931,7 +1017,7 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("rm -rf config/*", NULL);
       sprintf(szComm, "touch %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
       hw_execute_bash_command(szComm, NULL);
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hw_execute_bash_command("reboot -f", NULL);
       hardware_sleep_ms(900);
    }
 
@@ -1277,7 +1363,7 @@ int main(int argc, char *argv[])
       #endif
       hardware_sleep_ms(500);
       if ( ! g_bDebug )
-         hw_execute_bash_command("sudo reboot -f", NULL);
+         hw_execute_bash_command("reboot -f", NULL);
       return 0;
    }
  

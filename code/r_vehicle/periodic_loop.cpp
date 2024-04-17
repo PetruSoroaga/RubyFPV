@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -44,6 +44,7 @@
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopacketsqueue.h"
 
+#include <ctype.h>
 #include "shared_vars.h"
 #include "timers.h"
 #include "ruby_rt_vehicle.h"
@@ -53,6 +54,7 @@
 #include "utils_vehicle.h"
 #include "launchers_vehicle.h"
 #include "video_link_check_bitrate.h"
+#include "video_source_csi.h"
 
 u32 s_LoopCounter = 0;
 u32 s_debugFramesCount = 0;
@@ -63,6 +65,8 @@ long s_lLastLiveLogFileOffset = -1;
 extern u16 s_countTXVideoPacketsOutPerSec[2];
 extern u16 s_countTXDataPacketsOutPerSec[2];
 extern u16 s_countTXCompactedPacketsOutPerSec[2];
+
+static u32 s_uTimeLastCheckForRaspiDebugMessages = 0;
 
 static void * _reinit_sik_thread_func(void *ignored_argument)
 {
@@ -239,6 +243,107 @@ int _check_reinit_sik_interfaces()
    return 1;
 }
 
+
+void _check_for_debug_raspi_messages()
+{
+   if ( g_TimeNow < s_uTimeLastCheckForRaspiDebugMessages + 2000 )
+      return;
+   s_uTimeLastCheckForRaspiDebugMessages = g_TimeNow;
+
+   if( access( "tmp.cmd", R_OK ) == -1 )
+      return;
+
+   int iCommand = 0;
+   int iParam = 0;
+
+   hardware_sleep_ms(20);
+
+   FILE* fd = fopen("tmp.cmd", "r");
+   if ( NULL == fd )
+      return;
+   if ( 2 != fscanf(fd, "%d %d", &iCommand, &iParam) )
+   {
+      iCommand = 0;
+      iParam = 0;
+   } 
+
+   fclose(fd);
+   hw_execute_bash_command_silent("rm -rf tmp.cmd", NULL);
+
+   if ( iCommand > 0 )
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message((u8)iCommand, (u8)iParam);
+}
+
+
+void _check_free_storage_space()
+{
+   static u32 sl_uCountMemoryChecks = 0;
+   static u32 sl_uTimeLastMemoryCheck = 0;
+
+   if ( (0 == sl_uCountMemoryChecks && (g_TimeNow > g_TimeStart+2000)) || (g_TimeNow > sl_uTimeLastMemoryCheck + 60000) )
+   {
+      sl_uCountMemoryChecks++;
+      sl_uTimeLastMemoryCheck = g_TimeNow;
+      
+      int iFreeSpaceKb = hardware_get_free_space_kb();
+      int iMinFreeKb = 100*1000;
+      #ifdef HW_PLATFORM_OPENIPC_CAMERA
+      iMinFreeKb = 100;
+      #endif
+      if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+      {
+         char szComm[128];
+         char szOutput[2048];
+         szOutput[0] = 0;
+         sprintf(szComm, "du -h %s", FOLDER_LOGS );
+         hw_execute_bash_command_raw(szComm, szOutput);
+         for( int i=0; i<(int)strlen(szOutput); i++ )
+         {
+           if ( isspace(szOutput[i]) )
+           {
+              szOutput[i] = 0;
+              break;
+           }
+         }
+         u32 uLogSize = 0;
+         int iSize = strlen(szOutput)-1;
+         if ( (iSize > 0) && (! isdigit(szOutput[iSize])) )
+         {
+            if ( szOutput[iSize] == 'M' || szOutput[iSize] == 'm' )
+            {
+               for( int i=0; i<(int)strlen(szOutput); i++ )
+               {
+                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
+                 {
+                    szOutput[i] = 0;
+                    break;
+                 }
+               }
+               sscanf(szOutput, "%u", &uLogSize);
+               uLogSize *= 1000 * 1000;
+            }
+            if ( szOutput[iSize] == 'K' || szOutput[iSize] == 'k' )
+            {
+               for( int i=0; i<(int)strlen(szOutput); i++ )
+               {
+                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
+                 {
+                    szOutput[i] = 0;
+                    break;
+                 }
+               }
+               sscanf(szOutput, "%u", &uLogSize);
+               uLogSize *= 1000;
+            }
+         }
+         log_line("Device is running out of free space. Free space: %d kb, logs use %d kb", iFreeSpaceKb, uLogSize);
+         send_alarm_to_controller(ALARM_ID_VEHICLE_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, uLogSize/1000, 5);
+      }
+   }
+}
+
 void _check_write_filesystem()
 {
    static bool s_bRouterCheckedForWriteFileSystem = false;
@@ -299,7 +404,7 @@ void _send_radio_stats_to_controller()
    }
 
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = g_uControllerId;
    
@@ -488,7 +593,7 @@ void _update_videobitrate_history_data()
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoProfileSwitches = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
 
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(shared_mem_dev_video_bitrate_history);
@@ -499,18 +604,8 @@ void _update_videobitrate_history_data()
    packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 }
 
-// returns 1 if main loop should terminate
-
-int periodicLoop()
+void _check_send_initial_vehicle_settings()
 {
-   s_LoopCounter++;
-   s_debugFramesCount++;
-
-   _check_reinit_sik_interfaces();
-
-   if ( test_link_is_in_progress() )
-      test_link_loop();
-
    if ( ! g_bHasSentVehicleSettingsAtLeastOnce )
    if ( (g_TimeNow > g_TimeStart + 4000) )
    {
@@ -531,7 +626,10 @@ int periodicLoop()
 
       _check_write_filesystem();
    }
+}
 
+void _check_save_updated_camera_params()
+{
    // Save lastest camera params to flash (on camera)
    if ( 0 != g_uTimeToSaveCameraParams )
    if ( g_TimeNow > g_uTimeToSaveCameraParams )
@@ -551,7 +649,10 @@ int periodicLoop()
       #endif
       g_uTimeToSaveCameraParams = 0;
    }
+}
 
+void _periodic_update_radio_stats()
+{
    if ( radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow) )
    {
       // Send them to controller if needed
@@ -576,67 +677,10 @@ int periodicLoop()
          sl_uLastTimeSentRadioInterfacesStats = uSendInterval;
       }
    }
+}
 
-   //_periodic_loop_check_ping();
-
-#ifdef FEATURE_ENABLE_RC_FREQ_SWITCH
-   if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) &&
-        (s_uTimeFrequencyChangeRequest != 0) && (g_TimeNow > s_uTimeFrequencyChangeRequest + VEHICLE_SWITCH_FREQUENCY_AFTER_MS) )
-   {
-      log_line("Processing pending RC trigger to change frequency to: %s on link: %d", str_format_frequency(s_uPendingFrequencyChangeTo), s_iPendingFrequencyChangeLinkId+1 );
-      g_pCurrentModel->compute_active_radio_frequencies(true);
-
-      for( int i=0; i<g_pCurrentModel->nic_count; i++ )
-      {
-         if ( g_pCurrentModel->nic_flags[i] & NIC_FLAG_DISABLED )
-            continue;
-         if ( i == s_iPendingFrequencyChangeLinkId )
-         {
-            radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_link_id[i], s_uPendingFrequencyChangeTo, g_pProcessStats, 0); 
-            g_pCurrentModel->nic_frequency[i] = s_uPendingFrequencyChangeTo;
-         }
-      }
-      hardware_save_radio_info();
-      g_pCurrentModel->compute_active_radio_frequencies(true);
-      saveCurrentModel();
-      log_line("Notifying all other components of the new link frequency.");
-
-      t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, STREAM_ID_DATA);
-      PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-      PH.vehicle_id_dest = 0;
-      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
-   
-      u8 buffer[MAX_PACKET_TOTAL_SIZE];
-      memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-      u32* pI = (u32*)((&buffer[0])+sizeof(t_packet_header));
-      *pI = (u32)s_iPendingFrequencyChangeLinkId;
-      pI++;
-      *pI = s_uPendingFrequencyChangeTo;
-      
-      radio_packet_compute_crc(buffer, PH.total_length);
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;  
-
-      write(s_fPipeTelemetryUplink, buffer, PH.total_length);
-      write(s_fPipeToCommands, buffer, PH.total_length);
-      log_line("Done notifying all other components about the frequency change.");
-      s_iPendingFrequencyChangeLinkId = -1;
-      s_uPendingFrequencyChangeTo = 0;
-      s_uTimeFrequencyChangeRequest = 0;
-   }
-#endif
-
-   int iMaxRxQuality = 0;
-   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-      if ( g_SM_RadioStats.radio_interfaces[i].rxQuality > iMaxRxQuality )
-         iMaxRxQuality = g_SM_RadioStats.radio_interfaces[i].rxQuality;
-        
-   if ( g_SM_VideoLinkGraphs.vehicleRXQuality[0] == 255 || (iMaxRxQuality < g_SM_VideoLinkGraphs.vehicleRXQuality[0]) )
-      g_SM_VideoLinkGraphs.vehicleRXQuality[0] = iMaxRxQuality;
-
-
+void _update_tx_out_stats()
+{
    if ( g_TimeNow >= g_TimeLastPacketsOutPerSecCalculation + 500 )
    {
       g_TimeLastPacketsOutPerSecCalculation = g_TimeNow;
@@ -696,7 +740,70 @@ int periodicLoop()
       }
    }
 
+   if ( g_TimeNow >= g_TimeLastHistoryTxComputation + 50 )
+   {
+      g_TimeLastHistoryTxComputation = g_TimeNow;
+      
+      // Compute the averate tx gap
 
+      g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = 0xFF;
+      if ( g_PHVehicleTxStats.tmp_uAverageTxCount > 1 )
+         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = (g_PHVehicleTxStats.tmp_uAverageTxSum - g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0])/(g_PHVehicleTxStats.tmp_uAverageTxCount-1);
+      else if ( g_PHVehicleTxStats.tmp_uAverageTxCount == 1 )
+         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0];
+
+      // Compute average video packets interval        
+
+      g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = 0xFF;
+      if ( g_PHVehicleTxStats.tmp_uVideoIntervalsCount > 1 )
+         g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = (g_PHVehicleTxStats.tmp_uVideoIntervalsSum - g_PHVehicleTxStats.historyVideoPacketsGapMax[0])/(g_PHVehicleTxStats.tmp_uVideoIntervalsCount-1);
+      else if ( g_PHVehicleTxStats.tmp_uVideoIntervalsCount == 1 )
+         g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = g_PHVehicleTxStats.historyVideoPacketsGapMax[0];
+        
+
+      if ( ! g_bVideoPaused )
+      if ( g_pCurrentModel->bDeveloperMode )
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP )
+      {
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_TX_HISTORY, STREAM_ID_TELEMETRY);
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+         PH.vehicle_id_dest = 0;
+         PH.total_length = sizeof(t_packet_header) + sizeof(t_packet_header_vehicle_tx_history);
+
+         g_PHVehicleTxStats.iSliceInterval = 50;
+         g_PHVehicleTxStats.uCountValues = MAX_HISTORY_VEHICLE_TX_STATS_SLICES;
+         u8 packet[MAX_PACKET_TOTAL_SIZE];
+         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+         memcpy(packet + sizeof(t_packet_header), (u8*)&g_PHVehicleTxStats, sizeof(t_packet_header_vehicle_tx_history));
+         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+      }
+
+      for( int i=MAX_HISTORY_RADIO_STATS_RECV_SLICES-1; i>0; i-- )
+      {
+         g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i-1];
+         g_PHVehicleTxStats.historyTxGapMinMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMinMiliseconds[i-1];
+         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[i] = g_PHVehicleTxStats.historyTxGapAvgMiliseconds[i-1];
+         g_PHVehicleTxStats.historyTxPackets[i] = g_PHVehicleTxStats.historyTxPackets[i-1];
+         g_PHVehicleTxStats.historyVideoPacketsGapMax[i] = g_PHVehicleTxStats.historyVideoPacketsGapMax[i-1];
+         g_PHVehicleTxStats.historyVideoPacketsGapAvg[i] = g_PHVehicleTxStats.historyVideoPacketsGapAvg[i-1];
+      }
+      g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0] = 0xFF;
+      g_PHVehicleTxStats.historyTxGapMinMiliseconds[0] = 0xFF;
+      g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = 0xFF;
+      g_PHVehicleTxStats.historyTxPackets[0] = 0;
+      g_PHVehicleTxStats.historyVideoPacketsGapMax[0] = 0xFF;
+      g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = 0xFF;
+
+      g_PHVehicleTxStats.tmp_uAverageTxSum = 0;
+      g_PHVehicleTxStats.tmp_uAverageTxCount = 0;
+      g_PHVehicleTxStats.tmp_uVideoIntervalsSum = 0;
+      g_PHVehicleTxStats.tmp_uVideoIntervalsCount = 0;
+   }
+}
+
+int _update_debug_stats()
+{
    if ( g_TimeNow >= g_TimeLastDebugFPSComputeTime + 1000 )
    {
       char szFile[128];
@@ -735,21 +842,11 @@ int periodicLoop()
 
       s_debugVideoBlocksInCount = 0;
    }
+   return 0;
+}
 
-   if ( g_bRadioReinitialized )
-   {
-      if ( g_TimeNow < 5000 || g_TimeNow < g_TimeRadioReinitialized+5000 )
-      {
-         if ( (g_TimeNow/100)%2 )
-            send_radio_reinitialized_message();
-      }
-      else
-      {
-         g_bRadioReinitialized = false;
-         g_TimeRadioReinitialized = 0;
-      }
-   }
-
+void _update_developer_log_data()
+{
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG )
    if ( g_TimeNow > g_TimeLastLiveLogCheck + 100 )
    {
@@ -781,68 +878,104 @@ int periodicLoop()
          fclose(fd);
       }
    }
+}
 
-   if ( g_TimeNow >= g_TimeLastHistoryTxComputation + 50 )
+// Returns 1 if radios should be reinitialized
+int periodicLoop()
+{
+   s_LoopCounter++;
+   s_debugFramesCount++;
+
+   _check_reinit_sik_interfaces();
+   _check_for_debug_raspi_messages();
+   _check_free_storage_space();
+
+   if ( test_link_is_in_progress() )
+      test_link_loop();
+
+   _check_send_initial_vehicle_settings();
+   _check_save_updated_camera_params();
+
+   _periodic_update_radio_stats();
+   
+   //_periodic_loop_check_ping();
+
+#ifdef FEATURE_ENABLE_RC_FREQ_SWITCH
+   if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) &&
+        (s_uTimeFrequencyChangeRequest != 0) && (g_TimeNow > s_uTimeFrequencyChangeRequest + VEHICLE_SWITCH_FREQUENCY_AFTER_MS) )
    {
-      g_TimeLastHistoryTxComputation = g_TimeNow;
+      log_line("Processing pending RC trigger to change frequency to: %s on link: %d", str_format_frequency(s_uPendingFrequencyChangeTo), s_iPendingFrequencyChangeLinkId+1 );
+      g_pCurrentModel->compute_active_radio_frequencies(true);
+
+      for( int i=0; i<g_pCurrentModel->nic_count; i++ )
+      {
+         if ( g_pCurrentModel->nic_flags[i] & NIC_FLAG_DISABLED )
+            continue;
+         if ( i == s_iPendingFrequencyChangeLinkId )
+         {
+            radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_link_id[i], s_uPendingFrequencyChangeTo, g_pProcessStats, 0); 
+            g_pCurrentModel->nic_frequency[i] = s_uPendingFrequencyChangeTo;
+         }
+      }
+      hardware_save_radio_info();
+      g_pCurrentModel->compute_active_radio_frequencies(true);
+      saveCurrentModel();
+      log_line("Notifying all other components of the new link frequency.");
+
+      t_packet_header PH;
+      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, STREAM_ID_DATA);
+      PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+      PH.vehicle_id_dest = 0;
+      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
+   
+      u8 buffer[MAX_PACKET_TOTAL_SIZE];
+      memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+      u32* pI = (u32*)((&buffer[0])+sizeof(t_packet_header));
+      *pI = (u32)s_iPendingFrequencyChangeLinkId;
+      pI++;
+      *pI = s_uPendingFrequencyChangeTo;
       
-      // Compute the averate tx gap
+      radio_packet_compute_crc(buffer, PH.total_length);
 
-      g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = 0xFF;
-      if ( g_PHVehicleTxStats.tmp_uAverageTxCount > 1 )
-         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = (g_PHVehicleTxStats.tmp_uAverageTxSum - g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0])/(g_PHVehicleTxStats.tmp_uAverageTxCount-1);
-      else if ( g_PHVehicleTxStats.tmp_uAverageTxCount == 1 )
-         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0];
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;  
 
-      // Compute average video packets interval        
-
-      g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = 0xFF;
-      if ( g_PHVehicleTxStats.tmp_uVideoIntervalsCount > 1 )
-         g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = (g_PHVehicleTxStats.tmp_uVideoIntervalsSum - g_PHVehicleTxStats.historyVideoPacketsGapMax[0])/(g_PHVehicleTxStats.tmp_uVideoIntervalsCount-1);
-      else if ( g_PHVehicleTxStats.tmp_uVideoIntervalsCount == 1 )
-         g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = g_PHVehicleTxStats.historyVideoPacketsGapMax[0];
-        
-
-      if ( ! g_bVideoPaused )
-      if ( g_pCurrentModel->bDeveloperMode )
-      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP )
-      {
-         t_packet_header PH;
-         radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_TX_HISTORY, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-         PH.vehicle_id_dest = 0;
-         PH.total_length = sizeof(t_packet_header) + sizeof(t_packet_header_vehicle_tx_history);
-
-         g_PHVehicleTxStats.iSliceInterval = 50;
-         g_PHVehicleTxStats.uCountValues = MAX_HISTORY_VEHICLE_TX_STATS_SLICES;
-         u8 packet[MAX_PACKET_TOTAL_SIZE];
-         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-         memcpy(packet + sizeof(t_packet_header), (u8*)&g_PHVehicleTxStats, sizeof(t_packet_header_vehicle_tx_history));
-         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
-      }
-
-      for( int i=MAX_HISTORY_RADIO_STATS_RECV_SLICES-1; i>0; i-- )
-      {
-         g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i-1];
-         g_PHVehicleTxStats.historyTxGapMinMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMinMiliseconds[i-1];
-         g_PHVehicleTxStats.historyTxGapAvgMiliseconds[i] = g_PHVehicleTxStats.historyTxGapAvgMiliseconds[i-1];
-         g_PHVehicleTxStats.historyTxPackets[i] = g_PHVehicleTxStats.historyTxPackets[i-1];
-         g_PHVehicleTxStats.historyVideoPacketsGapMax[i] = g_PHVehicleTxStats.historyVideoPacketsGapMax[i-1];
-         g_PHVehicleTxStats.historyVideoPacketsGapAvg[i] = g_PHVehicleTxStats.historyVideoPacketsGapAvg[i-1];
-      }
-      g_PHVehicleTxStats.historyTxGapMaxMiliseconds[0] = 0xFF;
-      g_PHVehicleTxStats.historyTxGapMinMiliseconds[0] = 0xFF;
-      g_PHVehicleTxStats.historyTxGapAvgMiliseconds[0] = 0xFF;
-      g_PHVehicleTxStats.historyTxPackets[0] = 0;
-      g_PHVehicleTxStats.historyVideoPacketsGapMax[0] = 0xFF;
-      g_PHVehicleTxStats.historyVideoPacketsGapAvg[0] = 0xFF;
-
-      g_PHVehicleTxStats.tmp_uAverageTxSum = 0;
-      g_PHVehicleTxStats.tmp_uAverageTxCount = 0;
-      g_PHVehicleTxStats.tmp_uVideoIntervalsSum = 0;
-      g_PHVehicleTxStats.tmp_uVideoIntervalsCount = 0;
+      write(s_fPipeTelemetryUplink, buffer, PH.total_length);
+      write(s_fPipeToCommands, buffer, PH.total_length);
+      log_line("Done notifying all other components about the frequency change.");
+      s_iPendingFrequencyChangeLinkId = -1;
+      s_uPendingFrequencyChangeTo = 0;
+      s_uTimeFrequencyChangeRequest = 0;
    }
-  
+#endif
+
+   int iMaxRxQuality = 0;
+   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+      if ( g_SM_RadioStats.radio_interfaces[i].rxQuality > iMaxRxQuality )
+         iMaxRxQuality = g_SM_RadioStats.radio_interfaces[i].rxQuality;
+        
+   if ( g_SM_VideoLinkGraphs.vehicleRXQuality[0] == 255 || (iMaxRxQuality < g_SM_VideoLinkGraphs.vehicleRXQuality[0]) )
+      g_SM_VideoLinkGraphs.vehicleRXQuality[0] = iMaxRxQuality;
+
+   _update_tx_out_stats();
+   if ( _update_debug_stats() )
+      return 1;
+
+   if ( g_bRadioReinitialized )
+   {
+      if ( g_TimeNow < 5000 || g_TimeNow < g_TimeRadioReinitialized+5000 )
+      {
+         if ( (g_TimeNow/100)%2 )
+            send_radio_reinitialized_message();
+      }
+      else
+      {
+         g_bRadioReinitialized = false;
+         g_TimeRadioReinitialized = 0;
+      }
+   }
+
+   _update_developer_log_data();
    _update_videobitrate_history_data();
 
    // If relay params have changed and we have not processed the notification, do it after one second after the change

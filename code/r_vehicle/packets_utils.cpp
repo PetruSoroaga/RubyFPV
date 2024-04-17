@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -389,8 +389,21 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       }
    }
 
+
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
+   {
+      t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
+      if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+      {
+         u8* pExtraData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
+         u32* pExtraDataU32 = (u32*)pExtraData;
+         pExtraDataU32[3] = get_current_timestamp_ms();
+      }
+   }
+   
    int totalLength = 0;
-   if ( s_iPendingFrequencyChangeLinkId >= 0 && s_uPendingFrequencyChangeTo > 100 && s_uTimeFrequencyChangeRequest != 0 && g_TimeNow > s_uTimeFrequencyChangeRequest && s_uTimeFrequencyChangeRequest >= g_TimeNow - VEHICLE_SWITCH_FREQUENCY_AFTER_MS )
+   if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) && (s_uTimeFrequencyChangeRequest != 0) && (g_TimeNow > s_uTimeFrequencyChangeRequest) && (g_TimeNow > VEHICLE_SWITCH_FREQUENCY_AFTER_MS) && (s_uTimeFrequencyChangeRequest + VEHICLE_SWITCH_FREQUENCY_AFTER_MS >= g_TimeNow) )
    {
       u8 extraData[6];
       memcpy(&extraData[0], (u8*)&s_uPendingFrequencyChangeTo, sizeof(u32));

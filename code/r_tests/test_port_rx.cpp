@@ -49,7 +49,7 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
       bVideoData = true;
 
-   int nRes = radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
+   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
        
    u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
    u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
@@ -119,8 +119,6 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
 {
    int iResult = 0;
    radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
-   int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
-   int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
 
    bool bVideoData = false;
    t_packet_header* pPH = (t_packet_header*)pBuffer;
@@ -128,7 +126,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
       bVideoData = true;
    int bCRCOk = 0;   
    int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, iBufferLength, &bCRCOk);
-   int nRes = radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
+   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
 
    t_packet_header_video_full_77* pPHVF = NULL;
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
@@ -209,7 +207,7 @@ void process_packet(int iInterfaceIndex )
          fflush(stdout);
       }
       if ( -1 != g_iOnlyStreamId )
-      if ( uStreamId != g_iOnlyStreamId )
+      if ( uStreamId != (u32)g_iOnlyStreamId )
       {
          printf("x");
          fflush(stdout);
@@ -307,7 +305,7 @@ int main(int argc, char *argv[])
       return -1;
    }
 
-   int pcapW = radio_open_interface_for_write(iInterfaceIndex);
+   radio_open_interface_for_write(iInterfaceIndex);
 
    printf("Opened wlan interface for read and write.\n");
 

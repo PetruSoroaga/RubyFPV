@@ -107,6 +107,7 @@ typedef struct
    u32 uEnabledAlarms;
    int iShowOnlyPresentTxPowerCards;
    int iShowTxBoosters;
+   int iMenuStyle; // 0: clasic, 1: sticky left
 } Preferences;
 
 int save_Preferences();

@@ -30,6 +30,15 @@ type_video_capture_resolution_info g_listCaptureResolutionsVeye[] =
 };
 int g_iListCaptureResolutionsVeyeCount = 2;
 
+
+type_video_capture_resolution_info g_listCaptureResolutionsVeye307[] = 
+{
+   {1280,720, 60, "720p"},
+   {1920,1080, 30, "1080p"}
+};
+int g_iListCaptureResolutionsVeyeCount307 = 2;
+
+
 type_video_capture_resolution_info g_listCaptureResolutionsOpenIPC[] = 
 {
    {1280,720, 120, "720p"},

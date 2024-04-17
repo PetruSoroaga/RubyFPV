@@ -17,5 +17,3 @@ u32 g_TimeLastControllerLinkStatsSent = 0;
 
 u32 g_TimeLastSetRadioFlagsCommandSent = 0;
 
-u32 g_uTimeLastCommandRequestSent = 0;
-

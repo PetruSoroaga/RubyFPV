@@ -27,11 +27,13 @@ typedef struct
 type_last_rx_packet_info;
 
 #define RX_PACKET_STATE_EMPTY 0
-#define RX_PACKET_STATE_RECEIVED 1
+#define RX_PACKET_STATE_RECEIVED 0x01
+#define RX_PACKET_STATE_OUTPUTED 0x02
 
 typedef struct
 {
-   int state;
+   u32 uState;
+   int video_data_length;
    int packet_length;
    u8 uRetrySentCount;
    u32 uTimeFirstRetrySent;
@@ -43,7 +45,7 @@ type_received_block_packet_info;
 typedef struct
 {
    u32 video_block_index; // MAX_U32 if it's empty
-   int packet_length;
+   int video_data_length;
    int data_packets;
    int fec_packets;
    int received_data_packets;
@@ -114,7 +116,7 @@ class ProcessorRxVideo
       void checkAndRequestMissingPackets();
       void checkAndDiscardBlocksTooOld();
       void sendPacketToOutput(int rx_buffer_block_index, int block_packet_index);
-      void pushIncompleteBlocksOut(int countToPush, bool bTooOld);
+      void pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool bTooOld);
       void pushFirstBlockOut();
 
       void addPacketToReceivedBlocksBuffers(u8* pBuffer, int length, int rx_buffer_block_index, bool bWasRetransmitted);
@@ -125,6 +127,8 @@ class ProcessorRxVideo
       int processRetransmittedVideoPacket(u8* pBuffer, int length);
       int processReceivedVideoPacket(u8* pBuffer, int length);
       
+      int onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, int length, int iAddedToStackIndex);
+
       static bool m_sbFECInitialized;
       bool m_bInitialized;
       int m_iInstanceIndex;
@@ -139,6 +143,8 @@ class ProcessorRxVideo
 
       u32 m_uLastOutputVideoBlockTime;
       u32 m_uLastOutputVideoBlockIndex;
+      u32 m_uLastOutputVideoBlockPacketIndex;
+      u32 m_uLastOutputVideoBlockDataPackets;
 
       // Rx state 
 
@@ -152,7 +158,7 @@ class ProcessorRxVideo
       int m_iRXBlocksStackTopIndex;
       int m_iRXMaxBlocksToBuffer;
 
-      type_last_rx_packet_info m_LastReceivedVideoPacketInfo;
+      type_last_rx_packet_info m_InfoLastReceivedVideoPacket;
       u8 m_uLastReceivedVideoLinkProfile;
       u32 m_uLastHardEncodingsChangeVideoBlockIndex;
       u32 m_uLastVideoResolutionChangeVideoBlockIndex;

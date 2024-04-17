@@ -111,7 +111,7 @@ typedef struct
    int height;
    int block_packets;
    int block_fecs;
-   int packet_length;
+   int video_data_length;
    int keyframe_ms;
    // positive: fixed keyframe, negative: auto keyframe interval (negative value is the stored fixed one)
    // v 7.7: changed keyframe to miliseconds instead of frames count
@@ -576,7 +576,7 @@ class Model
       bool isActiveCameraOpenIPC();
       void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
       bool isVideoLinkFixedOneWay();
-      
+      int getInitialKeyframeIntervalMs(int iVideoProfile);
       void setDefaultVideoBitrate();
       
       void setAWBMode();

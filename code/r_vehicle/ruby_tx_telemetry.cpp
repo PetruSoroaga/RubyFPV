@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -240,7 +240,7 @@ void _broadcast_vehicle_stats()
    s_u32LastTimeBroadcastVehicleStats = g_TimeNow;
 
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = PACKET_COMPONENT_TELEMETRY;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(type_vehicle_stats_info);
@@ -301,6 +301,7 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
    s_time_tx_telemetry_cpu = g_TimeNow;
 
    int temp = 0;
+   
    #ifdef HW_PLATFORM_RASPBERRY
    fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
    if ( NULL != fd )
@@ -310,6 +311,22 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
       fd = NULL;
    }
    #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   char szBuff[1024];
+   szBuff[0] = 0;
+   hw_execute_bash_command("ipcinfo -t", szBuff);
+   for( int i=0; i<strlen(szBuff); i++ )
+   {
+      if ( szBuff[i] == '.' || szBuff[i] == 10 )
+      {
+         szBuff[i] = 0;
+         break;
+      }
+   }
+   temp = 1000 * atoi(szBuff);
+   #endif
+
    pPHRTE->temperature = temp/1000;
 
    pPHRTE->throttled = hardware_get_flags();
@@ -420,7 +437,7 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 {
    pPHFCT->fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
 
-   if ( get_time_last_mavlink_message_from_fc() < g_TimeNow-1100 )
+   if ( (g_TimeNow > 1100) && (get_time_last_mavlink_message_from_fc()+1100 < g_TimeNow) )
       pPHFCT->flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
    else
       pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;
@@ -953,7 +970,7 @@ void onRebootRequest()
    vehicle_stop_rx_rc();
    hardware_sleep_ms(100);
    log_line("Will reboot now.");
-   hw_execute_bash_command("sudo reboot -f", NULL);
+   hw_execute_bash_command("reboot -f", NULL);
 }
 
 
@@ -1170,7 +1187,7 @@ void send_raw_telemetry_packet_to_controller()
    t_packet_header PH;
    t_packet_header_telemetry_raw PHTR;
 
-   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw) + telemetryBufferFromFCCount;
@@ -1213,7 +1230,7 @@ void send_datalink_data_packet_to_controller()
    }
 
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD, STREAM_ID_DATA2);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header)+sizeof(u32) + dataLinkSerialBufferCount;
@@ -1436,7 +1453,8 @@ void _send_telemetry_to_controller()
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < MAX_RADIO_INTERFACES )
       if ( g_pCurrentModel->relay_params.uRelayFrequencyKhz != 0 )
-      if ( g_SM_RadioStats.radio_interfaces[g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId].timeLastRxPacket > g_TimeNow-500 )
+      if ( g_TimeNow > 500 )
+      if ( g_SM_RadioStats.radio_interfaces[g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId].timeLastRxPacket+500 > g_TimeNow )
          sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_RELAY_LINK;
       
       sPHRTE.flags &= ~FLAG_RUBY_TELEMETRY_IS_RELAYING;
@@ -1455,7 +1473,7 @@ void _send_telemetry_to_controller()
       
       sPHRTE.extraSize = 0;
 
-      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_EXTENDED, STREAM_ID_DATA);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_EXTENDED, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) + sPHRTE.extraSize;
       
@@ -1492,7 +1510,7 @@ void _send_telemetry_to_controller()
       //-------------------------------
       // Send FC telemetry
 
-      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_DATA);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       
       if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
@@ -1510,7 +1528,7 @@ void _send_telemetry_to_controller()
 
       bool bSendFCMessage = false;
       if ( (get_last_message_time() > 0) && (0 != get_last_message()[0]) )
-      if ( get_last_message_time() > g_TimeNow - TIMEOUT_FC_MESSAGE )   
+      if ( get_last_message_time() + TIMEOUT_FC_MESSAGE > g_TimeNow )   
          bSendFCMessage = true;
 
       if ( bSendFCMessage )
@@ -1538,7 +1556,7 @@ void _send_telemetry_to_controller()
          sPHFCT.flags = sPHFCT.flags | FC_TELE_FLAGS_RC_FAILSAFE;
       #endif
 
-      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_DATA);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_fc_telemetry);
       if ( bSendFCMessage )
@@ -1596,7 +1614,7 @@ void _send_telemetry_to_controller()
          PHRTShort.aspeed = sPHFCT.aspeed; // airspeed (1/100 meters - 1000 m)
          PHRTShort.hspeed = sPHFCT.hspeed; // 1/100 meters -1000 m
          
-         radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_SHORT, STREAM_ID_DATA);
+         radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_SHORT, STREAM_ID_TELEMETRY);
          sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          sPH.packet_flags_extended |= PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY;
          sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_ruby_telemetry_short);
@@ -1642,7 +1660,7 @@ void _send_telemetry_to_controller()
 
       if ( NULL != s_pSM_HistoryRxStats )
       {
-         radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY, STREAM_ID_DATA);
+         radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY, STREAM_ID_TELEMETRY);
          sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
          sPH.total_length = (u16)sizeof(t_packet_header) + sizeof(u32) + (u16)sizeof(shared_mem_radio_stats_interface_rx_hist);
 
@@ -1689,9 +1707,9 @@ void _send_telemetry_to_controller()
    }
    
    if ( (NULL != g_pCurrentModel) && (NULL != s_pSM_VideoInfoStats) && (NULL != s_pSM_VideoInfoStatsRadioOut) )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
    {
-      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS, STREAM_ID_DATA);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       sPH.total_length = (u16)sizeof(t_packet_header) + 2*(u16)sizeof(shared_mem_video_info_stats);
 
@@ -1722,7 +1740,7 @@ void _send_telemetry_to_controller()
       )
    if ( s_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
    {
-      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_RC_CHANNELS, STREAM_ID_DATA);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_RC_CHANNELS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_fc_rc_channels);
 
@@ -1770,7 +1788,7 @@ void _send_telemetry_to_controller()
    {
       return;
    }
-   radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RC_TELEMETRY, STREAM_ID_DATA);
+   radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RC_TELEMETRY, STREAM_ID_TELEMETRY);
    sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_rc_info_downstream);
 

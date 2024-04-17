@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -68,16 +68,22 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_pItemsSlider[1]->setStep(1);
    m_IndexIONiceRouterValue = addMenuItem(m_pItemsSlider[1]);
 
-   m_pItemsSlider[2] = new MenuItemSlider("Video Priority",  "Sets the priority for the video RX pipeline. Higher values means higher priority.", 0,15,9, fSliderWidth);
+   m_pItemsSelect[5] = new MenuItemSelect("Video Priority", "Sets a manual CPU and IO priority for the video renderer process.");  
+   m_pItemsSelect[5]->addSelection("Auto");
+   m_pItemsSelect[5]->addSelection("Manual");
+   m_pItemsSelect[5]->setIsEditable();
+   m_IndexAutoRxVideo = addMenuItem(m_pItemsSelect[5]);
+
+   m_pItemsSlider[2] = new MenuItemSlider("   Video CPU Priority",  "Sets the priority for the video RX pipeline. Higher values means higher priority.", 0,15,9, fSliderWidth);
    m_IndexNiceRXVideo = addMenuItem(m_pItemsSlider[2]);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Video I/O Boost", "Sets a higher priority for the I/O operations and data flows for the received video stream. Other components might work slower.");  
+   m_pItemsSelect[1] = new MenuItemSelect("   Video I/O Boost", "Sets a higher priority for the I/O operations and data flows for the received video stream. Other components might work slower.");  
    m_pItemsSelect[1]->addSelection("No");
    m_pItemsSelect[1]->addSelection("Yes");
    m_pItemsSelect[1]->setUseMultiViewLayout();
    m_IndexIONiceRXVideo = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSlider[3] = new MenuItemSlider("Video I/O Priority", "Sets the I/O priority value for RX video pipeline, 1 is highest priority, 7 is lowest priority.", 1,7,4, fSliderWidth);
+   m_pItemsSlider[3] = new MenuItemSlider("   Video I/O Priority", "Sets the I/O priority value for RX video pipeline, 1 is highest priority, 7 is lowest priority.", 1,7,4, fSliderWidth);
    m_pItemsSlider[3]->setStep(1);
    m_IndexIONiceValueRXVideo = addMenuItem(m_pItemsSlider[3]);
 
@@ -132,7 +138,6 @@ void MenuControllerExpert::valuesToUI()
    }
 
    m_pItemsSlider[0]->setCurrentValue(-pcs->iNiceRouter);
-   m_pItemsSlider[2]->setCurrentValue(-pcs->iNiceRXVideo);
    m_pItemsSlider[4]->setCurrentValue(-pcs->iNiceCentral);
 
    m_pItemsSelect[0]->setSelection(pcs->ioNiceRouter > 0);
@@ -142,13 +147,28 @@ void MenuControllerExpert::valuesToUI()
       m_pItemsSlider[1]->setCurrentValue(-pcs->ioNiceRouter);
    m_pItemsSlider[1]->setEnabled( pcs->ioNiceRouter > 0);
 
-   m_pItemsSelect[1]->setSelection(pcs->ioNiceRXVideo > 0);
-   if ( pcs->ioNiceRXVideo > 0 )
-      m_pItemsSlider[3]->setCurrentValue( pcs->ioNiceRXVideo);
-   else
-      m_pItemsSlider[3]->setCurrentValue(-pcs->ioNiceRXVideo);
-   m_pItemsSlider[3]->setEnabled( pcs->ioNiceRXVideo > 0);
+   if ( pcs->iNiceRXVideo < 0 )
+   {
+      m_pItemsSelect[5]->setSelectedIndex(1);
+      m_pItemsSelect[1]->setEnabled(true);
+      m_pItemsSlider[2]->setEnabled(true);
+      m_pItemsSlider[3]->setEnabled(true);
 
+      m_pItemsSlider[2]->setCurrentValue(-pcs->iNiceRXVideo);
+      m_pItemsSelect[1]->setSelection(pcs->ioNiceRXVideo > 0);
+      if ( pcs->ioNiceRXVideo > 0 )
+         m_pItemsSlider[3]->setCurrentValue( pcs->ioNiceRXVideo);
+      else
+         m_pItemsSlider[3]->setCurrentValue(-pcs->ioNiceRXVideo);
+      m_pItemsSlider[3]->setEnabled( pcs->ioNiceRXVideo > 0);
+   }
+   else
+   {
+      m_pItemsSelect[5]->setSelectedIndex(0);
+      m_pItemsSelect[1]->setEnabled(false);
+      m_pItemsSlider[2]->setEnabled(false);
+      m_pItemsSlider[3]->setEnabled(false);
+   }
    // CPU
 
    m_pItemsSelect[2]->setSelection(pcs->iFreqARM > 0);
@@ -372,6 +392,24 @@ void MenuControllerExpert::onSelectItem()
       if ( strlen(szPids) > 2 )
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRouter, szPids);
+         hw_execute_bash_command(szBuff, NULL);
+      }
+   }
+
+   if ( m_IndexAutoRxVideo == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[5]->getSelectedIndex() )
+         pcs->iNiceRXVideo = 0;
+      else
+         pcs->iNiceRXVideo = -10;
+      valuesToUI();
+      char szBuff[1024];
+      char szPids[1024];
+      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      hw_execute_bash_command(szBuff, szPids);
+      if ( strlen(szPids) > 2 )
+      {
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
    }

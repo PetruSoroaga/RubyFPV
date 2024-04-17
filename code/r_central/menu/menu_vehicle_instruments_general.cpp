@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -71,6 +71,12 @@ MenuVehicleInstrumentsGeneral::MenuVehicleInstrumentsGeneral(void)
    m_pItemsSelect[2]->addSelection("Biggest");
    m_IndexAHIStrokeSize = addMenuItem(m_pItemsSelect[2]);
    
+   m_pItemsSelect[9] = new MenuItemSelect("Flash OSD on Telemetry Lost", "Flashes the OSD whenever a telemetry data packet is lost.");
+   m_pItemsSelect[9]->addSelection("No");
+   m_pItemsSelect[9]->addSelection("Yes");
+   m_pItemsSelect[9]->setIsEditable();
+   m_iIndexFlashOSDOnTelemLost = addMenuItem(m_pItemsSelect[9]);
+
    m_pItemsSelect[3] = new MenuItemSelect("Altitude type", "Shows the vehicle altitude relative to sea level or relative to the starting position.");  
    m_pItemsSelect[3]->addSelection("Absolute");
    m_pItemsSelect[3]->addSelection("Relative");
@@ -145,6 +151,7 @@ void MenuVehicleInstrumentsGeneral::valuesToUI()
    m_pItemsSelect[2]->setSelection(p->iAHIStrokeSize+2);
    m_pItemsSelect[3]->setSelection((g_pCurrentModel->osd_params.osd_flags2[m_nOSDIndex] & OSD_FLAG2_RELATIVE_ALTITUDE)?1:0);
    m_pItemsSelect[6]->setSelection((g_pCurrentModel->osd_params.osd_flags2[m_nOSDIndex] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED)?1:0);
+   m_pItemsSelect[9]->setSelection((g_pCurrentModel->osd_params.osd_flags2[m_nOSDIndex] & OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST)?1:0);
 
    m_pItemsSelect[4]->setSelection(((g_pCurrentModel->osd_params.osd_flags[m_nOSDIndex]) & OSD_FLAG_REVERT_PITCH)?1:0);
    m_pItemsSelect[5]->setSelection(((g_pCurrentModel->osd_params.osd_flags[m_nOSDIndex]) & OSD_FLAG_REVERT_ROLL)?1:0);
@@ -222,6 +229,21 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
       save_Preferences();
       valuesToUI();
       osd_apply_preferences();
+   }
+
+   if ( m_iIndexFlashOSDOnTelemLost == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
+      {
+         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+            params.osd_flags2[i] &= ~OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
+      }
+      else
+      {
+         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+            params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
+      }
+      sendToVehicle = true;
    }
 
    if ( m_IndexAltitudeType == m_SelectedIndex )

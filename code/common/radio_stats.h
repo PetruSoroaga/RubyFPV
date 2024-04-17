@@ -19,8 +19,6 @@ void radio_stats_enable_history_monitor(int iEnable);
 void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow);
 int  radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow);
 
-void radio_stats_set_radio_link_rt_delay(shared_mem_radio_stats* pSMRS, int iLocalRadioLink, u32 delay, u32 timeNow);
-void radio_stats_set_commands_rt_delay(shared_mem_radio_stats* pSMRS, u32 delay);
 void radio_stats_set_tx_card_for_radio_link(shared_mem_radio_stats* pSMRS, int iLocalRadioLink, int iTxCard);
 void radio_stats_set_card_current_frequency(shared_mem_radio_stats* pSMRS, int iRadioInterface, u32 freqKhz);
 void radio_stats_set_bad_data_on_current_rx_interval(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, int iRadioInterface);
@@ -37,6 +35,7 @@ void radio_stats_set_received_response_from_vehicle_now(shared_mem_radio_stats* 
 void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats);
 void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_stats* pControllerStats, u32 timeNow);
 
+int radio_stats_get_reset_stream_lost_packets_flags(shared_mem_radio_stats* pSMRS, u32 uVehicleId, u32 uStreamIndex);
 #ifdef __cplusplus
 }  
 #endif

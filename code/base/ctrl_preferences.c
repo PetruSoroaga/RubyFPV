@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -109,6 +109,7 @@ void reset_Preferences()
    s_Preferences.uEnabledAlarms = 0xFFFFFFFF & (~ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD) & (~ALARM_ID_CPU_RX_LOOP_OVERLOAD);
    s_Preferences.iShowOnlyPresentTxPowerCards = 1;
    s_Preferences.iShowTxBoosters = 0;
+   s_Preferences.iMenuStyle = 0;
 }
 
 int save_Preferences()
@@ -169,7 +170,7 @@ int save_Preferences()
    fprintf(fd, "%u\n", s_Preferences.uEnabledAlarms);
 
    fprintf(fd, "%d \n", s_Preferences.iShowCPULoad);
-   fprintf(fd, "%d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters);
+   fprintf(fd, "%d %d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters, s_Preferences.iMenuStyle);
 
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
@@ -335,6 +336,9 @@ int load_Preferences()
 
    if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iShowOnlyPresentTxPowerCards, &s_Preferences.iShowTxBoosters) )
       s_Preferences.iShowTxBoosters = 0;
+
+   if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iMenuStyle) )
+      s_Preferences.iMenuStyle = 0;
 
    // End reading file;
    // Validate settings

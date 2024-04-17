@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -737,8 +737,8 @@ int r_start_vehicle(int argc, char *argv[])
 
          if ( bCheckRadioFailSafe )
          if ( s_pProcessStatsRouter->lastRadioRxTime > 0 )
-         if ( (s_pProcessStatsRouter->lastRadioRxTime < g_TimeNow-10000) ||
-              (s_pProcessStatsRouter->lastRadioRxTime < g_TimeNow-10000) )
+         if ( (s_pProcessStatsRouter->lastRadioRxTime+10000 < g_TimeNow) ||
+              (s_pProcessStatsRouter->lastRadioRxTime+10000 < g_TimeNow) )
          {
             char szComm[128];
             sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
@@ -756,7 +756,7 @@ int r_start_vehicle(int argc, char *argv[])
                }
                else
                {
-                  hw_execute_bash_command("sudo reboot -f", NULL);
+                  hw_execute_bash_command("reboot -f", NULL);
                   sleep(10); 
                }
             }
@@ -779,7 +779,7 @@ int r_start_vehicle(int argc, char *argv[])
 
       if ( NULL != s_pProcessStatsRouter )
       {
-         if ( s_pProcessStatsRouter->lastActiveTime < g_TimeNow - maxTimeForProcess*1000 )
+         if ( s_pProcessStatsRouter->lastActiveTime + maxTimeForProcess*1000 < g_TimeNow )
             s_failCountProcessRouter++;
          else
             s_failCountProcessRouter = 0;
@@ -800,7 +800,7 @@ int r_start_vehicle(int argc, char *argv[])
 
       if ( NULL != s_pProcessStatsTelemetry )
       {
-         if ( s_pProcessStatsTelemetry->lastActiveTime < g_TimeNow - maxTimeForProcess*1000 )
+         if ( s_pProcessStatsTelemetry->lastActiveTime + maxTimeForProcess*1000 < g_TimeNow )
             s_failCountProcessTelemetry++;
          else
             s_failCountProcessTelemetry = 0;
@@ -819,7 +819,7 @@ int r_start_vehicle(int argc, char *argv[])
       
       if ( NULL != s_pProcessStatsCommands )
       {
-         if ( s_pProcessStatsCommands->lastActiveTime < g_TimeNow - 3*maxTimeForProcess*1000 )
+         if ( s_pProcessStatsCommands->lastActiveTime +3*maxTimeForProcess*1000 < g_TimeNow )
             s_failCountProcessCommands++;
          else
             s_failCountProcessCommands = 0;
@@ -839,7 +839,7 @@ int r_start_vehicle(int argc, char *argv[])
       if ( NULL != s_pProcessStatsRC )
       if ( modelVehicle.rc_params.rc_enabled )
       {
-         if ( s_pProcessStatsRC->lastActiveTime < g_TimeNow - maxTimeForProcess*1000 )
+         if ( s_pProcessStatsRC->lastActiveTime + maxTimeForProcess*1000 < g_TimeNow )
             s_failCountProcessRC++;
          else
             s_failCountProcessRC = 0;

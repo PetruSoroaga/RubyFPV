@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -70,13 +70,20 @@ float menu_get_XStartPos(float fWidth)
 {
    Preferences* pP = get_Preferences();
 
+   // Left side sticky menus?
+
+   if ( pP->iMenuStyle == 1 )
+   {
+      return 0.0 + 0.03 * (g_iMenuStackTopIndex-1);
+   }
+
    // Stacked menus ?
 
    if ( pP->iMenusStacked )
    {
       if ( 0 == g_iMenuStackTopIndex )
-         return 0.06;
-      return 0.06 + g_iMenuStackTopIndex * 0.02;
+         return 0.04;
+      return 0.04 + g_iMenuStackTopIndex * 0.02;
    }
 
    // Non stacked menus (side by side)
@@ -97,6 +104,16 @@ float menu_get_XStartPos(float fWidth)
 
 float menu_get_XStartPos(Menu* pMenu, float fWidth)
 {
+   Preferences* pP = get_Preferences();
+   if ( pP->iMenuStyle == 1 )
+   {
+      for( int i=0; i<MAX_MENU_STACK; i++ )
+      {
+         if ( g_pMenuStack[i] == pMenu )
+            return 0.0 + 0.03 * i;
+      }
+      return 0.0 + 0.03 * (g_iMenuStackTopIndex-1);
+   }
 
    float xPos = 0.1;
    if ( g_iMenuStackTopIndex > 0 )
@@ -661,6 +678,8 @@ void menu_render()
       }
       
       float fBgAlphaForMenu = g_pMenuStack[iMenuToRender]->m_fAlfaWhenInBackground - 0.08 * (float)(g_iMenuStackTopIndex-iMenuToRender-1);
+      if ( pP->iMenuStyle == 1 )
+         fBgAlphaForMenu = g_pMenuStack[iMenuToRender]->m_fAlfaWhenInBackground;
       if ( fBgAlphaForMenu < 0.0 )
          fBgAlphaForMenu = 0.0;
 

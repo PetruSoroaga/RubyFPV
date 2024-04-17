@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -296,7 +296,7 @@ int _log_check_for_service_log_access()
       return 0;
    }
 
-   s_logServiceMessageQueue = msgget(s_logServiceKey, 0666);
+   s_logServiceMessageQueue = msgget(s_logServiceKey, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
    if ( s_logServiceMessageQueue < 0 )
    {
@@ -321,6 +321,9 @@ int _log_check_for_service_log_access()
 
 int _log_service_entry(char* szBuff)
 {
+   if ( ! s_logDisabledStdout )
+      printf("%s %s: %s\n", s_szTimeLog, sszComponentName, szBuff);
+
    type_log_message_buffer msg;
    msg.type = 1;
    msg.text[0] = 0;
@@ -341,6 +344,9 @@ int _log_service_entry(char* szBuff)
 
 int _log_service_entry_error(char* szBuff)
 {
+   if ( ! s_logDisabledStdout )
+      printf("%s %s: ERROR: %s\n", s_szTimeLog, sszComponentName, szBuff);
+
    type_log_message_buffer msg;
    msg.type = 3;
    msg.text[0] = 0;
@@ -360,6 +366,9 @@ int _log_service_entry_error(char* szBuff)
 
 int _log_service_entry_softerror(char* szBuff)
 {
+   if ( ! s_logDisabledStdout )
+      printf("%s %s: SOFTERROR: %s\n", s_szTimeLog, sszComponentName, szBuff);
+
    type_log_message_buffer msg;
    msg.type = 2;
    msg.text[0] = 0;
@@ -413,8 +422,18 @@ void log_init(const char* component_name)
 
 void log_arguments(int argc, char *argv[])
 {
-   log_line_forced_to_file("Process version: %d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+   char szHWPlatform[32];
+   strcpy(szHWPlatform, "N/A");
 
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   strcpy(szHWPlatform, "OPIPC");
+   #elif defined(HW_PLATFORM_LINUX_GENERIC)
+   strcpy(szHWPlatform, "Linux");
+   #elif defined(HW_PLATFORM_RASPBERRY)
+   strcpy(szHWPlatform, "PI");
+   #endif
+   log_line_forced_to_file("Process version: %d.%d (b%d) HW: %s", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, szHWPlatform);
+   log_line_forced_to_file("Using logger service: %s", (s_logUseService!=0)?"yes":"no");
    if ( argc <= 0 )
    {
       log_line_forced_to_file("Executed with no arguments");
@@ -1304,7 +1323,7 @@ int check_licences()
    //printf("L: %s\n\n", szBuff);
    for( int i=0; i<14; i++ )
       hardware_sleep_ms(800);
-   hw_execute_bash_command("sudo shutdown now", NULL);
+   hw_execute_bash_command("shutdown now", NULL);
    #endif
    return 1;
 }

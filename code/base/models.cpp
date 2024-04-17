@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -40,6 +40,7 @@
 #include "hardware_camera.h"
 #include "hw_procs.h"
 #include "hardware_i2c.h"
+#include "camera_utils.h"
 #include "utils.h"
 #include "../common/string_utils.h"
 #include "../radio/radiopackets2.h"
@@ -590,7 +591,7 @@ bool Model::loadVersion8(FILE* fd)
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
 
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].packet_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
+      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
       
       if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &tmp1)) )
@@ -1194,7 +1195,7 @@ bool Model::loadVersion9(FILE* fd)
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
 
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].packet_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
+      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
       
       if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &tmp1)) )
@@ -1786,7 +1787,7 @@ bool Model::loadVersion10(FILE* fd)
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
 
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].packet_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
+      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
       
       if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &tmp1)) )
@@ -2396,7 +2397,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
       strcat(szModel, szSetting);
-      sprintf(szSetting, "   %d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].packet_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
+      sprintf(szSetting, "   %d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].video_data_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d %d %d %d\n", video_link_profiles[i].h264profile, video_link_profiles[i].h264level, video_link_profiles[i].h264refresh, video_link_profiles[i].h264quantization, video_link_profiles[i].insertPPS);
       strcat(szModel, szSetting);
@@ -2655,7 +2656,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
       video_link_profiles[i].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
       video_link_profiles[i].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-      video_link_profiles[i].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+      video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
@@ -2686,7 +2687,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    }
@@ -2701,7 +2702,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
    }
 
    // User
@@ -2714,7 +2715,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   video_link_profiles[VIDEO_PROFILE_USER].packet_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+   video_link_profiles[VIDEO_PROFILE_USER].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
    }
 
    // MQ
@@ -2733,7 +2734,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_MQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
    video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
    video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-   video_link_profiles[VIDEO_PROFILE_MQ].packet_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
+   video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
    video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
    video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
    video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
@@ -2756,7 +2757,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_LQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
    video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
    video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-   video_link_profiles[VIDEO_PROFILE_LQ].packet_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
+   video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
    video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
    video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
    video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
@@ -3830,8 +3831,8 @@ bool Model::validate_settings()
       audio_params.flags = 0x04 | (0x02<<8);
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      if ( video_link_profiles[i].packet_length > (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77) )
-         video_link_profiles[i].packet_length = (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77);
+      if ( video_link_profiles[i].video_data_length > (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77) )
+         video_link_profiles[i].video_data_length = (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77);
 
    if ( video_params.videoAdjustmentStrength < 1 || video_params.videoAdjustmentStrength > 10 )
       video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
@@ -3980,7 +3981,9 @@ void Model::resetToDefaults(bool generateId)
 
    enc_flags = 0;
    alarms = 0;
+
    uModelFlags = MODEL_FLAG_USE_LOGER_SERVICE;
+     
    m_iRadioInterfacesGraphRefreshInterval = 3;
 
    radioInterfacesParams.interfaces_count = 0;
@@ -4152,6 +4155,7 @@ void Model::resetOSDFlags()
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BGBARS;
+      //osd_params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
 
       //osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
       osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
@@ -4202,7 +4206,8 @@ void Model::resetTelemetryParams()
    telemetry_params.controller_mavlink_id = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
 
    telemetry_params.flags = TELEMETRY_FLAGS_RXTX | TELEMETRY_FLAGS_REQUEST_DATA_STREAMS | TELEMETRY_FLAGS_SPECTATOR_ENABLE;
-
+   telemetry_params.flags |= TELEMETRY_FLAGS_ALLOW_ANY_VEHICLE_SYSID;
+   
    if ( 0 < hardwareInterfacesInfo.serial_bus_count )
    {
       hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
@@ -4287,6 +4292,8 @@ void Model::resetCameraToDefaults(int iCameraIndex)
             camera_params[k].profiles[i].sharpness = 110; // 100 is zero
             camera_params[k].profiles[i].whitebalance = 1; //auto
             camera_params[k].profiles[i].shutterspeed = 0; //auto
+            if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+              camera_params[k].profiles[i].shutterspeed = 10; //milisec
             camera_params[k].profiles[i].hue = 40;
             if ( (hardware_getCameraType() == CAMERA_TYPE_VEYE307) || (hardware_getCameraType() == CAMERA_TYPE_VEYE290) )
                camera_params[k].profiles[i].drc = 0;
@@ -4298,6 +4305,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
 
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].whitebalance = 0; // off
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].exposure = 7; // off
+
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].brightness = 50;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].contrast = 50;
       camera_params[k].profiles[MODEL_CAMERA_PROFILES-1].saturation = 60;
@@ -4324,6 +4332,10 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->hue = 50;
    pCamParams->sharpness = 110;
    pCamParams->exposure = 3; // sports   2; //backlight
+   pCamParams->shutterspeed = 0; // auto
+   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+     pCamParams->shutterspeed = 10; //milisec
+
    pCamParams->whitebalance = 1; //auto
    pCamParams->metering = 2; //backlight
    pCamParams->drc = 0; // off
@@ -4335,7 +4347,6 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->vstab = 0;
    pCamParams->ev = 0; // not set, auto
    pCamParams->iso = 0; // auto
-   pCamParams->shutterspeed = 0; //auto
    pCamParams->dayNightMode = 0; // day mode
    for( int i=0; i<(int)(sizeof(pCamParams->dummyCamP)/sizeof(pCamParams->dummyCamP[0])); i++ )
       pCamParams->dummyCamP[i] = 0;
@@ -4968,6 +4979,8 @@ void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamPro
       log_line(" * Cam sharpness is different: %u - %u", pCamProfile1->sharpness, pCamProfile2->sharpness);
    if ( pCamProfile1->exposure != pCamProfile2->exposure )
       log_line(" * Cam exposure is different: %u - %u", pCamProfile1->exposure, pCamProfile2->exposure);
+   if ( pCamProfile1->shutterspeed != pCamProfile2->shutterspeed )
+      log_line(" * Cam shutterspeed is different: %u - %u", pCamProfile1->shutterspeed, pCamProfile2->shutterspeed);
    if ( pCamProfile1->whitebalance != pCamProfile2->whitebalance )
       log_line(" * Cam whitebalance is different: %u - %u", pCamProfile1->whitebalance, pCamProfile2->whitebalance);
    if ( pCamProfile1->metering != pCamProfile2->metering )
@@ -5010,6 +5023,16 @@ bool Model::isVideoLinkFixedOneWay()
       return true;
 
    return false;
+}
+
+int Model::getInitialKeyframeIntervalMs(int iVideoProfile)
+{
+   int iKeyframeMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+   if ( (video_link_profiles[iVideoProfile].keyframe_ms > 0) || isVideoLinkFixedOneWay() )
+      iKeyframeMs = video_link_profiles[iVideoProfile].keyframe_ms;
+   if ( iKeyframeMs < 0 )
+      iKeyframeMs = -iKeyframeMs;
+   return iKeyframeMs;
 }
 
 void Model::setDefaultVideoBitrate()
@@ -5175,13 +5198,11 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
 
    char szKeyFrame[64];
 
-   if ( video_link_profiles[iVideoProfile].keyframe_ms > 0 )
-      sprintf(szKeyFrame, "%d", (video_link_profiles[iVideoProfile].fps * video_link_profiles[iVideoProfile].keyframe_ms) / 1000 );
-   else
-   {
-      int keyframe = (video_link_profiles[iVideoProfile].fps * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL) / 1000;
-      sprintf(szKeyFrame, "%d", keyframe );
-   }
+   int iKeyframeMs = getInitialKeyframeIntervalMs(iVideoProfile);
+   int iKeyframeFramesCount = (video_link_profiles[iVideoProfile].fps * iKeyframeMs) / 1000;
+   sprintf(szKeyFrame, "%d", iKeyframeFramesCount);
+
+   log_line("DEBUG initial keyframe: %s (for video profile %d %s)", szKeyFrame, iVideoProfile, str_get_video_profile_name(iVideoProfile));;
 
    if ( isActiveCameraVeye() )
    {
@@ -5191,6 +5212,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
 
       if ( isActiveCameraVeye307() )
       {
+         // To fix: check if for IMX307 this is how to set resolution
          if ( video_link_profiles[iVideoProfile].width > 1280 )
             sprintf(szVideoFlags, "-cd H264 -fl -md 0 -fps %d -g %s %s", fps, szKeyFrame, szBuff);
          else
@@ -5228,11 +5250,10 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
    if ( video_link_profiles[iVideoProfile].insertPPS )
       strcat(szVideoFlags, " -ih");
 
-   if ( video_params.iH264Slices > 1 )
-   if ( video_link_profiles[iVideoProfile].width <= 1280 )
-   if ( video_link_profiles[iVideoProfile].height <= 720 )
+   int iSlices = camera_get_active_camera_h264_slices(this);
+   if ( iSlices > 1 )
    {
-      sprintf(szBuff, " -sl %d", video_params.iH264Slices );
+      sprintf(szBuff, " -sl %d", iSlices );
       strcat(szVideoFlags, szBuff);
    }
 

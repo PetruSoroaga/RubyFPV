@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -305,7 +305,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    memcpy(&oldRelayParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
    memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
    memcpy(&(oldVideoLinkProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
-   
+   bool bWasOneWayVideo = g_pCurrentModel->isVideoLinkFixedOneWay();
    u32 old_ef = g_pCurrentModel->enc_flags;
    bool bMustSignalOtherComponents = true;
    bool bMustReinitVideo = true;
@@ -351,21 +351,14 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
 
    // If video link was change from one way to adaptive or viceversa, set video params defaults
-   if ( (oldVideoLinkProfiles[oldVideoParams.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO ) !=
-        (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO) )
+   if ( bWasOneWayVideo != g_pCurrentModel->isVideoLinkFixedOneWay() )
    {
       log_line("Received notification that video link has changed (oneway - bidirectional).");
-
-      int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
-      
-      if ( g_pCurrentModel->isVideoLinkFixedOneWay() && ( keyframe_ms < 0 ) )
-         keyframe_ms = -keyframe_ms;
-      if ( keyframe_ms > 0 )
+      if ( g_pCurrentModel->isVideoLinkFixedOneWay() )
       {
-         log_line("Set fixed keyframe, value: %d ms. Adjust now the video capture keyframe param.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), keyframe_ms);
-         process_data_tx_video_set_current_keyframe_interval(keyframe_ms, "set fixed kf onewaylink or user set");
+         int iKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+         video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "switched to one way video");
       }
-
       video_stats_overwrites_init();
       video_stats_overwrites_reset_to_highest_level();
 
@@ -646,28 +639,22 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( changeType == MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME )
    {
       log_line("Received local notification that default max adaptive keyframe interval changed. New value: %u ms", g_pCurrentModel->video_params.uMaxAutoKeyframeIntervalMs);
-      if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms > 0 )
-         log_line("Current video profile %s is on fixed keyframe: %d ms. Nothing to do.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms);
-      else
-      {
-         log_line("Current video profile %s is on auto keyframe. Set new default auto max keyframe value.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) );
-         video_link_auto_keyframe_init();
-      }
       return;
    }
 
    if ( changeType == MODEL_CHANGED_VIDEO_KEYFRAME )
    {
+      int iKeyFrameProfile = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
       int keyframe_ms = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms;
-      log_line("Received local notification that video keyframe interval changed. New value: %d ms", keyframe_ms);
-      if ( keyframe_ms > 0 )
+      log_line("Received local notification that video keyframe interval changed. New value for user selected video profile: %d ms, value for current video profile (%s): %d ms", iKeyFrameProfile, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), keyframe_ms);
+      if ( iKeyFrameProfile > 0 )
       {
-         log_line("Current video profile %s is on fixed keyframe, new value: %d ms. Adjust now the video capture keyframe param.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), keyframe_ms);  
-         process_data_tx_video_set_current_keyframe_interval(keyframe_ms, "user set fixed kf");
+         log_line("User video profile %s is on fixed keyframe, new value: %d ms. Adjust now the video capture keyframe param.", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), iKeyFrameProfile);  
+         video_link_auto_keyframe_set_local_requested_value(0, iKeyFrameProfile, "user set a fixed keyframe");
       }
       else
       {
-         log_line("Current video profile %s is on auto keyframe. Set the default auto max keyframe value.", str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) ); 
+         log_line("User video profile %s is on auto keyframe. Set the default auto max keyframe value.", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile) ); 
       }
       return;
    }

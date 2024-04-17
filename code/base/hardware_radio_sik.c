@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -195,17 +195,17 @@ int hardware_radio_sik_reinitialize_serial_ports()
             pToken++;
 
          char szComm[256];
-         sprintf(szComm, "sudo modprobe -r %s 2>&1", pToken);
+         sprintf(szComm, "modprobe -r %s 2>&1", pToken);
          hw_execute_bash_command(szComm, szOutput);
          if ( NULL != strstr(szOutput, "is in use") )
          {
-            hw_execute_bash_command("sudo modprobe -r usbserial 2>&1", NULL);
+            hw_execute_bash_command("modprobe -r usbserial 2>&1", NULL);
             hardware_sleep_ms(20);
             hw_execute_bash_command(szComm, NULL);
          }
          hardware_sleep_ms(20);
          szOutput[0] = 0;
-         sprintf(szComm, "sudo modprobe %s", pToken);
+         sprintf(szComm, "modprobe %s", pToken);
          hw_execute_bash_command(szComm, szOutput);
          if ( strlen(szOutput) > 10 )
             bTryDefault = 1;
@@ -219,25 +219,25 @@ int hardware_radio_sik_reinitialize_serial_ports()
    {
       log_line("[Hardware Radio] Doing default USB serial reinitialization.");
 
-      hw_execute_bash_command("sudo modprobe -r pl2303 2>&1", szOutput);
+      hw_execute_bash_command("modprobe -r pl2303 2>&1", szOutput);
       if ( NULL != strstr(szOutput, "is in use") )
       {
-         hw_execute_bash_command("sudo modprobe -r usbserial 2>&1", NULL);
+         hw_execute_bash_command("modprobe -r usbserial 2>&1", NULL);
          hardware_sleep_ms(20);
-         hw_execute_bash_command("sudo modeprobe -r pl2303 2>&1", NULL);
+         hw_execute_bash_command("modeprobe -r pl2303 2>&1", NULL);
       }
 
-      hw_execute_bash_command("sudo modprobe -r cp210x 2>&1", szOutput);
+      hw_execute_bash_command("modprobe -r cp210x 2>&1", szOutput);
       if ( NULL != strstr(szOutput, "is in use") )
       {
-         hw_execute_bash_command("sudo modprobe -r usbserial 2>&1", NULL);
+         hw_execute_bash_command("modprobe -r usbserial 2>&1", NULL);
          hardware_sleep_ms(20);
-         hw_execute_bash_command("sudo modeprobe -r cp210x 2>&1", NULL);
+         hw_execute_bash_command("modeprobe -r cp210x 2>&1", NULL);
       }
 
       hardware_sleep_ms(20);
-      hw_execute_bash_command("sudo modprobe cp210x 2>&1", NULL);
-      hw_execute_bash_command("sudo modprobe pl2303 2>&1", NULL);
+      hw_execute_bash_command("modprobe cp210x 2>&1", NULL);
+      hw_execute_bash_command("modprobe pl2303 2>&1", NULL);
    }
    
    log_line("[HardwareRadio] Reinitialized serial ports drivers.");

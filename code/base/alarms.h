@@ -4,6 +4,9 @@
 // Lower 2 bytes: alarms from vehicle
 // Higher 2 bytes: alarms on controller
 
+//---------------------------------------------------------
+// Vehicle alarms
+
 #define ALARM_ID_UNSUPORTED_USB_SERIAL  ((u32)(((u32)0x01)))
 #define ALARM_ID_RECEIVED_INVALID_RADIO_PACKET  ((u32)(((u32)0x01)<<1))
 #define ALARM_ID_RECEIVED_INVALID_RADIO_PACKET_RECONSTRUCTED  ((u32)(((u32)0x01)<<2))
@@ -20,8 +23,10 @@
 #define ALARM_ID_RADIO_INTERFACE_REINITIALIZED ((u32)(((u32)0x01)<<14)) // flags: interface index that was reinitialized
 #define ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED ((u32)(((u32)0x01)<<15))
 
-#define ALARM_ID_RADIO_LINK_DATA_OVERLOAD ((u32)(((u32)0x01)<<16)) // param1: low 3 bytes: total send bitrate in bytes/sec, high byte: radio interface, param2: current radio datarate in bytes/sec
+//--------------------------------------------------------
+// Controller alarms
 
+#define ALARM_ID_RADIO_LINK_DATA_OVERLOAD ((u32)(((u32)0x01)<<16)) // param1: low 3 bytes: total send bitrate in bytes/sec, high byte: radio interface, param2: current radio datarate in bytes/sec
 #define ALARM_ID_CONTROLLER_RECEIVED_INVALID_RADIO_PACKET  ((u32)(((u32)0x01)<<17))
 #define ALARM_ID_CONTROLLER_NO_INTERFACES_FOR_RADIO_LINK  ((u32)(((u32)0x01)<<18))
 #define ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD ((u32)(((u32)0x01)<<19)) // param: low word: loop miliseconds average, highword: loop miliseconds spike
@@ -30,9 +35,12 @@
 #define ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE ((u32)(((u32)0x01)<<22))
 #define ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR ((u32)(((u32)0x01)<<23))
 #define ALARM_ID_CONTROLLER_PAIRING_COMPLETED ((u32)(((u32)0x01)<<24))
-
 #define ALARM_ID_FIRMWARE_OLD ((u32)(((u32)0x01)<<25))
 #define ALARM_ID_CPU_RX_LOOP_OVERLOAD ((u32)(((u32)0x01)<<26)) // param: loop miliseconds spike
+
+
+//-----------------------------------------------
+// Generic alarm
 
 #define ALARM_ID_GENERIC ((u32)(((u32)0x01)<<30)) // first param is the generic alarm id
 #define ALARM_ID_GENERIC_STATUS_UPDATE ((u32)(((u32)0x01)<<31))
@@ -46,6 +54,8 @@
 #define ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_RECOVERED 7
 #define ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH 8 // second param low 2 bytes is current target video adaptive level, second param high 2 bytes is received video profile in the video stream
 #define ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY 9
+#define ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA 10
+
 
 #define ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE ((u32)(((u32)0x01)<<1))
 #define ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE ((u32)(((u32)0x01)<<2))

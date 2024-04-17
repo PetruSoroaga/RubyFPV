@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -91,6 +91,9 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    {
       if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
          pVDS = &(g_SM_VideoDecodeStats.video_streams[i]);
+   }
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
       if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
          iIndexVehicleRuntimeInfo = i;
    }
@@ -563,6 +566,9 @@ void osd_render_stats_adaptive_video_graph(float xPos, float yPos)
    {
       if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
          pVDS = &(g_SM_VideoDecodeStats.video_streams[i]);
+   }
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
       if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
          iIndexVehicleRuntimeInfo = i;
    }

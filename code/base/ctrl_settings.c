@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -96,7 +96,7 @@ void reset_ControllerSettings()
    s_CtrlSettings.iFreezeOSD = 0;
    s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton = -1;
    s_CtrlSettings.iShowControllerAdaptiveInfoStats = 0;
-   s_CtrlSettings.iShowVideoStreamInfoCompact = 0;
+   s_CtrlSettings.iShowVideoStreamInfoCompactType = 1; // 0 full, 1 compact, 2 minimal
 
    s_CtrlSettings.iSearchSiKAirRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
    s_CtrlSettings.iSearchSiKECC = 0;
@@ -155,7 +155,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", s_CtrlSettings.nRotaryEncoderFunction2, s_CtrlSettings.nRotaryEncoderSpeed2);
    fprintf(fd, "%d %d\n", -1, s_CtrlSettings.iFreezeOSD);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton, s_CtrlSettings.iShowControllerAdaptiveInfoStats);
-   fprintf(fd, "%d\n", s_CtrlSettings.iShowVideoStreamInfoCompact);
+   fprintf(fd, "%d\n", s_CtrlSettings.iShowVideoStreamInfoCompactType);
    fprintf(fd, "%d\n", s_CtrlSettings.iTXPowerSiK);
 
    fprintf(fd, "%d %d %d %d\n", s_CtrlSettings.iSearchSiKAirRate, s_CtrlSettings.iSearchSiKECC, s_CtrlSettings.iSearchSiKLBT, s_CtrlSettings.iSearchSiKMCSTR);
@@ -322,8 +322,8 @@ int load_ControllerSettings()
    if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowControllerAdaptiveInfoStats)) )
       s_CtrlSettings.iShowControllerAdaptiveInfoStats = 0;
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowVideoStreamInfoCompact)) )
-      s_CtrlSettings.iShowVideoStreamInfoCompact = 0;
+   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowVideoStreamInfoCompactType)) )
+      s_CtrlSettings.iShowVideoStreamInfoCompactType = 0;
 
    if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iTXPowerSiK)) )
       s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;

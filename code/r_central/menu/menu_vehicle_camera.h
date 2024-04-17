@@ -34,11 +34,11 @@ class MenuVehicleCamera: public Menu
       int m_IndexHue;
       int m_IndexEV, m_IndexEVValue;
       int m_IndexAGC;
-      int m_IndexExposure, m_IndexWhiteBalance;
+      int m_IndexExposureMode, m_IndexExposureValue, m_IndexWhiteBalance;
       int m_IndexAWBMode, m_IndexAnalogGains;
       int m_IndexMetering, m_IndexDRC;
       int m_IndexISO, m_IndexISOValue;
-      int m_IndexShutter, m_IndexShutterValue;
+      int m_IndexShutterMode, m_IndexShutterValue;
       int m_IndexWDR;
       int m_IndexDayNight;
       int m_IndexVideoStab, m_IndexFlip, m_IndexReset;

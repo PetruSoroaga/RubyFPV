@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -528,18 +528,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
 
       //if ( pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)
       //   iCountRetransmissionsPackets++;
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
-      {
-         t_packet_header_command* pCom = (t_packet_header_command*)(pData + sizeof(t_packet_header));
-         g_uTimeLastCommandRequestSent = g_TimeNow;
-         g_uLastCommandRequestIdSent = pCom->command_counter;
-         g_uLastCommandRequestIdRetrySent = pCom->command_resend_counter;
-         //iHasCommandPacket++;
-         //uCommandId = pCom->command_counter;
-         //uCommandResendCount = pCom->command_resend_counter;
-
-      }
 
       uDestVehicleId = pPH->vehicle_id_dest;
       u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;

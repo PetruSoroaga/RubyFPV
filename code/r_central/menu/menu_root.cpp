@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -61,6 +61,9 @@ MenuRoot::MenuRoot(void)
    m_xPos = menu_get_XStartPos(m_Width);
    m_yPos = 0.36;
    //m_bFullWidthSelection = true;
+
+   if ( 1 == Menu::getRenderMode() )
+      addExtraHeightAtStart(0.2);
 
    addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
    addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
@@ -271,12 +274,14 @@ void MenuRoot::Render()
 
    sCounterRefresh_RootMenu++;
 
-   m_RenderHeight -= 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+   if ( Menu::getRenderMode() != 1 )
+      m_RenderHeight -= 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
 
    float yTop = RenderFrameAndTitle();
    float y = yTop;
 
-   m_RenderHeight += 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+   if ( Menu::getRenderMode() != 1 )
+      m_RenderHeight += 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
    
    RenderVehicleInfo();
 

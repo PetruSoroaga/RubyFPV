@@ -42,8 +42,8 @@ int main(int argc, char *argv[])
    printf("\nSending on port: %d, message: %s (%d bytes)\n", port, szMsg, strlen(szMsg)+1);
 
    printf("\nCreating socket...\n");
-   int sock = open_wlan_socket_for_write("wlan0");
-   if ( sock <= 0 )
+   int res = radio_open_interface_for_write(0);
+   if ( res <= 0 )
    {
       printf("\nFailed to open socket for write.\n");
       return -1;
@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
    PH.vehicle_id_src = 0;
    PH.vehicle_id_dest = PH.vehicle_id_src;
    PH.total_length = sizeof(t_packet_header) + strlen(szMsg)+1;
-   PH.tx_time = 0;
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
    memcpy(packet+sizeof(t_packet_header), szMsg, strlen(szMsg)+1);
@@ -65,11 +64,11 @@ int main(int argc, char *argv[])
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
    int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, port, 0, 0, NULL);
 
-   if ( 0 == write_packet_to_radio(sock, rawPacket, totalLength ) )
+   if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
       printf("Failed to write to radio interface.\n");
 
    hardware_sleep_ms(50);   
-   close_wlan_interface_for_write(sock);
+   radio_close_interface_for_write(0);
    printf("\nSent %d bytes on port: %d\n", PH.total_length, port);
    return (0);
 }

@@ -15,6 +15,9 @@ extern int g_iListCaptureResolutionsCount;
 extern type_video_capture_resolution_info g_listCaptureResolutionsVeye[];
 extern int g_iListCaptureResolutionsVeyeCount;
 
+extern type_video_capture_resolution_info g_listCaptureResolutionsVeye307[];
+extern int g_iListCaptureResolutionsVeyeCount307;
+
 extern type_video_capture_resolution_info g_listCaptureResolutionsOpenIPC[];
 extern int g_iListCaptureResolutionsOpenIPCCount;
 

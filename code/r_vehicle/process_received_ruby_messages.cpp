@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -62,7 +62,7 @@ int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
       u8 uSenderLocalRadioLinkId = 0;
       u8 uTargetRelayCapabilitiesFlags = 0;
       u8 uTargetRelayMode = 0;
-      u32 timeNow = get_current_timestamp_micros();
+      u32 timeNow = get_current_timestamp_ms();
       memcpy( &uPingId, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
       memcpy( &uSenderLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u8));
       memcpy( &uTargetRelayCapabilitiesFlags, pPacketBuffer + sizeof(t_packet_header)+2*sizeof(u8), sizeof(u8));

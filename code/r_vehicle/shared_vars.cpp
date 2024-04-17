@@ -52,7 +52,6 @@ int s_iPendingFrequencyChangeLinkId = -1;
 u32 s_uPendingFrequencyChangeTo = 0;
 u32 s_uTimeFrequencyChangeRequest = 0;
 
-int g_iFramesSinceLastH264KeyFrame = 0;
 u32 g_uTotalRadioTxTimePerSec = 0;
 u32 g_uTotalVideoRadioTxTimePerSec = 0;
 
@@ -63,13 +62,13 @@ shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 shared_mem_video_link_graphs g_SM_VideoLinkGraphs;
 shared_mem_dev_video_bitrate_history g_SM_DevVideoBitrateHistory;
 
-shared_mem_video_info_stats g_VideoInfoStats;
+shared_mem_video_info_stats g_VideoInfoStatsCameraOutput;
 shared_mem_video_info_stats g_VideoInfoStatsRadioOut;
 shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioOut = NULL;
-shared_mem_video_info_stats* g_pSM_VideoInfoStats = NULL;
+shared_mem_video_info_stats* g_pSM_VideoInfoStatsCameraOutput = NULL;
 
 int g_iForcedVideoProfile = -1;
-int g_iShowVideoKeyframesAfterRelaySwitch = 0;
+int g_iDebugShowKeyFramesAfterRelaySwitch = 0;
 
 int g_iGetSiKConfigAsyncResult = 0;
 int g_iGetSiKConfigAsyncRadioInterfaceIndex = -1;

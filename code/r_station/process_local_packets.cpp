@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -706,7 +706,7 @@ void process_local_control_packet(t_packet_header* pPH)
          video_link_keyframe_set_current_level_to_request(pModel->uVehicleId, iDefaultKeyframeIntervalMs);
       }
 
-      g_iShowVideoKeyframesAfterRelaySwitch = 5;
+      g_iDebugShowKeyFramesAfterRelaySwitch = 5;
       log_line("Done processing notification from central that relay mode changed to %d (%s)", g_pCurrentModel->relay_params.uCurrentRelayMode, str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
       return;
    }

@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -463,97 +463,104 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return 0;
 
-   int iBufferLength = 0;
-   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength);
-
-   u8* pData = pBuffer;
-   int iLength = iBufferLength;
-
    int iReturn = 0;
    int iDataIsOk = 1;
+   int iBufferLength = 0;
+   u8* pBuffer = NULL;
+   int iCountReads = 0;
 
-   if ( pBuffer == NULL ) 
+   do
    {
-      iDataIsOk = 0;
-      iLength = 0;
-      // Can be zero if the read timedout
-      if ( radio_get_last_read_error_code() == RADIO_READ_ERROR_TIMEDOUT )
+      iBufferLength = 0;
+      pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength);
+      if ( NULL == pBuffer )
       {
-         log_softerror_and_alarm("[RadioRxThread] Rx ppcap read timedout reading a packet on radio interface %d.", iInterfaceIndex+1);
-         s_RadioRxState.iRadioInterfacesRxTimeouts[iInterfaceIndex]++;
-      }
-      else
-      {
-         log_softerror_and_alarm("[RadioRxThread] Rx pcap returned a NULL packet on radio interface %d.", iInterfaceIndex+1);
-         iReturn = -1;
-      }
-   }
-
-   if ( iBufferLength <= 0 )
-   {
-      log_softerror_and_alarm("[RadioRxThread] Rx cap returned an empty buffer (%d length) on radio interface index %d.", iBufferLength, iInterfaceIndex+1);
-      iDataIsOk = 0;
-      iLength = 0;
-      iReturn = -1;
-   }
-
-   int iCountPackets = 0;
-   int iIsVideoData = 0;
-
-   while ( (iLength > 0) && (NULL != pData) )
-   { 
-      t_packet_header* pPH = (t_packet_header*)pData;
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-         iIsVideoData = 1;
-
-      iCountPackets++;
-      int bCRCOk = 0;
-      int iPacketLength = packet_process_and_check(iInterfaceIndex, pData, iLength, &bCRCOk);
-
-      if ( iPacketLength <= 0 )
-      {
-         iDataIsOk = 0;
-         s_RadioRxState.iRadioInterfacesRxBadPackets[iInterfaceIndex] = get_last_processing_error_code();
+         iReturn = 1;
          break;
       }
 
-      if ( ! bCRCOk )
+      iCountReads++;
+
+      u8* pData = pBuffer;
+      int iLength = iBufferLength;
+
+      if ( iBufferLength <= 0 )
       {
-         log_softerror_and_alarm("[RadioRxThread] Received broken packet (wrong CRC) on radio interface %d. Packet size: %d bytes, type: %s",
-            iInterfaceIndex+1, pPH->total_length, str_get_packet_type(pPH->packet_type));
+         log_softerror_and_alarm("[RadioRxThread] Rx cap returned an empty buffer (%d length) on radio interface index %d.", iBufferLength, iInterfaceIndex+1);
          iDataIsOk = 0;
-         pData += pPH->total_length;
-         iLength -= pPH->total_length; 
-         continue;
+         iLength = 0;
+         iReturn = -1;
+         break;
       }
 
-      if ( (iPacketLength != pPH->total_length) || (pPH->total_length >= MAX_PACKET_TOTAL_SIZE) )
-      {
-         log_softerror_and_alarm("[RadioRxThread] Received broken packet (computed size: %d). Packet size: %d bytes, type: %s", iPacketLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
-         iDataIsOk = 0;
+      int iCountPackets = 0;
+      int iIsVideoData = 0;
+
+      while ( (iLength > 0) && (NULL != pData) )
+      { 
+         t_packet_header* pPH = (t_packet_header*)pData;
+
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+            iIsVideoData = 1;
+
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+         {
+            t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));    
+            if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+            if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+            if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
+            {
+               u8* pExtraData = pData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
+               u32* pExtraDataU32 = (u32*)pExtraData;
+               pExtraDataU32[4] = get_current_timestamp_ms();
+            }
+         }
+
+         iCountPackets++;
+         int bCRCOk = 0;
+         int iPacketLength = packet_process_and_check(iInterfaceIndex, pData, iLength, &bCRCOk);
+
+         if ( iPacketLength <= 0 )
+         {
+            iDataIsOk = 0;
+            s_RadioRxState.iRadioInterfacesRxBadPackets[iInterfaceIndex] = get_last_processing_error_code();
+            break;
+         }
+
+         if ( ! bCRCOk )
+         {
+            log_softerror_and_alarm("[RadioRxThread] Received broken packet (wrong CRC) on radio interface %d. Packet size: %d bytes, type: %s",
+               iInterfaceIndex+1, pPH->total_length, str_get_packet_type(pPH->packet_type));
+            iDataIsOk = 0;
+            pData += pPH->total_length;
+            iLength -= pPH->total_length; 
+            continue;
+         }
+
+         if ( (iPacketLength != pPH->total_length) || (pPH->total_length >= MAX_PACKET_TOTAL_SIZE) )
+         {
+            log_softerror_and_alarm("[RadioRxThread] Received broken packet (computed size: %d). Packet size: %d bytes, type: %s", iPacketLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
+            iDataIsOk = 0;
+            pData += pPH->total_length;
+            iLength -= pPH->total_length; 
+            continue;
+         }
+         _radio_rx_check_add_packet_to_rx_queue(pData, pPH->total_length, iInterfaceIndex);
+
          pData += pPH->total_length;
-         iLength -= pPH->total_length; 
-         continue;
+         iLength -= pPH->total_length;
       }
-      _radio_rx_check_add_packet_to_rx_queue(pData, pPH->total_length, iInterfaceIndex);
 
-      pData += pPH->total_length;
-      iLength -= pPH->total_length;
-   }
+      s_uRadioRxTimeNow = get_current_timestamp_ms();
 
-   s_uRadioRxTimeNow = get_current_timestamp_ms();
-
-   u32 uVehicleId = 0;
-   if ( NULL != pBuffer )
-   {
       t_packet_header* pPH = (t_packet_header*)pBuffer;
-      uVehicleId = pPH->vehicle_id_src;
-   }
+      u32 uVehicleId = pPH->vehicle_id_src;
 
-   _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
-   if ( NULL != s_pSMRadioStats )
-      radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, 0, iIsVideoData, iDataIsOk);
+      _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
+      if ( NULL != s_pSMRadioStats )
+         radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, 0, iIsVideoData, iDataIsOk);
+   } while (1);
+
    return iReturn;
 }
 
@@ -1016,6 +1023,34 @@ void radio_rx_reset_interfaces_broken_state()
 t_radio_rx_state* radio_rx_get_state()
 {
    return &s_RadioRxState;
+}
+
+int radio_rx_has_retransmissions_requests_to_consume()
+{
+   if ( 0 == s_iRadioRxInitialized )
+      return 0;
+   if ( s_RadioRxState.iCurrentRxPacketIndex == s_RadioRxState.iCurrentRxPacketToConsume )
+      return 0;
+
+   int iCount = 0;
+   int iBottom = 0;
+   int iTop = 0;
+   //pthread_mutex_lock(&s_pThreadRadioRxMutex);
+   iBottom = s_RadioRxState.iCurrentRxPacketToConsume;
+   iTop = s_RadioRxState.iCurrentRxPacketIndex;
+   //pthread_mutex_unlock(&s_pThreadRadioRxMutex);
+
+   while ( iBottom != iTop )
+   {
+      t_packet_header* pPH = (t_packet_header*) s_RadioRxState.pPacketsBuffers[iBottom];
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+      if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) || (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
+         iCount++;
+      iBottom++;
+      if ( iBottom >= MAX_RX_PACKETS_QUEUE )
+         iBottom++;
+   }
+   return iCount;
 }
 
 int radio_rx_has_packets_to_consume()

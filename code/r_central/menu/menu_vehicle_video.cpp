@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         Copyright info and developer info must be preserved as is in the user
+         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -78,6 +78,12 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    {
       m_pVideoResolutions = &(g_listCaptureResolutionsVeye[0]);
       m_iVideoResolutionsCount = g_iListCaptureResolutionsVeyeCount;
+   }
+
+   if ( g_pCurrentModel->isActiveCameraVeye307() )
+   {
+      m_pVideoResolutions = &(g_listCaptureResolutionsVeye307[0]);
+      m_iVideoResolutionsCount = g_iListCaptureResolutionsVeyeCount307;
    }
 
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
@@ -424,6 +430,8 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
 
+   if ( pProfile->fps != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
+     log_line("Sending new video FPS %d -> %d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps, pProfile->fps);
    log_line("Sending video encoding extra flags: %s", str_format_video_encoding_flags(pProfile->encoding_extra_flags));
       
    u8 buffer[1024];

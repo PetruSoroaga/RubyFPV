@@ -29,4 +29,5 @@ class MenuVehicleInstrumentsGeneral: public Menu
       int m_IndexAHIShowAirSpeed;
       int m_IndexUnits;
       int m_IndexBatteryCells;
+      int m_iIndexFlashOSDOnTelemLost;
 };

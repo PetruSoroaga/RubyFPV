@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -53,6 +53,9 @@ MenuVehicleRelay::MenuVehicleRelay(void)
    m_szRelayError[0] = 0;
    m_szRelayError2[0] = 0;
 
+   m_fHeightHeader = 0.16;
+   addExtraHeightAtStart(m_fHeightHeader);
+
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       m_bCurrentVehicleRelayCapableLinks[i] = false;
 
@@ -68,7 +71,6 @@ MenuVehicleRelay::~MenuVehicleRelay()
 
 void MenuVehicleRelay::onShow()
 {
-   m_fHeightHeader = 0.24/g_pRenderEngine->getAspectRatio();
    m_Height = 0.0;
    char szBuff[256];
    removeAllItems();
@@ -101,7 +103,6 @@ void MenuVehicleRelay::onShow()
       return;
    }
 
-   //m_ExtraItemsHeight = m_fHeightHeader;
    m_bIsConfigurable = true;
 
    sprintf(szBuff, "Selects the vehicle to relay using the currently active vehicle: %s.", g_pCurrentModel->getLongName());
@@ -309,7 +310,7 @@ void MenuVehicleRelay::Render()
    RenderPrepare();
    float yTop = RenderFrameAndTitle(); 
 
-   _drawHeader(yTop - 0.4*m_sfMenuPaddingY);
+   _drawHeader(yTop - m_fHeightHeader - 0.4*m_sfMenuPaddingY);
    float y = yTop;
  
    for( int i=0; i<m_ItemsCount; i++ )

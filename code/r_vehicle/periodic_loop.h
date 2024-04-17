@@ -1,4 +1,4 @@
 #pragma once
 
-// Returns 1 if main loop should terminate
+// Returns 1 if radios should reinitialize
 int periodicLoop();

@@ -125,6 +125,9 @@ class Menu
      Menu(int id, const char* title, const char* subTitle);
      virtual ~Menu();
 
+     static int getRenderMode();
+     static void setRenderMode(int iMode);
+
      static float getMenuPaddingX();
      static float getMenuPaddingY();
      static float getSelectionPaddingX();
@@ -168,10 +171,12 @@ class Menu
      u32 getOnChildAddTime();
      u32 getOnReturnFromChildTime();
 
+     void addExtraHeightAtStart(float fExtraH);
      void addExtraHeightAtEnd(float fExtraH);
 
      virtual bool periodicLoop();
      virtual float RenderFrameAndTitle();
+     virtual float RenderFrameAndTitleSticky();
      virtual float RenderItem(int index, float yPos, float dx = 0);
      bool didRenderedLastItem();
      virtual void RenderPrepare();
@@ -201,7 +206,11 @@ class Menu
      
    protected:
      void computeRenderSizes();
+     float _computeRenderTopHeaderSize();
+     float _computeRenderTopPartSize();
+     float _computeRenderMaxBottomFooterSize();
      float _getMenuItemTotalRenderHeight(int iMenuItemIndex);
+     void _debugDrawBoundingBoxes(float yPos);
      void updateScrollingOnSelectionChange();
      bool checkIsArmed();
      void addMessageWithTitle(int iId, const char* szTitle, const char* szMessage);
@@ -214,11 +223,13 @@ class Menu
      void addUnsupportedMessageOpenIPCGoke(const char* szMessage);
      void addUnsupportedMessageOpenIPCSigmaster(const char* szMessage);
      bool uploadSoftware();
+     bool _generate_upload_archive(char* szArchiveName);
      bool _uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload);
      bool checkCancelUpload();
 
      MenuItemSelect* createMenuItemCardModelSelector(const char* szName);
      
+     static int m_siRenderMode;
      static float m_sfMenuPaddingX;
      static float m_sfMenuPaddingY;
      static float m_sfSelectionPaddingX;
@@ -256,6 +267,7 @@ class Menu
      float m_fRenderItemsVisibleHeight;
      float m_fRenderItemsStartYPos;
      float m_fRenderItemsStopYPos;
+     float m_fExtraHeightStart;
      float m_fExtraHeightEnd;
      
      float m_fRenderScrollBarsWidth;

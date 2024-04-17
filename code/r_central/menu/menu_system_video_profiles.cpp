@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -443,7 +443,7 @@ void MenuSystemVideoProfiles::valuesToUI()
       m_pItemsSelect[k*20+12]->setSelection(selectedIndex);
 
       m_pItemsSlider[k*20+10]->setCurrentValue(4*g_pCurrentModel->video_link_profiles[k].bitrate_fixed_bps/1000/1000);
-      m_pItemsSlider[k*20+11]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].packet_length);
+      m_pItemsSlider[k*20+11]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].video_data_length);
       m_pItemsSlider[k*20+12]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].block_packets);
       m_pItemsSlider[k*20+13]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].block_fecs);
 
@@ -599,7 +599,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
          profiles[k].encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME);
       else
          profiles[k].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
-      profiles[k].packet_length = m_pItemsSlider[k*20+11]->getCurrentValue();
+      profiles[k].video_data_length = m_pItemsSlider[k*20+11]->getCurrentValue();
       profiles[k].block_packets = m_pItemsSlider[k*20+12]->getCurrentValue();
       profiles[k].block_fecs    = m_pItemsSlider[k*20+13]->getCurrentValue();
       profiles[k].bitrate_fixed_bps = m_pItemsSlider[k*20+10]->getCurrentValue()*1000*1000/4;

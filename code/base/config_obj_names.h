@@ -3,6 +3,7 @@
 #define FIFO_RUBY_CAMERA1 "/tmp/ruby/fifocam1"
 #define FIFO_RUBY_AUDIO1 "/tmp/ruby/fifoaudio1"
 
+// Must be same name used by video player when it's using fifo pipes
 #define FIFO_RUBY_STATION_VIDEO_STREAM "/tmp/ruby/fifovidstream"
 #define FIFO_RUBY_STATION_VIDEO_STREAM_ETH "/tmp/ruby/fifovidstream_eth"
 

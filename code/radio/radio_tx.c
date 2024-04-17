@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -195,7 +195,7 @@ static void * _thread_radio_tx(void *argument)
          continue;
 
       type_ipc_message_tx_packet_buffer ipcMessage;
-      int iIPCLength = msgrcv(s_iRadioTxIPCQueue, &ipcMessage, sizeof(ipcMessage), 0, IPC_NOWAIT);
+      int iIPCLength = msgrcv(s_iRadioTxIPCQueue, &ipcMessage, sizeof(ipcMessage), 0, MSG_NOERROR | IPC_NOWAIT);
       if ( iIPCLength <= 2 )
          continue;
       

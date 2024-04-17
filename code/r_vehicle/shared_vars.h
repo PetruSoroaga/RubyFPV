@@ -78,7 +78,6 @@ extern int s_iPendingFrequencyChangeLinkId;
 extern u32 s_uPendingFrequencyChangeTo;
 extern u32 s_uTimeFrequencyChangeRequest;
 
-extern int g_iFramesSinceLastH264KeyFrame;
 extern u32 g_uTotalRadioTxTimePerSec;
 extern u32 g_uTotalVideoRadioTxTimePerSec;
 
@@ -89,13 +88,13 @@ extern shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 extern shared_mem_video_link_graphs g_SM_VideoLinkGraphs;
 extern shared_mem_dev_video_bitrate_history g_SM_DevVideoBitrateHistory;
 
-extern shared_mem_video_info_stats g_VideoInfoStats;
+extern shared_mem_video_info_stats g_VideoInfoStatsCameraOutput;
 extern shared_mem_video_info_stats g_VideoInfoStatsRadioOut;
-extern shared_mem_video_info_stats* g_pSM_VideoInfoStats;
+extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsCameraOutput;
 extern shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioOut;
 
 extern int g_iForcedVideoProfile;
-extern int g_iShowVideoKeyframesAfterRelaySwitch;
+extern int g_iDebugShowKeyFramesAfterRelaySwitch;
 
 extern int g_iGetSiKConfigAsyncResult;
 extern int g_iGetSiKConfigAsyncRadioInterfaceIndex;

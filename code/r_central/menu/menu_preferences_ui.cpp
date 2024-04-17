@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -51,9 +51,20 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_IndexScaleMenu = -1;
    m_IndexMenuStacked = -1;
 
+   m_IndexUnits = -1;
+   m_IndexPersistentMessages = -1;
+   m_IndexLogWindow = -1;
+
    if ( ! m_bShowOnlyOSD )
    {
       addMenuItem(new MenuItemSection("Menus"));
+
+      m_pItemsSelect[1] = new MenuItemSelect("Menus Layout", "Changes how the menus appear on screen.");  
+      m_pItemsSelect[1]->addSelection("Side by side");
+      m_pItemsSelect[1]->addSelection("Stacked");
+      m_pItemsSelect[1]->addSelection("Sticky Left", false);
+      m_pItemsSelect[1]->setIsEditable();
+      m_IndexMenuStacked = addMenuItem(m_pItemsSelect[1]);
 
       m_pItemsSelect[0] = new MenuItemSelect("Menu Font Size", "Change how big the menus appear on screen.");  
       m_pItemsSelect[0]->addSelection("X-Small");
@@ -64,14 +75,9 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
       m_pItemsSelect[0]->setIsEditable();
       m_IndexScaleMenu = addMenuItem(m_pItemsSelect[0]);
       
-      m_pItemsSelect[1] = new MenuItemSelect("Menus Layout", "Changes how the menus appear on screen.");  
-      m_pItemsSelect[1]->addSelection("Side by side");
-      m_pItemsSelect[1]->addSelection("Stacked");
-      m_pItemsSelect[1]->setIsEditable();
-      m_IndexMenuStacked = addMenuItem(m_pItemsSelect[1]);
-
       addMenuItem(new MenuItemSection("OSD"));
    }
+
    m_pItemsSelect[2] = new MenuItemSelect("Invert Colors", "Invert colors on OSD and Menus.");
    m_pItemsSelect[2]->addSelection("Normal");
    m_pItemsSelect[2]->addSelection("Inverted");
@@ -123,12 +129,38 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_pItemsSelect[12]->addSelection("Yes");
    m_pItemsSelect[12]->setIsEditable();
    m_IndexMonitor = addMenuItem(m_pItemsSelect[12]);
+
+   if ( ! m_bShowOnlyOSD )
+   {
+      addMenuItem(new MenuItemSection("General"));
+      m_pItemsSelect[15] = new MenuItemSelect("Display Units", "Changes how the OSD displays data: in metric system or imperial system.");  
+      m_pItemsSelect[15]->addSelection("Metric (km/h)");
+      m_pItemsSelect[15]->addSelection("Metric (m/s)");
+      m_pItemsSelect[15]->addSelection("Imperial (mi/h)");
+      m_pItemsSelect[15]->addSelection("Imperial (ft/s)");
+      m_pItemsSelect[15]->setIsEditable();
+      m_IndexUnits = addMenuItem(m_pItemsSelect[15]);
+
+      m_pItemsSelect[16] = new MenuItemSelect("Persistent Messages", "Keep the various messages and warnings longer on the screen.");  
+      m_pItemsSelect[16]->addSelection("No");
+      m_pItemsSelect[16]->addSelection("Yes");
+      m_pItemsSelect[16]->setIsEditable();
+      m_IndexPersistentMessages = addMenuItem(m_pItemsSelect[16]);
+
+      m_pItemsSelect[17] = new MenuItemSelect("Log Messages Window", "Shows the log messages window.");  
+      m_pItemsSelect[17]->addSelection("Off");
+      m_pItemsSelect[17]->addSelection("On New Content");
+      m_pItemsSelect[17]->addSelection("Always On");
+      m_pItemsSelect[17]->setIsEditable();
+      m_IndexLogWindow = addMenuItem(m_pItemsSelect[17]);
+   }
 }
 
 void MenuPreferencesUI::valuesToUI()
 {
+   ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
-   if ( NULL == p )
+   if ( NULL == p || NULL == pCS )
    {
       log_softerror_and_alarm("Failed to get pointer to preferences structure");
       return;
@@ -137,7 +169,13 @@ void MenuPreferencesUI::valuesToUI()
    if ( ! m_bShowOnlyOSD )
    {
       m_pItemsSelect[0]->setSelection(p->iScaleMenus+2);
-      m_pItemsSelect[1]->setSelection(p->iMenusStacked);
+
+      if ( p->iMenuStyle == 1 )
+         m_pItemsSelect[1]->setSelection(2);
+      else if ( p->iMenusStacked )
+         m_pItemsSelect[1]->setSelection(1);
+      else
+         m_pItemsSelect[1]->setSelection(0);
    }
 
    m_pItemsSelect[2]->setSelection(p->iInvertColorsOSD);
@@ -148,6 +186,21 @@ void MenuPreferencesUI::valuesToUI()
    m_pItemsSelect[10]->setSelectedIndex(p->iOSDFont);
 
    m_pItemsSelect[12]->setSelection(p->iShowProcessesMonitor);
+
+   if ( ! m_bShowOnlyOSD )
+   {
+      if ( p->iUnits == prefUnitsMetric )
+         m_pItemsSelect[15]->setSelection(0);
+      if ( p->iUnits == prefUnitsMeters )
+         m_pItemsSelect[15]->setSelection(1);
+      if ( p->iUnits == prefUnitsImperial )
+         m_pItemsSelect[15]->setSelection(2);
+      if ( p->iUnits == prefUnitsFeets )
+         m_pItemsSelect[15]->setSelection(3);
+
+      m_pItemsSelect[16]->setSelection(p->iPersistentMessages);
+      m_pItemsSelect[17]->setSelection(p->iShowLogWindow);
+   }
 }
 
 void MenuPreferencesUI::onShow()
@@ -241,15 +294,19 @@ void MenuPreferencesUI::onSelectItem()
 {
    Menu::onSelectItem();
 
+   ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
-   if ( NULL == p )
+   if ( NULL == p || NULL == pCS )
    {
       log_softerror_and_alarm("Failed to get pointer to preferences structure");
       return;
    }
 
+   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+      return;
+
    if ( ! m_bShowOnlyOSD )
-   if ( m_IndexScaleMenu == m_SelectedIndex && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
+   if ( m_IndexScaleMenu == m_SelectedIndex )
    {
       p->iScaleMenus = m_pItemsSelect[0]->getSelectedIndex()-2;
       if ( render_engine_is_raw() )
@@ -262,21 +319,35 @@ void MenuPreferencesUI::onSelectItem()
    }
 
    if ( ! m_bShowOnlyOSD )
-   if ( m_IndexMenuStacked == m_SelectedIndex  && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
+   if ( m_IndexMenuStacked == m_SelectedIndex )
    {
-      p->iMenusStacked = m_pItemsSelect[1]->getSelectedIndex();
+      int iIndex = m_pItemsSelect[1]->getSelectedIndex();
+      if ( 2 == iIndex )
+         p->iMenuStyle = 1;
+      else
+      {
+         p->iMenuStyle = 0;
+         if ( 0 == iIndex )
+            p->iMenusStacked = 0;
+         else
+            p->iMenusStacked = 1;
+      }
+      Menu::setRenderMode(p->iMenuStyle);
       save_Preferences();
+      applyFontScaleChanges();
+      menu_invalidate_all();
+      popups_invalidate_all();
       return;
    }
 
-   if ( m_IndexInvertColors == m_SelectedIndex  && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
+   if ( m_IndexInvertColors == m_SelectedIndex )
    {
       p->iInvertColorsOSD = m_pItemsSelect[2]->getSelectedIndex();
       p->iInvertColorsMenu = m_pItemsSelect[2]->getSelectedIndex();
       menu_invalidate_all();
    }
 
-   if ( m_IndexOSDFont == m_SelectedIndex && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
+   if ( m_IndexOSDFont == m_SelectedIndex )
    {
       p->iOSDFont = m_pItemsSelect[10]->getSelectedIndex();
       save_Preferences();
@@ -315,7 +386,7 @@ void MenuPreferencesUI::onSelectItem()
    if ( m_IndexOSDSize == m_SelectedIndex )
       p->iOSDScreenSize = m_pItemsSelect[6]->getSelectedIndex();
 
-   if ( m_IndexOSDFlip == m_SelectedIndex && ( ! m_pMenuItems[m_SelectedIndex]->isEditing() ) )
+   if ( m_IndexOSDFlip == m_SelectedIndex )
       p->iOSDFlipVertical = m_pItemsSelect[7]->getSelectedIndex();
 
    if ( m_IndexMonitor == m_SelectedIndex )
@@ -325,5 +396,32 @@ void MenuPreferencesUI::onSelectItem()
       valuesToUI();
       return;
    }
+
+   if ( m_IndexUnits == m_SelectedIndex )
+   {
+      int nSel = m_pItemsSelect[15]->getSelectedIndex();
+      if ( 0 == nSel )
+         p->iUnits = prefUnitsMetric;
+      if ( 1 == nSel )
+         p->iUnits = prefUnitsMeters;
+      if ( 2 == nSel )
+         p->iUnits = prefUnitsImperial;
+      if ( 3 == nSel )
+         p->iUnits = prefUnitsFeets;
+   }
+
+   if ( m_IndexPersistentMessages == m_SelectedIndex )
+      p->iPersistentMessages = m_pItemsSelect[16]->getSelectedIndex();
+
+   if ( m_IndexLogWindow == m_SelectedIndex )
+   {
+      p->iShowLogWindow = m_pItemsSelect[17]->getSelectedIndex();
+      popup_log_set_show_flag(p->iShowLogWindow);
+      menu_invalidate_all();
+      valuesToUI();
+      save_Preferences();
+      return;
+   }
+
    save_Preferences();
 }
