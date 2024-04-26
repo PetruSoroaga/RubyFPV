@@ -206,7 +206,7 @@ void hardware_enumerate_i2c_busses()
          if ( k == 7 )
             addrEnd = (7*16)+7;
 
-         if ( (uBoardType == BOARD_TYPE_PI4B) && (0 == s_HardwareI2CBusInfo[i].nBusNumber) )
+         if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B) && (0 == s_HardwareI2CBusInfo[i].nBusNumber) )
          {
             if ( k == 0 )
                addrStart = addrEnd = I2C_DEVICE_ADDRESS_CAMERA_HDMI;

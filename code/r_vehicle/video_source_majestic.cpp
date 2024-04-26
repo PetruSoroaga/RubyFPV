@@ -80,6 +80,22 @@ void video_source_majestic_init_all_params()
    g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
    g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
    log_line("Completed setting initial majestic params. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
+
+   if ( g_pCurrentModel->processesPriorities.iNiceVideo < 0 )
+   {
+      hardware_sleep_ms(50);
+      int iPID = hw_process_exists("majestic");
+      if ( iPID > 1 )
+      {
+         log_line("[VideoSourceUDP] Adjust initial majestic nice priority to %d", g_pCurrentModel->processesPriorities.iNiceVideo);
+         char szComm[256];
+         sprintf(szComm,"renice -n %d -p %d", g_pCurrentModel->processesPriorities.iNiceVideo, iPID);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      else
+         log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
+   }
+
 }
 
 void video_source_majestic_close()
@@ -149,6 +165,21 @@ u32 video_source_majestic_get_program_start_time()
 void video_source_majestic_start_capture_program()
 {
    hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
+
+   if ( g_pCurrentModel->processesPriorities.iNiceVideo < 0 )
+   {
+      hardware_sleep_ms(50);
+      int iPID = hw_process_exists("majestic");
+      if ( iPID > 1 )
+      {
+         log_line("[VideoSourceUDP] Adjust majestic nice priority to %d", g_pCurrentModel->processesPriorities.iNiceVideo);
+         char szComm[256];
+         sprintf(szComm,"renice -n %d -p %d", g_pCurrentModel->processesPriorities.iNiceVideo, iPID);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      else
+         log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
+   }
 }
 
 void video_source_majestic_stop_capture_program()

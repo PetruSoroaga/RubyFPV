@@ -46,7 +46,7 @@ MenuVehicleExpert::MenuVehicleExpert(void)
    
    addTopInfo();
 
-   addMenuItem(new MenuItemSection("Priorities"));
+   addMenuItem(new MenuItemSection("Processes Priorities"));
 
    m_pItemsSlider[0] = new MenuItemSlider("Core Priority", "Sets the priority for the Ruby core functionality. Higher values means higher priority.", 0,18,11, fSliderWidth);
    m_IndexNiceRouter = addMenuItem(m_pItemsSlider[0]);
@@ -82,6 +82,29 @@ MenuVehicleExpert::MenuVehicleExpert(void)
 
    m_pItemsSlider[6] = new MenuItemSlider("Other Modules Priority",  "Sets the priority for the other modules. Higher values means higher priority.", 0,15, 2, fSliderWidth);
    m_IndexNiceOthers = addMenuItem(m_pItemsSlider[6]);
+
+   addMenuItem(new MenuItemSection("Threads Priorities"));
+
+   m_pItemsSelect[11] = new MenuItemSelect("Core Threads Adjustment", "Change the way the priority of Ruby threads is adjusted.");
+   m_pItemsSelect[11]->addSelection("Auto");
+   m_pItemsSelect[11]->addSelection("Manual");
+   m_pItemsSelect[11]->setIsEditable();
+   m_IndexEnableRouter = addMenuItem(m_pItemsSelect[11]);
+
+   m_pItemsSlider[11] = new MenuItemSlider("   Threads Priority", "Sets the priority for the Ruby threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_IndexRouter = addMenuItem(m_pItemsSlider[11]);
+
+   m_pItemsSelect[12] = new MenuItemSelect("Radio Threads Adjustment", "Change the way the priority of Ruby radio threads is adjusted.");
+   m_pItemsSelect[12]->addSelection("Auto");
+   m_pItemsSelect[12]->addSelection("Manual");
+   m_pItemsSelect[12]->setIsEditable();
+   m_IndexEnableRadio = addMenuItem(m_pItemsSelect[12]);
+
+   m_pItemsSlider[12] = new MenuItemSlider("   Rx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_IndexRadioRx = addMenuItem(m_pItemsSlider[12]);
+
+   m_pItemsSlider[13] = new MenuItemSlider("   Tx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_IndexRadioTx = addMenuItem(m_pItemsSlider[13]);
 
    addMenuItem(new MenuItemSection("Overclocking"));
 
@@ -128,49 +151,81 @@ MenuVehicleExpert::MenuVehicleExpert(void)
 
 void MenuVehicleExpert::valuesToUI()
 {
-   m_pItemsSlider[0]->setCurrentValue(-g_pCurrentModel->niceRouter);
-   m_pItemsSlider[2]->setCurrentValue(-g_pCurrentModel->niceVideo);
-   m_pItemsSlider[4]->setCurrentValue(-g_pCurrentModel->niceTelemetry);
-   m_pItemsSlider[5]->setCurrentValue(-g_pCurrentModel->niceRC);
-   m_pItemsSlider[6]->setCurrentValue(-g_pCurrentModel->niceOthers);
+   m_pItemsSlider[0]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceRouter);
+   m_pItemsSlider[2]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceVideo);
+   m_pItemsSlider[4]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceTelemetry);
+   m_pItemsSlider[5]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceRC);
+   m_pItemsSlider[6]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceOthers);
 
-   log_line("menu rc nice: %d", g_pCurrentModel->niceRC);
-   m_pItemsSelect[0]->setSelection(g_pCurrentModel->ioNiceRouter > 0);
-   if ( g_pCurrentModel->ioNiceRouter > 0 )
-      m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->ioNiceRouter);
+   log_line("menu rc nice: %d", g_pCurrentModel->processesPriorities.iNiceRC);
+   m_pItemsSelect[0]->setSelection(g_pCurrentModel->processesPriorities.ioNiceRouter > 0);
+   if ( g_pCurrentModel->processesPriorities.ioNiceRouter > 0 )
+      m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->processesPriorities.ioNiceRouter);
    else
-      m_pItemsSlider[1]->setCurrentValue(-g_pCurrentModel->ioNiceRouter);
-   m_pItemsSlider[1]->setEnabled(g_pCurrentModel->ioNiceRouter > 0);
+      m_pItemsSlider[1]->setCurrentValue(-g_pCurrentModel->processesPriorities.ioNiceRouter);
+   m_pItemsSlider[1]->setEnabled(g_pCurrentModel->processesPriorities.ioNiceRouter > 0);
 
-   m_pItemsSelect[1]->setSelection(g_pCurrentModel->ioNiceVideo > 0);
-   if ( g_pCurrentModel->ioNiceVideo > 0 )
-      m_pItemsSlider[3]->setCurrentValue(g_pCurrentModel->ioNiceVideo);
+   m_pItemsSelect[1]->setSelection(g_pCurrentModel->processesPriorities.ioNiceVideo > 0);
+   if ( g_pCurrentModel->processesPriorities.ioNiceVideo > 0 )
+      m_pItemsSlider[3]->setCurrentValue(g_pCurrentModel->processesPriorities.ioNiceVideo);
    else
-      m_pItemsSlider[3]->setCurrentValue(-g_pCurrentModel->ioNiceVideo);
-   m_pItemsSlider[3]->setEnabled(g_pCurrentModel->ioNiceVideo > 0);
+      m_pItemsSlider[3]->setCurrentValue(-g_pCurrentModel->processesPriorities.ioNiceVideo);
+   m_pItemsSlider[3]->setEnabled(g_pCurrentModel->processesPriorities.ioNiceVideo > 0);
+
+   // Threads
+
+   if ( g_pCurrentModel->processesPriorities.iThreadPriorityRouter == 0 )
+   {
+      m_pItemsSelect[11]->setSelectedIndex(0);
+      m_pItemsSlider[11]->setCurrentValue(1);
+      m_pItemsSlider[11]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[11]->setSelectedIndex(1);
+      m_pItemsSlider[11]->setCurrentValue(g_pCurrentModel->processesPriorities.iThreadPriorityRouter);
+      m_pItemsSlider[11]->setEnabled(true);
+   }
+
+   if ( g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx == 0 )
+   {
+      m_pItemsSelect[12]->setSelectedIndex(0);
+      m_pItemsSlider[12]->setCurrentValue(1);
+      m_pItemsSlider[12]->setEnabled(false);
+      m_pItemsSlider[13]->setCurrentValue(1);
+      m_pItemsSlider[13]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[12]->setSelectedIndex(1);
+      m_pItemsSlider[12]->setCurrentValue(g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx);
+      m_pItemsSlider[12]->setEnabled(true);
+      m_pItemsSlider[13]->setCurrentValue(g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
+      m_pItemsSlider[13]->setEnabled(true);
+   }
 
    // CPU
 
-   m_pItemsSelect[2]->setSelection(g_pCurrentModel->iFreqARM > 0);
-   if ( g_pCurrentModel->iFreqARM > 0 )
-      m_pItemsSlider[7]->setCurrentValue(g_pCurrentModel->iFreqARM);
+   m_pItemsSelect[2]->setSelection(g_pCurrentModel->processesPriorities.iFreqARM > 0);
+   if ( g_pCurrentModel->processesPriorities.iFreqARM > 0 )
+      m_pItemsSlider[7]->setCurrentValue(g_pCurrentModel->processesPriorities.iFreqARM);
    else
-      m_pItemsSlider[7]->setCurrentValue(-g_pCurrentModel->iFreqARM);
-   m_pItemsSlider[7]->setEnabled(g_pCurrentModel->iFreqARM > 0);
+      m_pItemsSlider[7]->setCurrentValue(-g_pCurrentModel->processesPriorities.iFreqARM);
+   m_pItemsSlider[7]->setEnabled(g_pCurrentModel->processesPriorities.iFreqARM > 0);
 
-   m_pItemsSelect[3]->setSelection(g_pCurrentModel->iFreqGPU > 0);
-   if ( g_pCurrentModel->iFreqGPU > 0 )
-      m_pItemsSlider[8]->setCurrentValue(g_pCurrentModel->iFreqGPU);
+   m_pItemsSelect[3]->setSelection(g_pCurrentModel->processesPriorities.iFreqGPU > 0);
+   if ( g_pCurrentModel->processesPriorities.iFreqGPU > 0 )
+      m_pItemsSlider[8]->setCurrentValue(g_pCurrentModel->processesPriorities.iFreqGPU);
    else
-      m_pItemsSlider[8]->setCurrentValue(-g_pCurrentModel->iFreqGPU);
-   m_pItemsSlider[8]->setEnabled(g_pCurrentModel->iFreqGPU > 0);
+      m_pItemsSlider[8]->setCurrentValue(-g_pCurrentModel->processesPriorities.iFreqGPU);
+   m_pItemsSlider[8]->setEnabled(g_pCurrentModel->processesPriorities.iFreqGPU > 0);
 
-   m_pItemsSelect[4]->setSelection(g_pCurrentModel->iOverVoltage > 0);
-   if ( g_pCurrentModel->iOverVoltage > 0 )
-      m_pItemsSlider[9]->setCurrentValue(g_pCurrentModel->iOverVoltage);
+   m_pItemsSelect[4]->setSelection(g_pCurrentModel->processesPriorities.iOverVoltage > 0);
+   if ( g_pCurrentModel->processesPriorities.iOverVoltage > 0 )
+      m_pItemsSlider[9]->setCurrentValue(g_pCurrentModel->processesPriorities.iOverVoltage);
    else
-      m_pItemsSlider[9]->setCurrentValue(-g_pCurrentModel->iOverVoltage);
-   m_pItemsSlider[9]->setEnabled(g_pCurrentModel->iOverVoltage > 0);   
+      m_pItemsSlider[9]->setCurrentValue(-g_pCurrentModel->processesPriorities.iOverVoltage);
+   m_pItemsSlider[9]->setEnabled(g_pCurrentModel->processesPriorities.iOverVoltage > 0);   
 
 
    m_pItemsSelect[5]->setSelection(0);
@@ -193,8 +248,6 @@ void MenuVehicleExpert::onShow()
 {
    Menu::onShow();
 }
-
-
 
 void MenuVehicleExpert::Render()
 {
@@ -228,14 +281,25 @@ void MenuVehicleExpert::onSelectItem()
 
    if ( handle_commands_is_command_in_progress() )
    {
+      log_line("MenuCPU: Command in progress");
       handle_commands_show_popup_progress();
       return;
    }
 
+   if ( ! menu_check_current_model_ok_for_edit() )
+   {
+      log_line("MenuCPU: Can't edit model.");
+      return;
+   }
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   {
+      log_line("MenuCPU: Item is still editing");
       return;
+   }
 
-   if ( m_IndexNiceRouter == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   log_line("MenuCPU: Selected item %d", m_SelectedIndex);
+
+   if ( m_IndexNiceRouter == m_SelectedIndex )
    {
       int nr = -m_pItemsSlider[0]->getCurrentValue();
       int nv = -m_pItemsSlider[2]->getCurrentValue();
@@ -248,7 +312,7 @@ void MenuVehicleExpert::onSelectItem()
    }
 
 
-   if ( m_IndexNiceVideo == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexNiceVideo == m_SelectedIndex )
    {
       int nr = -m_pItemsSlider[0]->getCurrentValue();
       int nv = -m_pItemsSlider[2]->getCurrentValue();
@@ -260,7 +324,7 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexNiceRC == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexNiceRC == m_SelectedIndex )
    {
       int nr = -m_pItemsSlider[0]->getCurrentValue();
       int nv = -m_pItemsSlider[2]->getCurrentValue();
@@ -272,7 +336,7 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexNiceOthers == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexNiceOthers == m_SelectedIndex )
    {
       int nr = -m_pItemsSlider[0]->getCurrentValue();
       int nv = -m_pItemsSlider[2]->getCurrentValue();
@@ -284,7 +348,7 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexNiceTelemetry == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexNiceTelemetry == m_SelectedIndex )
    {
       int nt = -m_pItemsSlider[4]->getCurrentValue();
       u32 val = nt+20;
@@ -293,9 +357,9 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexIONiceRouter == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexIONiceRouter == m_SelectedIndex )
    {
-      int ioNiceRouter = g_pCurrentModel->ioNiceRouter;
+      int ioNiceRouter = g_pCurrentModel->processesPriorities.ioNiceRouter;
       if ( ioNiceRouter < 0 )
          ioNiceRouter = -ioNiceRouter;
       if ( ioNiceRouter == 0 )
@@ -303,9 +367,9 @@ void MenuVehicleExpert::onSelectItem()
 
       if ( 0 == m_pItemsSelect[0]->getSelectedIndex() )
          ioNiceRouter = -ioNiceRouter;
-      log_line("ionice router: %d, %d", ioNiceRouter, g_pCurrentModel->ioNiceRouter);
+      log_line("ionice router: %d, %d", ioNiceRouter, g_pCurrentModel->processesPriorities.ioNiceRouter);
 
-      int ioNice = ((g_pCurrentModel->ioNiceVideo+20) % 256);
+      int ioNice = ((g_pCurrentModel->processesPriorities.ioNiceVideo+20) % 256);
       ioNice |= (((ioNiceRouter+20) % 256)<<8);
 
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_IONICE_VALUES, ioNice, NULL, 0) )
@@ -315,20 +379,18 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexIONiceRouterValue == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexIONiceRouterValue == m_SelectedIndex )
    {
-      int ioNice = ((g_pCurrentModel->ioNiceVideo+20) % 256);
+      int ioNice = ((g_pCurrentModel->processesPriorities.ioNiceVideo+20) % 256);
       ioNice |= (((m_pItemsSlider[1]->getCurrentValue()+20) % 256)<<8);
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_IONICE_VALUES, ioNice, NULL, 0) )
          valuesToUI();
       return;
    }
 
-
-
-   if ( m_IndexIONice == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexIONice == m_SelectedIndex )
    {
-      int ioNice = g_pCurrentModel->ioNiceVideo;
+      int ioNice = g_pCurrentModel->processesPriorities.ioNiceVideo;
       if ( ioNice < 0 )
          ioNice = -ioNice;
       if ( ioNice == 0 )
@@ -338,9 +400,9 @@ void MenuVehicleExpert::onSelectItem()
          ioNice = -ioNice;
 
       ioNice = (ioNice+20)%256;
-      ioNice |= (((g_pCurrentModel->ioNiceRouter+20) % 256)<<8);
+      ioNice |= (((g_pCurrentModel->processesPriorities.ioNiceRouter+20) % 256)<<8);
 
-      log_line("ionice video: %d, %d", ioNice, g_pCurrentModel->ioNiceVideo);
+      log_line("ionice video: %d, %d", ioNice, g_pCurrentModel->processesPriorities.ioNiceVideo);
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_IONICE_VALUES, ioNice, NULL, 0) )
       {
          valuesToUI();
@@ -348,16 +410,33 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( m_IndexIONiceValue == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( m_IndexIONiceValue == m_SelectedIndex )
    {
       int ioNice = ((m_pItemsSlider[3]->getCurrentValue()+20) % 256);
-      ioNice |= (((g_pCurrentModel->ioNiceRouter+20) % 256)<<8);
+      ioNice |= (((g_pCurrentModel->processesPriorities.ioNiceRouter+20) % 256)<<8);
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_IONICE_VALUES, ioNice, NULL, 0) )
          valuesToUI();
       return;
    }
 
-   if ( m_IndexDHCP == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
+   if ( (m_IndexEnableRadio == m_SelectedIndex) || (m_IndexRadioRx == m_SelectedIndex) || (m_IndexRadioTx == m_SelectedIndex) ||
+        (m_IndexEnableRouter == m_SelectedIndex) || (m_IndexRouter == m_SelectedIndex) )
+   {
+      u32 uValues = 0;
+
+      if ( m_pItemsSelect[11]->getSelectedIndex() != 0 )
+         uValues |= m_pItemsSlider[11]->getCurrentValue() & 0xFF;
+      if ( m_pItemsSelect[12]->getSelectedIndex() != 0 )
+      {
+         uValues |= (m_pItemsSlider[12]->getCurrentValue() & 0xFF) << 8;
+         uValues |= (m_pItemsSlider[13]->getCurrentValue() & 0xFF) << 16;
+      }
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_THREADS_PRIORITIES, uValues , NULL, 0) )
+         valuesToUI();
+      return;
+   }
+
+   if ( m_IndexDHCP == m_SelectedIndex )
    {
       int val = 1;
       if ( m_pItemsSelect[5]->getSelectedIndex() == 0 )
@@ -388,30 +467,30 @@ void MenuVehicleExpert::onSelectItem()
       return;
    }
 
-   if ( g_pCurrentModel->iFreqARM == 0 )
-      g_pCurrentModel->iFreqARM = 900;
-   if ( g_pCurrentModel->iFreqGPU == 0 )
-      g_pCurrentModel->iFreqGPU = 400;
+   if ( g_pCurrentModel->processesPriorities.iFreqARM == 0 )
+      g_pCurrentModel->processesPriorities.iFreqARM = 900;
+   if ( g_pCurrentModel->processesPriorities.iFreqGPU == 0 )
+      g_pCurrentModel->processesPriorities.iFreqGPU = 400;
 
    bool sendUpdate = false;
    command_packet_overclocking_params params;
-   params.freq_arm = g_pCurrentModel->iFreqARM;
-   params.freq_gpu = g_pCurrentModel->iFreqGPU;
-   params.overvoltage = g_pCurrentModel->iOverVoltage;
+   params.freq_arm = g_pCurrentModel->processesPriorities.iFreqARM;
+   params.freq_gpu = g_pCurrentModel->processesPriorities.iFreqGPU;
+   params.overvoltage = g_pCurrentModel->processesPriorities.iOverVoltage;
 
    if ( m_IndexCPUEnabled == m_SelectedIndex )
    {
-      params.freq_arm = -g_pCurrentModel->iFreqARM;
+      params.freq_arm = -g_pCurrentModel->processesPriorities.iFreqARM;
       sendUpdate = true;
    }
    if ( m_IndexGPUEnabled == m_SelectedIndex )
    {
-      params.freq_gpu = -g_pCurrentModel->iFreqGPU;
+      params.freq_gpu = -g_pCurrentModel->processesPriorities.iFreqGPU;
       sendUpdate = true;
    }
    if ( m_IndexVoltageEnabled == m_SelectedIndex )
    {
-      params.overvoltage = -g_pCurrentModel->iOverVoltage;
+      params.overvoltage = -g_pCurrentModel->processesPriorities.iOverVoltage;
       sendUpdate = true;
    }
 

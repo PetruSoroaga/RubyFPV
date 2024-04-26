@@ -334,7 +334,7 @@ void video_link_check_adjust_bitrate_for_overload()
    u32 uTotalSentVideoBitRateAverage = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage();
    u32 uTotalSentVideoBitRateFast = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(250);
    u32 uMaxTxTime = DEFAULT_TX_TIME_OVERLOAD;
-   if ( (g_pCurrentModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZERO) || (g_pCurrentModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZEROW) )
+   if ( ((g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) || ( (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) )
          uMaxTxTime += 200;
    uMaxTxTime += (uTotalSentVideoBitRateFast/1000/1000)*20;
 
@@ -399,9 +399,9 @@ void video_link_check_adjust_bitrate_for_overload()
    if ( g_TimeNow >= g_TimeLastOverwriteBitrateUpOnTxOverload + 250 )
    if ( video_stats_overwrites_increase_videobitrate_overwrite(uTotalSentVideoBitRateFast) )
    {
-      log_line("DEBUG in overload condition (local: %d), decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", (int)bIsLocalOverloadCondition, uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
-      log_line("DEBUG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
-      log_line("DEBUG current EC scheme: %d/%d, current level shift: %d", (int)g_SM_VideoLinkStats.overwrites.currentDataBlocks, (int) g_SM_VideoLinkStats.overwrites.currentECBlocks, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
+      //log_line("DBG in overload condition (local: %d), decrease bitrate. total sent fast: %u, sent: %u, max allowed: %u", (int)bIsLocalOverloadCondition, uTotalSentVideoBitRateFast, uTotalSentVideoBitRateAverage, (u32)iMaxAllowedThreshold);
+      //log_line("DBG video fast bitrate: %u, avg bitrate: %u", g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(250), g_pProcessorTxVideo->getCurrentVideoBitrateAverage() );
+      //log_line("DBG current EC scheme: %d/%d, current level shift: %d", (int)g_SM_VideoLinkStats.overwrites.currentDataBlocks, (int) g_SM_VideoLinkStats.overwrites.currentECBlocks, (int)g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel);
       g_uTimeLastVideoTxOverload = 0;
       g_TimeLastOverwriteBitrateDownOnTxOverload = g_TimeNow;
 

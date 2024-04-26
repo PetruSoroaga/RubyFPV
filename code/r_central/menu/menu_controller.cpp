@@ -422,7 +422,7 @@ void MenuController::updateSoftware()
 
       if ( ! bFoundProcess )
       {
-         if ( 1 == hw_process_exists("ruby_update_worker") )
+         if ( 0 != hw_process_exists("ruby_update_worker") )
          {
             log_line("Found update worker process.");
             bFoundProcess = true;

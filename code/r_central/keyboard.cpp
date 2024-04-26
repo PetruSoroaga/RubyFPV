@@ -48,6 +48,7 @@ pthread_mutex_t s_pThreadKeyboardMutex;
 
 u32 s_uNextKeyboardDetectTime = 0;
 int s_iKeyboardDetectTryCount = 0;
+bool s_bHasLongPressFlag = false;
 
 typedef struct 
 {
@@ -398,7 +399,11 @@ static void * _thread_keyboard(void *argument)
       if ( isKeyPlusLongLongPressed() )
          _add_input_event(INPUT_EVENT_PRESS_PLUS);
 
-      hardware_sleep_ms(15);
+      if ( isKeyMinusLongLongPressed() || isKeyPlusLongLongPressed() || isKeyMenuLongLongPressed() )
+         s_bHasLongPressFlag = true;
+      else
+         s_bHasLongPressFlag = false;
+      hardware_sleep_ms(10);
 
       if ( ! (*pbInitialized) )
          break;
@@ -517,6 +522,7 @@ int keyboard_consume_input_events()
          break;
       u32 uEvent = keyboard_get_next_input_event();
       s_uKeyboardInputEventsSum |= (uEvent & 0xFFFF);
+      // If unknown key was pressed, it is stored in the 3rd byte
       if ( uEvent & 0xFF0000 )
       {
          s_uKeyboardInputEventsSum &= 0xFF00FFFF;
@@ -526,6 +532,11 @@ int keyboard_consume_input_events()
    }
    //log_line("[Keyboard] Consumed %d events: %u", i, s_uKeyboardInputEventsSum);
    return 0;
+}
+
+int keyboard_has_long_press_flag()
+{
+   return s_bHasLongPressFlag?1:0;
 }
 
 u32 keyboard_get_triggered_input_events()

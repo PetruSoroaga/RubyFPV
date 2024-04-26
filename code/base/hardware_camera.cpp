@@ -373,10 +373,11 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    }
    else
    {
-      // exposure is in milisec for ssc338q and in seconds for goke
-      if ( hardware_board_is_goke(hardware_getBoardType()) )
-         sprintf(szComm, "cli -s .isp.exposure %.2f", (float)pCameraParams->shutterspeed/1000.0);
-      else
+      //if ( hardware_board_is_goke(hardware_getBoardType()) )
+      //   sprintf(szComm, "cli -s .isp.exposure %.2f", (float)pCameraParams->shutterspeed/1000.0);
+
+      // exposure is in milisec for ssc338q
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          sprintf(szComm, "cli -s .isp.exposure %d", pCameraParams->shutterspeed);
       hw_execute_bash_command_raw(szComm, NULL);
    }

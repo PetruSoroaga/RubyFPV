@@ -841,8 +841,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
       u8* pExtraData = pBuffer + video_data_length;
       u32* pExtraDataU32 = (u32*)pExtraData;
       pExtraDataU32[6] = get_current_timestamp_ms();
-      log_line("DEBUG updated on output %d - %d = %d", packet_length, video_data_length, packet_length - video_data_length);
-   
+      
       /*
       u32 uVehicleTimestampOrg = pExtraDataU32[3];
                int iVehicleTimestampNow = (int)uVehicleTimestampOrg + radio_get_link_clock_delta();

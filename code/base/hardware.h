@@ -12,6 +12,9 @@
 #define WIFI_TYPE_AG 3 // per bits
 
 
+#define BOARD_TYPE_MASK 0xFF
+#define BOARD_SUBTYPE_MASK 0xFF00
+
 #define BOARD_TYPE_NONE     0
 #define BOARD_TYPE_PIZERO   1
 #define BOARD_TYPE_PIZEROW  2
@@ -29,6 +32,8 @@
 #define BOARD_TYPE_OPENIPC_GOKE300 32
 
 #define BOARD_TYPE_OPENIPC_SIGMASTER_338Q 40
+
+#define BOARD_SUBTYPE_OPENIPC_AIO_1  ((u32)(((u32)0x01)<<8))
 
 
 #define CAMERA_TYPE_NONE 0
@@ -82,9 +87,9 @@ u32 hardware_getOnlyBoardType();
 u32 hardware_getBoardType();
 u32 hardware_get_base_ruby_version();
 
-int hardware_board_is_openipc(int iBoardType);
-int hardware_board_is_goke(int iBoardType);
-int hardware_board_is_sigmastar(int iBoardType);
+int hardware_board_is_openipc(u32 uBoardType);
+int hardware_board_is_goke(u32 uBoardType);
+int hardware_board_is_sigmastar(u32 uBoardType);
 
 void hardware_enum_joystick_interfaces();
 int hardware_get_joystick_interfaces_count();
@@ -109,6 +114,7 @@ int isKeyQA2Pressed();
 int isKeyQA3Pressed();
 
 int isKeyMenuLongPressed();
+int isKeyMenuLongLongPressed();
 int isKeyBackLongPressed();
 int isKeyPlusLongPressed();
 int isKeyMinusLongPressed();
@@ -117,7 +123,6 @@ int isKeyMinusLongLongPressed();
 
 void hardware_override_keys(int iKeyMenu, int iKeyBack, int iKeyPlus, int iKeyMinus, int iKeyMenuLong, int iKeyBackLong, int iKeyPlusLong, int iKeyMinusLong);
 
-void hardware_ResetLongPressStatus();
 void hardware_blockCurrentPressedKeys();
 
 int hardware_try_mount_usb();

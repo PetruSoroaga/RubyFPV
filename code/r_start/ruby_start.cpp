@@ -70,7 +70,7 @@ static bool s_isVehicle = false;
 bool s_bQuit = false;
 Model modelVehicle;
 
-int board_type = BOARD_TYPE_NONE;
+u32 board_type = BOARD_TYPE_NONE;
 
 
 void power_leds(int onoff)
@@ -1021,7 +1021,7 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(900);
    }
 
-   board_type = hardware_getOnlyBoardType();
+   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
 
    #ifdef HW_CAPABILITY_I2C
    // Initialize I2C bus 0 for different boards types
@@ -1029,7 +1029,7 @@ int main(int argc, char *argv[])
       log_line("Initialize I2C busses...");
       sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
       hw_execute_bash_command(szComm, NULL);
-      if ( board_type == BOARD_TYPE_PI3APLUS || board_type == BOARD_TYPE_PI3B || board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B )
+      if ( (board_type == BOARD_TYPE_PI3APLUS) || (board_type == BOARD_TYPE_PI3B) || (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) )
       {
          log_line("Initializing I2C busses for Pi 3/4...");
          hw_execute_bash_command("raspi-gpio set 0 ip", NULL);

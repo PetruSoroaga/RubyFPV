@@ -284,7 +284,7 @@ void MenuVehicleCamera::addItems()
       m_pItemsSlider[6]->setMargin(fMargin);
       m_IndexShutterValue = addMenuItem(m_pItemsSlider[6]);
    }
-   else if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   else if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       m_pItemsSelect[7] = new MenuItemSelect("Shutter Speed", "Sets the shutter speed to be auto controllerd by camera or manula set by user.");  
       m_pItemsSelect[7]->addSelection("Auto");
@@ -491,19 +491,25 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
 
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
    {
+      if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
       if ( -1 != m_IndexShutterMode )
       {
          if ( 0 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed )
          {
             m_pItemsSelect[7]->setSelectedIndex(0);
             if ( m_pItemsSlider[6] != NULL )
+            {
                m_pItemsSlider[6]->setEnabled(false);
+            }
          } 
-         if ( (m_IndexShutterValue != -1) && (m_pItemsSlider[6] != NULL) )
+         else
          {
             m_pItemsSelect[7]->setSelectedIndex(1);
-            m_pItemsSlider[6]->setEnabled(true);
-            m_pItemsSlider[6]->setCurrentValue(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed);
+            if ( (m_IndexShutterValue != -1) && (m_pItemsSlider[6] != NULL) )
+            {
+               m_pItemsSlider[6]->setEnabled(true);
+               m_pItemsSlider[6]->setCurrentValue(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].shutterspeed);
+            }
          }
       }
    }
@@ -602,8 +608,8 @@ bool MenuVehicleCamera::canSendLiveUpdates(int iItemIndex)
    if ( g_pCurrentModel->isActiveCameraVeye307() )
       return true;
 
-   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
-   if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
+   if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       return true;
      
    return false;

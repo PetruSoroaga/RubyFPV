@@ -487,7 +487,7 @@ void MenuVehicleVideo::onSelectItem()
    }
 
    if ( (m_IndexAutoKeyframe == m_SelectedIndex) || (m_IndexAdaptiveVideo == m_SelectedIndex) )
-   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       addUnsupportedMessageOpenIPCGoke(NULL);
       valuesToUI();
@@ -495,7 +495,7 @@ void MenuVehicleVideo::onSelectItem()
    }
 
    if ( m_IndexAutoQuantization == m_SelectedIndex)
-   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       addUnsupportedMessageOpenIPC(NULL);
       valuesToUI();

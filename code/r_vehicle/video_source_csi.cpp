@@ -404,7 +404,7 @@ void video_source_csi_send_control_message(u8 parameter, u8 value)
 
    if ( parameter == RASPIVID_COMMAND_ID_KEYFRAME )
    {
-      log_line("DEBUG set keyframe to %d frames", value);
+      //log_line("DBG set keyframe to %d frames", value);
    }
 
    if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
@@ -567,11 +567,17 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
    pModel->getVideoFlags(szVideoFlags, pModel->video_params.user_selected_video_link_profile, pVideoOverwrites);
 
    #ifdef HW_CAPABILITY_IONICE
-   if ( pModel->ioNiceVideo > 0 )
-      sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
+   if ( pModel->processesPriorities.ioNiceVideo > 0 )
+   {
+      if ( pModel->processesPriorities.iNiceVideo != 0 )
+         sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->processesPriorities.ioNiceVideo, pModel->processesPriorities.iNiceVideo );
+      else
+         sprintf(szPriority, "ionice -c 1 -n %d", pModel->processesPriorities.ioNiceVideo);
+   }
    else
    #endif
-      sprintf(szPriority, "nice -n %d", pModel->niceVideo );
+   if ( pModel->processesPriorities.iNiceVideo != 0 )
+      sprintf(szPriority, "nice -n %d", pModel->processesPriorities.iNiceVideo );
 
    if ( pModel->isActiveCameraVeye() )
    {
@@ -617,14 +623,14 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
    if ( pModel->isActiveCameraVeye() )
    {
       if ( pModel->isActiveCameraVeye307() )
-         hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE307, pModel->niceVideo, pModel->ioNiceVideo, 1 );
+         hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE307, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
       else
-         hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, pModel->niceVideo, pModel->ioNiceVideo, 1 );
-      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, pModel->niceVideo, pModel->ioNiceVideo, 1 );
+         hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
+      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
    }
    else
    {
-      hw_set_proc_priority(VIDEO_RECORDER_COMMAND, pModel->niceVideo, pModel->ioNiceVideo, 1 );
+      hw_set_proc_priority(VIDEO_RECORDER_COMMAND, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
    }
    
    g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = pModel->getInitialKeyframeIntervalMs(pModel->video_params.user_selected_video_link_profile);

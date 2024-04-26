@@ -224,7 +224,7 @@ int Model::getLoadedFileVersion()
 
 bool Model::isRunningOnOpenIPCHardware()
 {
-   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(hwCapabilities.uBoardType) )
       return true;
    return false;
 }
@@ -402,7 +402,7 @@ bool Model::loadVersion8(FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %u", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.uBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -419,7 +419,7 @@ bool Model::loadVersion8(FILE* fd)
 
    str_sanitize_modelname(vehicle_name);
 
-   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &niceTelemetry ) )
+   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &processesPriorities.iNiceTelemetry ) )
       { log_softerror_and_alarm("Load model8: Error on line 3"); return false; }
 
    if ( 4 != fscanf(fd, "%d %d %u %d", &tmp1, &vt, &m_Stats.uTotalFlightTime, &iGPSCount ) )
@@ -431,11 +431,11 @@ bool Model::loadVersion8(FILE* fd)
    //----------------------------------------
    // CPU
 
-   if ( 3 != fscanf(fd, "%*s %d %d %d", &niceVideo, &niceOthers, &ioNiceVideo) )
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &processesPriorities.iNiceVideo, &processesPriorities.iNiceOthers, &processesPriorities.ioNiceVideo) )
       { log_softerror_and_alarm("Load model8: Error on line 4"); return false; }
-   if ( 3 != fscanf(fd, "%d %d %d", &iOverVoltage, &iFreqARM, &iFreqGPU) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iOverVoltage, &processesPriorities.iFreqARM, &processesPriorities.iFreqGPU) )
       { log_softerror_and_alarm("Load model8: Error on line 5"); }
-   if ( 3 != fscanf(fd, "%d %d %d", &niceRouter, &ioNiceRouter, &niceRC) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iNiceRouter, &processesPriorities.ioNiceRouter, &processesPriorities.iNiceRC) )
       { log_softerror_and_alarm("Load model8: Error on extra line 2b"); }
 
    //----------------------------------------
@@ -954,12 +954,12 @@ bool Model::loadVersion8(FILE* fd)
 
    // Validate settings;
 
-   if ( niceRC < -18 || niceRC > 5 )
-      niceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( niceRouter < -18 || niceRouter > 5 )
-      niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( ioNiceRouter < -7 || ioNiceRouter > 7 )
-      ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+   if ( processesPriorities.iNiceRC < -18 || processesPriorities.iNiceRC > 5 )
+      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
+   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 5 )
+      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   if ( processesPriorities.ioNiceRouter < -7 || processesPriorities.ioNiceRouter > 7 )
+      processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
 
    if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
       telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
@@ -1009,7 +1009,7 @@ bool Model::loadVersion9(FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %u", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.uBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1030,7 +1030,7 @@ bool Model::loadVersion9(FILE* fd)
 
    str_sanitize_modelname(vehicle_name);
 
-   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &niceTelemetry ) )
+   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &processesPriorities.iNiceTelemetry ) )
       { log_softerror_and_alarm("Load model8: Error on line 3"); return false; }
 
    if ( 4 != fscanf(fd, "%d %d %u %d", &tmp1, &vt, &m_Stats.uTotalFlightTime, &iGPSCount ) )
@@ -1042,11 +1042,11 @@ bool Model::loadVersion9(FILE* fd)
    //----------------------------------------
    // CPU
 
-   if ( 3 != fscanf(fd, "%*s %d %d %d", &niceVideo, &niceOthers, &ioNiceVideo) )
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &processesPriorities.iNiceVideo, &processesPriorities.iNiceOthers, &processesPriorities.ioNiceVideo) )
       { log_softerror_and_alarm("Load model8: Error on line 4"); return false; }
-   if ( 3 != fscanf(fd, "%d %d %d", &iOverVoltage, &iFreqARM, &iFreqGPU) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iOverVoltage, &processesPriorities.iFreqARM, &processesPriorities.iFreqGPU) )
       { log_softerror_and_alarm("Load model8: Error on line 5"); }
-   if ( 3 != fscanf(fd, "%d %d %d", &niceRouter, &ioNiceRouter, &niceRC) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iNiceRouter, &processesPriorities.ioNiceRouter, &processesPriorities.iNiceRC) )
       { log_softerror_and_alarm("Load model8: Error on extra line 2b"); }
 
    //----------------------------------------
@@ -1530,12 +1530,12 @@ bool Model::loadVersion9(FILE* fd)
 
    // Validate settings;
 
-   if ( niceRC < -18 || niceRC > 5 )
-      niceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( niceRouter < -18 || niceRouter > 5 )
-      niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( ioNiceRouter < -7 || ioNiceRouter > 7 )
-      ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+   if ( processesPriorities.iNiceRC < -18 || processesPriorities.iNiceRC > 5 )
+      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
+   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 5 )
+      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   if ( processesPriorities.ioNiceRouter < -7 || processesPriorities.ioNiceRouter > 7 )
+      processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
 
    if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
       telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
@@ -1586,7 +1586,7 @@ bool Model::loadVersion10(FILE* fd)
    if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
       { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
 
-   if ( 4 != fscanf(fd, "%*s %u %d %d %d", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.iBoardType) )
+   if ( 4 != fscanf(fd, "%*s %u %d %d %u", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.uBoardType) )
       { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
 
    if ( hardware_is_vehicle() )
@@ -1607,7 +1607,7 @@ bool Model::loadVersion10(FILE* fd)
 
    str_sanitize_modelname(vehicle_name);
 
-   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &niceTelemetry ) )
+   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &processesPriorities.iNiceTelemetry ) )
       { log_softerror_and_alarm("Load model8: Error on line 3"); return false; }
 
    if ( 4 != fscanf(fd, "%d %d %u %d", &tmp1, &vt, &m_Stats.uTotalFlightTime, &iGPSCount ) )
@@ -1619,11 +1619,11 @@ bool Model::loadVersion10(FILE* fd)
    //----------------------------------------
    // CPU
 
-   if ( 3 != fscanf(fd, "%*s %d %d %d", &niceVideo, &niceOthers, &ioNiceVideo) )
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &processesPriorities.iNiceVideo, &processesPriorities.iNiceOthers, &processesPriorities.ioNiceVideo) )
       { log_softerror_and_alarm("Load model8: Error on line 4"); return false; }
-   if ( 3 != fscanf(fd, "%d %d %d", &iOverVoltage, &iFreqARM, &iFreqGPU) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iOverVoltage, &processesPriorities.iFreqARM, &processesPriorities.iFreqGPU) )
       { log_softerror_and_alarm("Load model8: Error on line 5"); }
-   if ( 3 != fscanf(fd, "%d %d %d", &niceRouter, &ioNiceRouter, &niceRC) )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iNiceRouter, &processesPriorities.ioNiceRouter, &processesPriorities.iNiceRC) )
       { log_softerror_and_alarm("Load model8: Error on extra line 2b"); }
 
    //----------------------------------------
@@ -2119,7 +2119,7 @@ bool Model::loadVersion10(FILE* fd)
    if ( 1 != fscanf(fd, "%d", &m_iRadioInterfacesGraphRefreshInterval) )
       m_iRadioInterfacesGraphRefreshInterval = 3;
 
-   if ( 2 != fscanf(fd, "%d %d", &hwCapabilities.iMaxTxVideoBlocksBuffer, &hwCapabilities.iMaxTxVideoBlockPackets) )
+   if ( 3 != fscanf(fd, "%d %d %u", &hwCapabilities.iMaxTxVideoBlocksBuffer, &hwCapabilities.iMaxTxVideoBlockPackets, &hwCapabilities.uFlags) )
       resetHWCapabilities();
 
    for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
@@ -2130,18 +2130,30 @@ bool Model::loadVersion10(FILE* fd)
       if ( bOk && (1 != fscanf(fd, "%u", &(hwCapabilities.dummyhwc2[i]))) )
          { bOk = false; }
 
+   if ( ! bOk )
+      log_softerror_and_alarm("Load model10: file is not ok. can't load th-prio");
+   if ( bOk )
+   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iThreadPriorityRadioRx, &processesPriorities.iThreadPriorityRadioTx, &processesPriorities.iThreadPriorityRouter) )
+   {
+      log_softerror_and_alarm("Load model10: Error on line th-prio");
+      processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+      processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
+   }
+
+
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
 
    // Validate settings;
 
-   if ( niceRC < -18 || niceRC > 5 )
-      niceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( niceRouter < -18 || niceRouter > 5 )
-      niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( ioNiceRouter < -7 || ioNiceRouter > 7 )
-      ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+   if ( processesPriorities.iNiceRC < -18 || processesPriorities.iNiceRC > 5 )
+      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
+   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 5 )
+      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   if ( processesPriorities.ioNiceRouter < -7 || processesPriorities.ioNiceRouter > 7 )
+      processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
 
    if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
       telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
@@ -2268,7 +2280,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    strcat(szModel, szSetting);
    sprintf(szSetting, "savecounter: %d\n", iSaveCount);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "id: %u %u %u %d\n", sw_version, uVehicleId, uControllerId, hwCapabilities.iBoardType); 
+   sprintf(szSetting, "id: %u %u %u %u\n", sw_version, uVehicleId, uControllerId, hwCapabilities.uBoardType); 
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "%u\n", uModelFlags);
@@ -2290,7 +2302,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       sprintf(szSetting, "%s\n", szVeh);
    strcat(szModel, szSetting);
  
-   sprintf(szSetting, "%d %u %d\n", rxtx_sync_type, camera_rc_channels, niceTelemetry );
+   sprintf(szSetting, "%d %u %d\n", rxtx_sync_type, camera_rc_channels, processesPriorities.iNiceTelemetry );
    strcat(szModel, szSetting);
    sprintf(szSetting, "%d %d %u %d\n", is_spectator, vehicle_type, m_Stats.uTotalFlightTime, iGPSCount);
    strcat(szModel, szSetting);
@@ -2298,11 +2310,11 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    //----------------------------------------
    // CPU 
 
-   sprintf(szSetting, "cpu: %d %d %d\n", niceVideo, niceOthers, ioNiceVideo); 
+   sprintf(szSetting, "cpu: %d %d %d\n", processesPriorities.iNiceVideo, processesPriorities.iNiceOthers, processesPriorities.ioNiceVideo); 
    strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", iOverVoltage, iFreqARM, iFreqGPU);
+   sprintf(szSetting, "%d %d %d\n", processesPriorities.iOverVoltage, processesPriorities.iFreqARM, processesPriorities.iFreqGPU);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d\n", niceRouter, ioNiceRouter, niceRC);
+   sprintf(szSetting, "%d %d %d\n", processesPriorities.iNiceRouter, processesPriorities.ioNiceRouter, processesPriorities.iNiceRC);
    strcat(szModel, szSetting);
 
    //----------------------------------------
@@ -2598,7 +2610,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    sprintf(szSetting, "%d\n", (int)m_iRadioInterfacesGraphRefreshInterval);
    strcat(szModel, szSetting);
    
-   sprintf(szSetting, "%d %d\n", hwCapabilities.iMaxTxVideoBlocksBuffer, hwCapabilities.iMaxTxVideoBlockPackets);
+   sprintf(szSetting, "%d %d %u\n", hwCapabilities.iMaxTxVideoBlocksBuffer, hwCapabilities.iMaxTxVideoBlockPackets, hwCapabilities.uFlags);
    strcat(szModel, szSetting);
 
    for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
@@ -2611,6 +2623,11 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       sprintf(szSetting, " %u", hwCapabilities.dummyhwc2[i]);
       strcat(szModel, szSetting);
    }
+   sprintf(szSetting,"\n");
+   strcat(szModel, szSetting);
+
+   sprintf(szSetting, "%d %d %d\n", processesPriorities.iThreadPriorityRadioRx, processesPriorities.iThreadPriorityRadioTx, processesPriorities.iThreadPriorityRouter);
+   strcat(szModel, szSetting);
 
    // End writing values to file
    // ---------------------------------------------------
@@ -2657,8 +2674,15 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
       video_link_profiles[i].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
       video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
+      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+         video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+        
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         video_link_profiles[i].keyframe_ms = 1500;
+
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
       if ( hardware_isCameraVeye() || hardware_isCameraHDMI() )
@@ -2784,7 +2808,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
    // Adaptive video & keyframe in openIPC goke cameras is not supported. (majestic bitrate and keyframe can't be changed)
    bool bDisableAdaptive = false;
-   if ( hardware_board_is_goke(hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(hwCapabilities.uBoardType) )
       bDisableAdaptive = true;
 
    if ( bDisableAdaptive )
@@ -2795,12 +2819,11 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
       video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
       video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-      video_link_profiles[i].keyframe_ms = 300;
    }
 
    // Auto H264 quantization is not implemented in openIPC
    bool bDisableQuantization = false;
-   if ( hardware_board_is_openipc(hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(hwCapabilities.uBoardType) )
       bDisableQuantization = true;
 
    if ( bDisableQuantization )
@@ -3678,6 +3701,11 @@ bool Model::find_and_validate_camera_settings()
 
 bool Model::validate_settings()
 {
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
+      hwCapabilities.dummyhwc[i] = 0;
+   for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc2)/sizeof(hwCapabilities.dummyhwc2[0])); i++ )
+      hwCapabilities.dummyhwc2[i] = 0;
+
    if ( rc_params.channelsCount < 2 || rc_params.channelsCount > MAX_RC_CHANNELS )
       rc_params.channelsCount = 8;
 
@@ -3812,14 +3840,14 @@ bool Model::validate_settings()
    if ( rxtx_sync_type < 0 || rxtx_sync_type >= RXTX_SYNC_TYPE_LAST )
       rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
 
-   if ( niceRouter < -18 || niceRouter > 0 )
-      niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( niceVideo < -18 || niceVideo > 0 )
-      niceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
-   if ( niceRC < -16 || niceRC > 0 )
-      niceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( niceTelemetry < -16 || niceTelemetry > 0 )
-      niceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 0 )
+      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   if ( processesPriorities.iNiceVideo < -18 || processesPriorities.iNiceVideo > 0 )
+      processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
+   if ( processesPriorities.iNiceRC < -16 || processesPriorities.iNiceRC > 0 )
+      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
+   if ( processesPriorities.iNiceTelemetry < -16 || processesPriorities.iNiceTelemetry > 0 )
+      processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
 
    if ( audio_params.volume < 0 || audio_params.volume > 100 )
       audio_params.volume = 60;
@@ -3967,9 +3995,9 @@ void Model::resetToDefaults(bool generateId)
    else
       log_line("Reusing the same unique vehicle ID (%u).", uVehicleId);
 
-   hwCapabilities.iBoardType = 0;
+   hwCapabilities.uBoardType = 0;
    if ( hardware_is_vehicle() )
-      hwCapabilities.iBoardType = hardware_getOnlyBoardType();
+      hwCapabilities.uBoardType = hardware_getOnlyBoardType();
    resetHWCapabilities();
 
    uControllerId = 0;
@@ -4016,16 +4044,22 @@ void Model::resetToDefaults(bool generateId)
 
    rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
 
-   niceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
-   niceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
-   niceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
-   niceOthers = DEFAULT_PRIORITY_PROCESS_OTHERS;
-   ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
-   iOverVoltage = DEFAULT_OVERVOLTAGE;
-   iFreqARM = DEFAULT_ARM_FREQ;
-   iFreqGPU = DEFAULT_GPU_FREQ;
+   processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+   processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
+   processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+   processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
+   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+      processesPriorities.iNiceVideo = 0;
+   processesPriorities.iNiceOthers = DEFAULT_PRIORITY_PROCESS_OTHERS;
+   processesPriorities.ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
+   processesPriorities.iOverVoltage = DEFAULT_OVERVOLTAGE;
+   processesPriorities.iFreqARM = DEFAULT_ARM_FREQ;
+   processesPriorities.iFreqGPU = DEFAULT_GPU_FREQ;
+
+   processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+   processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+   processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
 
    resetVideoParamsToDefaults();
    resetCameraToDefaults(-1);
@@ -4056,8 +4090,15 @@ void Model::resetToDefaults(bool generateId)
 
 void Model::resetHWCapabilities()
 {
+   memset(&hwCapabilities, 0, sizeof(type_hardware_capabilities));
    hwCapabilities.iMaxTxVideoBlocksBuffer = MAX_RXTX_BLOCKS_BUFFER;
    hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
+   hwCapabilities.uFlags = 0;
+
+   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+      hwCapabilities.uFlags &= ~MODEL_HW_CAP_FLAG_OTA;
+   else
+      hwCapabilities.uFlags |= MODEL_HW_CAP_FLAG_OTA;
 }
 
 void Model::resetRadioLinksParams()
@@ -5046,8 +5087,8 @@ void Model::setDefaultVideoBitrate()
    // Lower video bitrate on all video profiles if running on a single core CPU
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      if ( (board_type == BOARD_TYPE_OPENIPC_GOKE200) || (board_type == BOARD_TYPE_OPENIPC_GOKE210) ||
-           (board_type == BOARD_TYPE_PIZERO) || (board_type == BOARD_TYPE_PIZEROW) || (board_type == BOARD_TYPE_NONE) )
+      if ( ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210) ||
+           ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_NONE) )
       {
          if ( video_link_profiles[i].bitrate_fixed_bps > 4000000 )
             video_link_profiles[i].bitrate_fixed_bps -= 1000000;
@@ -5202,7 +5243,6 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
    int iKeyframeFramesCount = (video_link_profiles[iVideoProfile].fps * iKeyframeMs) / 1000;
    sprintf(szKeyFrame, "%d", iKeyframeFramesCount);
 
-   log_line("DEBUG initial keyframe: %s (for video profile %d %s)", szKeyFrame, iVideoProfile, str_get_video_profile_name(iVideoProfile));;
 
    if ( isActiveCameraVeye() )
    {

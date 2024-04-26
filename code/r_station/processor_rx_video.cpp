@@ -830,10 +830,6 @@ void ProcessorRxVideo::pushFirstBlockOut()
    m_uLastOutputVideoBlockPacketIndex = m_pRXBlocksStack[0]->data_packets-1;
    m_uLastOutputVideoBlockDataPackets = m_pRXBlocksStack[0]->data_packets;
    
-   //log_line("DEBUG out block %u, last out: [%u/%u], last recv: [%u/%d]",
-   //   m_pRXBlocksStack[0]->video_block_index, m_uLastOutputVideoBlockIndex, m_uLastOutputVideoBlockPacketIndex,
-   //   m_InfoLastReceivedVideoPacket.video_block_index, m_InfoLastReceivedVideoPacket.video_block_packet_index );
-
    resetReceiveBuffersBlock(0);
 
    // Shift the rx blocks buffers by one block
@@ -2617,10 +2613,6 @@ int ProcessorRxVideo::onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, 
    {
       sendPacketToOutput(iAddedToStackIndex, video_block_packet_index);
    }
-   //else
-      //log_line("DEBUG rcv check [%u/%d], data: %d(%d), last out: [%u/%u], added to index: %d",
-      //   video_block_index, video_block_packet_index, m_pRXBlocksStack[0]->data_packets, block_packets,
-      //   m_uLastOutputVideoBlockIndex, m_uLastOutputVideoBlockPacketIndex, iAddedToStackIndex);
 
    // Can we output the first few blocks?
    int maxBlocksToOutputIfAvailable = MAX_BLOCKS_TO_OUTPUT_IF_AVAILABLE;

@@ -162,7 +162,7 @@ int r_start_rx_rc(int argc, char *argv[])
       log_only_errors();
 
    #ifdef HW_PLATFORM_RASPBERRY
-   hw_set_priority_current_proc(sModelVehicle.niceRC);   
+   hw_set_priority_current_proc(sModelVehicle.processesPriorities.iNiceRC);   
    #endif
    
    s_pPHDownstreamInfoRC = shared_mem_rc_downstream_info_open_write();

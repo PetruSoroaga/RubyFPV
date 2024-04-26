@@ -279,7 +279,7 @@ int main (int argc, char *argv[])
    g_pCurrentModel = getCurrentModel();
 
    if ( NULL != g_pCurrentModel )
-      hw_set_priority_current_proc(g_pCurrentModel->niceRC); 
+      hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceRC); 
 
    Preferences* p = get_Preferences();   
    if ( p->nLogLevel != 0 )

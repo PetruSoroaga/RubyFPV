@@ -69,9 +69,9 @@ void vehicle_launch_rx_rc(Model* pModel)
    char szPrefix[64];
    szPrefix[0] = 0;
    #ifdef HW_CAPABILITY_IONICE
-   sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, pModel->niceRC);
+   sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, pModel->processesPriorities.iNiceRC);
    #else
-   sprintf(szPrefix, "nice -n %d", pModel->niceRC);
+   sprintf(szPrefix, "nice -n %d", pModel->processesPriorities.iNiceRC);
    #endif
    hw_execute_ruby_process(szPrefix, "ruby_start", "-rc", NULL);
 }
@@ -116,11 +116,17 @@ void vehicle_launch_tx_router(Model* pModel)
    char szPrefix[64];
    szPrefix[0] = 0;
    #ifdef HW_CAPABILITY_IONICE
-   if ( pModel->ioNiceRouter > 0 )
-      sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceRouter, pModel->niceRouter );
+   if ( pModel->processesPriorities.ioNiceRouter > 0 )
+   {
+      if ( pModel->processesPriorities.iNiceRouter != 0 )
+         sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", pModel->processesPriorities.ioNiceRouter, pModel->processesPriorities.iNiceRouter );
+      else
+         sprintf(szPrefix, "ionice -c 1 -n %d", pModel->processesPriorities.ioNiceRouter );
+   }
    else
    #endif
-      sprintf(szPrefix, "nice -n %d", pModel->niceRouter);
+   if ( pModel->processesPriorities.iNiceRouter != 0 )
+      sprintf(szPrefix, "nice -n %d", pModel->processesPriorities.iNiceRouter);
 
    hw_execute_ruby_process(szPrefix, "ruby_rt_vehicle", NULL, NULL);
 }
@@ -167,11 +173,11 @@ static void * _thread_audio_capture(void *argument)
 
    szPriority[0] = 0;
    #ifdef HW_CAPABILITY_IONICE
-   if ( pModel->ioNiceVideo > 0 )
-      sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->ioNiceVideo, pModel->niceVideo );
+   if ( pModel->processesPriorities.ioNiceVideo > 0 )
+      sprintf(szPriority, "ionice -c 1 -n %d nice -n %d", pModel->processesPriorities.ioNiceVideo, pModel->processesPriorities.iNiceVideo );
    else
    #endif
-      sprintf(szPriority, "nice -n %d", pModel->niceVideo );
+      sprintf(szPriority, "nice -n %d", pModel->processesPriorities.iNiceVideo );
 
    sprintf(szCommCapture, "%s arecord --device=hw:1,0 --file-type wav --format S16_LE --rate %s -c 1 -d %d -q >> %s",
       szPriority, szRate, iIntervalSec, FIFO_RUBY_AUDIO1);

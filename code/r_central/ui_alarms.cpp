@@ -520,7 +520,6 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    {
       if ( uFlags1 == ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA )
       {
-         log_line("DEBUG missed telemetry");
          osd_start_flash_osd_elements();
          return;
       }

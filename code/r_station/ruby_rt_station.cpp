@@ -2131,7 +2131,7 @@ int main (int argc, char *argv[])
    for( int i=0; i<MAX_RADIO_PACKETS_TO_CACHE_LOCALLY; i++ )
       s_ReceivedRadioPacketsBuffer[i].pPacketData = (u8*)malloc(MAX_PACKET_TOTAL_SIZE);
 
-   hw_increase_current_thread_priority(NULL, DEFAULT_PRIORITY_THREAD_ROUTER);
+   hw_increase_current_thread_priority("Main thread", DEFAULT_PRIORITY_THREAD_ROUTER);
 
    log_line("");
    log_line("");

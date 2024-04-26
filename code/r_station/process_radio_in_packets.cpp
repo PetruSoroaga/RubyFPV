@@ -351,8 +351,6 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(&uOriginalLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), sizeof(u8));
       if ( pPH->total_length > sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32) )
          memcpy(&uReplyVehicleLocalRadioLinkId, pPacketBuffer + sizeof(t_packet_header)+2*sizeof(u8) + sizeof(u32), sizeof(u8));
-
-      //log_line("DEBUG ping: vtime: %u, localtime: %u", uVehicleLocalTimeMs, g_TimeNow);
          
       int iIndex = getVehicleRuntimeIndex(pPH->vehicle_id_src);
       if ( iIndex >= 0 )
@@ -364,7 +362,6 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
             {
                u32 uRoundtripMicros = get_current_timestamp_micros() - g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId][k];
                u32 uRoundtripMilis = uRoundtripMicros / 1000;
-               //log_line("DEBUG ping handle rt: %u", uRoundtripMilis);
                g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uPingId;
                g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingReplyReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = g_TimeNow;
 

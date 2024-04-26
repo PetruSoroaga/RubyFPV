@@ -630,11 +630,6 @@ bool _inject_faults(int bufferIndex, u32 streamPacketIndex, int packetIndex, boo
 
 void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool isDuplicationPacket, bool isLastBlockToSend)
 {
-   //log_line("DEBUG sent (%d/%d), [%u/%d/%d], %d, %d, read: (%d/%d), scheme: %d/%d", bufferIndex, packetIndex,
-   //    s_BlocksTxBuffers[bufferIndex].video_block_index, packetIndex, (int)isRetransmitted, (int)isDuplicationPacket, (int)isLastBlockToSend,
-   //    s_currentReadBufferIndex, s_currentReadBlockPacketIndex,
-   //    s_BlocksTxBuffers[bufferIndex].block_packets, s_BlocksTxBuffers[bufferIndex].block_fecs);
-
    if ( s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].flags != PACKET_FLAG_SENT &&
         s_BlocksTxBuffers[bufferIndex].packetsInfo[packetIndex].flags != PACKET_FLAG_READ )
       return;
@@ -742,7 +737,6 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    if ( uLastVideoProfile != (pPHVF->video_link_profile & 0x0F) )
    {
       uLastVideoProfile = (pPHVF->video_link_profile & 0x0F);
-      //log_line("DEBUG send video profile %d, %s, last ack video level requested: %d", (int)uLastVideoProfile, str_get_video_profile_name(uLastVideoProfile), (int)pPHVF->uLastAckLevelShift);
    }
 
    // If video paused or sending only relayed remote video, do not send it
@@ -932,14 +926,12 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
          uVideoPacketsPerSec = 10;
       if ( uMicroTime/howMany > 500000/uVideoPacketsPerSec )
       {
-         //log_line("DEBUG sending %d packets took %u microseconds, %u packs/sec, counter %d", howMany, uMicroTime, uVideoPacketsPerSec, sl_iCountSuccessiveOverloads);
          sl_iCountSuccessiveOverloads++;
          int iMaxOverloads = (int)uVideoPacketsPerSec/10;
          if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_IGNORE_TX_SPIKES )
             iMaxOverloads = (int)uVideoPacketsPerSec;
          if ( sl_iCountSuccessiveOverloads > iMaxOverloads )
          {
-            //log_line("DEBUG in overload now");
             g_uTimeLastVideoTxOverload = g_TimeNow;
          }
       }
@@ -1544,8 +1536,6 @@ void _parse_camera_source_h264_data(u8* pData, int iDataSize)
    if ( ! bStartOfFrameDetected )
       return;
 
-   //log_line("DEBUG detected start of a frame: %d", s_ParserH264CameraOutput.getCurrentFrameType());
-   
    if ( g_iDebugShowKeyFramesAfterRelaySwitch > 0 )
    if ( s_ParserH264CameraOutput.IsInsideIFrame() )
    {

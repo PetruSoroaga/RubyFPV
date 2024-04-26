@@ -69,7 +69,7 @@ void MenuSystemAllParams::Render()
    char szFile[256];
    char szOutput[1024];
 
-   int boardType = 0;
+   u32 uBoardType = 0;
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);   
 
@@ -82,13 +82,13 @@ void MenuSystemAllParams::Render()
    fd = fopen(szFile,"r");
    if ( NULL != fd )
    {
-      fscanf(fd,"%d", &boardType);
+      fscanf(fd,"%u", &uBoardType);
       fclose(fd);
    }
          
-   sprintf(szBuff, "Controller board: %s, no vehicle selected.", str_get_hardware_board_name(boardType));
+   sprintf(szBuff, "Controller board: %s, no vehicle selected.", str_get_hardware_board_name(uBoardType));
    if ( NULL != g_pCurrentModel )
-      sprintf(szBuff, "Controller board: %s, vehicle board: %s, vehicle name: %s, %s", str_get_hardware_board_name(boardType), str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"(Spectator Mode)":"(Control Mode)");
+      sprintf(szBuff, "Controller board: %s, vehicle board: %s, vehicle name: %s, %s", str_get_hardware_board_name(uBoardType), str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"(Spectator Mode)":"(Control Mode)");
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.3);
@@ -102,7 +102,7 @@ void MenuSystemAllParams::Render()
    if ( ! m_bGotIP )
    {
       m_szIP[0] = 0;
-      if ( boardType != BOARD_TYPE_PIZERO && boardType != BOARD_TYPE_PIZEROW && boardType != BOARD_TYPE_PI3APLUS )
+      if ( uBoardType != BOARD_TYPE_PIZERO && uBoardType != BOARD_TYPE_PIZEROW && uBoardType != BOARD_TYPE_PI3APLUS )
       {
       szOutput[0] = 0;
       hw_execute_bash_command_raw("ifconfig | grep -A1 eth | head -2 | tail -1", szOutput);
@@ -484,7 +484,7 @@ float MenuSystemAllParams::renderProcesses(float xPos, float yPos, float width, 
    if ( NULL == g_pCurrentModel )
       strncpy(szBuff2, "No vehicle", 1023);
    else
-      snprintf(szBuff2, 1023, "Vehicle router/video/telemetry/RC: %d/%d/%d/%d", -g_pCurrentModel->niceRouter, -g_pCurrentModel->niceVideo, -g_pCurrentModel->niceTelemetry, -g_pCurrentModel->niceRC);
+      snprintf(szBuff2, 1023, "Vehicle router/video/telemetry/RC: %d/%d/%d/%d", -g_pCurrentModel->processesPriorities.iNiceRouter, -g_pCurrentModel->processesPriorities.iNiceVideo, -g_pCurrentModel->processesPriorities.iNiceTelemetry, -g_pCurrentModel->processesPriorities.iNiceRC);
 
    g_pRenderEngine->drawMessageLines(xPos+0.16*m_sfScaleFactor, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += g_pRenderEngine->drawMessageLines(xPos+0.41*m_sfScaleFactor, yPos, szBuff2, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
@@ -610,7 +610,7 @@ float MenuSystemAllParams::renderCPUParams(float xPos, float yPos, float width, 
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
    if ( NULL != g_pCurrentModel )
-      sprintf(szBuff, "Vehicle: CPU: %d Mhz, GPU: %d Mhz, OverVoltage: %d, IOPriority: %d, %d", g_pCurrentModel->iFreqARM, g_pCurrentModel->iFreqGPU, g_pCurrentModel->iOverVoltage, g_pCurrentModel->ioNiceRouter, g_pCurrentModel->ioNiceVideo);
+      sprintf(szBuff, "Vehicle: CPU: %d Mhz, GPU: %d Mhz, OverVoltage: %d, IOPriority: %d, %d", g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU, g_pCurrentModel->processesPriorities.iOverVoltage, g_pCurrentModel->processesPriorities.ioNiceRouter, g_pCurrentModel->processesPriorities.ioNiceVideo);
    else
       sprintf(szBuff, "Vehicle: None");
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);

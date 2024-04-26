@@ -49,6 +49,7 @@
 #include "menu_vehicle_alarms.h"
 #include "menu_vehicle_peripherals.h"
 #include "menu_vehicle_radio.h"
+#include "menu_vehicle_cpu_oipc.h"
 #include "menu_item_text.h"
 #include "../link_watch.h"
 
@@ -340,7 +341,7 @@ void MenuVehicle::onSelectItem()
    }
    if ( m_IndexAudio == m_SelectedIndex )
    {
-      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          addUnsupportedMessageOpenIPC(NULL);
          return;
@@ -430,9 +431,9 @@ void MenuVehicle::onSelectItem()
 
    if ( m_IndexCPU == m_SelectedIndex )
    {
-      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
-         addUnsupportedMessageOpenIPC(NULL);
+         add_menu_to_stack(new MenuVehicleCPU_OIPC());
          return;
       }
 

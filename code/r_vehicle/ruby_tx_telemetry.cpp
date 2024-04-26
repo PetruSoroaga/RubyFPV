@@ -2269,7 +2269,7 @@ int main(int argc, char *argv[])
 
    hardware_reload_serial_ports_settings();
 
-   hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry);
+   hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceTelemetry);
 
    bool bLocalVSpeed = false;
    int li = g_pCurrentModel->osd_params.layout;

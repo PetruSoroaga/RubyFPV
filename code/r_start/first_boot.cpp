@@ -44,7 +44,7 @@
 
 Model s_ModelFirstBoot;
 
-void do_first_boot_initialization_raspberry(bool bIsVehicle, int iBoardType)
+void do_first_boot_initialization_raspberry(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for Raspberry platform...");
    if ( bIsVehicle )
@@ -61,13 +61,13 @@ void do_first_boot_initialization_raspberry(bool bIsVehicle, int iBoardType)
    hardware_sleep_ms(200);
    hardware_mount_boot();
 
-   if ( (iBoardType == BOARD_TYPE_PIZERO) || (iBoardType == BOARD_TYPE_PIZEROW) )
+   if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) || ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) )
    {
       log_line("Raspberry Pi Zero detected on the first boot ever of the system. Updating settings for Pi Zero.");
       //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
       //execute_bash_command(szBuff);
    }
-   if ( iBoardType == BOARD_TYPE_PIZERO2 )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
    {
       log_line("Raspberry Pi Zero 2 detected on the first boot ever of the system. Updating settings for Pi Zero 2.");
       //sprintf(szBuff, "sed -i 's/over_voltage=[0-9]*/over_voltage=%d/g' /boot/config.txt", 5);
@@ -75,23 +75,23 @@ void do_first_boot_initialization_raspberry(bool bIsVehicle, int iBoardType)
    }
 }
 
-void do_first_boot_initialization_openipc(bool bIsVehicle, int iBoardType)
+void do_first_boot_initialization_openipc(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for OpenIPC platform...");
    hw_execute_bash_command("ln -s /lib/firmware/ath9k_htc/htc_9271.fw.3 /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw", NULL);
    hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER);
 }
 
-void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
+void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
 {
    log_line("-------------------------------------------------------");
    log_line("First Boot detected. Doing first boot initialization..." );
 
    #ifdef HW_PLATFORM_RASPBERRY
-   do_first_boot_initialization_raspberry(bIsVehicle, iBoardType);
+   do_first_boot_initialization_raspberry(bIsVehicle, uBoardType);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   do_first_boot_initialization_openipc(bIsVehicle, iBoardType);
+   do_first_boot_initialization_openipc(bIsVehicle, uBoardType);
    #endif
 
    char szBuff[256];
@@ -102,7 +102,7 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
    sprintf(szComm, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
    hw_execute_bash_command(szComm, szBuff);
 
-   first_boot_create_default_model(bIsVehicle, iBoardType);
+   first_boot_create_default_model(bIsVehicle, uBoardType);
 
    if ( bIsVehicle )
    if ( access( "config/reset_info.txt", R_OK ) != -1 )
@@ -155,14 +155,14 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
       if ( NULL != pcs )
       {
          pcs->iFreqARM = 900;
-         if ( iBoardType == BOARD_TYPE_PIZERO2 )
+         if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
             pcs->iFreqARM = 1000;
-         else if ( iBoardType == BOARD_TYPE_PI3B )
+         else if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
             pcs->iFreqARM = 1200;
-         else if ( (iBoardType == BOARD_TYPE_PI3BPLUS) || (iBoardType) == BOARD_TYPE_PI4B || (iBoardType == BOARD_TYPE_PI3APLUS) )
+         else if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3BPLUS) || (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B || ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3APLUS) )
             pcs->iFreqARM = 1400;
-         else if ( (iBoardType != BOARD_TYPE_PIZERO) && (iBoardType != BOARD_TYPE_PIZEROW) && (iBoardType != BOARD_TYPE_NONE) 
-               && (iBoardType != BOARD_TYPE_PI2B) && (iBoardType != BOARD_TYPE_PI2BV11) && (iBoardType != BOARD_TYPE_PI2BV12) )
+         else if ( ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZERO) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZEROW) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_NONE) 
+               && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2B) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV11) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV12) )
             pcs->iFreqARM = 1200;
 
          hardware_mount_boot();
@@ -188,7 +188,7 @@ void do_first_boot_initialization(bool bIsVehicle, int iBoardType)
 }
 
 
-Model* first_boot_create_default_model(bool bIsVehicle, int iBoardType)
+Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Creating a default model.");
    s_ModelFirstBoot.resetToDefaults(true);
@@ -202,20 +202,20 @@ Model* first_boot_create_default_model(bool bIsVehicle, int iBoardType)
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-      s_ModelFirstBoot.hwCapabilities.iBoardType = iBoardType;
-      s_ModelFirstBoot.iFreqARM = 900;
-      if ( iBoardType == BOARD_TYPE_PIZERO2 )
-         s_ModelFirstBoot.iFreqARM = 1000;
-      else if ( iBoardType == BOARD_TYPE_PI3B )
-         s_ModelFirstBoot.iFreqARM = 1200;
-      else if ( (iBoardType == BOARD_TYPE_PI3BPLUS) || (iBoardType == BOARD_TYPE_PI4B) || (iBoardType == BOARD_TYPE_PI3APLUS) )
-         s_ModelFirstBoot.iFreqARM = 1400;
-      else if ( (iBoardType != BOARD_TYPE_PIZERO) && (iBoardType != BOARD_TYPE_PIZEROW) && (iBoardType != BOARD_TYPE_NONE) 
-               && (iBoardType != BOARD_TYPE_PI2B) && (iBoardType != BOARD_TYPE_PI2BV11) && (iBoardType != BOARD_TYPE_PI2BV12) )
-         s_ModelFirstBoot.iFreqARM = 1200;
+      s_ModelFirstBoot.hwCapabilities.uBoardType = uBoardType;
+      s_ModelFirstBoot.processesPriorities.iFreqARM = 900;
+      if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
+         s_ModelFirstBoot.processesPriorities.iFreqARM = 1000;
+      else if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
+         s_ModelFirstBoot.processesPriorities.iFreqARM = 1200;
+      else if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3BPLUS) || ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B) || ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3APLUS) )
+         s_ModelFirstBoot.processesPriorities.iFreqARM = 1400;
+      else if ( ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZERO) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZEROW) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_NONE) 
+               && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2B) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV11) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV12) )
+         s_ModelFirstBoot.processesPriorities.iFreqARM = 1200;
 
-      config_file_set_value("config.txt", "arm_freq", s_ModelFirstBoot.iFreqARM);
-      config_file_set_value("config.txt", "arm_freq_min", s_ModelFirstBoot.iFreqARM);
+      config_file_set_value("config.txt", "arm_freq", s_ModelFirstBoot.processesPriorities.iFreqARM);
+      config_file_set_value("config.txt", "arm_freq_min", s_ModelFirstBoot.processesPriorities.iFreqARM);
       // Enable hdmi, we might need it for debug
       config_file_force_value("config.txt", "hdmi_force_hotplug", 1);
       config_file_force_value("config.txt", "ignore_lcd", 0);

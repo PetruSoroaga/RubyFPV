@@ -61,6 +61,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_FORCE_CAMERA_TYPE: strcpy(szCommandDesc, "Set_Force_Camera_Type"); break;
       case COMMAND_ID_SET_OSD_CURRENT_LAYOUT: strcpy(szCommandDesc, "Set_Current_OSD_Layout"); break;
       case COMMAND_ID_GET_CORE_PLUGINS_INFO: strcpy(szCommandDesc, "Get_Core_Plugins_Info"); break;
+      case COMMAND_ID_SET_THREADS_PRIORITIES: strcpy(szCommandDesc, "Set_Threads_Priorities"); break;
       case COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS: strcpy(szCommandDesc, "Set_Controller_Telemetry_Options"); break;
       case COMMAND_ID_GET_SIK_CONFIG: strcpy(szCommandDesc, "Get_SiK_Config"); break;
       case COMMAND_ID_SET_RADIO_LINKS_FLAGS: strcpy(szCommandDesc, "Set_Radio_Links_Flags"); break;

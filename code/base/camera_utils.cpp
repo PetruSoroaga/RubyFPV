@@ -39,7 +39,7 @@ int camera_get_active_camera_h264_slices(Model* pModel)
    if ( NULL == pModel )
       return 1;
 
-   if ( hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(pModel->hwCapabilities.uBoardType) )
       return pModel->video_params.iH264Slices;
 
    if ( pModel->isActiveCameraVeye() )

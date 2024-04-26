@@ -103,7 +103,6 @@ void do_update_to_91()
       pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
       pCS->iShowVideoStreamInfoCompactType = 1;
       save_ControllerSettings();
-
    }
 
    Model* pModel = getCurrentModel();
@@ -860,10 +859,10 @@ void do_update_to_69()
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= (~(u32)0xFF00);
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
    
-      pModel->niceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-      pModel->niceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
-      pModel->ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
-      pModel->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+      pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pModel->processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
+      pModel->processesPriorities.ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
+      pModel->processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
 
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       pModel->video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;

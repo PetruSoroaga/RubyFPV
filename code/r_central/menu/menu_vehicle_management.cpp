@@ -251,7 +251,7 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexPlugins == m_SelectedIndex )
    {
-      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          addUnsupportedMessageOpenIPC(NULL);
          return;
@@ -345,7 +345,7 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexUpdate == m_SelectedIndex )
    {
-      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          addUnsupportedMessageOpenIPC(NULL);
          return;

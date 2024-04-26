@@ -413,14 +413,33 @@ typedef struct
    u32 uDummy;
 } type_logging_parameters;
 
+typedef struct 
+{
+   int iNiceRC;
+   int iNiceRouter; // negative value; 0 for disabled/auto
+   int ioNiceRouter;
+   int iNiceTelemetry;
+   int iNiceVideo; // negative value; 0 - disabled/auto
+   int ioNiceVideo; // 0 or negative - disabled;
+   int iNiceOthers;
+   int iOverVoltage; // 0 or negative - disabled, negative - default value
+   int iFreqARM; // 0 or negative - disabled
+   int iFreqGPU; // 0 or negative - disabled
+
+   int iThreadPriorityRouter; // 0 - disabled, 1...99, higher number - higher priority
+   int iThreadPriorityRadioRx; // 0 - disabled, 1...99, higher number - higher priority
+   int iThreadPriorityRadioTx; // 0 - disabled, 1...99, higher number - higher priority
+} type_processes_priorities;
+
 
 // This is all readonly:
 typedef struct 
 {
-   int iBoardType; //board_type;
+   u32 uBoardType; //board_type;
    int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
    int iMaxTxVideoBlockPackets; // max packets in a video block
-   int dummyhwc[3];
+   u32 uFlags;
+   int dummyhwc[2];
    u32 dummyhwc2[3];
 } type_hardware_capabilities;
 
@@ -470,6 +489,7 @@ class Model
          // 0...5, same translation to miliseconds as for nGraphRadioRefreshInterval: 10,20,50,100,200,500 ms
 
       type_vehicle_hardware_interfaces_info hardwareInterfacesInfo;
+      type_processes_priorities processesPriorities;
 
       
       // Radio interfaces order is given by physical order. Can't be changed.
@@ -494,17 +514,6 @@ class Model
 
       int iGPSCount;
       
-      int niceRC;
-      int niceRouter;
-      int ioNiceRouter;
-      int niceTelemetry;
-      int niceVideo;
-      int niceOthers;
-      int ioNiceVideo; // 0 or negative - disabled;
-      int iOverVoltage; // 0 or negative - disabled, negative - default value
-      int iFreqARM; // 0 or negative - disabled
-      int iFreqGPU; // 0 or negative - disabled
- 
       type_camera_parameters camera_params[MODEL_MAX_CAMERAS];
       int iCameraCount;
       int iCurrentCamera;

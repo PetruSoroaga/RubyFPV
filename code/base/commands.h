@@ -136,6 +136,9 @@ typedef struct
 #define COMMAND_ID_SET_ALARMS_PARAMS 50
 // an type_alarms_parameters structure as input
 
+#define COMMAND_ID_SET_THREADS_PRIORITIES 51
+// param: byte 0 - router thread priority, byte 1 - radio rx priority, byte 2 - radio tx priority
+
 #define COMMAND_ID_SET_ENCRYPTION_PARAMS 54 // (added ruby 5.1)
 // byte 0: flags, byte 1: pass key lenght; byte 2..N: pass key
 

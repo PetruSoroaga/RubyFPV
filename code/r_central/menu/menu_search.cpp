@@ -313,7 +313,13 @@ int MenuSearch::_populate_search_frequencies()
    }
    if ( m_SupportedBands & RADIO_HW_SUPPORTED_BAND_58 )
    {
-      for( int i=0; i<getChannels58Count(); i++ )
+      Preferences* pP = get_Preferences();
+      int iCountCh = getChannels58Count();
+   
+      if ( pP->iScaleMenus > 0 )
+         iCountCh /= 2;
+
+      for( int i=0; i<iCountCh; i++ )
       {
          m_Channels[m_NumChannels] = getChannels58()[i];
          strcpy(szBuff, str_format_frequency(getChannels58()[i]));
@@ -323,7 +329,22 @@ int MenuSearch::_populate_search_frequencies()
          m_NumChannels++;
       }
       m_pItemsSelectFreq->addSeparator();
+
+      if ( pP->iScaleMenus > 0 )
+      {
+         for( int i=iCountCh; i<getChannels58Count(); i++ )
+         {
+            m_Channels[m_NumChannels] = getChannels58()[i];
+            strcpy(szBuff, str_format_frequency(getChannels58()[i]));
+            if ( currentFreqKhz == getChannels58()[i] )
+               selectedIndex = m_NumChannels;
+            m_pItemsSelectFreq->addSelection(szBuff);
+            m_NumChannels++;
+         }
+         m_pItemsSelectFreq->addSeparator();
+      }
    }
+
    if ( 0 == m_NumChannels )
       m_pItemsSelectFreq->addSelection("No supported frequencies");
    m_pItemsSelectFreq->setSelection(selectedIndex);

@@ -17,6 +17,8 @@ class MenuItem
      void setTooltip(const char* tooltip);
      char* getTooltip();
 
+     void setValue(const char* szValue);
+
      virtual void invalidate();
 
      bool isEnabled();
@@ -66,6 +68,7 @@ class MenuItem
      void RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWidthSelection);
 
      char* m_pszTitle;
+     char* m_pszValue;
      char* m_pszTooltip;
      bool m_bEnabled;
      bool m_bIsEditable;

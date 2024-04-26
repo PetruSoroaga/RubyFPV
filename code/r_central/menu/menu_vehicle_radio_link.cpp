@@ -104,16 +104,26 @@ MenuVehicleRadioLink::MenuVehicleRadioLink(int iRadioLink)
    }
    else
    {
+      Preferences* pP = get_Preferences();
+      int iCountChCurrentColumn = 0;
       for( int ch=0; ch<m_SupportedChannelsCount; ch++ )
       {
+         if ( (pP->iScaleMenus > 0) && (iCountChCurrentColumn > 14 ) )
+         {
+            m_pItemsSelect[00]->addSeparator();
+            iCountChCurrentColumn = 0;
+         }
          if ( m_SupportedChannels[ch] == 0 )
          {
             m_pItemsSelect[00]->addSeparator();
+            iCountChCurrentColumn = 0;
             continue;
          }
          strcpy(szBuff, str_format_frequency(m_SupportedChannels[ch]));
          m_pItemsSelect[00]->addSelection(szBuff);
+         iCountChCurrentColumn++;
       }
+
       m_SupportedChannelsCount = getSupportedChannels( uControllerSupportedBands & g_pCurrentModel->radioInterfacesParams.interface_supported_bands[iRadioInterfaceId], 0, &(m_SupportedChannels[0]), MAX_MENU_CHANNELS);
       if ( 0 == m_SupportedChannelsCount )
       {

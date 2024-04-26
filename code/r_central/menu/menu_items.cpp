@@ -56,6 +56,7 @@ MenuItem::MenuItem(const char* title)
    m_pMenu = NULL;
    m_pszTitle = NULL;
    m_pszTooltip = NULL;
+   m_pszValue = NULL;
    m_fMarginX = 0.0;
    setTitle(title);
    setTooltip("");
@@ -83,6 +84,7 @@ MenuItem::MenuItem(const char* title, const char* tooltip)
    m_pMenu = NULL;
    m_pszTitle = NULL;
    m_pszTooltip = NULL;
+   m_pszValue = NULL;
    m_fMarginX = 0.0;
    setTitle(title);
    setTooltip(tooltip);
@@ -95,8 +97,11 @@ MenuItem::~MenuItem()
       free(m_pszTitle);
    if ( NULL != m_pszTooltip )
       free(m_pszTooltip);
+   if ( NULL != m_pszValue )
+      free(m_pszValue);
    m_pszTitle = NULL;
    m_pszTooltip = NULL;
+   m_pszValue = NULL;
 }
 
 bool MenuItem::isEnabled()
@@ -177,6 +182,23 @@ void MenuItem::setTitle( const char* title )
 char* MenuItem::getTitle()
 {
    return m_pszTitle;
+}
+
+void MenuItem::setValue(const char* szValue)
+{
+   if ( NULL != m_pszValue )
+      free(m_pszValue);
+
+   if ( NULL == szValue || 0 == szValue[0] )
+   {
+      m_pszValue = (char*)malloc(2);
+      m_pszValue[0] = 0;
+      return;
+   }
+   m_pszValue = (char*)malloc(strlen(szValue)+1);
+   strcpy(m_pszValue, szValue);
+
+   invalidate();
 }
 
 void MenuItem::setTooltip( const char* tooltip )
@@ -299,6 +321,9 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
    }
    g_pRenderEngine->drawText(xPos + m_fMarginX, yPos+g_pRenderEngine->getPixelHeight()*0.2, g_idFontMenu, m_pszTitle);
 
+   float xEnd = xPos + width_text - 2.0*g_pRenderEngine->getPixelWidth();
+   float yEnd = yPos + height_text*0.5;
+
    if ( m_bShowArrow )
    {
       if ( (!bSelected) )
@@ -315,10 +340,16 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
   
       float size = height_text*0.28;
 
-      float xEnd = xPos + width_text - 2.0*g_pRenderEngine->getPixelWidth();
-      float yEnd = yPos + height_text*0.5;
       g_pRenderEngine->drawTriangle(xEnd,yEnd, xEnd-size, yEnd+size, xEnd-size, yEnd-size);
       g_pRenderEngine->setColors(get_Color_MenuText());
+      xEnd -= size;
+   }
+
+   if ( (NULL != m_pszValue) && (0 != m_pszValue[0]) )
+   {
+      if ( NULL != m_pMenu )
+         xEnd = m_pMenu->getRenderXPos() + m_pMenu->getRenderWidth() - m_fMarginX - Menu::getMenuPaddingX();
+      g_pRenderEngine->drawTextLeft(xEnd, yPos+g_pRenderEngine->getPixelHeight()*0.2, g_idFontMenu, m_pszValue);
    }
 }
 

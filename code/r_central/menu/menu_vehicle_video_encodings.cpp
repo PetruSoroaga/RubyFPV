@@ -283,7 +283,7 @@ void MenuVehicleVideoEncodings::valuesToUI()
    int useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
    int controllerLinkLost = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST)?1:0;
    
-   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       adaptive = 0;
 
    if ( adaptive )
@@ -554,7 +554,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
       return;
    }
 
-   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
    if ( (m_IndexHDMIOutput == m_SelectedIndex) ||
         (m_IndexH264Slices == m_SelectedIndex) ||
         (m_IndexCustomQuant == m_SelectedIndex) ||
@@ -567,7 +567,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
       return;    
    }
 
-   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
    if ( (m_IndexAdaptiveLink == m_SelectedIndex) || (m_IndexMaxKeyFrame == m_SelectedIndex) )
    {
       addUnsupportedMessageOpenIPCGoke(NULL);
@@ -645,7 +645,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
 
    if ( m_IndexHDMIOutput == m_SelectedIndex )
    {
-      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          addUnsupportedMessageOpenIPC(NULL);
          return;

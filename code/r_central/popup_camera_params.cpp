@@ -79,7 +79,7 @@ void PopupCameraParams::onShow()
    removeAllLines();
 
    m_bCanSendQuick = true;
-   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       m_bCanSendQuick = false;
 
    m_bHasSharpness = false;

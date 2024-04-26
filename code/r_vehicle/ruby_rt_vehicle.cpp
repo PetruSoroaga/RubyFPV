@@ -1298,7 +1298,6 @@ int main(int argc, char *argv[])
    VehicleSettings* pVS = get_VehicleSettings();
    if ( NULL != pVS )
       radio_rx_set_timeout_interval(pVS->iDevRxLoopTimeout);
-   
    hardware_reload_serial_ports_settings();
 
    hardware_enumerate_radio_interfaces(); 
@@ -1337,6 +1336,8 @@ int main(int argc, char *argv[])
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
 
+   radio_rx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx);
+   radio_tx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
 
    if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_DISABLE_ALL_LOGS )
    {
@@ -1395,7 +1396,7 @@ int main(int argc, char *argv[])
       g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId = i;
      
    //if ( NULL != g_pCurrentModel )
-   //   hw_set_priority_current_proc(g_pCurrentModel->niceRouter);
+   //   hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceRouter);
 
    if ( NULL != g_pProcessStats )
    {
@@ -1600,7 +1601,7 @@ int main(int argc, char *argv[])
    if( access( "novideo", R_OK ) != -1 )
       bDebugNoVideoOutput = true;
 
-   hw_increase_current_thread_priority(NULL, DEFAULT_PRIORITY_THREAD_ROUTER);
+   g_iDefaultRouterThreadPriority = hw_increase_current_thread_priority("Main thread", g_pCurrentModel->processesPriorities.iThreadPriorityRouter);
 
    // -----------------------------------------------------------
    // Main loop here
@@ -1706,7 +1707,7 @@ void _main_loop()
       /*
       static int s_iDebugCountConsecutiveVReadTimeouts = 0;
       if ( s_iDebugCountConsecutiveVReadTimeouts < 4 )
-         log_line("DEBUG video read %d bytes", iReadSize);
+         log_line("DBG video read %d bytes", iReadSize);
       if ( (NULL == pVideoData) || (iReadSize <= 0) )
          s_iDebugCountConsecutiveVReadTimeouts++;
       else
@@ -1716,8 +1717,6 @@ void _main_loop()
       if ( (NULL != pVideoData) && (iReadSize > 0) )
       if ( ! bDebugNoVideoOutput )
       {
-         //log_line("DEBUG (%s) cam read %d bytes",  process_data_tx_is_on_iframe()?"I":"P", iReadSize);
-
          if ( process_data_tx_video_on_new_data(pVideoData, iReadSize) )
             s_debugVideoBlocksInCount++;
          int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
@@ -1725,7 +1724,6 @@ void _main_loop()
          if ( ! bDebugNoVideoOutput )
          {
             process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
-            //log_line("DEBUG sent %d packets", iSent);
          }
       }
    }
@@ -1945,8 +1943,6 @@ void _main_loop_old()
             s_debugVideoBlocksInCount++;
       }
    }
-   //if ( iCountReads > 0 )
-   //   log_line("DEBUG reads %d, %d bytes", iCountReads, iTotalRead);
 
    u32 tTime3 = get_current_timestamp_ms();
 

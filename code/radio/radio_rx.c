@@ -44,6 +44,9 @@ int s_iRadioRxInitialized = 0;
 int s_iRadioRxSingalStop = 0;
 int s_iRadioRxLoopTimeoutInterval = 15;
 int s_iRadioRxMarkedForQuit = 0;
+int s_iDefaultRxThreadPriority = -1;
+int s_iCustomRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+int s_iLastSetCustomRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
 
 t_radio_rx_state s_RadioRxState;
 
@@ -631,8 +634,15 @@ static void * _thread_radio_rx(void *argument)
 {
    log_line("[RadioRxThread] Started.");
 
-   hw_increase_current_thread_priority("[RadioRxThread]", DEFAULT_PRIORITY_THREAD_RADIO_RX);
-   
+   if ( s_iCustomRxThreadPriority > 0 )
+   {
+      int iRet = hw_increase_current_thread_priority("[RadioRxThread]", s_iCustomRxThreadPriority);
+      if ( -1 == s_iDefaultRxThreadPriority )
+         s_iDefaultRxThreadPriority = iRet;
+   }
+   else if ( s_iDefaultRxThreadPriority != -1 )
+      s_iDefaultRxThreadPriority = hw_increase_current_thread_priority("[RadioRxThread]", s_iDefaultRxThreadPriority);
+
    log_line("[RadioRxThread] Initialized State. Waiting for rx messages...");
 
    int* piQuit = (int*) argument;
@@ -679,7 +689,19 @@ static void * _thread_radio_rx(void *argument)
       // Loop is executed every 50 ms max. So update stats every 500 ms max
 
       if ( 0 == (iLoopCounter % 10) )
+      {
          _radio_rx_update_stats(uTime);
+         if ( s_iLastSetCustomRxThreadPriority != s_iCustomRxThreadPriority )
+         {
+            log_line("[RadioRxThread] New thread priority must be set, from %d to %d.", s_iLastSetCustomRxThreadPriority, s_iCustomRxThreadPriority);
+            s_iLastSetCustomRxThreadPriority = s_iCustomRxThreadPriority;
+
+            if ( s_iCustomRxThreadPriority > 0 )
+               hw_increase_current_thread_priority("[RadioRxThread]", s_iCustomRxThreadPriority);
+            else if ( s_iDefaultRxThreadPriority != -1 )
+               hw_increase_current_thread_priority("[RadioRxThread]", s_iDefaultRxThreadPriority);
+         }
+      }
 
       _radio_rx_update_fd_sets();
 
@@ -839,6 +861,10 @@ void radio_rx_stop_rx_thread()
    pthread_mutex_destroy(&s_pThreadRadioRxMutex);
 }
 
+void radio_rx_set_custom_thread_priority(int iPriority)
+{
+   s_iCustomRxThreadPriority = iPriority;
+}
 
 void radio_rx_set_timeout_interval(int iMiliSec)
 {

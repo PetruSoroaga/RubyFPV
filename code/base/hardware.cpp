@@ -78,9 +78,12 @@ int sKeyQAPlusPressed = 0;
 int sKeyQAMinusPressed = 0;
 
 u32 keyMenuDownStartTime = 0;
+u32 keyMenuInitialDownStartTime = 0;
 u32 keyBackDownStartTime = 0;
 u32 keyPlusDownStartTime = 0;
 u32 keyMinusDownStartTime = 0;
+u32 keyPlusInitialDownStartTime = 0;
+u32 keyMinusInitialDownStartTime = 0;
 u32 keyQA1DownStartTime = 0;
 u32 keyQA2DownStartTime = 0;
 u32 keyQA22DownStartTime = 0;
@@ -97,7 +100,7 @@ int sInitialReadQAMinus = 0;
 
 static u32 s_long_key_press_delta = 700;
 #ifdef HW_CAPABILITY_GPIO
-static u32 s_long_press_repeat_time = 150;
+static u32 s_long_press_repeat_time = 120;
 #endif
 int s_bBlockCurrentPressedKeys = 0;
 
@@ -558,27 +561,27 @@ u32 hardware_get_base_ruby_version()
 }
 
 
-int hardware_board_is_openipc(int iBoardType)
+int hardware_board_is_openipc(u32 uBoardType)
 {
-   if ( hardware_board_is_goke(iBoardType) )
+   if ( hardware_board_is_goke(uBoardType) )
       return 1;
-   if ( iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
       return 1;
    return 0;
 }
 
-int hardware_board_is_goke(int iBoardType)
+int hardware_board_is_goke(u32 uBoardType)
 {
-   if ( iBoardType == BOARD_TYPE_OPENIPC_GOKE200 ||
-        iBoardType == BOARD_TYPE_OPENIPC_GOKE210 ||
-        iBoardType == BOARD_TYPE_OPENIPC_GOKE300 )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 ||
+        (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 ||
+        (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return 1; 
    return 0;
 }
 
-int hardware_board_is_sigmastar(int iBoardType)
+int hardware_board_is_sigmastar(u32 uBoardType)
 {
-   if ( iBoardType == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
       return 1;
    return 0;
 }
@@ -829,12 +832,15 @@ void gpio_read_buttons_loop()
    {
       sKeyMenuPressed = 0;
       keyMenuDownStartTime = 0;
+      keyMenuInitialDownStartTime = 0;
       sKeyBackPressed = 0;
       keyBackDownStartTime = 0;
       sKeyPlusPressed = 0;
       keyPlusDownStartTime = 0;
+      keyPlusInitialDownStartTime = 0;
       sKeyMinusPressed = 0;
       keyMinusDownStartTime = 0;
+      keyMinusInitialDownStartTime = 0;
       sKeyQA1Pressed = 0;
       keyQA1DownStartTime = 0;
       sKeyQA2Pressed = 0;
@@ -930,16 +936,18 @@ void gpio_read_buttons_loop()
    {
       sKeyMenuPressed = 0;
       keyMenuDownStartTime = 0;
+      keyMenuInitialDownStartTime = 0;
    }
    else if ( rMenu != sLastReadMenu )
    {
       sKeyMenuPressed = 1;
       keyMenuDownStartTime = time_now;
+      keyMenuInitialDownStartTime = time_now;
    }
    else
       sKeyMenuPressed = 0;
 
-   if ( ( GPIOGetButtonsPullDirection() != rMenu) && (0 != keyMenuDownStartTime) && (time_now > (keyMenuDownStartTime+s_long_key_press_delta)) )
+   if ( ( GPIOGetButtonsPullDirection() != rMenu) && (0 != keyMenuDownStartTime) && (time_now > (keyMenuDownStartTime+s_long_key_press_delta+s_long_press_repeat_time)) )
    {
       sKeyMenuPressed = 1;
       keyMenuDownStartTime += s_long_press_repeat_time;
@@ -958,7 +966,7 @@ void gpio_read_buttons_loop()
    else
       sKeyBackPressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rBack) && 0 != keyBackDownStartTime && time_now > (keyBackDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rBack) && 0 != keyBackDownStartTime && time_now > (keyBackDownStartTime+s_long_key_press_delta + s_long_press_repeat_time) )
    {
       sKeyBackPressed = 1;
       keyBackDownStartTime += s_long_press_repeat_time;
@@ -968,16 +976,20 @@ void gpio_read_buttons_loop()
    {
       sKeyPlusPressed = 0;
       keyPlusDownStartTime = 0;
+      keyPlusInitialDownStartTime = 0;
    }
    else if ( rPlus != sLastReadPlus )
    {
       sKeyPlusPressed = 1;
       keyPlusDownStartTime = time_now;
+      keyPlusInitialDownStartTime = time_now;
    }
    else
+   {
       sKeyPlusPressed = 0;
+   }
 
-   if ( (GPIOGetButtonsPullDirection() != rPlus) && 0 != keyPlusDownStartTime && time_now > (keyPlusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rPlus) && (0 != keyPlusDownStartTime) && (time_now > (keyPlusDownStartTime+s_long_key_press_delta+s_long_press_repeat_time)) )
    {
       sKeyPlusPressed = 1;
       keyPlusDownStartTime += s_long_press_repeat_time;
@@ -987,16 +999,18 @@ void gpio_read_buttons_loop()
    {
       sKeyMinusPressed = 0;
       keyMinusDownStartTime = 0;
+      keyMinusInitialDownStartTime = 0;
    }
    else if ( rMinus != sLastReadMinus )
    {
       sKeyMinusPressed = 1;
       keyMinusDownStartTime = time_now;
+      keyMinusInitialDownStartTime = time_now;
    }
    else
       sKeyMinusPressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rMinus) && 0 != keyMinusDownStartTime && time_now > (keyMinusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rMinus) && 0 != keyMinusDownStartTime && time_now > (keyMinusDownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyMinusPressed = 1;
       keyMinusDownStartTime += s_long_press_repeat_time;
@@ -1015,7 +1029,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQA1Pressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQA1) && 0 != keyQA1DownStartTime && time_now > (keyQA1DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA1) && 0 != keyQA1DownStartTime && time_now > (keyQA1DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQA1Pressed = 1;
       keyQA1DownStartTime += s_long_press_repeat_time;
@@ -1034,7 +1048,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQA2Pressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQA2) && 0 != keyQA2DownStartTime && time_now > (keyQA2DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA2) && 0 != keyQA2DownStartTime && time_now > (keyQA2DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQA2Pressed = 1;
       keyQA2DownStartTime += s_long_press_repeat_time;
@@ -1053,7 +1067,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQA22Pressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQA22) && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA22) && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQA22Pressed = 1;
       keyQA22DownStartTime += s_long_press_repeat_time;
@@ -1072,7 +1086,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQA3Pressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQA3) && 0 != keyQA3DownStartTime && time_now > (keyQA3DownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQA3) && 0 != keyQA3DownStartTime && time_now > (keyQA3DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQA3Pressed = 1;
       keyQA3DownStartTime += s_long_press_repeat_time;
@@ -1091,7 +1105,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQAPlusPressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQAPlus) && 0 != keyQAPlusDownStartTime && time_now > (keyQAPlusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQAPlus) && 0 != keyQAPlusDownStartTime && time_now > (keyQAPlusDownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQAPlusPressed = 1;
       keyQAPlusDownStartTime += s_long_press_repeat_time;
@@ -1110,7 +1124,7 @@ void gpio_read_buttons_loop()
    else
       sKeyQAMinusPressed = 0;
 
-   if ( (GPIOGetButtonsPullDirection() != rQAMinus) && 0 != keyQAMinusDownStartTime && time_now > (keyQAMinusDownStartTime+s_long_key_press_delta) )
+   if ( (GPIOGetButtonsPullDirection() != rQAMinus) && 0 != keyQAMinusDownStartTime && time_now > (keyQAMinusDownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
    {
       sKeyQAMinusPressed = 1;
       keyQAMinusDownStartTime += s_long_press_repeat_time;
@@ -1303,6 +1317,14 @@ int isKeyMenuLongPressed()
    return 0;
 }
 
+int isKeyMenuLongLongPressed()
+{
+   u32 time_now = get_current_timestamp_ms();
+   if ( (0 != keyMenuInitialDownStartTime) && (time_now > (keyMenuInitialDownStartTime+4*s_long_key_press_delta)) )
+      return 1;
+   return 0;
+}
+
 int isKeyBackLongPressed()
 {
    u32 time_now = get_current_timestamp_ms();
@@ -1350,12 +1372,12 @@ int isKeyPlusLongLongPressed()
    u32 time_now = get_current_timestamp_ms();
    if ( s_ihwSwapButtons == 0 )
    {
-      if ( sKeyPlusPressed && (0 != keyPlusDownStartTime) && (time_now > (keyPlusDownStartTime+3*s_long_key_press_delta)) )
+      if ( (0 != keyPlusInitialDownStartTime) && (time_now > (keyPlusInitialDownStartTime+4*s_long_key_press_delta)) )
          return 1;
    }
    else
    {
-      if ( sKeyMinusPressed && (0 != keyMinusDownStartTime) && (time_now > (keyMinusDownStartTime+3*s_long_key_press_delta)) )
+      if ( (0 != keyMinusInitialDownStartTime) && (time_now > (keyMinusInitialDownStartTime+4*s_long_key_press_delta)) )
          return 1;
    }
 
@@ -1367,12 +1389,12 @@ int isKeyMinusLongLongPressed()
    u32 time_now = get_current_timestamp_ms();
    if ( s_ihwSwapButtons == 0 )
    {
-      if ( sKeyMinusPressed && (0 != keyMinusDownStartTime) && (time_now > (keyMinusDownStartTime+3*s_long_key_press_delta)) )
+      if ( (0 != keyMinusInitialDownStartTime) && (time_now > (keyMinusInitialDownStartTime+4*s_long_key_press_delta)) )
          return 1;
    }
    else
    {
-      if ( sKeyPlusPressed && (0 != keyPlusDownStartTime) && (time_now > (keyPlusDownStartTime+3*s_long_key_press_delta)) )
+      if ( (0 != keyPlusInitialDownStartTime) && (time_now > (keyPlusInitialDownStartTime+4*s_long_key_press_delta)) )
          return 1;
    }
 
@@ -1438,36 +1460,6 @@ void hardware_override_keys(int iKeyMenu, int iKeyBack, int iKeyPlus, int iKeyMi
       u32 time_now = get_current_timestamp_ms();
       keyMinusDownStartTime = time_now - 2000;
    }
-}
-
-void hardware_ResetLongPressStatus()
-{
-   sLastReadMenu = 1;
-   sLastReadBack = 1;
-   sLastReadPlus = 1;
-   sLastReadMinus = 1;
-   sLastReadQA1 = 1;
-   sLastReadQA2 = 1;
-   sLastReadQA22 = 1;
-   sLastReadQA3 = 1;
-
-   sKeyMenuPressed = 0;
-   sKeyBackPressed = 0;
-   sKeyPlusPressed = 0;
-   sKeyMinusPressed = 0;
-   sKeyQA1Pressed = 0;
-   sKeyQA2Pressed = 0;
-   sKeyQA22Pressed = 0;
-   sKeyQA3Pressed = 0;
-
-   keyMenuDownStartTime = 0;
-   keyBackDownStartTime = 0;
-   keyPlusDownStartTime = 0;
-   keyMinusDownStartTime = 0;
-   keyQA1DownStartTime = 0;
-   keyQA2DownStartTime = 0;
-   keyQA22DownStartTime = 0;
-   keyQA3DownStartTime = 0;
 }
 
 void hardware_blockCurrentPressedKeys()
@@ -1799,7 +1791,7 @@ int hardware_get_cpu_speed()
    }
    return atoi(p);
    #else
-   return 1000000000;
+   return 1000;
    #endif
 }
 
@@ -1843,7 +1835,7 @@ int hardware_get_gpu_speed()
    }
    return atoi(p);
    #else
-   return 1000000000;
+   return 1000;
    #endif
 }
 

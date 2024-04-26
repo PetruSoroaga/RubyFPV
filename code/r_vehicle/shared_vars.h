@@ -57,6 +57,7 @@ extern u32 s_debugVideoBlocksInCount;
 extern t_packet_queue g_QueueRadioPacketsOut;
 extern ProcessorTxVideo* g_pProcessorTxVideo;
 extern ProcessorTxAudio* g_pProcessorTxAudio;
+extern int g_iDefaultRouterThreadPriority;
 
 extern bool g_bRadioReinitialized;
 extern shared_mem_radio_stats g_SM_RadioStats;

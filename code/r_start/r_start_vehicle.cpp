@@ -336,11 +336,11 @@ bool read_config_file()
    int v = config_file_get_value("over_voltage");
 
    log_line("Read Pi config file: overvoltage: %d, arm freq: %d, gpu freq: %d", v,f,g);
-   if ( f != modelVehicle.iFreqARM || g != modelVehicle.iFreqGPU || v != modelVehicle.iOverVoltage )
+   if ( (f != modelVehicle.processesPriorities.iFreqARM) || (g != modelVehicle.processesPriorities.iFreqGPU) || (v != modelVehicle.processesPriorities.iOverVoltage) )
    {
-      modelVehicle.iFreqARM = f;
-      modelVehicle.iFreqGPU = g;
-      modelVehicle.iOverVoltage = v;
+      modelVehicle.processesPriorities.iFreqARM = f;
+      modelVehicle.processesPriorities.iFreqGPU = g;
+      modelVehicle.processesPriorities.iOverVoltage = v;
       log_line("Read Pi config file values changed. Will update model file.");
       return true;
    }
@@ -461,10 +461,10 @@ int r_start_vehicle(int argc, char *argv[])
       bMustSave = true;
    }
 
-   int board_type = hardware_getBoardType();
-   if ( board_type != modelVehicle.hwCapabilities.iBoardType )
+   u32 uBoardType = hardware_getBoardType();
+   if ( uBoardType != modelVehicle.hwCapabilities.uBoardType )
    {
-      modelVehicle.hwCapabilities.iBoardType = board_type;
+      modelVehicle.hwCapabilities.uBoardType = uBoardType;
       bMustSave = true;
    }
 

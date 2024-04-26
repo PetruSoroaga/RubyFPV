@@ -324,27 +324,6 @@ void send_model_settings_to_controller()
        iSegment, s_bufferModelSettingsLength);
 }
 
-
-void update_priorities()
-{
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   //hw_set_proc_priority("ruby_rt_vehicle", g_pCurrentModel->niceRouter, g_pCurrentModel->ioNiceRouter, 1);
-   if ( g_pCurrentModel->isActiveCameraVeye() )
-   {
-      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, g_pCurrentModel->niceVideo, g_pCurrentModel->ioNiceVideo, 1 );
-      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, g_pCurrentModel->niceVideo, g_pCurrentModel->ioNiceVideo, 1 );
-   }
-   else
-      hw_set_proc_priority(VIDEO_RECORDER_COMMAND, g_pCurrentModel->niceVideo, g_pCurrentModel->ioNiceVideo, 1 );
-   // To fix
-   //hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
-   hw_set_proc_priority("ruby_tx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
-   //hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->niceOthers, 0, 1 );
-
-   #endif
-}
-
 void signalReinitializeRouterRadioLinks()
 {
    t_packet_header PH;
@@ -579,22 +558,22 @@ void save_config_file()
    hardware_sleep_ms(200);
    hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-   config_file_set_value("config.txt", "over_voltage", g_pCurrentModel->iOverVoltage);
-   config_file_set_value("config.txt", "over_voltage_sdram", g_pCurrentModel->iOverVoltage);
-   config_file_set_value("config.txt", "over_voltage_min", g_pCurrentModel->iOverVoltage);
+   config_file_set_value("config.txt", "over_voltage", g_pCurrentModel->processesPriorities.iOverVoltage);
+   config_file_set_value("config.txt", "over_voltage_sdram", g_pCurrentModel->processesPriorities.iOverVoltage);
+   config_file_set_value("config.txt", "over_voltage_min", g_pCurrentModel->processesPriorities.iOverVoltage);
 
-   config_file_set_value("config.txt", "arm_freq", g_pCurrentModel->iFreqARM);
-   config_file_set_value("config.txt", "arm_freq_min", g_pCurrentModel->iFreqARM);
+   config_file_set_value("config.txt", "arm_freq", g_pCurrentModel->processesPriorities.iFreqARM);
+   config_file_set_value("config.txt", "arm_freq_min", g_pCurrentModel->processesPriorities.iFreqARM);
 
-   config_file_set_value("config.txt", "gpu_freq", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "gpu_freq_min", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "core_freq_min", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "h264_freq_min", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "isp_freq_min", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "v3d_freq_min", g_pCurrentModel->iFreqGPU);
+   config_file_set_value("config.txt", "gpu_freq", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "gpu_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "core_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "h264_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "isp_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "v3d_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
 
-   config_file_set_value("config.txt", "sdram_freq", g_pCurrentModel->iFreqGPU);
-   config_file_set_value("config.txt", "sdram_freq_min", g_pCurrentModel->iFreqGPU);
+   config_file_set_value("config.txt", "sdram_freq", g_pCurrentModel->processesPriorities.iFreqGPU);
+   config_file_set_value("config.txt", "sdram_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
 
    hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
 }
@@ -1031,10 +1010,10 @@ bool process_command(u8* pBuffer, int length)
    {
       command_packet_overclocking_params* params = (command_packet_overclocking_params*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->iFreqARM = params->freq_arm;
-      g_pCurrentModel->iFreqGPU = params->freq_gpu;
-      g_pCurrentModel->iOverVoltage = params->overvoltage;
-      log_line("Received overclocking params: %d arm freq, %d gpu freq, %d overvoltage", g_pCurrentModel->iFreqARM, g_pCurrentModel->iFreqGPU, g_pCurrentModel->iOverVoltage);
+      g_pCurrentModel->processesPriorities.iFreqARM = params->freq_arm;
+      g_pCurrentModel->processesPriorities.iFreqGPU = params->freq_gpu;
+      g_pCurrentModel->processesPriorities.iOverVoltage = params->overvoltage;
+      log_line("Received overclocking params: %d arm freq, %d gpu freq, %d overvoltage", g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU, g_pCurrentModel->processesPriorities.iOverVoltage);
       saveCurrentModel();
       save_config_file();
       return true;
@@ -1044,20 +1023,20 @@ bool process_command(u8* pBuffer, int length)
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       #ifdef HW_PLATFORM_RASPBERRY
-      int board_type = hardware_getBoardType();
-      g_pCurrentModel->iFreqARM = 900;
+      u32 board_type = (hardware_getBoardType() & BOARD_TYPE_MASK);
+      g_pCurrentModel->processesPriorities.iFreqARM = 900;
       if ( board_type == BOARD_TYPE_PIZERO2 )
-         g_pCurrentModel->iFreqARM = 1000;
+         g_pCurrentModel->processesPriorities.iFreqARM = 1000;
       else if ( board_type == BOARD_TYPE_PI3B )
-         g_pCurrentModel->iFreqARM = 1200;
-      else if ( board_type == BOARD_TYPE_PI3BPLUS || board_type == BOARD_TYPE_PI4B || board_type == BOARD_TYPE_PI3APLUS )
-         g_pCurrentModel->iFreqARM = 1400;
-      else if ( board_type != BOARD_TYPE_PIZERO && board_type != BOARD_TYPE_PIZEROW && board_type != BOARD_TYPE_NONE 
-               && board_type != BOARD_TYPE_PI2B && board_type != BOARD_TYPE_PI2BV11 && board_type != BOARD_TYPE_PI2BV12 )
-         g_pCurrentModel->iFreqARM = 1200;
+         g_pCurrentModel->processesPriorities.iFreqARM = 1200;
+      else if ( (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) || (board_type == BOARD_TYPE_PI3APLUS) )
+         g_pCurrentModel->processesPriorities.iFreqARM = 1400;
+      else if ( (board_type != BOARD_TYPE_PIZERO) && (board_type != BOARD_TYPE_PIZEROW) && (board_type != BOARD_TYPE_NONE) 
+               && (board_type != BOARD_TYPE_PI2B) && (board_type != BOARD_TYPE_PI2BV11) && (board_type != BOARD_TYPE_PI2BV12) )
+         g_pCurrentModel->processesPriorities.iFreqARM = 1200;
 
-      g_pCurrentModel->iFreqGPU = 400;
-      g_pCurrentModel->iOverVoltage = 3;
+      g_pCurrentModel->processesPriorities.iFreqGPU = 400;
+      g_pCurrentModel->processesPriorities.iOverVoltage = 3;
       saveCurrentModel();
       save_config_file();
       #endif
@@ -1078,7 +1057,7 @@ bool process_command(u8* pBuffer, int length)
          #ifdef HW_PLATFORM_OPENIPC_CAMERA
          strcpy(szBuffer, "Platform: OpenIPC#");
          strcat(szBuffer, "SOC: ");
-         strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType));
+         strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
          strcat(szBuffer, "#");
          #endif
 
@@ -1754,9 +1733,9 @@ bool process_command(u8* pBuffer, int length)
             signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
          }
       }
-      log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType));
+      log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
       if ( hardware_is_running_on_openipc() )
-      if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.iBoardType) )
+      if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          if ( oldParams.brightness != pCamParams->brightness )
          {
@@ -2778,7 +2757,7 @@ bool process_command(u8* pBuffer, int length)
          
       u32 vid = g_pCurrentModel->uVehicleId;
       u32 ctrlId = g_pCurrentModel->uControllerId;
-      int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
+      int boardType = g_pCurrentModel->hwCapabilities.uBoardType;
       bool bDev = g_pCurrentModel->bDeveloperMode;
       u8 cameraType = g_pCurrentModel->camera_type;
 
@@ -2815,7 +2794,7 @@ bool process_command(u8* pBuffer, int length)
       }
       g_pCurrentModel->uVehicleId = vid;
       g_pCurrentModel->uControllerId = ctrlId;
-      g_pCurrentModel->hwCapabilities.iBoardType = boardType;
+      g_pCurrentModel->hwCapabilities.uBoardType = boardType;
       g_pCurrentModel->bDeveloperMode = bDev;
       g_pCurrentModel->camera_type = cameraType;
 
@@ -3319,42 +3298,54 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_NICE_VALUE_TELEMETRY )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->niceTelemetry = ((int)((pPHC->command_param) % 256))-20;
-      if ( g_pCurrentModel->niceTelemetry < -16 )
-         g_pCurrentModel->niceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
-      if ( g_pCurrentModel->niceTelemetry > 0 )
-         g_pCurrentModel->niceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
-      log_line("Received nice value for telemetry: %d", g_pCurrentModel->niceTelemetry);
+      g_pCurrentModel->processesPriorities.iNiceTelemetry = ((int)((pPHC->command_param) % 256))-20;
+      if ( g_pCurrentModel->processesPriorities.iNiceTelemetry < -16 )
+         g_pCurrentModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+      if ( g_pCurrentModel->processesPriorities.iNiceTelemetry > 0 )
+         g_pCurrentModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+      log_line("Received nice value for telemetry: %d", g_pCurrentModel->processesPriorities.iNiceTelemetry);
       saveCurrentModel();
-      update_priorities();
+      signalReloadModel(MODEL_CHANGED_THREADS_PRIORITIES, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_NICE_VALUES )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->niceVideo = ((int)((pPHC->command_param) % 256))-20;
-      g_pCurrentModel->niceOthers = ((int)(((pPHC->command_param)>>8) % 256))-20;
-      g_pCurrentModel->niceRouter = ((int)(((pPHC->command_param)>>16) % 256))-20;
-      g_pCurrentModel->niceRC = ((int)(((pPHC->command_param)>>24) % 256))-20;
-      if ( g_pCurrentModel->niceRouter < -18 )
-         g_pCurrentModel->niceRouter = -18;
-      if ( g_pCurrentModel->niceRC < -18 )
-         g_pCurrentModel->niceRC = -18;
-      log_line("Received nice values: video: %d, router: %d, rc: %d, others: %d", g_pCurrentModel->niceVideo, g_pCurrentModel->niceRouter, g_pCurrentModel->niceRC, g_pCurrentModel->niceOthers);
+      g_pCurrentModel->processesPriorities.iNiceVideo = ((int)((pPHC->command_param) % 256))-20;
+      g_pCurrentModel->processesPriorities.iNiceOthers = ((int)(((pPHC->command_param)>>8) % 256))-20;
+      g_pCurrentModel->processesPriorities.iNiceRouter = ((int)(((pPHC->command_param)>>16) % 256))-20;
+      g_pCurrentModel->processesPriorities.iNiceRC = ((int)(((pPHC->command_param)>>24) % 256))-20;
+      if ( g_pCurrentModel->processesPriorities.iNiceRouter < -18 )
+         g_pCurrentModel->processesPriorities.iNiceRouter = -18;
+      if ( g_pCurrentModel->processesPriorities.iNiceRC < -18 )
+         g_pCurrentModel->processesPriorities.iNiceRC = -18;
+      log_line("Received nice values: video: %d, router: %d, rc: %d, others: %d", g_pCurrentModel->processesPriorities.iNiceVideo, g_pCurrentModel->processesPriorities.iNiceRouter, g_pCurrentModel->processesPriorities.iNiceRC, g_pCurrentModel->processesPriorities.iNiceOthers);
       saveCurrentModel();
-      update_priorities();
+      signalReloadModel(MODEL_CHANGED_THREADS_PRIORITIES, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_IONICE_VALUES )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->ioNiceVideo = ((int)((pPHC->command_param)%256))-20;
-      g_pCurrentModel->ioNiceRouter = ((int)(((pPHC->command_param)>>8)%256))-20;
-      log_line("Received io nice values: video: %d, router: %d", g_pCurrentModel->ioNiceVideo, g_pCurrentModel->ioNiceRouter);
+      g_pCurrentModel->processesPriorities.ioNiceVideo = ((int)((pPHC->command_param)%256))-20;
+      g_pCurrentModel->processesPriorities.ioNiceRouter = ((int)(((pPHC->command_param)>>8)%256))-20;
+      log_line("Received io nice values: video: %d, router: %d", g_pCurrentModel->processesPriorities.ioNiceVideo, g_pCurrentModel->processesPriorities.ioNiceRouter);
       saveCurrentModel();
-      update_priorities();
+      signalReloadModel(MODEL_CHANGED_THREADS_PRIORITIES, 0);
+      return true;
+   }
+
+   if ( uCommandType == COMMAND_ID_SET_THREADS_PRIORITIES )
+   {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      g_pCurrentModel->processesPriorities.iThreadPriorityRouter = (int)((pPHC->command_param) & 0xFF);
+      g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx = (int)((pPHC->command_param >> 8) & 0xFF);
+      g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx = (int)((pPHC->command_param >> 16) & 0xFF);
+      log_line("Received new threads priorities: router: %d, radio rx: %d, radio tx: %d", g_pCurrentModel->processesPriorities.iThreadPriorityRouter, g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx, g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_THREADS_PRIORITIES, 0);
       return true;
    }
 
@@ -3630,7 +3621,7 @@ int r_start_commands_rx(int argc, char* argv[])
       log_disable();
    }
 
-   hw_set_priority_current_proc(g_pCurrentModel->niceOthers);
+   hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceOthers);
 
    g_pProcessStats = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_COMMANDS_RX);
    if ( NULL == g_pProcessStats )

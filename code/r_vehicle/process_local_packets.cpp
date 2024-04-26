@@ -67,6 +67,58 @@
 #include "processor_relay.h"
 #include "events.h"
 #include "video_source_csi.h"
+#include "video_source_majestic.h"
+
+
+void update_priorities(type_processes_priorities* pOldPriorities, type_processes_priorities* pNewPriorities)
+{
+   if ( (NULL == pOldPriorities) || (NULL == pNewPriorities) )
+      return;
+
+   #ifdef HW_PLATFORM_RASPBERRY
+
+   if ( g_pCurrentModel->isActiveCameraVeye() )
+   {
+      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, g_pCurrentModel->processesPriorities.iNiceVideo, g_pCurrentModel->processesPriorities.ioNiceVideo, 1 );
+      hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, g_pCurrentModel->processesPriorities.iNiceVideo, g_pCurrentModel->processesPriorities.ioNiceVideo, 1 );
+   }
+   else
+      hw_set_proc_priority(VIDEO_RECORDER_COMMAND, g_pCurrentModel->processesPriorities.iNiceVideo, g_pCurrentModel->processesPriorities.ioNiceVideo, 1 );
+
+   hw_set_proc_priority("ruby_rt_vehicle", g_pCurrentModel->processesPriorities.iNiceRouter, g_pCurrentModel->processesPriorities.ioNiceRouter, 1);
+   hw_set_proc_priority("ruby_tx_telemetry", g_pCurrentModel->processesPriorities.iNiceTelemetry, 0, 1 );
+
+   // To fix, now rc and commands are part of ruby_start process
+   //hw_set_proc_priority("ruby_rx_rc", g_pCurrentModel->processesPriorities.iNiceRC, DEFAULT_IO_PRIORITY_RC, 1 );
+   //hw_set_proc_priority("ruby_rx_commands", g_pCurrentModel->processesPriorities.iNiceOthers, 0, 1 );
+
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   if ( pOldPriorities->iNiceVideo != pNewPriorities->iNiceVideo )
+   {
+      int iPID = hw_process_exists("majestic");
+      if ( iPID > 1 )
+      {
+         log_line("Adjust majestic nice priority to %d", pNewPriorities->iNiceVideo);
+         char szComm[256];
+         sprintf(szComm,"renice -n %d -p %d", pNewPriorities->iNiceVideo, iPID);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      else
+         log_softerror_and_alarm("Can't find the PID of majestic");
+   }
+   #endif
+
+   if ( g_pCurrentModel->processesPriorities.iThreadPriorityRouter > 0 )
+      hw_increase_current_thread_priority(NULL, g_pCurrentModel->processesPriorities.iThreadPriorityRouter);
+   else if ( g_iDefaultRouterThreadPriority != -1 )
+      hw_increase_current_thread_priority(NULL, g_iDefaultRouterThreadPriority);
+     
+   radio_rx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx);
+   radio_tx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
+
+}
 
 u32 _get_previous_frequency_switch(int nLink)
 {
@@ -297,6 +349,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    type_relay_parameters oldRelayParams;
    video_parameters_t oldVideoParams;
    type_video_link_profile oldVideoLinkProfiles[MAX_VIDEO_LINK_PROFILES];
+   type_processes_priorities oldProcesses;
 
    memcpy(&oldRadioInterfacesParams, &(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(&oldRadioLinksParams, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
@@ -305,6 +358,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    memcpy(&oldRelayParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
    memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
    memcpy(&(oldVideoLinkProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
+   memcpy(&oldProcesses, &g_pCurrentModel->processesPriorities, sizeof(type_processes_priorities));
+   
    bool bWasOneWayVideo = g_pCurrentModel->isVideoLinkFixedOneWay();
    u32 old_ef = g_pCurrentModel->enc_flags;
    bool bMustSignalOtherComponents = true;
@@ -369,6 +424,18 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
       if ( g_pCurrentModel->rc_params.rc_enabled )
          ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+      return;
+   }
+
+   if ( changeType == MODEL_CHANGED_THREADS_PRIORITIES )
+   {
+      log_line("Received notification to adjust threads priorities.");
+      log_line("Old thread priorities: router %d, radio rx: %d, radio tx: %d",
+         oldProcesses.iThreadPriorityRouter, oldProcesses.iThreadPriorityRadioRx, oldProcesses.iThreadPriorityRadioTx);
+      log_line("New thread priorities: router %d, radio rx: %d, radio tx: %d",
+         g_pCurrentModel->processesPriorities.iThreadPriorityRouter, g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx, g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
+      log_line("Current router/video nice values: %d/%d", g_pCurrentModel->processesPriorities.iNiceRouter, g_pCurrentModel->processesPriorities.iNiceVideo);
+      update_priorities(&oldProcesses, &g_pCurrentModel->processesPriorities);
       return;
    }
 

@@ -279,10 +279,6 @@ void addLinkRTTimeToRuntimeInfoIndex(int iRuntimeInfoIndex, int iLocalRadioLink,
       g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec = (int) get_current_timestamp_ms() - (int)uRoundtripTimeMs/2 - (int)uLocalTimeVehicleMs;
    }
    
-   //log_line("DEBUG clock vehicle behind %d ms, now veh: %u, now local: %u",
-   // g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec,
-   // uLocalTimeVehicleMs, get_current_timestamp_ms() );
-
    radio_set_link_clock_delta(g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec);
 
    g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsLastTime[iRuntimeInfoIndex][iLocalRadioLink] = g_TimeNow;

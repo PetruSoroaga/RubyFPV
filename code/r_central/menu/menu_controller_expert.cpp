@@ -610,7 +610,7 @@ void MenuControllerExpert::onSelectItem()
 
    if ( m_IndexReset == m_SelectedIndex )
    {
-      int board_type = hardware_getBoardType();
+      u32 board_type = hardware_getBoardType() & BOARD_TYPE_MASK;
       pcs->iFreqARM = 900;
       if ( board_type == BOARD_TYPE_PIZERO2 )
          pcs->iFreqARM = 1000;

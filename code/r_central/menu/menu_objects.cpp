@@ -733,11 +733,6 @@ void Menu::computeRenderSizes()
    if ( m_bFullWidthSelection )
       m_fSelectionWidth = getUsableWidth();
    m_bInvalidated = false;
-
-   log_line("DEBUG xpos: %f, xrender: %f, th: %f, rh: %f, header: %f, items: %f, footer: %f, footermax: %f", 
-       m_xPos, m_RenderXPos,
-       m_RenderTotalHeight, m_RenderHeight, m_RenderHeaderHeight, m_fRenderItemsTotalHeight,
-       m_RenderFooterHeight, m_RenderMaxFooterHeight);
 }
 
 

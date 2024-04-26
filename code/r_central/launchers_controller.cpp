@@ -145,12 +145,12 @@ void controller_launch_tx_rc()
    if ( g_bSearching )
       sprintf(szParams, "-search");
    else if ( NULL != g_pCurrentModel )
-      sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, g_pCurrentModel->niceRC);
+      sprintf(szPrefix, "ionice -c 1 -n %d nice -n %d", DEFAULT_IO_PRIORITY_RC, g_pCurrentModel->processesPriorities.iNiceRC);
    #else
    if ( g_bSearching )
       sprintf(szParams, "-search &");
    else if ( NULL != g_pCurrentModel )
-      sprintf(szPrefix, "nice -n %d", g_pCurrentModel->niceRC);
+      sprintf(szPrefix, "nice -n %d", g_pCurrentModel->processesPriorities.iNiceRC);
    #endif
 
    hw_execute_ruby_process(szPrefix, "ruby_tx_rc", szParams, NULL);

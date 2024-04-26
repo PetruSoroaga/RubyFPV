@@ -203,7 +203,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftUp + 50 )
       return;
 
-   if ( hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
+   if ( hardware_board_is_openipc(pModel->hwCapabilities.uBoardType) )
       return;
      
    int iLevelsHQ = pModel->get_video_profile_total_levels(pModel->video_params.user_selected_video_link_profile);
@@ -416,7 +416,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    {
       // To fix : on openIPC reenable lower video profile when majestic bitrate can be changed
       if ( iCountRetransmissionsDown > iThresholdRetransmissionsDown )
-      if ( ! hardware_board_is_openipc(pModel->hwCapabilities.iBoardType) )
+      if ( ! hardware_board_is_openipc(pModel->hwCapabilities.uBoardType) )
       {
          bTriedAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
@@ -517,7 +517,7 @@ void video_link_adaptive_periodic_loop()
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 144);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
-      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
          continue;
       if ( ! g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
          continue;

@@ -642,35 +642,35 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypeOpenIPCSigmaster338Q = "OpenIPC SSC338Q";
 
    #ifdef HW_PLATFORM_RASPBERRY
-   if ( board_type == BOARD_TYPE_PIZERO )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
       return s_szBoardTypePi0;
-   if ( board_type == BOARD_TYPE_PIZEROW )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW )
       return s_szBoardTypePi0W;
-   if ( board_type == BOARD_TYPE_PIZERO2 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
       return s_szBoardTypePi02;
-   if ( board_type == BOARD_TYPE_PI2B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2B )
       return s_szBoardTypePi2B;
-   if ( board_type == BOARD_TYPE_PI2BV11 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2BV11 )
       return s_szBoardTypePi2BV1;
-   if ( board_type == BOARD_TYPE_PI2BV12 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2BV12 )
       return s_szBoardTypePi2BV12;
-   if ( board_type == BOARD_TYPE_PI3APLUS )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3APLUS )
       return s_szBoardTypePi3AP;
-   if ( board_type == BOARD_TYPE_PI3B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
       return s_szBoardTypePi3B;
-   if ( board_type == BOARD_TYPE_PI3BPLUS )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3BPLUS )
       return s_szBoardTypePi3BP;
-   if ( board_type == BOARD_TYPE_PI4B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardTypePi4B;
    #endif
 
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE200 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
       return s_szBoardTypeOpenIPCGoke200;
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE210 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
       return s_szBoardTypeOpenIPCGoke210;
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE300 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardTypeOpenIPCGoke300;
-   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
       return s_szBoardTypeOpenIPCSigmaster338Q;
 
    return s_szBoardTypeUnknown;
@@ -698,35 +698,35 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypeOpenIPCSigmaster338Q = "SSC338Q";
 
    #ifdef HW_PLATFORM_RASPBERRY
-   if ( board_type == BOARD_TYPE_PIZERO )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
       return s_szBoardSTypePi0;
-   if ( board_type == BOARD_TYPE_PIZEROW )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW )
       return s_szBoardSTypePi0W;
-   if ( board_type == BOARD_TYPE_PIZERO2 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
       return s_szBoardSTypePi02;
-   if ( board_type == BOARD_TYPE_PI2B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2B )
       return s_szBoardSTypePi2B;
-   if ( board_type == BOARD_TYPE_PI2BV11 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2BV11 )
       return s_szBoardSTypePi2BV1;
-   if ( board_type == BOARD_TYPE_PI2BV12 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI2BV12 )
       return s_szBoardSTypePi2BV12;
-   if ( board_type == BOARD_TYPE_PI3APLUS )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3APLUS )
       return s_szBoardSTypePi3AP;
-   if ( board_type == BOARD_TYPE_PI3B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
       return s_szBoardSTypePi3B;
-   if ( board_type == BOARD_TYPE_PI3BPLUS )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI3BPLUS )
       return s_szBoardSTypePi3BP;
-   if ( board_type == BOARD_TYPE_PI4B )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardSTypePi4B;
    #endif
 
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE200 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
       return s_szBoardSTypeOpenIPCGoke200;
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE210 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
       return s_szBoardSTypeOpenIPCGoke210;
-   if ( board_type == BOARD_TYPE_OPENIPC_GOKE300 )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardSTypeOpenIPCGoke300;
-   if ( board_type == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
       return s_szBoardSTypeOpenIPCSigmaster338Q;
 
    return s_szBoardSTypeUnknown;
@@ -1319,6 +1319,8 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_H264_QUANTIZATION");
    else if ( iModelChangeType == MODEL_CHANGED_VIDEO_RESOLUTION )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_RESOLUTION");
+   else if ( iModelChangeType == MODEL_CHANGED_THREADS_PRIORITIES )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_THREADS_PRIORITIES");
 
    else if ( iModelChangeType == MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME");

@@ -65,8 +65,6 @@ u32 s_uTimeStartGoodIntervalForProfileShiftUp = 0;
 
 void _video_overwrites_set_capture_video_bitrate(u32 uBitrateBPS, bool bIsInitialValue, int iReason)
 {
-   log_line("DEBUG set video bitrate to %u bps, initial: %d, reason: %d", uBitrateBPS, bIsInitialValue, iReason);
-
    if ( g_pCurrentModel->hasCamera() )
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000);

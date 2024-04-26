@@ -222,7 +222,7 @@ void video_link_keyframe_periodic_loop()
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 155);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
-      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
          continue;
       if ( pModel->isVideoLinkFixedOneWay() )
          continue;
@@ -248,7 +248,7 @@ void video_link_keyframe_periodic_loop()
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 156);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
-      if ( hardware_board_is_goke(pModel->hwCapabilities.iBoardType) )
+      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
          continue;
         
       if ( pModel->isVideoLinkFixedOneWay() )

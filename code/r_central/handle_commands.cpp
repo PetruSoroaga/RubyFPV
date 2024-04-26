@@ -115,8 +115,8 @@ void update_processes_priorities()
 {
    ControllerSettings* pCS = get_ControllerSettings();
    //hw_set_proc_priority("ruby_rt_station", pCS->iNiceRouter, pCS->ioNiceRouter, 1);
-   hw_set_proc_priority("ruby_tx_rc", g_pCurrentModel->niceRC, DEFAULT_IO_PRIORITY_RC, 1 );
-   hw_set_proc_priority("ruby_rx_telemetry", g_pCurrentModel->niceTelemetry, 0, 1 );
+   hw_set_proc_priority("ruby_tx_rc", g_pCurrentModel->processesPriorities.iNiceRC, DEFAULT_IO_PRIORITY_RC, 1 );
+   hw_set_proc_priority("ruby_rx_telemetry", g_pCurrentModel->processesPriorities.iNiceTelemetry, 0, 1 );
    hw_set_proc_priority("ruby_central", pCS->iNiceCentral, 0, 1 );
 }
 
@@ -771,6 +771,17 @@ bool handle_last_command_result()
 
    switch ( s_CommandType )
    {
+      case COMMAND_ID_SET_THREADS_PRIORITIES:
+        {
+         g_pCurrentModel->processesPriorities.iThreadPriorityRouter = (int)((s_CommandParam) & 0xFF);
+         g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx = (int)((s_CommandParam >> 8) & 0xFF);
+         g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx = (int)((s_CommandParam >> 16) & 0xFF);
+         log_line("Received confirmation for new threads priorities: router: %d, radio rx: %d, radio tx: %d", g_pCurrentModel->processesPriorities.iThreadPriorityRouter, g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx, g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
+
+         saveControllerModel(g_pCurrentModel);
+         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+        }
+        break;
       case COMMAND_ID_GET_CORE_PLUGINS_INFO:
          {
          s_RetryGetCorePluginsCounter = 0;
@@ -1003,7 +1014,7 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.iBoardType), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
@@ -1308,9 +1319,9 @@ bool handle_last_command_result()
          {
             command_packet_overclocking_params params;
             memcpy(&params, s_CommandBuffer, sizeof(command_packet_overclocking_params));
-            g_pCurrentModel->iFreqARM = params.freq_arm;
-            g_pCurrentModel->iFreqGPU = params.freq_gpu;
-            g_pCurrentModel->iOverVoltage = params.overvoltage;
+            g_pCurrentModel->processesPriorities.iFreqARM = params.freq_arm;
+            g_pCurrentModel->processesPriorities.iFreqGPU = params.freq_gpu;
+            g_pCurrentModel->processesPriorities.iOverVoltage = params.overvoltage;
             saveControllerModel(g_pCurrentModel);
          }
          break;
@@ -1408,7 +1419,7 @@ bool handle_last_command_result()
          {
             u32 vid = g_pCurrentModel->uVehicleId;
             u32 ctrlId = g_pCurrentModel->uControllerId;
-            int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
+            u32 uBoardType = g_pCurrentModel->hwCapabilities.uBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
             int forcedCameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType;
@@ -1429,7 +1440,7 @@ bool handle_last_command_result()
 
             g_pCurrentModel->uVehicleId = vid;
             g_pCurrentModel->uControllerId = ctrlId;
-            g_pCurrentModel->hwCapabilities.iBoardType = boardType;
+            g_pCurrentModel->hwCapabilities.uBoardType = uBoardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = forcedCameraType;
@@ -1445,7 +1456,7 @@ bool handle_last_command_result()
          {
             u32 vid = g_pCurrentModel->uVehicleId;
             u32 ctrlId = g_pCurrentModel->uControllerId;
-            int boardType = g_pCurrentModel->hwCapabilities.iBoardType;
+            u32 uBoardType = g_pCurrentModel->hwCapabilities.uBoardType;
             bool bDev = g_pCurrentModel->bDeveloperMode;
             int cameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType;
             int forcedCameraType = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType;
@@ -1469,7 +1480,7 @@ bool handle_last_command_result()
 
             g_pCurrentModel->uVehicleId = vid;
             g_pCurrentModel->uControllerId = ctrlId;
-            g_pCurrentModel->hwCapabilities.iBoardType = boardType;
+            g_pCurrentModel->hwCapabilities.uBoardType = uBoardType;
             g_pCurrentModel->bDeveloperMode = bDev;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType = cameraType;
             g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = forcedCameraType;
@@ -1856,25 +1867,25 @@ bool handle_last_command_result()
          }
 
       case COMMAND_ID_SET_NICE_VALUE_TELEMETRY:
-         g_pCurrentModel->niceTelemetry = ((int)(s_CommandParam % 256))-20;
-         log_line("[Commands] Set new nice value for telemetry: %d", g_pCurrentModel->niceTelemetry);
+         g_pCurrentModel->processesPriorities.iNiceTelemetry = ((int)(s_CommandParam % 256))-20;
+         log_line("[Commands] Set new nice value for telemetry: %d", g_pCurrentModel->processesPriorities.iNiceTelemetry);
          saveControllerModel(g_pCurrentModel);
          update_processes_priorities();
          break;
 
       case COMMAND_ID_SET_NICE_VALUES:
-         g_pCurrentModel->niceVideo = ((int)(s_CommandParam % 256))-20;
-         g_pCurrentModel->niceOthers = ((int)((s_CommandParam>>8) % 256))-20;
-         g_pCurrentModel->niceRouter = ((int)((s_CommandParam>>16) % 256))-20;
-         g_pCurrentModel->niceRC = ((int)((s_CommandParam>>24) % 256))-20;
-         log_line("[Commands] Set new nice values: video: %d, router: %d, rc: %d, others: %d", g_pCurrentModel->niceVideo, g_pCurrentModel->niceRouter, g_pCurrentModel->niceRC, g_pCurrentModel->niceOthers);
+         g_pCurrentModel->processesPriorities.iNiceVideo = ((int)(s_CommandParam % 256))-20;
+         g_pCurrentModel->processesPriorities.iNiceOthers = ((int)((s_CommandParam>>8) % 256))-20;
+         g_pCurrentModel->processesPriorities.iNiceRouter = ((int)((s_CommandParam>>16) % 256))-20;
+         g_pCurrentModel->processesPriorities.iNiceRC = ((int)((s_CommandParam>>24) % 256))-20;
+         log_line("[Commands] Set new nice values: video: %d, router: %d, rc: %d, others: %d", g_pCurrentModel->processesPriorities.iNiceVideo, g_pCurrentModel->processesPriorities.iNiceRouter, g_pCurrentModel->processesPriorities.iNiceRC, g_pCurrentModel->processesPriorities.iNiceOthers);
          saveControllerModel(g_pCurrentModel);
          update_processes_priorities();
          break;
 
       case COMMAND_ID_SET_IONICE_VALUES:
-         g_pCurrentModel->ioNiceVideo = ((int)(s_CommandParam % 256))-20;
-         g_pCurrentModel->ioNiceRouter = ((int)((s_CommandParam>>8) % 256))-20;
+         g_pCurrentModel->processesPriorities.ioNiceVideo = ((int)(s_CommandParam % 256))-20;
+         g_pCurrentModel->processesPriorities.ioNiceRouter = ((int)((s_CommandParam>>8) % 256))-20;
          saveControllerModel(g_pCurrentModel);         
          break;
 

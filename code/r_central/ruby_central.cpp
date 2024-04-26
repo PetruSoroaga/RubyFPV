@@ -2035,16 +2035,15 @@ void ruby_processing_loop(bool bNoKeys)
           s_bFreezeOSD = ! s_bFreezeOSD;
        }
 
-      //if ( g_TimeNow > s_TimeLastMenuInput + 20 )
-      {
-         s_TimeLastMenuInput = g_TimeNow;
-         if ( ! bNoKeys )
-         {
-            menu_loop();
-            if ( keyboard_get_triggered_input_events() & (INPUT_EVENT_PRESS_QA1 | INPUT_EVENT_PRESS_QA2 | INPUT_EVENT_PRESS_QA3) )
-               executeQuickActions();
-         }
-      }
+       s_TimeLastMenuInput = g_TimeNow;
+       if ( ! bNoKeys )
+       {
+          menu_loop();
+          if ( keyboard_has_long_press_flag() )
+             menu_loop_parse_input_events();
+          if ( keyboard_get_triggered_input_events() & (INPUT_EVENT_PRESS_QA1 | INPUT_EVENT_PRESS_QA2 | INPUT_EVENT_PRESS_QA3) )
+             executeQuickActions();
+       }
    }
 
    if ( g_iMustSendCurrentActiveOSDLayoutCounter > 0 )

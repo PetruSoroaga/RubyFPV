@@ -69,7 +69,7 @@ MenuVehicleRadioConfig::~MenuVehicleRadioConfig()
 void MenuVehicleRadioConfig::populate()
 {
    removeAllItems();
-   
+   m_IndexPower = -1;
    char szBuff[128];
    char szTooltip[256];
    char szTitle[128];
@@ -169,13 +169,22 @@ void MenuVehicleRadioConfig::populate()
       }
       else
       {
+         Preferences* pP = get_Preferences();
+         int iCountChCurrentColumn = 0;
          for( int ch=0; ch<m_SupportedChannelsCount[iRadioLinkId]; ch++ )
          {
+            if ( (pP->iScaleMenus > 0) && (iCountChCurrentColumn > 14 ) )
+            {
+               m_pItemsSelect[20+iRadioLinkId]->addSeparator();
+               iCountChCurrentColumn = 0;
+            }
             if ( 0 == m_SupportedChannels[iRadioLinkId][ch] )
             {
                m_pItemsSelect[20+iRadioLinkId]->addSeparator();
+               iCountChCurrentColumn = 0;
                continue;
             }
+            iCountChCurrentColumn++;
             sprintf(szBuff,"%s", str_format_frequency(m_SupportedChannels[iRadioLinkId][ch]));
             m_pItemsSelect[20+iRadioLinkId]->addSelection(szBuff);
          }
@@ -313,6 +322,34 @@ void MenuVehicleRadioConfig::valuesToUI()
    {
       m_pItemsSelect[2]->setSelectedIndex(0);
       m_pItemsSelect[2]->setEnabled(false);
+   }
+
+   if ( -1 != m_IndexPower )
+   if ( NULL != g_pCurrentModel )
+   {
+      char szBuff[32];
+      strcpy(szBuff, "N/A");
+      bool bHas24Cards = false;
+      bool bHas58Cards = false;
+      for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+      {
+         if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
+            bHas24Cards = true;
+         if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
+            bHas24Cards = true;
+         else
+            bHas58Cards = true;
+      }
+      if ( bHas24Cards )
+         sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
+      if ( bHas58Cards )
+      {
+         if ( bHas24Cards )
+            sprintf(szBuff, "%d / %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros, g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+         else
+            sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+      }
+      m_pMenuItems[m_IndexPower]->setValue(szBuff);
    }
 }
 

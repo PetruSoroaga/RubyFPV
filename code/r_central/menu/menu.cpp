@@ -65,6 +65,7 @@ static u32 s_uTimeLastMenuRotaryEvent = 0;
 static u16 s_uLastMenuRotaryEventIndex = 0;
 
 static u32 s_uMenuLoopCounter = 0;
+static bool s_bRotaryRotated = false;
 
 float menu_get_XStartPos(float fWidth)
 {
@@ -467,7 +468,7 @@ void menu_loop()
    
    _menu_check_rotary_encoders_buttons(&bRotarySelect, &bRotaryCancel, &bRotaryRotatedCW, &bRotaryRotatedCCW, &bRotaryRotatedFastCW, &bRotaryRotatedFastCCW, &bRotary2Select, &bRotary2Cancel, &bRotary2RotatedCW, &bRotary2RotatedCCW, &bRotary2RotatedFastCW, &bRotary2RotatedFastCCW);
 
-   bool bRotaryRotated = bRotaryRotatedCW | bRotaryRotatedCCW | bRotaryRotatedFastCW | bRotaryRotatedFastCCW;
+   s_bRotaryRotated = bRotaryRotatedCW | bRotaryRotatedCCW | bRotaryRotatedFastCW | bRotaryRotatedFastCCW;
    //bool bRotary2Rotated = bRotary2RotatedCW | bRotary2RotatedCCW | bRotary2RotatedFastCW | bRotary2RotatedFastCCW;
 
    if ( pCS->nRotaryEncoderSpeed == 1 )
@@ -518,7 +519,7 @@ void menu_loop()
       bRotaryRotatedCCW = false;
       bRotaryRotatedFastCW = false;
       bRotaryRotatedFastCCW = false;
-      bRotaryRotated = false;
+      s_bRotaryRotated = false;
    }
    else
    {
@@ -546,6 +547,12 @@ void menu_loop()
       hardware_override_keys((bRotarySelect || bRotary2Select)?1:0, (bRotaryCancel || bRotary2Cancel)?1:0, (bRotaryRotatedCCW || bRotary2RotatedCCW)?1:0, (bRotaryRotatedCW || bRotary2RotatedCW)?1:0, 0, 0,0,0);
       keyboard_add_triggered_gpio_input_events();
    }
+
+   menu_loop_parse_input_events();
+}
+
+void menu_loop_parse_input_events()
+{
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )
    {
       if ( osd_is_stats_flight_end_on() )
@@ -588,8 +595,9 @@ void menu_loop()
       return;
    }
 
-   if ( isKeyBackLongPressed() )
+   if ( isKeyBackPressed() && keyboard_has_long_press_flag() )
    {
+      log_line("[Menu] Long pressed back key");
       if ( NULL != g_pPopupCameraParams && popups_has_popup(g_pPopupCameraParams) )
       {
          g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
@@ -607,17 +615,24 @@ void menu_loop()
    {
       if ( g_iMenuStackTopIndex > 0 )
       if ( NULL != g_pMenuStack[g_iMenuStackTopIndex-1] )
-         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveDown(bRotaryRotated);
+      {
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveDown(s_bRotaryRotated);
+         if ( keyboard_has_long_press_flag() )
+            g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveDown(s_bRotaryRotated);
+      }
    }
 
    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS )
    {
       if ( g_iMenuStackTopIndex > 0 )
       if ( NULL != g_pMenuStack[g_iMenuStackTopIndex-1] )
-         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveUp(bRotaryRotated);
+      {
+         g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveUp(s_bRotaryRotated);
+         if ( keyboard_has_long_press_flag() )
+            g_pMenuStack[g_iMenuStackTopIndex-1]->onMoveUp(s_bRotaryRotated);
+      }
    }
 }
-
 
 void menu_refresh_all_menus()
 {

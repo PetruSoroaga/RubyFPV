@@ -909,7 +909,7 @@ int main(int argc, char *argv[])
    g_pCurrentModel = getCurrentModel();
 
    if ( NULL != g_pCurrentModel )
-      hw_set_priority_current_proc(g_pCurrentModel->niceTelemetry); 
+      hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceTelemetry); 
 
    if ( -1 == open_pipes() )
       return -1;

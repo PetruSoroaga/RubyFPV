@@ -671,6 +671,8 @@ int radio_open_interface_for_write(int interfaceIndex)
       return -1;
    }
 
+   log_line("Opened radio interface %d (%s) for writing...", interfaceIndex, pRadioHWInfo->szName);
+
    pRadioHWInfo->openedForWrite = 0;
    pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
    pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
@@ -686,6 +688,8 @@ int radio_open_interface_for_write(int interfaceIndex)
          log_error_and_alarm("Failed to get ppcap for write");
          return -1;
       }
+      log_line("Created ppcap interface. Setting params...");
+
       if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 4096) !=0) log_line("set_snaplen failed");
       if (pcap_set_promisc(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("set_promisc failed");
       if (pcap_set_timeout(pRadioHWInfo->monitor_interface_write.ppcap, -1) !=0) log_line("set_timeout failed");
@@ -693,7 +697,7 @@ int radio_open_interface_for_write(int interfaceIndex)
       if (pcap_activate(pRadioHWInfo->monitor_interface_write.ppcap) !=0) log_line("pcap_activate failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
 
       pRadioHWInfo->monitor_interface_write.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->monitor_interface_write.ppcap);
-      log_line("PCAP returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->monitor_interface_write.ppcap, pRadioHWInfo->monitor_interface_write.selectable_fd);
+      log_line("ppcap returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->monitor_interface_write.ppcap, pRadioHWInfo->monitor_interface_write.selectable_fd);
       
       //if ( pRadioHWInfo->openedForRead )
       //   pRadioHWInfo->monitor_interface_write.selectable_fd = pRadioHWInfo->monitor_interface_read.selectable_fd;

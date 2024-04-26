@@ -1373,7 +1373,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       y += height_text*s_OSDStatsLineSpacing;
 
       int iMaxTxTime = DEFAULT_TX_TIME_OVERLOAD;
-      if ( (pActiveModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZERO) || (pActiveModel->hwCapabilities.iBoardType == BOARD_TYPE_PIZEROW) )
+      if ( ((pActiveModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) || ( (pActiveModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) )
          iMaxTxTime += 200;
 
       if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.txTimePerSec > iMaxTxTime) )

@@ -63,6 +63,7 @@ extern "C" {
 int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_radio_stats_interfaces_rx_graph* pSMRadioRxGraphs, int iSearchMode, u32 uAcceptedFirmwareType);
 void radio_rx_stop_rx_thread();
 
+void radio_rx_set_custom_thread_priority(int iPriority);
 void radio_rx_set_timeout_interval(int iMiliSec);
 
 void radio_rx_pause_interface(int iInterfaceIndex);

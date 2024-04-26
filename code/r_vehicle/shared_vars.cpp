@@ -38,6 +38,7 @@ shared_mem_radio_stats g_SM_RadioStats;
 shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 type_uplink_rx_info_stats g_UplinkInfoRxStats[MAX_RADIO_INTERFACES];
+int g_iDefaultRouterThreadPriority = -1;
 
 t_sik_radio_state g_SiKRadiosState;
 

@@ -20,7 +20,21 @@ int hw_process_exists(const char* szProcName)
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command_silent(szComm, szPids);
    if ( strlen(szPids) > 2 )
+   {
+      // get only first pid
+      for( int i=0; i<strlen(szPids); i++ )
+      {
+         if ( ! isdigit(szPids[i]) )
+         {
+            szPids[i] = 0;
+            break;
+         }
+      }
+      int iPID = atoi(szPids);
+      if ( iPID > 0 )
+         return iPID;
       return 1;
+   }
    return 0;
 }
 
@@ -575,9 +589,10 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       log_line("Launched Ruby process result: [%s]", szCommand);
 }
 
-void hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriority)
-{   
-   #ifdef HW_PLATFORM_RASPBERRY
+// Returns previous priority or -1 for error
+int hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriority)
+{
+   int iRetValue = -1;
    char szTmp[2];
    szTmp[0] = 0;
    char* szPrefix = szTmp;
@@ -591,9 +606,11 @@ void hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriori
    ret = pthread_getschedparam(this_thread, &policy, &params);
    if ( ret != 0 )
      log_softerror_and_alarm("%s Failed to get schedule param", szPrefix);
-   
-   log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
-
+   else
+   {
+      iRetValue = params.sched_priority;
+      log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
+   }
    params.sched_priority = iNewPriority;
    ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
    if ( ret != 0 )
@@ -603,5 +620,6 @@ void hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriori
    if ( ret != 0 )
      log_softerror_and_alarm("%s Failed to get schedule param", szPrefix);
    log_line("%s Current new thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
-   #endif
+
+   return iRetValue;
 }

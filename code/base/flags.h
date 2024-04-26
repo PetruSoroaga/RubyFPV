@@ -98,6 +98,7 @@
 #define MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE 55
 #define MODEL_CHANGED_RC_PARAMS 56
 #define MODEL_CHANGED_RESET_RADIO_LINK 57
+#define MODEL_CHANGED_THREADS_PRIORITIES 58
 
 #define MODEL_CHANGED_CAMERA_BRIGHTNESS 128
 #define MODEL_CHANGED_CAMERA_CONTRAST 129
@@ -108,12 +109,15 @@
 //----------------------------------------------------
 // Model & developer flags
 
+// Used on uModelFlags :
 #define MODEL_FLAG_PRIORITIZE_UPLINK ((u32)(((u32)0x01)))
 #define MODEL_FLAG_USE_LOGER_SERVICE ((u32)(((u32)0x01)<<1))
 #define MODEL_FLAG_DISABLE_ALL_LOGS  ((u32)(((u32)0x01)<<2))
 
+// Used on radioLinksParams.uGlobalRadioLinksFlags :
 #define MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY ((u32)(((u32)0x01)))
 
+// Used on uDeveloperFlags :
 #define DEVELOPER_FLAGS_BIT_LIVE_LOG ((u32)(((u32)0x01)))
 #define DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE ((u32)(((u32)0x01)<<1))
 #define DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS ((u32)(((u32)0x01)<<2))
@@ -202,3 +206,7 @@
 #define LOG_PARAM_RADIO_DATARATE (((u32)1)<<1)
 #define LOG_PARAMS_VIDEO_PACKETS (((u32)1)<<2)
 #define LOG_PARAMS_VIDEO_RETRANSMISSIONS (((u32)1)<<3)
+
+// hardware capabilities flags in model's type_hardware_capabilities
+
+#define MODEL_HW_CAP_FLAG_OTA ((u32)1)

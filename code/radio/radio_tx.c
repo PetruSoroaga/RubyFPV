@@ -61,6 +61,10 @@ int s_iRadioTxSerialPacketSize[MAX_RADIO_INTERFACES];
 int s_iRadioTxSerialPacketSizeInitialized = 0;
 int s_iRadioTxInterfacesPaused[MAX_RADIO_INTERFACES];
 
+int s_iDefaultTxThreadPriority = -1;
+int s_iCustomTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+int s_iLastSetCustomTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+
 pthread_t s_pThreadRadioTx;
 pthread_mutex_t s_pThreadRadioTxMutex;
 
@@ -173,7 +177,14 @@ static void * _thread_radio_tx(void *argument)
 {
    log_line("[RadioTxThread] Started.");
 
-   hw_increase_current_thread_priority("[RadioTxThread]", DEFAULT_PRIORITY_THREAD_RADIO_TX );
+   if ( s_iCustomTxThreadPriority > 0 )
+   {
+      int iRet = hw_increase_current_thread_priority("[RadioTxThread]", s_iCustomTxThreadPriority);
+      if ( -1 == s_iDefaultTxThreadPriority )
+         s_iDefaultTxThreadPriority = iRet;
+   }
+   else if ( s_iDefaultTxThreadPriority > 0 )
+      hw_increase_current_thread_priority("[RadioTxThread]", s_iDefaultTxThreadPriority);
 
    log_line("[RadioTxThread] SiK packet size is: %d bytes (of which %d bytes are the header)", s_iRadioTxSiKPacketSize, (int)sizeof(t_packet_header_short));
    log_line("[RadioTxThread] Initialized State. Waiting for tx messages...");
@@ -193,6 +204,17 @@ static void * _thread_radio_tx(void *argument)
       }
       if ( s_iRadioTxIPCQueue < 0 )
          continue;
+
+      if ( s_iLastSetCustomTxThreadPriority != s_iCustomTxThreadPriority )
+      {
+         log_line("[RadioTxThread] New thread priority must be set, from %d to %d.", s_iLastSetCustomTxThreadPriority, s_iCustomTxThreadPriority);
+         s_iLastSetCustomTxThreadPriority = s_iCustomTxThreadPriority;
+
+         if ( s_iCustomTxThreadPriority > 0 )
+            hw_increase_current_thread_priority("[RadioTxThread]", s_iCustomTxThreadPriority);
+         else if ( s_iDefaultTxThreadPriority != -1 )
+            hw_increase_current_thread_priority("[RadioTxThread]", s_iDefaultTxThreadPriority);
+      }
 
       type_ipc_message_tx_packet_buffer ipcMessage;
       int iIPCLength = msgrcv(s_iRadioTxIPCQueue, &ipcMessage, sizeof(ipcMessage), 0, MSG_NOERROR | IPC_NOWAIT);
@@ -291,6 +313,12 @@ void radio_tx_mark_quit()
 {
    s_iRadioTxMarkedForQuit = 1;
 }
+
+void radio_tx_set_custom_thread_priority(int iPriority)
+{
+   s_iCustomTxThreadPriority = iPriority;
+}
+
 
 void radio_tx_pause_radio_interface(int iRadioInterfaceIndex)
 {
