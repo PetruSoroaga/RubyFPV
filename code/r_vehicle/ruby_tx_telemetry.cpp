@@ -316,7 +316,7 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
    char szBuff[1024];
    szBuff[0] = 0;
    hw_execute_bash_command("ipcinfo -t", szBuff);
-   for( int i=0; i<strlen(szBuff); i++ )
+   for( int i=0; i<(int)strlen(szBuff); i++ )
    {
       if ( szBuff[i] == '.' || szBuff[i] == 10 )
       {

@@ -1580,7 +1580,7 @@ void _parse_camera_source_h264_data(u8* pData, int iDataSize)
 
    if ( g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs == g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs )
       return;
-   if ( (g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs == 0) || (g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs ==0) )
+   if ( (g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs == 0) || (g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs == 0) )
       return;
 
    bool bUpdateKeyframeIntervalNow = false;

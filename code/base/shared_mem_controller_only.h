@@ -196,7 +196,7 @@ typedef struct
 } __attribute__((packed)) shared_mem_controller_retransmissions_stats_rx_processors;
 
 
-#define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 70 // sampled every 40 ms
+#define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 90 // sampled every 40 ms
 #define CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL 40
 typedef struct
 {

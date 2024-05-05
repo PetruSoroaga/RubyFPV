@@ -602,6 +602,15 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( SYSTEM_SW_BUILD_NUMBER > (pModel->sw_version >> 16) )
       bMustUpdate = true;
 
+   if ( pModel->isRunningOnOpenIPCHardware() )
+   {
+       if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
+          bMustUpdate = false;
+       if ( ((pModel->sw_version & 0xFF00) >> 8 ) <= 9 )
+       if ( (pModel->sw_version & 0xFF) < 20 )
+          bMustUpdate = false;
+   }
+
    if ( bMustUpdate )
    {
       char szBuff[256];
@@ -616,11 +625,9 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
          bArmed = true;
 
-      // To fix : allow OTA updates of OpenIPC cameras
       if ( ! bArmed )
       if ( ! isMenuOn() )
       if ( ! g_bMenuPopupUpdateVehicleShown )
-      if ( ! pModel->isRunningOnOpenIPCHardware() )
       {
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;

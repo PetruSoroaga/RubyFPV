@@ -353,10 +353,15 @@ int main(int argc, char *argv[])
    sprintf(szComm, "cp -rf %splugins/osd/* plugins/osd 2>/dev/null", szUpdateFromSrcFolder);
    hw_execute_bash_command(szComm, NULL);
 
+   sprintf(szComm, "mkdir -p %supdates-bin/", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "cp -rf %supdates-bin/* updates-bin 2>/dev/null", szUpdateFromSrcFolder);
+   hw_execute_bash_command(szComm, NULL);
+
    hw_execute_bash_command("chmod 777 ruby*", NULL);
    hw_execute_bash_command("chmod 777 plugins/*", NULL);
    hw_execute_bash_command("chmod 777 plugins/osd/*", NULL);
-   //hw_execute_bash_command("rename 's/ruby_lib/lib' *", NULL);
+   hw_execute_bash_command("chmod 777 updates-bin/ssc338q/*", NULL);
 
    if ( access( "ruby_capture_raspi", R_OK ) != -1 )
       hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);

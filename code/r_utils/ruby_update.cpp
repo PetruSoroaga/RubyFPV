@@ -92,6 +92,29 @@ void validate_camera(Model* pModel)
 }
 
 
+void do_update_to_92()
+{
+   log_line("Doing update to 9.2");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   if ( pModel->telemetry_params.update_rate > DEFAULT_FC_TELEMETRY_UPDATE_RATE )
+      pModel->telemetry_params.update_rate = DEFAULT_FC_TELEMETRY_UPDATE_RATE;
+
+   log_line("Updated model VID %u (%s) to v9.2", pModel->uVehicleId, pModel->getLongName());
+}
+
 void do_update_to_91()
 {
    log_line("Doing update to 9.1");
@@ -1396,6 +1419,8 @@ int main(int argc, char *argv[])
       do_update_to_90();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 1) )
       do_update_to_91();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 2) )
+      do_update_to_92();
 
    saveCurrentModel();
    

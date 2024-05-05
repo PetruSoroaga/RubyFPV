@@ -225,7 +225,7 @@ class Menu
      void addUnsupportedMessageOpenIPCSigmaster(const char* szMessage);
      bool uploadSoftware();
      bool _generate_upload_archive(char* szArchiveName);
-     bool _uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload);
+     bool _uploadVehicleUpdate(const char* szArchiveToUpload);
      bool checkCancelUpload();
 
      MenuItemSelect* createMenuItemCardModelSelector(const char* szName);

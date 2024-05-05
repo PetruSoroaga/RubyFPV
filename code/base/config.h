@@ -22,9 +22,10 @@
 //#define LOG_RAW_TELEMETRY
 
 #define SYSTEM_NAME "Ruby"
+// dword: BB.BB.MM.mm  (MM major, mm minor) 
 #define SYSTEM_SW_VERSION_MAJOR 9
-#define SYSTEM_SW_VERSION_MINOR 10
-#define SYSTEM_SW_BUILD_NUMBER  211
+#define SYSTEM_SW_VERSION_MINOR 20
+#define SYSTEM_SW_BUILD_NUMBER  219
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117
@@ -54,7 +55,7 @@
 #define MAX_MODELS_SPECTATOR 20
 #endif
 #define MAX_TX_POWER 71
-#define MAX_MCS_INDEX 5
+#define MAX_MCS_INDEX 9
 
 #define DEFAULT_TX_TIME_OVERLOAD 300 // milisec
 
@@ -99,12 +100,12 @@
 #define DEFAULT_ARM_FREQ 900
 #define DEFAULT_GPU_FREQ 400
 
-#define DEFAULT_PRIORITY_PROCESS_ROUTER -11
+#define DEFAULT_PRIORITY_PROCESS_ROUTER -12
 #define DEFAULT_IO_PRIORITY_ROUTER 3 //(negative for disabled)
 #define DEFAULT_PRIORITY_PROCESS_RC -9
 #define DEFAULT_IO_PRIORITY_RC 2 // (negative for disabled)
 #define DEFAULT_PRIORITY_PROCESS_VIDEO_TX -10
-#define DEFAULT_PRIORITY_PROCESS_VIDEO_RX 0 // 0 - auto
+#define DEFAULT_PRIORITY_PROCESS_VIDEO_RX -14 // 0 - auto
 #define DEFAULT_IO_PRIORITY_VIDEO_TX 3
 #define DEFAULT_IO_PRIORITY_VIDEO_RX 3
 #define DEFAULT_PRIORITY_PROCESS_TELEMETRY -8
@@ -129,7 +130,7 @@
 #define DEFAULT_FC_TELEMETRY_SERIAL_SPEED 115200
 #endif
 
-#define DEFAULT_FC_TELEMETRY_UPDATE_RATE 5 // Times per second, for FC telemetry from vehicle to controller
+#define DEFAULT_FC_TELEMETRY_UPDATE_RATE 4 // Times per second, for FC telemetry from vehicle to controller
 #define DEFAULT_RUBY_TELEMETRY_UPDATE_RATE 4 // Times per second. How often the Ruby telemetry gets sent from vehicle to controller
 
 #define RAW_TELEMETRY_MAX_BUFFER 512  // bytes

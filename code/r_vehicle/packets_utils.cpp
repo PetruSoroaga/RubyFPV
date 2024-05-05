@@ -126,18 +126,19 @@ int _compute_packet_datarate(bool bIsVideoPacket, bool bIsRetransmited, int iVeh
       //if ( bIsRetransmited )
       //   nRateTx = video_stats_overwrites_get_next_level_down_radio_datarate_video(iVehicleRadioLinkId, iRadioInterface);
       
-      // To fix : OpenIPC uses now user set video profile radio datarate or radio link data rate
+      // OpenIPC: goke cameras uses user set video profile radio datarate or radio link data rate
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
-      
-      nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLinkId];
-      if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
-         nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
+      {
+         nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLinkId];
+         if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
+            nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
 
-      int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
-      if ( 0 != nRateUserVideoProfile )
-      if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
-         nRateTx = nRateUserVideoProfile;
-
+         int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps;
+         if ( 0 != nRateUserVideoProfile )
+         if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
+            nRateTx = nRateUserVideoProfile;
+      }
       #endif
 
       if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )

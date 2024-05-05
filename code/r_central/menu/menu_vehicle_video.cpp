@@ -486,6 +486,16 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
+   /*
+   if ( m_IndexAutoKeyframe == m_SelectedIndex )
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   {
+      addUnsupportedMessageOpenIPC(NULL);
+      valuesToUI();
+      return;
+   }
+   */
+   
    if ( (m_IndexAutoKeyframe == m_SelectedIndex) || (m_IndexAdaptiveVideo == m_SelectedIndex) )
    if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
    {

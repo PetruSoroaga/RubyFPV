@@ -149,18 +149,6 @@ void _video_link_keyframe_check_send_to_vehicle(u32 uVehicleId)
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32), (u8*)&uVideoStreamIndex, sizeof(u8));
    packets_queue_inject_packet_first(&s_QueueRadioPackets, packet);
 
-   if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount == 0 )
-     log_line("Request keyframe %u ms from VID %u (previous requested keyframe was %d ms, last ack keyframe was %d ms)",
-        uKeyframeMs, uVehicleId,
-        g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMs,
-        g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastAcknowledgedKeyFrameMs );
-   else
-     log_line("Request keyframe %u ms (retry %d) from VID %u (previous requested keyframe was %d ms, last ack keyframe was %d ms)",
-        uKeyframeMs, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount,
-        uVehicleId,
-        g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMs,
-        g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastAcknowledgedKeyFrameMs );
-
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].uTimeLastRequestedKeyFrame = g_TimeNow;
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount++;
    if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].iLastRequestedKeyFrameMsRetryCount > 100 )
@@ -222,7 +210,8 @@ void video_link_keyframe_periodic_loop()
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 155);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
-      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
+
+      if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
          continue;
       if ( pModel->isVideoLinkFixedOneWay() )
          continue;
@@ -248,10 +237,13 @@ void video_link_keyframe_periodic_loop()
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 156);
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
-      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
-         continue;
         
+      if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
+         continue;
       if ( pModel->isVideoLinkFixedOneWay() )
+         continue;
+
+      if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
          continue;
 
       int iCurrentVideoProfile = 0;

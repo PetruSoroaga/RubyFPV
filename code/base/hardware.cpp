@@ -561,6 +561,14 @@ u32 hardware_get_base_ruby_version()
 }
 
 
+int hardware_board_is_raspberry(u32 uBoardType)
+{
+   if ( (uBoardType & BOARD_TYPE_MASK) > 0 )
+   if ( (uBoardType & BOARD_TYPE_MASK) <= BOARD_TYPE_PI4B )
+      return 1;
+   return 0;
+}
+
 int hardware_board_is_openipc(u32 uBoardType)
 {
    if ( hardware_board_is_goke(uBoardType) )

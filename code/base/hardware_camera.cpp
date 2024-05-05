@@ -362,9 +362,15 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    hw_execute_bash_command_raw(szComm, NULL);
 
    if ( pCameraParams->flip_image )
+   {
       hw_execute_bash_command_raw("cli -s .image.flip true", NULL);
+      hw_execute_bash_command_raw("cli -s .image.mirror true", NULL);
+   }
    else
+   {
       hw_execute_bash_command_raw("cli -s .image.flip false", NULL);
+      hw_execute_bash_command_raw("cli -s .image.mirror false", NULL);
+   }
 
    if ( 0 == pCameraParams->shutterspeed )
    {
@@ -417,7 +423,7 @@ void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pC
    else
       fGOP = -(float)pVideoParams->keyframe_ms / 1000.0;
    
-   sprintf(szComm, "cli -s .video0.gopSize %.1f",fGOP);
+   sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    hw_execute_bash_command_raw(szComm, NULL);
 
    hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);

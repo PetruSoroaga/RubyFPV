@@ -50,7 +50,6 @@ u32 s_uLastTimeReceivedAnySoftwareBlock = 0;
 u32 s_uLastReceivedSoftwareBlockIndex = 0xFFFFFFFF;
 u32 s_uLastReceivedSoftwareTotalSize = 0;
 u32 s_uCurrentReceivedSoftwareSize = 0;
-int s_iUpdateType = 0;
 bool s_bSoftwareUpdateStoppedVideoPipeline = false;
 char s_szUpdateArchiveFile[MAX_FILE_PATH_SIZE];
 
@@ -131,6 +130,7 @@ void _process_upload_apply()
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       vehicle_stop_video_capture_csi(g_pCurrentModel);
 
+   char szFile[MAX_FILE_PATH_SIZE];
    char szComm[512];
 
    log_line("Save received update archive for backup...");
@@ -152,11 +152,26 @@ void _process_upload_apply()
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
    
-   sprintf(szComm, "tar -C %s -zxf %s 2>&1", FOLDER_BINARIES, s_szUpdateArchiveFile);
-   hw_execute_bash_command_raw(szComm, NULL);
-   hardware_sleep_ms(800);
-   sprintf(szComm, "chmod 777 %s/ruby*", FOLDER_BINARIES);
+   // To fix: to remove
+   sprintf(szComm, "cp -rf %s /root/ruby/", s_szUpdateArchiveFile);
    hw_execute_bash_command(szComm, NULL);
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   log_line("Running on Raspberry hardware");
+   sprintf(szComm, "tar -C %s -zxf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);
+   #endif
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   log_line("Running on OpenIPC hardware");
+   sprintf(szComm, "tar -C %s -xf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);
+   #endif
+   
+   hw_execute_bash_command_raw(szComm, NULL);
+
+   log_line("Done extracting archive.");
+   hardware_sleep_ms(800);
+   sprintf(szComm, "chmod 777 %sruby*", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(50);
 
    log_line("Binaries versions after update:");
    hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
@@ -171,7 +186,6 @@ void _process_upload_apply()
    if ( access( "ruby_capture_raspi", R_OK ) != -1 )
       hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);
 
-   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_BINARIES);
    strcat(szFile, "ruby_config.txt");
    if ( access( szFile, R_OK ) != -1 )
@@ -179,6 +193,17 @@ void _process_upload_apply()
       hardware_mount_boot();
       hardware_sleep_ms(200);
       hw_execute_bash_command("mv ruby_config.txt /boot/config.txt", NULL);
+   }
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "majestic");
+   if ( access(szFile, R_OK) != -1 )
+   {
+      sprintf(szComm, "mv -f %smajestic /usr/bin/majestic", FOLDER_BINARIES);
+      hw_execute_bash_command(szComm, NULL);
+      hw_execute_bash_command("chmod 777 /usr/bin/majestic", NULL);
    }
    #endif
 
@@ -191,36 +216,50 @@ void _process_upload_apply()
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastActiveTime = g_TimeNow;
 
-   sprintf(szComm, "ls -al %s/ruby_update*", FOLDER_BINARIES);
+   sprintf(szComm, "ls -al %sruby_update*", FOLDER_BINARIES);
    hw_execute_bash_command_raw(szComm, szOutput);
    log_line("Update files: [%s]", szOutput);
 
-   if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "ruby_update_vehicle");
+
+   if ( access( szFile, R_OK ) != -1 )
       log_line("ruby_update_vehicle is present.");
    else
    {
       log_line("ruby_update_vehicle is NOT present.");
-      hw_execute_bash_command_raw("cp -rf ruby_update ruby_update_vehicle", NULL);
-      hw_execute_bash_command_raw("chmod 777 ruby_update*", NULL);
+      sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
+      hw_execute_bash_command_raw(szComm, NULL);
+      sprintf(szComm, "chmod 777 %sruby_update*", FOLDER_BINARIES);
+      hw_execute_bash_command_raw(szComm, NULL);
       hardware_sleep_ms(100);
-      if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_update_vehicle");
+      if ( access( szFile, R_OK ) != -1 )
          log_line("ruby_update_vehicle is present now.");
       else
          log_line("ruby_update_vehicle is NOT present yet.");
    }
-   if ( access( "ruby_update", R_OK ) != -1 )
+
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "ruby_update");
+   if ( access( szFile, R_OK ) != -1 )
       log_line("ruby_update is present.");
    else
       log_line("ruby_update is NOT present.");
      
-   if ( access( "ruby_update_worker", R_OK ) != -1 )
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "ruby_update_worker");
+   if ( access( szFile, R_OK ) != -1 )
       log_line("ruby_update_worker is present.");
    else
       log_line("ruby_update_worker is NOT present.");
      
-
-   if ( access( "ruby_update_vehicle", R_OK ) != -1 )
-      hw_execute_bash_command("./ruby_update_vehicle -pre", NULL);
+   strcpy(szFile, FOLDER_BINARIES);
+   strcat(szFile, "ruby_update_vehicle");
+   if ( access( szFile, R_OK ) != -1 )
+      hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", "-pre", NULL, 1);
 
    log_line("Done updating. Cleaning up and reboot");
    _sw_update_close_remove_temp_files();
@@ -303,8 +342,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
       }
       log_line("SW Upload: allocated buffers for %u packets, max packet size: %u", s_uSWPacketsCount, s_uSWPacketsMaxSize);
 
-      s_iUpdateType = params->type;
-      if ( s_iUpdateType == 0 )
+      if ( params->type == 0 )
       {
          sprintf(s_szUpdateArchiveFile, "%s%s", FOLDER_UPDATES, "ruby_update.zip");
          log_line("Receiving update zip file.");
@@ -406,6 +444,9 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
 
    log_line("Received entire SW upload.");
 
+   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+   
    s_pFileSoftware = fopen(s_szUpdateArchiveFile, "wb");
    if ( NULL == s_pFileSoftware )
    {

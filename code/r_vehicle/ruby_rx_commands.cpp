@@ -2510,6 +2510,11 @@ bool process_command(u8* pBuffer, int length)
             log_line("[RX Commands]: Signal bitrate change on the fly.");
             signalReloadModel(MODEL_CHANGED_VIDEO_BITRATE, 0);
          }
+         else if ( g_pCurrentModel->isActiveCameraOpenIPC() && hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+         {
+            log_line("[RX Commands]: Signal bitrate change on the fly for sigmastar.");
+            signalReloadModel(MODEL_CHANGED_VIDEO_BITRATE, 0);
+         }
          else if ( g_pCurrentModel->hasCamera() )
          {          
             log_line("[RX Commands]: Signal bitrate change by capture restart.");

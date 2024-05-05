@@ -87,6 +87,7 @@ u32 hardware_getOnlyBoardType();
 u32 hardware_getBoardType();
 u32 hardware_get_base_ruby_version();
 
+int hardware_board_is_raspberry(u32 uBoardType);
 int hardware_board_is_openipc(u32 uBoardType);
 int hardware_board_is_goke(u32 uBoardType);
 int hardware_board_is_sigmastar(u32 uBoardType);

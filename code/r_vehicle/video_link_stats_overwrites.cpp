@@ -57,7 +57,8 @@ int  s_iMaxLevelShiftForCurrentProfile = 0;
 float s_fParamsChangeStrength = 0.0; // 0...1
 
 u32 s_TimeLastHistorySwitchUpdate = 0;
-
+u32 s_uTimeLastShiftLevelDown = 0;
+int s_iLastTotalLevelsShift = 0;
 int s_iLastTargetVideoFPS = 0;
 
 u32 s_uTimeStartGoodIntervalForProfileShiftUp = 0;
@@ -193,6 +194,9 @@ void video_stats_overwrites_init()
    g_PD_LastRecvControllerLinksStats.radio_interfaces_count = 1;
    g_PD_LastRecvControllerLinksStats.video_streams_count = 1;
 
+   s_uTimeLastShiftLevelDown = 0;
+   s_iLastTotalLevelsShift = 0;
+
    log_line("[Video Link Overwrites]: Init video links stats and overwrites structure: Done. Structure size: %d bytes", sizeof(shared_mem_video_link_stats_and_overwrites));
 }
 
@@ -228,6 +232,11 @@ u32 _get_bitrate_for_current_level_and_profile_including_overwrites()
 void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, int iVideoProfile, int iLevelShift)
 {
    onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, iVideoProfile);
+   
+   if ( iTotalLevelsShift > s_iLastTotalLevelsShift )
+      s_uTimeLastShiftLevelDown = g_TimeNow;
+   s_iLastTotalLevelsShift = iTotalLevelsShift;
+
    bool bVideoProfileChanged = false;
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile != iVideoProfile )
@@ -1227,4 +1236,9 @@ int video_stats_overwrites_get_next_level_down_radio_datarate_video(int iRadioLi
  
    nRateTx = _video_stats_overwrites_get_lower_datarate_value(nRateTx, 1);
    return nRateTx;
+}
+
+u32 video_stats_overwrites_get_time_last_shift_down()
+{
+   return s_uTimeLastShiftLevelDown;
 }

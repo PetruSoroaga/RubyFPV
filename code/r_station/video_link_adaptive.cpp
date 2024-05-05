@@ -202,9 +202,6 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       return;
    if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftUp + 50 )
       return;
-
-   if ( hardware_board_is_openipc(pModel->hwCapabilities.uBoardType) )
-      return;
      
    int iLevelsHQ = pModel->get_video_profile_total_levels(pModel->video_params.user_selected_video_link_profile);
    int iLevelsMQ = pModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
@@ -214,6 +211,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       iMaxLevels += iLevelsLQ;
 
+   // Higher value means more aggresive adjustments. From 0 to 1
    float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
    
    // When on HQ video profile, switch faster to MQ video profile;
@@ -307,7 +305,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    // Max intervals is MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * 20 ms = 2.4 seconds
    // Minus one because the current index is still processing/invalid
 
-   int iIntervalsToCheckDown = (1.0-0.4*fParamsChangeStrength) * MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
+   int iIntervalsToCheckDown = (1.0-0.5*fParamsChangeStrength) * MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
    int iIntervalsToCheckUp = (1.0-0.3*fParamsChangeStrength) * MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
    if ( iIntervalsToCheckDown >= MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1 )
       iIntervalsToCheckDown = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-2;
@@ -414,9 +412,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       uMinTimeSinceLastShift = 500;
    if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown + uMinTimeSinceLastShift )
    {
-      // To fix : on openIPC reenable lower video profile when majestic bitrate can be changed
       if ( iCountRetransmissionsDown > iThresholdRetransmissionsDown )
-      if ( ! hardware_board_is_openipc(pModel->hwCapabilities.uBoardType) )
       {
          bTriedAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
@@ -449,9 +445,9 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    // Check for shift up ?
    // Only if we did not shifted down or up recently
 
-   int iThresholdReconstructedUp = 2 + (1.0-fParamsChangeStrength)*iIntervalsToCheckUp*0.6;
-   int iThresholdLongestRecontructionUp = 2 + (1.0-fParamsChangeStrength)*iIntervalsToCheckUp*0.3;
-   int iThresholdRetransmissionsUp = 2 + (1.0-fParamsChangeStrength)*iIntervalsToCheckDown/14.0;
+   int iThresholdReconstructedUp = 1 + (1.0-fParamsChangeStrength)*iIntervalsToCheckUp*0.4;
+   int iThresholdLongestRecontructionUp = 1 + (1.0-fParamsChangeStrength)*iIntervalsToCheckUp*0.2;
+   int iThresholdRetransmissionsUp = 1 + (1.0-fParamsChangeStrength)*iIntervalsToCheckUp*0.05;
 
    u32 uTimeForShiftUp = 1000 - (500.0*fParamsChangeStrength);
    if ( uTimeForShiftUp < 100 )

@@ -214,7 +214,11 @@ void video_source_majestic_set_keyframe_value(float fGOP)
    char szOutput[256];
    sprintf(szComm, "curl localhost/api/v1/set?video0.gopSize=%.1f", fGOP);
    hw_execute_bash_command_raw(szComm, szOutput);
-   hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+   //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+
+   //sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
+   //hw_execute_bash_command_raw(szComm, NULL);
+   //hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
 
 void video_source_majestic_set_videobitrate_value(u32 uBitrate)
@@ -223,7 +227,7 @@ void video_source_majestic_set_videobitrate_value(u32 uBitrate)
    char szOutput[256];
    sprintf(szComm, "curl localhost/api/v1/set?video0.bitrate=%u", uBitrate/1000);
    hw_execute_bash_command_raw(szComm, szOutput);
-   hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput); 
+   //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput); 
 }
 
 // Returns the buffer and number of bytes read
@@ -464,28 +468,28 @@ void video_source_majestic_periodic_checks()
       {
          sprintf(szComm, "curl localhost/api/v1/set?image.luminance=%u", uParam);
          hw_execute_bash_command_raw(szComm, szOutput);
-         hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
          bUpdatedImageParams = true;
       }
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_CONTRAST )
       {
          sprintf(szComm, "curl localhost/api/v1/set?image.contrast=%u", uParam);
          hw_execute_bash_command_raw(szComm, szOutput);
-         hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
          bUpdatedImageParams = true;
       }
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_SATURATION )
       {
          sprintf(szComm, "curl localhost/api/v1/set?image.saturation=%u", uParam/2);
          hw_execute_bash_command_raw(szComm, szOutput);
-         hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
          bUpdatedImageParams = true;
       }
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_HUE )
       {
          sprintf(szComm, "curl localhost/api/v1/set?image.hue=%u", uParam);
          hw_execute_bash_command_raw(szComm, szOutput);
-         hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
          bUpdatedImageParams = true;
       }
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_PARAMS )

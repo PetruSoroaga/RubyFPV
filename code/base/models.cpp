@@ -224,7 +224,7 @@ int Model::getLoadedFileVersion()
 
 bool Model::isRunningOnOpenIPCHardware()
 {
-   if ( hardware_board_is_openipc(hwCapabilities.uBoardType) )
+   if ( hardware_board_is_openipc(hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
       return true;
    return false;
 }
@@ -2659,7 +2659,6 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].flags = 0;
       video_link_profiles[i].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
       video_link_profiles[i].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      //video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
       video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
       video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[i].radio_datarate_video_bps = 0; // Auto
@@ -2681,7 +2680,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
         
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
-         video_link_profiles[i].keyframe_ms = 1500;
+         video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
 
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
@@ -2713,6 +2712,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
+   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    }
 
@@ -2760,6 +2761,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
    video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
    video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
+   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
    video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
    }
@@ -2783,16 +2786,11 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
    video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
    video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
+   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
    video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    }
-
-   /*
-   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-   {
-      video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-   }
-   */
    
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
@@ -4095,7 +4093,7 @@ void Model::resetHWCapabilities()
    hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
    hwCapabilities.uFlags = 0;
 
-   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_goke( hardware_getOnlyBoardType() ) )
       hwCapabilities.uFlags &= ~MODEL_HW_CAP_FLAG_OTA;
    else
       hwCapabilities.uFlags |= MODEL_HW_CAP_FLAG_OTA;
@@ -5069,6 +5067,8 @@ bool Model::isVideoLinkFixedOneWay()
 int Model::getInitialKeyframeIntervalMs(int iVideoProfile)
 {
    int iKeyframeMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+   if ( hardware_board_is_goke(hardware_getBoardType()) )
+       iKeyframeMs = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    if ( (video_link_profiles[iVideoProfile].keyframe_ms > 0) || isVideoLinkFixedOneWay() )
       iKeyframeMs = video_link_profiles[iVideoProfile].keyframe_ms;
    if ( iKeyframeMs < 0 )

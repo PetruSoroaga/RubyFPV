@@ -110,7 +110,7 @@ void video_link_auto_keyframe_do_adjustments()
 
    // Have recent link from controller ok? Then do nothing.
 
-   int iThresholdControllerLinkMs = 1000;
+   int iThresholdControllerLinkMs = 2000;
    if ( g_TimeNow > g_TimeStart + 5000 )
    if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
    if ( g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs > g_TimeNow )
@@ -199,15 +199,13 @@ void video_link_auto_keyframe_periodic_loop()
 {
    if ( (g_pCurrentModel == NULL) || (! g_pCurrentModel->hasCamera()) )
       return;
-   if ( hardware_board_is_goke(hardware_getBoardType()) )
-      return;
 
    if ( (g_TimeNow < g_TimeStart + 5000) ||
         (g_TimeNow < get_video_capture_start_program_time() + 3000) )
       return;
    
    static u32 s_uTimeLastVideoAutoKeyFrameCheck = 0;
-   if ( g_TimeNow < s_uTimeLastVideoAutoKeyFrameCheck+20 )
+   if ( g_TimeNow < s_uTimeLastVideoAutoKeyFrameCheck+50 )
       return;
    s_uTimeLastVideoAutoKeyFrameCheck = g_TimeNow;
 
@@ -224,20 +222,30 @@ void video_link_auto_keyframe_periodic_loop()
       }
    }
    
-   // Fixed keyframe interval, set by user? Then do nothing, just make sure it's the current one
+   // One way link? Just make sure it's the current one
    else if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isVideoLinkFixedOneWay() && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES) )
    {
-      int iKeyframeMs = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms;
+      int iKeyframeMs = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
       if ( iKeyframeMs < 0 )
          iKeyframeMs = -iKeyframeMs;
       video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "fixed by user or one way");
    }
    
+   // Fixed keyframe interval, set by user? Just make sure it's the current one
+   else if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES) )
+   {
+      int iKeyframeMs = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+      if ( iKeyframeMs < 0 )
+         iKeyframeMs = -iKeyframeMs;
+      video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "fixed by user or one way");
+   }
+
    // do Auto adjustments
    else
       video_link_auto_keyframe_do_adjustments();
      
-   // Apply the new value, if it changed
+   // ----------------------------------------------
+   // Apply the new value, if it changed, whether initial changed, manual changed or auto adjusted
 
    if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs == g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs )
    if ( g_SM_VideoLinkStats.overwrites.uCurrentLocalRequestedKeyframeMs == g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs )

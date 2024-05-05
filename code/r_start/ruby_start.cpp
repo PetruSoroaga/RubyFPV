@@ -1278,31 +1278,41 @@ int main(int argc, char *argv[])
       }
       
       char szOutput[4096];
-      hw_execute_bash_command_raw("ls -al ruby_update* 2>/dev/null", szOutput);
+      sprintf(szComm, "ls -al %sruby_update* 2>/dev/null", FOLDER_BINARIES);
+      hw_execute_bash_command_raw(szComm, szOutput);
       log_line("Update files: [%s]", szOutput);
 
-      if ( access( "ruby_update_vehicle", R_OK ) != -1 )
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_update_vehicle");
+      if ( access( szFile, R_OK ) != -1 )
          log_line("ruby_update_vehicle is present.");
       else
          log_line("ruby_update_vehicle is NOT present.");
 
-      if ( access( "ruby_update", R_OK ) != -1 )
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_update");
+      if ( access( szFile, R_OK ) != -1 )
          log_line("ruby_update is present.");
       else
          log_line("ruby_update is NOT present.");
         
-      if ( access( "ruby_update_worker", R_OK ) != -1 )
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_update_worker");
+      if ( access( szFile, R_OK ) != -1 )
          log_line("ruby_update_worker is present.");
       else
          log_line("ruby_update_worker is NOT present.");
 
-      if( access( "ruby_update_vehicle", R_OK ) != -1 )
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "ruby_update_vehicle");
+      if( access( szFile, R_OK ) != -1 )
       {
          printf("Ruby: Executing post update changes...\n");
          log_line("Executing post update changes...");
          fflush(stdout);
          hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", NULL, NULL, 1);
-         hw_execute_bash_command("rm -f ruby_update_vehicle", NULL);
+         sprintf(szComm, "rm -rf %sruby_update_vehicle", FOLDER_BINARIES);
+         hw_execute_bash_command(szComm, NULL);
          printf("Ruby: Executing post update changes. Done.\n");
          log_line("Executing post update changes. Done.");
 

@@ -1,5 +1,5 @@
 _CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
-_CPPFLAGS := -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
+_CPPFLAGS := $(CPPLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 
 LDFLAGS_CENTRAL := -L/usr/lib/arm-linux-gnueabihf -L../openvg -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm
 LDFLAGS_CENTRAL2 := -L/opt/vc/lib/ -lbrcmGLESv2 -lbrcmEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lmmal  -lmmal_core -lmmal_util -lmmal_vc_client  
@@ -30,88 +30,88 @@ FOLDER_CENTRAL_RENDERER=code/renderer
 FOLDER_PLUGINS_OSD=code/r_plugins_osd
 FOLDER_TESTS=code/r_tests
 
-$(FOLDER_BASE)/%.o: $(FOLDER_BASE)/%.c $(FOLDER_BASE)/*.h
+$(FOLDER_BASE)/%.o: $(FOLDER_BASE)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_BASE)/%.o: $(FOLDER_BASE)/%.cpp $(FOLDER_BASE)/*.h
+$(FOLDER_BASE)/%.o: $(FOLDER_BASE)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_COMMON)/%.o: $(FOLDER_COMMON)/%.c $(FOLDER_COMMON)/*.h
+$(FOLDER_COMMON)/%.o: $(FOLDER_COMMON)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_COMMON)/%.o: $(FOLDER_COMMON)/%.cpp $(FOLDER_COMMON)/*.h
+$(FOLDER_COMMON)/%.o: $(FOLDER_COMMON)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_RADIO)/%.o: $(FOLDER_RADIO)/%.c $(FOLDER_RADIO)/*.h
+$(FOLDER_RADIO)/%.o: $(FOLDER_RADIO)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_RADIO)/%.o: $(FOLDER_RADIO)/%.cpp $(FOLDER_RADIO)/*.h
+$(FOLDER_RADIO)/%.o: $(FOLDER_RADIO)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_START)/%.o: $(FOLDER_START)/%.c $(FOLDER_START)/*.h
+$(FOLDER_START)/%.o: $(FOLDER_START)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_START)/%.o: $(FOLDER_START)/%.cpp $(FOLDER_START)/*.h
+$(FOLDER_START)/%.o: $(FOLDER_START)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_UTILS)/%.o: $(FOLDER_UTILS)/%.c $(FOLDER_UTILS)/*.h
+$(FOLDER_UTILS)/%.o: $(FOLDER_UTILS)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_UTILS)/%.o: $(FOLDER_UTILS)/%.cpp $(FOLDER_UTILS)/*.h
+$(FOLDER_UTILS)/%.o: $(FOLDER_UTILS)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_I2C)/%.o: $(FOLDER_I2C)/%.c $(FOLDER_I2C)/*.h
+$(FOLDER_I2C)/%.o: $(FOLDER_I2C)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_I2C)/%.o: $(FOLDER_I2C)/%.cpp $(FOLDER_I2C)/*.h
+$(FOLDER_I2C)/%.o: $(FOLDER_I2C)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_VEHICLE)/%.o: $(FOLDER_VEHICLE)/%.c $(FOLDER_VEHICLE)/*.h
+$(FOLDER_VEHICLE)/%.o: $(FOLDER_VEHICLE)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_VEHICLE)/%.o: $(FOLDER_VEHICLE)/%.cpp $(FOLDER_VEHICLE)/*.h
+$(FOLDER_VEHICLE)/%.o: $(FOLDER_VEHICLE)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_STATION)/%.o: $(FOLDER_STATION)/%.c $(FOLDER_STATION)/*.h
+$(FOLDER_STATION)/%.o: $(FOLDER_STATION)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_STATION)/%.o: $(FOLDER_STATION)/%.cpp $(FOLDER_STATION)/*.h
+$(FOLDER_STATION)/%.o: $(FOLDER_STATION)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_CENTRAL)/%.o: $(FOLDER_CENTRAL)/%.c $(FOLDER_CENTRAL)/*.h
+$(FOLDER_CENTRAL)/%.o: $(FOLDER_CENTRAL)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_CENTRAL)/%.o: $(FOLDER_CENTRAL)/%.cpp $(FOLDER_CENTRAL)/*.h
+$(FOLDER_CENTRAL)/%.o: $(FOLDER_CENTRAL)/%.cpp
 	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
 
-$(FOLDER_CENTRAL_MENU)/%.o: $(FOLDER_CENTRAL_MENU)/%.c $(FOLDER_CENTRAL_MENU)/*.h
+$(FOLDER_CENTRAL_MENU)/%.o: $(FOLDER_CENTRAL_MENU)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_CENTRAL_MENU)/%.o: $(FOLDER_CENTRAL_MENU)/%.cpp $(FOLDER_CENTRAL_MENU)/*.h
+$(FOLDER_CENTRAL_MENU)/%.o: $(FOLDER_CENTRAL_MENU)/%.cpp
 	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
 
-$(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.c $(FOLDER_CENTRAL_OSD)/*.h
+$(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.cpp $(FOLDER_CENTRAL_OSD)/*.h
+$(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.cpp
 	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
 
-$(FOLDER_CENTRAL_RENDERER)/%.o: $(FOLDER_CENTRAL_RENDERER)/%.c $(FOLDER_CENTRAL_RENDERER)/*.h
+$(FOLDER_CENTRAL_RENDERER)/%.o: $(FOLDER_CENTRAL_RENDERER)/%.c
 	$(CC) $(_CFLAGS) $(INCLUDE_CENTRAL) -c -o $@ $<
 
-$(FOLDER_CENTRAL_RENDERER)/%.o: $(FOLDER_CENTRAL_RENDERER)/%.cpp $(FOLDER_CENTRAL_RENDERER)/*.h
+$(FOLDER_CENTRAL_RENDERER)/%.o: $(FOLDER_CENTRAL_RENDERER)/%.cpp
 	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
 
-$(FOLDER_PLUGINS_OSD)/%.o: $(FOLDER_PLUGINS_OSD)/%.c $(FOLDER_PLUGINS_OSD)/*.h
+$(FOLDER_PLUGINS_OSD)/%.o: $(FOLDER_PLUGINS_OSD)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_PLUGINS_OSD)/%.o: $(FOLDER_PLUGINS_OSD)/%.cpp $(FOLDER_PLUGINS_OSD)/*.h
+$(FOLDER_PLUGINS_OSD)/%.o: $(FOLDER_PLUGINS_OSD)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_TESTS)/%.o: $(FOLDER_TESTS)/%.c $(FOLDER_TESTS)/*.h
+$(FOLDER_TESTS)/%.o: $(FOLDER_TESTS)/%.c
 	$(CC) $(_CFLAGS) -c -o $@ $<
 
-$(FOLDER_TESTS)/%.o: $(FOLDER_TESTS)/%.cpp $(FOLDER_TESTS)/*.h
+$(FOLDER_TESTS)/%.o: $(FOLDER_TESTS)/%.cpp
 	$(CXX) $(_CFLAGS) -c -o $@ $<
 
 core_plugins_utils.o: code/public/utils/core_plugins_utils.c
@@ -137,7 +137,7 @@ CENTRAL_MENU_ALL1 := $(FOLDER_CENTRAL_MENU)/menu.o $(FOLDER_CENTRAL_MENU)/menu_o
 CENTRAL_MENU_ALL2 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_relay.o $(FOLDER_CENTRAL_MENU)/menu_controller.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_alarms.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_camera_gains.o $(FOLDER_CENTRAL_MENU)/menu_controller_peripherals.o $(FOLDER_CENTRAL_MENU)/menu_controller_expert.o $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interfaces.o $(FOLDER_CENTRAL_MENU)/menu_system.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_instruments.o $(FOLDER_CENTRAL_MENU)/menu_preferences_ui.o $(FOLDER_CENTRAL_MENU)/menu_system_expert.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_video_profile.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_import.o $(FOLDER_CENTRAL_MENU)/menu_system_alarms.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_selector.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_widgets.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_widget.o
 CENTRAL_MENU_ALL3 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_management.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_import.o $(FOLDER_CENTRAL_MENU)/menu_switch_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_controller_joystick.o $(FOLDER_CENTRAL_MENU)/menu_system_all_params.o $(FOLDER_CENTRAL_MENU)/menu_color_picker.o $(FOLDER_CENTRAL_MENU)/menu_controller_video.o $(FOLDER_CENTRAL_MENU)/menu_controller_telemetry.o $(FOLDER_CENTRAL_MENU)/menu_update_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_device_i2c.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_audio.o $(FOLDER_CENTRAL_MENU)/menu_channels_select.o $(FOLDER_CENTRAL_MENU)/menu_tx_power_max.o $(FOLDER_CENTRAL_MENU)/menu_system_dev_logs.o $(FOLDER_CENTRAL_MENU)/menu_item_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_radio_config.o $(FOLDER_CENTRAL_MENU)/menu_preferences.o
 CENTRAL_MENU_ALL4 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_data_link.o $(FOLDER_CENTRAL_MENU)/menu_controller_network.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_instruments_general.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_elements.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugin.o $(FOLDER_CENTRAL_MENU)/menu_controller_plugins.o $(FOLDER_CENTRAL_MENU)/menu_controller_encryption.o $(FOLDER_CENTRAL_MENU)/menu_search_connect.o $(FOLDER_CENTRAL_MENU)/menu_system_hardware.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_hdmi.o $(FOLDER_CENTRAL_MENU)/menu_controller_recording.o $(FOLDER_CENTRAL_MENU)/menu_system_video_profiles.o $(FOLDER_CENTRAL_MENU)/menu_info_booster.o $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface.o
-CENTRAL_MENU_ALL5 := $(FOLDER_CENTRAL_MENU)/menu_system_dev_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_interface.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_management_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_peripherals.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_delete_logs.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio.o
+CENTRAL_MENU_ALL5 := $(FOLDER_CENTRAL_MENU)/menu_system_dev_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_interface.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_management_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_peripherals.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_delete_logs.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_cpu_oipc.o
 CENTRAL_MENU_RC := $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_failsafe.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_channels.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_expo.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_camera.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_input.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_functions.o
 CENTRAL_MENU_RADIO := $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface_sik.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_sik.o $(FOLDER_CENTRAL_MENU)/menu_diagnose_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_elrs.o
 CENTRAL_POPUP_ALL := $(FOLDER_CENTRAL)/popup.o $(FOLDER_CENTRAL)/popup_log.o $(FOLDER_CENTRAL)/popup_commands.o $(FOLDER_CENTRAL)/popup_camera_params.o
@@ -175,8 +175,8 @@ ruby_logger: $(FOLDER_UTILS)/ruby_logger.o $(MODULE_BASE) $(MODULE_BASE2) $(MODU
 ruby_initdhcp: $(FOLDER_UTILS)/ruby_initdhcp.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS)
 
-ruby_sik_config: $(FOLDER_UTILS)/ruby_sik_config.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
-	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS)
+ruby_sik_config: $(FOLDER_UTILS)/ruby_sik_config.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON) 
+	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl
 
 ruby_alive: $(FOLDER_UTILS)/ruby_alive.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_MODELS) $(MODULE_COMMON)
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS)

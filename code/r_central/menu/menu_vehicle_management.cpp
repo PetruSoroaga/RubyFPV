@@ -345,11 +345,24 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexUpdate == m_SelectedIndex )
    {
+      bool bSupportsOTA = false;
+
+      if ( hardware_board_is_raspberry(g_pCurrentModel->hwCapabilities.uBoardType) )
+         bSupportsOTA = true;
+      if ( g_pCurrentModel->hwCapabilities.uFlags & MODEL_HW_CAP_FLAG_OTA )
+         bSupportsOTA = true;
+
       if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
+      if ( ((g_pCurrentModel->sw_version >> 8) & 0xFF) == 9 )
+      if ( (g_pCurrentModel->sw_version & 0xFF) < 20 )
+         bSupportsOTA = false;
+
+      if ( ! bSupportsOTA )
       {
-         addUnsupportedMessageOpenIPC(NULL);
+         addMessageWithTitle(0, "Can't update", "This vehicle does not support OTA (over the air) updates.");
          return;
       }
+      
       if ( checkIsArmed() )
          return;
       if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )

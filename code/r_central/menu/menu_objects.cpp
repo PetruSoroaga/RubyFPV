@@ -1422,22 +1422,16 @@ void Menu::onMoveUp(bool bIgnoreReversion)
          if ( bIgnoreReversion || p->iSwapUpDownButtonsValues == 0 )
          {
             m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
-            if ( isKeyMinusLongPressed() )
-               for(int k=0; k<0; k++ )
-                  m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
-            if ( isKeyMinusLongLongPressed() )
-               for(int k=0; k<1; k++ )
-                  m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
+            //if ( isKeyMinusLongPressed() )
+            //   for(int k=0; k<0; k++ )
+            //      m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
          }
          else
          {
             m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
-            if ( isKeyMinusLongPressed() )
-               for(int k=0; k<0; k++ )
-                  m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
-            if ( isKeyMinusLongLongPressed() )
-               for(int k=0; k<1; k++ )
-                  m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
+            //if ( isKeyMinusLongPressed() )
+            //   for(int k=0; k<0; k++ )
+            //      m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
          }
          onItemValueChanged(i);
          return;
@@ -1527,22 +1521,16 @@ void Menu::onMoveDown(bool bIgnoreReversion)
          if ( bIgnoreReversion || p->iSwapUpDownButtonsValues == 0 )
          {
             m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
-            if ( isKeyPlusLongPressed() )
-               for(int k=0; k<0; k++ )
-                  m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
-            if ( isKeyPlusLongLongPressed() )
-               for(int k=0; k<1; k++ )
-                  m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
+            //if ( isKeyPlusLongPressed() )
+            //   for(int k=0; k<0; k++ )
+            //      m_pMenuItems[i]->onKeyDown(bIgnoreReversion);
          }
          else
          {
             m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
-            if ( isKeyPlusLongPressed() )
-               for(int k=0; k<0; k++ )
-                  m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
-            if ( isKeyPlusLongLongPressed() )
-               for(int k=0; k<1; k++ )
-                  m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
+            //if ( isKeyPlusLongPressed() )
+            //   for(int k=0; k<0; k++ )
+            //      m_pMenuItems[i]->onKeyUp(bIgnoreReversion);
          }
          onItemValueChanged(i);
          return;
@@ -1894,7 +1882,7 @@ static void * _thread_generate_upload(void *argument)
 
    log_line("ThreadGenerateUpload started, counter %d, archive file to generate: %s", s_iThreadGenerateUploadCounter, szFileNameArchive);
 
-   // Add update info file
+   // Check and add update info file if missing
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
@@ -1923,13 +1911,6 @@ static void * _thread_generate_upload(void *argument)
       }
    }
 
-   sprintf(szComm, "rm -rf %s%s 2>/dev/null", FOLDER_UPDATES, szFileNameArchive);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
-   hw_execute_bash_command(szComm, NULL);
-
    bool bVersion82Older = false;
    if ( NULL == g_pCurrentModel )
       bVersion82Older = true;
@@ -1938,31 +1919,65 @@ static void * _thread_generate_upload(void *argument)
    else if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && (((g_pCurrentModel->sw_version & 0xFF) <= 30)) )
       bVersion82Older = true;
 
-   // Generate dummy ruby_vehicle binary for older versions of vehicles
-   if ( bVersion82Older )
+   char szFullPathOutputArchive[MAX_FILE_PATH_SIZE];
+   strcpy(szFullPathOutputArchive, FOLDER_UPDATES);
+   strcat(szFullPathOutputArchive, szFileNameArchive);
+
+   sprintf(szComm, "rm -rf %s 2>/dev/null", szFullPathOutputArchive);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "mkdir -p %stempUploadFiles", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szComm, NULL);
+
+   // Generate binaries
+
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
-      sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", FOLDER_BINARIES);
+      sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_UPDATES_BIN_SSC338Q);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/ruby_vehicle", FOLDER_BINARIES);
+      sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_UPDATES_BIN_SSC338Q);
+      hw_execute_bash_command(szComm, NULL);
+
+      sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %smaj* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %scustom* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "tar -C %stempUploadFiles/ -cf %s . 2>&1", FOLDER_RUBY_TEMP, szFullPathOutputArchive);
       hw_execute_bash_command(szComm, NULL);
    }
-
-   if ( bVersion82Older )
-      sprintf(szComm, "tar -czf %s%s ruby_* 2>&1", FOLDER_UPDATES, szFileNameArchive);
    else
    {
-      sprintf(szComm, "mkdir -p %stempUploadFiles", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/", FOLDER_BINARIES, FOLDER_RUBY_TEMP);
+      sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
       hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "tar -czf %s%s -C %stempUploadFiles/ . 2>&1", FOLDER_UPDATES, szFileNameArchive, FOLDER_RUBY_TEMP);
+
+      // Generate dummy ruby_vehicle binary for older versions of vehicles
+      if ( bVersion82Older )
+      {
+         sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", FOLDER_BINARIES);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "chmod 777 %s/ruby_vehicle", FOLDER_BINARIES);
+         hw_execute_bash_command(szComm, NULL);
+      }
+
+      if ( bVersion82Older )
+         sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFullPathOutputArchive);
+      else
+      {
+         sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/", FOLDER_BINARIES, FOLDER_RUBY_TEMP);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "tar -czf %s -C %stempUploadFiles/ . 2>&1", szFullPathOutputArchive, FOLDER_RUBY_TEMP);
+      }
+      hw_execute_bash_command(szComm, NULL);
    }
-   hw_execute_bash_command(szComm, NULL);
 
    sprintf(szComm, "rm -rf %stempUploadFiles/*", FOLDER_RUBY_TEMP);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "chmod 777 %s%s 2>&1", FOLDER_UPDATES, szFileNameArchive);
+   sprintf(szComm, "chmod 777 %s 2>&1", szFullPathOutputArchive);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("ThreadGenerateUpload finished, counter %d", s_iThreadGenerateUploadCounter);
@@ -2048,11 +2063,9 @@ bool Menu::uploadSoftware()
       return false;
    }
 
-   int iUpdateType = 1;
-
    log_line("Generated update archive to upload to vehicle (%s).", szArchiveToUpload);
 
-   if ( ! _uploadVehicleUpdate(iUpdateType, szArchiveToUpload) )
+   if ( ! _uploadVehicleUpdate(szArchiveToUpload) )
    {
       render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
@@ -2100,10 +2113,10 @@ MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szName)
    return pItem;
 }
 
-bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
+bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
 {
    command_packet_sw_package cpswp_cancel;
-   cpswp_cancel.type = iUpdateType;
+   cpswp_cancel.type = 1; // 0 - zip, 1 - tar
    cpswp_cancel.total_size = 0;
    cpswp_cancel.file_block_index = MAX_U32;
    cpswp_cancel.is_last_block = false;
@@ -2176,7 +2189,7 @@ bool Menu::_uploadVehicleUpdate(int iUpdateType, const char* szArchiveToUpload)
       pcpsp->total_size = (u32)lSize;
       pcpsp->file_block_index = nTotalPackets;
       pcpsp->is_last_block = ((l == lSize)?true:false);
-      pcpsp->type = iUpdateType;
+      pcpsp->type = 1; // 0 - zip, 1 - tar
       pPackets[nTotalPackets] = pPacket;
       nTotalPackets++;
    }

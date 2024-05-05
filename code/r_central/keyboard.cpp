@@ -394,11 +394,6 @@ static void * _thread_keyboard(void *argument)
       if ( isKeyPlusLongPressed() )
          _add_input_event(INPUT_EVENT_PRESS_PLUS);
 
-      if ( isKeyMinusLongLongPressed() )
-         _add_input_event(INPUT_EVENT_PRESS_MINUS);
-      if ( isKeyPlusLongLongPressed() )
-         _add_input_event(INPUT_EVENT_PRESS_PLUS);
-
       if ( isKeyMinusLongLongPressed() || isKeyPlusLongLongPressed() || isKeyMenuLongLongPressed() )
          s_bHasLongPressFlag = true;
       else

@@ -387,6 +387,12 @@ u32 getRealDataRateFromMCSRate(int mcsIndex, int iHT40)
       return 52000000*uMul;
    if ( 6 == mcsIndex )
       return 58000000*uMul;
+   if ( 7 == mcsIndex )
+      return 65000000*uMul;
+   if ( 8 == mcsIndex )
+      return 78000000*uMul;
+   if ( 9 == mcsIndex )
+      return 78000000*uMul;
    return 58000000*uMul;
 }
 

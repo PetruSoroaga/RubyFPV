@@ -326,7 +326,7 @@ void video_link_check_adjust_bitrate_for_overload()
       
    static u32 sl_uTimeLastVideoOverloadCheck = 0;
 
-   if ( g_TimeNow < sl_uTimeLastVideoOverloadCheck+50 )
+   if ( g_TimeNow < sl_uTimeLastVideoOverloadCheck+100 )
       return;
 
    sl_uTimeLastVideoOverloadCheck = g_TimeNow;
@@ -424,7 +424,9 @@ void video_link_check_adjust_bitrate_for_overload()
       if ( bIsLocalOverloadCondition )
       {
          uParam = 0;
-         send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_OVERLOAD, uParam, 1, 2);
+         if ( video_stats_overwrites_get_time_last_shift_down() != 0 )
+         if ( g_TimeNow > video_stats_overwrites_get_time_last_shift_down() + 1500 )
+            send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_OVERLOAD, uParam, 1, 2);
       }
    }
 }

@@ -2414,7 +2414,7 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
    float rightMargin = xPos + width;
 
    sprintf(szBuff, "Video Keyframe (%u FPS / ", pVDS->fps);
-   if ( pActiveModel->isVideoLinkFixedOneWay() )
+   if ( pActiveModel->isVideoLinkFixedOneWay() || (pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0) )
       strcat(szBuff, "Fixed KF)");
    else
       strcat(szBuff, "Auto KF)");
@@ -2452,7 +2452,10 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
       bShowChanging = true;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Requested Keyframe:");
-   sprintf(szBuff, "%d ms", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs);
+   if ( pActiveModel->isVideoLinkFixedOneWay() || (pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0) )
+      strcpy(szBuff, "None, Fixed");
+   else
+      sprintf(szBuff, "%d ms", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs);
    if ( bShowChanging )
       g_pRenderEngine->setColors(get_Color_OSDChangedValue());
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -2461,7 +2464,12 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Ack Keyframe:");
-   sprintf(szBuff, "%d ms", pVDS->iLastAckKeyframeInterval);
+   if ( pVDS->iLastAckKeyframeInterval > 0 )
+      sprintf(szBuff, "%d ms", pVDS->iLastAckKeyframeInterval);
+   else if ( pActiveModel->isVideoLinkFixedOneWay() || (pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0) )
+      strcpy(szBuff, "None, Fixed");
+   else
+      sprintf(szBuff, "%d ms", pVDS->iLastAckKeyframeInterval);
    if ( bShowChanging )
       g_pRenderEngine->setColors(get_Color_OSDChangedValue());
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
