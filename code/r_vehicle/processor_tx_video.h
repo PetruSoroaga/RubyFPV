@@ -53,8 +53,8 @@ class ProcessorTxVideo
       type_processor_tx_video_bitrate_sample m_BitrateHistorySamples[MAX_VIDEO_BITRATE_HISTORY_VALUES];
       int m_iVideoBitrateSampleIndex;
 
-      u32 m_uVideoBitrateAverageSum;
-      u32 m_uTotalVideoBitrateAverageSum;
+      u32 m_uVideoBitrateKbAverageSum;
+      u32 m_uTotalVideoBitrateKbAverageSum;
       u32 m_uVideoBitrateAverage;
       u32 m_uTotalVideoBitrateAverage;
 };

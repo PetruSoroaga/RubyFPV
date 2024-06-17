@@ -101,12 +101,12 @@
 #define FOLDER_RUBY_TEMP "/home/pi/ruby/tmp/"
 #define FOLDER_USB_MOUNT "/home/pi/ruby/tmp/tmpFiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/home/pi/ruby/tmp/memdisk/"
+#define FOLDER_WINDOWS_PARTITION "/boot/"
 
 #define FILE_FORCE_VEHICLE "/boot/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/boot/force_no_camera"
 #define FILE_FORCE_ROUTER "/boot/forcerouter"
 #define FILE_FORCE_RESET "/boot/forcereset"
-#define FILE_DEFAULT_OPENIPC_KEYS "/home/pi/ruby/res/openipc_default.key"
 
 //#define VIDEO_RECORDER_COMMAND "raspivid"
 //#define VIDEO_RECORDER_COMMAND_VEYE "/usr/local/bin/veye_raspivid"
@@ -126,6 +126,37 @@
 
 #endif
 
+
+// --------------------------------------------------------------------------------
+
+#if defined(HW_PLATFORM_RADXA_ZERO3)
+
+#define FOLDER_BINARIES "/home/radxa/ruby/"
+#define FOLDER_CONFIG "/home/radxa/ruby/config/"
+#define FOLDER_CONFIG_MODELS "/home/radxa/ruby/config/models/"
+#define FOLDER_VEHICLE_HISTORY "/home/radxa/ruby/config/models/history-%d/"
+#define FOLDER_LOGS "/home/radxa/ruby/logs/"
+#define FOLDER_MEDIA "/home/radxa/ruby/media/"
+#define FOLDER_MEDIA_VEHICLE_DATA "/home/radxa/ruby/media/vehicle-%u/"
+#define FOLDER_OSD_PLUGINS "/home/radxa/ruby/plugins/osd/"
+#define FOLDER_CORE_PLUGINS "/home/radxa/ruby/plugins/core/"
+#define FOLDER_UPDATES "/home/radxa/ruby/updates/"
+#define FOLDER_UPDATES_BIN "/home/radxa/ruby/updates-bin/"
+#define FOLDER_UPDATES_BIN_SSC338Q "/home/radxa/ruby/updates-bin/ssc338q/"
+#define FOLDER_RUBY_TEMP "/home/radxa/ruby/tmp/"
+#define FOLDER_USB_MOUNT "/home/radxa/ruby/tmp/tmpFiles/"
+#define FOLDER_TEMP_VIDEO_MEM "/home/radxa/ruby/tmp/memdisk/"
+#define FOLDER_WINDOWS_PARTITION "/config/"
+
+#define FILE_FORCE_VEHICLE "/boot/forcevehicle"
+#define FILE_FORCE_VEHICLE_NO_CAMERA "/boot/force_no_camera"
+#define FILE_FORCE_ROUTER "/boot/forcerouter"
+#define FILE_FORCE_RESET "/boot/forcereset"
+
+#define VIDEO_PLAYER_PIPE "ruby_player_radxa"
+#define VIDEO_PLAYER_OFFLINE "ruby_player_radxa"
+
+#endif
 
 // -------------------------------------------------------------------------------
 
@@ -147,29 +178,12 @@
 #define FOLDER_RUBY_TEMP "/tmp/ruby/tmp/"
 #define FOLDER_USB_MOUNT "/tmp/tmpFiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/tmp/ruby/memdisk/"
+#define FOLDER_WINDOWS_PARTITION ""
 
 #define FILE_FORCE_VEHICLE "/root/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/root/force_no_camera"
 #define FILE_FORCE_ROUTER "/root/forcerouter"
 #define FILE_FORCE_RESET "/root/forcereset"
-#define FILE_DEFAULT_OPENIPC_KEYS "/root/ruby/res/openipc_default.key"
-
-
-//#define VIDEO_RECORDER_COMMAND "raspivid"
-//#define VIDEO_RECORDER_COMMAND_VEYE "/usr/local/bin/veye_raspivid"
-//#define VIDEO_RECORDER_COMMAND_VEYE307 "/usr/local/bin/307/veye_raspivid"
-//#define VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME "veye_raspivid"
-#define VIDEO_RECORDER_COMMAND "ruby_capture_raspi"
-#define VIDEO_RECORDER_COMMAND_VEYE "./ruby_capture_veye"
-#define VIDEO_RECORDER_COMMAND_VEYE307 "./ruby_capture_veye"
-#define VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME "ruby_capture_veye"
-
-#define VIDEO_PLAYER_PIPE "ruby_player_p"
-#define VIDEO_PLAYER_STDIN "ruby_player_s"
-#define VIDEO_PLAYER_OFFLINE "ruby_player_f2"
-
-#define VEYE_COMMANDS_FOLDER "/usr/local/share/veye-raspberrypi"
-#define VEYE_COMMANDS_FOLDER307 "/usr/local/share/veye-raspberrypi/307"
 
 #endif
 

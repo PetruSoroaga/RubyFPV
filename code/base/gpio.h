@@ -6,7 +6,11 @@
 #define LOW  0
 #define HIGH 1
 
-// Buttons are pull down or pulled up. 0 logic is taking them down to 0v. 1 logic is taking them to 3.3v
+// Buttons are pull down or pulled up.
+// 0 logic is taking them down to 0v
+// 1 logic is taking them to 3.3v
+
+#ifdef HW_PLATFORM_RASPBERRY
 
 #define GPIO_PIN_MENU 23
 #define GPIO_PIN_BACK 24
@@ -27,6 +31,30 @@
 #define GPIO_PIN_LED_ERROR 5
 #define GPIO_PIN_RECORDING_LED 21
 #define GPIO_PIN_BUZZER 26
+#endif
+
+#ifdef HW_PLATFORM_RADXA_ZERO3
+#define GPIO_PIN_MENU 97 // PIN_11: bank 3 (x32), index 1 (+1)
+#define GPIO_PIN_BACK 98 // PIN_13
+#define GPIO_PIN_PLUS 105 // PIN_16
+#define GPIO_PIN_MINUS 106 // PIN_18
+
+
+#define GPIO_PIN_QACTION1 114 // PIN_32
+#define GPIO_PIN_QACTION2 102 // PIN_38
+#define GPIO_PIN_QACTION2_2 -1
+#define GPIO_PIN_QACTION3 101 //PIN_40
+#define GPIO_PIN_QACTIONPLUS -1
+#define GPIO_PIN_QACTIONMINUS -1
+
+
+#define GPIO_PIN_DETECT_TYPE_VEHICLE -1
+#define GPIO_PIN_DETECT_TYPE_CONTROLLER -1
+
+#define GPIO_PIN_LED_ERROR -1
+#define GPIO_PIN_RECORDING_LED -1
+#define GPIO_PIN_BUZZER -1
+#endif
 
 #ifdef __cplusplus
 extern "C" {

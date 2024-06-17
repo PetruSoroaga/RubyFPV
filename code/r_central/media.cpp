@@ -230,10 +230,17 @@ bool media_take_screenshot(bool bIncludeOSD)
    }
 
    char szFile[1024];
-
    media_get_screenshot_filename();
    strcpy(szFile, FOLDER_MEDIA);
    strcat(szFile, s_szMediaCurrentScreenshotFileName);
+   Popup* p = NULL;
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   log_line("Media Storage: Ttry to take screenshot to file: %s", szFile);
+  
+   p = new Popup("Screenshot capability not available on Radxa board", 0.1,0.72, 2);
+   popups_add_topmost(p);
+   return false;
+   #endif
 
    ruby_signal_alive();
    hw_launch_process2("./raspi2png", "-p", szFile);
@@ -242,7 +249,7 @@ bool media_take_screenshot(bool bIncludeOSD)
    log_line("Media Storage: Took a screenshot to file: %s", szFile);
    s_iScreenshotsCountOnDisk++;
 
-   Popup* p = new Popup("Screenshot taken", 0.1,0.72, 2);
+   p = new Popup("Screenshot taken", 0.1,0.72, 2);
    popups_add_topmost(p);
    return true;
 }

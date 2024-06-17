@@ -152,10 +152,6 @@ void _process_upload_apply()
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
    
-   // To fix: to remove
-   sprintf(szComm, "cp -rf %s /root/ruby/", s_szUpdateArchiveFile);
-   hw_execute_bash_command(szComm, NULL);
-
    #ifdef HW_PLATFORM_RASPBERRY
    log_line("Running on Raspberry hardware");
    sprintf(szComm, "tar -C %s -zxf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);

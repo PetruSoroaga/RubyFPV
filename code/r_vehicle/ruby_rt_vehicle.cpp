@@ -258,8 +258,8 @@ void close_and_mark_sik_interfaces_to_reopen()
          if ( (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == -1 ) ||
               (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == i) )
          {
-            radio_rx_pause_interface(i);
-            radio_tx_pause_radio_interface(i);
+            radio_rx_pause_interface(i, "SiK config start, close interfaces");
+            radio_tx_pause_radio_interface(i, "SiK config start, close interfaces");
             g_SiKRadiosState.bInterfacesToReopen[i] = true;
             hardware_radio_sik_close(i);
             iCount++;
@@ -814,6 +814,15 @@ void process_and_send_packets()
          // Update Ruby telemetry info if we are sending Ruby telemetry to controller
          // Update also the telemetry extended extra info: retransmissions info
 
+         if ( pPH->packet_type == PACKET_TYPE_DEBUG_INFO )
+         {
+            type_u32_couters* pCounters = (type_u32_couters*) (pPacketBuffer + sizeof(t_packet_header));
+            memcpy(pCounters, &g_CoutersMainLoop, sizeof(type_u32_couters));
+
+            type_radio_tx_timers* pRadioTxInfo = (type_radio_tx_timers*) (pPacketBuffer + sizeof(t_packet_header) + sizeof(type_u32_couters));
+            memcpy(pRadioTxInfo, &g_RadioTxTimers, sizeof(type_radio_tx_timers));
+         }
+
          if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
          {
             if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS) )
@@ -851,10 +860,7 @@ void process_and_send_packets()
                pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
             }
 
-            pPHRTE->txTimePerSec = 0;
-            if ( NULL != g_pCurrentModel )
-               for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-                  pPHRTE->txTimePerSec += g_InterfacesTxMiliSecTimePerSecond[i];
+            pPHRTE->txTimePerSec = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage;
 
             // Update extra info: retransmissions
             
@@ -1466,12 +1472,8 @@ int main(int argc, char *argv[])
    s_countTXDataPacketsOutPerSec[0] = s_countTXDataPacketsOutPerSec[1] = 0;
    s_countTXCompactedPacketsOutPerSec[0] = s_countTXCompactedPacketsOutPerSec[1] = 0;
 
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      g_InterfacesTxMiliSecTimePerSecond[i] = 0;
-      g_InterfacesVideoTxMiliSecTimePerSecond[i] = 0;
-   }
-
+   reset_radio_tx_timers(&g_RadioTxTimers);
+   
    for( int i=0; i<MAX_HISTORY_VEHICLE_TX_STATS_SLICES; i++ )
    {
       g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i] = 0xFF;
@@ -1548,6 +1550,8 @@ int main(int argc, char *argv[])
    radio_rx_start_rx_thread(&g_SM_RadioStats, NULL, 0, g_pCurrentModel->getVehicleFirmwareType());
    
    send_radio_config_to_controller();
+
+   reset_counters(&g_CoutersMainLoop);
 
    log_line("");
    log_line("");
@@ -1645,25 +1649,81 @@ int main(int argc, char *argv[])
    return 0;
 }
 
+void _update_main_loop_debug_info()
+{
+   g_CoutersMainLoop.uCounter++;
+   g_CoutersMainLoop.uCounter2++;
+
+   if ( g_CoutersMainLoop.uTime == 0 )
+   {
+      g_CoutersMainLoop.uTime = g_TimeNow;
+      g_CoutersMainLoop.uTime2 = g_TimeNow;
+      return;
+   }
+
+   if ( g_TimeNow < g_CoutersMainLoop.uTime + 500 )
+      return;
+
+
+   // Compute frames per second values
+   u32 dTime = g_TimeNow - g_CoutersMainLoop.uTime;
+   g_CoutersMainLoop.uValueNow = (g_CoutersMainLoop.uCounter2 * 1000) / dTime;
+
+   if ( (0 == g_CoutersMainLoop.uValueMinim) || (g_CoutersMainLoop.uValueNow < g_CoutersMainLoop.uValueMinim) )
+      g_CoutersMainLoop.uValueMinim = g_CoutersMainLoop.uValueNow;
+   if ( (0 == g_CoutersMainLoop.uValueMaxim) || (g_CoutersMainLoop.uValueNow > g_CoutersMainLoop.uValueMaxim) )
+      g_CoutersMainLoop.uValueMaxim = g_CoutersMainLoop.uValueNow;
+   if ( 0 == g_CoutersMainLoop.uValueAverage )
+      g_CoutersMainLoop.uValueAverage = g_CoutersMainLoop.uValueNow;
+   else
+      g_CoutersMainLoop.uValueAverage = (g_CoutersMainLoop.uValueAverage*9)/10 + g_CoutersMainLoop.uValueNow/10;
+
+   if ( (0 == g_CoutersMainLoop.uValueMinimLocal) || (g_CoutersMainLoop.uValueNow < g_CoutersMainLoop.uValueMinimLocal) )
+      g_CoutersMainLoop.uValueMinimLocal = g_CoutersMainLoop.uValueNow;
+   if ( (0 == g_CoutersMainLoop.uValueMaximLocal) || (g_CoutersMainLoop.uValueNow > g_CoutersMainLoop.uValueMaximLocal) )
+      g_CoutersMainLoop.uValueMaximLocal = g_CoutersMainLoop.uValueNow;
+   if ( 0 == g_CoutersMainLoop.uValueAverageLocal )
+      g_CoutersMainLoop.uValueAverageLocal = g_CoutersMainLoop.uValueNow;
+   else
+      g_CoutersMainLoop.uValueAverageLocal = (g_CoutersMainLoop.uValueAverageLocal*9)/10 + g_CoutersMainLoop.uValueNow/10;
+
+
+   g_CoutersMainLoop.uTime = g_TimeNow;
+   g_CoutersMainLoop.uCounter2 = 0;
+
+   //log_line("DEBUG Main Loop FPS (now, avg, min,max): %u, %u, %u, %u",
+   //    g_CoutersMainLoop.uValueNow, g_CoutersMainLoop.uValueAverage, g_CoutersMainLoop.uValueMinim, g_CoutersMainLoop.uValueMaxim);
+   //log_line("DEBUG Main Loop FPS local (now, avg, min,max): %u, %u, %u, %u",
+   //    g_CoutersMainLoop.uValueNow, g_CoutersMainLoop.uValueAverageLocal, g_CoutersMainLoop.uValueMinimLocal, g_CoutersMainLoop.uValueMaximLocal);
+
+   if ( g_TimeNow > g_CoutersMainLoop.uTime2 + 20000 )
+   {
+      //log_line("DEBUG Main Loop FPS: Reset local counters");
+      g_CoutersMainLoop.uValueAverageLocal = 0;
+      g_CoutersMainLoop.uValueMinimLocal = 0;
+      g_CoutersMainLoop.uValueMaximLocal = 0;
+      g_CoutersMainLoop.uTime2 = g_TimeNow;
+   }
+}
+
 void _main_loop()
 {
    // This loop executes at least 1000 times/sec
    // Processing riorities (highest to lowest):
-   // 1. Retransmissions requests
+   // 1. Retransmissions requests and pings
    // 2. Read input video/camera streams
    // 3. Send video to radio
    // 4. Process other radio in or IPC messages
    // 5. Periodic loops (at least 20Hz)
    // 6. Other minor tasks
  
-   static u32 s_uMainLoopCounter = 0;
-   s_uMainLoopCounter++;
-
+   _update_main_loop_debug_info();
+   
    int iCountRadioRxPacketsToConsume = 0;
    int iCountRadioRxPacketsToProcess = 0;
 
-   //-------------------------------------------
-   // Check and process retransmissions
+   //---------------------------------------------
+   // Check and process retransmissions and pings
 
    iCountRadioRxPacketsToConsume = radio_rx_has_packets_to_consume();
    if ( iCountRadioRxPacketsToConsume > 0 )
@@ -1682,8 +1742,16 @@ void _main_loop()
          u8* pPacket = s_ReceivedRadioPacketsBuffer[i].pPacketData;
 
          t_packet_header* pPH = (t_packet_header*) pPacket;
+
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
          if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) || (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
+         {
+            shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
+            process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
+         }
+
+         if ( (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK) ||
+              (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) )
          {
             shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
             process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
@@ -1723,6 +1791,9 @@ void _main_loop()
          if ( videoPacketsReadyToSend > 0 )
          if ( ! bDebugNoVideoOutput )
          {
+            //log_line("DEBUG sent %d video packs", videoPacketsReadyToSend);
+            if ( videoPacketsReadyToSend > 10 )
+               log_line("DEBUG video stall %d", videoPacketsReadyToSend );
             process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
          }
       }
@@ -1745,11 +1816,15 @@ void _main_loop()
          int iRadioInterfaceIndex = s_ReceivedRadioPacketsBuffer[i].iPacketRxInterface;
          u8* pPacket = s_ReceivedRadioPacketsBuffer[i].pPacketData;
 
+         // Skip retransmissions and pings as they where already processed
+
          t_packet_header* pPH = (t_packet_header*) pPacket;
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
          if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) || (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
             continue;
-
+         if ( (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK) ||
+              (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) )
+            continue;
          shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
          process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
       
@@ -1798,7 +1873,7 @@ void _main_loop()
    //-------------------------------------------
    // Process IPCs
 
-   if ( s_uMainLoopCounter % 10 ) // execute only 1/10th times
+   if ( g_CoutersMainLoop.uCounter % 10 ) // execute only 1/10th times
       return;
 
    static u32 s_uMainLoopIPCCheckLastTime = 0;
@@ -1814,7 +1889,7 @@ void _main_loop()
    //------------------------------------------
    // Periodic loops
 
-   if ( s_uMainLoopCounter % 20 ) // execute only 1/20th times
+   if ( g_CoutersMainLoop.uCounter % 20 ) // execute only 1/20th times
       return;
 
    static u32 s_uMainLoopPeriodicCheckLastTime = 0;

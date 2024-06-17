@@ -160,6 +160,7 @@ int hardware_enumerate_radio_interfaces_step(int iStep);
 int hardware_radio_load_radio_modules();
 
 int hardware_get_radio_interfaces_count();
+int hardware_get_supported_radio_interfaces_count();
 radio_hw_info_t* hardware_get_radio_info_array();
 int hardware_add_radio_interface_info(radio_hw_info_t* pRadioInfo);
 int hardware_get_radio_index_by_name(const char* szName);

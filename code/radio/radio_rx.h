@@ -4,7 +4,7 @@
 #include "../base/config.h"
 #include "../base/hardware.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 #define MAX_RX_PACKETS_QUEUE 500
 #else
 #define MAX_RX_PACKETS_QUEUE 50
@@ -66,7 +66,7 @@ void radio_rx_stop_rx_thread();
 void radio_rx_set_custom_thread_priority(int iPriority);
 void radio_rx_set_timeout_interval(int iMiliSec);
 
-void radio_rx_pause_interface(int iInterfaceIndex);
+void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason);
 void radio_rx_resume_interface(int iInterfaceIndex);
 void radio_rx_mark_quit();
 

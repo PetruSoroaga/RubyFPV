@@ -52,6 +52,8 @@ extern u16 s_countTXCompactedPacketsOutTemp;
 
 // Router
 
+extern type_u32_couters g_CoutersMainLoop;
+
 extern u32 s_debugVideoBlocksInCount;
 
 extern t_packet_queue g_QueueRadioPacketsOut;
@@ -78,9 +80,6 @@ extern u32 g_uControllerId;
 extern int s_iPendingFrequencyChangeLinkId;
 extern u32 s_uPendingFrequencyChangeTo;
 extern u32 s_uTimeFrequencyChangeRequest;
-
-extern u32 g_uTotalRadioTxTimePerSec;
-extern u32 g_uTotalVideoRadioTxTimePerSec;
 
 extern t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 extern t_packet_header_vehicle_tx_history g_PHVehicleTxStats;

@@ -885,7 +885,7 @@ int _must_inject_ping_now()
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
       return 0;
 
-   u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags);
+   u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags);
 
    //if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
    //   ping_interval_ms /= g_pCurrentModel->radioLinksParams.links_count;
@@ -943,7 +943,7 @@ bool _check_send_or_queue_ping()
       return false;
 
    if ( test_link_is_in_progress() )
-   if ( test_link_active() == iVehicleRadioLinkId )
+   if ( test_link_get_test_link_index() == iVehicleRadioLinkId )
       return false;
      
    u32 uDestinationVehicleId = 0;
@@ -1001,8 +1001,8 @@ bool _check_send_or_queue_ping()
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8);
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
       PH.total_length += get_controller_radio_link_stats_size();
    #endif
@@ -1018,7 +1018,7 @@ bool _check_send_or_queue_ping()
       memcpy(packet+sizeof(t_packet_header)+3*sizeof(u8), &uDestinationRelayMode, sizeof(u8));
    }
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( NULL != g_pCurrentModel && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if ( NULL != g_pCurrentModel && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
    {
       if ( (g_pCurrentModel->sw_version>>16) > 79 ) // 7.7
@@ -1358,10 +1358,7 @@ void init_shared_memory_objects()
    else
       shared_mem_radio_stats_rx_hist_reset(&g_SM_HistoryRxStats);
   
-   if ( NULL == g_pCurrentModel )
-      radio_stats_reset(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
-   else
-      radio_stats_reset(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
+   radio_stats_reset(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
 
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
@@ -1725,13 +1722,32 @@ void _router_periodic_loop()
    if ( test_link_is_in_progress() )
       test_link_loop();
 
+   static u32 s_uTimeRadioInterfacesWatchdog = 0;
+
+   if ( g_TimeNow > s_uTimeRadioInterfacesWatchdog + 2000 )
+   {
+      s_uTimeRadioInterfacesWatchdog = g_TimeNow;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+         if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
+            continue;
+
+         char szComm[128];
+         sprintf(szComm, "iw dev %s set monitor none", pRadioHWInfo->szName);
+         hw_execute_bash_command(szComm, NULL);
+      }
+   }
+
    if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
    {
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
          if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
             continue;
-         if ( radio_stats_get_reset_stream_lost_packets_flags(&g_SM_RadioStats, g_State.vehiclesRuntimeInfo[i].uVehicleId, STREAM_ID_TELEMETRY) )
+         if ( radio_stats_get_reset_stream_lost_packets_flags(&g_SM_RadioStats, g_State.vehiclesRuntimeInfo[i].uVehicleId, STREAM_ID_TELEMETRY) > 0 )
             send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA, 0);
       }
 
@@ -2365,7 +2381,7 @@ void video_processors_init()
    {
       rx_video_output_init();
       rx_video_output_enable_pipe_output();
-
+      log_line("Do one time init of processors rx video...");
       ProcessorRxVideo::oneTimeInit();
       init_processing_audio();
    }

@@ -42,7 +42,7 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
 {
    ControllerSettings* pCS = get_ControllerSettings();
 
-   m_Width = 0.33;
+   m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.22;
 
    char szBuff[256];
@@ -605,7 +605,7 @@ void MenuVehicleOSDStats::onSelectItem()
 
       //u32 scale = (params.osd_preferences[layoutIndex]>>16) & 0x0F;
       //osd_setScaleOSDStats((int)scale);
-      //if ( render_engine_is_raw() )
+      //if ( render_engine_uses_raw_fonts() )
       //   ruby_reload_osd_fonts();
 
       g_bChangedOSDStatsFontSize = true;

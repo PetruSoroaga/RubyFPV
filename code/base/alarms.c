@@ -114,7 +114,26 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
    }
    char szBuff[128];
    if ( ! (uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE) )
-      sprintf(szBuff, ", Flags1: %u, Flags2: %u", uFlags1, uFlags2);
+   {
+      char szFlags1[128];
+      szFlags1[0] = 0;
+      switch ( uFlags1 )
+      {
+         case ALARM_ID_GENERIC_TYPE_UNKNOWN_VIDEO: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_UNKNOWN_VIDEO"); break;
+         case ALARM_ID_GENERIC_TYPE_RECEIVED_DEPRECATED_MESSAGE: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_RECEIVED_DEPRECATED_MESSAGE"); break;
+         case ALARM_ID_GENERIC_TYPE_SWAP_RADIO_INTERFACES_NOT_POSSIBLE : strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_SWAP_RADIO_INTERFACES_NOT_POSSIBLE"); break;
+         case ALARM_ID_GENERIC_TYPE_SWAP_RADIO_INTERFACES_FAILED: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_SWAP_RADIO_INTERFACES_FAILED"); break;
+         case ALARM_ID_GENERIC_TYPE_SWAPPED_RADIO_INTERFACES: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_SWAPPED_RADIO_INTERFACES"); break;
+         case ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_LOST: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_LOST"); break;
+         case ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_RECOVERED: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_RELAYED_TELEMETRY_RECOVERED"); break;
+         case ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_ADAPTIVE_VIDEO_LEVEL_MISSMATCH"); break;
+         case ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_WRONG_OPENIPC_KEY"); break;
+         case ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA: strcpy(szFlags1, "ALARM_ID_GENERIC_TYPE_MISSED_TELEMETRY_DATA"); break;
+         default: sprintf(szFlags1, "Unknown (%d)", uFlags1);
+
+      }
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), ", Flags1: %s, Flags2: %u", szFlags1, uFlags2);
+   }
    else
    {
       char szFlags1[128];

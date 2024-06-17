@@ -186,17 +186,18 @@ void popups_remove_all(Popup* pExceptionPopup)
 
 void popups_render()
 {
-   if ( render_engine_is_raw() )
+   if ( render_engine_uses_raw_fonts() )
       POPUP_LINE_SPACING = 0.2;
+
+   g_pRenderEngine->disableRectBlending();
 
    float alfa = g_pRenderEngine->getGlobalAlfa();
 
    //log_line("Render %d popups", countPopups);
 
    if ( isMenuOn() )
-   {
       g_pRenderEngine->setGlobalAlfa(0.47);
-   }
+
    for( int i=0; i<countPopups; i++ )
       if ( NULL != sPopups[i] )
       {
@@ -208,7 +209,9 @@ void popups_render()
       }
 
    g_pRenderEngine->setGlobalAlfa(alfa);
+   g_pRenderEngine->enableRectBlending();
 
+   // Remove expired ones (NULL)
    int index = 0;
    int skip = 0;
    while( index < countPopups )
@@ -226,7 +229,8 @@ void popups_render()
 
 void popups_render_topmost()
 {
-   float alfa = g_pRenderEngine->setGlobalAlfa(1.2);
+   float alfa = g_pRenderEngine->setGlobalAlfa(1.0);
+   g_pRenderEngine->disableRectBlending();
 
    //log_line("Render %d topmost popups", countPopupsTopmost);
 
@@ -239,7 +243,9 @@ void popups_render_topmost()
       }
 
    g_pRenderEngine->setGlobalAlfa(alfa);
+   g_pRenderEngine->enableRectBlending();
 
+   // Remove expired ones (NULL)
    int index = 0;
    int skip = 0;
    while( index < countPopupsTopmost )
@@ -789,11 +795,10 @@ void Popup::Render()
    double colorBg[4];
    memcpy(&colorBg, get_Color_PopupBg(), 4*sizeof(double));
    colorBg[3] = colorBg[3] * m_fBackgroundAlpha;
-
+   if ( colorBg[3] > 1.0 )
+      colorBg[3] = 1.0;
    if ( m_fBackgroundAlpha < 0.99 )
-   {
       g_pRenderEngine->setColors(colorBg);
-   }
    else
    {
       g_pRenderEngine->setColors(get_Color_PopupBg());

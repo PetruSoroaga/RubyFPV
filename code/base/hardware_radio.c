@@ -59,6 +59,7 @@ static int s_iFoundUSBRadioInterfaces = 0;
 
 static radio_hw_info_t sRadioInfo[MAX_RADIO_INTERFACES];
 static int s_iHwRadiosCount = 0;
+static int s_iHwRadiosSupportedCount = 0;
 static int s_HardwareRadiosEnumeratedOnce = 0;
 
 
@@ -101,6 +102,8 @@ void hardware_save_radio_info()
    int pos = 0;
    memcpy(buffer+pos, &s_iHwRadiosCount, sizeof(s_iHwRadiosCount));
    pos += sizeof(s_iHwRadiosCount);
+   memcpy(buffer+pos, &s_iHwRadiosSupportedCount, sizeof(s_iHwRadiosSupportedCount));
+   pos += sizeof(s_iHwRadiosSupportedCount);
    for( int i=0; i<s_iHwRadiosCount; i++ )
    {
       memcpy(buffer+pos, &(sRadioInfo[i]), sizeof(radio_hw_info_t));
@@ -141,6 +144,15 @@ int hardware_load_radio_info()
          succeeded = 0;
       memcpy(bufferIn+posIn, &s_iHwRadiosCount, sizeof(s_iHwRadiosCount));
       posIn += sizeof(s_iHwRadiosCount);
+   }
+   if ( succeeded )
+   {
+      if ( sizeof(s_iHwRadiosSupportedCount) != fread(&s_iHwRadiosSupportedCount, 1, sizeof(s_iHwRadiosSupportedCount), fp) )
+         succeeded = 0;
+      if ( s_iHwRadiosSupportedCount < 0 || s_iHwRadiosSupportedCount >= MAX_RADIO_INTERFACES )
+         succeeded = 0;
+      memcpy(bufferIn+posIn, &s_iHwRadiosSupportedCount, sizeof(s_iHwRadiosSupportedCount));
+      posIn += sizeof(s_iHwRadiosSupportedCount);
    }
    if ( succeeded )
    {
@@ -663,6 +675,7 @@ int _hardware_enumerate_wifi_radios()
 
    _hardware_find_usb_radio_interfaces_info();
 
+   log_line("[HardwareRadio] Finding wireless radio cards...");
    FILE* fp = popen("ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot", "r" );
    if ( NULL == fp )
    {
@@ -675,6 +688,20 @@ int _hardware_enumerate_wifi_radios()
    while (fgets(szBuff, 255, fp) != NULL)
    {
       sscanf(szBuff, "%s", sRadioInfo[s_iHwRadiosCount].szName);
+      
+      if ( 0 == sRadioInfo[s_iHwRadiosCount].szName[0] )
+         continue;
+      if ( 0 != strstr(sRadioInfo[s_iHwRadiosCount].szName, "wlx") )
+         continue;
+        
+      log_line("[HardwareRadio] Parsing found wireless radio: [%s]", sRadioInfo[s_iHwRadiosCount].szName);
+      if ( 0 == strstr(sRadioInfo[s_iHwRadiosCount].szName, "wlan" ) )
+      if ( 0 == strstr(sRadioInfo[s_iHwRadiosCount].szName, "wlx" ) )
+      {
+         log_line("[HardwareRadio] Skipping wireless radio [%s]", sRadioInfo[s_iHwRadiosCount].szName);
+         continue;
+      }
+      
       sRadioInfo[s_iHwRadiosCount].iCardModel = 0;
       sRadioInfo[s_iHwRadiosCount].isSupported = 0;
       sRadioInfo[s_iHwRadiosCount].isSerialRadio = 0;
@@ -711,6 +738,7 @@ int _hardware_enumerate_wifi_radios()
    pclose(fp);
 
    log_line("[HardwareRadio] Found a total of %d wifi cards. Get info about them...", s_iHwRadiosCount);
+   s_iHwRadiosSupportedCount = 0;
 
    for( int i=iStartIndex; i<s_iHwRadiosCount; i++ )
    {
@@ -744,6 +772,7 @@ int _hardware_enumerate_wifi_radios()
            (NULL != strstr(pszDriver,"rtl8812au")) ||
            (NULL != strstr(pszDriver,"rtl88XXau")) )
       {
+         s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Realtek");
          if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
@@ -757,6 +786,7 @@ int _hardware_enumerate_wifi_radios()
       // Experimental
       if ( NULL != strstr(pszDriver,"rtl88x2bu") )
       {
+         s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          sRadioInfo[i].isTxCapable = 0;
          strcpy(sRadioInfo[i].szDescription, "Realtek");
@@ -765,18 +795,21 @@ int _hardware_enumerate_wifi_radios()
 
       if ( NULL != strstr(pszDriver,"rt2800usb") )
       {
+         s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Ralink");
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_RALINK | (RADIO_HW_DRIVER_RALINK<<8);
       }
       if ( NULL != strstr(pszDriver, "mt7601u") )
       {
+         s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Mediatek");
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_MEDIATEK | (RADIO_HW_DRIVER_MEDIATEK<<8);
       }
       if ( NULL != strstr(pszDriver, "ath9k_htc") )
       {
+         s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Atheros");
          sRadioInfo[i].typeAndDriver = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
@@ -1020,6 +1053,13 @@ int hardware_get_radio_interfaces_count()
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
    return s_iHwRadiosCount;
+}
+
+int hardware_get_supported_radio_interfaces_count()
+{
+   if ( ! s_HardwareRadiosEnumeratedOnce )
+      hardware_enumerate_radio_interfaces();
+   return s_iHwRadiosSupportedCount;
 }
 
 int hardware_add_radio_interface_info(radio_hw_info_t* pRadioInfo)

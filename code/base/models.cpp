@@ -572,7 +572,7 @@ bool Model::loadVersion8(FILE* fd)
       { log_softerror_and_alarm("Load model8: Error: missing count of video link profiles"); bOk = false; tmp7=0; }
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      { video_link_profiles[i].flags = 0; video_link_profiles[i].encoding_extra_flags = 0; }
+      { video_link_profiles[i].flags = 0; video_link_profiles[i].uEncodingFlags = 0; }
 
    if ( tmp7 < 0 || tmp7 > MAX_VIDEO_LINK_PROFILES )
       tmp7 = MAX_VIDEO_LINK_PROFILES;
@@ -582,7 +582,7 @@ bool Model::loadVersion8(FILE* fd)
       if ( ! bOk )
         { log_softerror_and_alarm("Load model8: Error on video link profiles 0"); bOk = false; }
  
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].encoding_extra_flags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
+      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].uEncodingFlags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 1"); bOk = false; }
 
       video_link_profiles[i].radio_datarate_video_bps *= 1000 * 1000;
@@ -1179,7 +1179,7 @@ bool Model::loadVersion9(FILE* fd)
       { log_softerror_and_alarm("Load model8: Error: missing count of video link profiles"); bOk = false; tmp7=0; }
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      { video_link_profiles[i].flags = 0; video_link_profiles[i].encoding_extra_flags = 0; }
+      { video_link_profiles[i].flags = 0; video_link_profiles[i].uEncodingFlags = 0; }
 
    if ( tmp7 < 0 || tmp7 > MAX_VIDEO_LINK_PROFILES )
       tmp7 = MAX_VIDEO_LINK_PROFILES;
@@ -1189,7 +1189,7 @@ bool Model::loadVersion9(FILE* fd)
       if ( ! bOk )
         { log_softerror_and_alarm("Load model8: Error on video link profiles 0"); bOk = false; }
  
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].encoding_extra_flags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
+      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].uEncodingFlags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 1"); bOk = false; }
 
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
@@ -1771,7 +1771,7 @@ bool Model::loadVersion10(FILE* fd)
       { log_softerror_and_alarm("Load model8: Error: missing count of video link profiles"); bOk = false; tmp7=0; }
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      { video_link_profiles[i].flags = 0; video_link_profiles[i].encoding_extra_flags = 0; }
+      { video_link_profiles[i].flags = 0; video_link_profiles[i].uEncodingFlags = 0; }
 
    if ( tmp7 < 0 || tmp7 > MAX_VIDEO_LINK_PROFILES )
       tmp7 = MAX_VIDEO_LINK_PROFILES;
@@ -1781,7 +1781,7 @@ bool Model::loadVersion10(FILE* fd)
       if ( ! bOk )
         { log_softerror_and_alarm("Load model8: Error on video link profiles 0"); bOk = false; }
  
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].encoding_extra_flags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
+      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].flags), &(video_link_profiles[i].uEncodingFlags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 1"); bOk = false; }
 
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
@@ -2405,7 +2405,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    strcat(szModel, szSetting);
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      sprintf(szSetting, "%u %u %u %d %d %u   ", video_link_profiles[i].flags, video_link_profiles[i].encoding_extra_flags, video_link_profiles[i].bitrate_fixed_bps, video_link_profiles[i].radio_datarate_video_bps, video_link_profiles[i].radio_datarate_data_bps, video_link_profiles[i].radio_flags);
+      sprintf(szSetting, "%u %u %u %d %d %u   ", video_link_profiles[i].flags, video_link_profiles[i].uEncodingFlags, video_link_profiles[i].bitrate_fixed_bps, video_link_profiles[i].radio_datarate_video_bps, video_link_profiles[i].radio_datarate_data_bps, video_link_profiles[i].radio_flags);
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
       strcat(szModel, szSetting);
@@ -2657,10 +2657,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
       if ( (iProfile != -1) && (iProfile != i) )
          continue;
       video_link_profiles[i].flags = 0;
-      video_link_profiles[i].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      video_link_profiles[i].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-      video_link_profiles[i].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[i].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[i].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[i].radio_datarate_video_bps = 0; // Auto
       video_link_profiles[i].radio_datarate_data_bps = 0; // Auto
       video_link_profiles[i].radio_flags = 0;
@@ -2701,11 +2701,11 @@ void Model::resetVideoLinkProfiles(int iProfile)
    if ( iProfile == -1 || iProfile == VIDEO_PROFILE_BEST_PERF )
    {
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
@@ -2721,10 +2721,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
    if ( iProfile == -1 || iProfile == VIDEO_PROFILE_HIGH_QUALITY )
    {
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
    video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
@@ -2734,10 +2734,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
    if ( iProfile == -1 || iProfile == VIDEO_PROFILE_USER )
    {
    video_link_profiles[VIDEO_PROFILE_USER].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_USER].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
    video_link_profiles[VIDEO_PROFILE_USER].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
@@ -2747,10 +2747,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
    if ( iProfile == -1 || iProfile == VIDEO_PROFILE_MQ )
    {
    video_link_profiles[VIDEO_PROFILE_MQ].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-   video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
-   video_link_profiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
+   video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps = 0;
    video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_data_bps = 0;
    video_link_profiles[VIDEO_PROFILE_MQ].h264profile = 2; // high
@@ -2771,10 +2771,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
    if ( iProfile == -1 || iProfile == VIDEO_PROFILE_LQ )
    {
    video_link_profiles[VIDEO_PROFILE_LQ].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
-   video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME;
-   video_link_profiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+   video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+   video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
+   video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps = 0;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_data_bps = 0;
    video_link_profiles[VIDEO_PROFILE_LQ].radio_flags = 0;
@@ -2815,8 +2815,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
       if ( (iProfile != -1) && (iProfile != i) )
          continue;
 
-      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+      video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
    }
 
    // Auto H264 quantization is not implemented in openIPC
@@ -2830,7 +2830,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
       if ( (iProfile != -1) && (iProfile != i) )
          continue;
 
-      video_link_profiles[i].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
    }
 
    if ( -1 == iProfile )
@@ -3124,6 +3124,9 @@ void Model::populateRadioInterfacesInfoFromHardware()
       else
          radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
        
+      if ( ! pRadioHWInfo->isSupported )
+         radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_DISABLED;
+        
       radioInterfacesParams.interface_supported_bands[i] = pRadioHWInfo->supportedBands;
       radioInterfacesParams.interface_type_and_driver[i] = pRadioHWInfo->typeAndDriver;
       if ( pRadioHWInfo->isSupported )
@@ -3187,7 +3190,8 @@ void Model::populateDefaultRadioLinksInfoFromRadioInterfaces()
 
       if ( radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
          continue;
-
+      if ( ! pRadioHWInfo->isSupported )
+         continue;
       addNewRadioLinkForRadioInterface(i, &bDefault24Used, &bDefault24_2Used, &bDefault58Used, &bDefault58_2Used);
       radioLinksParams.links_count++;
    }
@@ -3555,6 +3559,24 @@ int Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, t
          log_line("* Radio Link %d uplink data rate type changed from %d to %d", i+1, pData1->uUplinkDataDataRateType[i], pData2->uUplinkDataDataRateType[i]);
          iDifferences++;
       }
+
+      if ( pData1->uSerialPacketSize[i] != pData2->uSerialPacketSize[i] )
+      {
+         log_line("* Radio Link %d serial packet size changed from %d to %d", i+1, pData1->uSerialPacketSize[i], pData2->uSerialPacketSize[i]);
+         iDifferences++;
+      }
+   }
+
+   if ( pData1->iSiKPacketSize != pData2->iSiKPacketSize )
+   {
+      log_line("* Radio Links SiK packet size changed from %d to %d", pData1->iSiKPacketSize, pData2->iSiKPacketSize);
+      iDifferences++;
+   }
+
+   if ( pData1->uGlobalRadioLinksFlags != pData2->uGlobalRadioLinksFlags )
+   {
+      log_line("* Radio Links global radio links flags changed from %u to %u", pData1->uGlobalRadioLinksFlags, pData2->uGlobalRadioLinksFlags);
+      iDifferences++;
    }
 
    if ( 0 == iDifferences )
@@ -5055,7 +5077,7 @@ void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamPro
 
 bool Model::isVideoLinkFixedOneWay()
 {
-   if ( video_link_profiles[video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+   if ( video_link_profiles[video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
       return true;
 
    if ( radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
@@ -5232,7 +5254,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
 
    //if ( isActiveCameraCSICompatible() )
    //{
-   //   bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false; 
+   //   bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false; 
    //   if ( bUseAdaptiveVideo )
    //      sprintf(szBuff, "-b %d", 1500000);
    //}
@@ -5649,7 +5671,7 @@ int Model::get_video_profile_total_levels(int iProfile)
    int iDataCount = video_link_profiles[iProfile].block_packets;
    int iECCount = video_link_profiles[iProfile].block_fecs;
 
-   if ( video_link_profiles[iProfile].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME )
+   if ( video_link_profiles[iProfile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME )
    if ( iProfile != video_params.user_selected_video_link_profile )
    if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].block_packets )
    {
@@ -5724,7 +5746,7 @@ int Model::get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* pi
    int iDataCount = video_link_profiles[iVideoProfile].block_packets;
    int iECCount = video_link_profiles[iVideoProfile].block_fecs;
 
-   if ( video_link_profiles[iVideoProfile].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME )
+   if ( video_link_profiles[iVideoProfile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME )
    if ( iVideoProfile != video_params.user_selected_video_link_profile )
    if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].block_packets )
    {

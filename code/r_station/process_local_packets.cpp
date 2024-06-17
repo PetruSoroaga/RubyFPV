@@ -455,25 +455,20 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
    {
       u8* pBuffer = (u8*)pPH;
-      u8 uLink = pBuffer[sizeof(t_packet_header)];
-      int iTestNb = pBuffer[sizeof(t_packet_header)+1];
-      int iMsgType = pBuffer[sizeof(t_packet_header)+2];
-      log_line("[TestLink] Received test link message from central, run %d, link %d. Message type: %s", iTestNb, (int)uLink+1, str_get_packet_test_link_command(iMsgType));
-      if ( pPH->total_length != sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters) )
+      pBuffer += sizeof(t_packet_header);
+      int iHeaderSize = (int)pBuffer[1];
+      int iVehicleLinkIndex = pBuffer[2];
+      int iTestNb = pBuffer[3];
+      int iCmdType = pBuffer[4];
+      log_line("[TestLink] Received test link message from central, run %d, vehicle link %d. Command type: %s", iTestNb, (int)iVehicleLinkIndex+1, str_get_packet_test_link_command(iCmdType));
+      if ( pPH->total_length != sizeof(t_packet_header) + iHeaderSize + sizeof(type_radio_links_parameters) )
       {
          test_link_send_status_message_to_central("Invalid radio parameters.");
          test_link_send_end_message_to_central(false);
-         test_link_switch_to_end_flow_state(false);
-         test_link_reset_state();
          return;
       }
-      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->uVehicleId, (int)uLink, (type_radio_links_parameters*)(pBuffer + sizeof(t_packet_header) + 3*sizeof(u8)) ) )
-      {
-         test_link_send_status_message_to_central("Invalid radio parameters.");
-         test_link_send_end_message_to_central(false);
-         test_link_switch_to_end_flow_state(false);
-         test_link_reset_state();
-      }
+      if ( ! test_link_start(g_uControllerId, g_pCurrentModel->uVehicleId, iVehicleLinkIndex, (type_radio_links_parameters*)(pBuffer + iHeaderSize)) )
+         return;
       return;
    }
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLLER_RELOAD_CORE_PLUGINS )
@@ -564,8 +559,8 @@ void process_local_control_packet(t_packet_header* pPH)
 
       if ( uCommandId == 1 )
       {
-         radio_rx_pause_interface(iLocalRadioInterfaceIndex);
-         radio_tx_pause_radio_interface(iLocalRadioInterfaceIndex);
+         radio_rx_pause_interface(iLocalRadioInterfaceIndex, "SiK configuration");
+         radio_tx_pause_radio_interface(iLocalRadioInterfaceIndex, "SiK configuration");
       }
 
       if ( uCommandId == 2 )
@@ -610,7 +605,7 @@ void process_local_control_packet(t_packet_header* pPH)
       }
       log_line("Received local message to change the search frequency to %s", str_format_frequency(pPH->vehicle_id_dest));
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-         radio_rx_pause_interface(i);
+         radio_rx_pause_interface(i, "Controller search freq changed");
       links_set_cards_frequencies_for_search((int)pPH->vehicle_id_dest, false, -1,-1,-1,-1 );
       hardware_save_radio_info();
       log_line("Switched search frequency to %s. Broadcasting that router is ready.", str_format_frequency(pPH->vehicle_id_dest));

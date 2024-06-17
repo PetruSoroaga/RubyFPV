@@ -398,7 +398,7 @@ static void * _thread_keyboard(void *argument)
          s_bHasLongPressFlag = true;
       else
          s_bHasLongPressFlag = false;
-      hardware_sleep_ms(10);
+      hardware_sleep_ms(15);
 
       if ( ! (*pbInitialized) )
          break;

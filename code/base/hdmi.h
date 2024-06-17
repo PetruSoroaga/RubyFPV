@@ -4,7 +4,9 @@
 extern "C" {
 #endif 
 
-void hdmi_init_modes();
+void hdmi_enum_modes();
+
+int hdmi_load_current_mode();
 
 int hdmi_get_resolutions_count();
 
@@ -24,6 +26,7 @@ int hdmi_get_resolution_refresh_rate(int index, int index2);
 
 int hdmi_set_current_resolution(int width, int height, int refresh);
 
+int hdmi_get_best_resolution_index_for(int iWidth, int iHeight, int iRefresh);
 
 #ifdef __cplusplus
 }  

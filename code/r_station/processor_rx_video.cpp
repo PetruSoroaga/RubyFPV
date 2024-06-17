@@ -136,6 +136,7 @@ ProcessorRxVideo::ProcessorRxVideo(u32 uVehicleId, u32 uVideoStreamIndex)
    m_TimeLastVideoStatsUpdate = 0;
    m_TimeLastHistoryStatsUpdate = 0;
    m_TimeLastRetransmissionsStatsUpdate = 0;
+   m_uTimeLastReceivedVideoPacket = 0;
    for( int i=0; i<MAX_RXTX_BLOCKS_BUFFER; i++ )
       m_pRXBlocksStack[i] = NULL;
 }
@@ -203,7 +204,7 @@ bool ProcessorRxVideo::init()
    m_SM_VideoDecodeStats.total_DiscardedBuffers = 0;
    m_SM_VideoDecodeStats.total_DiscardedLostPackets = 0;
    m_SM_VideoDecodeStats.totalEncodingSwitches = 0;
-   m_SM_VideoDecodeStats.uEncodingExtraFlags2 = 0;
+   m_SM_VideoDecodeStats.uEncodingFlags2 = 0;
 
    Model* pModel = findModelWithId(m_uVehicleId, 120);
    if ( NULL != pModel )
@@ -215,8 +216,8 @@ bool ProcessorRxVideo::init()
 
       m_SM_VideoDecodeStats.video_stream_and_type = 0;
       m_SM_VideoDecodeStats.video_link_profile = pModel->video_params.user_selected_video_link_profile | (pModel->video_params.user_selected_video_link_profile<<4);
-      m_SM_VideoDecodeStats.encoding_extra_flags = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags;
-      log_line("[VideoRx] Set default video encoding extra flags based on local model and user selected video profile. Flags: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.encoding_extra_flags));
+      m_SM_VideoDecodeStats.uEncodingFlags = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags;
+      log_line("[VideoRx] Set default video encoding flags based on local model and user selected video profile. Flags: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uEncodingFlags));
       m_SM_VideoDecodeStats.data_packets_per_block = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].block_packets;
       m_SM_VideoDecodeStats.fec_packets_per_block = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].block_fecs;
       m_SM_VideoDecodeStats.video_data_length = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].video_data_length;
@@ -235,9 +236,9 @@ bool ProcessorRxVideo::init()
 
       m_SM_VideoDecodeStats.video_stream_and_type = 0;
       m_SM_VideoDecodeStats.video_link_profile = VIDEO_PROFILE_BEST_PERF | (VIDEO_PROFILE_BEST_PERF<<4);
-      m_SM_VideoDecodeStats.encoding_extra_flags = ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS | ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO | ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      m_SM_VideoDecodeStats.encoding_extra_flags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      log_line("[VideoRx] Set default video encoding extra flags with no model present. Flags: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.encoding_extra_flags));
+      m_SM_VideoDecodeStats.uEncodingFlags = VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO | VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      m_SM_VideoDecodeStats.uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      log_line("[VideoRx] Set default video encoding flags with no model present. Flags: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uEncodingFlags));
       m_SM_VideoDecodeStats.data_packets_per_block = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
       m_SM_VideoDecodeStats.fec_packets_per_block = DEFAULT_VIDEO_BLOCK_FECS_HP;
       m_SM_VideoDecodeStats.video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
@@ -306,7 +307,7 @@ void ProcessorRxVideo::resetReceiveState()
    
    // Compute how many blocks to buffer
 
-   m_iMilisecondsMaxRetransmissionWindow = ((m_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_MAX_RETRANSMISSION_WINDOW_MASK) >> 8) * 5;
+   m_iMilisecondsMaxRetransmissionWindow = ((m_SM_VideoDecodeStats.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK) >> 8) * 5;
    m_uRetryRetransmissionAfterTimeoutMiliseconds = g_pControllerSettings->nRetryRetransmissionAfterTimeoutMS;
    m_uTimeIntervalMsForRequestingRetransmissions = 10;
 
@@ -705,7 +706,7 @@ void ProcessorRxVideo::pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool 
       {
          int iIndex = getVehicleRuntimeIndex(m_uVehicleId);
          if ( -1 != iIndex )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex]++;  
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex]++;  
       }
 
       if ( (m_pRXBlocksStack[i]->received_data_packets < m_pRXBlocksStack[i]->data_packets) &&
@@ -714,7 +715,7 @@ void ProcessorRxVideo::pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool 
          reconstructBlock(i);
          int iIndex = getVehicleRuntimeIndex(m_uVehicleId);
          if ( -1 != iIndex )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex]++;  
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex]++;  
       }
 
       if ( m_pRXBlocksStack[i]->received_data_packets >= m_pRXBlocksStack[i]->data_packets )
@@ -790,7 +791,7 @@ void ProcessorRxVideo::pushFirstBlockOut()
       {
          int iIndex = getVehicleRuntimeIndex(m_uVehicleId);
          if ( -1 != iIndex )
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex]++;  
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex]++;  
 
          reconstructBlock(0);
          //_log_current_buffer();
@@ -807,7 +808,7 @@ void ProcessorRxVideo::pushFirstBlockOut()
 
       int iIndex = getVehicleRuntimeIndex(m_uVehicleId);
       if ( -1 != iIndex )
-         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex]++;
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex]++;
    }
 
    #ifdef PROFILE_RX
@@ -853,6 +854,11 @@ void ProcessorRxVideo::pushFirstBlockOut()
 u32 ProcessorRxVideo::getLastTimeVideoStreamChanged()
 {
    return m_uTimeLastVideoStreamChanged;
+}
+
+u32 ProcessorRxVideo::getLastTimeReceivedVideoPacket()
+{
+   return m_uTimeLastReceivedVideoPacket;
 }
 
 int ProcessorRxVideo::getCurrentlyReceivedVideoProfile()
@@ -998,7 +1004,7 @@ void ProcessorRxVideo::periodicLoop(u32 uTimeNow)
       return;
    }
 
-   if ( (m_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
+   if ( (m_SM_VideoDecodeStats.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS) )
    if ( relay_controller_must_display_video_from(g_pCurrentModel, m_uVehicleId) )
       bRetr = true;
 
@@ -1056,6 +1062,8 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    u32 video_block_index = pPHVF->video_block_index;
    u8 video_block_packet_index = pPHVF->video_block_packet_index;
 
+   m_uTimeLastReceivedVideoPacket = g_TimeNow;
+   
    checkAndDiscardBlocksTooOld();
    
    Model* pModel = findModelWithId(pPH->vehicle_id_src, 122);
@@ -1533,7 +1541,7 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
 
    if ( pModel->isVideoLinkFixedOneWay() )
       return;
-   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
+   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS) )
       return;
 
    if ( g_TimeNow < m_uLastTimeRequestedRetransmission + m_uTimeIntervalMsForRequestingRetransmissions )
@@ -1609,8 +1617,8 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
       // If not aggressive video retransmissions, do not request missing packets from most recent x blocks (based on EC spread factor) if they have most packets received already
       if ( ! (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_RETRANSMISSIONS_FAST) )
       {
-          u32 uECSpreadHigh = (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-          u32 uECSpreadLow = (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+          u32 uECSpreadHigh = (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+          u32 uECSpreadLow = (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
           int iECSpread = (int)(uECSpreadLow + (uECSpreadHigh<<1));
           if ( i > iBlockEndIndex-iECSpread )
           {
@@ -1817,8 +1825,8 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
    int iIndex = getVehicleRuntimeIndex(m_uVehicleId);
    if ( -1 != iIndex )
    {
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsRequestedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex] += totalCountRequestedNew;
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsRetriedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uCurrentIntervalIndex] += totalCountReRequested;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsRequestedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex] += totalCountRequestedNew;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uIntervalsRetriedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentIntervalIndex] += totalCountReRequested;
    }
 
    m_SM_RetransmissionsStats.history[0].uCountRequestedRetransmissions++;
@@ -1887,8 +1895,8 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO  
    if ( NULL != pModel )
-   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
       PH.total_length += get_controller_radio_link_stats_size();
    #endif
@@ -1898,7 +1906,7 @@ void ProcessorRxVideo::checkAndRequestMissingPackets()
    memcpy(packet + sizeof(t_packet_header), buffer, bufferLength);
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( NULL != pModel && (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if ( NULL != pModel && (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
    {
       add_controller_radio_link_stats_to_buffer(packet + sizeof(t_packet_header)+bufferLength);
@@ -1929,7 +1937,7 @@ void ProcessorRxVideo::addPacketToReceivedBlocksBuffers(u8* pBuffer, int length,
    int iLastAckKeyframeInterval = 0;
    int iLastAckVideoLevelShift = 0;
    u32 uLastSetVideoBitrate = 0;
-   u32 uEncodingExtraFlags2 = 0;
+   u32 uEncodingFlags2 = 0;
    
    t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
    video_block_index = pPHVF->video_block_index;
@@ -1938,7 +1946,7 @@ void ProcessorRxVideo::addPacketToReceivedBlocksBuffers(u8* pBuffer, int length,
    iLastAckKeyframeInterval = pPHVF->uLastAckKeyframeInterval;
    iLastAckVideoLevelShift = pPHVF->uLastAckLevelShift;
    uLastSetVideoBitrate = pPHVF->uLastSetVideoBitrate;
-   uEncodingExtraFlags2 = pPHVF->encoding_extra_flags2;
+   uEncodingFlags2 = pPHVF->uEncodingFlags2;
 
 
    if ( m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[video_block_packet_index].uState & RX_PACKET_STATE_RECEIVED )
@@ -1953,7 +1961,7 @@ void ProcessorRxVideo::addPacketToReceivedBlocksBuffers(u8* pBuffer, int length,
         (video_block_index > m_uLastBlockReceivedEncodingExtraFlags2) )
    {
       m_uLastBlockReceivedEncodingExtraFlags2 = video_block_index;
-      m_SM_VideoDecodeStats.uEncodingExtraFlags2 = uEncodingExtraFlags2;
+      m_SM_VideoDecodeStats.uEncodingFlags2 = uEncodingFlags2;
    }
 
    if ( ! bWasRetransmitted )
@@ -2433,7 +2441,7 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
    int width = 0;
    int height = 0;
    u8 video_link_profile = 0;
-   u32 encoding_extra_flags = 0;
+   u32 uEncodingFlags = 0;
    int keyframe_ms = 0;
    u8 video_stream_and_type = 0;
    u8 video_fps = 0;
@@ -2442,7 +2450,7 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
    width = pPHVF->video_width;
    height = pPHVF->video_height;
    video_link_profile = pPHVF->video_link_profile;
-   encoding_extra_flags = pPHVF->encoding_extra_flags;
+   uEncodingFlags = pPHVF->uEncodingFlags;
    keyframe_ms = pPHVF->video_keyframe_interval_ms;
    video_stream_and_type = pPHVF->video_stream_and_type;
    video_fps = pPHVF->video_fps;
@@ -2460,7 +2468,7 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
    // Check if encodings changed (ignore flags related to tx only or irelevant: retransmission window, duplication percent)
 
    if ( (m_SM_VideoDecodeStats.video_link_profile & 0x0F) != (video_link_profile & 0x0F) ||
-        (m_SM_VideoDecodeStats.encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) ||
+        (m_SM_VideoDecodeStats.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) ||
         m_SM_VideoDecodeStats.data_packets_per_block != block_packets ||
         m_SM_VideoDecodeStats.fec_packets_per_block != block_fecs ||
         m_SM_VideoDecodeStats.video_data_length != video_data_length
@@ -2474,7 +2482,7 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
       bool bOnlyECschemeChanged = false;
       if ( (block_packets != m_SM_VideoDecodeStats.data_packets_per_block) || (block_fecs != m_SM_VideoDecodeStats.fec_packets_per_block) )
       if ( (m_SM_VideoDecodeStats.video_link_profile & 0x0F) == (video_link_profile & 0x0F) &&
-           (m_SM_VideoDecodeStats.encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) == (encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) &&
+           (m_SM_VideoDecodeStats.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) == (uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) &&
            (m_SM_VideoDecodeStats.video_data_length == video_data_length)
          )
          bOnlyECschemeChanged = true;
@@ -2497,8 +2505,8 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
             log_line("ec packets (from/to): %d -> %d", m_SM_VideoDecodeStats.fec_packets_per_block, block_fecs);
          if ( m_SM_VideoDecodeStats.video_data_length != video_data_length )
             log_line("video data length (from/to): %d -> %d", m_SM_VideoDecodeStats.video_data_length, video_data_length);
-         if ( (m_SM_VideoDecodeStats.encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
-            log_line("Encoding extra flags (from/to): %u -> %u", m_SM_VideoDecodeStats.encoding_extra_flags, encoding_extra_flags);
+         if ( (m_SM_VideoDecodeStats.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
+            log_line("Encoding flags (from/to): %u -> %u", m_SM_VideoDecodeStats.uEncodingFlags, uEncodingFlags);
          log_line("keyframe (from/to): %d ms -> %d ms", m_SM_VideoDecodeStats.keyframe_ms, keyframe_ms);
       }
       else
@@ -2510,24 +2518,24 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
       bool bReinitDueToWindowChange = false;
       if ( (video_link_profile & 0x0F) == pModel->video_params.user_selected_video_link_profile )
       if ( m_uLastReceivedVideoLinkProfile == pModel->video_params.user_selected_video_link_profile )
-      if ( (encoding_extra_flags & 0xFF00) != (m_SM_VideoDecodeStats.encoding_extra_flags & 0xFF00) )
+      if ( (uEncodingFlags & 0xFF00) != (m_SM_VideoDecodeStats.uEncodingFlags & 0xFF00) )
          bReinitDueToWindowChange = true;
 
-      if ( (m_SM_VideoDecodeStats.encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
+      if ( (m_SM_VideoDecodeStats.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
       {
-         log_line("[VideoRx] Encoding extra flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.encoding_extra_flags, encoding_extra_flags);
-         log_line("[VideoRx] Encoding extra flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.encoding_extra_flags));
-         log_line("[VideoRx] Encoding extra flags new: [%s]", str_format_video_encoding_flags(encoding_extra_flags));
+         log_line("[VideoRx] Encoding flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.uEncodingFlags, uEncodingFlags);
+         log_line("[VideoRx] Encoding flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uEncodingFlags));
+         log_line("[VideoRx] Encoding flags new: [%s]", str_format_video_encoding_flags(uEncodingFlags));
       }   
       m_SM_VideoDecodeStats.video_link_profile = video_link_profile;
-      m_SM_VideoDecodeStats.encoding_extra_flags = encoding_extra_flags;
+      m_SM_VideoDecodeStats.uEncodingFlags = uEncodingFlags;
       m_SM_VideoDecodeStats.data_packets_per_block = block_packets;
       m_SM_VideoDecodeStats.fec_packets_per_block = block_fecs;
       m_SM_VideoDecodeStats.video_data_length = video_data_length;
 
       if ( bReinitDueToWindowChange )
       {
-         log("[VideoRx] Retransmission window (milisec) has changed (to %d ms). Reinitializing rx state...", ((encoding_extra_flags & 0xFF00)>>8)*5);
+         log("[VideoRx] Retransmission window (milisec) has changed (to %d ms). Reinitializing rx state...", ((uEncodingFlags & 0xFF00)>>8)*5);
          resetReceiveState();
          resetOutputState();
          gap = 0;
@@ -2538,14 +2546,14 @@ int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer
 
    m_uLastReceivedVideoLinkProfile = (video_link_profile & 0x0F);
 
-   if ( (m_SM_VideoDecodeStats.encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (encoding_extra_flags & (~(ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
+   if ( (m_SM_VideoDecodeStats.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) != (uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE | 0x00FF0000))) )
    {
-      log_line("[VideoRx] Received video encoding extra flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.encoding_extra_flags, encoding_extra_flags);
-      log_line("[VideoRx] Video encoding extra flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.encoding_extra_flags));
-      log_line("[VideoRx] Video encoding extra flags new: [%s]", str_format_video_encoding_flags(encoding_extra_flags));
+      log_line("[VideoRx] Received video encoding flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.uEncodingFlags, uEncodingFlags);
+      log_line("[VideoRx] Video encoding flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uEncodingFlags));
+      log_line("[VideoRx] Video encoding flags new: [%s]", str_format_video_encoding_flags(uEncodingFlags));
    } 
 
-   m_SM_VideoDecodeStats.encoding_extra_flags = encoding_extra_flags;
+   m_SM_VideoDecodeStats.uEncodingFlags = uEncodingFlags;
    m_SM_VideoDecodeStats.video_stream_and_type = video_stream_and_type;
    m_SM_VideoDecodeStats.keyframe_ms = keyframe_ms;
    m_SM_VideoDecodeStats.fps = video_fps;
@@ -2665,7 +2673,7 @@ int ProcessorRxVideo::onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, 
 
    if ( pModel->isVideoLinkFixedOneWay() )
       bOutputBocksAsIs = true;
-   if ( !( m_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS ) )
+   if ( !( m_SM_VideoDecodeStats.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS ) )
       bOutputBocksAsIs = true;
    if ( g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds != 0 )
    if ( g_TimeNow > g_uTimeLastReceivedResponseToAMessage + g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds )
@@ -2674,8 +2682,8 @@ int ProcessorRxVideo::onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, 
    if ( bOutputBocksAsIs )
    {
       int iWaitBlocks = 0;
-      u32 uECSpreadHigh = (pPHVF->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (pPHVF->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpreadHigh = (pPHVF->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (pPHVF->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
       iWaitBlocks = uECSpreadLow + (uECSpreadHigh*2);
       if ( m_iRXBlocksStackTopIndex > iWaitBlocks )
       {

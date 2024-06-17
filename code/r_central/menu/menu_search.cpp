@@ -34,7 +34,6 @@
 
 #include "menu_item_text.h"
 #include "menu_search_connect.h"
-#include "menu_confirmation_import_key.h"
 #include "../process_router_messages.h"
 #include "../../base/utils.h"
 #include "../link_watch.h"
@@ -363,7 +362,6 @@ void MenuSearch::_add_menu_items()
    for( int i=0; i<10; i++ )
       m_pItemsSelect[i] = 0;
 
-   m_IndexImportKey = -1;
    m_IndexSiKInfo = -1;
    m_IndexSiKAirRate = -1;
    m_IndexSiKECC = -1;
@@ -428,8 +426,7 @@ void MenuSearch::_add_menu_items()
    m_IndexBand = addMenuItem(m_pItemSelectBand);
 
    m_IndexModelTypes = -1;
-   m_IndexImportKey = -1;
-
+   
    m_IndexStartSearch = addMenuItem(new MenuItem("Start Search", "Start/Stop searching for vehicles on current band."));
    m_IndexManualSearch = _populate_search_frequencies();
 
@@ -1319,11 +1316,6 @@ void MenuSearch::onSelectItem()
       return;
    }
 
-   if ( m_IndexImportKey == m_SelectedIndex )
-   {
-      add_menu_to_stack( new MenuConfirmationImportKey("Import Encryption Key", "Import a custom OpenIPC encryption key from a USB memory stick.", 5));
-      return;
-   }
    // Start/Stop Search
    if ( m_IndexStartSearch == m_SelectedIndex )
    {

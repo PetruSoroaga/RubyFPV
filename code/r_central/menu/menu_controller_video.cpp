@@ -74,6 +74,10 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsSelect[3]->setIsEditable();
    m_IndexHDMIRefreshRate = addMenuItem(m_pItemsSelect[3]);
 
+   m_IndexHDMIBoost = -1;
+   m_IndexHDMIOverscan = -1;
+
+   #if defined (HW_PLATFORM_RASPBERRY)
    m_pItemsSlider[0] = new MenuItemSlider("HDMI Output Boost", "Sets the boost voltage level for the HDMI output.", 0,11,6, 0.15);
    m_IndexHDMIBoost = addMenuItem(m_pItemsSlider[0]);
 
@@ -84,6 +88,7 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsSelect[2]->addSelection("Disabled");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexHDMIOverscan = addMenuItem(m_pItemsSelect[2]);
+   #endif
 
    m_IndexCalibrateHDMI = addMenuItem(new MenuItem("Calibrate HDMI output", "Calibrate the colors, brightness and contrast on the controller display."));
    m_pMenuItems[m_IndexCalibrateHDMI]->showArrow();
@@ -139,6 +144,7 @@ MenuControllerVideo::~MenuControllerVideo(void)
    if ( m_hdmigroupOrg != hdmi_get_current_resolution_group() ||
         m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
    {
+      #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[128];
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, FILE_TEMP_HDMI_CHANGED);
       hw_execute_bash_command_silent(szBuff, NULL);
@@ -153,6 +159,7 @@ MenuControllerVideo::~MenuControllerVideo(void)
          fprintf(fd, "%d %d\n", m_hdmigroupOrg, m_hdmimodeOrg );
          fclose(fd);
       }
+      #endif
    }
 }
 
@@ -161,8 +168,15 @@ void MenuControllerVideo::valuesToUI()
    ControllerSettings* pCS = get_ControllerSettings();
    char szBuff[64];
 
-   m_pItemsSlider[0]->setCurrentValue(pCS->iHDMIBoost);
-
+   #if defined (HW_PLATFORM_RASPBERRY)
+   if ( m_IndexHDMIBoost != -1 )
+      m_pItemsSlider[0]->setCurrentValue(pCS->iHDMIBoost);
+   if ( m_IndexHDMIOverscan != -1 )
+   {
+      pCS->iDisableHDMIOverscan = config_file_get_value("disable_overscan");
+      m_pItemsSelect[2]->setSelectedIndex(pCS->iDisableHDMIOverscan);
+   }
+   #endif
    m_pItemsSelect[0]->setSelection(hdmi_get_current_resolution_index());
 
    m_pItemsSelect[3]->removeAllSelections();
@@ -172,9 +186,6 @@ void MenuControllerVideo::valuesToUI()
       m_pItemsSelect[3]->addSelection(szBuff);
    }
    m_pItemsSelect[3]->setSelection(hdmi_get_current_resolution_refresh_index());
-
-   pCS->iDisableHDMIOverscan = config_file_get_value("disable_overscan");
-   m_pItemsSelect[2]->setSelectedIndex(pCS->iDisableHDMIOverscan);
 
    m_pItemsSelect[1]->setSelectedIndex(pCS->iVideoForwardUSBType);
    m_pItemsRange[0]->setCurrentValue(pCS->iVideoForwardUSBPort);
@@ -221,10 +232,41 @@ void MenuControllerVideo::Render()
    RenderEnd(yTop);
 }
 
+void MenuControllerVideo::onReturnFromChild(int iChildMenuId, int returnValue)
+{
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   if ( 2 == iChildMenuId/1000 )
+   {
+      ruby_mark_reinit_hdmi_display();
+      return;
+   }
+   #endif
+   valuesToUI();
+}
+
+
+int MenuControllerVideo::onBack()
+{
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   if ( m_hdmigroupOrg != hdmi_get_current_resolution_group() ||
+        m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
+   {
+      MenuConfirmation* pMC = new MenuConfirmation("Changing HDMI resolution","Your display will flicker or go black for few seconds while the HDMI mode is changed.", 2, true);
+      pMC->m_yPos = 0.3;
+      add_menu_to_stack(pMC);
+      return 1;
+   }
+   #endif
+   return Menu::onBack();
+}
+
 void MenuControllerVideo::onSelectItem()
 {
    Menu::onSelectItem();
-
+   if ( m_SelectedIndex < 0 )
+      return;
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 

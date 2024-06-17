@@ -107,7 +107,7 @@ void radio_duplicate_detection_log_info()
    }
 }
 
-int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId)
+int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBuffer, int iPacketLength)
 {
    int iStatsIndex = -1;
 
@@ -124,7 +124,14 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId)
 
    // New vehicle id, add it to the runtime list
 
-   log_line("[RadioDuplicateDetection] Start receiving data from VID: %u", uVehicleId);    
+   log_line("[RadioDuplicateDetection] Start receiving data from VID: %u", uVehicleId);
+   if ( (NULL != pPacketBuffer) && (iPacketLength >= (int)sizeof(t_packet_header)) )
+   {
+      t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
+      log_line("[RadioDuplicateDetection] Received packet type: %s, %d bytes, source VID: %u, dest VID:%u",
+        str_get_packet_type(pPH->packet_type), pPH->total_length, pPH->vehicle_id_src, pPH->vehicle_id_dest);
+   }
+
    char szBuff[256];
    szBuff[0] = 0;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -194,7 +201,7 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
 
    int iStatsIndex = -1;
 
-   iStatsIndex = _radio_dup_detection_get_runtime_index_for_vid(uVehicleId);
+   iStatsIndex = _radio_dup_detection_get_runtime_index_for_vid(uVehicleId, pPacketBuffer, iPacketLength);
    if ( -1 == iStatsIndex )
       return 1;
 

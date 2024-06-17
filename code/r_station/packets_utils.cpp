@@ -463,7 +463,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    return false;
 }
 
-int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSingleRadioLink)
+int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSendToSingleRadioLink)
 {
    if ( ! s_bAnyPacketsSentToRadio )
    {
@@ -524,8 +524,21 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
       }
 
       if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
-         iSingleRadioLink = pData[sizeof(t_packet_header)];
-
+      {
+         int iModelRadioLinkIndex = pData[sizeof(t_packet_header)+2];
+         int iCmdType = pData[sizeof(t_packet_header)+4];
+         for( int iRadioLink = 0; iRadioLink < g_SM_RadioStats.countLocalRadioLinks; iRadioLink++ )
+         {
+            int iVehicleRadioLinkId = g_SM_RadioStats.radio_links[iRadioLink].matchingVehicleRadioLinkId;
+            if ( iCmdType != PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START )
+            if ( iCmdType != PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+            if ( iVehicleRadioLinkId == iModelRadioLinkIndex )
+            {
+               iSendToSingleRadioLink = iRadioLink;
+               break;
+            }
+         }
+      }
       //if ( pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)
       //   iCountRetransmissionsPackets++;
 
@@ -564,7 +577,7 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
          continue;
       }
 
-      if ( (-1 != iSingleRadioLink) && (iLocalRadioLinkId != iSingleRadioLink) )
+      if ( (-1 != iSendToSingleRadioLink) && (iLocalRadioLinkId != iSendToSingleRadioLink) )
          continue;
       if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
          continue;

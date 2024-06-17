@@ -156,8 +156,8 @@ ProcessorTxVideo::ProcessorTxVideo(int iVideoStreamIndex, int iCameraIndex)
       m_BitrateHistorySamples[i].uTotalBitrateBPS = 0;
       m_BitrateHistorySamples[i].uVideoBitrateBPS = 0;
    }
-   m_uVideoBitrateAverageSum = 0;
-   m_uTotalVideoBitrateAverageSum = 0;
+   m_uVideoBitrateKbAverageSum = 0;
+   m_uTotalVideoBitrateKbAverageSum = 0;
    m_uVideoBitrateAverage = 0;
    m_uTotalVideoBitrateAverage = 0;
    m_uIntervalMSComputeVideoBitrateSample = 50; // Must compute video bitrate averages quite often as they are used for auto adustments of video bitrate and quantization
@@ -214,7 +214,7 @@ u32 ProcessorTxVideo::getCurrentVideoBitrateAverage()
 // Returns bps
 u32 ProcessorTxVideo::getCurrentVideoBitrateAverageLastMs(u32 uMilisec)
 {
-   u32 uSum = 0;
+   u32 uSumKb = 0;
    u32 uCount = 0;
    int iIndex = m_iVideoBitrateSampleIndex;
    
@@ -222,14 +222,14 @@ u32 ProcessorTxVideo::getCurrentVideoBitrateAverageLastMs(u32 uMilisec)
    
    while ( (uCount < MAX_VIDEO_BITRATE_HISTORY_VALUES) && (m_BitrateHistorySamples[iIndex].uTimeStampTaken >= (uTime0 - uMilisec)) )
    {
-      uSum += m_BitrateHistorySamples[iIndex].uVideoBitrateBPS;
+      uSumKb += m_BitrateHistorySamples[iIndex].uVideoBitrateBPS/1000;
       uCount++;
       iIndex--;
       if ( iIndex < 0 )
         iIndex = MAX_VIDEO_BITRATE_HISTORY_VALUES-1;
    }
 
-   return uSum/uCount;
+   return 1000*(uSumKb/uCount);
 }
 
 // Returns bps
@@ -247,7 +247,7 @@ u32 ProcessorTxVideo::getCurrentTotalVideoBitrateAverage()
 // Returns bps
 u32 ProcessorTxVideo::getCurrentTotalVideoBitrateAverageLastMs(u32 uMilisec)
 {
-   u32 uSum = 0;
+   u32 uSumKb = 0;
    u32 uCount = 0;
    int iIndex = m_iVideoBitrateSampleIndex;
    
@@ -255,14 +255,14 @@ u32 ProcessorTxVideo::getCurrentTotalVideoBitrateAverageLastMs(u32 uMilisec)
    
    while ( (uCount < MAX_VIDEO_BITRATE_HISTORY_VALUES) && (m_BitrateHistorySamples[iIndex].uTimeStampTaken >= (uTime0 - uMilisec)) )
    {
-      uSum += m_BitrateHistorySamples[iIndex].uTotalBitrateBPS;
+      uSumKb += m_BitrateHistorySamples[iIndex].uTotalBitrateBPS/1000;
       uCount++;
       iIndex--;
       if ( iIndex < 0 )
         iIndex = MAX_VIDEO_BITRATE_HISTORY_VALUES-1;
    }
 
-   return uSum/uCount;
+   return 1000*(uSumKb/uCount);
 }
 
 
@@ -305,18 +305,18 @@ void ProcessorTxVideo::periodicLoop()
    if ( m_iVideoBitrateSampleIndex >= MAX_VIDEO_BITRATE_HISTORY_VALUES )
       m_iVideoBitrateSampleIndex = 0;
 
-   m_uVideoBitrateAverageSum -= m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uVideoBitrateBPS;
-   m_uTotalVideoBitrateAverageSum -= m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTotalBitrateBPS;
+   m_uVideoBitrateKbAverageSum -= m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uVideoBitrateBPS/1000;
+   m_uTotalVideoBitrateKbAverageSum -= m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTotalBitrateBPS/1000;
   
    m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uVideoBitrateBPS = ((s_lCountBytesVideoIn * 8) / uDeltaTime) * 1000;
    m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTotalBitrateBPS = ((s_lCountBytesSend * 8) / uDeltaTime) * 1000;
    m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTimeStampTaken = g_TimeNow;
 
-   m_uVideoBitrateAverageSum += m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uVideoBitrateBPS;
-   m_uTotalVideoBitrateAverageSum += m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTotalBitrateBPS;
+   m_uVideoBitrateKbAverageSum += m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uVideoBitrateBPS/1000;
+   m_uTotalVideoBitrateKbAverageSum += m_BitrateHistorySamples[m_iVideoBitrateSampleIndex].uTotalBitrateBPS/1000;
   
-   m_uVideoBitrateAverage = m_uVideoBitrateAverageSum/MAX_VIDEO_BITRATE_HISTORY_VALUES;
-   m_uTotalVideoBitrateAverage = m_uTotalVideoBitrateAverageSum/MAX_VIDEO_BITRATE_HISTORY_VALUES;
+   m_uVideoBitrateAverage = 1000*(m_uVideoBitrateKbAverageSum/MAX_VIDEO_BITRATE_HISTORY_VALUES);
+   m_uTotalVideoBitrateAverage = 1000*(m_uTotalVideoBitrateKbAverageSum/MAX_VIDEO_BITRATE_HISTORY_VALUES);
    
    s_lCountBytesSend = 0;
    s_lCountBytesVideoIn = 0;
@@ -338,16 +338,16 @@ void _log_encoding_scheme()
       strcpy(szScheme, str_get_video_profile_name(s_CurrentPHVF.video_link_profile & 0x0F));
       
       sprintf(szVideoStream, "[%d]", (s_CurrentPHVF.video_link_profile>>4) & 0x0F );
-      u32 uValueDup = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
+      u32 uValueDup = (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
 
       log_line("New current video profile used: %s (video stream Id: %s), extra params: 0x%08X, (for video res %d x %d, %d FPS, %d ms keyframe):",
-         szScheme, szVideoStream, s_CurrentPHVF.encoding_extra_flags, s_CurrentPHVF.video_width, s_CurrentPHVF.video_height, s_CurrentPHVF.video_fps, s_CurrentPHVF.video_keyframe_interval_ms );
+         szScheme, szVideoStream, s_CurrentPHVF.uEncodingFlags, s_CurrentPHVF.video_width, s_CurrentPHVF.video_height, s_CurrentPHVF.video_fps, s_CurrentPHVF.video_keyframe_interval_ms );
       log_line("New encoding scheme used: %d/%d block data/ECs, video data length: %d, R-data/R-retr: %d/%d",
          s_CurrentPHVF.block_packets, s_CurrentPHVF.block_fecs, s_CurrentPHVF.video_data_length,
          (uValueDup & 0x0F), ((uValueDup >> 4) & 0x0F) );
       log_line("Encoding change (%u times) active starting with stream packet: %u, video block index: %u, video packet index: %u", s_uCountEncodingChanges,
          (s_CurrentPH.stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), s_CurrentPHVF.video_block_index, s_CurrentPHVF.video_block_packet_index);
-      log_line("Encodings add debug info in video packets: %s", ((s_CurrentPHVF.encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS)?"yes":"no"));
+      log_line("Encodings add debug info in video packets: %s", ((s_CurrentPHVF.uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS)?"yes":"no"));
       return;
    }
 
@@ -368,9 +368,9 @@ bool _check_update_video_link_profile_data()
       s_CurrentPHVF.video_link_profile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
       bChanged = true;
    }
-   if ( (s_CurrentPHVF.encoding_extra_flags & (~ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )) != (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].encoding_extra_flags & (~ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )) )
+   if ( (s_CurrentPHVF.uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )) != (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )) )
    {
-      s_CurrentPHVF.encoding_extra_flags = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].encoding_extra_flags;
+      s_CurrentPHVF.uEncodingFlags = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].uEncodingFlags;
       bChanged = true;
    }
    if ( s_CurrentPHVF.video_width != g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].width )
@@ -422,12 +422,12 @@ bool _check_update_video_link_profile_data()
       bChanged = true;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode != ((s_CurrentPHVF.encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS)?true:false) )
+   if ( g_pCurrentModel->bDeveloperMode != ((s_CurrentPHVF.uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS)?true:false) )
    {
       if ( g_pCurrentModel->bDeveloperMode )
-         s_CurrentPHVF.encoding_extra_flags2 |= ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS;
+         s_CurrentPHVF.uEncodingFlags2 |= VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS;
       else
-         s_CurrentPHVF.encoding_extra_flags2 &= ~ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS;
+         s_CurrentPHVF.uEncodingFlags2 &= ~VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS;
       bChanged = true;
    }
 
@@ -641,7 +641,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    if ( (! isRetransmitted) && (! isDuplicationPacket) )
    if ( packetIndex < s_BlocksTxBuffers[bufferIndex].block_packets )
    {
-      u32 uValueDup = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
+      u32 uValueDup = (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
 
       // Manual duplication percent or auto? 0x0F - auto
       if ( (uValueDup & 0x0F) != 0 )
@@ -693,7 +693,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    else
    {
       pPHVF->uLastRecvVideoRetransmissionId = 0;
-      if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+      if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
       {
          u8* pExtraData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
          u32* pExtraDataU32 = (u32*)pExtraData;
@@ -860,8 +860,8 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
 
       // Send ec packet if any
 
-      u32 uECSpreadHigh = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpreadHigh = (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
       int iECSpread = (int)(uECSpreadLow | (uECSpreadHigh<<1));
 
       if ( 0 == iECSpread )
@@ -1007,22 +1007,22 @@ bool _onNewCompletePacketReadFromInput()
    s_BlocksTxBuffers[s_currentReadBufferIndex].packetsInfo[s_currentReadBlockPacketIndex].uTimestamp = g_TimeNow;
 
    s_CurrentPHVF.video_link_profile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
-   s_CurrentPHVF.encoding_extra_flags = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].encoding_extra_flags;
+   s_CurrentPHVF.uEncodingFlags = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].uEncodingFlags;
 
    s_CurrentPHVF.uLastRecvVideoRetransmissionId = 0;
-   s_CurrentPHVF.encoding_extra_flags2 &= 0xFFFFFF00;
-   s_CurrentPHVF.encoding_extra_flags2 |= g_SM_VideoLinkStats.overwrites.currentH264QUantization & 0xFF;
+   s_CurrentPHVF.uEncodingFlags2 &= 0xFFFFFF00;
+   s_CurrentPHVF.uEncodingFlags2 |= g_SM_VideoLinkStats.overwrites.currentH264QUantization & 0xFF;
      
    if ( s_ParserH264CameraOutput.IsInsideIFrame() )
-      s_CurrentPHVF.encoding_extra_flags2 |= ENCODING_EXTRA_FLAGS2_IS_IFRAME;
+      s_CurrentPHVF.uEncodingFlags2 |= VIDEO_ENCODING_FLAGS2_IS_IFRAME;
    else
-      s_CurrentPHVF.encoding_extra_flags2 &= ~ENCODING_EXTRA_FLAGS2_IS_IFRAME;
+      s_CurrentPHVF.uEncodingFlags2 &= ~VIDEO_ENCODING_FLAGS2_IS_IFRAME;
    s_CurrentPHVF.uExtraData = g_TimeNow;
    
 
-   s_CurrentPHVF.encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE;
+   s_CurrentPHVF.uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE;
    if ( g_SM_VideoLinkStats.overwrites.profilesTopVideoBitrateOverwritesDownward[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile] != 0 )
-      s_CurrentPHVF.encoding_extra_flags |= ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE;
+      s_CurrentPHVF.uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE;
 
    if ( g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs < 255*250 )
       s_CurrentPHVF.video_keyframe_interval_ms = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;
@@ -1035,7 +1035,7 @@ bool _onNewCompletePacketReadFromInput()
    memcpy(pPH, &s_CurrentPH, sizeof(t_packet_header));
    memcpy(pPHVF, &s_CurrentPHVF, sizeof(t_packet_header_video_full_77));
 
-   if ( s_CurrentPHVF.encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+   if ( s_CurrentPHVF.uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
    {
       static u32 s_uDebugLastAddedPacketTimestamp = 0;
       u8* pExtraData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
@@ -1099,7 +1099,7 @@ bool _onNewCompletePacketReadFromInput()
 
       s_CurrentPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
-      if ( s_CurrentPHVF.encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+      if ( s_CurrentPHVF.uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
          s_CurrentPH.total_length += 6 * sizeof(u32);
    }
 
@@ -1197,12 +1197,12 @@ bool process_data_tx_video_init()
    s_CurrentPHVF.video_block_packet_index = 0;
    s_CurrentPHVF.video_data_length = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length;
 
-   s_CurrentPHVF.encoding_extra_flags2 = 0;
+   s_CurrentPHVF.uEncodingFlags2 = 0;
    if ( g_pCurrentModel->bDeveloperMode )
-      s_CurrentPHVF.encoding_extra_flags2 |= ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS;
+      s_CurrentPHVF.uEncodingFlags2 |= VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS;
 
    s_CurrentPH.total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_full_77) + s_CurrentPHVF.video_data_length;
-   if ( s_CurrentPHVF.encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+   if ( s_CurrentPHVF.uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
          s_CurrentPH.total_length += 6 * sizeof(u32);
 
    s_CurrentPHVF.fec_time = 0;
@@ -1403,8 +1403,8 @@ void _process_command_resend_packets(u8* pPacketBuffer, u8 packetType)
       s_iRetransmissionsDuplicationIndex++;
       bool bDoDuplicate = false;
       u32 uValue = 0xFF;
-      if ( NULL != g_pCurrentModel && ((s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) != ENCODING_EXTRA_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO) )
-         uValue = (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
+      if ( NULL != g_pCurrentModel && ((s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) != VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO) )
+         uValue = (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT) >> 16;
 
       // Manual duplication percent or auto ? 0xF0 - auto
       if ( (uValue >> 4) != 0x0F )
@@ -1453,7 +1453,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
    if ( bDebugNoVideoOutput )
       return true;
      
-   if ( ! (s_CurrentPHVF.encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
+   if ( ! (s_CurrentPHVF.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS) )
       return false;
 
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;

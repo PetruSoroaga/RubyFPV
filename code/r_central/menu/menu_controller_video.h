@@ -11,6 +11,8 @@ class MenuControllerVideo: public Menu
       virtual ~MenuControllerVideo();
       virtual void Render();
       virtual void valuesToUI();
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
+      virtual int onBack();
       virtual void onSelectItem();
 
    private:

@@ -1497,6 +1497,33 @@ void _send_telemetry_to_controller()
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+
+      // Send debug info
+      static u32 s_uTimeDebugSentLastDebugInfoPacket = 0;
+
+      if ( g_pCurrentModel->bDeveloperMode )
+      if ( g_TimeNow > s_uTimeDebugSentLastDebugInfoPacket + 1000 )
+      {
+         s_uTimeDebugSentLastDebugInfoPacket = g_TimeNow;
+         radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_DEBUG_INFO, STREAM_ID_TELEMETRY);
+         sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+         sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(type_u32_couters) + (u16)sizeof(type_radio_tx_timers);
+      
+         type_u32_couters dummyCounters; // gets populated by router
+         reset_counters(&dummyCounters);
+         int dx = 0;
+         memcpy(buffer, &sPH, sizeof(t_packet_header));
+         dx += sizeof(t_packet_header);
+         memcpy(buffer+dx, &dummyCounters, sizeof(type_u32_couters));
+         dx += sizeof(type_u32_couters);
+       
+         if ( s_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
+         {
+            int result = ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, sPH.total_length);
+            if ( result != sPH.total_length )
+               log_softerror_and_alarm("Failed to send debug packet data to router. Sent result: %d", result );
+         }
+      }
    }
 
    // ----------------------------------
@@ -1784,27 +1811,26 @@ void _send_telemetry_to_controller()
       bAddRCInfo = true;
    #endif
 
-   if ( ! bAddRCInfo )
+   if ( bAddRCInfo )
    {
-      return;
-   }
-   radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RC_TELEMETRY, STREAM_ID_TELEMETRY);
-   sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-   sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_rc_info_downstream);
+      radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RC_TELEMETRY, STREAM_ID_TELEMETRY);
+      sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_rc_info_downstream);
 
-   memcpy(buffer, &sPH, sizeof(t_packet_header));
-   memcpy(buffer+sizeof(t_packet_header), (u8*)s_pPHDownstreamInfoRC, sizeof(t_packet_header_rc_info_downstream));
-   
-   if ( s_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
-   {
-      int result = ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, sPH.total_length);
-      if ( result != sPH.total_length )
-         log_softerror_and_alarm("Failed to send data to router. Sent result: %d", result );
-      iCountMessagesSent++;
-   }
+      memcpy(buffer, &sPH, sizeof(t_packet_header));
+      memcpy(buffer+sizeof(t_packet_header), (u8*)s_pPHDownstreamInfoRC, sizeof(t_packet_header_rc_info_downstream));
+      
+      if ( s_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
+      {
+         int result = ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, sPH.total_length);
+         if ( result != sPH.total_length )
+            log_softerror_and_alarm("Failed to send data to router. Sent result: %d", result );
+         iCountMessagesSent++;
+      }
 
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+   }
 }
 
 void _on_second_lapse_check()

@@ -710,7 +710,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
 
    if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+   if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
    if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
    {
       u8* pExtraData = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
@@ -1117,6 +1117,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY) ||
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS) ||
            (pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD) ||
+           (pPH->packet_type == PACKET_TYPE_DEBUG_INFO) ||
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY) )
          bSendToCentral = true;
 

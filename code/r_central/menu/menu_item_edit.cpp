@@ -250,7 +250,7 @@ void MenuItemEdit::Render(float xPos, float yPos, bool bSelected, float fWidthSe
 
    // Editing
 
-   g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+   g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
    g_pRenderEngine->drawRoundRect(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth - paddingH, yPos-0.8*padding, m_RenderValueWidth + 2*paddingH, m_RenderTitleHeight + 2*padding, 0.01*Menu::getMenuPaddingY());
    g_pRenderEngine->setColors(get_Color_MenuText());
 
@@ -269,12 +269,12 @@ void MenuItemEdit::Render(float xPos, float yPos, bool bSelected, float fWidthSe
       float w = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);
       if ( flash && (i == m_EditPos))
       {
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawRect(x-0.001*Menu::getMenuPaddingX(), yPos-0.003*Menu::getMenuPaddingY(), w + 0.002*Menu::getMenuPaddingX(), m_RenderTitleHeight + 2*0.003*Menu::getMenuPaddingY());
          g_pRenderEngine->setColors(cInv);
       }
       else
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    
       if ( 0 != szBuff[0] )
          g_pRenderEngine->drawText(x, yPos, g_idFontMenu, szBuff);

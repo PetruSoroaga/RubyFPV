@@ -77,6 +77,7 @@ class ProcessorRxVideo
       void onControllerSettingsChanged();
 
       u32 getLastTimeVideoStreamChanged();
+      u32 getLastTimeReceivedVideoPacket();
       int getCurrentlyReceivedVideoProfile();
       int getCurrentlyReceivedVideoFPS();
       int getCurrentlyReceivedVideoKeyframe();
@@ -97,6 +98,7 @@ class ProcessorRxVideo
 
       u32 m_uVehicleId;
       u32 m_uVideoStreamIndex;
+      u32 m_uTimeLastReceivedVideoPacket;
 
    protected:
       void resetReceiveState();

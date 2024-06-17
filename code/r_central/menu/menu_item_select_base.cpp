@@ -259,27 +259,27 @@ void MenuItemSelectBase::Render(float xPos, float yPos, bool bSelected, float fW
 
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xValue-paddingH, yPos-paddingV, totalWidthValue + 2.0*paddingH , m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
       g_pRenderEngine->setColors(get_Color_MenuText());
    }  
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
       g_pRenderEngine->setColors(get_Color_MenuText());
    if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
    g_pRenderEngine->drawText(xValue + triMargin + triSize, yPos, g_idFontMenu, m_szSelections[m_SelectedIndex]);
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
       g_pRenderEngine->setColors(get_Color_MenuText());
 
    if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
    float yT = yPos+height_text*0.5;
    g_pRenderEngine->fillTriangle(xValue, yT, xValue+triSize, yT+triSize, xValue+triSize, yT-triSize);
@@ -302,7 +302,7 @@ void MenuItemSelectBase::RenderCondensed(float xPos, float yPos, bool bSelected,
    
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPos-paddingH, yPos-paddingV, 2.0*paddingH + totalWidthValue, m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
       g_pRenderEngine->setColors(get_Color_MenuText());
    }
@@ -316,25 +316,25 @@ void MenuItemSelectBase::RenderCondensed(float xPos, float yPos, bool bSelected,
    }
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else if ( m_bCustomTextColor )
       g_pRenderEngine->setColors(&m_TextColor[0]);
    else
       g_pRenderEngine->setColors(get_Color_MenuText());
    if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
    g_pRenderEngine->drawText(xPos + triMargin + triSize, yPos, g_idFontMenu, m_szSelections[m_SelectedIndex]);
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else if ( m_bCustomTextColor )
       g_pRenderEngine->setColors(&m_TextColor[0]);
    else
       g_pRenderEngine->setColors(get_Color_MenuText());
 
    if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
    float yT = yPos+height_text*0.5;
    g_pRenderEngine->fillTriangle(xPos, yT, xPos+triSize, yT+triSize, xPos+triSize, yT-triSize);
    xPos += totalWidthValue;

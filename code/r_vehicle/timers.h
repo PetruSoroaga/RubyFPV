@@ -1,6 +1,10 @@
 #pragma once
 #include "../base/base.h"
 #include "../base/config.h"
+#include "../base/shared_mem.h"
+
+// In router
+extern type_radio_tx_timers g_RadioTxTimers;
 
 // Globals
 
@@ -38,8 +42,6 @@ extern u32 g_TimeLastPacketsOutPerSecCalculation;
 extern u32 g_TimeLastVideoCaptureProgramStartCheck;
 extern u32 g_TimeLastVideoCaptureProgramRunningCheck;
 
-extern u32 g_InterfacesTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
-extern u32 g_InterfacesVideoTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
 extern u32 g_TimeLastOverwriteBitrateDownOnTxOverload;
 extern u32 g_TimeLastOverwriteBitrateUpOnTxOverload;
 extern u32 g_TimeLastVideoProfileChanged;

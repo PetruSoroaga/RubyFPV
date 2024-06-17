@@ -84,12 +84,20 @@ void MenuStorage::valuesToUI()
 void MenuStorage::onShow()
 {
    char szBuff[1024];
+   char szComm[256];
    removeAllTopLines();
    removeAllItems();
 
    media_scan_files();
 
-   if ( 1 == hw_execute_bash_command_raw("df -m /home/pi/ruby | grep root", szBuff) )
+   #ifdef HW_PLATFORM_RASPBERRY
+   sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
+   #endif
+
+   if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
    {
       char szTemp[1024];
       long lb, lu, lf;
@@ -225,10 +233,10 @@ void MenuStorage::Render()
 
       if ( m_SelectedIndex == i+m_StaticMenuItemsCountBeforeUIFiles )
       {
-         g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
          g_pRenderEngine->drawRoundRect(xpi-m_sfSelectionPaddingX, ypi-m_sfSelectionPaddingY, widthItem + 2.0*m_sfSelectionPaddingX, height_text+2.0*m_sfSelectionPaddingY, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
          g_pRenderEngine->drawRoundRect(xpi+widthItem + 2.0 * m_sfSelectionPaddingX- 0.045*m_sfScaleFactor, ypi+height_text - 2.0*m_sfSelectionPaddingY, 0.045*m_sfScaleFactor, 1.2*height_text, 0.002*m_sfMenuPaddingY);
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawTextLeft( xpi+widthItem + 2.0 * m_sfSelectionPaddingX -0.014*m_sfScaleFactor, ypi + height_text*0.8, g_idFontMenu, "Play" );
       }
       else
@@ -497,7 +505,7 @@ void MenuStorage::onSelectItem()
    if ( index < 0 || index >= m_VideoInfoFilesCount )
       return;
 
-   sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
+   snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
    FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
       return;
@@ -514,7 +522,13 @@ void MenuStorage::onSelectItem()
       pairing_stop();
       m_bWasPairingStarted = true;
    }
-   snprintf(szBuff, 1023, "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s -f %s%s &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   #endif
    hw_execute_bash_command(szBuff,NULL);
    g_bVideoPlaying = true;
    g_uVideoPlayingStartTime = get_current_timestamp_ms();
@@ -817,6 +831,7 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
 void MenuStorage::stopVideoPlay()
 {
    hw_stop_process(VIDEO_PLAYER_OFFLINE);
+ 
    g_bVideoPlaying = false;
    render_all(get_current_timestamp_ms(), true);
    if ( m_bWasPairingStarted )

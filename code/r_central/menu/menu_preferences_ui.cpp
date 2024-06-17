@@ -309,7 +309,7 @@ void MenuPreferencesUI::onSelectItem()
    if ( m_IndexScaleMenu == m_SelectedIndex )
    {
       p->iScaleMenus = m_pItemsSelect[0]->getSelectedIndex()-2;
-      if ( render_engine_is_raw() )
+      if ( render_engine_uses_raw_fonts() )
       {
          save_Preferences();
          applyFontScaleChanges();

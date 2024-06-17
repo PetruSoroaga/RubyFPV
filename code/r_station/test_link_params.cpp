@@ -32,6 +32,7 @@
 #include "test_link_params.h"
 #include "../base/ruby_ipc.h"
 #include "../base/models_list.h"
+#include "../base/radio_utils.h"
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopacketsqueue.h"
 #include "../radio/radio_rx.h"
@@ -42,128 +43,67 @@
 #include "radio_links.h"
 #include "packets_utils.h"
 
-#define TEST_LINK_STATE_SEND_START_TO_VEHICLE 1
-#define TEST_LINK_STATE_PING 2
-#define TEST_LINK_STATE_ENDED 10
-#define TEST_LINK_SUCCESS_PING_COUNTS 2
-
 extern t_packet_queue s_QueueRadioPackets;
 
-int s_iTestLinkState = 0;
+int s_iTestLinkState = TEST_LINK_STATE_NONE;
+u32 s_uTestLinkVehicleId = 0;
 int s_iTestLinkIndex = -1;
-int s_iTestLinkCountDifferences = 0;
-bool s_bTestLinkParamsInProgress = false;
-bool s_bTestLinkParamsSucceded = false;
-bool s_bApplyRadioParamsInProgress = false;
-bool s_bTestLinkOnlyFreqChanged = false;
-u32 s_uTimeStartTestLink = 0;
-u32 s_uTimeLastTestPacketSent = 0;
-u32 s_uTimeEndCurrentStep = 0;
-u32 s_uTestMsgSentCount = 0;
-u32 s_uCountPingSent = 0;
-u32 s_uCountPingReceived = 0;
-u32 s_uCountPingsSentByVehicle = 0;
-u32 s_uCountPingsReceivedByVehicle = 0;
+int s_iTestLinkRunCount = 0;
 type_radio_links_parameters s_RadioLinksParamsToTest;
 type_radio_links_parameters s_RadioLinksParamsOriginal;
+bool s_bTestLinkOnlyFreqChanged = false;
+bool s_bTestLinkCurrentTestSucceeded = false;
 
-u8 s_uPacketStartTestLink[MAX_PACKET_TOTAL_SIZE];
-u8 s_uPacketToSend[MAX_PACKET_TOTAL_SIZE];
+int s_iTestLinkCurrentStepSendCount = 0;
+u32 s_uTimeLastUpdateCurrentState = 0;
+u32 s_uTimeEndCurrentStep = 0;
 
 pthread_t s_pThreadTestLinkWorker;
-type_radio_links_parameters s_RadioLinkParamsToChangeFrom;
-type_radio_links_parameters s_RadioLinkParamsToChangeTo;
+bool s_bApplyRadioParamsInProgress = false;
 bool s_bTestLinkPausedInterfaces = false;
-bool s_bMustReopenTestInterfaces = false;
-bool s_bMustReopenRadioInterfacesForRead[MAX_RADIO_INTERFACES];
-bool s_bMustReopenRadioInterfacesForWrite[MAX_RADIO_INTERFACES];
-bool s_bMustResumeTestInterfaces = false;
 bool s_bMustResumeRadioInterfacesForRead[MAX_RADIO_INTERFACES];
 bool s_bMustResumeRadioInterfacesForWrite[MAX_RADIO_INTERFACES];
-bool s_bSentTestPingAfterPingState = false;
+bool s_bMustReopenRadioInterfacesForRead[MAX_RADIO_INTERFACES];
+bool s_bMustReopenRadioInterfacesForWrite[MAX_RADIO_INTERFACES];
 
-u8 s_uTestLinkRunNumber = 0;
+u32 s_uTestLinkCountPingsReceived = 0;
 
 bool test_link_is_in_progress()
 {
-   return (s_bTestLinkParamsInProgress || s_bApplyRadioParamsInProgress || s_bMustReopenTestInterfaces || s_bMustResumeTestInterfaces);
+   return (s_iTestLinkState != TEST_LINK_STATE_NONE);
 }
 
-int test_link_active()
+bool test_link_is_applying_radio_params()
+{
+   if ( s_iTestLinkState == TEST_LINK_STATE_NONE )
+      return false;
+   return s_bApplyRadioParamsInProgress;
+}
+
+int test_link_get_test_link_index()
 {
    return s_iTestLinkIndex;
 }
 
-void test_link_state_get_state_string(int iState, char* szBuffer)
+void _test_link_end_and_notify()
 {
-   if ( NULL == szBuffer )
-      return;
-   strcpy(szBuffer, "N/A");
-   if ( iState == TEST_LINK_STATE_SEND_START_TO_VEHICLE )
-      strcpy(szBuffer, "Send_Start_To_Vehicle");
-   if ( iState == TEST_LINK_STATE_PING )
-      strcpy(szBuffer, "Send_Ping_To_Vehicle");
-   if ( iState == TEST_LINK_STATE_ENDED )
-      strcpy(szBuffer, "Send_End_To_Vehicle");
-}
+   test_link_send_status_message_to_central("New parameters are supported and applied.");
+   test_link_send_status_message_to_central("Saving state...");
 
-void test_link_switch_to_state(int iNewState, u32 uTimeout)
-{
-   char szStateOld[64];
-   char szStateNew[64];
-   test_link_state_get_state_string(s_iTestLinkState, szStateOld);
-   test_link_state_get_state_string(iNewState, szStateNew);
+   log_line("[TestLink-%d] Save new tested radio parameters to current model", s_iTestLinkRunCount);
+   g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
 
-   s_iTestLinkState = iNewState;
-   s_uTimeEndCurrentStep = g_TimeNow + uTimeout;
-
-   log_line("[TestLink-%d] Switch from state [%s] to state [%s]. Timesout %u ms from now", (int)s_uTestLinkRunNumber, szStateOld, szStateNew, uTimeout);
-   if ( s_iTestLinkState == TEST_LINK_STATE_ENDED )
-   {
-      log_line("[TestLink-%d] Controller sent %u pings, received %u pings from vehicle, vehicle sent %u pings, vehicle received %u pings from controller.",
-         (int)s_uTestLinkRunNumber, s_uCountPingSent, s_uCountPingReceived, s_uCountPingsSentByVehicle, s_uCountPingsReceivedByVehicle );
-   }
-}
-
-void test_link_reset_state()
-{
-   s_bTestLinkParamsInProgress = false;
-   s_bTestLinkParamsSucceded = false;
-   s_bTestLinkPausedInterfaces = false;
-   s_bTestLinkOnlyFreqChanged = false;
-   s_iTestLinkState = 0;
-   s_uTimeStartTestLink = 0;
-   s_uTimeLastTestPacketSent = 0;
-   s_uTimeEndCurrentStep = 0;
-   s_uCountPingSent = 0;
-   s_uCountPingReceived = 0;
-   s_uCountPingsSentByVehicle = 0;
-   s_uCountPingsReceivedByVehicle = 0;
+   memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+   saveControllerModel(g_pCurrentModel);
+ 
+   test_link_send_end_message_to_central(s_bTestLinkCurrentTestSucceeded);
+   s_iTestLinkState = TEST_LINK_STATE_NONE;
    
-   s_bSentTestPingAfterPingState = false;
-   s_bTestLinkPausedInterfaces = false;
-   s_bMustReopenTestInterfaces = false;
-   s_bMustResumeTestInterfaces = false;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      s_bMustResumeRadioInterfacesForRead[i] = false;
-      s_bMustResumeRadioInterfacesForWrite[i] = false;
-
-      s_bMustReopenRadioInterfacesForRead[i] = false;
-      s_bMustReopenRadioInterfacesForWrite[i] = false;
-   }
+   if ( NULL != g_pProcessStats )
+      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 }
 
-static void * _thread_test_link_worker(void *argument)
-{
-   log_line("[TestLink-%d] Started worker thread to update radio interfaces for vehicle radio link %d.", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
-   radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinkParamsToChangeFrom, &s_RadioLinkParamsToChangeTo);
-   log_line("[TestLink-%d] Finished worker thread to update radio interfaces for vehicle radio link %d.", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
-   s_bApplyRadioParamsInProgress = false;
-   return NULL;
-}
-
-void test_link_pause_interfaces()
+void _test_link_pause_interfaces()
 {
    if ( s_bTestLinkPausedInterfaces )
       return;
@@ -172,6 +112,9 @@ void test_link_pause_interfaces()
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
+      s_bMustResumeRadioInterfacesForRead[i] = false;
+      s_bMustResumeRadioInterfacesForWrite[i] = false;
+
       if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != s_iTestLinkIndex )
          continue;
 
@@ -180,21 +123,24 @@ void test_link_pause_interfaces()
          continue;
       if ( pRadioHWInfo->openedForWrite )
       {
-         if ( ! s_bMustResumeRadioInterfacesForWrite[i] )
-            radio_tx_pause_radio_interface(i);
+         radio_tx_pause_radio_interface(i, "TestLinkParams");
          s_bMustResumeRadioInterfacesForWrite[i] = true;
       }
       if ( pRadioHWInfo->openedForRead )
       {
-         if ( ! s_bMustResumeRadioInterfacesForRead[i] )
-            radio_rx_pause_interface(i);
+         radio_rx_pause_interface(i, "TestLinkParams");
          s_bMustResumeRadioInterfacesForRead[i] = true;
       }
    }
 }
 
-void test_link_resume_interfaces()
+void _test_link_resume_interfaces()
 {
+   if ( ! s_bTestLinkPausedInterfaces )
+      return;
+
+   s_bTestLinkPausedInterfaces = false;
+
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != s_iTestLinkIndex )
@@ -212,12 +158,10 @@ void test_link_resume_interfaces()
          radio_rx_resume_interface(i);
       s_bMustResumeRadioInterfacesForRead[i] = false;
    }
-   s_bTestLinkPausedInterfaces = false;
-   s_bMustResumeTestInterfaces = false;
 }
 
 
-void test_link_close_interfaces()
+void _test_link_close_interfaces()
 {
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
@@ -256,9 +200,9 @@ void test_link_close_interfaces()
    }
 }
 
-void test_link_reopen_interfaces()
+void _test_link_reopen_interfaces()
 {
-   log_line("[TestLink-%d] Reopening radio interfaces for vehicle radio link %d...", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
+   log_line("[TestLink-%d] Reopening radio interfaces for vehicle radio link %d...", s_iTestLinkRunCount, s_iTestLinkIndex+1);
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != s_iTestLinkIndex )
@@ -282,475 +226,525 @@ void test_link_reopen_interfaces()
             g_SM_RadioStats.radio_interfaces[i].openedForWrite = 1;
       }
    }
-   s_bMustReopenTestInterfaces = false;
-   log_line("[TestLink-%d] Done reopen radio interfaces for vehicle radio link %d.", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
+   log_line("[TestLink-%d] Done reopen radio interfaces for vehicle radio link %d.", s_iTestLinkRunCount, s_iTestLinkIndex+1);
 }
 
-u8* test_link_generate_start_packet(u32 uVehicleId, int iLinkId, type_radio_links_parameters* pRadioParamsToTest)
-{
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = uVehicleId;
-   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
 
-   memcpy(s_uPacketStartTestLink, (u8*)&PH, sizeof(t_packet_header));
-   s_uPacketStartTestLink[sizeof(t_packet_header)] = (u8)iLinkId;
-   s_uPacketStartTestLink[sizeof(t_packet_header)+1] = (u8)s_uTestLinkRunNumber;
-   s_uPacketStartTestLink[sizeof(t_packet_header)+2] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START;
-   memcpy(s_uPacketStartTestLink + sizeof(t_packet_header) + 3*sizeof(u8), pRadioParamsToTest, sizeof(type_radio_links_parameters));
-   return s_uPacketStartTestLink;
+static void * _thread_test_link_worker_apply(void *argument)
+{
+   log_line("[TestLink-%d] Started worker thread to update radio interfaces for vehicle radio link %d.", s_iTestLinkRunCount, s_iTestLinkIndex+1);
+   g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
+   
+   radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
+        
+   log_line("[TestLink-%d] Finished worker thread to update radio interfaces for vehicle radio link %d.", s_iTestLinkRunCount, s_iTestLinkIndex+1);
+   s_bApplyRadioParamsInProgress = false;
+   return NULL;
 }
 
-void test_link_send_status_message_to_central(const char* szMsg)
+static void * _thread_test_link_worker_revert(void *argument)
 {
-   if ( (NULL == szMsg) || (0 == szMsg[0]) )
+   log_line("[TestLink-%d] Started worker thread to revert radio interfaces for vehicle radio link %d.", s_iTestLinkRunCount, s_iTestLinkIndex+1);
+   g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsToTest, &s_RadioLinksParamsOriginal);
+   
+   radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinksParamsToTest, &s_RadioLinksParamsOriginal);
+        
+   log_line("[TestLink-%d] Finished worker thread to revert radio interfaces for vehicle radio link %d.", s_iTestLinkRunCount, s_iTestLinkIndex+1);
+   s_bApplyRadioParamsInProgress = false;
+   return NULL;
+}
+
+
+void _test_link_switch_to_state(int iNewState, u32 uTimeout)
+{
+   char szStateOld[64];
+   char szStateNew[64];
+   test_link_state_get_state_string(s_iTestLinkState, szStateOld);
+   test_link_state_get_state_string(iNewState, szStateNew);
+
+   if ( s_iTestLinkState == iNewState )
       return;
 
-   log_line("[TestLink-%d] Send status message to central: [%s]", (int)s_uTestLinkRunNumber, szMsg);
+   s_iTestLinkState = iNewState;
+   s_iTestLinkCurrentStepSendCount = 0;
+   s_uTimeLastUpdateCurrentState = g_TimeNow;
+   s_uTimeEndCurrentStep = g_TimeNow + uTimeout;
 
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = g_uControllerId;
-   PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8) + strlen(szMsg)+1;
+   log_line("[TestLink-%d] Switch from state [%s] to state [%s]. Timesout %u ms from now", s_iTestLinkRunCount, szStateOld, szStateNew, uTimeout);
 
-   u8 buffer[1024];
-   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = (u8) s_iTestLinkIndex;
-   buffer[sizeof(t_packet_header)+1] = (u8) s_uTestLinkRunNumber;
-   buffer[sizeof(t_packet_header)+2] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS;
-   buffer[sizeof(t_packet_header)+3] = (u8) strlen(szMsg)+1;
-   memcpy( &(buffer[sizeof(t_packet_header)+4]), szMsg, strlen(szMsg)+1);
-   if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length) )
-       log_softerror_and_alarm("No pipe to central to send message to.");
-}
-
-void test_link_send_end_message_to_central(bool bSucceeded)
-{
-   log_line("[TestLink-%d] Send end message to central. Succeeded? %s", (int)s_uTestLinkRunNumber, (bSucceeded?"Yes":"No"));
-
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = g_uControllerId;
-   PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
-
-   u8 buffer[1024];
-   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = (u8) s_iTestLinkIndex;
-   buffer[sizeof(t_packet_header)+1] = (u8) s_uTestLinkRunNumber;
-   buffer[sizeof(t_packet_header)+2] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END;
-   buffer[sizeof(t_packet_header)+3] = (u8) (bSucceeded?1:0);
-   if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length) )
-       log_softerror_and_alarm("No pipe to central to send message to.");
-}
-
-void _test_link_send_ping_to_vehicle()
-{
-   s_uCountPingSent++;
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
-   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + 2*sizeof(u32);
-
-   u8 buffer[1024];
-   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = (u8)s_iTestLinkIndex;
-   buffer[sizeof(t_packet_header)+1] = (u8)s_uTestLinkRunNumber;
-   buffer[sizeof(t_packet_header)+2] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING;
-   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8), &s_uCountPingSent, sizeof(u32));
-   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(u32), &s_uCountPingReceived, sizeof(u32));
-   packets_queue_add_packet(&s_QueueRadioPackets, buffer);
-   log_line("[TestLink-%d] Sent ping %d to vehicle", (int)s_uTestLinkRunNumber, s_uCountPingSent);
-}
-
-void _test_link_send_end_message_to_vehicle(bool bSucceeded)
-{
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
-   PH.vehicle_id_src = g_uControllerId;
-   PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
-   PH.total_length = sizeof(t_packet_header) + 4*sizeof(u8);
-
-   u8 buffer[1024];
-   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = (u8)s_iTestLinkIndex;
-   buffer[sizeof(t_packet_header)+1] = (u8)s_uTestLinkRunNumber;
-   buffer[sizeof(t_packet_header)+2] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END;
-   buffer[sizeof(t_packet_header)+3] = (u8) (bSucceeded?1:0);
-   packets_queue_add_packet(&s_QueueRadioPackets, buffer);
-   log_line("[TestLink-%d] Sent end message (repeat %d) to vehicle", (int)s_uTestLinkRunNumber, s_uTestMsgSentCount);
-}
-
-bool test_link_start(u32 uControllerId, u32 uVehicleId, int iLinkId, type_radio_links_parameters* pRadioParamsToTest)
-{
-   log_line("[TestLink-%d] Start test flow. CID: %u, VID: %u, radio link %d", (int)s_uTestLinkRunNumber, uControllerId, uVehicleId, iLinkId+1);
-
-   if ( (s_iTestLinkState != 0) || test_link_is_in_progress() )
+   if ( s_iTestLinkState == TEST_LINK_STATE_START )
    {
-      log_line("[TestLink-%d] is already in progress. Ignore request.", (int)s_uTestLinkRunNumber);
-      return false;
-   }
-
-   s_iTestLinkIndex = iLinkId;
-   s_uTestLinkRunNumber++;
-   memcpy(&s_RadioLinksParamsToTest, pRadioParamsToTest, sizeof(type_radio_links_parameters));
-
-   s_iTestLinkCountDifferences = g_pCurrentModel->logVehicleRadioLinkDifferences(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest);
-
-   memcpy(&s_RadioLinksParamsOriginal, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
-   memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
-   
-   test_link_reset_state();
-
-   if ( (1 == s_iTestLinkCountDifferences) && (s_RadioLinksParamsOriginal.link_frequency_khz[s_iTestLinkIndex] != s_RadioLinksParamsToTest.link_frequency_khz[s_iTestLinkIndex]) )
-   {
-      log_line("[TestLink-%d] Only frequency must be changed for this test.", (int)s_uTestLinkRunNumber);
-      s_bTestLinkOnlyFreqChanged = true;
-   }
-
-   s_bTestLinkParamsInProgress = true;
-   s_bTestLinkParamsSucceded = false;
-   
-   test_link_switch_to_state(TEST_LINK_STATE_SEND_START_TO_VEHICLE, TIMEOUT_TEST_LINK_STATE_START );
-   
-   s_uTimeLastTestPacketSent = g_TimeNow;
-   s_uTestMsgSentCount = 0;
-
-   test_link_generate_start_packet(uVehicleId, iLinkId, pRadioParamsToTest);
-   
-   t_packet_header* pPH = (t_packet_header*)s_uPacketStartTestLink;
-   pPH->vehicle_id_src = uControllerId;
-   pPH->vehicle_id_dest = uVehicleId;
-
-   // For frequency change only, pause radio interfaces and apply new params after start command confirmation is received from vehicle
-   if ( s_bTestLinkOnlyFreqChanged )
-      return true;
-
-   test_link_pause_interfaces();
-   test_link_close_interfaces();
-   s_bMustResumeTestInterfaces = true;
-   s_bMustReopenTestInterfaces = true;
-
-   log_line("[TestLink-%d] Apply new parameters for radio link %d", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
-   s_bApplyRadioParamsInProgress = true;
-   memcpy(&s_RadioLinkParamsToChangeTo, &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
-   memcpy(&s_RadioLinkParamsToChangeFrom, &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
-
-   if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker, NULL) )
-   {
-      radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
-      test_link_reopen_interfaces();
-      test_link_resume_interfaces();
-      s_bApplyRadioParamsInProgress = false;
-      s_bMustReopenTestInterfaces = false;
-      s_bMustResumeTestInterfaces = false;
-   }
-
-   return true;
-}
-
-void test_link_switch_to_end_flow_state(bool bSucceeded)
-{
-   if ( 0 == s_iTestLinkState )
-   {
-      log_line("[TestLink-%d] Ended without executing. Succeeded? %s", (int)s_uTestLinkRunNumber, (bSucceeded?"Yes":"No"));
-      s_bTestLinkParamsSucceded = bSucceeded;
-      s_bTestLinkParamsInProgress = false;
+      s_bTestLinkCurrentTestSucceeded = false;
+      s_uTimeLastUpdateCurrentState = g_TimeNow-100;
       return;
    }
- 
-   test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
-   
-   s_bTestLinkParamsSucceded = bSucceeded;
-   s_uTimeLastTestPacketSent = 0;
-   s_uTestMsgSentCount = 0;
 
-   log_line("[TestLink-%d] Switched to state end flow. Succeeded? %s", (int)s_uTestLinkRunNumber, (bSucceeded?"Yes":"No"));
+   if ( s_iTestLinkState == TEST_LINK_STATE_APPLY_RADIO_PARAMS )
+   {
+      if ( ! s_bTestLinkOnlyFreqChanged )
+         test_link_send_status_message_to_central("Applying new parameters...");
+      s_bApplyRadioParamsInProgress = true;
 
-   if ( s_bTestLinkParamsSucceded )
-   {
-      test_link_send_status_message_to_central("New parameters are supported and applied.");
-      test_link_send_status_message_to_central("Saving state...");
-   }
-   else
-   {
-      test_link_send_status_message_to_central("New parameters are not supported.");
-      test_link_send_status_message_to_central("Cleaning up...");
-   }
-}
+      _test_link_pause_interfaces();
+      if ( ! s_bTestLinkOnlyFreqChanged )
+         _test_link_close_interfaces();
 
-void test_link_process_received_message(int iInterfaceIndex, u8* pPacketBuffer)
-{
-   if ( NULL == pPacketBuffer )
-   {
-      log_softerror_and_alarm("[TestLink-%d] Process received message from vehicle on radio interface %d but message is null", (int)s_uTestLinkRunNumber, iInterfaceIndex+1);
-      return;
-   }
-   t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-   if ( (pPH->packet_type != PACKET_TYPE_TEST_RADIO_LINK) || (pPH->total_length < sizeof(t_packet_header)+3) )
-   {
-      log_softerror_and_alarm("[TestLink-%d] Process received message from vehicle on radio interface %d but message is invalid.", (int)s_uTestLinkRunNumber, iInterfaceIndex+1);
-      return;
-   }
-   int iRadioLinkId = pPacketBuffer[sizeof(t_packet_header)];
-   //int iTestNb = pPacketBuffer[sizeof(t_packet_header)+1];
-   int iMsgType = pPacketBuffer[sizeof(t_packet_header)+2];
-   int iMsgLen = pPH->total_length - sizeof(t_packet_header)-3*sizeof(u8);
-   
-   char szBuff[128];
-   test_link_state_get_state_string(s_iTestLinkState, szBuff);
-
-   // Start message
-
-   if ( (iMsgType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START) && (s_iTestLinkState == TEST_LINK_STATE_SEND_START_TO_VEHICLE) )
-   {
-      log_line("[TestLink-%d] Processing received test link message type %s from VID %u, test link state is: %s, %d data bytes, on radio interface %d for radio link %d",
-         (int)s_uTestLinkRunNumber, str_get_packet_test_link_command(iMsgType), pPH->vehicle_id_src,
-         szBuff, iMsgLen,
-         iInterfaceIndex+1, iRadioLinkId+1);
-      if ( pPH->total_length != (int)(sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters)) )
+      memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+      if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker_apply, NULL) )
       {
-         log_softerror_and_alarm("[TestLink-%d] Received old format. Ignore it.", (int)s_uTestLinkRunNumber);
+
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+
+         test_link_send_status_message_to_central("Internal error (1).");
+         s_bApplyRadioParamsInProgress = false;
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
          return;
       }
-      test_link_send_status_message_to_central("Vehicle updated paramaters. Testing link...");
-
-      // For frequency change only, pause radio interfaces and apply new params now
-      if ( s_bTestLinkOnlyFreqChanged )
-      if ( ! s_bApplyRadioParamsInProgress )
-      {
-         test_link_pause_interfaces();
-         s_bMustResumeTestInterfaces = true;
-         log_line("[TestLink-%d] Apply new parameters (freq) for radio link %d", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
-         s_bApplyRadioParamsInProgress = true;
-         memcpy(&s_RadioLinkParamsToChangeTo, &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
-         memcpy(&s_RadioLinkParamsToChangeFrom, &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
-
-         if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker, NULL) )
-         {
-            radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
-            test_link_resume_interfaces();
-            s_bApplyRadioParamsInProgress = false;
-            s_bMustResumeTestInterfaces = false;
-         }
-      }
-
-      test_link_switch_to_state(TEST_LINK_STATE_PING, TIMEOUT_TEST_LINK_STATE_PING);
-      s_uCountPingSent = 0;
-      s_uCountPingReceived = 0;
-      s_uCountPingsSentByVehicle = 0;
-      s_uCountPingsReceivedByVehicle = 0;
-      s_uTimeLastTestPacketSent = g_TimeNow;
       return;
    }
 
-   // Ping message
-
-   if ( (iMsgType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING) )
+   if ( s_iTestLinkState == TEST_LINK_STATE_PING_UPLINK )
    {
-      log_line("[TestLink-%d] Processing received test link message type %s from VID %u, test link state is: %s, %d data bytes, on radio interface %d for radio link %d",
-         (int)s_uTestLinkRunNumber, str_get_packet_test_link_command(iMsgType), pPH->vehicle_id_src,
-         szBuff, iMsgLen,
-         iInterfaceIndex+1, iRadioLinkId+1);
+      log_line("[TestLink-%d] Reset pings received count.", s_iTestLinkRunCount);
+      s_uTestLinkCountPingsReceived = 0;
+      return;
+   }
 
-      if ( pPH->total_length != (int)(sizeof(t_packet_header) + 3*sizeof(u8) + 2*sizeof(u32)) )
+   if ( s_iTestLinkState == TEST_LINK_STATE_PING_DOWNLINK )
+   {
+      log_line("[TestLink-%d] Reset pings received count.", s_iTestLinkRunCount);
+      s_uTestLinkCountPingsReceived = 0;
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_END )
+   {
+      if ( ! s_bTestLinkCurrentTestSucceeded )
       {
-         log_softerror_and_alarm("[TestLink-%d] Received old format. Ignore it.", (int)s_uTestLinkRunNumber);
+         test_link_send_status_message_to_central("New parameters are not supported.");
+         test_link_send_status_message_to_central("Cleaning up...");
+         _test_link_switch_to_state(TEST_LINK_STATE_REVERT_RADIO_PARAMS, TIMEOUT_TEST_LINK_STATE_APPLY_RADIO_PARAMS);
          return;
       }
 
-      s_uCountPingReceived++;
-      memcpy(&s_uCountPingsSentByVehicle, pPacketBuffer + sizeof(t_packet_header) + 3*sizeof(u8), sizeof(u32));
-      memcpy(&s_uCountPingsReceivedByVehicle, pPacketBuffer + sizeof(t_packet_header) + 3*sizeof(u8)+sizeof(u32), sizeof(u32));
-      log_line("[TestLink-%d] Received test ping nb %u from vehicle. Vehicle sent %u pings so far, vehicle received %u pings so far, we sent %u pings.",
-         (int)s_uTestLinkRunNumber, s_uCountPingReceived, s_uCountPingsSentByVehicle, s_uCountPingsReceivedByVehicle, s_uCountPingSent);
-
-      if ( s_iTestLinkState == TEST_LINK_STATE_ENDED )
-      {
-         // Send to vehicle one more ping after the ping state ended, so that the vehicle can increase the pings count too
-         if ( ! s_bSentTestPingAfterPingState )
-         {
-            log_line("[TestLink-%d] Send one more ping to vehicle after ping state ended.", (int)s_uTestLinkRunNumber);
-            s_bSentTestPingAfterPingState = true;
-            _test_link_send_ping_to_vehicle();
-         }
-      }
-
-      if ( s_iTestLinkState == TEST_LINK_STATE_PING )
-      if ( s_uCountPingSent >= TEST_LINK_SUCCESS_PING_COUNTS )
-      if ( s_uCountPingReceived >= TEST_LINK_SUCCESS_PING_COUNTS )
-      if ( s_uCountPingsSentByVehicle >= TEST_LINK_SUCCESS_PING_COUNTS )
-      if ( s_uCountPingsReceivedByVehicle >= TEST_LINK_SUCCESS_PING_COUNTS )
-      {
-         log_line("[TestLink-%d] Pings where sent and received successfully on both sides. Params are working fine.", (int)s_uTestLinkRunNumber);
-         test_link_send_status_message_to_central("Link is active");
-         test_link_switch_to_end_flow_state(true);
-      }
+      s_uTimeLastUpdateCurrentState = g_TimeNow-100;
       return;
    }
 
-   // End message
-   
-   if ( (iMsgType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END) && (s_iTestLinkState == TEST_LINK_STATE_ENDED) )
+   if ( s_iTestLinkState == TEST_LINK_STATE_REVERT_RADIO_PARAMS )
    {
-      log_line("[TestLink-%d] Processing received test link message type %s from VID %u, test link state is: %s, %d data bytes, on radio interface %d for radio link %d",
-        (int)s_uTestLinkRunNumber, str_get_packet_test_link_command(iMsgType), pPH->vehicle_id_src,
-        szBuff, iMsgLen,
-        iInterfaceIndex+1, iRadioLinkId+1);
-
-      if ( pPH->total_length != (int)(sizeof(t_packet_header) + 4*sizeof(u8)) )
+      if ( ! s_bTestLinkOnlyFreqChanged )
       {
-         log_softerror_and_alarm("[TestLink-%d] Received old format. Ignore it.", (int)s_uTestLinkRunNumber);
+         test_link_send_status_message_to_central("New parameters are not supported.");
+         test_link_send_status_message_to_central("Cleaning up...");
+      }
+      else
+         test_link_send_status_message_to_central("Frequency change failed. Cleaning up...");
+      
+      s_bApplyRadioParamsInProgress = true;
+
+      _test_link_pause_interfaces();
+      if ( ! s_bTestLinkOnlyFreqChanged )
+         _test_link_close_interfaces();
+
+      memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
+      if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker_revert, NULL) )
+      {
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+
+         test_link_send_status_message_to_central("Internal error (2).");
+         s_bTestLinkCurrentTestSucceeded = false;
+         s_bApplyRadioParamsInProgress = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
          return;
-      }
-      u8 uSuccessOnVehicle = pPacketBuffer[sizeof(t_packet_header) + 3*sizeof(u8)];
-      log_line("[TestLink-%d] Test link has ended on both ends. Succeeded locally? %s. Succeeded on vehicle? %s",
-         (int)s_uTestLinkRunNumber, 
-         (s_bTestLinkParamsSucceded?"Yes":"No"),
-         (uSuccessOnVehicle?"Yes":"No"));
-      s_bTestLinkParamsInProgress = false;
-      s_iTestLinkState = 0;
-      saveControllerModel(g_pCurrentModel);
-      test_link_send_end_message_to_central(s_bTestLinkParamsSucceded);
-      return;
-   }
-
-   log_line("[TestLink-%d] Ignored received test link message from VID %u, msg type: %s, test link state is: %s, %d data bytes for radio link %d",
-      (int)s_uTestLinkRunNumber, pPH->vehicle_id_src, str_get_packet_test_link_command(iMsgType),
-      szBuff, iMsgLen, iRadioLinkId+1);
-}
-
-void test_link_loop()
-{
-   static u32 s_uTimeLastTestLinkLoop = 0;
-
-   if ( g_TimeNow > s_uTimeLastTestLinkLoop + 50 )
-   {
-      s_uTimeLastTestLinkLoop = g_TimeNow;
-      char szBuff[128];
-      test_link_state_get_state_string(s_iTestLinkState, szBuff);
-      log_line("[TestLink-%d] Loop state: %s, time to end step: %u ms, radio config in progress: %s", (int)s_uTestLinkRunNumber, szBuff, s_uTimeEndCurrentStep - g_TimeNow, (s_bApplyRadioParamsInProgress?"Yes":"No"));
-   }
-
-   if ( s_bApplyRadioParamsInProgress )
-      return;
-
-   if ( s_bMustReopenTestInterfaces )
-   {
-      test_link_reopen_interfaces();
-      s_bMustReopenTestInterfaces = false;
-   }
-
-   if ( ! s_bMustReopenTestInterfaces )
-   if ( s_bMustResumeTestInterfaces )
-   {
-      test_link_resume_interfaces();
-      s_bMustResumeTestInterfaces = false;
-   }
-
-   if ( ! test_link_is_in_progress() )
-      log_line("[TestLink-%d] Finished completly.", (int)s_uTestLinkRunNumber);
-
-   if ( ! s_bTestLinkParamsInProgress )
-      return;
-
-   if ( s_iTestLinkState == TEST_LINK_STATE_SEND_START_TO_VEHICLE )
-   {
-      if ( g_TimeNow > s_uTimeEndCurrentStep )
-      {
-         log_line("[TestLink-%d] No start confirmation received from vehicle. Ending flow.", (int)s_uTestLinkRunNumber);
-         test_link_switch_to_end_flow_state(false);
-         return;
-      }
-      if ( g_TimeNow > s_uTimeLastTestPacketSent + 90 )
-      {
-         s_uTestMsgSentCount++;
-         s_uTimeLastTestPacketSent = g_TimeNow;
-         packets_queue_add_packet(&s_QueueRadioPackets, s_uPacketStartTestLink);
-         log_line("[TestLink-%d] Sent start message (repeat %u) to vehicle", (int)s_uTestLinkRunNumber, s_uTestMsgSentCount);
-      }
-      return;
-   }
-
-   if ( s_iTestLinkState == TEST_LINK_STATE_PING )
-   {
-      if ( g_TimeNow > s_uTimeEndCurrentStep )
-      {
-         log_line("[TestLink-%d] No ping confirmation received from vehicle. Ending flow.", (int)s_uTestLinkRunNumber);
-         test_link_switch_to_end_flow_state(false);
-         return;       
-      }
-      if ( g_TimeNow > s_uTimeLastTestPacketSent + 87 )
-      {
-         s_uTimeLastTestPacketSent = g_TimeNow;
-         _test_link_send_ping_to_vehicle();
       }
       return;
    }
 
    if ( s_iTestLinkState == TEST_LINK_STATE_ENDED )
    {
-       if ( g_TimeNow > s_uTimeEndCurrentStep )
-       {
-          log_line("[TestLink-%d] No end confirmation received from vehicle. Ending flow.", (int)s_uTestLinkRunNumber);
+      test_link_send_end_message_to_central(s_bTestLinkCurrentTestSucceeded);
+      s_iTestLinkState = TEST_LINK_STATE_NONE;
+      return;
+   }
+}
 
-          if ( ! s_bTestLinkParamsSucceded )
-          if ( s_uCountPingSent >= TEST_LINK_SUCCESS_PING_COUNTS )
-          if ( s_uCountPingReceived >= TEST_LINK_SUCCESS_PING_COUNTS )
-          if ( s_uCountPingsReceivedByVehicle >= TEST_LINK_SUCCESS_PING_COUNTS )
-          {
-             log_line("[TestLink-%d] Ping phase succeded, so mark the test as succeeded.", (int)s_uTestLinkRunNumber);
-             s_bTestLinkParamsSucceded = true;
-          }
-          log_line("[TestLink-%d] Test link has ended with timeout. Succeeded? %s", (int)s_uTestLinkRunNumber, (s_bTestLinkParamsSucceded?"Yes":"No"));
-          
-          s_iTestLinkState = 0;
-          s_bTestLinkParamsInProgress = false;
 
-          if ( s_bTestLinkParamsSucceded )
-          {
-             saveControllerModel(g_pCurrentModel);
-             test_link_send_end_message_to_central(s_bTestLinkParamsSucceded);
-             return;
-          }
+void test_link_send_status_message_to_central(const char* szMsg)
+{
+   if ( (NULL == szMsg) || (0 == szMsg[0]) )
+      return;
 
-          log_line("[TestLink-%d] Revert radio link %d paramters to original values.", (int)s_uTestLinkRunNumber, s_iTestLinkIndex+1);
-          memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
-          
-          s_bMustResumeTestInterfaces = true;
-          test_link_pause_interfaces();
-          if ( ! s_bTestLinkOnlyFreqChanged )
-          {
-             s_bMustReopenTestInterfaces = true;
-             test_link_close_interfaces();
-          }
-          s_bApplyRadioParamsInProgress = true;
-          memcpy(&s_RadioLinkParamsToChangeFrom, &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
-          memcpy(&s_RadioLinkParamsToChangeTo, &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
+   log_line("[TestLink-%d] Send status message to central: [%s]", s_iTestLinkRunCount, szMsg);
 
-          if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker, NULL) )
-          {
-             radio_links_apply_settings(g_pCurrentModel, s_iTestLinkIndex, &s_RadioLinksParamsToTest, &s_RadioLinksParamsOriginal);
-             if ( ! s_bTestLinkOnlyFreqChanged )
-                test_link_reopen_interfaces();
-             test_link_resume_interfaces();
-             s_bApplyRadioParamsInProgress = false;
-             s_bTestLinkParamsInProgress = false;
-             s_bMustReopenTestInterfaces = false;
-             s_bMustResumeTestInterfaces = false;
-             s_iTestLinkState = 0;
-             test_link_send_end_message_to_central(s_bTestLinkParamsSucceded);
-          }
-          return;
-       }
-       if ( g_TimeNow > s_uTimeLastTestPacketSent + 91 )
-       {
-          s_uTestMsgSentCount++;
-          s_uTimeLastTestPacketSent = g_TimeNow;
-          _test_link_send_end_message_to_vehicle(s_bTestLinkParamsSucceded);
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+   PH.vehicle_id_dest = g_uControllerId;
+   PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + strlen(szMsg)+2;
+
+   u8 buffer[1024];
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+   buffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+   buffer[sizeof(t_packet_header)+2] = (u8) s_iTestLinkIndex;
+   buffer[sizeof(t_packet_header)+3] = (u8) s_iTestLinkRunCount;
+   buffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS;
+   buffer[sizeof(t_packet_header)+5] = (u8) strlen(szMsg)+1;
+   memcpy( &(buffer[sizeof(t_packet_header)+6]), szMsg, strlen(szMsg)+1);
+   if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length) )
+       log_softerror_and_alarm("No pipe to central to send message to.");
+}
+
+void test_link_send_end_message_to_central(bool bSucceeded)
+{
+   log_line("[TestLink-%d] Send end message to central. Succeeded? %s", s_iTestLinkRunCount, (bSucceeded?"Yes":"No"));
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+   PH.vehicle_id_dest = g_uControllerId;
+   PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u8);
+
+   u8 buffer[1024];
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   buffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+   buffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+   buffer[sizeof(t_packet_header)+2] = (u8) s_iTestLinkIndex;
+   buffer[sizeof(t_packet_header)+3] = (u8) s_iTestLinkRunCount;
+   buffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_ENDED;
+   buffer[sizeof(t_packet_header)+5] = (u8) (bSucceeded?1:0);
+   if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length) )
+       log_softerror_and_alarm("No pipe to central to send message to.");
+}
+
+
+bool test_link_start(u32 uControllerId, u32 uVehicleId, int iLinkId, type_radio_links_parameters* pRadioParamsToTest)
+{
+   log_line("[TestLink-%d] Start test flow. CID: %u, VID: %u, vehicle radio link %d", s_iTestLinkRunCount, uControllerId, uVehicleId, iLinkId+1);
+
+   if ( (s_iTestLinkState != TEST_LINK_STATE_NONE) || test_link_is_in_progress() )
+   {
+      s_bTestLinkCurrentTestSucceeded = false;
+      log_line("[TestLink-%d] is already in progress. Ignore request.", s_iTestLinkRunCount);
+      test_link_send_status_message_to_central("Another radio link update is in progress.");
+      test_link_send_end_message_to_central(s_bTestLinkCurrentTestSucceeded);
+      return false;
+   }
+
+   s_iTestLinkRunCount++;
+   s_uTestLinkVehicleId = uVehicleId;
+   s_iTestLinkIndex = iLinkId;
+   memcpy(&s_RadioLinksParamsOriginal, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
+   memcpy(&s_RadioLinksParamsToTest, pRadioParamsToTest, sizeof(type_radio_links_parameters));
+
+   int iDifferences = g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
+
+   s_bTestLinkOnlyFreqChanged = false;
+   if ( (1 == iDifferences) && (s_RadioLinksParamsOriginal.link_frequency_khz[s_iTestLinkIndex] != s_RadioLinksParamsToTest.link_frequency_khz[s_iTestLinkIndex]) )
+      s_bTestLinkOnlyFreqChanged = true;
+
+   s_bTestLinkCurrentTestSucceeded = false;
+
+   _test_link_switch_to_state(TEST_LINK_STATE_START, TIMEOUT_TEST_LINK_STATE_START);
+   return true;
+}
+
+void test_link_process_received_message(int iInterfaceIndex, u8* pPacketBuffer)
+{
+   if ( NULL == pPacketBuffer )
+   {
+      log_softerror_and_alarm("[TestLink-%d] Process received message from vehicle on radio interface %d but message is null", s_iTestLinkRunCount, iInterfaceIndex+1);
+      return;
+   }
+   t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
+   if ( (pPH->packet_type != PACKET_TYPE_TEST_RADIO_LINK) || (pPH->total_length < sizeof(t_packet_header)+PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE) )
+   {
+      log_softerror_and_alarm("[TestLink-%d] Process received message from vehicle on radio interface %d but message is invalid.", s_iTestLinkRunCount, iInterfaceIndex+1);
+      return;
+   }
+
+   int iProtocol = pPacketBuffer[sizeof(t_packet_header)];
+   int iHeaderSize = pPacketBuffer[sizeof(t_packet_header)+1];
+   //int iRadioLinkId = pPacketBuffer[sizeof(t_packet_header)+2];
+   int iTestNb = pPacketBuffer[sizeof(t_packet_header)+3];
+   int iCmdType = pPacketBuffer[sizeof(t_packet_header)+4];
+   //int iCmdLen = pPH->total_length - sizeof(t_packet_header)-PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+
+   if ( (iProtocol != PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION) || (iHeaderSize != PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE) || (iTestNb != s_iTestLinkRunCount) )
+   {
+      log_softerror_and_alarm("[TestLink-%d] Process received message from vehicle (%s) on radio interface %d but message is invalid (size or index). Protocol: %d, header size: %d, total data length: %d",
+         s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1, iProtocol, iHeaderSize, pPH->total_length - sizeof(t_packet_header));
+      return;
+   }
+   
+   char szBuff[128];
+   test_link_state_get_state_string(s_iTestLinkState, szBuff);
+   log_line("[TestLink-%d] Process received reply command (%s) from vehicle on radio interface %d, current state is: %s", s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1, szBuff);
+   
+   if ( iCmdType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START )
+   {
+      if ( s_iTestLinkState != TEST_LINK_STATE_START )
+      {
+         log_line("[TestLink-%d] Ignored duplicate command (%s) from vehicle on radio interface %d", s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1);
+         return;
+      }
+      _test_link_switch_to_state(TEST_LINK_STATE_APPLY_RADIO_PARAMS, TIMEOUT_TEST_LINK_STATE_APPLY_RADIO_PARAMS);
+      return;
+   }
+
+   if ( iCmdType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_UPLINK )
+   {
+      if ( s_iTestLinkState != TEST_LINK_STATE_PING_UPLINK )
+      {
+         log_line("[TestLink-%d] Ignored command (%s) from vehicle on radio interface %d", s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1);
+         return;
+      }
+
+      s_uTestLinkCountPingsReceived++;
+      u32 uTmpPingsSentByVehicle;
+      u32 uTmpPingsReceivedByVehicle;
+      memcpy( &uTmpPingsSentByVehicle, pPacketBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, sizeof(u32));
+      memcpy( &uTmpPingsReceivedByVehicle, pPacketBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), sizeof(u32));
+
+      log_line("[TestLink-%d] Process received ping uplink reply from vehicle (count received so far: %u). Vehicle sent %u pings, Vehicle received %u pings replies.",
+         s_iTestLinkRunCount, s_uTestLinkCountPingsReceived, uTmpPingsSentByVehicle, uTmpPingsReceivedByVehicle );
+      
+      if ( uTmpPingsSentByVehicle > 0 )
+      if ( uTmpPingsReceivedByVehicle > 0 )
+         _test_link_switch_to_state(TEST_LINK_STATE_PING_DOWNLINK, TIMEOUT_TEST_LINK_STATE_PING);
+         
+      return;
+   }
+
+   if ( iCmdType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_DOWNLINK )
+   {
+      if ( s_iTestLinkState != TEST_LINK_STATE_PING_DOWNLINK )
+      {
+         log_line("[TestLink-%d] Ignored command (%s) from vehicle on radio interface %d", s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1);
+         return;
+      }
+
+      s_uTestLinkCountPingsReceived++;
+      u32 uTmpPingsSentByVehicle;
+      u32 uTmpPingsReceivedByVehicle;
+      memcpy( &uTmpPingsSentByVehicle, pPacketBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, sizeof(u32));
+      memcpy( &uTmpPingsReceivedByVehicle, pPacketBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), sizeof(u32));
+
+      log_line("[TestLink-%d] Process received ping downlink reply from vehicle (count received so far: %u). Vehicle sent %u pings, Vehicle received %u pings replies.",
+         s_iTestLinkRunCount, s_uTestLinkCountPingsReceived, uTmpPingsSentByVehicle, uTmpPingsReceivedByVehicle );
+      
+      if ( uTmpPingsSentByVehicle > 1 )
+      if ( uTmpPingsReceivedByVehicle > 1 )
+      {
+         s_bTestLinkCurrentTestSucceeded = true;
+         _test_link_switch_to_state(TEST_LINK_STATE_END, 500);
+      }
+      return;
+   }
+
+   if ( iCmdType == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+   {
+      if ( s_iTestLinkState != TEST_LINK_STATE_END )
+      {
+         log_line("[TestLink-%d] Ignored command (%s) from vehicle on radio interface %d", s_iTestLinkRunCount, str_get_packet_test_link_command(iCmdType), iInterfaceIndex+1);
+         return;
+      }
+      _test_link_end_and_notify();
+      return;
+   }
+}
+
+void test_link_loop()
+{
+   if ( s_iTestLinkState == TEST_LINK_STATE_NONE )
+      return;
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_START )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         log_line("[TestLink-%d] No start confirmation received from vehicle. Ending flow.", s_iTestLinkRunCount);
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
+         return;
+      }
+      if ( g_TimeNow > s_uTimeLastUpdateCurrentState + 90 )
+      {
+         s_iTestLinkCurrentStepSendCount++;
+         s_uTimeLastUpdateCurrentState = g_TimeNow;
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+         PH.vehicle_id_src = g_uControllerId;
+         PH.vehicle_id_dest = s_uTestLinkVehicleId;
+         PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(type_radio_links_parameters);
+
+         u8 uBuffer[1024];
+         memcpy(uBuffer, (u8*)&PH, sizeof(t_packet_header));
+         uBuffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+         uBuffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+         uBuffer[sizeof(t_packet_header)+2] = (u8)s_iTestLinkIndex;
+         uBuffer[sizeof(t_packet_header)+3] = (u8)s_iTestLinkRunCount;
+         uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START;
+         memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, (u8*)&s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+
+         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         log_line("[TestLink-%d] Sent start message (count %u) to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
+      }
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_APPLY_RADIO_PARAMS )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         log_line("[TestLink-%d] Not able to apply radio params (timed out). Ending flow.", s_iTestLinkRunCount);
+         
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
+         return;
+      }
+      if ( ! s_bApplyRadioParamsInProgress )
+      {
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+          _test_link_switch_to_state(TEST_LINK_STATE_PING_UPLINK, TIMEOUT_TEST_LINK_STATE_PING);
+      }
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_PING_UPLINK )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         log_line("[TestLink-%d] Failed to confirm ping uplink (timed out). Ending flow.", s_iTestLinkRunCount);
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_REVERT_RADIO_PARAMS, TIMEOUT_TEST_LINK_STATE_APPLY_RADIO_PARAMS);
+         return;
+      }
+
+      if ( g_TimeNow > s_uTimeLastUpdateCurrentState + 50 )
+      {
+         s_iTestLinkCurrentStepSendCount++;
+         s_uTimeLastUpdateCurrentState = g_TimeNow;
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+         PH.vehicle_id_src = g_uControllerId;
+         PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
+         PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + 2*sizeof(u32);
+
+         u8 uBuffer[1024];
+         memcpy(uBuffer, (u8*)&PH, sizeof(t_packet_header));
+         uBuffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+         uBuffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+         uBuffer[sizeof(t_packet_header)+2] = (u8)s_iTestLinkIndex;
+         uBuffer[sizeof(t_packet_header)+3] = (u8)s_iTestLinkRunCount;
+         uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_UPLINK;
+         u32 uTmp = (u32)s_iTestLinkCurrentStepSendCount;
+         memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, &uTmp, sizeof(u32));
+         memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), &s_uTestLinkCountPingsReceived, sizeof(u32));
+         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         log_line("[TestLink-%d] Sent ping uplink %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
+      }
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_PING_DOWNLINK )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         log_line("[TestLink-%d] Failed to confirm ping downlink (timed out). Ending flow.", s_iTestLinkRunCount);
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_REVERT_RADIO_PARAMS, TIMEOUT_TEST_LINK_STATE_APPLY_RADIO_PARAMS);
+         return;
+      }
+
+      if ( g_TimeNow > s_uTimeLastUpdateCurrentState + 50 )
+      {
+         s_iTestLinkCurrentStepSendCount++;
+         s_uTimeLastUpdateCurrentState = g_TimeNow;
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+         PH.vehicle_id_src = g_uControllerId;
+         PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
+         PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + 2*sizeof(u32);
+
+         u8 uBuffer[1024];
+         memcpy(uBuffer, (u8*)&PH, sizeof(t_packet_header));
+         uBuffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+         uBuffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+         uBuffer[sizeof(t_packet_header)+2] = (u8)s_iTestLinkIndex;
+         uBuffer[sizeof(t_packet_header)+3] = (u8)s_iTestLinkRunCount;
+         uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_DOWNLINK;
+         u32 uTmp = (u32)s_iTestLinkCurrentStepSendCount;
+         memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, &uTmp, sizeof(u32));
+         memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), &s_uTestLinkCountPingsReceived, sizeof(u32));
+         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         log_line("[TestLink-%d] Sent ping downlink %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
+      }
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_REVERT_RADIO_PARAMS )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         log_line("[TestLink-%d] Not able to revert radio params (timed out). Ending flow.", s_iTestLinkRunCount);
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+         s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
+         return;
+      }
+      if ( ! s_bApplyRadioParamsInProgress )
+      {
+         if ( ! s_bTestLinkOnlyFreqChanged )
+            _test_link_reopen_interfaces();
+         _test_link_resume_interfaces();
+          s_bTestLinkCurrentTestSucceeded = false;
+         _test_link_switch_to_state(TEST_LINK_STATE_ENDED, TIMEOUT_TEST_LINK_STATE_END);
+      }
+      return;
+   }
+
+   if ( s_iTestLinkState == TEST_LINK_STATE_END )
+   {
+      if ( g_TimeNow > s_uTimeEndCurrentStep )
+      {
+         _test_link_end_and_notify();
+         return;
+      }
+
+      if ( g_TimeNow > s_uTimeLastUpdateCurrentState + 50 )
+      {
+         s_iTestLinkCurrentStepSendCount++;
+         s_uTimeLastUpdateCurrentState = g_TimeNow;
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
+         PH.vehicle_id_src = g_uControllerId;
+         PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
+         PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + 1;
+
+         u8 uBuffer[1024];
+         memcpy(uBuffer, (u8*)&PH, sizeof(t_packet_header));
+         uBuffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+         uBuffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+         uBuffer[sizeof(t_packet_header)+2] = (u8)s_iTestLinkIndex;
+         uBuffer[sizeof(t_packet_header)+3] = (u8)s_iTestLinkRunCount;
+         uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END;
+         uBuffer[sizeof(t_packet_header)+5] = 1;
+         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         log_line("[TestLink-%d] Sent end message %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
       }
       return;
    }

@@ -155,7 +155,7 @@ unsigned int RenderEngineUI::loadFontSize(float fSize)
       }
    }
    
-   s_uRenderEngineUIFontsListSizes[nSize] = s_pRenderEngineUI->loadFont(szFileName);
+   s_uRenderEngineUIFontsListSizes[nSize] = s_pRenderEngineUI->loadRawFont(szFileName);
    if ( 0 == s_uRenderEngineUIFontsListSizes[nSize] )
    {
       log_softerror_and_alarm("[RenderEngineOSD] Can't load font %s (%s)", szFont, szFileName);
@@ -321,14 +321,14 @@ float RenderEngineUI::textHeight(unsigned int fontId)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->textHeight(fontId);
+   return s_pRenderEngineUI->textRawHeight(fontId);
 }
 
 float RenderEngineUI::textWidth(unsigned int fontId, const char* szText)
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->textWidth(fontId, szText);
+   return s_pRenderEngineUI->textRawWidth(fontId, szText);
 }
 
 void RenderEngineUI::drawText(float xPos, float yPos, unsigned int fontId, const char* szText)
@@ -356,7 +356,7 @@ float RenderEngineUI::drawMessageLines(const char* text, float xPos, float yPos,
 {
    if ( NULL == s_pRenderEngineUI )
       return 0.0;
-   return s_pRenderEngineUI->drawMessageLines(text, xPos, yPos, line_spacing_percent, max_width, fontId);
+   return s_pRenderEngineUI->drawMessageLines(xPos, yPos, text, line_spacing_percent, max_width, fontId);
 }
 
 void RenderEngineUI::drawLine(float x1, float y1, float x2, float y2)

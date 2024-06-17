@@ -38,7 +38,7 @@
 
 #define PREFERENCES_SETTINGS_STAMP_ID "vIV.3"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 
 Preferences s_Preferences;
 

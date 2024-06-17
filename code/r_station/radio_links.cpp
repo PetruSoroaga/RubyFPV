@@ -48,7 +48,6 @@
 #include "links_utils.h"
 
 int s_iFailedInitRadioInterface = -1;
-pcap_t* s_pAuxiliaryLinks[MAX_RADIO_INTERFACES];
 u32 s_uTimeLastCheckedAuxiliaryLinks = 0;
 fd_set s_RadioAuxiliaryRxReadSet;
 
@@ -189,10 +188,6 @@ void radio_links_close_rxtx_radio_interfaces()
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( pRadioHWInfo->openedForWrite )
          radio_close_interface_for_write(i);
-
-      if ( NULL != s_pAuxiliaryLinks[i] )
-         radio_close_auxiliary_wfbohd_channel(s_pAuxiliaryLinks[i]);
-      s_pAuxiliaryLinks[i] = NULL;
    }
 
    radio_close_interfaces_for_read();
@@ -218,7 +213,6 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
    {
       g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
       g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-      s_pAuxiliaryLinks[i] = NULL;
    }
 
    s_iFailedInitRadioInterface = -1;
@@ -344,7 +338,6 @@ void radio_links_open_rxtx_radio_interfaces()
       countOpenedForWriteForRadioLink[i] = 0;
       g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
       g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
-      s_pAuxiliaryLinks[i] = NULL;
    }
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -535,9 +528,9 @@ void radio_links_open_rxtx_radio_interfaces()
 }
 
 
-bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_parameters* pRadioLinkParamsOld, type_radio_links_parameters* pRadioLinkParams)
+bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_parameters* pRadioLinkParamsOld, type_radio_links_parameters* pRadioLinkParamsNew)
 {
-   if ( (NULL == pModel) || (NULL == pRadioLinkParams) )
+   if ( (NULL == pModel) || (NULL == pRadioLinkParamsNew) )
       return false;
    if ( (iRadioLink < 0) || (iRadioLink >= pModel->radioLinksParams.links_count) )
       return false;
@@ -546,10 +539,10 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
    // Update HT20/HT40 if needed
 
    bool bUpdateFreq = false;
-   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParams->link_frequency_khz[iRadioLink] )
+   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParamsNew->link_frequency_khz[iRadioLink] )
       bUpdateFreq = true;
    if ( (pRadioLinkParamsOld->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_CONTROLLER) != 
-        (pRadioLinkParams->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_CONTROLLER) )
+        (pRadioLinkParamsNew->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_CONTROLLER) )
       bUpdateFreq = true;
 
    if ( bUpdateFreq )
@@ -562,10 +555,10 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
          if ( NULL == pRadioHWInfo )
             continue;
 
-         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParams->link_frequency_khz[iRadioLink]) )
+         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParamsNew->link_frequency_khz[iRadioLink]) )
             continue;
-         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pRadioLinkParams->link_frequency_khz[iRadioLink], g_pProcessStats, 0);
-         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParams->link_frequency_khz[iRadioLink]);
+         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pRadioLinkParamsNew->link_frequency_khz[iRadioLink], g_pProcessStats, 0);
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParamsNew->link_frequency_khz[iRadioLink]);
       }
 
       hardware_save_radio_info();
@@ -589,7 +582,7 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
          continue;
 
       //int nRateTx = pRadioLinkParams->uplink_datarate_data_bps[iRadioLink];
-      int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, pRadioLinkParams);
+      int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, pRadioLinkParamsNew);
       update_atheros_card_datarate(pModel, i, nRateTx, g_pProcessStats);
       g_TimeNow = get_current_timestamp_ms();
    }

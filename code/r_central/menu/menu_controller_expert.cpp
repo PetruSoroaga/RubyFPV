@@ -403,6 +403,8 @@ void MenuControllerExpert::onSelectItem()
       else
          pcs->iNiceRXVideo = -10;
       valuesToUI();
+
+      #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
       char szPids[1024];
       sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
@@ -412,11 +414,13 @@ void MenuControllerExpert::onSelectItem()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
    }
 
    if ( m_IndexNiceRXVideo == m_SelectedIndex )
    {
       pcs->iNiceRXVideo = -m_pItemsSlider[2]->getCurrentValue();
+      #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
       char szPids[1024];
       sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
@@ -426,6 +430,7 @@ void MenuControllerExpert::onSelectItem()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
    }
 
    if ( m_IndexNiceCentral == m_SelectedIndex )
@@ -478,6 +483,7 @@ void MenuControllerExpert::onSelectItem()
 
       pcs->ioNiceRXVideo = ioNice;
 
+      #if defined (HW_PLATFORM_RASPBERRY)
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
@@ -491,6 +497,7 @@ void MenuControllerExpert::onSelectItem()
             snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
       #endif
       valuesToUI();
    }
@@ -514,6 +521,7 @@ void MenuControllerExpert::onSelectItem()
    if ( m_IndexIONiceValueRXVideo == m_SelectedIndex )
    {
       pcs->ioNiceRXVideo = m_pItemsSlider[3]->getCurrentValue();
+      #if defined (HW_PLATFORM_RASPBERRY)
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
@@ -524,6 +532,7 @@ void MenuControllerExpert::onSelectItem()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
          hw_execute_bash_command(szBuff, NULL);
       }
+      #endif
       #endif
    }
 

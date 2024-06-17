@@ -51,6 +51,20 @@ typedef struct
     char text[MAX_SERVICE_LOG_ENTRY_LENGTH];
 } type_log_message_buffer;
 
+typedef struct
+{
+   u32 uTime;
+   u32 uTime2;
+   u32 uCounter;
+   u32 uCounter2;
+   u32 uValueMinimLocal;
+   u32 uValueMaximLocal;
+   u32 uValueAverageLocal;
+   u32 uValueMinim;
+   u32 uValueMaxim;
+   u32 uValueAverage;
+   u32 uValueNow;
+} type_u32_couters;
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,9 +72,15 @@ extern "C" {
 
 u32 revert_word(u32 input);
 
+void reset_counters(type_u32_couters* pCounters);
+
 u32 base_compute_crc32(u8 *buf, int length);
 u8 base_compute_crc8(u8* pBuffer, int iLength);
 int base_check_crc32(u8* pBuffer, int iLength);
+
+u32 get_sw_version_major(u32 uSWVersion);
+u32 get_sw_version_minor(u32 uSWVersion);
+u32 get_sw_version_build(u32 uSWVersion);
 
 u32 get_current_timestamp_micros();
 u32 get_current_timestamp_ms();

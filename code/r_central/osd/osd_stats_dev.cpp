@@ -126,8 +126,8 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    g_pRenderEngine->drawTextLeft(rightMargin, yPos, s_idFontStatsSmall, szBuff);
    
 
-   int iIntervalsDown = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs1 & 0xFFFF;
-   int iIntervalsUp = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs1 >> 16) & 0xFFFF;
+   int iIntervalsDown = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame & 0xFFFF;
+   int iIntervalsUp = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame >> 16) & 0xFFFF;
 
    int iIntervalsAdaptiveDown = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 & 0xFFFF;
    int iIntervalsAdaptiveUp = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 >> 16) & 0xFFFF;
@@ -157,7 +157,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    float widthBar = widthGraph / iValuesToShow;
 
    int iMaxValue = 0;
-   int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentIntervalIndex;
+   int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex;
    for( int i=0; i<iValuesToShow; i++ )
    {
       iIndex--;
@@ -179,7 +179,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
 
 
    float xBarSt = xPos + dxGraph + widthGraph - widthBar - g_pRenderEngine->getPixelWidth();
-   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentIntervalIndex;
+   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex;
    for( int i=0; i<iValuesToShow; i++ )
    {
       iIndex--;
@@ -254,7 +254,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
 
    
    iMaxValue = 0;
-   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentIntervalIndex;
+   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex;
    for( int i=0; i<iValuesToShow; i++ )
    {
       iIndex--;
@@ -281,7 +281,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    g_pRenderEngine->drawText(xPos, y + hGraph - height_text_small*0.6, s_idFontStats, "0");
    
    xBarSt = xPos + dxGraph + widthGraph - widthBar - g_pRenderEngine->getPixelWidth();
-   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentIntervalIndex;
+   iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex;
    for( int i=0; i<iValuesToShow; i++ )
    {
       iIndex--;
@@ -359,29 +359,12 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    g_pRenderEngine->setColors(get_Color_Dev());
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStatsSmall, "KF Lookup Intervals U/D:");
-   sprintf(szBuff, "%u / %u of %u", (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs1 >> 16 ) & 0xFFFF, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs1 & 0xFFFF, MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS );
+   sprintf(szBuff, "%u / %u of %u", (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame >> 16 ) & 0xFFFF, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame & 0xFFFF, MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "KF current U/D values:");
    sprintf(szBuff, "%u / %u, %u", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentKFMeasuredThUp1, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentKFMeasuredThDown1, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uCurrentKFMeasuredThDown2);
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "KF Thresholds Move Up:");
-   if ( iIntervalsUp > 0 )
-      sprintf(szBuff, "%u (%d%%)", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs2 & 0xFF, ((int)(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs2 & 0xFF))*100/iIntervalsUp );
-   else
-      sprintf(szBuff, "%u", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs2 & 0xFF );
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-
-   g_pRenderEngine->drawText(xPos, y, s_idFontStatsSmall, "KF Thresholds Move Down:");
-   sprintf(szBuff, "%u / %u / %u / %u",
-      (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs2 >> 8) & 0xFF,
-      (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs2 >> 16) & 0xFF,
-      (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs3 ) & 0xFF,
-      (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsKeyFrameMs3 >> 8) & 0xFF );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -391,7 +374,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    y += 0.25 * height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Video Lookup Intv. U/D:");
-   int adaptiveVideoIsOn = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int adaptiveVideoIsOn = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
    if ( adaptiveVideoIsOn )
       sprintf(szBuff, "%u / %u of %d", (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 >> 16 ) & 0xFFFF, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 & 0xFFFF, MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS );
    else
@@ -525,7 +508,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
       sprintf(szTmp, "-%d", diffEC);
       strcat(szBuff, szTmp);
    }
-   else if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+   else if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
 
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -771,7 +754,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    {
       bool bAdaptiveVideoOn = false;
       if ( NULL != g_pCurrentModel )
-         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
+         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
       if ( bAdaptiveVideoOn )
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, "No Info Available");
       else
@@ -782,7 +765,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "User / Current Profile :");
    strcpy(szBuff1, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.userVideoLinkProfile) );
    strcpy(szBuff2, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) );
-   //if ( (NULL != g_pSM_VideoDecodeStats) && (g_SM_VideoDecodeStats.encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
+   //if ( (NULL != g_pSM_VideoDecodeStats) && (g_SM_VideoDecodeStats.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE) )
    //   strcat(szBuff2, "-");
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szBuff1, szBuff2 );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -828,7 +811,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
 
    /*
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Uses Controller Feedback:");
-   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
       strcpy(szBuff, "Yes");
    else
       strcpy(szBuff, "No");
@@ -964,7 +947,7 @@ float osd_render_stats_video_graphs_get_width()
 
 void osd_render_stats_video_graphs(float xPos, float yPos)
 {
-   bool useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
+   bool useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
    
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
@@ -1007,7 +990,7 @@ void osd_render_stats_video_graphs(float xPos, float yPos)
    {
       bool bAdaptiveVideoOn = false;
       if ( NULL != g_pCurrentModel )
-         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
+         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
       if ( bAdaptiveVideoOn )
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, "No Info Available");
       else
@@ -1949,4 +1932,513 @@ void  osd_render_stats_graphs_vehicle_tx_gap(float xPos, float yPos)
       sprintf(szBuff, "%d ms", uAverageVideoPacketsIntervalSum/uAverageVideoPacketsIntervalCount );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
+}
+
+float osd_render_stats_dev_adaptive_video_get_height()
+{
+   float height_text = g_pRenderEngine->textHeight(s_idFontStats);
+   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
+   float hGraph = height_text*1.0;
+
+   float h = 7.0*height_text*s_OSDStatsLineSpacing;
+   h += 5.0 * (hGraph + height_text_small*(1+s_OSDStatsLineSpacing));
+   return h;
+}
+
+float osd_render_stats_dev_adaptive_video_info(float xPos, float yPos, float fWidth)
+{
+   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
+   int iIndexVehicleRuntimeInfo = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
+         iIndexVehicleRuntimeInfo = i;
+   }
+
+   if ( -1 == iIndexVehicleRuntimeInfo )
+      return 0.0;
+
+   char szBuff[128];
+   float height_text = g_pRenderEngine->textHeight(s_idFontStats);
+   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
+   
+   float fRightMargin = xPos + fWidth;
+   float hGraph = height_text*1.0;
+   float wPixel = g_pRenderEngine->getPixelWidth();
+
+   float dxGraph = g_pRenderEngine->textWidth(s_idFontStatsSmall, "88");
+   float widthGraph = fWidth - dxGraph;
+   float widthBar = widthGraph / (float)MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
+
+   g_pRenderEngine->setColors(get_Color_Dev());
+
+   sprintf(szBuff, "(max %.1f sec, sample %d milisec)", (float)MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * (float)CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL / 1000.0, CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL);
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "Adaptive/Keyframe Info");
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+   if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame + 500 )
+      g_pRenderEngine->setColors(get_Color_IconError());
+   
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "KF Last Req Time:");
+   if ( 0 == g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame )
+      strcpy(szBuff, "Never");
+   else if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame )
+      strcpy(szBuff, "[0] ms ago");
+   else if ( g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame < 5000 )
+      sprintf(szBuff, "%u ms ago", g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame );
+   else
+      sprintf(szBuff, "%u s ago", (g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uTimeLastRequestedKeyFrame) / 1000 );
+   
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "KF Last Req Value (ms):");
+   sprintf(szBuff, "%d", g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iLastRequestedKeyFrameMs);
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+   g_pRenderEngine->setColors(get_Color_Dev());
+
+   int iIntervalsLookUp = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame & 0xFFFF;
+   int iIntervalsLookDown = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_CheckIntervalsKeyFrame >> 16 ) & 0xFFFF;
+   int iCountTotal = 0;
+   int iCountUp = 0;
+   int iCountDown = 0;
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "KF Lookup Intervals D, U:");
+   sprintf(szBuff, "%d, %d (of max %d)",
+      iIntervalsLookDown,
+      iIntervalsLookUp,
+      MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS );
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+
+   int iThresholdDownSlow = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsDown & 0xFF);
+   int iThresholdDownFast = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsDown >> 8) & 0xFF;
+   int iThresholdDownRetrSlow = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsDown >> 16) & 0xFF;
+   int iThresholdDownRetdFast = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsDown >> 24) & 0xFF;
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "KF Threshold Intervals D, D-slow, D-retr, D-retr-fast:");
+   sprintf(szBuff, "%d, %d, %d, %d",
+      iThresholdDownSlow,
+      iThresholdDownFast,
+      iThresholdDownRetrSlow,
+      iThresholdDownRetdFast);
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+   int iThresholdUp = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsUp & 0xFF);
+   int iThresholdUpRetr = (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uStats_KeyFrameThresholdIntervalsUp >> 8) & 0xFF;
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "KF Threshold Intervals U, U-retr:");
+   sprintf(szBuff, "%d, %d",
+      iThresholdUp,
+      iThresholdUpRetr );
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStats, szBuff);
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+
+
+   double cGreen[] = {0,255,0,1.0};
+   double cYellow[] = {255,255,0,1.0};
+   double cRed[] = {255,0,0,1.0};
+   double cBlue[] = {0,150,250,1.0};
+   float xBarStart = xPos;
+
+   yPos += height_text*s_OSDStatsLineSpacing;
+
+   osd_set_colors();
+
+   // -----------------------------------
+
+   iCountTotal = iCountDown = iCountUp = 0;
+
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsOuputRecontructedVideoPackets[i] > 0 )
+       {
+          iCountTotal++;
+          int iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex - i;
+          if ( i > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+             iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex + (MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-i);
+          if ( iDiff < iIntervalsLookUp )
+             iCountUp++;
+          if ( iDiff < iIntervalsLookDown )
+             iCountDown++;
+       }
+   }
+   sprintf(szBuff, "(Total: %d, D: %d, U: %d", iCountTotal, iCountDown, iCountUp);
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "Count Reconstructed");
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStatsSmall, szBuff);
+   yPos += height_text_small;
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->drawLine(xPos, yPos, xPos + widthGraph, yPos);         
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph, xPos + widthGraph, yPos+hGraph);
+
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+i, yPos+0.5*hGraph, xPos + i + 2.0*wPixel, yPos+0.5*hGraph);
+
+   g_pRenderEngine->setStrokeSize(1); 
+   xBarStart = xPos;
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       int iVal = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsOuputRecontructedVideoPackets[i];
+       float hBar = 0.0;
+       if ( 0 == iVal ) 
+       {
+          osd_set_colors();
+          hBar = hGraph * 0.1;
+       }
+       else if ( 1 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cGreen[0]);
+          g_pRenderEngine->setFill(&cGreen[0]);
+          hBar = hGraph*0.33;
+       }
+       else if ( 2 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cYellow[0]);
+          g_pRenderEngine->setFill(&cYellow[0]);
+          hBar = hGraph*0.66;
+       }
+       else
+       {
+          g_pRenderEngine->setStroke(&cRed[0]);
+          g_pRenderEngine->setFill(&cRed[0]);
+          hBar = hGraph;
+       }
+
+       g_pRenderEngine->drawRect(xBarStart, yPos+hGraph - hBar, widthBar-wPixel, hBar);
+
+
+       if ( i == (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+       {
+          g_pRenderEngine->setStroke(70,70,250,0.96);
+          g_pRenderEngine->setFill(70,70,250,0.96);
+          g_pRenderEngine->setStrokeSize(2.1);
+          g_pRenderEngine->drawLine(xBarStart-wPixel, yPos, xBarStart-wPixel, yPos + hGraph);
+          g_pRenderEngine->drawLine(xBarStart, yPos, xBarStart, yPos + hGraph);
+       }
+
+       xBarStart += widthBar;
+   }
+   osd_set_colors();
+
+   yPos += hGraph;
+   yPos += height_text_small*s_OSDStatsLineSpacing;
+
+   // -----------------------------------------------
+
+   iCountTotal = iCountDown = iCountUp = 0;
+
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsRequestedRetransmissions[i] > 0 )
+       {
+          iCountTotal++;
+          int iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex - i;
+          if ( i > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+             iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex + (MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-i);
+          if ( iDiff < iIntervalsLookUp )
+             iCountUp++;
+          if ( iDiff < iIntervalsLookDown )
+             iCountDown++;
+       }
+   }
+   sprintf(szBuff, "Count Retransmissions (total: %d, D: %d, U: %d", iCountTotal, iCountDown, iCountUp);
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, szBuff);
+   yPos += height_text_small;
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->drawLine(xPos, yPos, xPos + widthGraph, yPos);         
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph, xPos + widthGraph, yPos+hGraph);
+
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+i, yPos+0.5*hGraph, xPos + i + 2.0*wPixel, yPos+0.5*hGraph);
+
+   g_pRenderEngine->setStrokeSize(1); 
+   xBarStart = xPos;
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       int iVal = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsRequestedRetransmissions[i];
+       float hBar = 0.0;
+       if ( 0 == iVal ) 
+       {
+          osd_set_colors();
+          hBar = hGraph * 0.1;
+       }
+       else if ( 1 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cGreen[0]);
+          g_pRenderEngine->setFill(&cGreen[0]);
+          hBar = hGraph*0.33;
+       }
+       else if ( 2 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cYellow[0]);
+          g_pRenderEngine->setFill(&cYellow[0]);
+          hBar = hGraph*0.66;
+       }
+       else
+       {
+          g_pRenderEngine->setStroke(&cRed[0]);
+          g_pRenderEngine->setFill(&cRed[0]);
+          hBar = hGraph;
+       }
+
+       g_pRenderEngine->drawRect(xBarStart, yPos+hGraph - hBar, widthBar-wPixel, hBar);
+
+
+       if ( i == (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+       {
+          g_pRenderEngine->setStroke(70,70,250,0.96);
+          g_pRenderEngine->setFill(70,70,250,0.96);
+          g_pRenderEngine->setStrokeSize(2.1);
+          g_pRenderEngine->drawLine(xBarStart-wPixel, yPos, xBarStart-wPixel, yPos + hGraph);
+          g_pRenderEngine->drawLine(xBarStart, yPos, xBarStart, yPos + hGraph);
+       }
+
+       xBarStart += widthBar;
+   }
+   osd_set_colors();
+
+   yPos += hGraph;
+   yPos += height_text_small*(s_OSDStatsLineSpacing-1.0);
+
+   //-----------------------------------------------------
+
+   iCountTotal = iCountDown = iCountUp = 0;
+
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsRetriedRetransmissions[i] > 0 )
+       {
+          iCountTotal++;
+          int iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex - i;
+          if ( i > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+             iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex + (MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-i);
+          if ( iDiff < iIntervalsLookUp )
+             iCountUp++;
+          if ( iDiff < iIntervalsLookDown )
+             iCountDown++;
+       }
+   }
+   sprintf(szBuff, "(Total: %d, D: %d, U: %d", iCountTotal, iCountDown, iCountUp);
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "Count Re-Retransmissions");
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStatsSmall, szBuff);
+   yPos += height_text_small;
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->drawLine(xPos, yPos, xPos + widthGraph, yPos);         
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph, xPos + widthGraph, yPos+hGraph);
+
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+i, yPos+0.5*hGraph, xPos + i + 2.0*wPixel, yPos+0.5*hGraph);
+
+   g_pRenderEngine->setStrokeSize(1); 
+   xBarStart = xPos;
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       int iVal = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsRetriedRetransmissions[i];
+       float hBar = 0.0;
+       if ( 0 == iVal ) 
+       {
+          osd_set_colors();
+          hBar = hGraph * 0.1;
+       }
+       else if ( 1 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cGreen[0]);
+          g_pRenderEngine->setFill(&cGreen[0]);
+          hBar = hGraph*0.33;
+       }
+       else if ( 2 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cYellow[0]);
+          g_pRenderEngine->setFill(&cYellow[0]);
+          hBar = hGraph*0.66;
+       }
+       else
+       {
+          g_pRenderEngine->setStroke(&cRed[0]);
+          g_pRenderEngine->setFill(&cRed[0]);
+          hBar = hGraph;
+       }
+
+       g_pRenderEngine->drawRect(xBarStart, yPos+hGraph - hBar, widthBar-wPixel, hBar);
+
+
+       if ( i == (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+       {
+          g_pRenderEngine->setStroke(70,70,250,0.96);
+          g_pRenderEngine->setFill(70,70,250,0.96);
+          g_pRenderEngine->setStrokeSize(2.1);
+          g_pRenderEngine->drawLine(xBarStart-wPixel, yPos, xBarStart-wPixel, yPos + hGraph);
+          g_pRenderEngine->drawLine(xBarStart, yPos, xBarStart, yPos + hGraph);
+       }
+
+       xBarStart += widthBar;
+   }
+   osd_set_colors();
+
+   yPos += hGraph;
+   yPos += height_text_small*s_OSDStatsLineSpacing;
+
+   // -----------------------------------------------------------------------
+
+   iCountTotal = iCountDown = iCountUp = 0;
+
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsMissingVideoPackets[i] > 0 )
+       {
+          iCountTotal++;
+          int iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex - i;
+          if ( i > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+             iDiff = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex + (MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-i);
+          if ( iDiff < iIntervalsLookUp )
+             iCountUp++;
+          if ( iDiff < iIntervalsLookDown )
+             iCountDown++;
+       }
+   }
+   sprintf(szBuff, "(Total: %d, D: %d, U: %d", iCountTotal, iCountDown, iCountUp);
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "Count Missing");
+   g_pRenderEngine->drawTextLeft(fRightMargin, yPos, s_idFontStatsSmall, szBuff);
+   yPos += height_text_small;
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->drawLine(xPos, yPos, xPos + widthGraph, yPos);         
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph, xPos + widthGraph, yPos+hGraph);
+
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+i, yPos+0.5*hGraph, xPos + i + 2.0*wPixel, yPos+0.5*hGraph);
+
+   g_pRenderEngine->setStrokeSize(1); 
+   xBarStart = xPos;
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       int iVal = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsMissingVideoPackets[i];
+       float hBar = 0.0;
+       if ( 0 == iVal ) 
+       {
+          osd_set_colors();
+          hBar = hGraph * 0.1;
+       }
+       else if ( 1 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cGreen[0]);
+          g_pRenderEngine->setFill(&cGreen[0]);
+          hBar = hGraph*0.33;
+       }
+       else if ( 2 == iVal )
+       {
+          g_pRenderEngine->setStroke(&cYellow[0]);
+          g_pRenderEngine->setFill(&cYellow[0]);
+          hBar = hGraph*0.66;
+       }
+       else
+       {
+          g_pRenderEngine->setStroke(&cRed[0]);
+          g_pRenderEngine->setFill(&cRed[0]);
+          hBar = hGraph;
+       }
+
+       g_pRenderEngine->drawRect(xBarStart, yPos+hGraph - hBar, widthBar-wPixel, hBar);
+
+
+       if ( i == (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+       {
+          g_pRenderEngine->setStroke(70,70,250,0.96);
+          g_pRenderEngine->setFill(70,70,250,0.96);
+          g_pRenderEngine->setStrokeSize(2.1);
+          g_pRenderEngine->drawLine(xBarStart-wPixel, yPos, xBarStart-wPixel, yPos + hGraph);
+          g_pRenderEngine->drawLine(xBarStart, yPos, xBarStart, yPos + hGraph);
+       }
+
+       xBarStart += widthBar;
+   }
+   osd_set_colors();
+
+   yPos += hGraph;
+   yPos += height_text_small*s_OSDStatsLineSpacing;
+
+   // -----------------------------------------------------------------------
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStatsSmall, "Flags:");
+   yPos += height_text_small;
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->drawLine(xPos, yPos, xPos + widthGraph, yPos);         
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph, xPos + widthGraph, yPos+hGraph);
+
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+i, yPos+0.5*hGraph, xPos + i + 2.0*wPixel, yPos+0.5*hGraph);
+
+   g_pRenderEngine->setStrokeSize(1); 
+   xBarStart = xPos;
+   for( int i=0; i<MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS; i++ )
+   {
+       u8 uVal = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsFlags[i];
+       float hBar = hGraph/4.0;
+       float yBar = yPos + hGraph;
+
+       if ( i == (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].iCurrentIntervalIndex )
+       {
+          g_pRenderEngine->setStroke(70,70,250,0.96);
+          g_pRenderEngine->setFill(70,70,250,0.96);
+          g_pRenderEngine->setStrokeSize(2.1);
+          g_pRenderEngine->drawLine(xBarStart-wPixel, yPos, xBarStart-wPixel, yPos + hGraph);
+          g_pRenderEngine->drawLine(xBarStart, yPos, xBarStart, yPos + hGraph);
+       }
+
+       if ( ! (uVal & ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED) )
+       {
+          xBarStart += widthBar;
+          continue;
+       }
+
+       if ( uVal & ADAPTIVE_STATS_FLAG_NO_VIDEO_PACKETS )
+       {
+          g_pRenderEngine->setStroke(&cRed[0]);
+          g_pRenderEngine->setFill(&cRed[0]);
+          g_pRenderEngine->drawRect(xBarStart, yBar - hBar, widthBar-wPixel, hBar);
+       }
+       if ( uVal & ADAPTIVE_STATS_FLAGS_SHIFT_DOWN_FAST )
+       {
+          g_pRenderEngine->setStroke(&cYellow[0]);
+          g_pRenderEngine->setFill(&cYellow[0]);
+          yBar += 1.0 * hBar;
+          g_pRenderEngine->drawRect(xBarStart, yBar - hBar, widthBar-wPixel, hBar);
+       }
+       if ( uVal & ADAPTIVE_STATS_FLAGS_SHIFT_DOWN )
+       {
+          g_pRenderEngine->setStroke(&cBlue[0]);
+          g_pRenderEngine->setFill(&cBlue[0]);
+          yBar += 2.0 * hBar;
+          g_pRenderEngine->drawRect(xBarStart, yBar - hBar, widthBar-wPixel, hBar);
+       }
+       if ( uVal & ADAPTIVE_STATS_FLAGS_SHIFT_UP )
+       {
+          g_pRenderEngine->setStroke(&cGreen[0]);
+          g_pRenderEngine->setFill(&cGreen[0]);
+          yBar += 3.0 * hBar;
+          g_pRenderEngine->drawRect(xBarStart, yBar - hBar, widthBar-wPixel, hBar);
+       }
+       
+
+       xBarStart += widthBar;
+   }
+   osd_set_colors();
+
+   yPos += hGraph;
+   yPos += height_text_small*s_OSDStatsLineSpacing;
+
+   osd_set_colors();
+   return osd_render_stats_dev_adaptive_video_get_height();
 }

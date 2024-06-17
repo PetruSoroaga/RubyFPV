@@ -62,12 +62,14 @@ void video_link_auto_keyframe_set_local_requested_value(int iVideoStreamIndex, i
 {
    if ( g_SM_VideoLinkStats.overwrites.uCurrentLocalRequestedKeyframeMs == (u16)iKeyframeMs )
    if ( g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs == (u16)iKeyframeMs )
-   if ( g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs == (u16)iKeyframeMs )
+   if ( (0 == g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs ) || (g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs == (u16)iKeyframeMs) )
       return;
    if ( NULL != szReason )
       log_line("[Keyframe] Set requested keyframe interval from local to %d ms. Previous requested was %d ms (reason: %s)", iKeyframeMs, (int)g_SM_VideoLinkStats.overwrites.uCurrentLocalRequestedKeyframeMs, szReason);
    else
       log_line("[Keyframe] Set requested keyframe interval from local to %d ms. Previous requested was %d ms", iKeyframeMs, (int)g_SM_VideoLinkStats.overwrites.uCurrentLocalRequestedKeyframeMs);
+   log_line("[Keyframe] Current active keyframe: %d ms, current pending to set keyframe: %d ms",
+       (int)g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs, (int)g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs);
    g_SM_VideoLinkStats.overwrites.uCurrentLocalRequestedKeyframeMs = (u16)iKeyframeMs;
    g_SM_VideoLinkStats.overwrites.uLastTimeLocalRequestedAKeyframe = g_TimeNow;
 }

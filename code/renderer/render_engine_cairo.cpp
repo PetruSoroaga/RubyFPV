@@ -1,0 +1,935 @@
+/*
+    Ruby Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Copyright info and developer info must be preserved as is in the user
+        interface, additions could be made to that info.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#include "../base/base.h"
+#include "../base/config.h"
+#include "render_engine_cairo.h"
+#include "drm_core.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <math.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <utime.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <endian.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <time.h> 
+
+RenderEngineCairo::RenderEngineCairo()
+:RenderEngine()
+{
+   log_line("RendererCairo: Init started.");
+
+   type_drm_display_attributes* pDisplayInfo = ruby_drm_get_main_display_info();
+   m_iRenderWidth = pDisplayInfo->iWidth;
+   m_iRenderHeight = pDisplayInfo->iHeight;
+   m_fPixelWidth = 1.0/(float)m_iRenderWidth;
+   m_fPixelHeight = 1.0/(float)m_iRenderHeight;
+
+   log_line("RendererCairo: Display size is: %d x %d, pixel size: %.4f x %.4f",
+    m_iRenderWidth, m_iRenderHeight,
+    m_fPixelWidth, m_fPixelHeight);
+   type_drm_buffer* pMainDisplayBuffer = ruby_drm_core_get_main_draw_buffer();
+   type_drm_buffer* pBackDisplayBuffer = ruby_drm_core_get_back_draw_buffer();
+   
+   m_uRenderDrawSurfacesIds[0] = pMainDisplayBuffer->uBufferId;
+   m_uRenderDrawSurfacesIds[1] = pBackDisplayBuffer->uBufferId;
+
+   m_pMainCairoSurface[0] = cairo_image_surface_create_for_data (pMainDisplayBuffer->pData, CAIRO_FORMAT_ARGB32, 
+       pMainDisplayBuffer->uWidth, pMainDisplayBuffer->uHeight, pMainDisplayBuffer->uStride);
+   m_pMainCairoSurface[1] = cairo_image_surface_create_for_data (pBackDisplayBuffer->pData, CAIRO_FORMAT_ARGB32, 
+       pBackDisplayBuffer->uWidth, pBackDisplayBuffer->uHeight, pBackDisplayBuffer->uStride);
+   if ( (NULL == m_pMainCairoSurface[0]) || (NULL == m_pMainCairoSurface[1]) )
+      log_softerror_and_alarm("RendererCairo: Failed to create main and back cairo surfaces.");
+   else
+      log_line("RendererCairo: Created main and back cairo surfaces for render buffer ids %u and %u", m_uRenderDrawSurfacesIds[0], m_uRenderDrawSurfacesIds[1]);
+
+   m_pCairoCtx = NULL;
+   
+   m_fStrokeSize = 1.0;
+   m_fColorFill[0] = 0;
+
+   m_iCountImages = 0;
+   m_iCountIcons = 0;
+   m_CurrentImageId = 0;
+   m_CurrentIconId = 0;
+   log_line("RendererCairo: Render init done.");
+}
+
+
+RenderEngineCairo::~RenderEngineCairo()
+{
+   if ( NULL != m_pCairoCtx )
+      cairo_destroy(m_pCairoCtx);
+   m_pCairoCtx = NULL; 
+
+   if ( NULL != m_pMainCairoSurface[0] )
+      cairo_surface_destroy(m_pMainCairoSurface[0]);
+   if ( NULL != m_pMainCairoSurface[1] )
+      cairo_surface_destroy(m_pMainCairoSurface[1]);
+
+   m_pMainCairoSurface[0] = NULL;
+   m_pMainCairoSurface[1] = NULL;
+}
+
+void* RenderEngineCairo::getDrawContext()
+{
+   return m_pCairoCtx;
+}
+
+
+void RenderEngineCairo::startFrame()
+{
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   
+   memset(pOutputBufferInfo->pData, m_uClearBufferByte, pOutputBufferInfo->uSize);
+   
+   if ( NULL != m_pCairoCtx )
+      cairo_destroy(m_pCairoCtx);
+   m_pCairoCtx = NULL; 
+
+   if ( pOutputBufferInfo->uBufferId == m_uRenderDrawSurfacesIds[0] )
+   if ( NULL != m_pMainCairoSurface[0] )
+      m_pCairoCtx = cairo_create(m_pMainCairoSurface[0]);
+
+   if ( pOutputBufferInfo->uBufferId == m_uRenderDrawSurfacesIds[1] )
+   if ( NULL != m_pMainCairoSurface[1] )
+      m_pCairoCtx = cairo_create(m_pMainCairoSurface[1]);
+
+   if ( NULL == m_pCairoCtx )
+      return;
+
+   cairo_select_font_face(m_pCairoCtx, "Roboto", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+ 
+}
+
+void RenderEngineCairo::endFrame()
+{
+   ruby_drm_swap_mainback_buffers();
+}
+
+
+void RenderEngineCairo::setColors(double* color)
+{
+   setColors(color, 1.0);
+}
+
+void RenderEngineCairo::setColors(double* color, float fAlfaScale)
+{
+   m_fColorFill[0] = color[0]/255.0;
+   m_fColorFill[1] = color[1]/255.0;
+   m_fColorFill[2] = color[2]/255.0;
+
+   m_fColorStroke[0] = color[0]/255.0;
+   m_fColorStroke[1] = color[1]/255.0;
+   m_fColorStroke[2] = color[2]/255.0;
+
+   m_uTextFontMixColor[0] = color[0];
+   m_uTextFontMixColor[1] = color[1];
+   m_uTextFontMixColor[2] = color[2];
+
+   float fAlpha = color[3]*m_fGlobalAlfa*fAlfaScale;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_fColorFill[3] = fAlpha;
+   m_fColorStroke[3] = fAlpha;
+   m_uTextFontMixColor[3] = 255 * fAlpha;
+}
+
+void RenderEngineCairo::setFill(double* pColor)
+{
+   m_fColorFill[0] = pColor[0]/255.0;
+   m_fColorFill[1] = pColor[1]/255.0;
+   m_fColorFill[2] = pColor[2]/255.0;
+
+   m_uTextFontMixColor[0] = pColor[0];
+   m_uTextFontMixColor[1] = pColor[1];
+   m_uTextFontMixColor[2] = pColor[2];
+
+   float fAlpha = pColor[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_fColorFill[3] = fAlpha; 
+   m_uTextFontMixColor[3] = 255 * fAlpha;
+}
+
+void RenderEngineCairo::setFill(float r, float g, float b, float a)
+{
+   m_fColorFill[0] = r/255.0;
+   m_fColorFill[1] = g/255.0;
+   m_fColorFill[2] = b/255.0;
+
+   m_uTextFontMixColor[0] = r;
+   m_uTextFontMixColor[1] = g;
+   m_uTextFontMixColor[2] = b;
+
+   float fAlpha = a*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_fColorFill[3] = fAlpha;
+   m_uTextFontMixColor[3] = 255 * fAlpha;
+}
+
+void RenderEngineCairo::setStroke(double* color)
+{
+   setStroke(color, 1.0);
+}
+
+void RenderEngineCairo::setStroke(double* color, float fStrokeSize)
+{
+   m_fColorStroke[0] = color[0]/255.0;
+   m_fColorStroke[1] = color[1]/255.0;
+   m_fColorStroke[2] = color[2]/255.0;
+
+   float fAlpha = color[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_fColorStroke[3] = fAlpha;
+   m_fStrokeSize = fStrokeSize;
+   cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+}
+
+void RenderEngineCairo::setStroke(float r, float g, float b, float a)
+{
+   m_fColorStroke[0] = r/255.0;
+   m_fColorStroke[1] = g/255.0;
+   m_fColorStroke[2] = b/255.0;
+
+   float fAlpha = a*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_fColorStroke[3] = fAlpha;
+}
+
+float RenderEngineCairo::getStrokeSize()
+{
+   return m_fStrokeSize;
+}
+
+void RenderEngineCairo::setStrokeSize(float fStrokeSize)
+{
+   m_fStrokeSize = fStrokeSize;
+   cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+}
+
+void RenderEngineCairo::setFontColor(u32 fontId, double* color)
+{
+}
+
+void RenderEngineCairo::setFontBackgroundBoundingBoxFillColor(double* color)
+{
+   m_fColorTextBoundingBoxBgFill[0] = color[0]/255.0;
+   m_fColorTextBoundingBoxBgFill[1] = color[1]/255.0;
+   m_fColorTextBoundingBoxBgFill[2] = color[2]/255.0;
+
+   float fAlpha = color[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_fColorTextBoundingBoxBgFill[3] = fAlpha;
+}
+
+void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
+{
+   if ( (NULL == szFileName) || (0 == szFileName[0]) )
+   {
+      log_softerror_and_alarm("[RendererCairo] Failed to load image. Invalid filename.");
+      return NULL;
+   }
+   cairo_surface_t* pImage = cairo_image_surface_create_from_png (szFileName);
+   if ( (NULL == pImage) || (cairo_image_surface_get_stride(pImage) <= 0) )
+      log_softerror_and_alarm("[RendererCairo] Failed to load image (%s)", szFileName);
+   else
+      log_line("[RendererCairo] Loaded image (%s), stride: %d, wxh: %dx%d, ptr: %X",
+          szFileName, cairo_image_surface_get_stride(pImage),
+          cairo_image_surface_get_width(pImage),
+          cairo_image_surface_get_width(pImage), pImage );
+   return (void*) pImage;
+}
+
+void RenderEngineCairo::_freeRawFontImageObject(void* pImageObject)
+{
+   if ( NULL == pImageObject )
+      return;
+   cairo_surface_destroy((cairo_surface_t*)pImageObject);
+   log_line("[RendererCairo] Destroyed image object %X", pImageObject);
+}
+
+u32 RenderEngineCairo::loadImage(const char* szFile)
+{
+   if ( m_iCountImages > MAX_RAW_IMAGES )
+      return 0;
+
+   if ( access( szFile, R_OK ) == -1 )
+      return 0;
+
+   if ( NULL != strstr(szFile, ".png") )
+   {
+      m_pImages[m_iCountImages] = cairo_image_surface_create_from_png(szFile);
+   }
+   else
+   {
+      return 0;
+   }
+   if ( NULL != m_pImages[m_iCountImages] )
+      log_line("Loaded image %s, id: %u", szFile, m_CurrentImageId+1);
+   else
+      log_softerror_and_alarm("Failed to load image %s", szFile);
+
+   m_CurrentImageId++;
+   m_ImageIds[m_iCountImages] = m_CurrentImageId;
+   m_iCountImages++;
+   return m_CurrentImageId;
+}
+
+void RenderEngineCairo::freeImage(u32 idImage)
+{
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == idImage )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+
+   cairo_surface_destroy(m_pImages[indexImage]);
+
+   for( int i=indexImage; i<m_iCountImages-1; i++ )
+   {
+      m_pImages[i] = m_pImages[i+1];
+      m_ImageIds[i] = m_ImageIds[i+1];
+   }
+   m_iCountImages--;
+}
+
+u32 RenderEngineCairo::loadIcon(const char* szFile)
+{
+   if ( m_iCountIcons > MAX_RAW_ICONS )
+      return 0;
+
+   if ( access( szFile, R_OK ) == -1 )
+      return 0;
+
+   if ( NULL != strstr(szFile, ".png") )
+   {
+      m_pIcons[m_iCountIcons] = cairo_image_surface_create_from_png(szFile);
+      m_pIconsMip[m_iCountIcons][0] = cairo_image_surface_create_from_png(szFile);
+      m_pIconsMip[m_iCountIcons][1] = cairo_image_surface_create_from_png(szFile);
+   }
+   else
+   {
+      return 0;
+   }
+   if ( NULL != m_pIcons[m_iCountIcons] )
+      log_line("Loaded icon %s, id: %u", szFile, m_CurrentIconId+1);
+   else
+      log_softerror_and_alarm("Failed to load icon %s", szFile);
+
+   // To fix : build MIp images for icons
+   //_buildMipImage(m_pIcons[m_iCountIcons], m_pIconsMip[m_iCountIcons][0]);
+   //_buildMipImage(m_pIconsMip[m_iCountIcons][0], m_pIconsMip[m_iCountIcons][1]);
+
+   m_CurrentIconId++;
+   m_IconIds[m_iCountIcons] = m_CurrentIconId;
+   m_iCountIcons++;
+   return m_CurrentIconId;
+}
+
+void RenderEngineCairo::freeIcon(u32 idIcon)
+{
+   int indexIcon = -1;
+   for( int i=0; i<m_iCountIcons; i++ )
+      if ( m_IconIds[i] == idIcon )
+      {
+         indexIcon = i;
+         break;
+      }
+   if ( -1 == indexIcon )
+      return;
+
+   cairo_surface_destroy(m_pIcons[indexIcon]);
+   if ( NULL != m_pIconsMip[indexIcon][0] )
+      cairo_surface_destroy(m_pIconsMip[indexIcon][0]);
+   if ( NULL != m_pIconsMip[indexIcon][1] )
+      cairo_surface_destroy(m_pIconsMip[indexIcon][1]);
+
+   for( int i=indexIcon; i<m_iCountIcons-1; i++ )
+   {
+      m_pIcons[i] = m_pIcons[i+1];
+      m_pIconsMip[i][0] = m_pIconsMip[i+1][0];
+      m_pIconsMip[i][1] = m_pIconsMip[i+1][1];
+      m_IconIds[i] = m_IconIds[i+1];
+   }
+   m_iCountIcons--;
+}
+
+void RenderEngineCairo::rotate180()
+{
+}
+
+void RenderEngineCairo::drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+  
+   double scaleX = cairo_image_surface_get_width(m_pImages[indexImage]) / (float) m_iRenderWidth;
+   double scaleY = cairo_image_surface_get_height(m_pImages[indexImage]) / (float) m_iRenderHeight;
+   cairo_scale(m_pCairoCtx, 1.0/scaleX, 1.0/scaleY);
+   cairo_set_source_surface(m_pCairoCtx, m_pImages[indexImage], 0,0);
+   cairo_pattern_set_filter(cairo_get_source(m_pCairoCtx), CAIRO_FILTER_NEAREST);
+   cairo_paint(m_pCairoCtx);
+   cairo_scale(m_pCairoCtx, scaleX, scaleY);
+}
+
+void RenderEngineCairo::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 uIconId)
+{
+   if ( uIconId < 1 )
+      return;
+
+   int indexIcon = -1;
+   for( int i=0; i<m_iCountIcons; i++ )
+   {
+      if ( m_IconIds[i] == uIconId )
+      {
+         indexIcon = i;
+         break;
+      }
+   }
+   if ( -1 == indexIcon )
+      return;
+   if ( NULL == m_pIcons[indexIcon] )
+      return;
+
+   int x = xPos*m_iRenderWidth;
+   int y = yPos*m_iRenderHeight;
+   int w = fWidth*m_iRenderWidth;
+   int h = fHeight*m_iRenderHeight;
+
+   if ( (x < 0) || (y < 0) || (x+w >= m_iRenderWidth) || (y+h >= m_iRenderHeight) )
+      return;
+
+   double scaleX = cairo_image_surface_get_width(m_pIcons[indexIcon]) / (float) w;
+   double scaleY = cairo_image_surface_get_height(m_pIcons[indexIcon]) / (float) h;
+   cairo_scale(m_pCairoCtx, 1.0/scaleX, 1.0/scaleY);
+   cairo_set_source_surface(m_pCairoCtx, m_pIcons[indexIcon], x*scaleX,y*scaleY);
+   cairo_pattern_set_filter(cairo_get_source(m_pCairoCtx), CAIRO_FILTER_NEAREST);
+   cairo_paint(m_pCairoCtx);
+   cairo_scale(m_pCairoCtx, scaleX, scaleY);
+
+   /*
+   m_pFBG->mix_color.r = m_ColorFill[0];
+   m_pFBG->mix_color.g = m_ColorFill[1];
+   m_pFBG->mix_color.b = m_ColorFill[2];
+   m_pFBG->mix_color.a = m_ColorFill[3];
+
+   if ( fWidth*m_iRenderWidth <= m_pIcons[indexIcon]->width/4 ||
+        fHeight*m_iRenderHeight <= m_pIcons[indexIcon]->height/4 ) 
+      fbg_imageDrawAlpha(m_pFBG, m_pIconsMip[indexIcon][1], x,y, fWidth*m_iRenderWidth, fHeight*m_iRenderHeight, 0,0, m_pIconsMip[indexIcon][1]->width, m_pIconsMip[indexIcon][1]->height);
+   else if ( fWidth*m_iRenderWidth <= m_pIcons[indexIcon]->width/2 ||
+        fHeight*m_iRenderHeight <= m_pIcons[indexIcon]->height/2 ) 
+      fbg_imageDrawAlpha(m_pFBG, m_pIconsMip[indexIcon][0], x,y, fWidth*m_iRenderWidth, fHeight*m_iRenderHeight, 0,0, m_pIconsMip[indexIcon][0]->width, m_pIconsMip[indexIcon][0]->height);
+   else
+      fbg_imageDrawAlpha(m_pFBG, m_pIcons[indexIcon], x,y, fWidth*m_iRenderWidth, fHeight*m_iRenderHeight, 0,0, m_pIcons[indexIcon]->width, m_pIcons[indexIcon]->height);
+   */
+
+}
+
+void RenderEngineCairo::bltIcon(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uIconId)
+{
+   if ( uIconId < 1 )
+      return;
+
+   int indexIcon = -1;
+   for( int i=0; i<m_iCountIcons; i++ )
+   {
+      if ( m_IconIds[i] == uIconId )
+      {
+         indexIcon = i;
+         break;
+      }
+   }
+   if ( -1 == indexIcon )
+      return;
+   if ( NULL == m_pIcons[indexIcon] )
+      return;
+
+   int ixPosDest = xPosDest*m_iRenderWidth;
+   int iyPosDest = yPosDest*m_iRenderHeight;
+   
+   if ( (ixPosDest < 0) || (iyPosDest < 0) || (ixPosDest+iSrcWidth >= m_iRenderWidth) || (iyPosDest+iSrcHeight >= m_iRenderHeight) )
+      return;
+
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pSrcImageData = cairo_image_surface_get_data(m_pIcons[indexIcon]);
+   int iSrcImageStride = cairo_image_surface_get_stride(m_pIcons[indexIcon]);
+
+   for( int y=0; y<iSrcHeight; y++ )
+   {
+      u8* pDestLine = (u8*)&(pOutputBufferInfo->pData[(iyPosDest+y)*pOutputBufferInfo->uStride]);
+      pDestLine += 4*ixPosDest;
+
+      u8* pSrcLine = pSrcImageData + ((iSrcY +y)* iSrcImageStride);
+      pSrcLine += 4 * iSrcX;
+
+      for( int x=0; x<iSrcWidth; x++ )
+      {
+          u8 uAlpha = *(pSrcLine+3);
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          pDestLine++;
+          pSrcLine++;
+       /*
+          *pDestLine = 0xFF;
+          pDestLine++;
+          *pDestLine = 0x0;
+          pDestLine++;
+          *pDestLine = 0x0;
+          pDestLine++;
+          *pDestLine = 0xFF;
+          pDestLine++;
+          */
+      }
+   }
+}
+
+
+inline void RenderEngineCairo::_blend_pixel(unsigned char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+   // Output surface format order is: BGRA
+   if ( *(pixel+3) == 0 )
+   {
+      *pixel = b;
+      pixel++;
+      *pixel = g;
+      pixel++;
+      *pixel = r;
+      pixel++;
+      *pixel = a;
+      pixel++;
+   }
+   else if ( *(pixel+3) == 255 )
+   {
+      *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      pixel++;
+   }
+   else
+   {
+       *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
+       pixel++;
+       *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
+       pixel++;
+       *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
+       pixel++;
+       *pixel = (*pixel) + (((255-(*pixel))*a) >> 8);
+       pixel++;
+   }
+}
+
+void RenderEngineCairo::_draw_hline(int x, int y, int w, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pDestLine = (&(pOutputBufferInfo->pData[0])) + y*pOutputBufferInfo->uStride + 4*x;
+   for( int x=0; x<w; x++ )
+   {
+      *pDestLine++ = b;
+      *pDestLine++ = g;
+      *pDestLine++ = r;
+      *pDestLine++ = a;
+   }
+}
+
+void RenderEngineCairo::_draw_vline(int x, int y, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pDestLine = (&(pOutputBufferInfo->pData[0])) + y*pOutputBufferInfo->uStride + 4*x;
+   for( int x=0; x<h; x++ )
+   {
+      *pDestLine++ = b;
+      *pDestLine++ = g;
+      *pDestLine++ = r;
+      *pDestLine++ = a;
+      pDestLine += pOutputBufferInfo->uStride-4;
+   }
+}
+      
+void RenderEngineCairo::drawLine(float x1, float y1, float x2, float y2)
+{
+   if ( fabs(y1-y2) < 0.0001 )
+   {
+      if ( x1 < x2 )
+         _draw_hline(x1*m_iRenderWidth, y1*m_iRenderHeight, (x2-x1)*m_iRenderWidth, m_fColorStroke[0]*255, m_fColorStroke[1]*255, m_fColorStroke[2]*255, m_fColorStroke[3]*255);
+      else if ( x1 > x2 )
+         _draw_hline(x2*m_iRenderWidth, y1*m_iRenderHeight, (x1-x2)*m_iRenderWidth, m_fColorStroke[0]*255, m_fColorStroke[1]*255, m_fColorStroke[2]*255, m_fColorStroke[3]*255);
+      return;
+   }
+   else if ( fabs(x1-x2) < 0.0001 )
+   {
+      if ( y1 < y2 )
+         _draw_vline(x1*m_iRenderWidth, y1*m_iRenderHeight, (y2-y1)*m_iRenderHeight, m_fColorStroke[0]*255, m_fColorStroke[1]*255, m_fColorStroke[2]*255, m_fColorStroke[3]*255);
+      else if ( y1 > y2 )
+         _draw_vline(x1*m_iRenderWidth, y1*m_iRenderHeight, (y1-y2)*m_iRenderHeight, m_fColorStroke[0]*255, m_fColorStroke[1]*255, m_fColorStroke[2]*255, m_fColorStroke[3]*255);
+      return;
+   }
+
+   cairo_move_to (m_pCairoCtx, x1 * m_iRenderWidth, y1 * m_iRenderHeight); 
+   cairo_line_to (m_pCairoCtx, x2 * m_iRenderWidth, y2 * m_iRenderHeight);
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+   cairo_stroke (m_pCairoCtx);
+}
+
+void RenderEngineCairo::drawRect(float xPos, float yPos, float fWidth, float fHeight)
+{   
+   int xSt = xPos*m_iRenderWidth;
+   int ySt = yPos*m_iRenderHeight;
+   int w = fWidth*m_iRenderWidth;
+   int h = fHeight*m_iRenderHeight;
+
+   if ( ((xSt + w) <= 0) || ((ySt + h) <= 0) || (xSt >= m_iRenderWidth) || (ySt >= m_iRenderHeight) )
+      return;
+
+   if ( xSt < 0 )
+   {
+      w += xSt;
+      xSt = 0;
+   }
+
+   if ( ySt < 0 )
+   {
+      h += ySt;
+      ySt = 0;
+   }
+
+   if ( xSt + w > m_iRenderWidth )
+      w = m_iRenderWidth - xSt;
+   if ( ySt + h > m_iRenderHeight )
+      h = m_iRenderHeight - ySt;
+
+   u8 r = m_fColorFill[0]*255;
+   u8 g = m_fColorFill[1]*255;
+   u8 b = m_fColorFill[2]*255;
+   u8 a = m_fColorFill[3]*255;
+
+   // Output surface format order is: BGRA
+   if ( m_fColorFill[3] > 0.001 )
+   {
+      type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+      for( int y=0; y<h; y++ )
+      {
+         u8* pDestLine = (u8*)&(pOutputBufferInfo->pData[(ySt+y)*pOutputBufferInfo->uStride]);
+         pDestLine += 4*xSt;
+         for( int x=0; x<w; x++ )
+         {
+            //_blend_pixel(pDestLine, r,g,b,a);
+            //pDestLine += 4;
+            *pDestLine++ = b;
+            *pDestLine++ = g;
+            *pDestLine++ = r;
+            *pDestLine++ = a;
+         }
+      }
+   }
+   if ( m_fColorStroke[3] > 0.001 )
+   if ( m_fStrokeSize > 0.00001 )
+   {
+      r = m_fColorStroke[0]*255;
+      g = m_fColorStroke[1]*255;
+      b = m_fColorStroke[2]*255;
+      a = m_fColorStroke[3]*255;
+
+      if ( yPos >= 0 )
+         _draw_hline(xSt,ySt, w , r,g,b,a);
+      if ( yPos + fHeight < 1.0 )
+         _draw_hline(xSt,ySt+h-1, w , r,g,b,a);
+      if ( xPos >= 0 )
+         _draw_vline(xSt,ySt+1, h-1 , r,g,b,a);
+      if ( xPos + fWidth < 1.0 )
+         _draw_vline(xSt+w-1,ySt+1,h-1 , r,g,b,a);
+   }
+   /*
+   if ( m_fColorFill[3] > 0.001 )
+   {
+      cairo_rectangle(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight, fWidth * m_iRenderWidth, fHeight * m_iRenderHeight);  
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorFill[0], m_fColorFill[1], m_fColorFill[2], m_fColorFill[3]);
+      cairo_fill(m_pCairoCtx);
+   }
+   if ( m_fColorStroke[3] > 0.001 )
+   if ( m_fStrokeSize > 0.00001 )
+   {
+      cairo_rectangle(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight, fWidth * m_iRenderWidth, fHeight * m_iRenderHeight);  
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+      cairo_stroke(m_pCairoCtx);
+   }
+   */
+}
+
+void RenderEngineCairo::drawRoundRect(float xPos, float yPos, float fWidth, float fHeight, float fCornerRadius)
+{
+   drawRect(xPos, yPos, fWidth, fHeight);
+   /*
+   double degrees = M_PI / 180.0;
+   fCornerRadius = 10.0;
+   cairo_new_sub_path (m_pCairoCtx);
+   cairo_arc (m_pCairoCtx, xPos + fWidth - fCornerRadius, yPos + fCornerRadius, fCornerRadius, -90 * degrees, 0 * degrees);
+   cairo_arc (m_pCairoCtx, xPos + fWidth - fCornerRadius, yPos + fHeight - fCornerRadius, fCornerRadius, 0 * degrees, 90 * degrees);
+   cairo_arc (m_pCairoCtx, xPos + fCornerRadius, yPos + fHeight - fCornerRadius, fCornerRadius, 90 * degrees, 180 * degrees);
+   cairo_arc (m_pCairoCtx, xPos + fCornerRadius, yPos + fCornerRadius, fCornerRadius, 180 * degrees, 270 * degrees);
+   cairo_close_path (m_pCairoCtx);
+
+   if ( m_fColorFill[3] > 0.001 )
+   {
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorFill[0], m_fColorFill[1], m_fColorFill[2], m_fColorFill[3]);
+      cairo_fill_preserve(m_pCairoCtx);
+   }
+
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+   cairo_stroke(m_pCairoCtx);
+   */
+}
+
+void RenderEngineCairo::drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3)
+{
+   cairo_move_to (m_pCairoCtx, x1 * m_iRenderWidth, y1 * m_iRenderHeight); 
+   cairo_line_to (m_pCairoCtx, x2 * m_iRenderWidth, y2 * m_iRenderHeight);
+   cairo_line_to (m_pCairoCtx, x3 * m_iRenderWidth, y3 * m_iRenderHeight);
+   cairo_close_path(m_pCairoCtx);
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+   cairo_stroke (m_pCairoCtx);
+}
+
+void RenderEngineCairo::fillTriangle(float x1, float y1, float x2, float y2, float x3, float y3)
+{
+   cairo_move_to (m_pCairoCtx, x1 * m_iRenderWidth, y1 * m_iRenderHeight); 
+   cairo_line_to (m_pCairoCtx, x2 * m_iRenderWidth, y2 * m_iRenderHeight);
+   cairo_line_to (m_pCairoCtx, x3 * m_iRenderWidth, y3 * m_iRenderHeight);
+   cairo_close_path(m_pCairoCtx);
+
+   bool bStroke = false;
+   if ( m_fColorStroke[3] > 0.001 )
+   if ( m_fStrokeSize > 0.00001 )
+      bStroke = true;
+
+   if ( m_fColorFill[3] > 0.001 )
+   {
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorFill[0], m_fColorFill[1], m_fColorFill[2], m_fColorFill[3]);
+      if ( bStroke )
+         cairo_fill_preserve(m_pCairoCtx);
+      else
+         cairo_fill(m_pCairoCtx);
+   }
+
+   if ( bStroke )
+   {
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+      cairo_stroke(m_pCairoCtx);
+   }
+}
+
+void RenderEngineCairo::drawPolyLine(float* x, float* y, int count)
+{
+}
+
+void RenderEngineCairo::fillPolygon(float* x, float* y, int count)
+{
+}
+
+
+void RenderEngineCairo::fillCircle(float x, float y, float r)
+{
+   cairo_move_to (m_pCairoCtx, x * m_iRenderWidth + r * m_iRenderWidth, y * m_iRenderHeight);
+   cairo_arc (m_pCairoCtx, x * m_iRenderWidth, y * m_iRenderHeight, r * m_iRenderWidth,
+        0.0, 2 * M_PI);
+   if ( m_fColorFill[3] > 0.001 )
+   {
+      cairo_set_source_rgba(m_pCairoCtx, m_fColorFill[0], m_fColorFill[1], m_fColorFill[2], m_fColorFill[3]);
+      cairo_fill_preserve(m_pCairoCtx);
+   }
+
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+   cairo_stroke(m_pCairoCtx);
+}
+
+void RenderEngineCairo::drawCircle(float x, float y, float r)
+{
+   cairo_move_to (m_pCairoCtx, x * m_iRenderWidth + r * m_iRenderWidth, y * m_iRenderHeight);
+   cairo_arc (m_pCairoCtx, x * m_iRenderWidth, y * m_iRenderHeight, r * m_iRenderWidth,
+        0.0, 2 * M_PI);
+
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
+   cairo_stroke(m_pCairoCtx);
+
+}
+
+void RenderEngineCairo::drawArc(float x, float y, float r, float a1, float a2)
+{
+}
+
+
+void RenderEngineCairo::_drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos)
+{
+   _drawSimpleTextScaled(pFont, szText, xPos, yPos, 1.0);
+}
+
+void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale)
+{
+   if ( (NULL == pFont) || (NULL == szText) || (0 == szText[0]) )
+      return;
+
+   if ( yPos < 0 )
+      return;
+   if ( yPos + pFont->lineHeight * fScale * m_fPixelHeight >= 1.0 )
+      return;
+
+   cairo_set_font_size (m_pCairoCtx, pFont->lineHeight*0.8);
+   cairo_text_extents_t cte;
+   cairo_text_extents(m_pCairoCtx, szText, &cte);
+   //cairo_set_source_rgba (m_pCairoCtx, 0.2, 0, 0, 1);
+   cairo_set_source_rgba(m_pCairoCtx, m_fColorFill[0], m_fColorFill[1], m_fColorFill[2], m_fColorFill[3]);
+   //cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + cte.height);
+   cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
+   cairo_show_text (m_pCairoCtx, szText);
+   
+   return;
+
+   while ( *szText )
+   {
+      float fWidthCh = _get_raw_char_width(pFont, *szText);
+      if ( (fWidthCh < 0.0001) || ( (*szText) < pFont->charIdFirst || (*szText) > pFont->charIdLast ) )
+      {
+         szText++;
+         continue;
+      }
+      if ( xPos < 0 )
+      {
+         xPos += fWidthCh * fScale;
+         szText++;
+         continue;
+      }
+      if ( xPos + fWidthCh * fScale >= 1.0 )
+         break;
+
+      int xImg = pFont->chars[(*szText)-pFont->charIdFirst].imgXOffset;
+      int yImg = pFont->chars[(*szText)-pFont->charIdFirst].imgYOffset;
+      int wImg = pFont->chars[(*szText)-pFont->charIdFirst].width;
+      int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
+      
+      //fbg_imageDrawAlpha(m_pFBG, (struct _fbg_img*) pFont->pImageObject, xPos * m_iRenderWidth, yPos * m_iRenderHeight, wImg*fScale, hImg*fScale, xImg, yImg, wImg, hImg);
+      _bltFontChar(xPos * m_iRenderWidth, yPos * m_iRenderHeight, xImg, yImg, wImg, hImg, pFont);
+      xPos += fWidthCh * fScale;
+      szText++;
+   }
+}
+
+void RenderEngineCairo::_bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, RenderEngineRawFont* pFont)
+{
+   if ( NULL == pFont )
+      return;
+   if ( (iDestX < 0) || (iDestY < 0) || (iDestX+iSrcWidth >= m_iRenderWidth) || (iDestY+iSrcHeight >= m_iRenderHeight) )
+      return;
+
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pSrcImageData = cairo_image_surface_get_data((cairo_surface_t*)pFont->pImageObject);
+   int iSrcImageStride = cairo_image_surface_get_stride((cairo_surface_t*)pFont->pImageObject);
+
+   for( int y=0; y<iSrcHeight; y++ )
+   {
+      u8* pDestLine = (u8*)&(pOutputBufferInfo->pData[(iDestY+y)*pOutputBufferInfo->uStride]);
+      pDestLine += 4*iDestX;
+
+      u8* pSrcLine = pSrcImageData + ((iSrcY +y)* iSrcImageStride);
+      pSrcLine += 4 * iSrcX;
+
+      for( int x=0; x<iSrcWidth; x++ )
+      {
+          u8 uAlpha = *(pSrcLine+3);
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          pDestLine++;
+          pSrcLine++;
+          pDestLine++;
+          pSrcLine++;
+      }
+   }
+}

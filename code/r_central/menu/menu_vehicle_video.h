@@ -4,6 +4,7 @@
 #include "menu_item_slider.h"
 #include "menu_item_radio.h"
 #include "menu_item_checkbox.h"
+#include "menu_item_text.h"
 #include "../../base/video_capture_res.h"
 
 class MenuVehicleVideo: public Menu
@@ -29,7 +30,9 @@ class MenuVehicleVideo: public Menu
       int m_IndexAdaptiveVideo;
       int m_IndexAutoQuantization;
       int m_IndexRetransmissions;
+      int m_IndexRecording;
       MenuItem* m_pMenuItemVideoWarning;
+      MenuItem* m_pMenuItemVideoRecording;
       MenuItemSlider* m_pItemsSlider[15];
       MenuItemSelect* m_pItemsSelect[15];
       MenuItemRadio* m_pItemsRadio[5];

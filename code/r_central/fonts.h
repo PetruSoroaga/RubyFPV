@@ -12,5 +12,6 @@ extern u32 g_idFontMenuSmall;
 extern u32 g_idFontMenuLarge;
 
 bool loadAllFonts(bool bReloadMenuFonts);
+void free_all_fonts();
 
 void applyFontScaleChanges();

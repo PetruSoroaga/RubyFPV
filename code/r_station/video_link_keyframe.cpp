@@ -182,6 +182,216 @@ void _video_link_keyframe_request_new_keyframe_interval(u32 uVehicleId, int iInt
    g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].uTimeLastRequestedKeyFrame = g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iInfoIndex].uUpdateInterval - 1;
 }
 
+void _video_link_keyframe_do_adaptive_check(int iVehicleIndex)
+{
+   Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[iVehicleIndex].uVehicleId, 157);
+   if ( (NULL == pModel) || (pModel->is_spectator) )
+      return;
+
+   ProcessorRxVideo* pProcessorVideo = NULL;
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL != g_pVideoProcessorRxList[i] )
+      if ( g_pVideoProcessorRxList[i]->m_uVehicleId == g_State.vehiclesRuntimeInfo[iVehicleIndex].uVehicleId )
+      {
+         pProcessorVideo = g_pVideoProcessorRxList[i];
+         break;
+      }
+   }
+
+   // Max interval time we can check is:
+   // MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL ms
+   //    = 3.6 seconds
+   // Minus one because the current index is still processing/invalid
+
+   int iIntervalsToCheckDown = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1;
+   int iIntervalsToCheckUp = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1;
+   
+   int iIntervalsSinceLastShiftDown = (int)(g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftDown) / (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uUpdateInterval;
+   if ( iIntervalsSinceLastShiftDown < iIntervalsToCheckDown )
+      iIntervalsToCheckDown = iIntervalsSinceLastShiftDown;
+   
+   if ( iIntervalsToCheckDown < 0 )
+      iIntervalsToCheckDown = 0;
+
+   int iIntervalsSinceLastShiftUp = (int)(g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftUp) / (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uUpdateInterval;
+   if ( iIntervalsSinceLastShiftUp < iIntervalsToCheckUp )
+      iIntervalsToCheckUp = iIntervalsSinceLastShiftUp;
+   
+   if ( iIntervalsToCheckUp < 0 )
+      iIntervalsToCheckUp = 0;
+
+   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uStats_CheckIntervalsKeyFrame = ((u16)iIntervalsToCheckDown) | (((u16)iIntervalsToCheckUp)<<16);
+   
+   // videoAdjustmentStrength is 1 (lowest strength) to 10 (highest strength)
+   // fParamsChangeStrength: higher value means more aggresive adjustments. From 0.1 to 1
+   float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
+
+   int iThresholdDownLevelSlow = 2 + 20.0 * (1.0-fParamsChangeStrength);
+   int iThresholdDownLevelFast = 5 + 30.0 * (1.0-fParamsChangeStrength);
+   int iThresholdDownLevelRetrSlow = 1 + 5.0 * (1.0-fParamsChangeStrength);
+   int iThresholdDownLevelRetrFast = 2 + 10.0 * (1.0-fParamsChangeStrength);
+
+   // Up levels thresholds must be smaller than down levels thresholds
+   int iThresholdUpLevel = iThresholdDownLevelSlow - 2;
+   if ( iThresholdUpLevel < 1 )
+      iThresholdUpLevel = 1;
+   int iThresholdUpLevelRetr = iThresholdDownLevelRetrSlow-2;
+   if ( iThresholdUpLevelRetr < 1 )
+      iThresholdUpLevelRetr = 1;
+
+   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uStats_KeyFrameThresholdIntervalsUp = (iThresholdUpLevel & 0xFF) | ((iThresholdUpLevelRetr & 0xFF) << 8);
+   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uStats_KeyFrameThresholdIntervalsDown = (iThresholdDownLevelSlow & 0xFF) | ((iThresholdDownLevelFast & 0xFF) << 8) | ((iThresholdDownLevelRetrSlow & 0xFF) << 16) | ((iThresholdDownLevelRetrFast & 0xFF)<<24);
+
+   // Check if we need to down shift keyframe (decrease keyframe interval)
+
+   if ( (NULL != pProcessorVideo) && (pProcessorVideo->getLastTimeReceivedVideoPacket() < g_TimeNow - (10-pModel->video_params.videoAdjustmentStrength)*20) )
+   {
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAG_NO_VIDEO_PACKETS;
+      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs > DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      {
+         int iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs / 2;
+         if ( iNewKeyFrameIntervalMs < DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
+            iNewKeyFrameIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
+         if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs )
+         {
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftDown = g_TimeNow;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED;
+         }
+      }
+      return;
+   }
+
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastRequestedKeyFrame + 100 )
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftDown + 100 )
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftUp + 100 )
+   if ( iIntervalsToCheckDown > 0 )
+   {
+      int iCountReconstructed = 0;
+      int iCountRetransmissions = 0;
+      int iCountReRetransmissions = 0;
+      int iCountMissingSegments = 0;
+
+      int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex;
+      for( int k=0; k<=iIntervalsToCheckDown; k++ )
+      {
+         iCountReconstructed += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsOuputRecontructedVideoPackets[iIndex]!=0)?1:0;
+         iCountRetransmissions += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsRequestedRetransmissions[iIndex]!=0)?1:0;
+         iCountReRetransmissions += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsRetriedRetransmissions[iIndex]!=0)?1:0;
+         iCountMissingSegments += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsMissingVideoPackets[iIndex]!=0)?1:0;
+         iIndex--;
+         if ( iIndex < 0 )
+            iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1;
+      }
+
+      int iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs;
+      // Check larger thresholds first
+      
+      if ( iIntervalsToCheckDown >= iThresholdDownLevelSlow )
+      if ( iCountReconstructed >= iThresholdDownLevelSlow )
+      if ( iNewKeyFrameIntervalMs > 4*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN;
+         iNewKeyFrameIntervalMs = (iNewKeyFrameIntervalMs * 3)/4;
+      }
+
+      if ( iIntervalsToCheckDown >= iThresholdDownLevelFast )
+      if ( iCountReconstructed >= iThresholdDownLevelFast )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN_FAST;
+         iNewKeyFrameIntervalMs = iNewKeyFrameIntervalMs/2;
+      }
+
+      if ( iIntervalsToCheckDown >= iThresholdDownLevelRetrSlow )
+      if ( (iCountRetransmissions >= iThresholdDownLevelRetrSlow) || (iCountMissingSegments >= iThresholdDownLevelRetrSlow/2+1) )
+      if ( iNewKeyFrameIntervalMs > 2*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN;
+         iNewKeyFrameIntervalMs = 2*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+      }
+
+      if ( iIntervalsToCheckDown >= iThresholdDownLevelRetrFast )
+      if ( (iCountRetransmissions >= iThresholdDownLevelRetrFast) || (iCountMissingSegments >= iThresholdDownLevelRetrFast/2+1) )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN_FAST;
+         iNewKeyFrameIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+      }
+
+      // Apply the change, if any
+
+      if ( iNewKeyFrameIntervalMs < DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
+         iNewKeyFrameIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
+      
+      if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs )
+      {
+         _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftDown = g_TimeNow;
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED;
+      }
+   }
+
+   // Check if we need to up shift keyframe (increase keyframe interval )
+
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastRequestedKeyFrame + 900 )
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftUp + 900 )
+   if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftDown + 900 )
+   if ( iIntervalsToCheckUp >= iThresholdUpLevel )
+   {
+      int iCountReconstructed = 0;
+      int iCountRetransmissions = 0;
+      int iCountReRetransmissions = 0;
+      int iCountMissingSegments = 0;
+
+      int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex;
+      for( int k=0; k<=iIntervalsToCheckUp; k++ )
+      {
+         iCountReconstructed += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsOuputRecontructedVideoPackets[iIndex]!=0)?1:0;
+         iCountRetransmissions += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsRequestedRetransmissions[iIndex]!=0)?1:0;
+         iCountReRetransmissions += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsRetriedRetransmissions[iIndex]!=0)?1:0;
+         iCountMissingSegments += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsMissingVideoPackets[iIndex]!=0)?1:0;
+         iIndex--;
+         if ( iIndex < 0 )
+            iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1;
+      }
+
+      if ( iIntervalsToCheckUp >= iThresholdUpLevel )
+      if ( iCountReconstructed < iThresholdUpLevel )
+      if ( iIntervalsToCheckUp >= iThresholdUpLevelRetr )
+      if ( iCountRetransmissions < iThresholdUpLevelRetr )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_UP;
+         int iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs * 4 / 3;
+         if ( iNewKeyFrameIntervalMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs )
+            iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs;
+         if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs )
+         {
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftUp = g_TimeNow;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED;
+         }
+      }
+
+      /*
+      if ( iIntervalsToCheckUp >= iThresholdUpLevelRetr )
+      if ( iCountRetransmissions < iThresholdUpLevelRetr )
+      {
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_UP;
+         int iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs * 4 / 3;
+         if ( iNewKeyFrameIntervalMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs )
+            iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs;
+         if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs )
+         {
+            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastKFShiftUp = g_TimeNow;
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED;
+         }
+      }
+      */
+   }
+}
+
+
 void video_link_keyframe_periodic_loop()
 {
    if ( g_bSearching || (NULL == g_pCurrentModel) || g_bUpdateInProgress )
@@ -197,7 +407,7 @@ void video_link_keyframe_periodic_loop()
 
 
    // Send/Resend keyframe to vehicle if needed
-      
+
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       if ( 0 == g_State.vehiclesRuntimeInfo[i].uVehicleId )
@@ -290,137 +500,8 @@ void video_link_keyframe_periodic_loop()
       if ( g_TimeNow < g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastRequestedKeyFrame + 50 )
          continue;
 
-      float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
-      
-      // Max intervals is MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * 20 ms = 4 seconds
-      // Minus one because the current index is still processing/invalid
-
-      int iIntervalsToCheckDown = 3 + (1.0-0.7*fParamsChangeStrength) * MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
-      int iIntervalsToCheckUp = iIntervalsToCheckDown + 20 + 40 * (1.0-fParamsChangeStrength);
-      if ( iIntervalsToCheckDown >= MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1 )
-         iIntervalsToCheckDown = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-2;
-      if ( iIntervalsToCheckUp >= MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1 )
-         iIntervalsToCheckUp = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-2;
-      
-      int iThresholdUp = 1 + (0.1 + 0.08*(0.9-fParamsChangeStrength)) * iIntervalsToCheckUp;
-      int iThresholdDownLevel1 = 1 + (0.01 + 0.08 * (1.0-fParamsChangeStrength) )* iIntervalsToCheckDown;
-      int iThresholdDownLevel2 = 1 + (0.04 + 0.16 * (1.0-fParamsChangeStrength) )* iIntervalsToCheckDown;
-      int iThresholdDownLevel4 = (0.03 + 0.2*(1.0-fParamsChangeStrength)) * iIntervalsToCheckDown;
-      int iThresholdDownLevel5 = (0.03 + 0.1*(1.0-fParamsChangeStrength))* iIntervalsToCheckDown;
-
-
-      //if ( (int)(g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftUp) / (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval < iIntervalsToCheckUp )
-      //   iIntervalsToCheckUp = (g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftUp) / g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval;
-
-      if ( (int)(g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown) / (int)g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval < iIntervalsToCheckDown )
-         iIntervalsToCheckDown = (g_TimeNow - g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown) / g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uUpdateInterval;
-      
-      if ( iIntervalsToCheckDown < 1 )
-         iIntervalsToCheckDown = 1;
-      if ( iIntervalsToCheckUp < iIntervalsToCheckDown )
-         iIntervalsToCheckUp = iIntervalsToCheckDown;
-
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsKeyFrameMs1 = ((u16)iIntervalsToCheckDown) | (((u16)iIntervalsToCheckUp)<<16);
-      int iCountReconstructedDown = 0;
-      int iCountRetransmissionsDown = 0;
-      int iCountReRetransmissionsDown = 0;
-      int iCountMissingSegmentsDown = 0;
-
-      int iCountReconstructedUp = 0;
-      int iCountRetransmissionsUp = 0;
-      int iCountReRetransmissionsUp = 0;
-      int iCountMissingSegmentsUp = 0;
-
-      int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex - 1;
-      if ( iIndex < 0 )
-         iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
-
-      for( int k=0; k<iIntervalsToCheckDown; k++ )
-      {
-         iIndex--;
-         if ( iIndex < 0 )
-            iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
-         iCountReconstructedDown += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputRecontructedVideoPackets[iIndex]!=0)?1:0;
-         iCountRetransmissionsDown += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRequestedRetransmissions[iIndex]!=0)?1:0;
-         iCountReRetransmissionsDown += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRetriedRetransmissions[iIndex]!=0)?1:0;
-         iCountMissingSegmentsDown += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[iIndex]!=0)?1:0;
-      }
-
-      iCountReconstructedUp = iCountReconstructedDown;
-      iCountRetransmissionsUp = iCountRetransmissionsDown;
-      iCountReRetransmissionsUp = iCountReRetransmissionsDown;
-      iCountMissingSegmentsUp = iCountMissingSegmentsDown;
-
-      for( int k=iIntervalsToCheckDown; k<iIntervalsToCheckUp; k++ )
-      {
-         iIndex--;
-         if ( iIndex < 0 )
-            iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
-         iCountReconstructedUp += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputRecontructedVideoPackets[iIndex]!=0)?1:0;
-         iCountRetransmissionsUp += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRequestedRetransmissions[iIndex]!=0)?1:0;
-         iCountReRetransmissionsUp += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRetriedRetransmissions[iIndex]!=0)?1:0;
-         iCountMissingSegmentsUp += (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[iIndex]!=0)?1:0;
-      }
-
-      int iNewKeyFrameIntervalMs = -1;
-
-      // Check move up
-
-      if ( g_TimeNow > g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastRequestedKeyFrame + 900 )
-      if ( iCountReconstructedUp < iThresholdUp )
-      if ( iCountRetransmissionsUp < iThresholdUp )
-      if ( iCountReRetransmissionsUp < iThresholdUp )
-      if ( iCountMissingSegmentsUp < iThresholdUp )
-      {
-         iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs * 4 / 3;
-         if ( iNewKeyFrameIntervalMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs )
-            iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs;
-         if ( iNewKeyFrameIntervalMs != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs )
-         {
-            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftUp = g_TimeNow;
-         }
-      }
-
-      // Check move down
-
-      if ( iCountReconstructedDown > iThresholdDownLevel1 )
-      {
-         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs / 2)
-         {
-            iNewKeyFrameIntervalMs = pModel->video_params.uMaxAutoKeyframeIntervalMs / 2;
-            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
-         }
-      }
-
-      if ( iCountReconstructedDown > iThresholdDownLevel2 )
-      {
-         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iLastRequestedKeyFrameMs > (int)pModel->video_params.uMaxAutoKeyframeIntervalMs / 4)
-         {
-            iNewKeyFrameIntervalMs = iCurrentFPS * pModel->video_params.uMaxAutoKeyframeIntervalMs / 4;
-            _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
-            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
-         }
-      }
-
-      if ( (iCountRetransmissionsDown > iThresholdDownLevel4) ||
-           (iCountMissingSegmentsDown > iThresholdDownLevel4) )
-      {
-         iNewKeyFrameIntervalMs = 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
-         _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
-         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
-      }
-
-      if ( iCountReRetransmissionsDown > iThresholdDownLevel5 )
-      {
-         iNewKeyFrameIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
-         _video_link_keyframe_request_new_keyframe_interval(pModel->uVehicleId, iNewKeyFrameIntervalMs);
-         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uTimeLastKFShiftDown = g_TimeNow;
-      }
-
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsKeyFrameMs2 = ((u8)iThresholdUp) | (((u8)iThresholdDownLevel1)<<8) | (((u8)iThresholdDownLevel2)<<16);
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsKeyFrameMs3 = ((u8)iThresholdDownLevel4) | (((u8)iThresholdDownLevel5)<<8);
+      // Do actual check and adjustments for autokeyframe
+      _video_link_keyframe_do_adaptive_check(i);
    }
 }
 

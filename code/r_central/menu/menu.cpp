@@ -650,6 +650,17 @@ void menu_refresh_all_menus_except(Menu* pMenu)
    log_line("[Menu] Refreshed all menus.");
 }
 
+void menu_update_ui_all_menus()
+{
+   log_line("[Menu] Update UI for all menus...");
+   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
+   {
+      if ( NULL != g_pMenuStack[i] )
+         g_pMenuStack[i]->valuesToUI();
+   }
+   log_line("[Menu] Updated UI for all menus.");
+}
+
 u32 menu_get_loop_counter()
 {
    return s_uMenuLoopCounter;
@@ -660,6 +671,8 @@ void menu_render()
    float fOrigAlpha = g_pRenderEngine->getGlobalAlfa();
    Preferences* pP = get_Preferences();
    
+   g_pRenderEngine->disableRectBlending();
+
    // If menus are stacked, render only last 3 menus
 
    int iMenuToRender = g_iMenuStackTopIndex-3;
@@ -753,6 +766,7 @@ void menu_render()
       iMenuToRender++;
    }
    g_pRenderEngine->setGlobalAlfa(fOrigAlpha);
+   g_pRenderEngine->enableRectBlending();
 }
 
 bool menu_is_menu_on_top(Menu* pMenu)

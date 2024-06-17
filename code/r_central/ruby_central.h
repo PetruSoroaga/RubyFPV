@@ -33,8 +33,8 @@ Popup* ruby_get_startup_popup();
 void ruby_processing_loop(bool bNoKeys);
 
 void render_all(u32 timeNow, bool bForceBackground = false, bool bDoInputLoop = false);
-void ruby_start_recording();
-void ruby_stop_recording();
+int ruby_start_recording();
+int ruby_stop_recording();
 
 void ruby_load_models();
 
@@ -48,3 +48,6 @@ void ruby_resume_watchdog();
 void synchronize_shared_mems();
 
 void ruby_set_active_model_id(u32 uVehicleId);
+
+void ruby_mark_reinit_hdmi_display();
+void ruby_reinit_hdmi_display();

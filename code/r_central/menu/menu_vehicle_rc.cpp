@@ -759,7 +759,7 @@ void MenuVehicleRC::renderLiveValues()
 
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
       {
-         g_pRenderEngine->drawMessageLines("Check Inverted / Non-Inverted flag in [Controller] -> [Peripherals] menu.", xPos, y, 1.0, fWidth -2.0*fPaddingX ,g_idFontMenuSmall );
+         g_pRenderEngine->drawMessageLines(xPos, y, "Check Inverted / Non-Inverted flag in [Controller] -> [Peripherals] menu.", 1.0, fWidth -2.0*fPaddingX ,g_idFontMenuSmall );
          y += 2.0 * height_text_small;
       }
    }

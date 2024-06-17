@@ -27,6 +27,8 @@ u16 s_countTXCompactedPacketsOutTemp = 0;
 
 // Router
 
+type_u32_couters g_CoutersMainLoop;
+
 u32 s_debugVideoBlocksInCount = 0;
 
 t_packet_queue g_QueueRadioPacketsOut;
@@ -52,9 +54,6 @@ u32  g_uControllerId = 0;
 int s_iPendingFrequencyChangeLinkId = -1;
 u32 s_uPendingFrequencyChangeTo = 0;
 u32 s_uTimeFrequencyChangeRequest = 0;
-
-u32 g_uTotalRadioTxTimePerSec = 0;
-u32 g_uTotalVideoRadioTxTimePerSec = 0;
 
 t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 t_packet_header_vehicle_tx_history g_PHVehicleTxStats;

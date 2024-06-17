@@ -482,19 +482,19 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             strcat(szMode, szTmp);
          }
 
-         if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
             strcat(szMode, "-");
-         if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
             strcat(szMode, "-1Way");
 
          sprintf(szBuff, "%s %.1f Mbs", szMode, frecv_video_mbps);
-         if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
 
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
          {
             sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
-            if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+            if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
                sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
          }
          u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
@@ -528,9 +528,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    char szCurrentProfile[64];
    szCurrentProfile[0] = 0;
    strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-   if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+   if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
       strcat(szCurrentProfile, "-");
-   if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+   if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
       strcat(szCurrentProfile, "-1Way");
 
    // Stream Info
@@ -582,20 +582,20 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
          bECChanged = true;
 
-      u32 uECSpreadHigh = (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpreadHigh = (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
       u32 uECSpread = uECSpreadLow | (uECSpreadHigh<<1);
       szBuff2[0] = 0;
       if ( pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
          sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
       }
       else
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
          sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
       }
 
@@ -628,7 +628,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       float wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( ! (pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS) )
+      if ( ! (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS) )
       {
          strcpy(szBuff, "Off");
          g_pRenderEngine->setColors(get_Color_IconWarning());
@@ -657,9 +657,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          osd_set_colors();
 
          //sprintf(szBuff, "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
-         //       szBuff3, 5*(((pVDS->encoding_extra_flags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
+         //       szBuff3, 5*(((pVDS->uEncodingFlags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
             
-         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->encoding_extra_flags) & 0xFF00) >> 8));
+         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->uEncodingFlags) & 0xFF00) >> 8));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
          if ( bIsNormal || bIsExtended )
          {
@@ -676,7 +676,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+      if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
       {
          char szBuff3[64];
          sprintf(szBuff3, "On");
@@ -703,7 +703,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+      if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
       {
          sprintf(szBuff, "On ");
          g_pRenderEngine->setColors(get_Color_IconSucces());
@@ -711,7 +711,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          osd_set_colors();
 
-         sprintf(szBuff, "(%d)", (int)(pVDS->uEncodingExtraFlags2 & 0xFF));
+         sprintf(szBuff, "(%d)", (int)(pVDS->uEncodingFlags2 & 0xFF));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff);
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          
@@ -798,7 +798,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          sprintf(szTmp, "-%d", diffEC);
          strcat(szVideoLevelRecv, szTmp);
       }
-      else if ( pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+      else if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
          strcat(szVideoLevelRecv, "-");
       
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s / %s", szVideoLevelRequested, szVideoLevelAck, szVideoLevelRecv);
@@ -2306,7 +2306,6 @@ float osd_render_stats_efficiency(float xPos, float yPos, float scale)
    return height;
 }
 
-
 float osd_render_stats_video_stream_keyframe_info_get_height()
 {
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
@@ -2318,6 +2317,12 @@ float osd_render_stats_video_stream_keyframe_info_get_height()
 
    // stats
    height += 7.0 * height_text*s_OSDStatsLineSpacing;
+
+   if ( pCS->iDeveloperMode )
+   {
+      //height += 3.0 * height_text * s_OSDStatsLineSpacing;
+      //height += osd_render_stats_dev_adaptive_video_get_height();
+   }
 
    // Minimal view
    if ( pCS->iShowVideoStreamInfoCompactType == 2 )
@@ -3355,13 +3360,13 @@ float osd_render_stats_flight_end(float scale)
    float width_text = g_pRenderEngine->textWidth(s_idFontStats, "Ok");    
    float selectionMargin = 0.01;
    float fWidthSelection = width_text + 2.0*selectionMargin;
-   g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+   g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
    g_pRenderEngine->drawRoundRect(xPos-1.0*selectionMargin/g_pRenderEngine->getAspectRatio(), y-0.8*selectionMargin, fWidthSelection+2.0*selectionMargin/g_pRenderEngine->getAspectRatio(), height_text+2*selectionMargin, selectionMargin);
-   g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+   g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    g_pRenderEngine->drawText(xPos, y+g_pRenderEngine->getPixelHeight()*1.2, g_idFontMenu, "Ok");
 
    osd_set_colors();
-   g_pRenderEngine->drawMessageLines("Press [Ok/Menu] or [Back/Cancel] to close this stats.", xPos + fWidthSelection + width_text, y - height_text*0.2, MENU_TEXTLINE_SPACING, rightMargin-(xPos + fWidthSelection + width_text), s_idFontStats);
+   g_pRenderEngine->drawMessageLines(xPos + fWidthSelection + width_text, y - height_text*0.2, "Press [Ok/Menu] or [Back/Cancel] to close this stats.", MENU_TEXTLINE_SPACING, rightMargin-(xPos + fWidthSelection + width_text), s_idFontStats);
    return height;
 }
 
@@ -3538,7 +3543,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeAverage && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeMinim )
       sprintf(szBuff, "%d/%d ms", g_SM_ControllerRetransmissionsStats.retransmissionTimeMinim, g_SM_ControllerRetransmissionsStats.retransmissionTimeAverage);
-   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Min/Avg:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
@@ -3546,7 +3551,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeLast )
       sprintf(szBuff, "%d ms", g_SM_ControllerRetransmissionsStats.retransmissionTimeLast);
-   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Last:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
@@ -4024,6 +4029,126 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
 */
    }
    return height;
+}
+
+
+void _osd_render_vehicle_dev_stats()
+{
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
+
+   int iIndexVehicleRuntimeInfo = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
+         iIndexVehicleRuntimeInfo = i;
+   }
+   if ( (NULL == pActiveModel) || (-1 == iIndexVehicleRuntimeInfo) || (0 == uActiveVehicleId) )
+      return;
+
+
+   float height_text = g_pRenderEngine->textHeight(s_idFontStats);
+
+   float width = 0.36;
+   float hGraph = height_text*2.0;
+   float height = height_text*s_OSDStatsLineSpacing*6.1 + hGraph;
+   float xPos = 0.01;
+   float yPos = 1.0 - height - osd_getMarginY() - osd_getBarHeight() - osd_getSecondBarHeight();
+
+   char szBuff[128];
+
+   osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
+   g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
+   g_pRenderEngine->setColors(get_Color_Dev());
+
+   xPos += s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
+   yPos += s_fOSDStatsMargin*0.5;
+   width -= 2.0*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
+   float rightMargin = xPos + width;
+
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "Vehicle Dev Stats");
+   sprintf(szBuff, "VID: %u", uActiveVehicleId);
+   
+   g_pRenderEngine->drawTextLeft(rightMargin, yPos, s_idFontStats, szBuff);
+   
+   float y = yPos + height_text*1.3*s_OSDStatsLineSpacing;
+
+   
+   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Router main loop FPS now:");
+   sprintf(szBuff, "%u FPS/sec", g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueNow);
+   g_pRenderEngine->drawTextLeft( rightMargin, y, s_idFontStats, szBuff);
+   y += height_text*s_OSDStatsLineSpacing;
+
+   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Router FPS avg,min,max local:");
+   sprintf(szBuff, "%u, %u, %u FPS/sec",
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueAverageLocal,
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueMinimLocal,
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueMaximLocal);
+   g_pRenderEngine->drawTextLeft( rightMargin, y, s_idFontStats, szBuff);
+   y += height_text*s_OSDStatsLineSpacing;
+
+   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Router FPS avg,min,max:");
+   sprintf(szBuff, "%u, %u, %u FPS/sec",
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueAverage,
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueMinim,
+      g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRouterCounters.uValueMaxim);
+   g_pRenderEngine->drawTextLeft( rightMargin, y, s_idFontStats, szBuff);
+   y += height_text*s_OSDStatsLineSpacing;
+
+
+   // Tx time history graph
+   sprintf(szBuff, "Radio Tx Time (avg: %d ms)", g_VehiclesRuntimeInfo[iIndexVehicleRuntimeInfo].vehicleDebugRadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage);
+   g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
+   y += height_text;
+
+   /*
+   g_pRenderEngine->drawText(xPos, y-0.2*height_text_small, height_text_small*0.9, s_idFontStatsSmall, "100%");
+   g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.8, height_text_small*0.9, s_idFontStatsSmall, "0%");
+
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+   g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+   g_pRenderEngine->drawLine(xPos+dxGraph, y, xPos + dxGraph + widthGraph, y);         
+   g_pRenderEngine->drawLine(xPos+dxGraph, y+hGraph, xPos + dxGraph + widthGraph, y+hGraph);
+   midLine = hGraph/2.0;
+   wPixel = g_pRenderEngine->getPixelWidth();
+   for( float i=0; i<=widthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+dxGraph+i, y+midLine, xPos + dxGraph + i + 2.0*wPixel, y+midLine);         
+
+   g_pRenderEngine->setStrokeSize(1.0);
+
+   xBarSt = xPos + dxGraph;
+   yBtm = y + hGraph - g_pRenderEngine->getPixelHeight();
+
+   index = g_pSM_RetransmissionsStats->currentSlice;
+   
+   g_pRenderEngine->setStroke(250,250,240, s_fOSDStatsGraphLinesAlpha);
+   g_pRenderEngine->setFill(250,250,240, s_fOSDStatsGraphLinesAlpha);
+
+   for( int i=0; i<totalHistoryValues; i++ )
+   {
+      if ( index != totalHistoryValues-1 )
+      {
+      float percent = 0.0;
+      if ( g_pSM_RetransmissionsStats->receivedRetransmissions[index] > 0 )
+         percent = (float)g_pSM_RetransmissionsStats->ignoredRetransmissions[index] / (float)g_pSM_RetransmissionsStats->receivedRetransmissions[index];
+      if ( percent < 0.0 ) percent = 0.0;
+      if ( percent > 1.0 ) percent = 1.0;
+      float fh = (hGraph-2*g_pRenderEngine->getPixelHeight())* percent;
+      int tmp = fh/g_pRenderEngine->getPixelHeight();
+      fh = g_pRenderEngine->getPixelHeight() * (float)tmp;
+      yTmp = yBtm - fh;
+      g_pRenderEngine->drawRect(xBarSt, yTmp, widthBar-wPixel, yBtm-yTmp);
+      }
+      index--;
+      if ( index < 0 )
+         index = totalHistoryValues-1;
+      xBarSt += widthBar;
+      xBarCenter += widthBar;
+      xBarCenterPrev += widthBar;
+   }
+   y += hGraph;
+   */
 }
 
 void _osd_render_stats_panels_horizontal()
@@ -4966,7 +5091,26 @@ void osd_render_stats_panels()
          osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, 1.0);
      
       if ( s_iOSDStatsBoundingBoxesIds[i] == 12 )
+      {
         osd_render_stats_video_stream_keyframe_info(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i]);
+
+        // Developer stats
+        if ( pCS->iDeveloperMode )
+        {
+           float heightAdaptive = osd_render_stats_dev_adaptive_video_get_height();
+           float xPosAdaptive = 0.32;
+           float yPosAdaptive = 0.94 - heightAdaptive;
+           float widthAdaptive = 0.36;
+           osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
+           g_pRenderEngine->drawRoundRect(xPosAdaptive - s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), yPosAdaptive - s_fOSDStatsMargin, widthAdaptive + 2.0 * s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), heightAdaptive + 2.0 * s_fOSDStatsMargin, 1.5*POPUP_ROUND_MARGIN);
+           g_pRenderEngine->drawRoundRect(xPosAdaptive - s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), yPosAdaptive - s_fOSDStatsMargin, widthAdaptive + 2.0 * s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), heightAdaptive + 2.0 * s_fOSDStatsMargin, 1.5*POPUP_ROUND_MARGIN);
+           g_pRenderEngine->drawRoundRect(xPosAdaptive - s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), yPosAdaptive - s_fOSDStatsMargin, widthAdaptive + 2.0 * s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), heightAdaptive + 2.0 * s_fOSDStatsMargin, 1.5*POPUP_ROUND_MARGIN);
+           g_pRenderEngine->drawRoundRect(xPosAdaptive - s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), yPosAdaptive - s_fOSDStatsMargin, widthAdaptive + 2.0 * s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio(), heightAdaptive + 2.0 * s_fOSDStatsMargin, 1.5*POPUP_ROUND_MARGIN);
+           osd_set_colors();
+
+           osd_render_stats_dev_adaptive_video_info(xPosAdaptive, yPosAdaptive, widthAdaptive);
+        }
+      }
       
       if ( s_iOSDStatsBoundingBoxesIds[i] == 7 )
          osd_render_stats_local_radio_links( s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], "Radio Links", &g_SM_RadioStats, 1.0);
@@ -5012,4 +5156,7 @@ void osd_render_stats_panels()
 
    if ( p->iDebugShowFullRXStats )
       osd_render_stats_full_rx_port();
+
+   if ( pCS->iDeveloperMode )
+      _osd_render_vehicle_dev_stats();
 }

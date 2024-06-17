@@ -37,8 +37,8 @@
 
 double COLOR_DEV[4] = { 170,220,255,1.0 };
 
-double COLOR_POPUP_BG[4] = { 0,0,0,0.76 };
-double COLOR_POPUP_BORDER[4] = { 250,240,220,0.4 };
+double COLOR_POPUP_BG[4] = { 5,5,5, 0.76 };
+double COLOR_POPUP_BORDER[4] = { 90,20,40,0.9 };
 double COLOR_POPUP_TEXT[4] = { 255,250,230,0.85 };
 
 double COLOR_POPUP_INV_BG[4] = { 180,180,180, 0.7 };
@@ -46,20 +46,22 @@ double COLOR_POPUP_INV_BORDER[4] = { 100,100,100,0.7 };
 double COLOR_POPUP_INV_TEXT[4] = { 30,30,30,0.8 };
 
 double COLOR_MENU_BG[4] = { 20,20,20, 0.96 };
-double COLOR_MENU_BORDER[4] = { 255,244,225,0.4 };
-double COLOR_MENU_TEXT[4] = { 255,244,225,0.84 };
+double COLOR_MENU_BG_TITLE[4] = {90,20,30,0.96};
+double COLOR_MENU_BG_TOOLTIP[4] = {50,20,40,0.96};
+double COLOR_MENU_BORDER[4] = { 120,50,70, 0.9 };
+double COLOR_MENU_TEXT[4] = { 255,244,225,0.9 };
 
 double COLOR_MENU_INV_BG[4] = { 185,185,180, 0.94 };
 double COLOR_MENU_INV_BORDER[4] = { 60,60,60,0.7 };
 double COLOR_MENU_INV_TEXT[4] = { 20,20,20,0.96 };
 
-double COLOR_MENU_BG_SELECTED[4] = { 255,244,225,0.6 };
-double COLOR_MENU_TEXT_SELECTED[4] = { 0,0,0,0.9 };
-double COLOR_MENU_TEXT_DISABLED[4] = { 180,180,180,0.3 };
+double COLOR_MENU_ITEM_BG_SELECTED[4] = { 255,244,225,0.95 };
+double COLOR_MENU_ITEM_TEXT_SELECTED[4] = { 2,2,2,0.95 };
+double COLOR_MENU_ITEM_TEXT_DISABLED[4] = { 180,180,180,0.3 };
 
-double COLOR_MENU_INV_BG_SELECTED[4] = { 80,80,80,0.8 };
-double COLOR_MENU_INV_TEXT_SELECTED[4] = { 255,244,225, 0.9 };
-double COLOR_MENU_INV_TEXT_DISABLED[4] = { 80,80,80,0.5 };
+double COLOR_MENU_INV_ITEM_BG_SELECTED[4] = { 80,80,80,0.8 };
+double COLOR_MENU_INV_ITEM_TEXT_SELECTED[4] = { 255,244,225, 0.9 };
+double COLOR_MENU_INV_ITEM_TEXT_DISABLED[4] = { 80,80,80,0.5 };
 
 double COLOR_ICON_NORMAL[4] = { 255,255,255, 0.95 };
 double COLOR_ICON_WARNING[4] = { 255,255,0, 0.95 };
@@ -166,6 +168,18 @@ double* get_Color_MenuBg()
    else
       return COLOR_MENU_BG;
 }
+
+double* get_Color_MenuBgTitle()
+{
+   return COLOR_MENU_BG_TITLE; 
+}
+
+double* get_Color_MenuBgTooltip()
+{
+   return COLOR_MENU_BG_TOOLTIP; 
+}
+
+
 double* get_Color_MenuBorder()
 {
    Preferences* p = get_Preferences();
@@ -183,29 +197,29 @@ double* get_Color_MenuText()
       return COLOR_MENU_TEXT;
 }
 
-double* get_Color_ItemSelectedBg()
+double* get_Color_MenuItemSelectedBg()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
-      return COLOR_MENU_INV_BG_SELECTED;
+      return COLOR_MENU_INV_ITEM_BG_SELECTED;
    else
-      return COLOR_MENU_BG_SELECTED;
+      return COLOR_MENU_ITEM_BG_SELECTED;
 }
-double* get_Color_ItemSelectedText()
+double* get_Color_MenuItemSelectedText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
-      return COLOR_MENU_INV_TEXT_SELECTED;
+      return COLOR_MENU_INV_ITEM_TEXT_SELECTED;
    else
-      return COLOR_MENU_TEXT_SELECTED;
+      return COLOR_MENU_ITEM_TEXT_SELECTED;
 }
-double* get_Color_ItemDisabledText()
+double* get_Color_MenuItemDisabledText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
-      return COLOR_MENU_INV_TEXT_DISABLED;
+      return COLOR_MENU_INV_ITEM_TEXT_DISABLED;
    else
-      return COLOR_MENU_TEXT_DISABLED;
+      return COLOR_MENU_ITEM_TEXT_DISABLED;
 }
 
 double* get_Color_IconNormal() { return COLOR_ICON_NORMAL; }

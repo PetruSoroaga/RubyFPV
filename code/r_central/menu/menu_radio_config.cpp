@@ -1411,7 +1411,7 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
    if ( (NULL == g_pCurrentModel) || (! g_bFirstModelPairingDone) || m_bShowOnlyControllerUnusedInterfaces )
    {
       yPos += height_text*1.1;
-      g_pRenderEngine->drawMessageLines("You have no active model. No radio links are created.", xMid + xMidMargin*0.6, yPos, MENU_TEXTLINE_SPACING, (xEnd - xMid) - m_sfMenuPaddingX - xMidMargin*0.6, m_iIdFontRegular);
+      g_pRenderEngine->drawMessageLines(xMid + xMidMargin*0.6, yPos, "You have no active model. No radio links are created.", MENU_TEXTLINE_SPACING, (xEnd - xMid) - m_sfMenuPaddingX - xMidMargin*0.6, m_iIdFontRegular);
       yPos += iTotalLines*height_text*1.2;
       return yPos - yStart;
    }
@@ -1571,7 +1571,7 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
    szAuto[0] = 0;
    if ( (NULL != g_pCurrentModel) && ( ! g_pCurrentModel->radioLinkIsSiKRadio(iVehicleRadioLink) ) )
    {
-      int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+      int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
       if ( adaptive )
          strcpy(szAuto, " (Auto)");
       else

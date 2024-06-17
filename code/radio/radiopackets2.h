@@ -16,7 +16,7 @@ Code written by: Petru Soroaga, 2021-2023
 #include "local_packets.h"
 #include "radiopackets_short.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 #define MAX_RXTX_BLOCKS_BUFFER 100
 #define MAX_TOTAL_PACKETS_IN_BLOCK 64
 #define MAX_DATA_PACKETS_IN_BLOCK 32
@@ -144,7 +144,7 @@ typedef struct
    u8 video_link_profile;
       // (video stream id: 0xF0 bits, current video link profile: 0x0F bits); added in v.5.6
    u8 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc
-   u32 encoding_extra_flags; // same as video_params.encoding_extra_flags;
+   u32 uEncodingFlags; // same as video_params.uEncodingFlags;
       // byte 0:
       //    bit 0..2  - scramble blocks count
       //    bit 3     - enables restransmission of missing packets
@@ -163,7 +163,7 @@ typedef struct
       //    bit 4  - video profile should use EC scheme as auto;
       //    bit 5,6 - EC scheme spreading factor (0...3)
 
-   u32 encoding_extra_flags2;
+   u32 uEncodingFlags2;
       // Byte 0: current h264 quantization value
       // Byte 1:
       //    bit 0  - 0/1: has debug timings info after the video data:
@@ -314,6 +314,11 @@ typedef struct
 // params: u32 event type
 //         u32 event extra info
 #define EVENT_TYPE_RELAY_MODE_CHANGED 1
+
+#define PACKET_TYPE_DEBUG_INFO 28
+// has:
+// * type_u32_couters structure for vehicle router main loop info
+// * type_radio_tx_timers structure for vehicle total radio tx times history
 
 //---------------------------------------
 // COMPONENT TELEMETRY PACKETS
@@ -694,25 +699,35 @@ byte 0: command type:
 
 #define PACKET_TYPE_TEST_RADIO_LINK 51
 /*
-byte 0: vehicle radio link id to test
-byte 1: test number; // added in 8.3
-byte 2: command type:
+byte 0: protocol version (1)
+byte 1: header size (5 bytes)
+byte 2: vehicle (model) radio link id to test
+byte 3: test number; // added in 8.3
+byte 4: command type:
    0 - status message;
-         byte 3: length of string including end byte;
-         byte 4+: has zero terminated string after that;
+         byte 5: length of string including end byte;
+         byte 6+: has zero terminated string after that;
    1 - start test link: (from controller to vehicle and vicevera for confirmation)
-         byte 3+: radio_link_params structure;
-   2 - ping (from controller to vehicle and viceversa)
-         byte 3..6:  u32: pings count sent by sender of the message;
-         byte 7..10: u32: pings count received so far by the sender of the message from the other side;
-
-   3 - end test link (from controller to vehicle and viceversa)
-         byte 3: succes (0/1)
+         byte 5+: radio_link_params structure;
+   2 - ping uplink(from controller to vehicle and viceversa)
+         byte 5..8:  u32: pings count sent by sender of the message;
+         byte 9..12: u32: pings count received so far by the sender of the message from the other side;
+   3 - ping downlink(from controller to vehicle and viceversa)
+         byte 5..8:  u32: pings count sent by sender of the message;
+         byte 9..12: u32: pings count received so far by the sender of the message from the other side;
+   4 - end test link (from controller to vehicle and viceversa)
+         byte 5: success (0/1)
+   5 - test ended (from controller to central)
+         byte 5: success (0/1)
 */
+#define PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE 5
+#define PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION 1
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS 0
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START  1
-#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING   2
-#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END    3
+#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_UPLINK   2
+#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_DOWNLINK 3
+#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END    4
+#define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_ENDED  5
 
 #define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL 60 // From controller to vehicle. Contains an u32 - adaptive video level to switch to (0..N - HQ, M...P - MQ, R...T - LQ) and then u8 video stream index
 #define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK 61 // From vehicle to controller. Contains an u32 - adaptive video level to switch to (0..N - HQ, M...P - MQ, R...T - LQ)

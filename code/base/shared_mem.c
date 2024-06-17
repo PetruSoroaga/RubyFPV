@@ -377,3 +377,32 @@ void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats,
       //   pSMVIStats->uMaxFrameDeltaTime = pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i];
    }
 }
+
+
+void reset_radio_tx_timers(type_radio_tx_timers* pRadioTxTimers)
+{
+   if ( NULL == pRadioTxTimers )
+      return;
+   pRadioTxTimers->uTimeLastUpdated = 0;
+   pRadioTxTimers->uUpdateIntervalMs = 330;
+
+   pRadioTxTimers->uComputedTotalTxTimeMilisecPerSecondNow = 0;
+   pRadioTxTimers->uComputedTotalTxTimeMilisecPerSecondAverage = 0;
+
+   pRadioTxTimers->uComputedVideoTxTimeMilisecPerSecondNow = 0;
+   pRadioTxTimers->uComputedVideoTxTimeMilisecPerSecondAverage = 0;
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+      pRadioTxTimers->aInterfacesTxTotalTimeMilisecPerSecond[i] = 0;
+      pRadioTxTimers->aInterfacesTxVideoTimeMilisecPerSecond[i] = 0;
+
+      pRadioTxTimers->aTmpInterfacesTxTotalTimeMicros[i] = 0;
+      pRadioTxTimers->aTmpInterfacesTxVideoTimeMicros[i] = 0;
+   }
+
+   pRadioTxTimers->iCurrentIndexHistoryTotalRadioTxTimes = 0;
+   for( int i=0; i<MAX_RADIO_TX_TIMES_HISTORY_INTERVALS; i++ )
+      pRadioTxTimers->aHistoryTotalRadioTxTimes[i] = 0;
+}
+

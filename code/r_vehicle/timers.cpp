@@ -37,8 +37,8 @@ u32 g_TimeLastPacketsOutPerSecCalculation = 0;
 u32 g_TimeLastVideoCaptureProgramStartCheck = 0;
 u32 g_TimeLastVideoCaptureProgramRunningCheck = 0;
 
-u32 g_InterfacesTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
-u32 g_InterfacesVideoTxMiliSecTimePerSecond[MAX_RADIO_INTERFACES];
+type_radio_tx_timers g_RadioTxTimers;
+
 u32 g_TimeLastOverwriteBitrateDownOnTxOverload = 0;
 u32 g_TimeLastOverwriteBitrateUpOnTxOverload = 0;
 u32 g_TimeLastVideoProfileChanged = 0;

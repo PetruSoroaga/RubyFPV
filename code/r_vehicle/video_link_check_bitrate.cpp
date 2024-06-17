@@ -91,7 +91,7 @@ int video_link_get_default_quantization_for_videobitrate(u32 uVideoBitRate)
 
 void video_link_quantization_shift(int iDelta)
 {
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
    {
       if ( 0 != g_SM_VideoLinkStats.overwrites.currentH264QUantization )
          video_link_set_fixed_quantization_values(0);
@@ -143,11 +143,11 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    if ( g_TimeNow < g_TimeLastVideoProfileChanged + 500 )
       return;
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    if ( g_TimeNow < s_uTimeLastH264QuantizationCheck + 100 )
       return;
 
-   if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH ) )
    if ( g_TimeNow < s_uTimeLastH264QuantizationCheck + 200 )
       return;
    
@@ -160,26 +160,26 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    u32 uVideoBitRateAvgSlow = g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(1000);
    
    // This in Mbps. 1 = 1 Mbps
-   u32 uMinVideoBitrateTxUsed = (u32) get_last_tx_video_datarate_mbps();
-   if ( uMinVideoBitrateTxUsed < 2 )
+   u32 uMinVideoMbBitrateTxUsed = (u32) get_last_tx_video_datarate_mbps();
+   if ( uMinVideoMbBitrateTxUsed < 2 )
    {
-      log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", uMinVideoBitrateTxUsed);
-      uMinVideoBitrateTxUsed = 2;
+      log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", uMinVideoMbBitrateTxUsed);
+      uMinVideoMbBitrateTxUsed = 2;
       send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW, 0, 0, 2); 
    }
    
-   u32 uMaxVideoBitrateThreshold = (uMinVideoBitrateTxUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
+   u32 uMaxVideoBitrateThreshold = (uMinVideoMbBitrateTxUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
 
    /*
    log_line(DEBUG bit rate avg500/tot500: %.1f / %.1f  avg1000/tot1000: %.1f / %.1f,  min/max: %u / %.1f, set: %.1f",
       (float)uVideoBitRateAvgFast/1000.0/1000.0, (float)uTotalVideoBitRateAvgFast/1000.0/1000.0,
       (float)uVideoBitRateAvgSlow/1000.0/1000.0, (float)uTotalVideoBitRateAvgSlow/1000.0/1000.0,
-      uMinVideoBitrateTxUsed, (float)uMaxVideoBitrateThreshold/1000.0/1000.0,
+      uMinVideoMbBitrateTxUsed, (float)uMaxVideoBitrateThreshold/1000.0/1000.0,
       (float)g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/1000.0/1000.0 );
    */
 
    // Auto quantization is turned off ?
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
    {
       if ( 0 != g_SM_VideoLinkStats.overwrites.currentH264QUantization )
          video_link_set_fixed_quantization_values(0);
@@ -187,12 +187,12 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    }
 
    // Adaptive video is turned off
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
    {
       int dTime = 1000;
       bool bOverflow = false;
 
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
       {
          dTime = 250;
          if ( uVideoBitRateAvgFast > g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.1 )
@@ -233,7 +233,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
 
    bool bOverflow = false;
    int dTime = 400;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 250;
       if ( uVideoBitRateAvgFast >= g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.1 )
@@ -262,7 +262,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    // Must shift bitrate down slower to target
 
    bOverflow = false;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 250;
       if ( uVideoBitRateAvgFast >= g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.05 )
@@ -291,7 +291,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    // Must shift up to target
 
    bool bUndeflow = false;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 500;
       if ( uVideoBitRateAvgFast < g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate*0.9 )
@@ -342,16 +342,16 @@ void video_link_check_adjust_bitrate_for_overload()
       uMaxTxTime = 900;
 
    // This is in Mbps: 1 = 1 Mbps
-   int iMinVideoRadioTxBitrateUsed = get_last_tx_video_datarate_mbps();
-   if ( iMinVideoRadioTxBitrateUsed < 2 )
+   int iMinVideoRadioTxMbBitrateUsed = get_last_tx_video_datarate_mbps();
+   if ( iMinVideoRadioTxMbBitrateUsed < 2 )
    {
-      log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", iMinVideoRadioTxBitrateUsed);
-      iMinVideoRadioTxBitrateUsed = 2;
+      log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", iMinVideoRadioTxMbBitrateUsed);
+      iMinVideoRadioTxMbBitrateUsed = 2;
       send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW, 0, 0, 2); 
    }
 
-   int iMaxAllowedThresholdAlarm = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
-   int iMaxAllowedThreshold = (iMinVideoRadioTxBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_LOAD_PERCENT;
+   int iMaxAllowedThresholdAlarm = (iMinVideoRadioTxMbBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT;
+   int iMaxAllowedThreshold = (iMinVideoRadioTxMbBitrateUsed * 1000 * 10) * DEFAULT_VIDEO_LINK_LOAD_PERCENT;
    
    // Check for TX time overload or data rate overload and lower video bitrate if needed
 
@@ -360,7 +360,9 @@ void video_link_check_adjust_bitrate_for_overload()
    bool bIsLocalOverloadCondition = false;
    bool bIsDataRateOverloadCondition = false;
 
-   if ( g_uTotalVideoRadioTxTimePerSec > uMaxTxTime )
+   // To do / fix: use now and averages per radio link, not total
+
+   if ( g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow > uMaxTxTime )
    {
       bIsDataOverloadCondition = true;
       bIsTxOverloadCondition = true;
@@ -385,7 +387,7 @@ void video_link_check_adjust_bitrate_for_overload()
    
       if ( g_TimeNow > g_TimeLastOverwriteBitrateDownOnTxOverload + 1000 )
       if ( g_TimeNow > g_TimeLastOverwriteBitrateUpOnTxOverload + 1000 )
-      if ( (g_uTotalRadioTxTimePerSec < uMaxTxTime/3) && (uTotalSentVideoBitRateAverage < (u32)iMaxAllowedThreshold) )
+      if ( (g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage < uMaxTxTime/3) && (uTotalSentVideoBitRateAverage < (u32)iMaxAllowedThreshold) )
       if ( video_stats_overwrites_decrease_videobitrate_overwrite() )
          g_TimeLastOverwriteBitrateUpOnTxOverload = g_TimeNow;
 
@@ -418,7 +420,7 @@ void video_link_check_adjust_bitrate_for_overload()
       }
       if ( bIsTxOverloadCondition )
       {
-         uParam = (g_uTotalRadioTxTimePerSec & 0xFFFF) | ((uMaxTxTime & 0xFFFF) << 16);
+         uParam = (g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow & 0xFFFF) | ((uMaxTxTime & 0xFFFF) << 16);
          send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_TX_OVERLOAD, uParam, 0, 2);
       }
       if ( bIsLocalOverloadCondition )

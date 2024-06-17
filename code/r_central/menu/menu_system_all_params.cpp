@@ -193,9 +193,9 @@ float MenuSystemAllParams::renderVehicleCamera(float xPos, float yPos, float wid
       strcpy(szTemp, "[USR]");
 
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "S: %s/%d/%d/%d", szTemp, 
-              (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS)?1:0,
+              (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?1:0,
               0,
-              (((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags)>>8)&0xFF)*5);
+              (((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags)>>8)&0xFF)*5);
    yPos += g_pRenderEngine->drawMessageLines(xPos+ 0.16*m_sfScaleFactor, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
@@ -449,7 +449,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   //sprintf(szBuff, "Vehicle adaptive video link: %s", (g_pCurrentModel->video_params.encoding_extra_flags & ENCODING_EXTRA_FLAG_AUTO_SWITCH_VIDEO_LINK_QUALITY)?"yes":"no");
+   //sprintf(szBuff, "Vehicle adaptive video link: %s", (g_pCurrentModel->video_params.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_SWITCH_VIDEO_LINK_QUALITY)?"yes":"no");
    //yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    //yPos += 0.4 * m_sfMenuPaddingY*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING)*fScale;
 
@@ -540,7 +540,7 @@ float MenuSystemAllParams::renderDeveloperFlags(float xPos, float yPos, float wi
    g_pRenderEngine->setColors(get_Color_MenuText());
 
    if ( NULL != g_pCurrentModel )
-      sprintf(szBuff, "LiveLog: %d, RSFS: %d, RTW: %d ms", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?1:0, (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?1:0, (( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & 0xFF00 ) >> 8 ) * 5);
+      sprintf(szBuff, "LiveLog: %d, RSFS: %d, RTW: %d ms", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?1:0, (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?1:0, (( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & 0xFF00 ) >> 8 ) * 5);
    else
       sprintf(szBuff, "No vehicle selected.");
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);

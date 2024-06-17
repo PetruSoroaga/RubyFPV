@@ -69,7 +69,14 @@
 #include "../base/ruby_ipc.h"
 #include "../base/core_plugins_settings.h"
 #include "../base/utils.h"
-#include "../renderer/render_engine.h"
+#if defined (HW_PLATFORM_RASPBERRY)
+#include "../renderer/render_engine_raw.h"
+#endif
+#if defined (HW_PLATFORM_RADXA_ZERO3)
+#include "../renderer/drm_core.h"
+#include "../renderer/render_engine_cairo.h"
+#endif
+
 #include "../common/string_utils.h"
 #include "../common/relay_utils.h"
 #include "../common/favorites.h"
@@ -108,6 +115,7 @@
 u32 s_idBgImage = 0;
 u32 s_idBgImageMenu = 0;
 
+bool g_bMarkedHDMIReinit = false;
 bool g_bIsReinit = false;
 bool g_bIsHDMIConfirmation = false;
 bool quit = false;
@@ -159,33 +167,17 @@ void load_resources()
 {
    loadAllFonts(true);
 
-   if ( render_engine_is_raw() )
+   if ( access("res/custom_bg.png", R_OK) != -1 )
    {
-      if ( access("res/custom_bg.png", R_OK) != -1 )
-      {
-         s_idBgImage = g_pRenderEngine->loadImage("res/custom_bg.png");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/custom_bg.png");
-      }
-      else
-      {
-         if ( (access("res/ruby_bg4.png", R_OK) != -1) &&  (access("res/ruby_bg5.png", R_OK) != -1) )
-         {
-            s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg4.png");
-            s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg5.png");
-         }
-         else
-         {
-            s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
-            s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.png");
-         }
-      }
+      s_idBgImage = g_pRenderEngine->loadImage("res/custom_bg.png");
+      s_idBgImageMenu = g_pRenderEngine->loadImage("res/custom_bg.png");
    }
    else
    {
-      if ( access("res/custom_bg.png", R_OK) != -1 )
+      if ( (access("res/ruby_bg4.png", R_OK) != -1) &&  (access("res/ruby_bg5.png", R_OK) != -1) )
       {
-         s_idBgImage = g_pRenderEngine->loadImage("res/custom_bg.png");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/custom_bg.png");
+         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg4.png");
+         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg5.png");
       }
       else
       {
@@ -207,7 +199,7 @@ void _draw_background()
    double cc[4] = { 80,30,40,1.0 };
 
    g_pRenderEngine->setColors(cc);
-   float width_text = g_pRenderEngine->textWidth(g_idFontMenuLarge, SYSTEM_NAME);
+   float width_text = g_pRenderEngine->textRawWidth(g_idFontMenuLarge, SYSTEM_NAME);
    char szBuff[256];
    getSystemVersionString(szBuff, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
    g_pRenderEngine->drawText(0.91, 0.94, g_idFontMenuLarge, SYSTEM_NAME);
@@ -279,7 +271,7 @@ void render_graph_bg()
    char szBuff[256];
 
    g_pRenderEngine->setColors(cc);
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   float height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
 
    g_pRenderEngine->setFill(255,255,255,1);
    g_pRenderEngine->setStroke(255,255,255,1);
@@ -300,7 +292,7 @@ void render_graph_bg()
    {
       sprintf(szBuff, "%d", i*milisec);
       
-      float width_text = g_pRenderEngine->textWidth(g_idFontMenu, szBuff);   
+      float width_text = g_pRenderEngine->textRawWidth(g_idFontMenu, szBuff);   
       int x = startX + (endX-startX)*i/10.0;
       g_pRenderEngine->drawText(x-width_text*0.5, endY-24.0*g_pRenderEngine->getPixelHeight() - height_text*2.6, g_idFontMenu, szBuff);
       g_pRenderEngine->drawLine(x, endY-16.0*g_pRenderEngine->getPixelHeight(), x, endY-32.0*g_pRenderEngine->getPixelHeight());
@@ -385,7 +377,7 @@ void render_router_pachets_history()
    double colorTelem[4] = {250,255,0,0.7};
    double colorRC[4] = {240,0,160,0.9};
 
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   float height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
 
    float yLeg = marginBottom+paddingBottom+contentHeight;
    float xLeg = marginX+paddingLeft + 150.0/g_pRenderEngine->getScreenWidth();
@@ -544,7 +536,7 @@ void render_router_pachets_history()
    g_pRenderEngine->setFill(255,255,255,1);
    g_pRenderEngine->setStroke(255,255,255,1);
    g_pRenderEngine->setStrokeSize(0.2);
-   height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
 
    char szBuff[128];
    sprintf(szBuff, "Telemetry: %d/sec", totalCountTelemetry);
@@ -659,7 +651,7 @@ void _render_video_background()
          log_line("Waiting for video feed from VID %u", uVehicleIdFullVideo);
       }
    }
-   float width_text = g_pRenderEngine->textWidth(g_idFontOSDBig, szText);
+   float width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
 }
@@ -769,10 +761,10 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
    }
 
    if ( NULL != pCS && (0 != pCS->iDeveloperMode) )
-   if ( ! bForceBackground )
+   //if ( ! bForceBackground )
    if ( (! g_bToglleAllOSDOff) && (!g_bToglleStatsOff) )
    if ( ! p->iDebugShowFullRXStats )
-   if ( g_bIsRouterReady )
+   //if ( g_bIsRouterReady )
    {
       char szBuff[64];
       float yPos = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.014*osd_getScaleOSD();
@@ -785,26 +777,33 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       }
    
       osd_set_colors();
+      g_pRenderEngine->setFill(0,0,0,0.5);
+      g_pRenderEngine->setStroke(0,0,0,0);
+      g_pRenderEngine->disableRectBlending();
+      g_pRenderEngine->drawRect(xPos, yPos-0.003, 0.46, 0.03);
+      osd_set_colors();
       osd_show_value( xPos, yPos, "[D]", g_idFontOSD );
 
       if ( p->iShowCPULoad )
       {
          xPos += 0.02*osd_getScaleOSD();
+         yPos += 0.003;
          sprintf(szBuff, "UI FPS: %d", s_iRubyFPS);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
-         xPos += 0.056*osd_getScaleOSD();
+         xPos += 0.05*osd_getScaleOSD();
          sprintf(szBuff, "Menu: %.1f ms/frame", s_iMicroTimeMenuRender/1000.0);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
-         xPos += 0.1*osd_getScaleOSD();
+         xPos += 0.095*osd_getScaleOSD();
          sprintf(szBuff, "OSD: %.1f ms/frame", s_iMicroTimeOSDRender/1000.0);
          osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
 
-         xPos += 0.1*osd_getScaleOSD();
+         xPos += 0.095*osd_getScaleOSD();
          sprintf(szBuff, "OSD: %d ms/sec", (int)(s_iMicroTimeOSDRender*s_iRubyFPS/1000.0));
          osd_show_value(xPos, yPos, szBuff, g_idFontOSDSmall );
       }
+      g_pRenderEngine->enableRectBlending();
    }
 
    u32 t = get_current_timestamp_micros();
@@ -895,20 +894,25 @@ void compute_cpu_load(u32 timeNow)
    g_ControllerCPUSpeed = hardware_get_cpu_speed();
 }
 
-void ruby_start_recording()
+int ruby_start_recording()
 {
+   if ( NULL == g_pCurrentModel )
+      return -1;
    if ( g_bVideoRecordingStarted )
-      return;
+      return -1;
    if ( (g_TimeNow < s_TimeLastRecordingStop + 1000) || g_bVideoProcessing )
    {
       Popup* p = new Popup("Please wait for the current video file processing to complete.", 0.1,0.7, 0.54, 5);
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
-      return;
+      return -1;
    }
 
    char szBuff[1024];
-   system("sudo mount -o remount,rw /"); 
+   char szComm[256];
+   #ifdef HW_PLATFORM_RASPBERRY
+   system("sudo mount -o remount,rw /");
+   #endif
    sprintf(szBuff, "mkdir -p %s",FOLDER_MEDIA);
    hw_execute_bash_command(szBuff, NULL );
    sprintf(szBuff, "chmod 777 %s",FOLDER_MEDIA);
@@ -925,11 +929,18 @@ void ruby_start_recording()
       Popup* p = new Popup("There is an issue writing to the SD card.", 0.1,0.7, 0.54, 5);
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
-      return;
+      return -1;
    }
 
    g_uVideoRecordStartTime = get_current_timestamp_ms();
-   if ( 1 == hw_execute_bash_command_raw("df -m /home/pi/ruby | grep root", szBuff) )
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
+   #endif
+   if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
    {
       char szTemp[1024];
       long lb, lu, lf;
@@ -938,7 +949,7 @@ void ruby_start_recording()
       {
          sprintf(szTemp, "You don't have enough free space on the SD card to start recording (%d Mb free). Move your media files to USB memory stick.", (int)lf);
          warnings_add(0, szTemp, g_idIconCamera, get_Color_IconError(), 6);
-         return;
+         return -1;
       }
       if ( lf < 1000 )
       {
@@ -961,9 +972,6 @@ void ruby_start_recording()
    
    notification_add_recording_start();
 
-   if ( NULL == g_pCurrentModel )
-      return;
-
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
@@ -975,14 +983,17 @@ void ruby_start_recording()
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    buffer[sizeof(t_packet_header)] = 1; // Start audio recording
    send_packet_to_router(buffer, PH.total_length);
+   return 0;
 }
 
-void ruby_stop_recording()
+int ruby_stop_recording()
 {
    s_TimeLastRecordingStop = g_TimeNow;
 
+   if ( NULL == g_pCurrentModel )
+      return -1;
    if ( ! g_bVideoRecordingStarted )
-      return;
+      return -1;
    sem_t* s = sem_open(SEMAPHORE_STOP_VIDEO_RECORD, O_CREAT, S_IWUSR | S_IRUSR, 0);
    sem_post(s);
    sem_close(s); 
@@ -995,9 +1006,6 @@ void ruby_stop_recording()
    link_watch_mark_started_video_processing();
    warnings_add(0, "Processing video file...", g_idIconCamera, get_Color_IconNormal());
 
-   if ( NULL == g_pCurrentModel )
-      return;
-
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VEHICLE_RECORDING, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
@@ -1009,6 +1017,7 @@ void ruby_stop_recording()
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    buffer[sizeof(t_packet_header)] = 2; // Stop audio recording
    send_packet_to_router(buffer, PH.total_length);
+   return 0;
 }
 
 void executeQuickActions()
@@ -1239,7 +1248,7 @@ void r_check_processes_filesystem()
       { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
    if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
-
+     
    log_line("Checked proccesses. Result: %s", failed?"failed":"all ok");
 
    if ( failed )
@@ -1732,9 +1741,9 @@ void start_loop()
       osd_widgets_load();
       r_check_processes_filesystem();
 
-      log_line("Current local model: %X, first pairing done: %d, controller models: %d, spectator models: %d",
-         g_pCurrentModel, (int)g_bFirstModelPairingDone, getControllerModelsCount(), getControllerModelsSpectatorCount());
-      log_line("Current active controller vehicle id: %u", g_uActiveControllerModelVID);
+      log_line("Current local model: %X, VID: %u, first pairing done: %d, controller models: %d, spectator models: %d",
+         g_pCurrentModel, g_pCurrentModel->uVehicleId, (int)g_bFirstModelPairingDone, getControllerModelsCount(), getControllerModelsSpectatorCount());
+      log_line("Current active vehicle id on controller: %u", g_uActiveControllerModelVID);
 
       if ( (NULL == g_pCurrentModel) ||
            (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) ||
@@ -2086,6 +2095,13 @@ void main_loop_r_central()
    if ( s_StartSequence != START_SEQ_COMPLETED )
       return;
 
+   if ( g_bMarkedHDMIReinit )
+   {
+      g_bMarkedHDMIReinit = false;
+      menu_discard_all();
+      ruby_reinit_hdmi_display();
+   }
+
    compute_cpu_load(g_TimeNow);
 
    int dt = 1000/15;
@@ -2263,21 +2279,24 @@ int main(int argc, char *argv[])
       return 0;
       */
    }
-   else
+   
+   if ( ! g_bIsReinit )
    {
-     strcpy(szFile, FOLDER_CONFIG);
-     strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-     if ( access(szFile, R_OK ) == -1 )
-     if ( ! hw_process_exists("ruby_gpio_detect") )
-     {
-        hardware_sleep_ms(100);
-        if ( ! hw_process_exists("ruby_gpio_detect") )
-        {
-           hardware_sleep_ms(500);
-           if ( ! hw_process_exists("ruby_gpio_detect") )
-              hw_execute_bash_command("./ruby_gpio_detect&", NULL);
-        }
-     }
+      #ifdef HW_PLATFORM_RASPBERRY
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
+      if ( access(szFile, R_OK ) == -1 )
+      if ( ! hw_process_exists("ruby_gpio_detect") )
+      {
+         hardware_sleep_ms(100);
+         if ( ! hw_process_exists("ruby_gpio_detect") )
+         {
+            hardware_sleep_ms(500);
+            if ( ! hw_process_exists("ruby_gpio_detect") )
+               hw_execute_bash_command("./ruby_gpio_detect&", NULL);
+         }
+      }
+      #endif
    }
 
    strcpy(s_szFileHDMIChanged, FOLDER_CONFIG);
@@ -2291,7 +2310,6 @@ int main(int argc, char *argv[])
 
    init_hardware();
    hardware_init_serial_ports();
-   hdmi_init_modes();
 
    ruby_clear_all_ipc_channels();
 
@@ -2322,6 +2340,22 @@ int main(int argc, char *argv[])
    ControllerSettings* pcs = get_ControllerSettings();
    hw_set_priority_current_proc(pcs->iNiceCentral); 
 
+
+   #if defined (HW_PLATFORM_RASPBERRY)
+   hdmi_enum_modes();
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   ruby_drm_core_wait_for_display_connected();
+   hdmi_enum_modes();
+   int iHDMIIndex = hdmi_load_current_mode();
+   if ( iHDMIIndex < 0 )
+      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
+   log_line("HDMI mode to use: %d", iHDMIIndex);
+   ruby_drm_core_init(0, DRM_FORMAT_ARGB8888, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
+   ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
+   #endif
+
    Menu::setRenderMode(p->iMenuStyle);
 
    if ( p->nLogLevel != 0 )
@@ -2329,6 +2363,8 @@ int main(int argc, char *argv[])
 
    g_pRenderEngine = render_init_engine();
 
+   log_line("Render Engine was initialized.");
+   
    load_resources();
    osd_apply_preferences();
    menu_init();
@@ -2426,6 +2462,13 @@ int main(int argc, char *argv[])
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_CENTRAL, s_pProcessStatsCentral);
  
    hardware_release();
+
+   render_free_engine();
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   ruby_drm_core_uninit();
+   #endif
+
    return 0;
 }
 
@@ -2450,4 +2493,43 @@ void ruby_set_active_model_id(u32 uVehicleId)
    }
    else
       log_softerror_and_alarm("Ruby: Failed to save active model vehicle id");
+}
+
+void ruby_mark_reinit_hdmi_display()
+{
+   g_bMarkedHDMIReinit = true;
+}
+
+void ruby_reinit_hdmi_display()
+{
+   log_line("Reinit HDMI display...");
+
+   pairing_stop();
+
+   free_all_fonts();
+   render_free_engine();
+   
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   ruby_drm_core_uninit();
+   ruby_drm_core_wait_for_display_connected();
+
+   hdmi_enum_modes();
+   int iHDMIIndex = hdmi_load_current_mode();
+   if ( iHDMIIndex < 0 )
+      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
+   log_line("HDMI mode to use: %d", iHDMIIndex);
+   ruby_drm_core_init(0, DRM_FORMAT_ARGB8888, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
+   ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
+   #endif
+
+   g_pRenderEngine = render_init_engine();
+   log_line("Render Engine was initialized.");
+   
+   load_resources();
+   osd_apply_preferences();
+   menu_init();
+
+   log_line("Done reinit HDMI display.");
+
+   pairing_start_normal(); 
 }

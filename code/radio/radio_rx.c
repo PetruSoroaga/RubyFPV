@@ -510,7 +510,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          {
             t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));    
             if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-            if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+            if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
             if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
             {
                u8* pExtraData = pData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
@@ -885,7 +885,7 @@ void _radio_rx_check_update_all_paused_flag()
    }
 }
 
-void radio_rx_pause_interface(int iInterfaceIndex)
+void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason)
 {
    if ( (iInterfaceIndex < 0) || (iInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
@@ -912,10 +912,18 @@ void radio_rx_pause_interface(int iInterfaceIndex)
    }
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+
+   char szRadioName[64];
+   strcpy(szRadioName, "N/A");
    if ( NULL != pRadioHWInfo )
-      log_line("[RadioRx] Pause Rx on radio interface %d, [%s] (+%d)", iInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioRxPausedInterfaces[iInterfaceIndex]);
-   else
-      log_line("[RadioRx] Pause Rx on radio interface %d, [%s] (+%d)", iInterfaceIndex+1, "N/A", s_iRadioRxPausedInterfaces[iInterfaceIndex]);
+      strncpy(szRadioName, pRadioHWInfo->szName, sizeof(szRadioName)/sizeof(szRadioName[0]));
+
+   char szBuff[128];
+   szBuff[0] = 0;
+   if ( NULL != szReason )
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), " (reason: %s)", szReason);
+
+   log_line("[RadioRx] Pause Rx on radio interface %d, [%s] (+%d)%s", iInterfaceIndex+1, szRadioName, s_iRadioRxPausedInterfaces[iInterfaceIndex], szBuff);
 }
 
 void radio_rx_resume_interface(int iInterfaceIndex)

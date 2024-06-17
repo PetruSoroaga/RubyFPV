@@ -41,6 +41,7 @@
 #include "timers.h"
 #include "processor_tx_video.h"
 #include "video_link_stats_overwrites.h"
+#include "test_link_params.h"
 
 #include "../radio/radiopackets2.h"
 #include "../radio/radiolink.h"
@@ -49,8 +50,6 @@
 u8 s_RadioRawPacket[MAX_PACKET_TOTAL_SIZE];
 
 u32 s_StreamsTxPacketIndex[MAX_RADIO_STREAMS];
-u32 s_LastPacketsSumTxTime[MAX_RADIO_INTERFACES];
-u32 s_LastVideoPacketsSumTxTime[MAX_RADIO_INTERFACES];
 
 int s_LastTxDataRates[MAX_RADIO_INTERFACES][2];
 u32 s_uTimeStartTxDataRateDivergence = 0;
@@ -312,7 +311,7 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
          {
             u32 microT2 = get_current_timestamp_micros();
             if ( microT2 > microT1 )
-               s_LastPacketsSumTxTime[iRadioInterfaceIndex] += microT2 - microT1;
+               g_RadioTxTimers.aTmpInterfacesTxTotalTimeMicros[iRadioInterfaceIndex] += microT2 - microT1;
             
             int iTotalSent = pPH->total_length;
             if ( 0 < g_pCurrentModel->radioLinksParams.iSiKPacketSize )
@@ -395,7 +394,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
    {
       t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pPacketData+sizeof(t_packet_header));
-      if ( pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+      if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
       {
          u8* pExtraData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
          u32* pExtraDataU32 = (u32*)pExtraData;
@@ -427,9 +426,9 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       u32 microT2 = get_current_timestamp_micros();
       if ( microT2 > microT1 )
       {
-         s_LastPacketsSumTxTime[iRadioInterfaceIndex] += microT2 - microT1;
+         g_RadioTxTimers.aTmpInterfacesTxTotalTimeMicros[iRadioInterfaceIndex] += microT2 - microT1;
          if ( bHasVideoPacket )
-            s_LastVideoPacketsSumTxTime[iRadioInterfaceIndex] += microT2 - microT1;
+            g_RadioTxTimers.aTmpInterfacesTxVideoTimeMicros[iRadioInterfaceIndex] += microT2 - microT1;
       }
       radio_stats_update_on_packet_sent_on_radio_interface(&g_SM_RadioStats, g_TimeNow, iRadioInterfaceIndex, nPacketLength);
       radio_stats_set_tx_radio_datarate_for_packet(&g_SM_RadioStats, iRadioInterfaceIndex, iLocalRadioLinkId, nRateTx, bHasVideoPacket?1:0);
@@ -468,7 +467,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
 
 // Sends a radio packet to all posible radio interfaces or just to a single radio link
 
-int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSingleRadioLink)
+int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSendToSingleRadioLink)
 {
    if ( ! s_bSentAnyPacket )
    {
@@ -476,7 +475,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
          s_StreamsTxPacketIndex[i] = 0;
       for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       {
-         s_LastPacketsSumTxTime[i] = 0;
          s_LastTxDataRates[i][0] = 0;
          s_LastTxDataRates[i][1] = 0;
       }
@@ -531,7 +529,22 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
          uFirstPacketType = pPH->packet_type;
 
       if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
-         iSingleRadioLink = pData[sizeof(t_packet_header)];
+      {
+         int iModelRadioLinkId = pData[sizeof(t_packet_header)+2];
+         int iCmdType = pData[sizeof(t_packet_header)+4];
+
+         for( int iRadioLinkId=0; iRadioLinkId<g_pCurrentModel->radioLinksParams.links_count; iRadioLinkId++ )
+         {
+            int iVehicleRadioLinkId = g_SM_RadioStats.radio_links[iRadioLinkId].matchingVehicleRadioLinkId;
+            if ( iModelRadioLinkId == iVehicleRadioLinkId )
+            if ( iCmdType != PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START )
+            if ( iCmdType != PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+            {
+               iSendToSingleRadioLink = iRadioLinkId;
+               break;
+            }
+         }
+      }
 
       //uPacketTypes[uCountChainedPackets] = pPH->packet_type;
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
@@ -619,7 +632,7 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
       if ( iRadioInterfaceIndex < 0 )
          continue;
 
-      if ( (-1 != iSingleRadioLink) && (iRadioLinkId != iSingleRadioLink) )
+      if ( (-1 != iSendToSingleRadioLink) && (iRadioLinkId != iSendToSingleRadioLink) )
          continue;
 
       if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
@@ -716,11 +729,23 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
       if ( bHasLowCapacityLinkOnlyPackets )
          return 0;
 
+      if ( test_link_is_in_progress() )
+      if ( 1 == g_pCurrentModel->radioLinksParams.links_count )
+      {
+         static u32 s_uDebugTimeLastErrorPacketNotSent = 0;
+         if ( g_TimeNow > s_uDebugTimeLastErrorPacketNotSent + 100 )
+         {
+            s_uDebugTimeLastErrorPacketNotSent = g_TimeNow;
+            log_line("Packet not sent on tx interface. Test link params is in progress.");
+         }
+         return 0;
+      }
       log_softerror_and_alarm("Packet not sent! No radio interface could send it (%s, type: %d, %s, %d bytes, %d chained packets). %d radio links. %s",
          bHasVideoPacket?"video packet":"data packet",
          (int)uFirstPacketType, str_get_packet_type((int)uFirstPacketType), nPacketLength,
          (int) iCountChainedPackets[STREAM_ID_DATA], g_pCurrentModel->radioLinksParams.links_count,
          bHasLowCapacityLinkOnlyPackets?"Had low capacity link flag":"No link specific flags (low/high capacity)");
+      /*
       if ( bHasPingReplyPacket )
       {
          if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[uPingReplySendOnLocalRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
@@ -732,6 +757,7 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
       }
       else
          log_softerror_and_alarm("Packet did not contained a ping packet.");
+      */
       return 0;
    }
 
@@ -769,34 +795,46 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSin
       g_PHVehicleTxStats.historyTxGapMinMiliseconds[0] = uTxGap;
 
 
-   static u32 sl_TimeLastPacketsSumTxTimeComputation = 0;
-
-   if ( g_TimeNow >= sl_TimeLastPacketsSumTxTimeComputation + 200 )
+   // To do / fix: compute now and averages per radio link, not total
+     
+   if ( g_TimeNow >= g_RadioTxTimers.uTimeLastUpdated + g_RadioTxTimers.uUpdateIntervalMs )
    {
-      u32 uDeltaTime = g_TimeNow - sl_TimeLastPacketsSumTxTimeComputation;
-      sl_TimeLastPacketsSumTxTimeComputation = g_TimeNow;
-      u32 uTotalTxTimePerSec = 0;
-      u32 uTotalVideoTxTimePerSec = 0;
+      u32 uDeltaTime = g_TimeNow - g_RadioTxTimers.uTimeLastUpdated;
+      g_RadioTxTimers.uTimeLastUpdated = g_TimeNow;
+      
+      g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow = 0;
+      g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow = 0;
       
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         g_InterfacesTxMiliSecTimePerSecond[i] = s_LastPacketsSumTxTime[i] / uDeltaTime;
-         s_LastPacketsSumTxTime[i] = 0;
-         g_InterfacesVideoTxMiliSecTimePerSecond[i] = s_LastVideoPacketsSumTxTime[i] / uDeltaTime;
-         s_LastVideoPacketsSumTxTime[i] = 0;
-         uTotalTxTimePerSec += g_InterfacesTxMiliSecTimePerSecond[i];
-         uTotalVideoTxTimePerSec += g_InterfacesVideoTxMiliSecTimePerSecond[i];
+         g_RadioTxTimers.aInterfacesTxTotalTimeMilisecPerSecond[i] = g_RadioTxTimers.aTmpInterfacesTxTotalTimeMicros[i] / uDeltaTime;
+         g_RadioTxTimers.aTmpInterfacesTxTotalTimeMicros[i] = 0;
+
+         g_RadioTxTimers.aInterfacesTxVideoTimeMilisecPerSecond[i] = g_RadioTxTimers.aTmpInterfacesTxVideoTimeMicros[i] / uDeltaTime;
+         g_RadioTxTimers.aTmpInterfacesTxVideoTimeMicros[i] = 0;
+
+         g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow += g_RadioTxTimers.aInterfacesTxTotalTimeMilisecPerSecond[i];
+         g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow += g_RadioTxTimers.aInterfacesTxVideoTimeMilisecPerSecond[i];
       }
 
-      if ( uTotalTxTimePerSec > g_uTotalRadioTxTimePerSec )
-         g_uTotalRadioTxTimePerSec = uTotalTxTimePerSec;
+      if ( 0 == g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage )
+         g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow;
+      else if ( g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow > g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage )
+         g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage = (g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow*2)/3 + g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage/3;
       else
-         g_uTotalRadioTxTimePerSec = g_uTotalRadioTxTimePerSec/3 + uTotalTxTimePerSec*2/3;
+         g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage = (g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow)/4 + (g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage*3)/4;
 
-      if ( uTotalVideoTxTimePerSec > g_uTotalVideoRadioTxTimePerSec )
-         g_uTotalVideoRadioTxTimePerSec = uTotalVideoTxTimePerSec;
+      if ( 0 == g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage )
+         g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage = g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow;
+      else if ( g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow > g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage )
+         g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage = (g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow*2)/3 + g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage/3;
       else
-         g_uTotalVideoRadioTxTimePerSec = g_uTotalVideoRadioTxTimePerSec/3 + uTotalVideoTxTimePerSec*2/3;
+         g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage = (g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondNow)/4 + (g_RadioTxTimers.uComputedVideoTxTimeMilisecPerSecondAverage*3)/4;
+   
+      g_RadioTxTimers.aHistoryTotalRadioTxTimes[g_RadioTxTimers.iCurrentIndexHistoryTotalRadioTxTimes] = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondNow;
+      g_RadioTxTimers.iCurrentIndexHistoryTotalRadioTxTimes++;
+      if ( g_RadioTxTimers.iCurrentIndexHistoryTotalRadioTxTimes >= MAX_RADIO_TX_TIMES_HISTORY_INTERVALS )
+         g_RadioTxTimers.iCurrentIndexHistoryTotalRadioTxTimes = 0;
    }
 
    if ( bHasVideoPacket )

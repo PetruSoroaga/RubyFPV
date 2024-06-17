@@ -201,8 +201,8 @@ void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
       if ( datarateVideoBPS == pRadioInfo->iCurrentDataRateBPS )
          continue;
 
-      radio_rx_pause_interface(i);
-      radio_tx_pause_radio_interface(i);
+      radio_rx_pause_interface(i, "Check update Atheros datarate");
+      radio_tx_pause_radio_interface(i, "Check update Atheros datarate");
 
       bool bWasOpenedForWrite = false;
       bool bWasOpenedForRead = false;

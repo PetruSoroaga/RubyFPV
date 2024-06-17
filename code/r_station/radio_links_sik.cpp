@@ -53,8 +53,8 @@ void radio_links_close_and_mark_sik_interfaces_to_reopen()
       if ( (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == -1 ) ||
            (g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex == i) )
       {
-         radio_rx_pause_interface(i);
-         radio_tx_pause_radio_interface(i);
+         radio_rx_pause_interface(i, "SiK config start, close interfaces");
+         radio_tx_pause_radio_interface(i, "SiK config start, close interfaces");
          g_SiKRadiosState.bInterfacesToReopen[i] = true;
          hardware_radio_sik_close(i);
          iCount++;

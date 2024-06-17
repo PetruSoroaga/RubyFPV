@@ -91,6 +91,13 @@ bool osd_widgets_load()
    char szFile[128];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_OSD_WIDGETS);
+
+   if ( access(szFile, R_OK) == -1 )
+   {
+      log_line("No OSD widgets configuration file present (%s). Skipping OSD widgets.", szFile);
+      return false;
+   }
+   
    FILE* fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {

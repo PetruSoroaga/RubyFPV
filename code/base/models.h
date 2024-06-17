@@ -78,7 +78,7 @@ typedef struct
    u32 flags;
       // bit x: not used now
 
-   u32 encoding_extra_flags; // same as for radio video packet encoding_extra_flags
+   u32 uEncodingFlags; // same as radio video packet uEncodingFlags
 
    // byte 0:
    //    bit 0..2  - scramble blocks count

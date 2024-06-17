@@ -81,7 +81,7 @@ void osd_warnings_render()
       return;
 
    if ( g_bHasVideoDataOverloadAlarm )
-   if ( !(pVDS->encoding_extra_flags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE) )
+   if ( !(pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE) )
    {
       g_bHasVideoDataOverloadAlarm = false;
       if ( NULL != g_pPopupVideoOverloadAlarm )

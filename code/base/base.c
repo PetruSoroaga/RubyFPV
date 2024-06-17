@@ -143,6 +143,23 @@ u32 revert_word(u32 input)
    return out;
 } 
 
+void reset_counters(type_u32_couters* pCounters)
+{
+   if ( NULL == pCounters )
+      return;
+   pCounters->uCounter = 0;
+   pCounters->uCounter2 = 0;
+   pCounters->uTime = 0;
+   pCounters->uTime2 = 0;
+   pCounters->uValueMaxim = 0;
+   pCounters->uValueMinim = 0;
+   pCounters->uValueAverage = 0;
+   pCounters->uValueMaximLocal = 0;
+   pCounters->uValueMinimLocal = 0;
+   pCounters->uValueAverageLocal = 0;
+   pCounters->uValueNow = 0;
+}
+
 u32 base_compute_crc32(u8 *buf, int length)
 {
    u8* p = buf;
@@ -174,6 +191,24 @@ int base_check_crc32(u8* pBuffer, int iLength)
       return 0;
    return 1;
 }
+
+
+u32 get_sw_version_major(u32 uSWVersion)
+{
+   return (uSWVersion >> 8) & 0xFF;
+}
+u32 get_sw_version_minor(u32 uSWVersion)
+{
+   u32 uRes = (uSWVersion & 0xFF);
+   if ( uRes < 10 )
+      uRes *= 10;
+   return uRes;
+}
+u32 get_sw_version_build(u32 uSWVersion)
+{
+   return (uSWVersion >> 16);
+}
+
 
 void _init_timestamp_for_process()
 {
@@ -431,6 +466,8 @@ void log_arguments(int argc, char *argv[])
    strcpy(szHWPlatform, "Linux");
    #elif defined(HW_PLATFORM_RASPBERRY)
    strcpy(szHWPlatform, "PI");
+   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   strcpy(szHWPlatform, "RadxaZero3");
    #endif
    log_line_forced_to_file("Process version: %d.%d (b%d) HW: %s", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, szHWPlatform);
    log_line_forced_to_file("Using logger service: %s", (s_logUseService!=0)?"yes":"no");

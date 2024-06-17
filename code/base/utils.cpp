@@ -601,13 +601,13 @@ u32 utils_get_max_allowed_video_bitrate_for_profile(Model* pModel, int iProfile)
 
    // Compute now max actual video bitrate that is set for profile and that does not go above the radio maxim
 
-   u32 uMaxVideoBitrateBPSForRadioRate = (uMaxRadioDataRateBPS * DEFAULT_VIDEO_LINK_LOAD_PERCENT) / 100;
+   u32 uMaxVideoBitrateBPSForRadioRate = (uMaxRadioDataRateBPS/100) * DEFAULT_VIDEO_LINK_LOAD_PERCENT;
 
    int iProfileDataPackets = 0;
    int iProfileECPackets = 0;
    pModel->get_video_profile_ec_scheme(iProfile, &iProfileDataPackets, &iProfileECPackets);
    
-   uMaxVideoBitrateBPSForRadioRate = (uMaxVideoBitrateBPSForRadioRate * (u32)iProfileDataPackets) / (u32)(iProfileDataPackets + iProfileECPackets);
+   uMaxVideoBitrateBPSForRadioRate = ( uMaxVideoBitrateBPSForRadioRate  / (u32)(iProfileDataPackets + iProfileECPackets) ) * (u32)iProfileDataPackets;
 
    return uMaxVideoBitrateBPSForRadioRate;
 }
@@ -644,7 +644,7 @@ u32 utils_get_max_allowed_video_bitrate_for_profile_and_level(Model* pModel, int
    int iProfileECPackets = 0;
    pModel->get_video_profile_ec_scheme(iProfile, &iProfileDataPackets, &iProfileECPackets);
 
-   u32 uTotalBitrateUsedForProfile = uMaxVideoBitrateForProfile * (u32)(iProfileDataPackets + iProfileECPackets) / iProfileDataPackets;
+   u32 uTotalBitrateUsedForProfile = ( uMaxVideoBitrateForProfile / (u32)iProfileDataPackets ) * (u32)(iProfileDataPackets + iProfileECPackets);
    
    u32 uBottomVideoBitrate = uTotalBitrateUsedForProfile / 2; // fec is equal to data packets on the lowest level
    
@@ -914,6 +914,14 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
       iEndIndex = iRadioIndex;
    }
 
+   #if defined(HW_PLATFORM_RASPBERRY)
+   log_line("Setting frequency for Pi method");
+   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   log_line("Setting frequency for Radxa method");
+   #else
+   log_line("Setting frequency for OpenIPC/Radxa method");
+   #endif
+
    char cmd[128];
    char szOutput[512];
    bool failed = false;
@@ -968,7 +976,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 
          if ( bTryHT40 )
          {
-            #ifdef HW_PLATFORM_RASPBERRY
+            #if defined(HW_PLATFORM_RASPBERRY)
             if ( (pRadioInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
             {
                sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
@@ -985,7 +993,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          }
          else if ( pRadioInfo->isHighCapacityInterface )
          {
-            #ifdef HW_PLATFORM_RASPBERRY
+            #if defined(HW_PLATFORM_RASPBERRY)
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
             #else
             sprintf(cmd, "iwconfig %s freq %u000 2>&1", pRadioInfo->szName, uFrequencyKhz);            
@@ -1005,7 +1013,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             szOutput[0] = 0;
-            #ifdef HW_PLATFORM_RASPBERRY
+            #if defined(HW_PLATFORM_RASPBERRY)
             sprintf(cmd, "iw dev %s set freq %u 2>&1", pRadioInfo->szName, uFreqWifi);
             #else
             sprintf(cmd, "iwconfig %s freq %u000 2>&1", pRadioInfo->szName, uFrequencyKhz);
@@ -1042,7 +1050,10 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 
       if ( NULL != pProcessStats )
          pProcessStats->lastActiveTime = get_current_timestamp_ms();
-      hardware_sleep_ms(delayMs);
+      if ( iRadioIndex != -1 )
+         hardware_sleep_ms(delayMs/2+1);
+      else
+         hardware_sleep_ms(delayMs);
    }
 
    if ( -1 == iRadioIndex )
@@ -1129,7 +1140,7 @@ int check_write_filesystem()
    char szFile[MAX_FILE_PATH_SIZE];
    char szComm[256];
 
-   sprintf(szComm, "rm -rf %s/testwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
+   sprintf(szComm, "rm -rf %stestwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
    hw_execute_bash_command(szComm, NULL);
 
    strcpy(szFile, FOLDER_CONFIG);
@@ -1162,7 +1173,7 @@ int check_write_filesystem()
    }
    fclose(fd);
 
-   sprintf(szComm, "rm -rf %s/testwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
+   sprintf(szComm, "rm -rf %stestwrite.txt 2>&1 1>/dev/null", FOLDER_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    return 0;
 }

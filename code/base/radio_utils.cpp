@@ -42,6 +42,30 @@
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
 
+void test_link_state_get_state_string(int iState, char* szBuffer)
+{
+   if ( NULL == szBuffer )
+      return;
+   strcpy(szBuffer, "N/A");
+   if ( iState == TEST_LINK_STATE_NONE )
+      strcpy(szBuffer, "None");
+   if ( iState == TEST_LINK_STATE_START )
+      strcpy(szBuffer, "Start");
+   if ( iState == TEST_LINK_STATE_APPLY_RADIO_PARAMS )
+      strcpy(szBuffer, "Apply Radio Params");
+   if ( iState == TEST_LINK_STATE_PING_UPLINK )
+      strcpy(szBuffer, "Ping Uplink");
+   if ( iState == TEST_LINK_STATE_PING_DOWNLINK )
+      strcpy(szBuffer, "Ping Downlink");
+   if ( iState == TEST_LINK_STATE_REVERT_RADIO_PARAMS )
+      strcpy(szBuffer, "Revert radio params");
+   if ( iState == TEST_LINK_STATE_END )
+      strcpy(szBuffer, "End");
+   if ( iState == TEST_LINK_STATE_ENDED )
+      strcpy(szBuffer, "Ended");
+}
+
+
 void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataRateBPS, shared_mem_process_stats* pProcessStats)
 {
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
@@ -58,8 +82,8 @@ void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataR
    }
    log_line("Must update Atheros/RaLink radio interface %d datarate from %d to %d bps.", iInterfaceIndex+1, pRadioHWInfo->iCurrentDataRateBPS, iDataRateBPS );
    
-   radio_rx_pause_interface(iInterfaceIndex);
-   radio_tx_pause_radio_interface(iInterfaceIndex);
+   radio_rx_pause_interface(iInterfaceIndex, "Update Atheros datarate");
+   radio_tx_pause_radio_interface(iInterfaceIndex, "Update Atheros datarate");
 
    bool bWasOpenedForWrite = false;
    bool bWasOpenedForRead = false;

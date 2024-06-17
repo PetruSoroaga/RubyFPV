@@ -1430,7 +1430,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
       if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
       {
-         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->encoding_extra_flags);
+         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uEncodingFlags);
          sprintf(szBuff, "%d ms", ping_interval_ms);
          g_pRenderEngine->setColors(get_Color_Dev());
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Clock Sync Freq:", szBuff);

@@ -71,8 +71,8 @@ typedef struct
    u32 frames_type;
    u32 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc
    int video_link_profile; // 0xF0 - user selected one, 0x0F - current active one
-   u32 encoding_extra_flags; // same as video encoding flags from model and video radio packet
-   u32 uEncodingExtraFlags2;
+   u32 uEncodingFlags; // same as video uEncodingFlags from model and video radio packet
+   u32 uEncodingFlags2; // same as video packet uEncodingFlags2
    int width;
    int height;
    int fps;
@@ -196,13 +196,25 @@ typedef struct
 } __attribute__((packed)) shared_mem_controller_retransmissions_stats_rx_processors;
 
 
-#define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 90 // sampled every 40 ms
+#define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 80 // sampled every 40 ms
 #define CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL 40
+
+#define ADAPTIVE_STATS_FLAG_NO_VIDEO_PACKETS 1
+#define ADAPTIVE_STATS_FLAGS_SHIFT_UP (((u32)1)<<1)
+#define ADAPTIVE_STATS_FLAGS_SHIFT_DOWN (((u32)1)<<2)
+#define ADAPTIVE_STATS_FLAGS_SHIFT_DOWN_FAST (((u32)1)<<3)
+#define ADAPTIVE_STATS_FLAGS_KEYFRAME_SHIFTED (((u32)1)<<7)
+
+// Max interval time we can check is:
+// MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL ms
+//    = 3.6 seconds
+// Minus one because the current index is still processing/invalid
+
 typedef struct
 {
    u32 uLastUpdateTime;
-   u32 uUpdateInterval;
-   u32 uCurrentIntervalIndex;
+   u32 uUpdateInterval; // Is set to: CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL
+   int iCurrentIntervalIndex;
    int iChangeStrength;
 
    u16 uIntervalsOuputCleanVideoPackets[MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS];
@@ -210,15 +222,16 @@ typedef struct
    u16 uIntervalsMissingVideoPackets[MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS];
    u16 uIntervalsRequestedRetransmissions[MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS];
    u16 uIntervalsRetriedRetransmissions[MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS];
+   u8 uIntervalsFlags[MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS]; // See flags above
 
    u16 uCurrentKFMeasuredThUp1;
    u16 uCurrentKFMeasuredThUp2;
    u16 uCurrentKFMeasuredThDown1;
    u16 uCurrentKFMeasuredThDown2;
    u16 uCurrentKFMeasuredThDown3;
-   u32 uIntervalsKeyFrameMs1;
-   u32 uIntervalsKeyFrameMs2;
-   u32 uIntervalsKeyFrameMs3;
+   u32 uStats_CheckIntervalsKeyFrame;
+   u32 uStats_KeyFrameThresholdIntervalsUp;
+   u32 uStats_KeyFrameThresholdIntervalsDown;
 
    u32 uIntervalsAdaptive1;
    u32 uIntervalsAdaptive2;

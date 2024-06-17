@@ -301,11 +301,12 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
     
    float selectionMarginX = Menu::getSelectionPaddingX();
    float selectionMarginY = Menu::getSelectionPaddingY();
+
    if ( bSelected && (!m_bIsEditing) )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPos-selectionMarginX, yPos-selectionMarginY, fWidthSelection+2.0*selectionMarginX, height_text+2.0*selectionMarginY + g_pRenderEngine->getPixelHeight(), selectionMarginY);
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    }
    else
    {
@@ -317,7 +318,7 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
             g_pRenderEngine->setColors(get_Color_MenuText());
       }
       else
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
    }
    g_pRenderEngine->drawText(xPos + m_fMarginX, yPos+g_pRenderEngine->getPixelHeight()*0.2, g_idFontMenu, m_pszTitle);
 
@@ -334,9 +335,9 @@ void MenuItem::RenderBaseTitle(float xPos, float yPos, bool bSelected, float fWi
             g_pRenderEngine->setColors(get_Color_MenuText());
       }
       else
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
       if ( ! m_bEnabled )
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
   
       float size = height_text*0.28;
 

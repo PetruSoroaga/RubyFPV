@@ -63,7 +63,7 @@ static type_video_link_profile s_LastAppliedVeyeVideoParams;
 int s_fInputVideoStreamCSIPipe = -1;
 char s_szInputVideoStreamCSIPipeName[128];
 bool s_bInputVideoStreamCSIPipeOpenFailed = false;
-u8 s_uInputVideoCSIPipeBuffer[MAX_PACKET_TOTAL_SIZE];
+u8 s_uInputVideoCSIPipeBuffer[4096];
 
 bool s_bRequestedVideoCSICaptureRestart = false;
 bool s_bVideoCSICaptureProgramStarted = false;

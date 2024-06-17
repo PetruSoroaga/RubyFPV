@@ -76,21 +76,21 @@ u32 _getBestMatchingFontHeight(u32* pFontList, int iFontCount, float fPixelsHeig
 
    for( int i=0; i<iFontCount-1; i++ )
    {
-      float fFontHeightPx = g_pRenderEngine->getFontHeight(pFontList[i]) * hScreen;
-      float fFontHeightPxNext = g_pRenderEngine->getFontHeight(pFontList[i+1]) * hScreen;
+      float fFontHeightPx = g_pRenderEngine->getRawFontHeight(pFontList[i]) * hScreen;
+      float fFontHeightPxNext = g_pRenderEngine->getRawFontHeight(pFontList[i+1]) * hScreen;
 
       if ( fPixelsHeight <= fFontHeightPx )
       {
-         log_line("Best font match for %d pixels height: default font %d (h: %d pixels)", (int)fPixelsHeight, i, (int)fFontHeightPx);
+         log_line("Best font match for %d pixels height: default font index %d, font id: %u (h: %d pixels)", (int)fPixelsHeight, i, pFontList[i], (int)fFontHeightPx);
          return pFontList[i];
       }
       if ( fPixelsHeight <= (fFontHeightPx + fFontHeightPxNext)/2.0 )
       {
-         log_line("Best font match for %d pixels height: default font %d (h: %d pixels)", (int)fPixelsHeight, i, (int)fFontHeightPx);
+         log_line("Best font match for %d pixels height: default font index %d, font id: %u (h: %d pixels)", (int)fPixelsHeight, i, pFontList[i], (int)fFontHeightPx);
          return pFontList[i];
       }
    }
-   log_line("Best font match for %d pixels height: default font %d", (int)fPixelsHeight, iFontCount-1);
+   log_line("Best font match for %d pixels height: default font index %d, font id: %u", (int)fPixelsHeight, iFontCount-1, pFontList[iFontCount-1]);
    return pFontList[iFontCount-1];
 }
 
@@ -110,7 +110,7 @@ bool _loadFontFamily(const char* szName, u32* pOutputList, int* pCountOutput)
       if ( access( szFontFile, R_OK ) == -1 )
          continue;
 
-      int iResult = g_pRenderEngine->loadFont(szFontFile);
+      int iResult = g_pRenderEngine->loadRawFont(szFontFile);
       if ( iResult > 0 )
       {
          pOutputList[(*pCountOutput)] = (u32) iResult;
@@ -132,20 +132,25 @@ bool loadAllFonts(bool bReloadMenuFonts)
    {
       if ( bReloadMenuFonts )
       {
+         log_line("Cleaning up previous fonts for menus (%d fonts)...", s_iListMenuFontSizesCount);
          for( int i=0; i<s_iListMenuFontSizesCount; i++ )
-            g_pRenderEngine->freeFont(s_ListMenuFontSizes[i]);
+            g_pRenderEngine->freeRawFont(s_ListMenuFontSizes[i]);
          s_iListMenuFontSizesCount = 0;
       }
 
+      log_line("Cleaning up previous fonts for OSD (%d fonts)...", s_iListOSDFontSizesCount);
       for( int i=0; i<s_iListOSDFontSizesCount; i++ )
-         g_pRenderEngine->freeFont(s_ListOSDFontSizes[i]);
+         g_pRenderEngine->freeRawFont(s_ListOSDFontSizes[i]);
       s_iListOSDFontSizesCount = 0;
    }
 
    s_bFontsInitialized = true;
    
    if ( bReloadMenuFonts )
+   {
+      log_line("Loading menu fonts...");
       _loadFontFamily("raw_bold", s_ListMenuFontSizes, &s_iListMenuFontSizesCount );
+   }
 
    Preferences* p = get_Preferences();
    char szFont[32];
@@ -159,12 +164,26 @@ bool loadAllFonts(bool bReloadMenuFonts)
    if ( p->iOSDFont == 3 )
       strcpy(szFont, "bt_bold");
 
+    log_line("Loading OSD fonts...");
    _loadFontFamily(szFont, s_ListOSDFontSizes, &s_iListOSDFontSizesCount );
 
    applyFontScaleChanges();
 
    log_line("Done loading fonts.");
    return true;
+}
+
+void free_all_fonts()
+{
+   log_line("Cleaning up previous fonts for menus (%d fonts)...", s_iListMenuFontSizesCount);
+   
+   for( int i=0; i<s_iListMenuFontSizesCount; i++ )
+      g_pRenderEngine->freeRawFont(s_ListMenuFontSizes[i]);
+   s_iListMenuFontSizesCount = 0;
+
+   for( int i=0; i<s_iListOSDFontSizesCount; i++ )
+      g_pRenderEngine->freeRawFont(s_ListOSDFontSizes[i]);
+   s_iListOSDFontSizesCount = 0;
 }
 
 void _applyNewFontToExistingPopups(u32 uFontIdOld, u32 uFontIdNew)

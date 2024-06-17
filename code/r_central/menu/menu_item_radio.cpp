@@ -306,7 +306,7 @@ void MenuItemRadio::Render(float xPos, float yPos, bool bSelected, float fWidthS
       // Draw circle
       g_pRenderEngine->setColors(get_Color_MenuText());
       if ( ! m_bEnabledSelections[i] )
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
       g_pRenderEngine->drawCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.6);
       if ( i == m_nSelectedIndex )
@@ -329,9 +329,9 @@ void MenuItemRadio::Render(float xPos, float yPos, bool bSelected, float fWidthS
       if ( i == m_nFocusedIndex )
       {
          double pC[4];
-         memcpy(pC, get_Color_ItemSelectedBg(), 4*sizeof(double));
+         memcpy(pC, get_Color_MenuItemSelectedBg(), 4*sizeof(double));
          pC[3] = 0.2;
-         g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
          g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
          g_pRenderEngine->setStrokeSize(2);
          g_pRenderEngine->drawRoundRect(xPos-Menu::getSelectionPaddingX(), yItem-Menu::getSelectionPaddingY(), fWidthSelection + 2.0 * Menu::getSelectionPaddingX(), (y-yItem) + 2.0 * Menu::getSelectionPaddingY(), 0.01);

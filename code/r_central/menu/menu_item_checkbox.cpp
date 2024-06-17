@@ -114,7 +114,7 @@ void MenuItemCheckbox::RenderCondensed(float xPos, float yPos, bool bSelected, f
 
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPos-paddingH, yPos-paddingV, width + 2.0*paddingH, m_RenderTitleHeight + 2.0*paddingV, 0.01*Menu::getMenuPaddingY());
    }
    else if ( bSelected )
@@ -126,13 +126,13 @@ void MenuItemCheckbox::RenderCondensed(float xPos, float yPos, bool bSelected, f
    }
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
    {
       if ( m_bEnabled )
          g_pRenderEngine->setColors(get_Color_MenuText());
       else
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
    }
 
    g_pRenderEngine->setFill(0,0,0,0);   

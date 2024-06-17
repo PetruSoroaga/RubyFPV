@@ -1,7 +1,7 @@
 #pragma once
 #include "../base/base.h"
 
-int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSingleRadioLink);
+int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSendToSingleRadioLink);
 int get_last_tx_used_datarate(int iInterface, int iType);
 int get_last_tx_video_datarate_mbps();
 

@@ -408,17 +408,26 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    // If video link was change from one way to adaptive or viceversa, set video params defaults
    if ( bWasOneWayVideo != g_pCurrentModel->isVideoLinkFixedOneWay() )
    {
-      log_line("Received notification that video link has changed (oneway - bidirectional).");
+      log_line("Received notification that video link has changed (%s -> %s)",
+          bWasOneWayVideo?"oneway":"bidirectional",
+          g_pCurrentModel->isVideoLinkFixedOneWay()?"oneway":"bidirectional");
       if ( g_pCurrentModel->isVideoLinkFixedOneWay() )
       {
          int iKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
          video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "switched to one way video");
       }
+
+      u32 uPendingKF = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+      u32 uActiveKF = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;
+
       video_stats_overwrites_init();
       video_stats_overwrites_reset_to_highest_level();
 
+      g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = uPendingKF;
+      g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = uActiveKF;
+
       if ( g_pCurrentModel->isVideoLinkFixedOneWay() ||
-           (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)) ) 
+           (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)) ) 
          video_link_set_fixed_quantization_values(0);
 
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
@@ -675,7 +684,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       if ( ! g_pCurrentModel->hasCamera() )
          return;
 
-      bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
+      bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
       if ( ! bUseAdaptiveVideo )
       {
          if ( iQuant > 0 )
@@ -835,7 +844,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       log_line("Received local notification that adaptive video link capabilities changed.");
       bMustSignalOtherComponents = false;
       bMustReinitVideo = false;
-      //bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
+      //bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
 
       //if ( (! bOldUseAdaptiveVideo) && bUseAdaptiveVideo )
          video_stats_overwrites_init();

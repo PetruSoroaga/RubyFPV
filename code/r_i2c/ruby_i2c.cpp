@@ -305,6 +305,8 @@ void _init_external_device(u8 i2cAddress)
    if ( ! g_pListExternalDevices[g_nCountExternalDevices]->bEnabled )
       return;
 
+   #ifdef HW_CAPABILITY_I2C
+
    g_nListFilesExternalDevices[g_nCountExternalDevices] = wiringPiI2CSetup(i2cAddress);
    if ( g_nListFilesExternalDevices[g_nCountExternalDevices] <= 0 )
    {
@@ -316,6 +318,8 @@ void _init_external_device(u8 i2cAddress)
    _setup_external_device(g_nCountExternalDevices);
  
    g_nCountExternalDevices++;
+   
+   #endif
 }
 
 void _init_external_devices()

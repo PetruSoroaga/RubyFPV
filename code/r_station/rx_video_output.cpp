@@ -74,6 +74,7 @@ bool s_bRxVideoOutputPlayerThreadMustStop = false;
 bool s_bRxVideoOutputPlayerReinitializing = false;
 int s_iPIDVideoPlayer = -1;
 int s_fPipeVideoOutToPlayer = -1;
+bool s_bDidSentAnyDataToVideoPlayerPipe = false;
 
 ParserH264 s_ParserH264Output;
 
@@ -152,6 +153,8 @@ static void * _thread_video_player(void *argument)
 
 void _rx_video_output_launch_video_player()
 {
+   #ifdef HW_PLATFORM_RASPBERRY
+
    strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_PIPE);
    
    log_line("[VideoOutput] Starting video player [%s]", s_szOutputVideoPlayerFilename);
@@ -205,6 +208,69 @@ void _rx_video_output_launch_video_player()
    }
    s_iPIDVideoPlayer = atoi(szPids);
    log_line("[VideoOutput] Started video player [%s], PID: %s (%d)", s_szOutputVideoPlayerFilename, szPids, s_iPIDVideoPlayer);
+
+   #endif
+
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+
+   strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_PIPE);
+   
+   log_line("[VideoOutput] Starting video player [%s]", s_szOutputVideoPlayerFilename);
+
+   if ( hw_process_exists(s_szOutputVideoPlayerFilename) )
+   {
+      log_line("[VideoOutput] Video player process already running. Do nothing.");
+      return;
+   }
+
+   ControllerSettings* pcs = get_ControllerSettings();
+   char szPlayer[1024];
+
+   if ( pcs->iNiceRXVideo >= 0 )
+   {
+      // Auto priority
+      sprintf(szPlayer, "./%s -p > /dev/null 2>&1&", s_szOutputVideoPlayerFilename);
+      //sprintf(szPlayer, "%s -z -o hdmi /tmp/ruby/fifovidstream > /dev/null 2>&1 &", s_szOutputVideoPlayerFilename);
+   }
+   else
+   {
+      #ifdef HW_CAPABILITY_IONICE
+      if ( pcs->ioNiceRXVideo > 0 )
+         sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s -p > /dev/null 2>&1 &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+      else
+      #endif
+         sprintf(szPlayer, "nice -n %d ./%s -p > /dev/null 2>&1 &", pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+   }
+
+   // To fix: remove this
+   //sprintf(szPlayer, "./%s -f /home/radxa/video0.h264 -m 1920x1080@60 &", s_szOutputVideoPlayerFilename);
+
+   //pthread_t th;
+   //pthread_create(&th, NULL, &_thread_video_player, NULL );
+
+   hw_execute_bash_command(szPlayer, NULL);
+   if ( pcs->iNiceRXVideo < 0 )
+      hw_set_proc_priority(s_szOutputVideoPlayerFilename, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
+
+   char szComm[256];
+   char szPids[128];
+
+   sprintf(szComm, "pidof %s", s_szOutputVideoPlayerFilename);
+   szPids[0] = 0;
+   int count = 0;
+   while ( (strlen(szPids) <= 2) && (count < 1000) )
+   {
+      hw_execute_bash_command_silent(szComm, szPids);
+      if ( strlen(szPids) > 2 )
+         break;
+      hardware_sleep_ms(2);
+      szPids[0] = 0;
+      count++;
+   }
+   s_iPIDVideoPlayer = atoi(szPids);
+   log_line("[VideoOutput] Started video player [%s], PID: %s (%d)", s_szOutputVideoPlayerFilename, szPids, s_iPIDVideoPlayer);
+
+   #endif
 }
 
 void _rx_video_output_stop_video_player()
@@ -230,20 +296,20 @@ void _rx_video_output_stop_video_player()
 
 static void * _thread_rx_video_output_player(void *argument)
 {
-   log_line("[VideoOutput] Starting worker thread for video player output");
+   log_line("[VideoOutputThread] Starting worker thread for video player output watchdog");
    bool bMustRestartPlayer = false;
    sem_t* pSemaphore = sem_open(SEMAPHORE_RESTART_VIDEO_PLAYER, O_CREAT, S_IWUSR | S_IRUSR, 0);
    if ( NULL == pSemaphore )
    {
-      log_error_and_alarm("[VideoOutput] Thread failed to open semaphore: %s", SEMAPHORE_RESTART_VIDEO_PLAYER);
+      log_error_and_alarm("[VideoOutputThread] Thread failed to open semaphore: %s", SEMAPHORE_RESTART_VIDEO_PLAYER);
       return NULL;
    }
    else
-      log_line("[VideoOutput] Thread opened semaphore for signaling video player restart");
+      log_line("[VideoOutputThread] Thread opened semaphore for signaling video player restart");
 
    struct timespec tWait = {0, 100*1000*1000}; // 100 ms
    
-   log_line("[VideoOutput] Started worker thread for video player output");
+   log_line("[VideoOutputThread] Started worker thread for video player output");
    
    while ( ! s_bRxVideoOutputPlayerThreadMustStop )
    {
@@ -272,7 +338,7 @@ static void * _thread_rx_video_output_player(void *argument)
 
       if ( bMustRestartPlayer )
       {
-         log_line("[VideoOutput] Thread: Semaphore to restart video player is signaled.");
+         log_line("[VideoOutputThread] Thread: Semaphore to restart video player is signaled.");
          _rx_video_output_stop_video_player();
          _rx_video_output_launch_video_player();
          s_bRxVideoOutputPlayerReinitializing = false;
@@ -283,7 +349,7 @@ static void * _thread_rx_video_output_player(void *argument)
       sem_close(pSemaphore);
    pSemaphore = NULL;
 
-   log_line("[VideoOutput] Stopped worker thread for video player output.");
+   log_line("[VideoOutputThread] Stopped worker thread for video player output.");
    return NULL;
 }
 
@@ -292,20 +358,20 @@ void _processor_rx_video_forward_open_eth_pipe()
    log_line("[VideoOutput] Creating ETH pipes for video forward...");
    char szComm[1024];
    #ifdef HW_CAPABILITY_IONICE
-   sprintf(szComm, "ionice -c 1 -n 4 nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
+   sprintf(szComm, "ionice -c 1 -n 4 nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_ETH_VIDEO_STREAM, g_pControllerSettings->nVideoForwardETHPort);
    #else
-   sprintf(szComm, "nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_VIDEO_STREAM_ETH, g_pControllerSettings->nVideoForwardETHPort);
+   sprintf(szComm, "nice -n -5 cat %s | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=3 ! udpsink port=%d host=127.0.0.1 > /dev/null 2>&1 &", FIFO_RUBY_STATION_ETH_VIDEO_STREAM, g_pControllerSettings->nVideoForwardETHPort);
    #endif
    hw_execute_bash_command(szComm, NULL);
 
-   log_line("[VideoOutput] Opening video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
-   s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile = open(FIFO_RUBY_STATION_VIDEO_STREAM_ETH, O_WRONLY);
+   log_line("[VideoOutput] Opening video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_ETH_VIDEO_STREAM);
+   s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile = open(FIFO_RUBY_STATION_ETH_VIDEO_STREAM, O_WRONLY);
    if ( s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile < 0 )
    {
-      log_error_and_alarm("[VideoOutput] Failed to open video output pipe write endpoint for ETH forward RTS: %s",FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
+      log_error_and_alarm("[VideoOutput] Failed to open video output pipe write endpoint for ETH forward RTS: %s",FIFO_RUBY_STATION_ETH_VIDEO_STREAM);
       return;
    }
-   log_line("[VideoOutput] Opened video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
+   log_line("[VideoOutput] Opened video output pipe write endpoint for ETH forward RTS: %s", FIFO_RUBY_STATION_ETH_VIDEO_STREAM);
    log_line("[VideoOutput] Video output pipe to ETH flags: %s", str_get_pipe_flags(fcntl(s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile, F_GETFL)));
    s_VideoETHOutputInfo.s_bForwardETHPipeEnabled = true;
 }
@@ -484,6 +550,7 @@ void rx_video_output_init()
    s_fPipeVideoOutToPlayer = -1;
    s_iLocalUDPVideoOutput = -1;
    s_uLastVideoFrameTime= MAX_U32;
+   s_bDidSentAnyDataToVideoPlayerPipe = false;
    
    s_ParserH264Output.init(camera_get_active_camera_h264_slices(g_pCurrentModel));
    
@@ -539,6 +606,9 @@ void rx_video_output_init()
    s_pSemaphoreStopRecord = sem_open(SEMAPHORE_STOP_VIDEO_RECORD, O_CREAT, S_IWUSR | S_IRUSR, 0);
    if ( NULL == s_pSemaphoreStopRecord )
       log_error_and_alarm("[VideoOutput] Failed to open semaphore for reading: %s", SEMAPHORE_STOP_VIDEO_RECORD);
+
+   if ( (NULL != s_pSemaphoreStopRecord) && (NULL != s_pSemaphoreStartRecord) )
+      log_line("[VideoOutput] Opened semaphores for signaling video recording start/stop.");
 
    s_uLastIOErrorAlarmFlagsVideoPlayer = 0;
    s_uLastIOErrorAlarmFlagsUSBPlayer = 0;
@@ -598,6 +668,7 @@ void rx_video_output_uninit()
       close( s_fPipeVideoOutToPlayer );
    }
    s_fPipeVideoOutToPlayer = -1;
+   s_bDidSentAnyDataToVideoPlayerPipe = false;
 
    if ( -1 != s_VideoUSBOutputInfo.socketUSBOutput )
       close(s_VideoUSBOutputInfo.socketUSBOutput);
@@ -641,18 +712,21 @@ void rx_video_output_enable_pipe_output()
   
    log_line("[VideoOutput] Video player FIFO default size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
 
-   fcntl(s_fPipeVideoOutToPlayer, F_SETPIPE_SZ, 9000);
-
-   log_line("[VideoOutput] Video player FIFO new size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
+   //fcntl(s_fPipeVideoOutToPlayer, F_SETPIPE_SZ, 9000);
+   //log_line("[VideoOutput] Video player FIFO new size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
+   s_bDidSentAnyDataToVideoPlayerPipe = false;
 }
+
 void rx_video_output_disable_pipe_output()
 {
+   log_line("[VideoOutput] Disable video pipe output.");
    if ( -1 != s_fPipeVideoOutToPlayer )
    {
       close( s_fPipeVideoOutToPlayer );
       log_line("[VideoOutput] Closed video output to pipe.");
    }
    s_fPipeVideoOutToPlayer = -1;
+   s_bDidSentAnyDataToVideoPlayerPipe = false;
 }
 
 void rx_video_output_enable_udp_output()
@@ -759,7 +833,12 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
       return;
    }
 
-
+   if ( ! s_bDidSentAnyDataToVideoPlayerPipe )
+   {
+      log_line("[VideoOutput] Send first data to video output pipe for local video player");
+      s_bDidSentAnyDataToVideoPlayerPipe = true;
+   }
+   
    int iRes = write(s_fPipeVideoOutToPlayer, pBuffer, length);
    if ( iRes == length )
    {
@@ -771,7 +850,7 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
          s_uLastIOErrorAlarmFlagsVideoPlayer = 0;
          send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, 0,0);
       }
-      fsync(s_fPipeVideoOutToPlayer);
+      //fsync(s_fPipeVideoOutToPlayer);
       return;
    }
    
@@ -800,11 +879,9 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
 
    s_uLastIOErrorAlarmFlagsVideoPlayer = uFlags;
 
-   if ( 0 == s_uTimeStartGettingVideoIOErrors )
-      s_uTimeStartGettingVideoIOErrors = g_TimeNow;
-   else if ( g_TimeNow > s_uTimeStartGettingVideoIOErrors + 1000 )
+   if ( g_TimeNow > s_uTimeStartGettingVideoIOErrors + 1000 )
    {
-      if ( g_TimeNow > uTimeLastVideoChanged + 5000 )
+      if ( g_TimeNow > uTimeLastVideoChanged + 3000 )
          send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, uFlags, 0);
 
       if ( (0 != s_uTimeLastOkVideoPlayerOutput) && (g_TimeNow > s_uTimeLastOkVideoPlayerOutput + 3000) )
@@ -847,7 +924,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
                int iVehicleTimestampNow = (int)uVehicleTimestampOrg + radio_get_link_clock_delta();
                if ( (int)uTimeNow - (int)iVehicleTimestampNow > 3 )
                   log_line("DEBUG (%s)[%u/%d]%d rx v-org: %u, now-loc: %u, tr-time: %u, dclks: %d",
-                    (pPHVF->encoding_extra_flags2 & ENCODING_EXTRA_FLAGS2_IS_IFRAME)?"I":"P",
+                    (pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_IS_IFRAME)?"I":"P",
                     pPHVF->video_block_index, (int)pPHVF->video_block_packet_index, iCountReads,
                     uVehicleTimestampOrg, uTimeNow,
                     (int)uTimeNow - (int)iVehicleTimestampNow, radio_get_link_clock_delta());

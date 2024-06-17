@@ -309,9 +309,9 @@ void radio_links_close_rxtx_radio_interfaces()
 }
 
 
-bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_parameters* pRadioLinkParamsOld, type_radio_links_parameters* pRadioLinkParams)
+bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_parameters* pRadioLinkParamsOld, type_radio_links_parameters* pRadioLinkParamsNew)
 {
-   if ( (NULL == pModel) || (NULL == pRadioLinkParams) )
+   if ( (NULL == pModel) || (NULL == pRadioLinkParamsNew) )
       return false;
    if ( (iRadioLink < 0) || (iRadioLink >= pModel->radioLinksParams.links_count) )
       return false;
@@ -320,10 +320,10 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
    // Update HT20/HT40 if needed
 
    bool bUpdateFreq = false;
-   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParams->link_frequency_khz[iRadioLink] )
+   if ( pRadioLinkParamsOld->link_frequency_khz[iRadioLink] != pRadioLinkParamsNew->link_frequency_khz[iRadioLink] )
       bUpdateFreq = true;
    if ( (pRadioLinkParamsOld->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE) != 
-        (pRadioLinkParams->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE) )
+        (pRadioLinkParamsNew->link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE) )
       bUpdateFreq = true;
 
    if ( bUpdateFreq )     
@@ -338,10 +338,10 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
          if ( NULL == pRadioHWInfo )
             continue;
 
-         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParams->link_frequency_khz[iRadioLink]) )
+         if ( ! hardware_radioindex_supports_frequency(i, pRadioLinkParamsNew->link_frequency_khz[iRadioLink]) )
             continue;
-         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pModel->radioLinksParams.link_frequency_khz[iRadioLink], g_pProcessStats, 0);
-         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParams->link_frequency_khz[iRadioLink]);
+         radio_utils_set_interface_frequency(pModel, i, iRadioLink, pRadioLinkParamsNew->link_frequency_khz[iRadioLink], g_pProcessStats, 0);
+         radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, pRadioLinkParamsNew->link_frequency_khz[iRadioLink]);
       }
 
       hardware_save_radio_info();
@@ -363,7 +363,7 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
         ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
          continue;
 
-      int nRateTx = pRadioLinkParams->link_datarate_video_bps[iRadioLink];
+      int nRateTx = pRadioLinkParamsNew->link_datarate_video_bps[iRadioLink];
       update_atheros_card_datarate(pModel, i, nRateTx, g_pProcessStats);
       g_TimeNow = get_current_timestamp_ms();
    }

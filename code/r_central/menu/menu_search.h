@@ -57,7 +57,6 @@ class MenuSearch: public Menu
       int m_IndexManualSearch;
 
       MenuItemSelect* m_pItemsSelect[10];
-      int m_IndexImportKey;
       int m_IndexSiKInfo;
       int m_IndexSiKAirRate;
       int m_IndexSiKECC;

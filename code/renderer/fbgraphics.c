@@ -96,6 +96,7 @@ struct _fbg *fbg_customSetup(
     fbg->disableFontOutline = 0;
 
     fbg->user_context = user_context;
+    fbg->s_iEnableRectBlending = 1;
 
     //printf("%d x %d x %d = %d\n", fbg->width, fbg->height, fbg->components, fbg->size);
     if (initialize_buffers) {
@@ -793,28 +794,52 @@ void fbg_plot(struct _fbg *fbg, int index, unsigned char value) {
     fbg->back_buffer[index] = value;
 }
 
-void fbg_hline(struct _fbg *fbg, int x, int y, int w, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
-    int xx;
-
+void fbg_hline(struct _fbg *fbg, int x, int y, int w, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
     unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
-    for (xx = 0; xx < w; xx += 1)
-   {
-      fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
-      pix_pointer += 4;
+    if ( fbg->s_iEnableRectBlending )
+    {
+       for (int xx = 0; xx < w; xx++)
+       {
+         fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
+         pix_pointer += 4;
+       }
+    }
+    else
+    {
+       for (int xx = 0; xx < w; xx++)
+       {
+         *pix_pointer++ = r;
+         *pix_pointer++ = g;
+         *pix_pointer++ = b;
+         *pix_pointer++ = a;
+       }
     }
 }
 
 void fbg_vline(struct _fbg *fbg, int x, int y, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
-    int yy;
-
     unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
-    for (yy = 0; yy < h; yy += 1) {
-      fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
-
-        pix_pointer += fbg->line_length;
+    if ( fbg->s_iEnableRectBlending )
+    {
+       for (int yy = 0; yy < h; yy++)
+       {
+          fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
+          pix_pointer += fbg->line_length;
+       }
+    }
+    else
+    {
+       for (int yy = 0; yy < h; yy++)
+       {
+          *pix_pointer++ = r;
+          *pix_pointer++ = g;
+          *pix_pointer++ = b;
+          *pix_pointer++ = a;
+          pix_pointer += fbg->line_length - 4;
+       }
     }
 }
 
@@ -897,7 +922,8 @@ void fbg_polygon(struct _fbg *fbg, int num_vertices, int *vertices, unsigned cha
          r, g, b,255);
 }
 
-void fbg_recta(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
+void fbg_recta(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
     int xx = 0, yy = 0, w4 = w * fbg->components;
 
     unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
@@ -915,16 +941,18 @@ void fbg_recta(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, un
     }
 }
 
-void fbg_rect(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b) {
+void fbg_rect(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
     int xx = 0, yy = 0, w3 = w * fbg->components;
 
-    char *pix_pointer = (char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
+    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
 
     for (yy = 0; yy < h; yy += 1) {
         for (xx = 0; xx < w; xx += 1) {
             *pix_pointer++ = r;
             *pix_pointer++ = g;
             *pix_pointer++ = b;
+            *pix_pointer++ = a;
             pix_pointer += fbg->comp_offset;
         }
 
@@ -1052,6 +1080,11 @@ void fbg_clear(struct _fbg *fbg, unsigned char color) {
     memset(fbg->back_buffer, color, fbg->size);
 }
 
+void fbg_enable_rect_blending(struct _fbg *fbg, int iEnable)
+{
+   fbg->s_iEnableRectBlending = iEnable;
+}
+    
 void fbg_fadeDown(struct _fbg *fbg, unsigned char rgb_fade_amount) {
     int i = 0;
 
@@ -1564,8 +1597,8 @@ void fbg_imageClipA(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx
 
 void fbg_imageClipAColor(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx, int cy, int cw, int ch)
 {
-    unsigned char *pix_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
-    unsigned char *img_pointer = (unsigned char *)(img->data + (cy * img->width * fbg->components + cx * fbg->components));
+    unsigned char *pDestPointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));
+    unsigned char *pSrcPointer = (unsigned char *)(img->data + (cy * img->width * fbg->components + cx * fbg->components));
 
     int i = 0;
     //int w4 = _FBG_MIN(cw * fbg->components, (fbg->width - x) * fbg->components);
@@ -1573,55 +1606,86 @@ void fbg_imageClipAColor(struct _fbg *fbg, struct _fbg_img *img, int x, int y, i
 
     char r,g,b,a;
 
-    if ( fbg->disableFontOutline )
+    if ( ! fbg->s_iEnableRectBlending )
     {
-    for (i = 0; i < h; i += 1) 
-    {
-       for (int j=0; j<cw; j++ )
+       for (i = 0; i < h; i += 1) 
        {
-         if ( (*(img_pointer)) + (*(img_pointer+1)) + (*(img_pointer+2)) < 120 )
-         {
-            pix_pointer += 4;
-            img_pointer += 4;
-            continue;
-         }
-         r = *img_pointer;
-         g = *(img_pointer+1);
-         b = *(img_pointer+2);
-         a = *(img_pointer+3);
-         r = (r*fbg->mix_color.r)>>8;
-         g = (g*fbg->mix_color.g)>>8;
-         b = (b*fbg->mix_color.b)>>8;
-         a = (a*fbg->mix_color.a)>>8;
-         fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
-         pix_pointer += 4;
-         img_pointer += 4;
+          for (int j=0; j<cw; j++ )
+          {
+            if ( *(pSrcPointer+3) < 120 )
+            {
+               pDestPointer += 4;
+               pSrcPointer += 4;
+               continue;
+            }
+            r = *pSrcPointer;
+            g = *(pSrcPointer+1);
+            b = *(pSrcPointer+2);
+            a = *(pSrcPointer+3);
+            r = (r*fbg->mix_color.r)>>8;
+            g = (g*fbg->mix_color.g)>>8;
+            b = (b*fbg->mix_color.b)>>8;
+            a = (a*fbg->mix_color.a)>>8;
+            //fbg_pixela_fast(fbg, pDestPointer, r,g,b,a);
+            *pDestPointer++ = r;
+            *pDestPointer++ = g;
+            *pDestPointer++ = b;
+            *pDestPointer++ = a;
+            pSrcPointer += 4;
+          }
+          pDestPointer += fbg->line_length - cw*4;
+          pSrcPointer += img->width * fbg->components - cw*4;
        }
-       pix_pointer += fbg->line_length - cw*4;
-       img_pointer += img->width * fbg->components - cw*4;
     }
+    else if ( fbg->disableFontOutline )
+    {
+       for (i = 0; i < h; i += 1) 
+       {
+          for (int j=0; j<cw; j++ )
+          {
+            if ( (*(pSrcPointer)) + (*(pSrcPointer+1)) + (*(pSrcPointer+2)) < 120 )
+            {
+               pDestPointer += 4;
+               pSrcPointer += 4;
+               continue;
+            }
+            r = *pSrcPointer;
+            g = *(pSrcPointer+1);
+            b = *(pSrcPointer+2);
+            a = *(pSrcPointer+3);
+            r = (r*fbg->mix_color.r)>>8;
+            g = (g*fbg->mix_color.g)>>8;
+            b = (b*fbg->mix_color.b)>>8;
+            a = (a*fbg->mix_color.a)>>8;
+            fbg_pixela_fast(fbg, pDestPointer, r,g,b,a);
+            pDestPointer += 4;
+            pSrcPointer += 4;
+          }
+          pDestPointer += fbg->line_length - cw*4;
+          pSrcPointer += img->width * fbg->components - cw*4;
+       }
     }
     else
     {
-    for (i = 0; i < h; i += 1) 
-    {
-       for (int j=0; j<cw; j++ )
+       for (i = 0; i < h; i += 1) 
        {
-         r = *img_pointer;
-         g = *(img_pointer+1);
-         b = *(img_pointer+2);
-         a = *(img_pointer+3);
-         r = (r*fbg->mix_color.r)>>8;
-         g = (g*fbg->mix_color.g)>>8;
-         b = (b*fbg->mix_color.b)>>8;
-         a = (a*fbg->mix_color.a)>>8;
-         fbg_pixela_fast(fbg, pix_pointer, r,g,b,a);
-         pix_pointer += 4;
-         img_pointer += 4;
+          for (int j=0; j<cw; j++ )
+          {
+            r = *pSrcPointer;
+            g = *(pSrcPointer+1);
+            b = *(pSrcPointer+2);
+            a = *(pSrcPointer+3);
+            r = (r*fbg->mix_color.r)>>8;
+            g = (g*fbg->mix_color.g)>>8;
+            b = (b*fbg->mix_color.b)>>8;
+            a = (a*fbg->mix_color.a)>>8;
+            fbg_pixela_fast(fbg, pDestPointer, r,g,b,a);
+            pDestPointer += 4;
+            pSrcPointer += 4;
+          }
+          pDestPointer += fbg->line_length - cw*4;
+          pSrcPointer += img->width * fbg->components - cw*4;
        }
-       pix_pointer += fbg->line_length - cw*4;
-       img_pointer += img->width * fbg->components - cw*4;
-    }
     }
 }
 

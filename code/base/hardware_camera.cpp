@@ -134,9 +134,9 @@ u32 _hardware_detect_camera_type()
    s_bHardwareHasCamera = 0;
    s_uHardwareCameraType = CAMERA_TYPE_NONE;
    s_iHardwareCameraI2CBus = -1;
-   char szOutput[512];
 
    #ifdef HW_PLATFORM_RASPBERRY
+   char szOutput[512];
    char szComm[256];
 
    int retryCount = 3;
@@ -237,6 +237,7 @@ u32 _hardware_detect_camera_type()
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
+   char szOutput[512];
    s_bHardwareHasCamera = 1;
    s_iHardwareCameraI2CBus = -1;
 

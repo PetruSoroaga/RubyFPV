@@ -57,16 +57,11 @@ int radio_get_last_500ms_sent_bps_for_radio_interface(int iInterfaceIndex, u32 u
 int radio_interfaces_broken();
 
 int radio_open_interface_for_read(int interfaceIndex, int portNumber);
-int radio_open_interface_for_read_wfbohd(int interfaceIndex, int iChannelId);
 int radio_open_interface_for_write(int interfaceIndex);
 void radio_close_interfaces_for_read();
 void radio_close_interface_for_read(int interfaceIndex);
 void radio_close_interface_for_write(int interfaceIndex);
 
-pcap_t* radio_open_auxiliary_wfbohd_channel(int iInterfaceIndex, int iChannelId);
-void radio_close_auxiliary_wfbohd_channel(pcap_t* pPCAP);
-
-u8* radio_process_wlan_data_in_pcap(int iInterfaceNumber, pcap_t* pPCAP, int* outPacketLength);
 u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength);
 int radio_get_last_read_error_code();
 

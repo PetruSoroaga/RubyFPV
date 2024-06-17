@@ -39,6 +39,7 @@ void menu_loop();
 void menu_loop_parse_input_events();
 void menu_refresh_all_menus();
 void menu_refresh_all_menus_except(Menu* pMenu);
+void menu_update_ui_all_menus();
 void menu_render();
 u32 menu_get_loop_counter();
 

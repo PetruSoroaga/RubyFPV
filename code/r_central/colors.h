@@ -13,11 +13,13 @@ double* get_Color_PopupBorder();
 double* get_Color_PopupText();
 
 double* get_Color_MenuBg();
+double* get_Color_MenuBgTitle();
+double* get_Color_MenuBgTooltip();
 double* get_Color_MenuBorder();
 double* get_Color_MenuText();
-double* get_Color_ItemSelectedBg();
-double* get_Color_ItemSelectedText();
-double* get_Color_ItemDisabledText();
+double* get_Color_MenuItemSelectedBg();
+double* get_Color_MenuItemSelectedText();
+double* get_Color_MenuItemDisabledText();
 
 double* get_Color_IconNormal();
 double* get_Color_IconWarning();

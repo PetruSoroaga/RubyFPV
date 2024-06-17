@@ -184,18 +184,18 @@ void MenuItemRange::Render(float xPos, float yPos, bool bSelected, float fWidthS
    
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth-paddingX, yPos-paddingY, width, m_RenderTitleHeight + 2.0*paddingY, 0.1*Menu::getMenuPaddingY());
    }
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
    {
       if ( m_bEnabled )
          g_pRenderEngine->setColors(get_Color_MenuText());
       else
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
    }
    g_pRenderEngine->drawText(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth, yPos, g_idFontMenu, szBuff);
 }
@@ -225,7 +225,7 @@ void MenuItemRange::RenderCondensed(float xPos, float yPos, bool bSelected, floa
    
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPos-paddingX, yPos-paddingY, width, m_RenderTitleHeight + 2.0*paddingY, 0.1*Menu::getMenuPaddingY());
    }
    else if ( bSelected )
@@ -237,13 +237,13 @@ void MenuItemRange::RenderCondensed(float xPos, float yPos, bool bSelected, floa
    }
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
    {
       if ( m_bEnabled )
          g_pRenderEngine->setColors(get_Color_MenuText());
       else
-         g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+         g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
    }
    g_pRenderEngine->drawText(xPos, yPos, g_idFontMenu, szBuff);
 }

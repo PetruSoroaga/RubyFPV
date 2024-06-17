@@ -655,6 +655,14 @@ void get_Ruby_BaseVersion(int* pMajor, int* pMinor)
          szVersion[0] = 0;
       fclose(fd);
    }
+   else
+   {
+      if ( NULL != pMajor )
+         *pMajor = SYSTEM_SW_VERSION_MAJOR;
+      if ( NULL != pMinor )
+         *pMinor = 0;
+      return;
+   }
 
    if ( 0 != szVersion[0] )
    {

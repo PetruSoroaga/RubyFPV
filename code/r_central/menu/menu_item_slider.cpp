@@ -145,7 +145,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
 
    if ( m_bIsEditing )
    {
-      g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
       g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
    }
 
@@ -157,7 +157,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    g_pRenderEngine->setStrokeSize(0);
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
    {
       if ( m_bCustomTextColor )
@@ -166,12 +166,12 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
          g_pRenderEngine->setColors(get_Color_MenuText());
    }
    if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
    g_pRenderEngine->drawTextLeft(xPosSlider-valueMargin, yPos, g_idFontMenu, szBuff);
    
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText(), 0.2);
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText(), 0.2);
    else
       g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
    g_pRenderEngine->setStrokeSize(1);
@@ -179,7 +179,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    g_pRenderEngine->drawRoundRect(xPosSlider, yPos+m_RenderHeight-1.3*sliderHeight, sliderWidth, sliderHeight, 0.1*Menu::getMenuPaddingY());
 
    if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
    else
       g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(1);

@@ -820,22 +820,43 @@ float Menu::RenderFrameAndTitle()
    if ( m_siRenderMode == 1 )
       return RenderFrameAndTitleSticky();
 
-   static double topTitleBgColor[4] = {90,2,20,0.45};
-
-   g_pRenderEngine->setColors(get_Color_MenuBg());
-   g_pRenderEngine->setStroke(get_Color_MenuBorder());
-
    float fExtraWidth = 0.0;
    if ( m_bEnableScrolling && m_bHasScrolling )
       fExtraWidth = m_fRenderScrollBarsWidth;
-   g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth + fExtraWidth, m_RenderHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
-   g_pRenderEngine->drawLine(m_RenderXPos, m_RenderYPos + m_RenderHeaderHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderYPos + m_RenderHeaderHeight);
 
-   g_pRenderEngine->setColors(topTitleBgColor);
+
+   // Draw backgrounds
+
+   g_pRenderEngine->setColors(get_Color_MenuBg());
+   g_pRenderEngine->setStroke(0,0,0,0);
+   g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth + fExtraWidth, m_RenderHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+
+   g_pRenderEngine->setColors(get_Color_MenuBgTitle());
+   g_pRenderEngine->setStroke(0,0,0,0);
    g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth + fExtraWidth, m_RenderHeaderHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
 
-   g_pRenderEngine->setColors(get_Color_MenuText());
+   if ( 0 != m_szCurrentTooltip[0] )
+   {
+      g_pRenderEngine->setColors(get_Color_MenuBgTooltip());
+      g_pRenderEngine->setStroke(0,0,0,0);
+      g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderWidth + fExtraWidth, m_RenderFooterHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+   }
+
+   // Draw outlines
+
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+   g_pRenderEngine->setFill(0,0,0,0);
+   g_pRenderEngine->setStroke(get_Color_MenuBorder());
+
+   g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos, m_RenderWidth + fExtraWidth, m_RenderHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+   g_pRenderEngine->drawLine(m_RenderXPos, m_RenderYPos + m_RenderHeaderHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderYPos + m_RenderHeaderHeight);
+   
+   if ( 0 != m_szCurrentTooltip[0] )
+      g_pRenderEngine->drawLine(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight);
+
+   // Draw texts
+
+   g_pRenderEngine->setColors(get_Color_MenuText());
 
    float yPos = m_RenderYPos + 0.56*m_sfMenuPaddingY;
    g_pRenderEngine->drawText(m_RenderXPos+m_sfMenuPaddingX, yPos, g_idFontMenu, m_szTitle);
@@ -930,19 +951,11 @@ float Menu::RenderFrameAndTitle()
 
    if ( 0 != m_szCurrentTooltip[0] )
    {
-      static double bottomTooltipBgColor[4] = {250,30,50,0.1};
-      g_pRenderEngine->setColors(bottomTooltipBgColor);
-      g_pRenderEngine->drawRoundRect(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderWidth + fExtraWidth, m_RenderFooterHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
-
       float yTooltip = m_RenderYPos+m_RenderHeight-m_RenderFooterHeight;
       yTooltip += 0.4 * m_sfMenuPaddingY;
 
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->drawMessageLines( m_RenderXPos+m_sfMenuPaddingX, yTooltip, m_szCurrentTooltip, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
-
-      g_pRenderEngine->setColors(get_Color_MenuBg());
-      g_pRenderEngine->setStroke(get_Color_MenuBorder());
-      g_pRenderEngine->drawLine(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderXPos + m_RenderWidth + fExtraWidth, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight);
    }
 
 
@@ -953,8 +966,6 @@ float Menu::RenderFrameAndTitle()
 
 float Menu::RenderFrameAndTitleSticky()
 {
-   static double topTitleBgColor[4] = {90,2,20,0.45};
-
    float fExtraWidth = 0.0;
    if ( m_bEnableScrolling && m_bHasScrolling )
       fExtraWidth = m_fRenderScrollBarsWidth;
@@ -963,7 +974,7 @@ float Menu::RenderFrameAndTitleSticky()
    g_pRenderEngine->setStroke(get_Color_MenuBg());
    g_pRenderEngine->drawRect(m_RenderXPos, 0, m_RenderWidth + fExtraWidth, m_RenderHeight);
 
-   g_pRenderEngine->setColors(topTitleBgColor);
+   g_pRenderEngine->setColors(get_Color_MenuBgTitle());
    g_pRenderEngine->drawRect(m_RenderXPos, 0, m_RenderWidth + fExtraWidth, m_RenderHeaderHeight);
 
 
@@ -1068,8 +1079,7 @@ float Menu::RenderFrameAndTitleSticky()
 
    if ( 0 != m_szCurrentTooltip[0] )
    {
-      static double bottomTooltipBgColor[4] = {250,30,50,0.1};
-      g_pRenderEngine->setColors(bottomTooltipBgColor);
+      g_pRenderEngine->setColors(get_Color_MenuBgTooltip());
       g_pRenderEngine->drawRect(m_RenderXPos, m_RenderYPos + m_RenderHeight - m_RenderFooterHeight, m_RenderWidth + fExtraWidth, m_RenderFooterHeight);
 
       float yTooltip = m_RenderYPos+m_RenderHeight-m_RenderFooterHeight;

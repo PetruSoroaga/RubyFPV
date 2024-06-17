@@ -210,19 +210,19 @@ void MenuControllerJoystick::Render()
 
    m_topTextHeight = 0;
    if ( m_bCalibrationComplete )
-       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("Calibration Complete. You can now use this input device.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "Calibration Complete. You can now use this input device.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
    else if ( m_bCalibrationCanceled )
    {
-       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("Calibration canceled.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "Calibration canceled.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
        if ( (NULL != m_pJoystick) && (! m_pJoystick->bCalibrated) )
-          m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("This input device is not calibrated! Calibrate it before you can use it.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+          m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "This input device is not calibrated! Calibrate it before you can use it.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
    }
    else if ( m_bIsCalibratingCenters )
-       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("[Calibrating Centers]: Move all the sticks, pots and joysticks to the center rest position, release all the buttons or move them to the min position if they have multiple positions; then press the [Menu/Ok] key. Press [Cancel/Back] key to cancel the calibration.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
+       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "[Calibrating Centers]: Move all the sticks, pots and joysticks to the center rest position, release all the buttons or move them to the min position if they have multiple positions; then press the [Menu/Ok] key. Press [Cancel/Back] key to cancel the calibration.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
    else if ( m_bIsCalibratingAxes )
-       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("[Calibrating Axes]: Move all the sticks, pots and joysticks as far as they can move on all directions, toggle all buttons in all positions if they have multiple positions;  then press the [Menu/Ok] key when done. Press [Cancel/Back] key to cancel the calibration.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
+       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "[Calibrating Axes]: Move all the sticks, pots and joysticks as far as they can move on all directions, toggle all buttons in all positions if they have multiple positions;  then press the [Menu/Ok] key when done. Press [Cancel/Back] key to cancel the calibration.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenuSmall);
    else if ( (NULL != m_pJoystick) && (! m_pJoystick->bCalibrated) )
-       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines("This input device is not calibrated! Calibrate it before you can use it.", m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
+       m_topTextHeight += 1.2*g_pRenderEngine->drawMessageLines(m_xPos+m_sfMenuPaddingX, y+m_topTextHeight, "This input device is not calibrated! Calibrate it before you can use it.", MENU_TEXTLINE_SPACING, getUsableWidth(), g_idFontMenu);
 
    y += (1.7+2.0)*height_text;
    
@@ -239,7 +239,7 @@ void MenuControllerJoystick::Render()
    float width = m_Width-0.14 * m_sfScaleFactor;
    float height = (m_yPos + m_RenderHeight - y) - m_sfMenuPaddingY - m_RenderMaxFooterHeight;
 
-   render_joystick(xPos, y, width, height, pJoy->countAxes, pJoy->countButtons, &(pJoy->axesValues[0]), &(pJoy->buttonsValues[0]), &(m_pJoystick->axesCenterZone[0]), &(axesCalMinValue[0]), &(axesCalMaxValue[0]), &(axesCalCenterValue[0]));
+   render_joystick(xPos, y, width, height, pJoy->countAxes, pJoy->countButtons, pJoy->axesValues, &(pJoy->buttonsValues[0]), &(m_pJoystick->axesCenterZone[0]), &(axesCalMinValue[0]), &(axesCalMaxValue[0]), &(axesCalCenterValue[0]));
 
    g_pRenderEngine->setColors(get_Color_MenuText());
 

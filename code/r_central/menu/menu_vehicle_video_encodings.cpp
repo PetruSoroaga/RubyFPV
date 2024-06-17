@@ -81,7 +81,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[10]->setIsEditable();
    m_IndexVideoLinkLost = addMenuItem(m_pItemsSelect[10]);
 
-   m_pItemsSlider[5] = new MenuItemSlider("   Auto Adjustment Strength", "How aggressive should the auto video link adjustments be. 1 is the slowest adjustment strength, 10 is the fastest and most aggressive adjustment strength.", 1,10,5, fSliderWidth);
+   m_pItemsSlider[5] = new MenuItemSlider("   Auto Adjustment Strength", "How aggressive should the auto video link adjustments be (adaptive video and auto keyframe). 1 is the slowest adjustment strength, 10 is the fastest and most aggressive adjustment strength.", 1,10,5, fSliderWidth);
    m_pItemsSlider[5]->setStep(1);
    m_IndexVideoAdjustStrength = addMenuItem(m_pItemsSlider[5]);
 
@@ -242,8 +242,8 @@ void MenuVehicleVideoEncodings::valuesToUI()
    m_pItemsSlider[2]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs);
    m_pItemsSlider[2]->setEnabled(true);
 
-   u32 uECSpreadHigh = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-   u32 uECSpreadLow = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+   u32 uECSpreadHigh = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+   u32 uECSpreadLow = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
    u32 uECSpread = uECSpreadLow + (uECSpreadHigh*2);
 
    m_pItemsSelect[19]->setSelectedIndex((int) uECSpread);
@@ -278,17 +278,17 @@ void MenuVehicleVideoEncodings::valuesToUI()
    m_pItemsSelect[16]->setSelection(selectedIndex);
 
 
-   int retr = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS)?1:0;
-   int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
-   int useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
-   int controllerLinkLost = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST)?1:0;
+   int retr = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?1:0;
+   int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
+   int controllerLinkLost = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST)?1:0;
    
    if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       adaptive = 0;
 
    if ( adaptive )
    {
-      if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
+      if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO )
          m_pItemsSelect[3]->setSelectedIndex(1);
       else
          m_pItemsSelect[3]->setSelectedIndex(2);
@@ -325,12 +325,12 @@ void MenuVehicleVideoEncodings::valuesToUI()
    m_pItemsSelect[6]->setSelection(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264refresh);
    m_pItemsSelect[7]->setSelection((int)(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].insertPPS));
    
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
       m_pItemsSelect[15]->setSelectedIndex(1);
    else
       m_pItemsSelect[15]->setSelectedIndex(0);
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
    {
       m_pItemsSelect[14]->setSelectedIndex(1);
       m_pItemsSelect[15]->setEnabled(true);
@@ -425,60 +425,60 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    pProfile->block_fecs = m_pItemsSlider[2]->getCurrentValue();
    
    if ( m_pItemsSelect[2]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
    else
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags | VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
 
    if ( m_pItemsSelect[3]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags &= (~ (ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) );
+      pProfile->uEncodingFlags &= (~ (VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO) );
    else
    {
       if ( m_pItemsSelect[3]->getSelectedIndex() == 1 )
       {
-         pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-         pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+         pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+         pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
       }
       else
       {
-         pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-         pProfile->encoding_extra_flags &= (~ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO);
+         pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+         pProfile->uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO);
       }
    }
 
    u32 uECSpread = (u32) m_pItemsSelect[19]->getSelectedIndex();
 
-   pProfile->encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+   pProfile->uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
    if ( uECSpread & 0x01 )
-      pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT;
+      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT;
    if ( uECSpread & 0x02 )
-      pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
 
    if ( m_pItemsSelect[9]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
    else
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
 
    if ( m_pItemsSelect[10]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST );
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST );
    else
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
 
-   pProfile->encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+   pProfile->uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
    if ( 1 == m_pItemsSelect[14]->getSelectedIndex() )
-      pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
    if ( 1 == m_pItemsSelect[15]->getSelectedIndex() )
-      pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
      
    log_line("Sending new video flags to vehicle for video profile %s: %s, %s, %s",
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
-      (pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
-      (pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
-      (pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
+      (pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
+      (pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
+      (pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
       );
 
    log_line("Adaptive video quantization: %s, %s",
-    (pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)?"On":"ROff",
-    (pProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH)?"Strength: High":"Strength: Low");
+    (pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)?"On":"ROff",
+    (pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH)?"Strength: High":"Strength: Low");
 
    pProfile->h264profile = m_pItemsSelect[4]->getSelectedIndex();
    pProfile->h264level = m_pItemsSelect[5]->getSelectedIndex();
@@ -518,7 +518,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length )
    if ( pProfile->block_packets == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets )
    if ( pProfile->block_fecs == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs )
-   if ( pProfile->encoding_extra_flags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags )
+   if ( pProfile->uEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags )
    if ( pProfile->h264level == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level )
    if ( pProfile->h264profile == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile )
    if ( pProfile->h264refresh == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264refresh )
@@ -530,7 +530,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 
    propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
 
-   log_line("Sending video encoding extra flags: %s", str_format_video_encoding_flags(pProfile->encoding_extra_flags));
+   log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uEncodingFlags));
 
    u8 buffer[1024];
    memcpy( buffer, &(profiles[0]), MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile) );

@@ -299,7 +299,7 @@ void executeQuickActionRelaySwitch()
          osd_setScaleOSD((int)scale);
          scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
          osd_setScaleOSDStats((int)scale);
-         if ( render_engine_is_raw() )
+         if ( render_engine_uses_raw_fonts() )
             applyFontScaleChanges();
       }
    }

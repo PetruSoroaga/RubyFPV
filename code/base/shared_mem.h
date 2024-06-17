@@ -197,6 +197,30 @@ typedef struct
    
 } __attribute__((packed)) shared_mem_video_info_stats;
 
+#define MAX_RADIO_TX_TIMES_HISTORY_INTERVALS 50
+
+typedef struct
+{
+   u32 uTimeLastUpdated;
+   u32 uUpdateIntervalMs;
+
+   u32 aInterfacesTxTotalTimeMilisecPerSecond[MAX_RADIO_INTERFACES];
+   u32 aInterfacesTxVideoTimeMilisecPerSecond[MAX_RADIO_INTERFACES];
+
+   u32 uComputedTotalTxTimeMilisecPerSecondNow;
+   u32 uComputedTotalTxTimeMilisecPerSecondAverage;
+   u32 uComputedVideoTxTimeMilisecPerSecondNow;
+   u32 uComputedVideoTxTimeMilisecPerSecondAverage;
+
+   u32 aHistoryTotalRadioTxTimes[MAX_RADIO_TX_TIMES_HISTORY_INTERVALS];
+   int iCurrentIndexHistoryTotalRadioTxTimes;
+   
+   // Used for calculation. Temporary.
+   u32 aTmpInterfacesTxTotalTimeMicros[MAX_RADIO_INTERFACES];
+   u32 aTmpInterfacesTxVideoTimeMicros[MAX_RADIO_INTERFACES];
+
+} type_radio_tx_timers;
+
 
 void* open_shared_mem(const char* name, int size, int readOnly);
 void* open_shared_mem_for_write(const char* name, int size);
@@ -247,6 +271,8 @@ t_packet_header_rc_full_frame_upstream* shared_mem_rc_upstream_frame_open_write(
 void shared_mem_rc_upstream_frame_close(t_packet_header_rc_full_frame_upstream* pRCFrame);
 
 void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats, u32 uTimeNow);
+
+void reset_radio_tx_timers(type_radio_tx_timers* pRadioTxTimers);
 
 #ifdef __cplusplus
 }  

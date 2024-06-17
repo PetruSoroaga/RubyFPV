@@ -140,7 +140,7 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
       u32 scaleStats = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout]>>16) & 0x0F;
       osd_setScaleOSDStats((int)scaleStats);
 
-      if ( render_engine_is_raw() )
+      if ( render_engine_uses_raw_fonts() )
          loadAllFonts(false);
 
       log_line("Vehicle radio links: %d", g_pCurrentModel->radioLinksParams.links_count );
@@ -606,7 +606,9 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    {
        if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
           bMustUpdate = false;
-       if ( ((pModel->sw_version & 0xFF00) >> 8 ) <= 9 )
+       if ( ((pModel->sw_version & 0xFF00) >> 8 ) < 9 )
+          bMustUpdate = false;
+       if ( ((pModel->sw_version & 0xFF00) >> 8 ) == 9 )
        if ( (pModel->sw_version & 0xFF) < 20 )
           bMustUpdate = false;
    }

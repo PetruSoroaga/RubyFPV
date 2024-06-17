@@ -389,16 +389,18 @@ void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u3
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_TEST_RADIO_LINK, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
    PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
-   PH.total_length = sizeof(t_packet_header) + 3*sizeof(u8) + sizeof(type_radio_links_parameters);
+   PH.total_length = sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(type_radio_links_parameters);
 
    u8 buffer[1024];
    static int s_iMenuRadioTestNumberCount = 0;
    s_iMenuRadioTestNumberCount++;
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   buffer[sizeof(t_packet_header)] = (u8)iVehicleLinkIndex;
-   buffer[sizeof(t_packet_header)+1] = (u8)s_iMenuRadioTestNumberCount;
-   buffer[sizeof(t_packet_header)+2] = 1;
-   memcpy(buffer + sizeof(t_packet_header) + 3*sizeof(u8), &newRadioLinkParams, sizeof(type_radio_links_parameters));
+   buffer[sizeof(t_packet_header)] = PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION;
+   buffer[sizeof(t_packet_header)+1] = PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE;
+   buffer[sizeof(t_packet_header)+2] = (u8)iVehicleLinkIndex;
+   buffer[sizeof(t_packet_header)+3] = (u8)s_iMenuRadioTestNumberCount;
+   buffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START;
+   memcpy(buffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, &newRadioLinkParams, sizeof(type_radio_links_parameters));
    send_packet_to_router(buffer, PH.total_length);
 
    link_set_is_reconfiguring_radiolink(iVehicleLinkIndex);
@@ -558,21 +560,14 @@ void MenuVehicleRadioConfig::onSelectItem()
             add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 0, true));
          }
 
-      if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) < 8) ||
-           ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && ((g_pCurrentModel->sw_version & 0xFF) <= 20) ) )
+      if ( (get_sw_version_major(g_pCurrentModel->sw_version) < 9) ||
+           ((get_sw_version_major(g_pCurrentModel->sw_version) == 9) && (get_sw_version_minor(g_pCurrentModel->sw_version) <= 20)) )
       {
-         u32 param = freq & 0xFFFFFF;
-         param = param | (((u32)n)<<24) | 0x80000000; // Highest bit set to 1 to mark the new format of the param
-         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_FREQUENCY, param, NULL, 0) )
-            valuesToUI();
-         else
-         {
-            link_set_is_reconfiguring_radiolink(n, false, g_pCurrentModel->radioLinkIsSiKRadio(n), g_pCurrentModel->radioLinkIsSiKRadio(n)); 
-            warnings_add_configuring_radio_link(n, "Changing frequency");
-         }
+         addMessageWithTitle(0, "Can't update radio links", "You need to update your vehicle to version 9.2 or newer");
+         return;
       }
-      else
-         sendNewRadioLinkFrequency(n, freq);
+
+      sendNewRadioLinkFrequency(n, freq);
    }
 
    /*

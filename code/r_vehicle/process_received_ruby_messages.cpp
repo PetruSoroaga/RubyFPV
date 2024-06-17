@@ -220,8 +220,8 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       if ( uCommandId == 1 )
       {
-         radio_rx_pause_interface(iLocalRadioInterfaceIndex);
-         radio_tx_pause_radio_interface(iLocalRadioInterfaceIndex);
+         radio_rx_pause_interface(iLocalRadioInterfaceIndex, "SiK config");
+         radio_tx_pause_radio_interface(iLocalRadioInterfaceIndex, "SiK config");
       }
       if ( uCommandId == 2 )
       {

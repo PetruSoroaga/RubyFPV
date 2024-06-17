@@ -38,7 +38,7 @@
 #include "ctrl_settings.h"
 #include "../common/string_utils.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 
 ControllerInterfacesSettings s_CIS;
 bool s_bAddedNewRadioInterfaces = false;

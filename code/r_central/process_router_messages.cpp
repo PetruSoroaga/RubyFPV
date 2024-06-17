@@ -642,6 +642,20 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       return 0;
    }
 
+   if ( pPH->packet_type == PACKET_TYPE_DEBUG_INFO )
+   {
+      t_structure_vehicle_info* pRuntimeInfo = _get_runtime_info_for_packet(pPacketBuffer);
+      if ( NULL != pRuntimeInfo )
+      {
+         if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(type_u32_couters) )
+            memcpy(&(pRuntimeInfo->vehicleDebugRouterCounters), pPacketBuffer + sizeof(t_packet_header), sizeof(type_u32_couters));
+         if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(type_u32_couters) + sizeof(type_radio_tx_timers) )
+            memcpy(&(pRuntimeInfo->vehicleDebugRadioTxTimers), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_u32_couters), sizeof(type_radio_tx_timers));
+      }
+      return 0;
+   }
+
+
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE )
    {
       log_line("Received message from router that favorite vehicle was switched to VID: %u", pPH->vehicle_id_dest);
@@ -661,26 +675,44 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
    {
+      
+      if ( (get_sw_version_major(g_pCurrentModel->sw_version) < 9) ||
+           ((get_sw_version_major(g_pCurrentModel->sw_version) == 9) && (get_sw_version_minor(g_pCurrentModel->sw_version) <= 20)) )
+         return 0;
+      if ( pPH->total_length < (int)sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE )
+      {
+         log_line("Ignore invalid (too small) test link message.");
+         return 0;
+      }
 
-      int iRadioLinkId = pPacketBuffer[sizeof(t_packet_header)];
-      int iTestNb = pPacketBuffer[sizeof(t_packet_header)+1]; 
-      int iCmdId = pPacketBuffer[sizeof(t_packet_header)+2];
-      int iMsgLen = pPH->total_length - sizeof(t_packet_header)-4*sizeof(u8);
+      int iHeader = (int) sizeof(t_packet_header);
+      int iProtocolVersion = pPacketBuffer[iHeader];
+      int iHeaderSize = pPacketBuffer[iHeader+1];
+      int iRadioLinkId = pPacketBuffer[iHeader+2];
+      int iTestNb = pPacketBuffer[iHeader+3]; 
+      int iCmdId = pPacketBuffer[iHeader+4];
+      int iDataLen = pPH->total_length - (int)sizeof(t_packet_header)-iHeaderSize;
       log_line("Processing received test link (run %d) message type %s from router, %d data bytes for radio link %d",
-         iTestNb, str_get_packet_test_link_command(iCmdId), iMsgLen, iRadioLinkId+1);
+         iTestNb, str_get_packet_test_link_command(iCmdId), iDataLen, iRadioLinkId+1);
+
+      if ( (iProtocolVersion != PACKET_TYPE_TEST_RADIO_LINK_PROTOCOL_VERSION) || (iHeaderSize != PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE ) )
+      {
+         log_line("Ignore invalid test link message.");
+         return 0;
+      }
 
       if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_STATUS )
       {
          char szBuff[256];
-         strcpy(szBuff, (char*)(pPacketBuffer + sizeof(t_packet_header) + 4*sizeof(u8)));
+         strcpy(szBuff, (char*)(pPacketBuffer + sizeof(t_packet_header) + iHeaderSize+1));
          log_line("Received test link status: %s", szBuff);
          warnings_add_configuring_radio_link_line(szBuff);
       }
 
-      if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
+      if ( iCmdId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_ENDED )
       {
          bool bSucceeded = false;
-         if ( pPacketBuffer[sizeof(t_packet_header)+3*sizeof(u8)] )
+         if ( pPacketBuffer[sizeof(t_packet_header)+iHeaderSize] )
             bSucceeded = true;
          log_line("Radio link params update succeeded? %s", bSucceeded?"Yes":"No");
 
@@ -698,6 +730,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
             p->setIconId(g_idIconError, get_Color_IconError());
             popups_add_topmost(p);
          }
+         menu_update_ui_all_menus();
       }
       return 0;
    }

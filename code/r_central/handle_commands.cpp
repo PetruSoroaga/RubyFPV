@@ -2004,13 +2004,13 @@ bool _commands_check_send_get_settings()
       if ( g_TimeNow >= s_uLastTimeErrorVehicleSync + 2000 )
       {
          s_uLastTimeErrorVehicleSync = g_TimeNow;
-         log_line("[Commands] Must sync vehicle settings, but checks fail: command in progress: %s, searching: %s, reinit: %s, is receiving main telemetry: %s; is vehicle online: %s; current model vehicle id: %u, retry sync counter: %d, is router ready: %s, paired: %s",
+         log_line("[Commands] Must sync vehicle settings for VID %u, but checks fail: command in progress: %s, searching: %s, reinit: %s, is receiving main telemetry: %s; is vehicle online: %s; retry sync counter: %d, is router ready: %s, paired: %s",
+            g_pCurrentModel->uVehicleId,
             s_bHasCommandInProgress?"yes":"no",
             g_bSearching?"yes":"no",
             g_bIsReinit?"yes":"no",
             link_has_received_main_vehicle_ruby_telemetry()?"yes":"no",
             link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)?"yes":"no",
-            g_pCurrentModel->uVehicleId,
             s_iCountRetriesToGetModelSettingsCommand,
             (g_TimeNow > g_RouterIsReadyTimestamp + 500)?"yes":"no",
             g_VehiclesRuntimeInfo[0].bPairedConfirmed?"yes":"no"

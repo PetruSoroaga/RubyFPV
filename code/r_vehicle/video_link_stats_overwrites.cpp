@@ -306,7 +306,7 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
    // If video profile changed (so did the target video bitrate):
    // Send default video quantization param to raspivid based on target video bitrate
    if ( bVideoProfileChanged )
-   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
    {
       g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
       video_link_quantization_shift(2);
@@ -852,7 +852,7 @@ void _video_stats_overwrites_check_update_params()
    // Init computation data
 
    s_iMaxLevelShiftForCurrentProfile = g_pCurrentModel->get_video_profile_total_levels(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
-   s_bUseControllerInfo = (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
+   s_bUseControllerInfo = (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
    
    s_iTargetProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
    s_iTargetShiftLevel = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel;
@@ -952,8 +952,8 @@ void _video_stats_overwrites_check_update_params()
       else if ( bUseControllerDown )
          _check_video_link_params_using_controller_info(true);
 
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
       if ( g_bHadEverLinkToController )
       if ( (! g_bHasLinkToController) || ( g_SM_RadioStats.iMaxRxQuality< 30) )
       {
@@ -1039,8 +1039,8 @@ void video_stats_overwrites_periodic_loop()
    if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
    if ( g_TimeNow > g_TimeStart + 5000 )
    if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
-   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
    if ( (g_TimeNow > g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs) ||
         (g_SM_RadioStats.iMaxRxQuality< 30) )
    if ( g_TimeNow > g_SM_VideoLinkStats.timeLastProfileChangeDown + iThresholdControllerLinkMs*0.7 )
@@ -1051,7 +1051,7 @@ void video_stats_overwrites_periodic_loop()
          log_line("[Video] Switch to MQ profile due to controller link lost and adaptive video is on.");
          video_stats_overwrites_switch_to_profile_and_level(g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile), VIDEO_PROFILE_MQ,0);
       }
-      else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
+      else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO) )
       {
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
          {
@@ -1061,7 +1061,7 @@ void video_stats_overwrites_periodic_loop()
       }
    }
    
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
    {
       video_link_check_adjust_bitrate_for_overload();
       return;

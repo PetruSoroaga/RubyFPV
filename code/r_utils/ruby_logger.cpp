@@ -118,6 +118,8 @@ void _log_platform(bool bNewLine)
    printf("Built for Linux");
    #elif defined(HW_PLATFORM_RASPBERRY)
    printf("Built for Raspberry");
+   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   printf("Built for Radxa Zero 3");
    #else
    printf("Built for N/A");
    #endif

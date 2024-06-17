@@ -354,6 +354,7 @@ void MenuRoot::show_MenuInfo()
 {
    char szBuff[1024];
    char szOutput[1024];
+   char szComm[256];
 
    MenuSystem* pm = new MenuSystem();
    pm->m_xPos = menu_get_XStartPos(pm->m_Width);
@@ -397,7 +398,13 @@ void MenuRoot::show_MenuInfo()
 
    createHWInfo(pm);
 
-   if ( 1 == hw_execute_bash_command_raw("df -m /home/pi/ruby | grep root", szBuff) )
+   #ifdef HW_PLATFORM_RASPBERRY
+   sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
+   #endif
+   if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
    {
       char szTemp[1024];
       long lb, lu, lf;

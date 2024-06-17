@@ -114,6 +114,9 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
    
    pInfo->uTimeLastRecvVehicleRxStats = 0;
 
+   reset_counters(&(pInfo->vehicleDebugRouterCounters));
+   reset_radio_tx_timers(&(pInfo->vehicleDebugRadioTxTimers));
+
    memset( &(pInfo->headerRubyTelemetryExtended), 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
    memset( &(pInfo->headerRubyTelemetryExtraInfo), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
    memset( &(pInfo->headerRubyTelemetryExtraInfoRetransmissions), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));

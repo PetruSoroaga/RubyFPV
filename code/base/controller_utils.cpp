@@ -37,7 +37,7 @@
 #include "controller_utils.h"
 #include "ctrl_interfaces.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 
 u32 controller_utils_getControllerId()
 {
@@ -366,58 +366,58 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
 
    // If EC scheme spreading factor has changed by user, update MQ and LQ video profiles spreading factor too
    
-   if ( ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) ) ||
-      ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT) ) )
+   if ( ( (pOrgProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) != (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT) ) ||
+      ( (pOrgProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT) != (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT) ) )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
    }
 
-   if ( ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) ) ||
-      ( (pOrgProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) != (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) ) )
+   if ( ( (pOrgProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) != (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) ) ||
+      ( (pOrgProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) != (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH) ) )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~(ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= (pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION | VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION);
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
    }
 
-   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
-   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
-   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+   pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
+   pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
+   if ( pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
    }
 
-   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
-   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
-   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
+   pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
+   pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
+   if ( pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
    }
 
-   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+   if ( pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
    }
 
-   pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-   pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-   if ( pUpdatedProfile->encoding_extra_flags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   if ( pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-      pAllProfiles[VIDEO_PROFILE_LQ].encoding_extra_flags |= ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
    }
 
    if ( (pOrgProfile->width != pUpdatedProfile->width) || (pOrgProfile->height != pUpdatedProfile->height) )

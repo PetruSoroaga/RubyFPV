@@ -11,6 +11,8 @@ void _osd_stats_draw_line(float xLeft, float xRight, float y, u32 uFontId, const
 float osd_render_stats_video_decode_get_height(float scale);
 float osd_render_stats_video_decode(float xPos, float yPos, float scale);
 
+float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos);
+
 float osd_render_stats_telemetry_get_height(float scale);
 float osd_render_stats_telemetry(float xPos, float yPos, float scale);
 

@@ -36,7 +36,7 @@
 #include "hw_procs.h"
 #include "flags.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 
 ControllerSettings s_CtrlSettings;
 int s_CtrlSettingsLoaded = 0;
@@ -418,8 +418,8 @@ u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVid
       ping_interval_ms /= 2;
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( uCurrentVideoFlags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( uCurrentVideoFlags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( uCurrentVideoFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( uCurrentVideoFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    {
       if ( ping_interval_ms > 100 )
       {

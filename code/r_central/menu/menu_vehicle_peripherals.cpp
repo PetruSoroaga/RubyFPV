@@ -101,7 +101,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
                if ( g_listVehicleCorePlugins[n].uRequestedCapabilities & CORE_PLUGIN_CAPABILITY_HARDWARE_ACCESS_UART )
                {
                   char szOption[256];
-                  sprintf(szOption, "Core Plugin %s", g_listVehicleCorePlugins[n].szName);
+                  snprintf(szOption, sizeof(szOption)/sizeof(szOption[0]), "Core Plugin %s", g_listVehicleCorePlugins[n].szName);
                   m_pItemsSelect[i*2]->addSelection(szOption);
                }
             }

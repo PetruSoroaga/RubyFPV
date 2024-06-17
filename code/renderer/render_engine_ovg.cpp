@@ -52,11 +52,8 @@
 #include <endian.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <stdbool.h>
 #include <fontinfo.h>
 #include <time.h>
-#include <fontinfo.h>
-#include <time.h> 
 
 RenderEngineOVG::RenderEngineOVG()
 :RenderEngine()

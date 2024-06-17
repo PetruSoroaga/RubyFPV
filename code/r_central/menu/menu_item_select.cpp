@@ -245,13 +245,13 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
       else
       {
          g_pRenderEngine->setGlobalAlfa(fAlphaOrg);
-         double* pC = get_Color_ItemSelectedBg();
+         double* pC = get_Color_MenuItemSelectedBg();
          float f = pC[3];
          if ( ! m_bEnabled )
             pC[3] = 0.2;
          g_pRenderEngine->setColors(pC);
          g_pRenderEngine->drawRoundRect(xEnd-width_text-2*dxPaddings, yPos-dyPaddings, width_text+2*dxPaddings, m_RenderHeight+2*dyPaddings, 0.05*Menu::getMenuPaddingY());
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawTextLeft(xEnd-dxPaddings, yPos+dyText, g_idFontMenu, m_szSelections[i]);
          pC[3] = f;
       }
@@ -371,9 +371,9 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
    {
       if ( i == m_SelectedIndex )
       {
-         g_pRenderEngine->setColors(get_Color_ItemSelectedBg());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
          g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV, width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV, 0.2*Menu::getMenuPaddingY());
-         g_pRenderEngine->setColors(get_Color_ItemSelectedText());
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawText(xValues, y, g_idFontMenu, m_szSelections[i]);
          if ( m_bCustomTextColor )
             g_pRenderEngine->setColors(&m_TextColor[0]);
@@ -384,7 +384,7 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
       {
          if ( ! m_bEnabledItems[i] )
          {
-            g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+            g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
          }
          g_pRenderEngine->drawText(xValues, y, g_idFontMenu, m_szSelections[i]);
          if ( m_bCustomTextColor )

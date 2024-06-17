@@ -269,7 +269,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_COMMAND:                  strcpy(s_szPacketType, "PACKET_TYPE_COMMAND"); break;
       case PACKET_TYPE_COMMAND_RESPONSE:         strcpy(s_szPacketType, "PACKET_TYPE_COMMAND_RESPONSE"); break;
       case PACKET_TYPE_SIK_CONFIG:               strcpy(s_szPacketType, "PACKET_TYPE_SIK_CONFIG"); break;
-      
+      case PACKET_TYPE_DEBUG_INFO:               strcpy(s_szPacketType, "PACKET_TYPE_DEBUG_INFO"); break;
       // Telemetry
 
       case PACKET_TYPE_RUBY_TELEMETRY_SHORT:      strcpy(s_szPacketType, "PACKET_TYPE_RUBY_TELEMETRY_SHORT"); break;
@@ -429,10 +429,15 @@ char* str_get_packet_test_link_command(int iTestCommandId)
       strcpy(s_szTestRadioLinkCommandType, "[Status]");
    if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START )
       strcpy(s_szTestRadioLinkCommandType, "[Start]");
-   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING )
-      strcpy(s_szTestRadioLinkCommandType, "[Ping]");
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_UPLINK )
+      strcpy(s_szTestRadioLinkCommandType, "[PingUplink]");
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_PING_DOWNLINK )
+      strcpy(s_szTestRadioLinkCommandType, "[PingDownlink]");
    if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END )
       strcpy(s_szTestRadioLinkCommandType, "[End]");
+
+   if ( iTestCommandId == PACKET_TYPE_TEST_RADIO_LINK_COMMAND_ENDED )
+      strcpy(s_szTestRadioLinkCommandType, "[Ended]");
 
    return s_szTestRadioLinkCommandType;
 }
@@ -636,6 +641,9 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypePi3BP = "Raspberry Pi 3B+";
    static const char* s_szBoardTypePi4B = "Raspberry Pi 4B";
    #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   static const char* s_szBoardTypeRadxaZero3 = "Radxa Zero 3";
+   #endif
    static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
    static const char* s_szBoardTypeOpenIPCGoke300 = "OpenIPC Goke300";
@@ -662,6 +670,11 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypePi3BP;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardTypePi4B;
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
+      return s_szBoardTypeRadxaZero3;
    #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
@@ -692,6 +705,9 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypePi4B = "Pi 4B";
    #endif
 
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   static const char* s_szBoardSTypeRadxaZero3 = "Radza Zero3";
+   #endif
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
    static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
    static const char* s_szBoardSTypeOpenIPCGoke300 = "Goke300";
@@ -718,6 +734,11 @@ const char* str_get_hardware_board_name_short(u32 board_type)
       return s_szBoardSTypePi3BP;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardSTypePi4B;
+   #endif
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
+      return s_szBoardSTypeRadxaZero3;
    #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
@@ -1065,30 +1086,30 @@ char* str_format_video_encoding_flags(u32 uVideoEncodingFlags)
    static char sl_szVideoEncodingFlagsString[256];
    sl_szVideoEncodingFlagsString[0] = 0;
 
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
       strcat(sl_szVideoEncodingFlagsString, " ONE_WAY");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS )
       strcat(sl_szVideoEncodingFlagsString, " RETRANSMISSIONS_ENABLED");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_STATUS_ON_LOWER_BITRATE )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
       strcat(sl_szVideoEncodingFlagsString, " IS_ON_LOWER_BITRATE");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_VIDEO");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_USE_CONTROLLER_INFO_TOO");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_GO_LOWER_ON_LINK_LOST");
 
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_USE_MEDIUM_STRENGTH");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
       strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_ENABLED");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
       strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_HIGH");
-   if ( uVideoEncodingFlags & ENCODING_EXTRA_FLAG_AUTO_EC_SCHEME )
+   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME )
       strcat(sl_szVideoEncodingFlagsString, " AUTO_EC_SCHEME");
 
-   u32 uECSpreadHigh = (uVideoEncodingFlags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-   u32 uECSpreadLow = (uVideoEncodingFlags & ENCODING_EXTRA_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+   u32 uECSpreadHigh = (uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+   u32 uECSpreadLow = (uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
    char szBuff[16];
    sprintf(szBuff, " EC_SPREAD: %u", (uECSpreadHigh<<1) | uECSpreadLow);
    strcat(sl_szVideoEncodingFlagsString, szBuff);

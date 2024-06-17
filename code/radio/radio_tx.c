@@ -320,7 +320,7 @@ void radio_tx_set_custom_thread_priority(int iPriority)
 }
 
 
-void radio_tx_pause_radio_interface(int iRadioInterfaceIndex)
+void radio_tx_pause_radio_interface(int iRadioInterfaceIndex, const char* szReason)
 {
    if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= MAX_RADIO_INTERFACES) )
       return;
@@ -329,10 +329,16 @@ void radio_tx_pause_radio_interface(int iRadioInterfaceIndex)
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
 
+   char szRadioName[64];
+   strcpy(szRadioName, "N/A");
    if ( NULL != pRadioHWInfo )
-      log_line("[RadioRx] Pause Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
-   else
-      log_line("[RadioRx] Pause Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, "N/A", s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
+      strncpy(szRadioName, pRadioHWInfo->szName, sizeof(szRadioName)/sizeof(szRadioName[0]));
+
+   char szBuff[128];
+   szBuff[0] = 0;
+   if ( NULL != szReason )
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), " (reason: %s)", szReason);
+   log_line("[RadioTx] Pause Tx on radio interface %d, [%s] (+%d)%s", iRadioInterfaceIndex+1, szRadioName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex], szBuff);
 }
 
 void radio_tx_resume_radio_interface(int iRadioInterfaceIndex)
@@ -346,9 +352,9 @@ void radio_tx_resume_radio_interface(int iRadioInterfaceIndex)
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
 
    if ( NULL != pRadioHWInfo )
-      log_line("[RadioRx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
+      log_line("[RadioTx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, pRadioHWInfo->szName, s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
    else
-      log_line("[RadioRx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, "N/A", s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
+      log_line("[RadioTx] Resumed Tx on radio interface %d, [%s] (+%d)", iRadioInterfaceIndex+1, "N/A", s_iRadioTxInterfacesPaused[iRadioInterfaceIndex]);
 }
 
 void radio_tx_set_sik_packet_size(int iSiKPacketSize)

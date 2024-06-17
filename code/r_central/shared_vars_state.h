@@ -45,6 +45,9 @@ typedef struct
    u32  uTimeLastRecvVehicleRxStats;
    bool bRubyTelemetryLost;
 
+   type_u32_couters vehicleDebugRouterCounters;
+   type_radio_tx_timers vehicleDebugRadioTxTimers;
+
    t_packet_header_ruby_telemetry_extended_v3 headerRubyTelemetryExtended;
    t_packet_header_ruby_telemetry_extended_extra_info headerRubyTelemetryExtraInfo;
    t_packet_header_ruby_telemetry_extended_extra_info_retransmissions headerRubyTelemetryExtraInfoRetransmissions;

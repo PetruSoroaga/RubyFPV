@@ -34,7 +34,7 @@
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
 #endif
@@ -51,6 +51,152 @@ void _set_radio_region()
 
    char szOutput[256];
    hw_execute_bash_command_raw("iw reg set 00", szOutput);
+}
+
+bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pRadioHWInfo, u32 uDelayMS)
+{
+   if ( (NULL == pRadioHWInfo) || (iInterfaceIndex < 0) || (iInterfaceIndex >= hardware_get_radio_interfaces_count()) )
+      return false;
+
+   char szComm[128];
+   char szOutput[2048];
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+
+   sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+
+   return true;
+   #endif
+
+   //sprintf(szComm, "ifconfig %s down", pRadioHWInfo->szName );
+   //execute_bash_command(szComm, NULL);
+   //hardware_sleep_ms(uDelayMS);
+   //sprintf(szComm, "iw dev %s set type managed", pRadioHWInfo->szName );
+   //execute_bash_command(szComm, NULL);
+   //hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+   int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
+   if ( s_bIsStation )
+   {
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+      dataRateMb = controllerGetCardDataRate(pRadioHWInfo->szMAC);
+      if ( dataRateMb > 0 )
+         dataRateMb = dataRateMb / 1000 / 1000;
+      #endif
+   }
+   else if ( giDataRateMbAtheros > 0 )
+      dataRateMb = giDataRateMbAtheros;
+   
+   if ( dataRateMb == 0 )
+      dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO/1000/1000;
+   if ( dataRateMb > 0 )
+      sprintf(szComm, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, dataRateMb );
+   else
+      sprintf(szComm, "iw dev %s set bitrates ht-mcs-2.4 %d lgi-2.4", pRadioHWInfo->szName, -dataRateMb-1 );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+   sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   if ( 0 != szOutput[0] )
+      log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
+   hardware_sleep_ms(uDelayMS);
+   
+   sprintf(szComm, "iw dev %s set monitor none", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   // Test only
+   //sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
+   //hw_execute_bash_command(szComm, NULL);
+   //hardware_sleep_ms(uDelayMS);
+   
+   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+   //printf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   //execute_bash_command(szComm, NULL);
+   //hardware_sleep_ms(uDelayMS);
+
+   pRadioHWInfo->iCurrentDataRateBPS = dataRateMb*1000*1000;
+
+   return true;
+
+}
+
+bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pRadioHWInfo, u32 uDelayMS)
+{
+   if ( (NULL == pRadioHWInfo) || (iInterfaceIndex < 0) || (iInterfaceIndex >= hardware_get_radio_interfaces_count()) )
+      return false;
+
+   char szComm[128];
+   char szOutput[2048];
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   
+   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   hardware_sleep_ms(uDelayMS);
+   
+   return true;
+
+   #endif
+
+   sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, szOutput);
+   if ( 0 != szOutput[0] )
+      log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor none 2>&1", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   if ( 0 != szOutput[0] )
+      log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, NULL);
+   hardware_sleep_ms(uDelayMS);
+   
+   sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
+   hw_execute_bash_command(szComm, szOutput);
+   if ( 0 != szOutput[0] )
+      log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
+   hardware_sleep_ms(uDelayMS);
+
+   return true;
 }
 
 bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
@@ -74,147 +220,18 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-
    if ( ((pRadioHWInfo->typeAndDriver) & 0xFF) == RADIO_TYPE_ATHEROS )
-   {
-      sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-
-      sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-   }
+      _configure_radio_interface_atheros(iInterfaceIndex, pRadioHWInfo, uDelayMS);
    else
-   {
-      sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-
-      sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-   }
+      _configure_radio_interface_realtek(iInterfaceIndex, pRadioHWInfo, uDelayMS);
 
    if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY58) )
    {
-      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY58);
-      pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY58;
-      hw_execute_bash_command(szComm, szOutput);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      pRadioHWInfo->lastFrequencySetFailed = 0;
-      pRadioHWInfo->uFailedFrequencyKhz = 0;
-   }
-   else if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY) )
-   {
-      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY);
-      pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY;
-      hw_execute_bash_command(szComm, szOutput);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      pRadioHWInfo->lastFrequencySetFailed = 0;
-      pRadioHWInfo->uFailedFrequencyKhz = 0;
-   }
-   else
-   {
-      pRadioHWInfo->uCurrentFrequencyKhz = 0;
-      pRadioHWInfo->lastFrequencySetFailed = 1;
-      pRadioHWInfo->uFailedFrequencyKhz = DEFAULT_FREQUENCY;
-   }
-
-   #else
-   
-   if ( ((pRadioHWInfo->typeAndDriver) & 0xFF) == RADIO_TYPE_ATHEROS )
-   {
-      //sprintf(szComm, "ifconfig %s down", pRadioHWInfo->szName );
-      //execute_bash_command(szComm, NULL);
-      //hardware_sleep_ms(uDelayMS);
-      //sprintf(szComm, "iw dev %s set type managed", pRadioHWInfo->szName );
-      //execute_bash_command(szComm, NULL);
-      //hardware_sleep_ms(uDelayMS);
-
-      sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-      int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
-      if ( s_bIsStation )
-      {
-         #ifdef HW_PLATFORM_RASPBERRY
-         dataRateMb = controllerGetCardDataRate(pRadioHWInfo->szMAC);
-         if ( dataRateMb > 0 )
-            dataRateMb = dataRateMb / 1000 / 1000;
-         #endif
-      }
-      else if ( giDataRateMbAtheros > 0 )
-         dataRateMb = giDataRateMbAtheros;
-      
-      if ( dataRateMb == 0 )
-         dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO/1000/1000;
-      if ( dataRateMb > 0 )
-         sprintf(szComm, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, dataRateMb );
-      else
-         sprintf(szComm, "iw dev %s set bitrates ht-mcs-2.4 %d lgi-2.4", pRadioHWInfo->szName, -dataRateMb-1 );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-      sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      hardware_sleep_ms(uDelayMS);
-      
-      sprintf(szComm, "iw dev %s set monitor none", pRadioHWInfo->szName);
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-
-      // Test only
-      //sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
-      //hw_execute_bash_command(szComm, NULL);
-      //hardware_sleep_ms(uDelayMS);
-      
-      sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-      //printf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
-      //execute_bash_command(szComm, NULL);
-      //hardware_sleep_ms(uDelayMS);
-
-      pRadioHWInfo->iCurrentDataRateBPS = dataRateMb*1000*1000;
-   }
-   //if ( ((pRadioHWInfo->type) & 0xFF) == RADIO_TYPE_RALINK )
-   else
-   {
-      sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, szOutput);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      hardware_sleep_ms(uDelayMS);
-
-      sprintf(szComm, "iw dev %s set monitor none 2>&1", pRadioHWInfo->szName);
-      hw_execute_bash_command(szComm, szOutput);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      hardware_sleep_ms(uDelayMS);
-
-      sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
-      hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(uDelayMS);
-      
-      sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
-      hw_execute_bash_command(szComm, szOutput);
-      if ( 0 != szOutput[0] )
-         log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
-      hardware_sleep_ms(uDelayMS);
-
-      //sprintf(szComm, "iw dev %s set bitrates legacy-2.4 %d lgi-2.4", pRadioHWInfo->szName, 18 );
-      //hw_execute_bash_command(szComm, NULL);
-      //hardware_sleep_ms(uDelayMS);
-   }
-
-   if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY58) )
-   {
+      #ifdef HW_PLATFORM_RASPBERRY
       sprintf(szComm, "iw dev %s set freq %d 2>&1", pRadioHWInfo->szName, DEFAULT_FREQUENCY58/1000);
+      #else
+      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY58);
+      #endif
       pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY58;
       hw_execute_bash_command(szComm, szOutput);
       if ( 0 != szOutput[0] )
@@ -224,7 +241,11 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
    }
    else if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY) )
    {
+      #ifdef HW_PLATFORM_RASPBERRY
       sprintf(szComm, "iw dev %s set freq %d 2>&1", pRadioHWInfo->szName, DEFAULT_FREQUENCY/1000);
+      #else
+      sprintf(szComm, "iwconfig %s freq %u000 2>&1", pRadioHWInfo->szName, (u32)DEFAULT_FREQUENCY);
+      #endif
       pRadioHWInfo->uCurrentFrequencyKhz = DEFAULT_FREQUENCY;
       hw_execute_bash_command(szComm, szOutput);
       if ( 0 != szOutput[0] )
@@ -238,7 +259,10 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
       pRadioHWInfo->lastFrequencySetFailed = 1;
       pRadioHWInfo->uFailedFrequencyKhz = DEFAULT_FREQUENCY;
    }
-   #endif
+
+   sprintf(szComm, "iwconfig %s rts off 2>&1", pRadioHWInfo->szName);
+   hw_execute_bash_command(szComm, szOutput);
+
    return true;
 }
 
@@ -265,7 +289,7 @@ int init_Radios()
    u32 uDelayMS = DEFAULT_DELAY_WIFI_CHANGE;
    s_bIsStation = hardware_is_station();
 
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 
    if ( s_bIsStation )
    {

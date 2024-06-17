@@ -36,6 +36,9 @@
 #define BOARD_SUBTYPE_OPENIPC_AIO_1  ((u32)(((u32)0x01)<<8))
 
 
+#define BOARD_TYPE_RADXA_ZERO3 60
+
+
 #define CAMERA_TYPE_NONE 0
 #define CAMERA_TYPE_CSI   1
 #define CAMERA_TYPE_VEYE290  3
@@ -71,7 +74,7 @@ typedef struct
    int axesValuesPrev[MAX_JOYSTICK_AXES];
    int buttonsValuesPrev[MAX_JOYSTICK_BUTTONS];
    int fd;
-} __attribute__((packed)) hw_joystick_info_t;
+} hw_joystick_info_t;
 
 
 
@@ -134,6 +137,7 @@ int hardware_is_station();
 int hardware_is_vehicle();
 int hardware_is_running_on_openipc();
 
+void hardware_sleep_sec(u32 uSeconds);
 void hardware_sleep_ms(u32 miliSeconds);
 void hardware_sleep_micros(u32 microSeconds);
 

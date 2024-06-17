@@ -255,6 +255,8 @@ int init_hardware()
    int failed = 0;
 
    #ifdef HW_CAPABILITY_GPIO
+
+   #ifdef HW_PLATFORM_RASPBERRY
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
@@ -272,56 +274,71 @@ int init_hardware()
    }
    else
       log_line("[Hardware] No file with current GPIO detection for buttons.");
+   #else
+
+   int failedButtons = GPIOInitButtons();
+   if ( failedButtons )
+   {
+      log_softerror_and_alarm("[Hardware] Failed to set GPIOs for buttons (for Radxa)");
+       failed = 1;
+   }
+   else
+   {
+      log_line("[Hardware] Initialized GPIO buttons (for Radxa)");
+      s_iButtonsWhereInited = 1;
+   }
+   #endif
 
    if (-1 == GPIOExport(GPIO_PIN_BUZZER))
    {
-      log_line("Failed to get GPIO access to pin for buzzer.");
+      log_line("[Hardware] Failed to get GPIO access to pin for buzzer.");
       failed = 1;
    }
 
    if (-1 == GPIODirection(GPIO_PIN_BUZZER, OUT))
    {
-      log_line("Failed set GPIO configuration for pin buzzer.");
+      log_line("[Hardware] Failed set GPIO configuration for pin buzzer.");
       failed = 1;
    }
 
    if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_VEHICLE))
    {
-      log_line("Failed to get GPIO access to pin Type V.");
+      log_line("[Hardware] Failed to get GPIO access to pin VehicleType.");
       failed = 1;
    }
 
    if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_VEHICLE, IN))
    {
-      log_line("Failed set GPIO configuration for pin Type V.");
+      log_line("[Hardware] Failed set GPIO configuration for pin VehicleType.");
       failed = 1;
    }
 
    if (-1 == GPIOExport(GPIO_PIN_DETECT_TYPE_CONTROLLER))
    {
-      log_line("Failed to get GPIO access to pin Type C.");
+      log_line("[Hardware] Failed to get GPIO access to pin ControllerType.");
       failed = 1;
    }
 
    if (-1 == GPIODirection(GPIO_PIN_DETECT_TYPE_CONTROLLER, IN))
    {
-      log_line("Failed set GPIO configuration for pin Type C.");
+      log_line("[Hardware] Failed set GPIO configuration for pin ControllerType.");
       failed = 1;
    }
 
    if (-1 == GPIOExport(GPIO_PIN_LED_ERROR) ||
        -1 == GPIOExport(GPIO_PIN_RECORDING_LED))
    {
-      log_line("Failed to get GPIO access to pin for LEDs.");
+      log_line("[Hardware] Failed to get GPIO access to pin for LEDs.");
       failed = 1;
    }
    if (-1 == GPIODirection(GPIO_PIN_LED_ERROR, OUT) ||
        -1 == GPIODirection(GPIO_PIN_RECORDING_LED, OUT))
    {
-      log_line("Failed set GPIO configuration for pin for LEDs.");
+      log_line("[Hardware] Failed set GPIO configuration for pin for LEDs.");
       failed = 1;
    }
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[64];
    sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_VEHICLE);
    hw_execute_bash_command_silent(szBuff, NULL);
@@ -332,12 +349,13 @@ int init_hardware()
    hw_execute_bash_command_silent(szBuff, NULL);
    sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_CONTROLLER);
    hw_execute_bash_command_silent(szBuff, NULL);
+   #endif
 
    GPIOWrite(GPIO_PIN_BUZZER, LOW);
    GPIOWrite(GPIO_PIN_LED_ERROR, LOW);
    GPIOWrite(GPIO_PIN_RECORDING_LED, LOW);
 
-   log_line("HW: GPIO setup successfully.");
+   log_line("[Hardware] GPIO setup successfully.");
 
    if ( s_iButtonsWhereInited )
    {
@@ -439,9 +457,8 @@ void hardware_swap_buttons(int swap)
 
 u32 hardware_getOnlyBoardType()
 {
-   char szBuff[256];
-
    #ifdef HW_PLATFORM_RASPBERRY
+   char szBuff[256];
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
    log_line("[Hardware] Detected board Id: %s", szBuff);
 
@@ -487,6 +504,10 @@ u32 hardware_getOnlyBoardType()
    if ( strcmp(szBuff, "2a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
    if ( strcmp(szBuff, "2a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
    if ( strcmp(szBuff, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
+   #endif
+
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
@@ -598,6 +619,7 @@ int hardware_board_is_sigmastar(u32 uBoardType)
 void hardware_enum_joystick_interfaces()
 {
    s_iHardwareJoystickCount = 0;
+
    #ifdef HW_PLATFORM_RASPBERRY
 
    char szDevName[256];
@@ -833,6 +855,8 @@ void gpio_read_buttons_loop()
    int iForceBackPressed = 0;
    int iForceQA1Pressed = 0;
 
+   #ifdef HW_PLATFORM_RASPBERRY
+
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
@@ -909,12 +933,15 @@ void gpio_read_buttons_loop()
 
       sInitialReadQA1 = GPIORead(GPIO_PIN_QACTION1);
       sInitialReadQA2 = GPIORead(GPIO_PIN_QACTION2);
-      sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
       sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
+      #ifdef HW_PLATFORM_RASPBERRY
+      sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
       sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
       sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
+      #endif
       log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
    }
+   #endif
 
    // Check inputs
    int rMenu = GPIORead(GPIO_PIN_MENU);
@@ -923,10 +950,12 @@ void gpio_read_buttons_loop()
    int rMinus = GPIORead(GPIO_PIN_MINUS);
    int rQA1 = GPIORead(GPIO_PIN_QACTION1);
    int rQA2 = GPIORead(GPIO_PIN_QACTION2);
-   int rQA22 = GPIORead(GPIO_PIN_QACTION2_2);
    int rQA3 = GPIORead(GPIO_PIN_QACTION3);
-   int rQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
-   int rQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
+   #ifdef HW_PLATFORM_RASPBERRY
+   int rQA22 = GPIORead(GPIO_PIN_QACTION2_2);
+   int rQAPlus = 0;//GPIORead(GPIO_PIN_QACTIONPLUS);
+   int rQAMinus = 0;//GPIORead(GPIO_PIN_QACTIONMINUS);
+   #endif
 
    u32 time_now = get_current_timestamp_ms();
 
@@ -1062,25 +1091,6 @@ void gpio_read_buttons_loop()
       keyQA2DownStartTime += s_long_press_repeat_time;
    }
 
-   if ( GPIOGetButtonsPullDirection() == rQA22 )
-   {
-      sKeyQA22Pressed = 0;
-      keyQA22DownStartTime = 0;
-   }
-   else if ( rQA22 != sLastReadQA22 )
-   {
-      sKeyQA22Pressed = 1;
-      keyQA22DownStartTime = time_now;
-   }
-   else
-      sKeyQA22Pressed = 0;
-
-   if ( (GPIOGetButtonsPullDirection() != rQA22) && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
-   {
-      sKeyQA22Pressed = 1;
-      keyQA22DownStartTime += s_long_press_repeat_time;
-   }
-
    if ( GPIOGetButtonsPullDirection() == rQA3 )
    {
       sKeyQA3Pressed = 0;
@@ -1100,6 +1110,27 @@ void gpio_read_buttons_loop()
       keyQA3DownStartTime += s_long_press_repeat_time;
    }
 
+   #ifdef HW_PLATFORM_RASPBERRY
+   if ( GPIOGetButtonsPullDirection() == rQA22 )
+   {
+      sKeyQA22Pressed = 0;
+      keyQA22DownStartTime = 0;
+   }
+   else if ( rQA22 != sLastReadQA22 )
+   {
+      sKeyQA22Pressed = 1;
+      keyQA22DownStartTime = time_now;
+   }
+   else
+      sKeyQA22Pressed = 0;
+
+   if ( (GPIOGetButtonsPullDirection() != rQA22) && 0 != keyQA22DownStartTime && time_now > (keyQA22DownStartTime+s_long_key_press_delta+s_long_press_repeat_time) )
+   {
+      sKeyQA22Pressed = 1;
+      keyQA22DownStartTime += s_long_press_repeat_time;
+   }
+   #endif
+   /*
    if ( GPIOGetButtonsPullDirection() == rQAPlus )
    {
       sKeyQAPlusPressed = 0;
@@ -1137,6 +1168,7 @@ void gpio_read_buttons_loop()
       sKeyQAMinusPressed = 1;
       keyQAMinusDownStartTime += s_long_press_repeat_time;
    }
+   */
 
    //printf("\n%d %d    %d %d %d %d\n", sKeyQA1Pressed,sKeyQA2Pressed, sKeyMenuPressed, sKeyBackPressed, sKeyPlusPressed, sKeyMinusPressed );
 
@@ -1165,14 +1197,16 @@ void gpio_read_buttons_loop()
          s_bBlockCurrentPressedKeys = 0;
       if ( (GPIOGetButtonsPullDirection() == rQA2) && (GPIOGetButtonsPullDirection() != sLastReadQA2) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( (GPIOGetButtonsPullDirection() == rQA22) && (GPIOGetButtonsPullDirection() != sLastReadQA22) )
-         s_bBlockCurrentPressedKeys = 0;
       if ( (GPIOGetButtonsPullDirection() == rQA3) && (GPIOGetButtonsPullDirection() != sLastReadQA3) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( (GPIOGetButtonsPullDirection() == rQAMinus) && (GPIOGetButtonsPullDirection() != sLastReadQAMinus) )
+      #ifdef HW_PLATFORM_RASPBERRY
+      if ( (GPIOGetButtonsPullDirection() == rQA22) && (GPIOGetButtonsPullDirection() != sLastReadQA22) )
          s_bBlockCurrentPressedKeys = 0;
-      if ( (GPIOGetButtonsPullDirection() == rQAPlus) && (GPIOGetButtonsPullDirection() != sLastReadQAPlus) )
-         s_bBlockCurrentPressedKeys = 0;
+      #endif
+      //if ( (GPIOGetButtonsPullDirection() == rQAMinus) && (GPIOGetButtonsPullDirection() != sLastReadQAMinus) )
+      //   s_bBlockCurrentPressedKeys = 0;
+      //if ( (GPIOGetButtonsPullDirection() == rQAPlus) && (GPIOGetButtonsPullDirection() != sLastReadQAPlus) )
+      //   s_bBlockCurrentPressedKeys = 0;
    }
    sLastReadMenu = rMenu;
    sLastReadBack = rBack;
@@ -1180,10 +1214,12 @@ void gpio_read_buttons_loop()
    sLastReadMinus = rMinus;
    sLastReadQA1 = rQA1;
    sLastReadQA2 = rQA2;
-   sLastReadQA22 = rQA22;
    sLastReadQA3 = rQA3;
-   sLastReadQAPlus = rQAPlus;
-   sLastReadQAMinus = rQAMinus;
+   #ifdef HW_PLATFORM_RASPBERRY
+   sLastReadQA22 = rQA22;
+   #endif
+   //sLastReadQAPlus = rQAPlus;
+   //sLastReadQAMinus = rQAMinus;
 
    if ( iForceMenuPressed )
    {
@@ -1253,7 +1289,6 @@ void hardware_loop()
          recoverableErrorStopTime = 0;
       }
    }
-
 
    if ( s_isRecordingLedBlinking )
    {
@@ -1662,6 +1697,11 @@ int hardware_is_running_on_openipc()
 }
 
 
+void hardware_sleep_sec(u32 uSeconds)
+{
+   sleep(uSeconds);
+}
+
 void hardware_sleep_ms(u32 miliSeconds)
 {
    //usleep(miliSeconds*1000);
@@ -1711,6 +1751,10 @@ void hardware_mount_root()
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
    #endif
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
+   #endif
 }
 
 void hardware_mount_boot()
@@ -1724,8 +1768,11 @@ int hardware_get_free_space_kb()
 {
    char szOutput[2048];
 
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined(HW_PLATFORM_RASPBERRY)
    if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
+      return -1;
+   #elif defined( HW_PLATFORM_RADXA_ZERO3)
+   if ( 1 != hw_execute_bash_command_raw("df / | grep dev/", szOutput) )
       return -1;
    #else
    szOutput[0] = 0;
@@ -1741,7 +1788,6 @@ int hardware_get_free_space_kb()
    char szTemp[1024];
    long lb = 0, lu = 0, lf = 0;
    sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
-
    return (int)lf;
 }
 
@@ -1749,7 +1795,17 @@ int hardware_has_eth()
 {
    int nHasETH = 1;
    char szOutput[1024];
+
+   #if defined(HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command_raw("ifconfig eth0 2>&1", szOutput);
+   #endif
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_bash_command_raw("ifconfig | grep enx 2>&1", szOutput);
+   if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )
+      hw_execute_bash_command_raw("ifconfig eth0 2>&1", szOutput);
+   #endif
+   
    if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )
    {
       nHasETH = 0;
@@ -1761,7 +1817,7 @@ int hardware_has_eth()
 
 int hardware_get_cpu_speed()
 {
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined(HW_PLATFORM_RASPBERRY)
    char szOutput[64];
    szOutput[0] = 0;
    hw_execute_bash_command_raw_silent("vcgencmd measure_clock arm", szOutput);
@@ -1798,6 +1854,10 @@ int hardware_get_cpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
+   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   char szOutput[1024];
+   hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
+   return atoi(szOutput)/1000;
    #else
    return 1000;
    #endif
@@ -1805,7 +1865,7 @@ int hardware_get_cpu_speed()
 
 int hardware_get_gpu_speed()
 {
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_RASPBERRY)
    char szOutput[64];
    szOutput[0] = 0;
    hw_execute_bash_command_raw_silent("vcgencmd measure_clock core", szOutput);
@@ -1842,6 +1902,10 @@ int hardware_get_gpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
+   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   char szOutput[1024];
+   hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
+   return atoi(szOutput)/1000;
    #else
    return 1000;
    #endif

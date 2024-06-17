@@ -11,6 +11,7 @@ class MenuItemText: public MenuItem
      
      void setSmallText();
      virtual bool isSelectable();
+     void makeSelectable();
      virtual float getItemHeight(float maxWidth);
      virtual float getTitleWidth(float maxWidth);
 
@@ -18,5 +19,6 @@ class MenuItemText: public MenuItem
 
    protected:
       bool m_bUseSmallText;
+      bool m_bIsSelectable;
       float m_fScale;
 };

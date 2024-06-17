@@ -39,7 +39,6 @@
 #include "menu_item_select.h"
 #include "menu_item_slider.h"
 #include "menu_item_section.h"
-#include "menu_item_text.h"
 
 #include "../osd/osd_common.h"
 
@@ -172,6 +171,12 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[7]->setExtraHeight(1.5* g_pRenderEngine->textHeight(g_idFontMenu) * MENU_ITEM_SPACING);
    m_IndexRetransmissions = addMenuItem(m_pItemsSelect[7]);
 
+   m_pMenuItemVideoRecording = new MenuItem("Start Video Recording");
+   if ( g_bVideoRecordingStarted )
+       m_pMenuItemVideoRecording->setTitle("Stop Video Recording");
+   m_pMenuItemVideoRecording->setTooltip("Manually start or stop video recording right now for this video stream");
+   m_IndexRecording = addMenuItem(m_pMenuItemVideoRecording);
+
    m_IndexExpert = addMenuItem(new MenuItem("Advanced Video Settings", "Change advanced video parameters for current profile."));
    m_pMenuItems[m_IndexExpert]->showArrow();
 }
@@ -256,17 +261,17 @@ void MenuVehicleVideo::valuesToUI()
    else
       m_pItemsSelect[3]->setSelectedIndex(1);
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS )
       m_pItemsSelect[7]->setSelectedIndex(1);
    else
       m_pItemsSelect[7]->setSelectedIndex(0);
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
       m_pItemsSelect[6]->setSelectedIndex(1);
    else
       m_pItemsSelect[6]->setSelectedIndex(0);
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
       m_pItemsSelect[8]->setSelectedIndex(1);
    else
       m_pItemsSelect[8]->setSelectedIndex(0);
@@ -402,23 +407,23 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    pProfile->bitrate_fixed_bps = m_pItemsSlider[2]->getCurrentValue()*1000*1000/4;
 
-   pProfile->encoding_extra_flags &= ~ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+   pProfile->uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
    if ( 0 == m_pItemsRadio[0]->getSelectedIndex() )
-      pProfile->encoding_extra_flags |= ENCODING_EXTRA_FLAG_ONE_WAY_FIXED_VIDEO;
+      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
 
    if ( m_pItemsSelect[8]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION );
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION );
    else
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags | VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
   
    if ( m_pItemsSelect[7]->getSelectedIndex() == 0 )
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags & (~ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS );
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
    else
-      pProfile->encoding_extra_flags = pProfile->encoding_extra_flags | ENCODING_EXTRA_FLAG_ENABLE_RETRANSMISSIONS;
+      pProfile->uEncodingFlags = pProfile->uEncodingFlags | VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS;
 
 
    if ( ! forceUpdates )
-   if ( pProfile->encoding_extra_flags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags )
+   if ( pProfile->uEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags )
    if ( pProfile->width == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
    if ( pProfile->height == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
    if ( pProfile->fps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
@@ -432,7 +437,7 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    if ( pProfile->fps != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
      log_line("Sending new video FPS %d -> %d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps, pProfile->fps);
-   log_line("Sending video encoding extra flags: %s", str_format_video_encoding_flags(pProfile->encoding_extra_flags));
+   log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uEncodingFlags));
       
    u8 buffer[1024];
    memcpy( buffer, &(profiles[0]), MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile) );
@@ -553,4 +558,18 @@ void MenuVehicleVideo::onSelectItem()
 
    if ( m_IndexExpert == m_SelectedIndex )
       add_menu_to_stack(new MenuVehicleVideoEncodings());
+
+   if ( m_IndexRecording == m_SelectedIndex )
+   {
+      if ( g_bVideoRecordingStarted )
+      {
+         if ( 0 == ruby_stop_recording() )
+            m_pMenuItemVideoRecording->setTitle("Start Video Recording");
+      }
+      else
+      {
+         if ( 0 == ruby_start_recording() )
+            m_pMenuItemVideoRecording->setTitle("Stop Video Recording");
+      }
+   }
 }

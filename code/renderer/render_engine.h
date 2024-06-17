@@ -2,26 +2,72 @@
 
 #include "../base/base.h"
 
+#define MAX_FONT_CHARS 256
+#define MAX_FONT_KERINGS 1024
+#define MAX_RAW_FONTS 100
+#define MAX_RAW_IMAGES 100
+#define MAX_RAW_ICONS 100
+
+
+typedef struct
+{
+   int charId;
+   int imgXOffset;
+   int imgYOffset;
+   int width;
+   int height;
+   int xOffset;
+   int yOffset;
+   int xAdvance;
+} RenderEngineRawFontChar;
+
+typedef struct
+{
+   //struct _fbg_img* pImage;
+   void* pImageObject;
+   int lineHeight;
+   int baseLine;
+   int charCount;
+   int charIdFirst;
+   int charIdLast;
+   RenderEngineRawFontChar chars[MAX_FONT_CHARS];
+
+   int keringsCount;
+   int kerings[MAX_FONT_KERINGS][3]; // first char, second char, kering distance
+
+   float dxLetters; // percent -1...0...1 of font height
+
+} RenderEngineRawFont;
+
+
 class RenderEngine
 {
    public:
      RenderEngine();
      virtual ~RenderEngine();
 
+     virtual bool initEngine();
+     virtual bool uninitEngine();
      int getScreenWidth();
      int getScreenHeight();
      float getAspectRatio();
      float getPixelWidth();
      float getPixelHeight();
+     virtual void* getDrawContext();
 
      float setGlobalAlfa(float alfa);
      float getGlobalAlfa();
+     bool isRectBlendingEnabled();
+     void enableRectBlending();
+     void disableRectBlending();
+     void setClearBufferByte(u8 uClearByte);
 
      virtual void highlightFirstWordOfLine(bool bHighlight);
      virtual bool drawBackgroundBoundingBoxes(bool bEnable);
 
      virtual void setColors(double* color);
      virtual void setColors(double* color, float fAlfaScale);
+     virtual void setFill(double* pColor);
      virtual void setFill(float r, float g, float b, float a);
      virtual void setStroke(double* color);
      virtual void setStroke(double* color, float fStrokeSize); 
@@ -35,8 +81,8 @@ class RenderEngine
      virtual void clearFontBackgroundBoundingBoxStrikeColor();
      virtual void setBackgroundBoundingBoxPadding(float fPadding);
 
-     virtual int loadFont(const char* szFontFile);
-     virtual void freeFont(u32 idFont);
+     virtual int loadRawFont(const char* szFontFile);
+     virtual void freeRawFont(u32 idFont);
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
      virtual u32 loadIcon(const char* szFile);
@@ -49,12 +95,14 @@ class RenderEngine
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId);
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId);
+     virtual void bltIcon(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 iconId);
 
-     virtual float getFontHeight(u32 fontId);
+     virtual float getRawFontHeight(u32 fontId);
      virtual float textHeight(u32 fontId);
      virtual float textWidth(u32 fontId, const char* szText);
-     virtual float textHeightScaled(u32 fontId, float fScale);
-     virtual float textWidthScaled(u32 fontId, float fScale, const char* szText);
+     virtual float textRawHeight(u32 fontId);
+     virtual float textRawWidth(u32 fontId, const char* szText);
+     virtual float textRawWidthScaled(u32 fontId, float fScale, const char* szText);
      virtual void drawText(float xPos, float yPos, u32 uFontId, const char* szText);
      virtual void drawTextNoOutline(float xPos, float yPos, u32 fontId, const char* szText);
      virtual void drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText);
@@ -62,8 +110,7 @@ class RenderEngine
      virtual void drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
      virtual float getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId);
      virtual float drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId);
-     virtual float drawMessageLines(const char* text, float xPos, float yPos, float line_spacing_percent, float max_width, u32 fontId);
-
+     
      virtual void drawLine(float x1, float y1, float x2, float y2);
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);
      virtual void drawRoundRect(float xPos, float yPos, float fWidth, float fHeight, float fCornerRadius);
@@ -79,27 +126,53 @@ class RenderEngine
      bool rectIntersect(float x1, float y1, float w1, float h1, float x2, float y2, float w2, float h2);
 
    protected:
+      virtual int _getRawFontIndexFromId(u32 fontId);
+      virtual RenderEngineRawFont* _getRawFontFromId(u32 fontId);
+      virtual void* _loadRawFontImageObject(const char* szFileName);
+      virtual void _freeRawFontImageObject(void* pImageObject);
+
+      virtual float _get_raw_space_width(RenderEngineRawFont* pFont);
+      virtual float _get_raw_char_width(RenderEngineRawFont* pFont, int ch);
+      virtual void _drawSimpleTextBoundingBox(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
+      virtual void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
+      virtual void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
+
       int m_iRenderDepth;
       int m_iRenderWidth;
       int m_iRenderHeight;
       float m_fPixelWidth;
       float m_fPixelHeight;
 
+      u8 m_uClearBufferByte;
       float m_fGlobalAlfa;
+      bool m_bEnableRectBlending;
       bool m_bEnableFontScaling;
       bool m_bHighlightFirstWord;
       bool m_bDrawBackgroundBoundingBoxes;
       float m_fBoundingBoxPadding;
 
+      bool m_bDisableTextOutline;
+
       double m_ColorTextBackgroundBoundingBoxStrike[4];
       bool  m_bDrawStrikeOnTextBackgroundBoundingBoxes;
+
+      u8 m_ColorFill[4];
+      u8 m_ColorStroke[4];
+      u8 m_ColorTextBoundingBoxBgFill[4];
+      float m_fStrokeSize;
+
+      u8 m_uTextFontMixColor[4];
+      RenderEngineRawFont* m_pRawFonts[MAX_RAW_FONTS];
+      u32 m_RawFontIds[MAX_RAW_FONTS];
+      u32 m_CurrentRawFontId;
+      int m_iCountRawFonts;
 };
 
 
 
 RenderEngine* render_init_engine();
 RenderEngine* renderer_engine();
-bool render_engine_is_raw();
+bool render_engine_uses_raw_fonts();
 
 void render_free_engine();
 

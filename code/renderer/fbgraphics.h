@@ -194,6 +194,7 @@ extern "C" {
         int16_t fps;
 #endif
 
+        int s_iEnableRectBlending;
         int disableFontOutline;
         //! Current FPS as a string
         char fps_char[10];
@@ -374,6 +375,8 @@ extern "C" {
     */
     extern void fbg_fadeUp(struct _fbg *fbg, unsigned char rgb_fade_amount);
 
+    extern void fbg_enable_rect_blending(struct _fbg *fbg, int iEnable);
+
     //! fast grayscale background clearing
     /*!
       \param fbg pointer to a FBG context / data structure
@@ -457,7 +460,7 @@ extern "C" {
       \param b
       \sa fbg_frect(), fbg_recta()
     */
-    extern void fbg_rect(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b);
+    extern void fbg_rect(struct _fbg *fbg, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
     //! draw a rectangle with alpha transparency
     /*!

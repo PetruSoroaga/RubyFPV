@@ -38,6 +38,7 @@ MenuItemText::MenuItemText(const char* title)
 :MenuItem(title)
 {
    m_bEnabled = true;
+   m_bIsSelectable = false;
    m_bIsEditable = false;
    m_bUseSmallText = false;
    m_fScale = 1.0;
@@ -48,6 +49,7 @@ MenuItemText::MenuItemText(const char* title, bool bUseSmallText)
 :MenuItem(title)
 {
    m_bEnabled = true;
+   m_bIsSelectable = false;
    m_bIsEditable = false;
    m_bUseSmallText = bUseSmallText;
    m_fScale = 1.0;
@@ -58,6 +60,7 @@ MenuItemText::MenuItemText(const char* title,  bool bUseSmallText, float fMargin
 :MenuItem(title)
 {
    m_bEnabled = true;
+   m_bIsSelectable = false;
    m_bIsEditable = false;
    m_bUseSmallText = bUseSmallText;
    m_fScale = 1.0;
@@ -70,7 +73,12 @@ MenuItemText::~MenuItemText()
 
 bool MenuItemText::isSelectable()
 {
-   return false;
+   return m_bIsSelectable;
+}
+
+void MenuItemText::makeSelectable()
+{
+   m_bIsSelectable = true;
 }
 
 void MenuItemText::setSmallText()
@@ -103,7 +111,7 @@ void MenuItemText::Render(float xPos, float yPos, bool bSelected, float fWidthSe
    if ( m_bEnabled )
       g_pRenderEngine->setColors(get_Color_MenuText());
    else
-      g_pRenderEngine->setColors(get_Color_ItemDisabledText());
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
 
    if ( m_bUseSmallText )
       g_pRenderEngine->drawMessageLines(xPos + m_fMarginX, yPos, m_pszTitle, MENU_TEXTLINE_SPACING, m_pMenu->getUsableWidth()-m_fMarginX, g_idFontMenuSmall);

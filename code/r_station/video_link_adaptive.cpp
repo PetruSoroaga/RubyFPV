@@ -64,7 +64,7 @@ void video_link_adaptive_switch_to_med_level(u32 uVehicleId)
    if ( NULL == pModel )
       return;
 
-   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
    if ( ! isAdaptiveVideoOn )
       return;
 
@@ -169,7 +169,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( NULL == pModel )
       return;
 
-   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
    if ( ! isAdaptiveVideoOn )
       return;
 
@@ -208,10 +208,11 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    int iLevelsLQ = pModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
    int iMaxLevels = iLevelsHQ;
    iMaxLevels +=  iLevelsMQ;
-   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags & ENCODING_EXTRA_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
+   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO) )
       iMaxLevels += iLevelsLQ;
 
-   // Higher value means more aggresive adjustments. From 0 to 1
+   // videoAdjustmentStrength is 1 (lowest strength) to 10 (highest strength)
+   // fParamsChangeStrength: higher value means more aggresive adjustments. From 0.1 to 1
    float fParamsChangeStrength = (float)pModel->video_params.videoAdjustmentStrength / 10.0;
    
    // When on HQ video profile, switch faster to MQ video profile;
@@ -302,7 +303,9 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       }
    }
 
-   // Max intervals is MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * 20 ms = 2.4 seconds
+   // Max interval time we can check is:
+   // MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS * CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL ms
+   //    = 3.6 seconds
    // Minus one because the current index is still processing/invalid
 
    int iIntervalsToCheckDown = (1.0-0.5*fParamsChangeStrength) * MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS;
@@ -332,7 +335,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    int iCountReRetransmissionsUp = 0;
    int iCountMissingSegmentsUp = 0;
 
-   int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uCurrentIntervalIndex - 1;
+   int iIndex = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex - 1;
    if ( iIndex < 0 )
       iIndex = MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS-1;
 
@@ -527,7 +530,7 @@ void video_link_adaptive_periodic_loop()
          continue;
       }
 
-      int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+      int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
       int isAdaptiveKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ? 0 : 1;
 
       if ( ! isAdaptiveVideoOn )
@@ -562,18 +565,19 @@ void video_link_adaptive_periodic_loop()
          iMissing = g_pVideoProcessorRxList[k]->getCurrentlyMissingVideoPackets();
          break;
       }
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = (u16) iMissing;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = (u16) iMissing;
 
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex++;
-      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex >= MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS )
-         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex++;
+      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex >= MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS )
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex = 0;
 
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = 0;
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = 0;
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = 0;
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRequestedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = 0;
-      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRetriedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uCurrentIntervalIndex] = 0;
-      
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputCleanVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsOuputRecontructedVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsMissingVideoPackets[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRequestedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsRetriedRetransmissions[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+      g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i].iCurrentIntervalIndex] = 0;
+
       // Do adaptive video calculations only after we start receiving the video stream
       // (a valid initial last requested level shift is obtained from the received video stream)
 

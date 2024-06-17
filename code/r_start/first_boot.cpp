@@ -75,6 +75,18 @@ void do_first_boot_initialization_raspberry(bool bIsVehicle, u32 uBoardType)
    }
 }
 
+
+void do_first_boot_initialization_radxa(bool bIsVehicle, u32 uBoardType)
+{
+   log_line("Doing first time boot setup for Radxa platform...");
+
+   hw_execute_bash_command("sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0", NULL);
+   hw_execute_bash_command("sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0", NULL);
+   hw_execute_bash_command("sudo sysctl -p", NULL);
+   hw_execute_bash_command("PATH=\"/usr/sbin:/usr/local/sbin:$PATH\"", NULL);
+}
+
+
 void do_first_boot_initialization_openipc(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for OpenIPC platform...");
@@ -89,6 +101,9 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
 
    #ifdef HW_PLATFORM_RASPBERRY
    do_first_boot_initialization_raspberry(bIsVehicle, uBoardType);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   do_first_boot_initialization_radxa(bIsVehicle, uBoardType);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    do_first_boot_initialization_openipc(bIsVehicle, uBoardType);
@@ -196,13 +211,14 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
    
    if ( bIsVehicle )
    {
+      s_ModelFirstBoot.hwCapabilities.uBoardType = uBoardType;
+
       #ifdef HW_PLATFORM_RASPBERRY
 
       hardware_mount_boot();
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-      s_ModelFirstBoot.hwCapabilities.uBoardType = uBoardType;
       s_ModelFirstBoot.processesPriorities.iFreqARM = 900;
       if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
          s_ModelFirstBoot.processesPriorities.iFreqARM = 1000;

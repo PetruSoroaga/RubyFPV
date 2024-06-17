@@ -56,7 +56,7 @@ float osd_render_stats_video_bitrate_history_get_height()
 
    height += hGraph + height_text;
 
-   //if ( ! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   //if ( ! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
    //   height += height_text*s_OSDStatsLineSpacing;
    //else
       height += hGraph2 + height_text*s_OSDStatsLineSpacing + height_text;
@@ -271,7 +271,7 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
 
    if ( uMaxQuant == uMinQuant || uMaxQuant == uMinQuant+1 )
    {
-      //if ( ! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+      //if ( ! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
       //{
       //   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Auto Adjustments is Off.");
       //   return;
@@ -296,7 +296,7 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
    y += height_text*s_OSDStatsLineSpacing;
 
    strcpy(szBuff, "Auto Quantization: On");
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].encoding_extra_flags) & ENCODING_EXTRA_FLAG_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
       strcpy(szBuff, "Auto Quantization: Off");
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
