@@ -51,11 +51,12 @@ int s_iFailedInitRadioInterface = -1;
 u32 s_uTimeLastCheckedAuxiliaryLinks = 0;
 fd_set s_RadioAuxiliaryRxReadSet;
 
+u32 s_uTimeLastSetRadioLinksMonitorMode = 0;
+
 int radio_links_has_failed_interfaces()
 {
    return s_iFailedInitRadioInterface;
 }
-
 
 void radio_links_reinit_radio_interfaces()
 {
@@ -121,6 +122,8 @@ void radio_links_reinit_radio_interfaces()
    // Remove radio initialize file flag
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_RADIOS_CONFIGURED);
    hw_execute_bash_command(szComm, NULL);
+
+   radio_links_set_monitor_mode();
 
    char szCommRadioParams[64];
    strcpy(szCommRadioParams, "-initradio");
@@ -214,6 +217,8 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
       g_SM_RadioStats.radio_interfaces[i].openedForRead = 0;
       g_SM_RadioStats.radio_interfaces[i].openedForWrite = 0;
    }
+
+   radio_links_set_monitor_mode();
 
    s_iFailedInitRadioInterface = -1;
 
@@ -309,6 +314,7 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
    }
    log_line("OPEN RADIO INTERFACES END =====================================================================");
    log_line("");
+   radio_links_set_monitor_mode();
 }
 
 void radio_links_open_rxtx_radio_interfaces()
@@ -321,6 +327,8 @@ void radio_links_open_rxtx_radio_interfaces()
       log_error_and_alarm("Invalid parameters for opening radio interfaces");
       return;
    }
+
+   radio_links_set_monitor_mode();
 
    log_line("Opening RX/TX radio interfaces for current vehicle (firmware: %s)...", str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
 
@@ -525,6 +533,7 @@ void radio_links_open_rxtx_radio_interfaces()
    log_line("Finished opening RX/TX radio interfaces.");
    log_line("OPEN RADIO INTERFACES END ===========================================================");
    log_line("");
+   radio_links_set_monitor_mode();
 }
 
 
@@ -590,4 +599,49 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
    // Radio flags are applied on the fly, when sending each radio packet
    
    return true;
+}
+
+
+void radio_links_set_monitor_mode()
+{
+   s_uTimeLastSetRadioLinksMonitorMode = g_TimeNow;
+   char szComm[128];
+   u32 uDelayMS = 20;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioHWInfo )
+         continue;
+      if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
+         continue;
+
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      //sprintf(szComm, "iwconfig %s mode monitor 2>&1", pRadioHWInfo->szName );
+      //hw_execute_bash_command(szComm, NULL);
+      //hardware_sleep_ms(uDelayMS);
+
+      sprintf(szComm, "iw dev %s set monitor none 2>&1", pRadioHWInfo->szName);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_sleep_ms(uDelayMS);
+
+      sprintf(szComm, "iw dev %s set monitor fcsfail 2>&1", pRadioHWInfo->szName);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_sleep_ms(uDelayMS);
+      #endif
+
+      #ifdef HW_PLATFORM_RASPBERRY
+      sprintf(szComm, "iw dev %s set monitor none 2>&1", pRadioHWInfo->szName);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_sleep_ms(uDelayMS);
+
+      sprintf(szComm, "iw dev %s set monitor fcsfail 2>&1", pRadioHWInfo->szName);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_sleep_ms(uDelayMS);
+      #endif
+   }
+}
+
+u32 radio_linkgs_get_last_set_monitor_time()
+{
+   return s_uTimeLastSetRadioLinksMonitorMode;
 }

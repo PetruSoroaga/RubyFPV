@@ -218,6 +218,11 @@ bool RenderEngine::isRectBlendingEnabled()
    return m_bEnableRectBlending;
 }
 
+void RenderEngine::setRectBlendingEnabled(bool bEnable)
+{
+   m_bEnableRectBlending = bEnable;
+}
+
 void RenderEngine::enableRectBlending()
 {
    m_bEnableRectBlending = true;
@@ -240,15 +245,63 @@ void RenderEngine::setColors(double* color)
 
 void RenderEngine::setColors(double* color, float fAlfaScale)
 {
+   m_ColorFill[0] = color[0];
+   m_ColorFill[1] = color[1];
+   m_ColorFill[2] = color[2];
+
+   m_ColorStroke[0] = color[0];
+   m_ColorStroke[1] = color[1];
+   m_ColorStroke[2] = color[2];
+
+   m_uTextFontMixColor[0] = color[0];
+   m_uTextFontMixColor[1] = color[1];
+   m_uTextFontMixColor[2] = color[2];
+
+   float fAlpha = color[3]*m_fGlobalAlfa*fAlfaScale;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_ColorFill[3] = fAlpha * 255;
+   m_ColorStroke[3] = fAlpha * 255;
+   m_uTextFontMixColor[3] = 255 * fAlpha;
 }
 
 void RenderEngine::setFill(double* pColor)
 {
- 
+   m_ColorFill[0] = pColor[0];
+   m_ColorFill[1] = pColor[1];
+   m_ColorFill[2] = pColor[2];
+
+   m_uTextFontMixColor[0] = pColor[0];
+   m_uTextFontMixColor[1] = pColor[1];
+   m_uTextFontMixColor[2] = pColor[2];
+
+   float fAlpha = pColor[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_ColorFill[3] = fAlpha * 255;
+   m_uTextFontMixColor[3] = 255 * fAlpha;
 }
 
 void RenderEngine::setFill(float r, float g, float b, float a)
 {
+   m_ColorFill[0] = r;
+   m_ColorFill[1] = g;
+   m_ColorFill[2] = b;
+   m_uTextFontMixColor[0] = r;
+   m_uTextFontMixColor[1] = g;
+   m_uTextFontMixColor[2] = b;
+
+   float fAlpha = a*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+   m_ColorFill[3] = fAlpha * 255;
+   m_uTextFontMixColor[3] = 255 * fAlpha;
 }
 
 void RenderEngine::setStroke(double* color)
@@ -258,19 +311,51 @@ void RenderEngine::setStroke(double* color)
 
 void RenderEngine::setStroke(double* color, float fStrokeSize)
 {
+   m_ColorStroke[0] = color[0];
+   m_ColorStroke[1] = color[1];
+   m_ColorStroke[2] = color[2];
+
+   float fAlpha = color[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_ColorStroke[3] = fAlpha * 255;
+   m_fStrokeSize = fStrokeSize;
+
+   // Is it in pixel size? convert to pixels;
+   if ( fStrokeSize < 0.8 )
+      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
 }
 
 void RenderEngine::setStroke(float r, float g, float b, float a)
 {
+   m_ColorStroke[0] = r;
+   m_ColorStroke[1] = g;
+   m_ColorStroke[2] = b;
+
+   float fAlpha = a*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_ColorStroke[3] = fAlpha * 255;
 }
 
 float RenderEngine::getStrokeSize()
 {
-   return 0.0;
+   return m_fStrokeSize;
 }
 
 void RenderEngine::setStrokeSize(float fStrokeSize)
 {
+   m_fStrokeSize = fStrokeSize;
+
+   // Is it not in pixel size? convert to pixels;
+   if ( fStrokeSize < 0.8 )
+      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
 }
 
 void RenderEngine::setFontColor(u32 fontId, double* color)
@@ -279,6 +364,17 @@ void RenderEngine::setFontColor(u32 fontId, double* color)
 
 void RenderEngine::setFontBackgroundBoundingBoxFillColor(double* color)
 {
+   m_ColorTextBoundingBoxBgFill[0] = color[0];
+   m_ColorTextBoundingBoxBgFill[1] = color[1];
+   m_ColorTextBoundingBoxBgFill[2] = color[2];
+
+   float fAlpha = color[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_ColorTextBoundingBoxBgFill[3] = fAlpha * 255;
 }
 
 void RenderEngine::enableFontScaling(bool bEnable)

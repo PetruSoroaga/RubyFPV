@@ -436,9 +436,11 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    bool bOldAudioEnabled = false;
    osd_parameters_t osd_temp;
+   video_parameters_t oldVideoParams;
 
    bOldAudioEnabled = pModel->audio_params.enabled;
    memcpy((u8*)&osd_temp, (u8*)&(pModel->osd_params), sizeof(osd_parameters_t));
+   memcpy(&oldVideoParams, &(pModel->video_params), sizeof(video_parameters_t));
 
    char szFile[MAX_FILE_PATH_SIZE];
    sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
@@ -752,6 +754,12 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    log_line("[Event] No critical change in radio params on the received model settings. Just notify components to reload model.");
    
    send_model_changed_message_to_router(MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE, 0);
+
+   if ( (pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldVideoParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+   {
+      log_line("Changed video codec. New codec: %s", (pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
+      send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
+   }
 
    log_line("[Event] Handled of event OnReceivedModelSettings complete.");
    return true;

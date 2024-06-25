@@ -113,7 +113,24 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       sprintf(szOutput, "%u", uAlarms);
    }
    char szBuff[128];
-   if ( ! (uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE) )
+   if ( uAlarms & ALARM_ID_CONTROLLER_IO_ERROR )
+   {
+      char szFlags1[128];
+      szFlags1[0] = 0;
+      switch ( uFlags1 )
+      {
+         case ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT_TRUNCATED: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT_TRUNCATED"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT_WOULD_BLOCK : strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT_WOULD_BLOCK"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK"); break;
+         default: sprintf(szFlags1, "Unknown (%d)", uFlags1);
+
+      }
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), ", Flags1: %s, Flags2: %u", szFlags1, uFlags2);
+   }
+   else if ( ! (uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE) )
    {
       char szFlags1[128];
       szFlags1[0] = 0;

@@ -64,11 +64,12 @@ typedef struct
    int videoAdjustmentStrength; // 1..10 (from 10% to 100% strength)
    u32 lowestAllowedAdaptiveVideoBitrate;
    u32 uMaxAutoKeyframeIntervalMs; // in milisec
-   u32 uVideoExtraFlags;
+   u32 uVideoExtraFlags; // Check VIDEO_FLAG_* enum
     // bit 0: Fill H264 SPS timings 
     // bit 1: Ignore Tx spikes
     // bit 2: enable HDMI output
     // bit 3: retransmissions are started fast
+    // bit 4: 1 to enable H265, 0 to enable H264
    u32 dummy[3];
 } video_parameters_t;
 

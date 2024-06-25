@@ -22,6 +22,7 @@ class MenuVehicleOSDStats: public Menu
       int m_IndexRadioRxHistoryVehicleBig;
       int m_IndexRadioRxGraphController;
       int m_IndexAudioDecodeStats;
+      int m_IndexVehicleDevStats;
       int m_IndexRadioRefreshInterval, m_IndexVideoRefreshInterval, m_IndexSnapshot, m_IndexSnapshotTimeout;
       int m_IndexStatsVideoStreamKeyFramesInfo, m_IndexRefreshIntervalVideoBitrateHistory;
       int m_IndexTelemetryStats;
@@ -30,7 +31,7 @@ class MenuVehicleOSDStats: public Menu
       int m_IndexPanelsDirection;
 
       int m_IndexDevStatsVideo, m_IndexDevStatsVehicleTx, m_IndexDevVehicleVideoBitrateHistory, m_IndexDevStatsRadio, m_IndexDevFullRXStats, m_IndexDevStatsVehicleVideo, m_IndexDevStatsVehicleVideoGraphs;
-      MenuItemSlider* m_pItemsSlider[35];
-      MenuItemSelect* m_pItemsSelect[35];
-      MenuItemRange* m_pItemsRange[35];
+      MenuItemSlider* m_pItemsSlider[40];
+      MenuItemSelect* m_pItemsSelect[40];
+      MenuItemRange* m_pItemsRange[40];
 };

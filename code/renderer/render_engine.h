@@ -58,6 +58,7 @@ class RenderEngine
      float setGlobalAlfa(float alfa);
      float getGlobalAlfa();
      bool isRectBlendingEnabled();
+     void setRectBlendingEnabled(bool bEnable);
      void enableRectBlending();
      void disableRectBlending();
      void setClearBufferByte(u8 uClearByte);
@@ -159,9 +160,9 @@ class RenderEngine
       u8 m_ColorFill[4];
       u8 m_ColorStroke[4];
       u8 m_ColorTextBoundingBoxBgFill[4];
+      u8 m_uTextFontMixColor[4];
       float m_fStrokeSize;
 
-      u8 m_uTextFontMixColor[4];
       RenderEngineRawFont* m_pRawFonts[MAX_RAW_FONTS];
       u32 m_RawFontIds[MAX_RAW_FONTS];
       u32 m_CurrentRawFontId;

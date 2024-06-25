@@ -5,10 +5,11 @@
 #include "hw_procs.h"
 #include <errno.h>
 #include <unistd.h>
+#if defined(HW_PLATFORM_RADXA_ZERO3)
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm_fourcc.h> 
-
+#endif
 
 #define MAX_HDMI_RESOLUTIONS 30
 #define MAX_RESOLUTION_REFRESH_RATES_COUNT 10

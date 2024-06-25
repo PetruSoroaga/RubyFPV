@@ -51,15 +51,15 @@ static int s_iVideoCountOnDisk = 0;
 
 static int s_iMediaBootCount = 0;
 static int s_iMediaInitCount = 0;
-static char s_szMediaCurrentScreenshotFileName[1024];
-static char s_szMediaCurrentVideoFileInfo[1024];
+static char s_szMediaCurrentScreenshotFileName[MAX_FILE_PATH_SIZE];
+static char s_szMediaCurrentVideoFileInfo[MAX_FILE_PATH_SIZE];
 
 void _media_remove_invalid_files()
 {
    DIR *d;
    FILE* fd;
    struct dirent *dir;
-   char szFile[1024];
+   char szFile[MAX_FILE_PATH_SIZE];
    char szComm[1024];
    log_line("Searching and removing invalid media files...");
    d = opendir(FOLDER_MEDIA);
@@ -84,6 +84,9 @@ void _media_remove_invalid_files()
             log_softerror_and_alarm("Failed to open file [%s] for checking it's size.", szFile);
          if ( lSize > 3 )
             continue;
+
+         // Remove small files (less than 3 bytes)
+
          log_line("Removing invalid media file: [%s]", dir->d_name);
 
          // Remove invalid file and info file for it
@@ -95,7 +98,7 @@ void _media_remove_invalid_files()
          pos++;
 
          szFile[pos] = 0;
-         strcat(szFile, "h264");
+         strcat(szFile, "h26*");
          snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
 
@@ -129,7 +132,7 @@ bool media_init_and_scan()
    s_szMediaCurrentVideoFileInfo[0] = 0;
    s_iMediaInitCount++;
 
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_BOOT_COUNT);
    FILE* fd = fopen(szFile, "r");
@@ -195,7 +198,7 @@ char* media_get_screenshot_filename()
    strcpy(vehicle_name, "none");
    if ( NULL != g_pCurrentModel )
       strcpy(vehicle_name, g_pCurrentModel->vehicle_name);
-   if ( 0 == strlen(vehicle_name) || (1 == strlen(vehicle_name) && vehicle_name[0] == ' ') )
+   if ( (0 == strlen(vehicle_name)) || (1 == strlen(vehicle_name) && vehicle_name[0] == ' ') )
       strcpy(vehicle_name, "none");
     
    str_sanitize_filename(vehicle_name);
@@ -211,7 +214,7 @@ char* media_get_video_filename()
    strcpy(vehicle_name, "none");
    if ( NULL != g_pCurrentModel )
       strcpy(vehicle_name, g_pCurrentModel->vehicle_name);
-   if ( 0 == strlen(vehicle_name) || (1 == strlen(vehicle_name) && vehicle_name[0] == ' ') )
+   if ( (0 == strlen(vehicle_name)) || (1 == strlen(vehicle_name) && vehicle_name[0] == ' ') )
       strcpy(vehicle_name, "none");
 
    str_sanitize_filename(vehicle_name);
@@ -229,8 +232,9 @@ bool media_take_screenshot(bool bIncludeOSD)
       hardware_sleep_ms(20);
    }
 
-   char szFile[1024];
    media_get_screenshot_filename();
+
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_MEDIA);
    strcat(szFile, s_szMediaCurrentScreenshotFileName);
    Popup* p = NULL;

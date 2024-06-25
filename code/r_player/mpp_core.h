@@ -13,9 +13,11 @@
 #include <rockchip/rk_mpi.h>
 
 
-int mpp_init();
+int mpp_init(bool bUseH265Decoder);
 int mpp_uninit();
 int mpp_start_decoding_thread();
 int mpp_feed_data_to_decoder(void* pData, int iLength);
 int mpp_mark_end_of_stream();
+bool mpp_get_clear_stream_changed_flag();
+
 

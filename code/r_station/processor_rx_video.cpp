@@ -907,6 +907,11 @@ int ProcessorRxVideo::getVideoFPS()
    return m_SM_VideoDecodeStats.fps;
 }
 
+int ProcessorRxVideo::getVideoType()
+{
+   return m_SM_VideoDecodeStats.video_stream_and_type >> 4;
+}
+
 shared_mem_video_stream_stats* ProcessorRxVideo::getVideoDecodeStats()
 {
    return &m_SM_VideoDecodeStats;

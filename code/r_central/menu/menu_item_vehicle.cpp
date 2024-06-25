@@ -143,6 +143,35 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
       fIconHeight = height_text*1.9;
    float fIconWidth = fIconHeight/g_pRenderEngine->getAspectRatio();
 
+    double pC[4];
+   memcpy(pC, get_Color_MenuBg(), 4*sizeof(double));
+   pC[0] += 40; pC[1] += 35; pC[2] += 30;
+         
+   if ( bIsCurrentVehicle )
+   {
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
+      g_pRenderEngine->setStrokeSize(1);
+
+      float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
+      float h2 = getItemHeight(0.0) + 0.5*Menu::getSelectionPaddingY();
+
+      g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos, maxWidth, h2, 0.1*Menu::getMenuPaddingY());
+      g_pRenderEngine->setColors(get_Color_MenuText());
+   }
+   else if ( bIsCurrentSpectatorVehicle )
+   {
+      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
+      g_pRenderEngine->setStrokeSize(1);
+
+      float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
+      float h2 = getItemHeight(0.0) + 0.6*Menu::getSelectionPaddingY();
+
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos-0.4*Menu::getSelectionPaddingY(), maxWidth, h2, 0.1*Menu::getMenuPaddingY());
+      g_pRenderEngine->setColors(get_Color_MenuText());
+   }
+
    g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
    if ( bIsCurrentVehicle )
@@ -156,29 +185,6 @@ void MenuItemVehicle::Render(float xPos, float yPos, bool bSelected, float fWidt
       RenderBaseTitle(xPos+fIconWidth + height_text*0.5, yPos + height_text*0.6, bSelected, fWidthSelection - fIconWidth - height_text*0.8);
    else
       RenderBaseTitle(xPos+fIconWidth + height_text*0.5, yPos, bSelected, fWidthSelection - fIconWidth - height_text*0.8);
-
-   if ( bIsCurrentVehicle )
-   {
-      float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
-      float h2 = getItemHeight(0.0) + 0.5*Menu::getSelectionPaddingY();
-
-      g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->setStroke(get_Color_MenuText());
-      g_pRenderEngine->setFill(250,250,250,0.1);   
-      g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos, maxWidth, h2, 0.1*Menu::getMenuPaddingY());
-      g_pRenderEngine->setColors(get_Color_MenuText());
-   }
-   else if ( bIsCurrentSpectatorVehicle )
-   {
-      float maxWidth = fWidthSelection + Menu::getSelectionPaddingX();
-      float h2 = getItemHeight(0.0) + 0.6*Menu::getSelectionPaddingY();
-
-      g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->setStroke(get_Color_MenuText());
-      g_pRenderEngine->setFill(250,250,250,0.1);   
-      g_pRenderEngine->drawRoundRect(xPos-0.5*Menu::getSelectionPaddingX(), yPos-0.4*Menu::getSelectionPaddingY(), maxWidth, h2, 0.1*Menu::getMenuPaddingY());
-      g_pRenderEngine->setColors(get_Color_MenuText());
-   }
 }
 
 

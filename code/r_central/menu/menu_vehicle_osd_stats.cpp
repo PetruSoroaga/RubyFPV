@@ -315,6 +315,15 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
 
    addSeparator();
 
+   m_IndexVehicleDevStats = -1;
+   if ( pCS->iDeveloperMode )
+   {
+      m_pItemsSelect[34] = new MenuItemSelect("Vehicle Dev Stats", "Show developer statistics from vehicle state.");  
+      m_pItemsSelect[34]->addSelection("Off");
+      m_pItemsSelect[34]->addSelection("On");
+      m_pItemsSelect[34]->setUseMultiViewLayout();
+      m_IndexVehicleDevStats = addMenuItem(m_pItemsSelect[34]);
+   }
    m_pItemsSelect[26] = new MenuItemSelect("Audio: Decoding Stats", "Show statistics about the audio decoding process and quality.");  
    m_pItemsSelect[26]->addSelection("Off");
    m_pItemsSelect[26]->addSelection("On");
@@ -560,6 +569,14 @@ void MenuVehicleOSDStats::valuesToUI()
       m_pItemsSelect[7]->setSelectedIndex(3);
    else   
       m_pItemsSelect[7]->setSelectedIndex(0);
+
+   if ( -1 != m_IndexVehicleDevStats )
+   if ( pCS->iDeveloperMode )
+   {
+      m_pItemsSelect[34]->setSelectedIndex(0);
+      if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_VEHICLE_DEV_STATS )
+         m_pItemsSelect[34]->setSelectedIndex(1);
+   }
 }
 
 void MenuVehicleOSDStats::Render()
@@ -897,6 +914,16 @@ void MenuVehicleOSDStats::onSelectItem()
       sendToVehicle = true;
    }
    
+   if ( -1 != m_IndexVehicleDevStats )
+   if ( pCS->iDeveloperMode )
+   if ( m_IndexVehicleDevStats == m_SelectedIndex )
+   {
+      params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
+      if ( 1 == m_pItemsSelect[34]->getSelectedIndex() )
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
+      sendToVehicle = true;
+   }
+
    if ( m_IndexDevVehicleVideoBitrateHistory == m_SelectedIndex )
    {
       if ( NULL == g_pCurrentModel )

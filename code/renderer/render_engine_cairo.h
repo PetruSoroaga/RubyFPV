@@ -10,17 +10,8 @@ class RenderEngineCairo: public RenderEngine
      virtual ~RenderEngineCairo();
 
      virtual void* getDrawContext();
-     virtual void setColors(double* color);
-     virtual void setColors(double* color, float fAlfaScale);
-     virtual void setFill(double* pColor);
-     virtual void setFill(float r, float g, float b, float a);
-     virtual void setStroke(double* color);
      virtual void setStroke(double* color, float fStrokeSize); 
-     virtual void setStroke(float r, float g, float b, float a);
-     virtual float getStrokeSize();
      virtual void setStrokeSize(float fStrokeSize);
-     virtual void setFontColor(u32 fontId, double* color);
-     virtual void setFontBackgroundBoundingBoxFillColor(double* color);
 
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
@@ -46,7 +37,7 @@ class RenderEngineCairo: public RenderEngine
      virtual void fillCircle(float x, float y, float r);
      virtual void drawCircle(float x, float y, float r);
      virtual void drawArc(float x, float y, float r, float a1, float a2);
-
+     
    protected:
       virtual void* _loadRawFontImageObject(const char* szFileName);
       virtual void _freeRawFontImageObject(void* pImageObject);
@@ -62,11 +53,6 @@ class RenderEngineCairo: public RenderEngine
       u32 m_uRenderDrawSurfacesIds[2];
       cairo_surface_t *m_pMainCairoSurface[2];
       cairo_t* m_pCairoCtx;
-
-      float m_fColorFill[4];
-      float m_fColorStroke[4];
-      float m_fColorTextBoundingBoxBgFill[4];
-      float m_fStrokeSize;
 
       cairo_surface_t* m_pImages[MAX_RAW_IMAGES];
       u32 m_ImageIds[MAX_RAW_IMAGES];

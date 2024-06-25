@@ -59,8 +59,8 @@
 #define FILE_CONFIG_RTL_POWER "rtlpower.cfg"
 
 #define FILE_TEMP_USB_TETHERING_DEVICE "usb_tethering"
-#define FILE_TEMP_VIDEO_MEM_FILE "tmpVideo.h264"
-#define FILE_TEMP_VIDEO_FILE "tmpVideo.h264"
+#define FILE_TEMP_VIDEO_MEM_FILE "tmpVideo.h26x"
+#define FILE_TEMP_VIDEO_FILE "tmpVideo.h26x"
 #define FILE_TEMP_VIDEO_FILE_INFO "tmpVideo.info"
 #define FILE_TEMP_VIDEO_FILE_PROCESS_ERROR "tmpErrorVideo.stat"
 #define FILE_TEMP_UPDATE_IN_PROGRESS "updateinprogress"
@@ -81,6 +81,9 @@
 #define FILE_TEMP_AUDIO_RECORDING "audio.wav"
 #define FILE_TEMP_RADIOS_CONFIGURED "radio_configured"
 
+#define SUBFOLDER_UPDATES_PI    "bin/pi/"
+#define SUBFOLDER_UPDATES_RADXA "bin/radxaz3/"
+#define SUBFOLDER_UPDATES_OIPC  "bin/ssc338q/"
 
 //-------------------------------------------
 
@@ -96,10 +99,8 @@
 #define FOLDER_OSD_PLUGINS "/home/pi/ruby/plugins/osd/"
 #define FOLDER_CORE_PLUGINS "/home/pi/ruby/plugins/core/"
 #define FOLDER_UPDATES "/home/pi/ruby/updates/"
-#define FOLDER_UPDATES_BIN "/home/pi/ruby/updates-bin/"
-#define FOLDER_UPDATES_BIN_SSC338Q "/home/pi/ruby/updates-bin/ssc338q/"
 #define FOLDER_RUBY_TEMP "/home/pi/ruby/tmp/"
-#define FOLDER_USB_MOUNT "/home/pi/ruby/tmp/tmpFiles/"
+#define FOLDER_USB_MOUNT "/home/pi/ruby/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/home/pi/ruby/tmp/memdisk/"
 #define FOLDER_WINDOWS_PARTITION "/boot/"
 
@@ -141,10 +142,8 @@
 #define FOLDER_OSD_PLUGINS "/home/radxa/ruby/plugins/osd/"
 #define FOLDER_CORE_PLUGINS "/home/radxa/ruby/plugins/core/"
 #define FOLDER_UPDATES "/home/radxa/ruby/updates/"
-#define FOLDER_UPDATES_BIN "/home/radxa/ruby/updates-bin/"
-#define FOLDER_UPDATES_BIN_SSC338Q "/home/radxa/ruby/updates-bin/ssc338q/"
 #define FOLDER_RUBY_TEMP "/home/radxa/ruby/tmp/"
-#define FOLDER_USB_MOUNT "/home/radxa/ruby/tmp/tmpFiles/"
+#define FOLDER_USB_MOUNT "/home/radxa/ruby/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/home/radxa/ruby/tmp/memdisk/"
 #define FOLDER_WINDOWS_PARTITION "/config/"
 
@@ -154,6 +153,7 @@
 #define FILE_FORCE_RESET "/boot/forcereset"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_radxa"
+#define VIDEO_PLAYER_UDP "ruby_player_radxa"
 #define VIDEO_PLAYER_OFFLINE "ruby_player_radxa"
 
 #endif
@@ -173,10 +173,8 @@
 #define FOLDER_OSD_PLUGINS "/root/ruby/plugins/osd/"
 #define FOLDER_CORE_PLUGINS "/root/ruby/plugins/core/"
 #define FOLDER_UPDATES "/tmp/updates/"
-#define FOLDER_UPDATES_BIN "/tmp/updates-bin/"
-#define FOLDER_UPDATES_BIN_SSC338Q "/home/pi/ruby/updates-bin/ssc338q/"
 #define FOLDER_RUBY_TEMP "/tmp/ruby/tmp/"
-#define FOLDER_USB_MOUNT "/tmp/tmpFiles/"
+#define FOLDER_USB_MOUNT "/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/tmp/ruby/memdisk/"
 #define FOLDER_WINDOWS_PARTITION ""
 
@@ -184,6 +182,8 @@
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/root/force_no_camera"
 #define FILE_FORCE_ROUTER "/root/forcerouter"
 #define FILE_FORCE_RESET "/root/forcereset"
+
+#define VIDEO_RECORDER_COMMAND "majestic"
 
 #endif
 

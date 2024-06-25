@@ -61,7 +61,7 @@ MenuSystemExpert::MenuSystemExpert(void)
    //m_IndexLogs = addMenuItem( new MenuItem("Logs Settings") );
    //m_pMenuItems[m_IndexLogs]->showArrow();
 
-   m_IndexDevStats = addMenuItem( new MenuItem("Dev Stats Windows") );
+   m_IndexDevStats = addMenuItem( new MenuItem("Developer Stats Windows") );
    m_pMenuItems[m_IndexDevStats]->showArrow();
 
    addMenuItem(new MenuItemSection("Video and Radio Link"));

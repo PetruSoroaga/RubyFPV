@@ -34,7 +34,7 @@ int GPIOUnexport(int pin)
 
 int GPIODirection(int pin, int dir)
 {
-  	return0;
+  	return 0;
 }
 
 int GPIORead(int pin)
@@ -44,7 +44,7 @@ int GPIORead(int pin)
 
 int GPIOWrite(int pin, int value)
 {
-  	return0;
+  	return 0;
 }
 
 int GPIOGetButtonsPullDirection()

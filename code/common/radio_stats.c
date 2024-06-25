@@ -1004,11 +1004,11 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
    {
       if ( uStreamPacketIndex > pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex + 1 )
       {
-         if ( uStreamIndex == STREAM_ID_TELEMETRY )
-            log_line("DEBUG missed telemetry packet for vehicle index %d: [vid: %u / %u]. last recv telem packet index: %u, now received telem pack index: %u",
-            iStreamsVehicleIndex, pPH->vehicle_id_src, 
-            pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uVehicleId,
-            pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex, uStreamPacketIndex);
+         //if ( uStreamIndex == STREAM_ID_TELEMETRY )
+         //   log_line("DEBUG missed telemetry packet for vehicle index %d: [vid: %u / %u]. last recv telem packet index: %u, now received telem pack index: %u",
+         //   iStreamsVehicleIndex, pPH->vehicle_id_src, 
+         //   pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uVehicleId,
+         //   pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex, uStreamPacketIndex);
          pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].iHasMissingStreamPacketsFlag = 1;
       }
       pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex = uStreamPacketIndex;

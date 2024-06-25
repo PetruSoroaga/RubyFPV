@@ -1340,6 +1340,8 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_H264_QUANTIZATION");
    else if ( iModelChangeType == MODEL_CHANGED_VIDEO_RESOLUTION )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_RESOLUTION");
+   else if ( iModelChangeType == MODEL_CHANGED_VIDEO_CODEC )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_CODEC");
    else if ( iModelChangeType == MODEL_CHANGED_THREADS_PRIORITIES )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_THREADS_PRIORITIES");
 

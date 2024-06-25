@@ -63,6 +63,7 @@
 
 #include "shared_vars.h"
 #include "rx_video_output.h"
+#include "rx_video_recording.h"
 #include "packets_utils.h"
 #include "links_utils.h"
 #include "timers.h"
@@ -116,25 +117,16 @@ t_video_eth_forward_info s_VideoETHOutputInfo;
 int s_iLastUSBVideoForwardPort = -1;
 int s_iLastUSBVideoForwardPacketSize = 0;
 
-sem_t* s_pSemaphoreStartRecord = NULL; 
-sem_t* s_pSemaphoreStopRecord = NULL; 
-bool s_bRecording = false;
-
-u32 s_TimeStartRecording = MAX_U32;
-char s_szFileRecording[1024];
-int s_iFileVideoRecording = -1;
-
-u32 s_TimeLastPeriodicChecksVideoRecording = 0;
 u32 s_TimeLastPeriodicChecksUSBForward = 0;
 
 u32 s_uLastVideoFrameTime = MAX_U32;
 
-int s_iLocalUDPVideoOutput = -1;
-struct sockaddr_in s_LocalUDPSocketAddr;
+int s_iLocalVideoPlayerUDPSocket = -1;
+struct sockaddr_in s_LocalVideoPlayuerUDPSocketAddr;
 
 u32 s_uLastTimeComputedOutputBitrate = 0;
-u32 s_uOutputBitratePipe = 0;
-u32 s_uOutputBitrateUDP = 0;
+u32 s_uOutputBitrateToLocalVideoPlayerPipe = 0;
+u32 s_uOutputBitrateToLocalVideoPlayerUDP = 0;
 
 char s_szOutputVideoPlayerFilename[MAX_FILE_PATH_SIZE];
 
@@ -148,7 +140,6 @@ static void * _thread_video_player(void *argument)
    return NULL;
 }
 */
-
 
 
 void _rx_video_output_launch_video_player()
@@ -213,10 +204,8 @@ void _rx_video_output_launch_video_player()
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
 
-   strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_PIPE);
-   
+   strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_UDP);
    log_line("[VideoOutput] Starting video player [%s]", s_szOutputVideoPlayerFilename);
-
    if ( hw_process_exists(s_szOutputVideoPlayerFilename) )
    {
       log_line("[VideoOutput] Video player process already running. Do nothing.");
@@ -226,27 +215,25 @@ void _rx_video_output_launch_video_player()
    ControllerSettings* pcs = get_ControllerSettings();
    char szPlayer[1024];
 
+   char szCodec[32];
+   szCodec[0] = 0;
+   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+      strcpy(szCodec, " -h265");
+
    if ( pcs->iNiceRXVideo >= 0 )
    {
       // Auto priority
-      sprintf(szPlayer, "./%s -p > /dev/null 2>&1&", s_szOutputVideoPlayerFilename);
-      //sprintf(szPlayer, "%s -z -o hdmi /tmp/ruby/fifovidstream > /dev/null 2>&1 &", s_szOutputVideoPlayerFilename);
+      sprintf(szPlayer, "./%s%s -p > /dev/null 2>&1&", s_szOutputVideoPlayerFilename, szCodec);
    }
    else
    {
       #ifdef HW_CAPABILITY_IONICE
       if ( pcs->ioNiceRXVideo > 0 )
-         sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s -p > /dev/null 2>&1 &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+         sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s%s -p > /dev/null 2>&1 &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename, szCodec);
       else
       #endif
-         sprintf(szPlayer, "nice -n %d ./%s -p > /dev/null 2>&1 &", pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+         sprintf(szPlayer, "nice -n %d ./%s%s -p > /dev/null 2>&1 &", pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename, szCodec);
    }
-
-   // To fix: remove this
-   //sprintf(szPlayer, "./%s -f /home/radxa/video0.h264 -m 1920x1080@60 &", s_szOutputVideoPlayerFilename);
-
-   //pthread_t th;
-   //pthread_create(&th, NULL, &_thread_video_player, NULL );
 
    hw_execute_bash_command(szPlayer, NULL);
    if ( pcs->iNiceRXVideo < 0 )
@@ -415,140 +402,12 @@ void _processor_rx_video_forward_create_eth_socket()
 }
 
 
-void _start_recording()
-{
-   if ( s_bRecording )
-      return;
-
-   log_line("[VideoOutput] Received request to start recording video.");
-
-   s_TimeStartRecording = get_current_timestamp_ms();
-   strcpy(s_szFileRecording, FOLDER_RUBY_TEMP);
-   strcat(s_szFileRecording, FILE_TEMP_VIDEO_FILE);
-
-   load_Preferences();
-   Preferences* p = get_Preferences();
-   if ( p->iVideoDestination == 1 )
-   {
-      strcpy(s_szFileRecording, FOLDER_TEMP_VIDEO_MEM);
-      strcat(s_szFileRecording, FILE_TEMP_VIDEO_MEM_FILE);
-      char szComm[256];
-      char szBuff[2048];
-      char szTemp[1024];
-   
-      sprintf(szComm, "umount %s", FOLDER_TEMP_VIDEO_MEM);
-      hw_execute_bash_command_silent(szComm, NULL);
-
-      hw_execute_bash_command_raw("free -m  | grep Mem", szBuff);
-      long lt, lu, lf;
-      sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
-      lf -= 200;
-      if ( lf < 50 )
-         return;
-
-      sprintf(szComm, "mount -t tmpfs -o size=%dM tmpfs %s ", (int)lf, FOLDER_TEMP_VIDEO_MEM);
-      hw_execute_bash_command(szComm, NULL);
-   }
-
-   if ( s_iFileVideoRecording > 0 )
-      close(s_iFileVideoRecording);
-
-   s_iFileVideoRecording = open(s_szFileRecording, O_CREAT | O_WRONLY | O_NONBLOCK);
-   if ( -1 == s_iFileVideoRecording )
-   {
-      char szFile[128];
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      FILE* fd = fopen(szFile, "a");
-      fprintf(fd, "%s%s\n", "Failed to create video recording file ", s_szFileRecording);
-      fclose(fd);
-   }
-
-   if ( RUBY_PIPES_EXTRA_FLAGS & O_NONBLOCK )
-   if ( 0 != fcntl(s_iFileVideoRecording, F_SETFL, O_NONBLOCK) )
-      log_softerror_and_alarm("[VideoOutput] Failed to set nonblock flag on video recording file");
-
-   log_line("[VideoOutput] Video recording file flags: %s", str_get_pipe_flags(fcntl(s_iFileVideoRecording, F_GETFL)));
-  
-   s_bRecording = true;
-}
-
-void _stop_recording()
-{
-   if ( -1 != s_iFileVideoRecording )
-      close(s_iFileVideoRecording);
-   s_iFileVideoRecording = -1;
-
-   log_line("[VideoOutput] Received request to stop recording video.");
-   if ( ! s_bRecording )
-   {
-      log_line("[VideoOutput] Not recording. Do nothing.");
-      return;
-   }
-   u32 duration_ms = get_current_timestamp_ms() - s_TimeStartRecording;
-
-   int width = 1280;
-   int height = 720;
-   int fps = 30;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if( NULL == g_pVideoProcessorRxList[i] )
-         break;
-      if ( g_pCurrentModel->uVehicleId != g_pVideoProcessorRxList[i]->m_uVehicleId )
-         continue;
-      width = g_pVideoProcessorRxList[i]->getVideoWidth();
-      height = g_pVideoProcessorRxList[i]->getVideoHeight();
-      fps = g_pVideoProcessorRxList[i]->getVideoFPS();
-      break;
-   }
-
-   char szFile[128];
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
-   log_line("[VideoOutput] Writing video info file %s ...", szFile);
-   FILE* fd = fopen(szFile, "w");
-   if ( NULL == fd )
-   {
-      system("sudo mount -o remount,rw /");
-      char szTmp[128];
-      sprintf(szTmp, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_INFO);
-      hw_execute_bash_command(szTmp, NULL);
-      fd = fopen(szFile, "w");
-   }
-
-   if ( NULL == fd )
-   {
-      log_softerror_and_alarm("[VideoOutput] Failed to create video info file %s", szFile);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      FILE* fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to create video recording info file.");
-      fclose(fd);
-   }
-   else
-   {
-      fprintf(fd, "%s\n", s_szFileRecording);
-      fprintf(fd, "%d %d\n", fps, duration_ms/1000 );
-      fprintf(fd, "%d %d\n", width, height );
-      fclose(fd);
-   }
-
-   log_line("[VideoOutput] Created video info file %s, for resolution: %d x %d, %d fps",
-      szFile, width, height, fps);
-
-   log_line("[VideoOutput] Video info file content: (%s, %d fps, %d seconds, %d x %d)", s_szFileRecording, fps, duration_ms/1000, width, height);
-   hw_execute_bash_command("./ruby_video_proc &", NULL);
-   s_bRecording = false;
-   s_szFileRecording[0] = 0;
-   log_line("[VideoOutput] Recording stopped.");
-}
-
 void rx_video_output_init()
 {
    log_line("[VideoOutput] Init start...");
    s_szOutputVideoPlayerFilename[0] = 0;
    s_fPipeVideoOutToPlayer = -1;
-   s_iLocalUDPVideoOutput = -1;
+   s_iLocalVideoPlayerUDPSocket = -1;
    s_uLastVideoFrameTime= MAX_U32;
    s_bDidSentAnyDataToVideoPlayerPipe = false;
    
@@ -599,16 +458,7 @@ void rx_video_output_init()
    if ( 0 != pthread_create(&s_pThreadRxVideoOutputPlayer, NULL, &_thread_rx_video_output_player, NULL) )
       log_error_and_alarm("[VideoOutput] Failed to create thread for video player output check");
 
-   s_pSemaphoreStartRecord = sem_open(SEMAPHORE_START_VIDEO_RECORD, O_CREAT, S_IWUSR | S_IRUSR, 0);
-   if ( NULL == s_pSemaphoreStartRecord )
-      log_error_and_alarm("[VideoOutput] Failed to open semaphore for reading: %s", SEMAPHORE_START_VIDEO_RECORD);
-
-   s_pSemaphoreStopRecord = sem_open(SEMAPHORE_STOP_VIDEO_RECORD, O_CREAT, S_IWUSR | S_IRUSR, 0);
-   if ( NULL == s_pSemaphoreStopRecord )
-      log_error_and_alarm("[VideoOutput] Failed to open semaphore for reading: %s", SEMAPHORE_STOP_VIDEO_RECORD);
-
-   if ( (NULL != s_pSemaphoreStopRecord) && (NULL != s_pSemaphoreStartRecord) )
-      log_line("[VideoOutput] Opened semaphores for signaling video recording start/stop.");
+   rx_video_recording_init();
 
    s_uLastIOErrorAlarmFlagsVideoPlayer = 0;
    s_uLastIOErrorAlarmFlagsUSBPlayer = 0;
@@ -621,13 +471,12 @@ void rx_video_output_init()
 void rx_video_output_uninit()
 {
    log_line("[VideoOutput] Uninit start...");
-   _stop_recording();
 
-   if ( -1 != s_iLocalUDPVideoOutput )
+   if ( -1 != s_iLocalVideoPlayerUDPSocket )
    {
-      close(s_iLocalUDPVideoOutput);
-      s_iLocalUDPVideoOutput = -1;
-      log_line("[VideoOutput] Closed local socket for local UDP output.");
+      close(s_iLocalVideoPlayerUDPSocket);
+      s_iLocalVideoPlayerUDPSocket = -1;
+      log_line("[VideoOutput] Closed local socket for local video player UDP output.");
    }
 
    s_bRxVideoOutputPlayerThreadMustStop = true;
@@ -676,11 +525,7 @@ void rx_video_output_uninit()
    s_VideoUSBOutputInfo.bVideoUSBTethering = false;
    s_VideoUSBOutputInfo.usbBufferPos = 0;
 
-   if ( NULL != s_pSemaphoreStartRecord )
-      sem_close(s_pSemaphoreStartRecord);
-
-   if ( NULL != s_pSemaphoreStopRecord )
-      sem_close(s_pSemaphoreStopRecord);
+   rx_video_recording_uninit();
 
    log_line("[VideoOutput] Uninit complete.");
 }
@@ -729,44 +574,43 @@ void rx_video_output_disable_pipe_output()
    s_bDidSentAnyDataToVideoPlayerPipe = false;
 }
 
-void rx_video_output_enable_udp_output()
+void rx_video_output_enable_local_player_udp_output()
 {
-   log_line("[VideoOutput] Enabling video output to local UDP port...");
+   log_line("[VideoOutput] Enabling video output to local video player UDP port...");
 
-   if ( -1 != s_iLocalUDPVideoOutput )
+   if ( -1 != s_iLocalVideoPlayerUDPSocket )
    {
-      log_line("[VideoOutput] Local output to UDP port already enabled.");
+      log_line("[VideoOutput] Local output to video player UDP port already enabled.");
       return;
    }
 
-   int iPort = 5600;
-   s_iLocalUDPVideoOutput = socket(AF_INET, SOCK_DGRAM, 0);
-   if ( s_iLocalUDPVideoOutput < 0 )
+   s_iLocalVideoPlayerUDPSocket = socket(AF_INET, SOCK_DGRAM, 0);
+   if ( s_iLocalVideoPlayerUDPSocket < 0 )
    {
-      log_error_and_alarm("[VideoOutput] Failed to create local UDP video output socket.");
+      log_error_and_alarm("[VideoOutput] Failed to create local video player UDP video output socket.");
       return;
    }
-   bzero((char *) &s_LocalUDPSocketAddr, sizeof(s_LocalUDPSocketAddr));
-   s_LocalUDPSocketAddr.sin_family = AF_INET;
-   s_LocalUDPSocketAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-   s_LocalUDPSocketAddr.sin_port = htons((unsigned short)iPort);
+   bzero((char *) &s_LocalVideoPlayuerUDPSocketAddr, sizeof(s_LocalVideoPlayuerUDPSocketAddr));
+   s_LocalVideoPlayuerUDPSocketAddr.sin_family = AF_INET;
+   s_LocalVideoPlayuerUDPSocketAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+   s_LocalVideoPlayuerUDPSocketAddr.sin_port = htons((unsigned short)DEFAULT_LOCAL_VIDEO_PLAYER_UDP_PORT);
 
-   if (connect(s_iLocalUDPVideoOutput, (struct sockaddr *) &s_LocalUDPSocketAddr, sizeof(s_LocalUDPSocketAddr)) < 0)
+   if ( connect(s_iLocalVideoPlayerUDPSocket, (struct sockaddr *) &s_LocalVideoPlayuerUDPSocketAddr, sizeof(s_LocalVideoPlayuerUDPSocketAddr)) < 0 )
    {
-      log_error_and_alarm("[VideoOutput] Failed to connect local UDP video output socket.");
-      s_iLocalUDPVideoOutput = -1;
+      log_error_and_alarm("[VideoOutput] Failed to connect local video player UDP video output socket.");
+      s_iLocalVideoPlayerUDPSocket = -1;
    }
-   log_line("[VideoOutput] Created socket for local UDP output on port %d, fd=%d", iPort, s_iLocalUDPVideoOutput);
+   log_line("[VideoOutput] Created socket for local video player UDP output on port %d, fd=%d", DEFAULT_LOCAL_VIDEO_PLAYER_UDP_PORT, s_iLocalVideoPlayerUDPSocket);
 }
 
-void rx_video_output_disable_udp_output()
+void rx_video_output_disable_local_player_udp_output()
 {
-   if ( -1 != s_iLocalUDPVideoOutput )
+   if ( -1 != s_iLocalVideoPlayerUDPSocket )
    {
-      close(s_iLocalUDPVideoOutput);
-      log_line("[VideoOutput] Closed socket for local UDP output.");
+      close(s_iLocalVideoPlayerUDPSocket);
+      log_line("[VideoOutput] Closed socket for local video player UDP output.");
    }
-   s_iLocalUDPVideoOutput = -1;
+   s_iLocalVideoPlayerUDPSocket = -1;
 }
 
 void _processor_rx_video_forward_parse_h264_stream(u8* pBuffer, int length)
@@ -803,7 +647,7 @@ void _processor_rx_video_forward_parse_h264_stream(u8* pBuffer, int length)
    g_SM_VideoInfoStatsOutput.uDetectedSlices = (u32) s_ParserH264Output.getDetectedSlices();
 }
 
-void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
+void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
 {
    if ( (-1 == s_fPipeVideoOutToPlayer) || s_bRxVideoOutputPlayerReinitializing )
       return;
@@ -842,7 +686,7 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
    int iRes = write(s_fPipeVideoOutToPlayer, pBuffer, length);
    if ( iRes == length )
    {
-      s_uOutputBitratePipe += iRes*8;
+      s_uOutputBitrateToLocalVideoPlayerPipe += iRes*8;
       s_uTimeStartGettingVideoIOErrors = 0;
       if ( 0 != s_uLastIOErrorAlarmFlagsVideoPlayer )
       {
@@ -853,7 +697,7 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
       //fsync(s_fPipeVideoOutToPlayer);
       return;
    }
-   
+
    // Error outputing video to player
 
    u32 uFlags = 0;
@@ -907,6 +751,86 @@ void _output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer,
    }
 }
 
+void _rx_video_output_to_local_video_player_udp(u8* pData, int iLength)
+{
+   s_uOutputBitrateToLocalVideoPlayerUDP += iLength*8;
+   
+   sendto(s_iLocalVideoPlayerUDPSocket, pData, iLength, 0, (struct sockaddr *)&s_LocalVideoPlayuerUDPSocketAddr, sizeof(s_LocalVideoPlayuerUDPSocketAddr) );
+   /*
+   struct iovec iov;
+   struct msghdr msghdr;
+   iov.iov_base = pData;
+   iov.iov_len = iLength;
+   
+   memset(&msghdr, 0, sizeof(msghdr));
+   msghdr.msg_iov = &iov;
+   msghdr.msg_iovlen = 1;
+
+   sendmsg(s_iLocalVideoPlayerUDPSocket, &msghdr, MSG_DONTWAIT);
+   */
+}
+
+void _rx_video_output_to_eth(u8* pData, int iLength)
+{
+   int dataLen = iLength;
+   while ( dataLen > 0 )
+   {
+       int maxCopy = dataLen;
+       if ( maxCopy > s_VideoETHOutputInfo.s_BufferETHPacketSize - s_VideoETHOutputInfo.s_nBufferETHPos )
+          maxCopy = s_VideoETHOutputInfo.s_BufferETHPacketSize - s_VideoETHOutputInfo.s_nBufferETHPos;
+       memcpy( &(s_VideoETHOutputInfo.s_BufferETH[s_VideoETHOutputInfo.s_nBufferETHPos]), pData, maxCopy );
+       pData += maxCopy;
+       dataLen -= maxCopy;
+       s_VideoETHOutputInfo.s_nBufferETHPos += maxCopy;
+       if ( s_VideoETHOutputInfo.s_nBufferETHPos >= s_VideoETHOutputInfo.s_BufferETHPacketSize )
+       {
+          int res = sendto(s_VideoETHOutputInfo.s_ForwardETHSocketVideo, s_VideoETHOutputInfo.s_BufferETH, s_VideoETHOutputInfo.s_nBufferETHPos,
+                        0, (struct sockaddr *)&s_VideoETHOutputInfo.s_ForwardETHSockAddr, sizeof(s_VideoETHOutputInfo.s_ForwardETHSockAddr) );
+          if ( res < 0 )
+          {
+             log_line("[VideoOutput] Failed to send to ETH Port %d bytes, [fd=%d]", iLength, s_VideoETHOutputInfo.s_ForwardETHSocketVideo);
+             close(s_VideoETHOutputInfo.s_ForwardETHSocketVideo);
+             s_VideoETHOutputInfo.s_ForwardETHSocketVideo = -1;
+          }
+          //else
+          //   log_line("Sent %d bytes to port %d", video_data_length, g_pControllerSettings->nVideoForwardETHPort);
+          s_VideoETHOutputInfo.s_nBufferETHPos = 0;
+       }
+   }
+}
+
+void _rx_video_output_to_usb(u8* pData, int iLength)
+{
+   int dataLen = iLength;
+   while ( dataLen > 0 )
+   {
+      int maxCopy = dataLen;
+      if ( maxCopy > s_VideoUSBOutputInfo.usbBlockSize - s_VideoUSBOutputInfo.usbBufferPos )
+          maxCopy = s_VideoUSBOutputInfo.usbBlockSize - s_VideoUSBOutputInfo.usbBufferPos;
+      memcpy( &(s_VideoUSBOutputInfo.usbBuffer[s_VideoUSBOutputInfo.usbBufferPos]), pData, maxCopy );
+      pData += maxCopy;
+      dataLen -= maxCopy;
+      s_VideoUSBOutputInfo.usbBufferPos += maxCopy;
+      if ( s_VideoUSBOutputInfo.usbBufferPos >= s_VideoUSBOutputInfo.usbBlockSize )
+      {
+         int res = sendto(s_VideoUSBOutputInfo.socketUSBOutput, s_VideoUSBOutputInfo.usbBuffer, s_VideoUSBOutputInfo.usbBlockSize,
+               0, (struct sockaddr *)&s_VideoUSBOutputInfo.sockAddrUSBDevice, sizeof(s_VideoUSBOutputInfo.sockAddrUSBDevice) );
+         if ( res < 0 )
+         {
+           log_line("[VideoOutput] Failed to send to USB socket");
+           if ( -1 != s_VideoUSBOutputInfo.socketUSBOutput )
+              close(s_VideoUSBOutputInfo.socketUSBOutput);
+           s_VideoUSBOutputInfo.socketUSBOutput = -1;
+           s_VideoUSBOutputInfo.bVideoUSBTethering = false;
+           s_VideoUSBOutputInfo.usbBufferPos = 0;
+           log_line("[VideoOutput] Video Output to USB disabled.");
+           break;
+         }
+         s_VideoUSBOutputInfo.usbBufferPos = 0;
+      }
+   }
+}
+
 void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, int height, u8* pBuffer, int video_data_length, int packet_length)
 {
    if ( g_bSearching )
@@ -931,21 +855,6 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
      */
    }
 
-   if ( -1 != s_iLocalUDPVideoOutput )
-   {
-      s_uOutputBitrateUDP += video_data_length*8;
-      
-      //send(s_iLocalUDPVideoOutput, pBuffer, video_data_length, MSG_DONTWAIT); 
-      sendto(s_iLocalUDPVideoOutput, pBuffer, video_data_length, 0, (struct sockaddr *)&s_LocalUDPSocketAddr, sizeof(s_LocalUDPSocketAddr) );
-
-      static bool bStartedGST = false;
-      if ( ! bStartedGST )
-      {
-         bStartedGST = true;
-         hw_execute_bash_command("gst-launch-1.0 udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! 'video/x-h264,stream-format=byte-stream' ! fdsink | ./ruby_player_s &", NULL);
-      }
-   }
-
    if ( NULL != g_pCurrentModel )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
@@ -954,113 +863,21 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
       _processor_rx_video_forward_parse_h264_stream(pBuffer, video_data_length);
    }
 
-   _output_to_video_player(uVehicleId, width, height, pBuffer, video_data_length);
+   if ( -1 != s_fPipeVideoOutToPlayer ) 
+      _rx_video_output_to_video_player(uVehicleId, width, height, pBuffer, video_data_length);
+   if ( -1 != s_iLocalVideoPlayerUDPSocket )
+      _rx_video_output_to_local_video_player_udp(pBuffer, video_data_length);
 
    if ( s_VideoETHOutputInfo.s_bForwardETHPipeEnabled && (-1 != s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile) )
-   {
       write(s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile, pBuffer, video_data_length);
-   }
 
-   if ( s_bRecording && -1 != s_iFileVideoRecording )
-   {
-      int iRes = write(s_iFileVideoRecording, pBuffer, video_data_length);
-      if ( iRes != video_data_length )
-      {
-         u32 uFlags = 0;
-         if ( iRes >= 0 )
-            uFlags = ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED;
-         else
-         {
-            if ( EAGAIN == errno )
-               uFlags = ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK;
-            else
-               uFlags = ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT;
-         }
-
-         u32 uTimeLastVideoChanged = 0;
-         for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-         {
-            if ( NULL == g_pVideoProcessorRxList[i] )
-               break;
-            if ( g_pCurrentModel->uVehicleId != g_pVideoProcessorRxList[i]->m_uVehicleId )
-               continue;
-            uTimeLastVideoChanged = g_pVideoProcessorRxList[i]->getLastTimeVideoStreamChanged();
-            break;
-         }
-         if ( g_TimeNow > uTimeLastVideoChanged + 5000 )
-            send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, uFlags,0);
-        
-         s_uLastIOErrorAlarmFlagsUSBPlayer = uFlags;
-      }
-      else if ( 0 != s_uLastIOErrorAlarmFlagsUSBPlayer )
-      {
-         s_uLastIOErrorAlarmFlagsUSBPlayer = 0;
-         send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, 0,0);
-      }
-   }
+   rx_video_recording_on_new_data(pBuffer, video_data_length);
 
    if ( s_VideoETHOutputInfo.s_bForwardIsETHForwardEnabled && (-1 != s_VideoETHOutputInfo.s_ForwardETHSocketVideo ) )
-   {
-      u8* pData = pBuffer;
-      int dataLen = video_data_length;
-      while ( dataLen > 0 )
-      {
-          int maxCopy = dataLen;
-          if ( maxCopy > s_VideoETHOutputInfo.s_BufferETHPacketSize - s_VideoETHOutputInfo.s_nBufferETHPos )
-             maxCopy = s_VideoETHOutputInfo.s_BufferETHPacketSize - s_VideoETHOutputInfo.s_nBufferETHPos;
-          memcpy( &(s_VideoETHOutputInfo.s_BufferETH[s_VideoETHOutputInfo.s_nBufferETHPos]), pData, maxCopy );
-          pData += maxCopy;
-          dataLen -= maxCopy;
-          s_VideoETHOutputInfo.s_nBufferETHPos += maxCopy;
-          if ( s_VideoETHOutputInfo.s_nBufferETHPos >= s_VideoETHOutputInfo.s_BufferETHPacketSize )
-          {
-             int res = sendto(s_VideoETHOutputInfo.s_ForwardETHSocketVideo, s_VideoETHOutputInfo.s_BufferETH, s_VideoETHOutputInfo.s_nBufferETHPos,
-                           0, (struct sockaddr *)&s_VideoETHOutputInfo.s_ForwardETHSockAddr, sizeof(s_VideoETHOutputInfo.s_ForwardETHSockAddr) );
-             if ( res < 0 )
-             {
-                log_line("[VideoOutput] Failed to send to ETH Port %d bytes, [fd=%d]", video_data_length, s_VideoETHOutputInfo.s_ForwardETHSocketVideo);
-                close(s_VideoETHOutputInfo.s_ForwardETHSocketVideo);
-                s_VideoETHOutputInfo.s_ForwardETHSocketVideo = -1;
-             }
-             //else
-             //   log_line("Sent %d bytes to port %d", video_data_length, g_pControllerSettings->nVideoForwardETHPort);
-             s_VideoETHOutputInfo.s_nBufferETHPos = 0;
-          }
-      }
-   }
+      _rx_video_output_to_eth(pBuffer, video_data_length);
 
    if ( s_VideoUSBOutputInfo.bVideoUSBTethering && 0 != s_VideoUSBOutputInfo.szIPUSBVideo[0] )
-   {
-      u8* pData = pBuffer;
-      int dataLen = video_data_length;
-      while ( dataLen > 0 )
-      {
-         int maxCopy = dataLen;
-         if ( maxCopy > s_VideoUSBOutputInfo.usbBlockSize - s_VideoUSBOutputInfo.usbBufferPos )
-             maxCopy = s_VideoUSBOutputInfo.usbBlockSize - s_VideoUSBOutputInfo.usbBufferPos;
-         memcpy( &(s_VideoUSBOutputInfo.usbBuffer[s_VideoUSBOutputInfo.usbBufferPos]), pData, maxCopy );
-         pData += maxCopy;
-         dataLen -= maxCopy;
-         s_VideoUSBOutputInfo.usbBufferPos += maxCopy;
-         if ( s_VideoUSBOutputInfo.usbBufferPos >= s_VideoUSBOutputInfo.usbBlockSize )
-         {
-            int res = sendto(s_VideoUSBOutputInfo.socketUSBOutput, s_VideoUSBOutputInfo.usbBuffer, s_VideoUSBOutputInfo.usbBlockSize,
-                  0, (struct sockaddr *)&s_VideoUSBOutputInfo.sockAddrUSBDevice, sizeof(s_VideoUSBOutputInfo.sockAddrUSBDevice) );
-            if ( res < 0 )
-            {
-              log_line("[VideoOutput] Failed to send to USB socket");
-              if ( -1 != s_VideoUSBOutputInfo.socketUSBOutput )
-                 close(s_VideoUSBOutputInfo.socketUSBOutput);
-              s_VideoUSBOutputInfo.socketUSBOutput = -1;
-              s_VideoUSBOutputInfo.bVideoUSBTethering = false;
-              s_VideoUSBOutputInfo.usbBufferPos = 0;
-              log_line("[VideoOutput] Video Output to USB disabled.");
-              break;
-            }
-            s_VideoUSBOutputInfo.usbBufferPos = 0;
-         }
-      }
-   }
+      _rx_video_output_to_usb(pBuffer, video_data_length);
 }
 
 
@@ -1119,16 +936,28 @@ void rx_video_output_on_controller_settings_changed()
    s_iLastUSBVideoForwardPacketSize = g_pControllerSettings->iVideoForwardUSBPacketSize;
 }
 
+void rx_video_output_signal_restart_player()
+{
+   if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
+   {
+      sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
+      log_line("[VideoOutput] Signaled restart of player on request.");
+   }
+   else
+      log_softerror_and_alarm("[VideoOutput] Can't signal video player to restart. No signal.");
+}
 
 void rx_video_output_periodic_loop()
 {
-   if ( g_bDebugState )
+   rx_video_recording_periodic_loop();
+
+   //if ( g_bDebugState )
    if ( g_TimeNow >= s_uLastTimeComputedOutputBitrate + 1000 )
    {
-      log_line("[VideoOutput] Output to pipe: %u bps, output to UDP: %u bps", s_uOutputBitratePipe, s_uOutputBitrateUDP );
+      log_line("[VideoOutput] Output to pipe: %u bps, output to UDP: %u bps", s_uOutputBitrateToLocalVideoPlayerPipe, s_uOutputBitrateToLocalVideoPlayerUDP );
       s_uLastTimeComputedOutputBitrate = g_TimeNow;
-      s_uOutputBitratePipe = 0;
-      s_uOutputBitrateUDP = 0;
+      s_uOutputBitrateToLocalVideoPlayerPipe = 0;
+      s_uOutputBitrateToLocalVideoPlayerUDP = 0;
    }
 
    if ( g_TimeNow > s_TimeLastPeriodicChecksUSBForward + 300 )
@@ -1188,43 +1017,6 @@ void rx_video_output_periodic_loop()
             s_VideoUSBOutputInfo.usbBufferPos = 0;
             s_VideoUSBOutputInfo.bVideoUSBTethering = false;
          }
-      }
-   }
-
-   if ( g_TimeNow >= s_TimeLastPeriodicChecksVideoRecording + 300 )
-   {
-      s_TimeLastPeriodicChecksVideoRecording = g_TimeNow;
-
-      int val = 0;
-      if ( NULL != s_pSemaphoreStartRecord )
-      if ( 0 == sem_getvalue(s_pSemaphoreStartRecord, &val) )
-      if ( 0 < val )
-      if ( EAGAIN != sem_trywait(s_pSemaphoreStartRecord) )
-      {
-         log_line("[VideoOutput] Event to start recording is set.");
-         if ( ! s_bRecording )
-         {
-            _start_recording();
-            log_line("[VideoOutput] Recording started.");
-         }
-         else
-            log_softerror_and_alarm("[VideoOutput] Recording is already started.");
-      }
-   
-      val = 0;
-      if ( NULL != s_pSemaphoreStopRecord )
-      if ( 0 == sem_getvalue(s_pSemaphoreStopRecord, &val) )
-      if ( 0 < val )
-      if ( EAGAIN != sem_trywait(s_pSemaphoreStopRecord) )
-      {
-         log_line("[VideoOutput] Event to stop recording is set.");
-         if ( s_bRecording )
-         {
-            _stop_recording();
-            log_line("[VideoOutput] Recording stopped.");
-         }
-         else
-            log_softerror_and_alarm("[VideoOutput] Recording is already stopped.");
       }
    }
 }

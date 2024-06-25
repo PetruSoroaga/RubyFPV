@@ -1722,24 +1722,33 @@ void _router_periodic_loop()
    if ( test_link_is_in_progress() )
       test_link_loop();
 
-   static u32 s_uTimeRadioInterfacesWatchdog = 0;
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   //if ( g_TimeNow > radio_linkgs_get_last_set_monitor_time() + 2000 )
+   //   radio_links_set_monitor_mode();
+   #endif
 
-   if ( g_TimeNow > s_uTimeRadioInterfacesWatchdog + 2000 )
+   bool bInterfcesWithNoData = false;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      s_uTimeRadioInterfacesWatchdog = g_TimeNow;
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo )
-            continue;
-         if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
-            continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioHWInfo )
+         continue;
+      if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
+         continue;
 
-         char szComm[128];
-         sprintf(szComm, "iw dev %s set monitor none", pRadioHWInfo->szName);
-         hw_execute_bash_command(szComm, NULL);
+      if ( g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId >= 0 )
+      if ( g_SM_RadioStats.radio_interfaces[i].timeLastRxPacket < g_TimeNow-2000 )
+      if ( g_TimeNow > 2000 )
+      {
+         bInterfcesWithNoData = true;
       }
    }
+   if ( bInterfcesWithNoData )
+   if ( g_TimeNow > radio_linkgs_get_last_set_monitor_time() + 2000 )
+   if ( g_TimeNow - g_TimeStart > 2000 )
+   if ( ! test_link_is_in_progress() )
+      radio_links_set_monitor_mode();
+
 
    if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
    {
@@ -1929,7 +1938,7 @@ void handle_sigint(int sig)
    g_bQuit = true;
 } 
   
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    signal(SIGPIPE, SIG_IGN);
    signal(SIGINT, handle_sigint);
@@ -2380,7 +2389,14 @@ void video_processors_init()
    if ( ! g_bSearching )
    {
       rx_video_output_init();
+      #ifdef HW_PLATFORM_RASPBERRY
       rx_video_output_enable_pipe_output();
+      #endif
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      //rx_video_output_enable_local_player_udp_output();
+      rx_video_output_enable_pipe_output();
+      #endif
+
       log_line("Do one time init of processors rx video...");
       ProcessorRxVideo::oneTimeInit();
       init_processing_audio();

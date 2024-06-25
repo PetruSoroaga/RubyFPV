@@ -34,6 +34,7 @@
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/models.h"
+#include "../base/flags_video.h"
 #include "../common/string_utils.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,14 +62,16 @@ int niceValue = 10;
 
 bool store_video()
 {
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szFileIn[MAX_FILE_PATH_SIZE];
+   char szFileInfo[MAX_FILE_PATH_SIZE];
    char szComm[1024];
    //char szCommOutput[4096];
-   char szFileIn[256];
-   char szFileInfo[1024];
+
    int fps = 0;
    int length = 0;
    int width, height;
+   int iVideoType = VIDEO_TYPE_H264;
 
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
@@ -105,6 +108,11 @@ bool store_video()
       fclose(fd);
       return false;
    }
+   if ( 1 != fscanf(fd, "%d", &iVideoType) )
+   {
+      log_softerror_and_alarm("Failed to read video recording info file video type from %s", szFile);
+      iVideoType = VIDEO_TYPE_H264;
+   }
    fclose(fd);
 
    if ( NULL != strstr(szFileIn, FOLDER_TEMP_VIDEO_MEM) )
@@ -118,8 +126,8 @@ bool store_video()
       strcat(szFileIn, FILE_TEMP_VIDEO_FILE);
    }
 
-   char szOutFile[512];
-   char szOutFileInfo[512];
+   char szOutFile[MAX_FILE_PATH_SIZE];
+   char szOutFileInfo[MAX_FILE_PATH_SIZE];
    szOutFile[0] = 0;
    szOutFileInfo[0] = 0;
 
@@ -141,7 +149,7 @@ bool store_video()
       if ( 1 != fscanf(fd, "%s", szOutFileInfo) )
       {
          fclose(fd);
-         log_softerror_and_alarm("Failed to read video output info file 1/2: %s", szFile);
+         log_softerror_and_alarm("Failed to read video output info file 2/2: %s", szFile);
          strcpy(szFile, FOLDER_RUBY_TEMP);
          strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
          fd = fopen(szFile, "a");
@@ -170,6 +178,8 @@ bool store_video()
    szOutFile[strlen(szOutFile)-3] = '2';
    szOutFile[strlen(szOutFile)-2] = '6';
    szOutFile[strlen(szOutFile)-1] = '4';
+   if ( iVideoType == VIDEO_TYPE_H265 )
+      szOutFile[strlen(szOutFile)-1] = '5';
 
    snprintf(szFileInfo, 1023, "%s%s", FOLDER_MEDIA, szOutFileInfo);
    fd = fopen(szFileInfo, "w");
@@ -186,6 +196,7 @@ bool store_video()
    fprintf(fd, "%s\n", szOutFile);
    fprintf(fd, "%d %d\n", fps, length );
    fprintf(fd, "%d %d\n", width, height );
+   fprintf(fd, "%d\n", iVideoType );
    fclose(fd);
 
    log_line("Moving video file %s to: %s%s", szFileIn, FOLDER_MEDIA, szOutFile);
@@ -203,10 +214,12 @@ bool store_video()
 
 bool process_video(char* szFileInfo, char* szFileOut)
 {
-   char szFileIn[512];
+   char szFileIn[MAX_FILE_PATH_SIZE];
    char szComm[1024];
    int fps = 0;
    int length = 0;
+   int iWidth, iHeight;
+   int iVideoType = VIDEO_TYPE_H264;
 
    FILE* fd = fopen(szFileInfo, "r");
    if ( NULL == fd )
@@ -216,9 +229,14 @@ bool process_video(char* szFileInfo, char* szFileOut)
       fclose(fd);
       return false;
    }
+   if ( 3 != fscanf(fd, "%d %d %d", szFileIn, &iWidth, &iHeight, &iVideoType) )
+   {
+       log_softerror_and_alarm("Failed to read video type from info file: %s", szFileInfo);
+       iVideoType = VIDEO_TYPE_H264;
+   }
    fclose(fd);
 
-   log_line("Processing video file: %s, fps: %d, length: %d seconds.", szFileIn, fps, length);
+   log_line("Processing video file: %s, fps: %d, length: %d seconds, video type: %d", szFileIn, fps, length, iVideoType);
    if ( length < 2 )
    {
       log_softerror_and_alarm("Empty video file (less than 3 seconds) received for processing. Ignoring it.");
@@ -226,8 +244,8 @@ bool process_video(char* szFileInfo, char* szFileOut)
    }
 
    // Convert input file to output file
-   snprintf(szComm, 1023, "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileIn, szFileOut);
-   log_line("Execute ffmpeg: %s", szComm);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileIn, szFileOut);
+   log_line("Execute conversion: %s", szComm);
    //hw_execute_bash_command(szComm, NULL);
    system(szComm);
    log_line("Finished processing video to mp4: %s", szFileOut);
@@ -255,7 +273,7 @@ int main(int argc, char *argv[])
    //hardware_set_priority(2);
 
    g_pCurrentModel = new Model();
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( ! g_pCurrentModel->loadFromFile(szFile) )
@@ -275,14 +293,17 @@ int main(int argc, char *argv[])
    }
 
 
-   char szFileInfo[1024];
-   char szFileOut[1024];
+   char szFileInfo[MAX_FILE_PATH_SIZE];
+   char szFileOut[MAX_FILE_PATH_SIZE];
+   
    bool bStoreOnly = true;
+   // Default, when no params.
+   // Just store the temporary recording to media folder
 
    if ( argc >= 2 )
    {
-      strcpy(szFileInfo, argv[1]);
-      strcpy(szFileOut, argv[2]);
+      strncpy(szFileInfo, argv[1], sizeof(szFileInfo)/sizeof(szFileInfo[0]));
+      strncpy(szFileOut, argv[2], sizeof(szFileOut)/sizeof(szFileOut[0]));
       bStoreOnly = false;
    }
 
@@ -303,5 +324,5 @@ int main(int argc, char *argv[])
    }
 
    log_line("Finished processing video file.");
-   return (0);
+   return 0;
 } 

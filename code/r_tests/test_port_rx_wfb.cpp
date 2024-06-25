@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
 
    printf("\nStart receiving on lan: %s (interface %d), %d Mhz, link id: %d, port id: %d\n", szCard, iInterfaceIndex+1, iFreq, iLinkId, iPortId);
 
-   int pcapR =  radio_open_interface_for_read_wfbohd(iInterfaceIndex, iLinkId * 256 + iPortId);
+   int pcapR = -1;
    if ( pcapR < 0 )
    {
       printf("\nFailed to open port.\n");

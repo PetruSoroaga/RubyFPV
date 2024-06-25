@@ -22,10 +22,10 @@
 //#define LOG_RAW_TELEMETRY
 
 #define SYSTEM_NAME "Ruby"
-// dword: BB.BB.MM.mm  (MM major, mm minor) 
+// dword: BB.BB.MM.mm  (BB.BB: build number, MM: major ver, mm: minor ver) 
 #define SYSTEM_SW_VERSION_MAJOR 9
 #define SYSTEM_SW_VERSION_MINOR 30
-#define SYSTEM_SW_BUILD_NUMBER  223
+#define SYSTEM_SW_BUILD_NUMBER  225
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117

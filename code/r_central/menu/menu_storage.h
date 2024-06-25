@@ -31,6 +31,7 @@ class MenuStorage: public Menu
       int m_VideoFilesFPS[MAX_STORAGE_MENU_FILES];
       int m_VideoFilesWidth[MAX_STORAGE_MENU_FILES];
       int m_VideoFilesHeight[MAX_STORAGE_MENU_FILES];
+      int m_VideoFilesType[MAX_STORAGE_MENU_FILES];
       int m_VideoInfoFilesCount;
       int m_PicturesFilesCount;
       int m_UIFilesPage;
@@ -48,6 +49,12 @@ class MenuStorage: public Menu
       u32 m_ScreenshotImageId;
       Popup* m_pPopupProgress;
 
+      int m_IndexExpand;
+      int m_IndexCopy;
+      int m_IndexMove;
+      int m_IndexDelete;
+      int m_MainItemsCount;
+      
       void buildFilesListPictures();
       void buildFilesListVideo();
       void movePictures(bool bDelete);

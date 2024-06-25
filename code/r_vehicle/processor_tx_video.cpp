@@ -1190,6 +1190,8 @@ bool process_data_tx_video_init()
    s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
+   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+      s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H265<<4);
    #endif
    
    s_CurrentPHVF.video_keyframe_interval_ms = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;

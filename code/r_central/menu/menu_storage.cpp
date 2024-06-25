@@ -38,6 +38,7 @@
 #include <dirent.h>
 #include <string.h>
 
+#include "../../base/flags_video.h"
 #include "../media.h"
 #include "../launchers_controller.h"
 
@@ -111,19 +112,28 @@ void MenuStorage::onShow()
    buildFilesListVideo();
 
    m_UIFilesPage = 0;
+   m_IndexExpand = -1;
+   m_IndexCopy = -1;
+   m_IndexMove = -1;
+   m_IndexDelete = -1;
+   m_MainItemsCount = 4;
 
-   addMenuItem(new MenuItem("Expand File System", "Expands the file system to occupy the entire available SD card space."));
-   addMenuItem(new MenuItem("Copy media files to USB memory stick", "Copy your screenshots and videos to an external USB memory stick."));
-   addMenuItem(new MenuItem("Move media files to USB memory stick", "Move your screenshots and videos to an external USB memory stick."));
-   addMenuItem(new MenuItem("Delete all files", "Deletes all videos, pictures from the SD Card."));
+   #if defined(HW_PLATFORM_RASPBERRY)
+   m_IndexExpand = addMenuItem(new MenuItem("Expand File System", "Expands the file system to occupy the entire available SD card space."));
+   m_MainItemsCount++;
+   #endif
+   m_IndexCopy = addMenuItem(new MenuItem("Copy media files to USB memory stick", "Copy your screenshots and videos to an external USB memory stick."));
+   m_IndexMove = addMenuItem(new MenuItem("Move media files to USB memory stick", "Move your screenshots and videos to an external USB memory stick."));
+   m_IndexDelete = addMenuItem(new MenuItem("Delete all files", "Deletes all videos, pictures from the SD Card."));
    m_IndexViewPictures = addMenuItem(new MenuItem("View Screenshots", "View the screenshots"));
    if ( 0 == media_get_screenshots_count() )
       m_pMenuItems[m_IndexViewPictures]->setEnabled(false);
+
    addMenuItem(new MenuItem("Prev Page",""));
    addMenuItem(new MenuItem("Next Page",""));
 
-   m_StaticMenuItemsCountBeforeUIFiles = 5;
-   m_StaticMenuItemsCount = 7;
+   m_StaticMenuItemsCountBeforeUIFiles = m_MainItemsCount;
+   m_StaticMenuItemsCount = m_StaticMenuItemsCountBeforeUIFiles+2; // Added PageUp/Down
 
    if ( m_VideoInfoFilesCount <= m_UIFilesPerPage )
    {
@@ -291,8 +301,8 @@ void MenuStorage::onMoveUp(bool bIgnoreReversion)
       if ( m_ViewScreenShotIndex >= media_get_screenshots_count() )
          m_ViewScreenShotIndex = 0;
 
-      char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      char szFile[MAX_FILE_PATH_SIZE];
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       g_pRenderEngine->freeImage(m_ScreenshotImageId);
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
 
@@ -322,8 +332,8 @@ void MenuStorage::onMoveDown(bool bIgnoreReversion)
       if ( m_ViewScreenShotIndex <= 0 )
          m_ViewScreenShotIndex = media_get_screenshots_count()-1;
 
-      char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      char szFile[MAX_FILE_PATH_SIZE];
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       g_pRenderEngine->freeImage(m_ScreenshotImageId);
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
 
@@ -356,7 +366,7 @@ void MenuStorage::onMoveRight(bool bIgnoreReversion)
 
 void MenuStorage::onFocusedItemChanged()
 {
-   if ( 0 < m_ItemsCount && m_SelectedIndex >= 0 && m_SelectedIndex < m_ItemsCount && NULL != m_pMenuItems[m_SelectedIndex] )
+   if ( (0 < m_ItemsCount) && (m_SelectedIndex >= 0) && (m_SelectedIndex < m_ItemsCount) && (NULL != m_pMenuItems[m_SelectedIndex]) )
       setTooltip( m_pMenuItems[m_SelectedIndex]->getTooltip() );
 }
 
@@ -370,8 +380,8 @@ void MenuStorage::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( 5 == iChildMenuId/1000 )
    {
       log_line("Confirmed deletion of all media files.");
-      char szComm[1024];
-      sprintf(szComm, "rm -rf %s* /dev/null 2>&1", FOLDER_MEDIA);
+      char szComm[256];
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s* /dev/null 2>&1", FOLDER_MEDIA);
       hw_execute_bash_command(szComm, NULL);   
       onShow();
       return;
@@ -383,9 +393,11 @@ void MenuStorage::onReturnFromChild(int iChildMenuId, int returnValue)
       onEventReboot();
 
       // Expand FS
+      #ifdef HW_PLATFORM_RASPBERRY
       hw_execute_bash_command("sudo raspi-config --expand-rootfs > /dev/null 2>&1", NULL);   
       hw_execute_bash_command("sudo reboot -f", NULL);
       exit(0);
+      #endif
       return;
    }
 }
@@ -424,24 +436,24 @@ void MenuStorage::onSelectItem()
 
    Menu::onSelectItem();
 
-   if ( 0 == m_SelectedIndex )
+   if ( m_IndexExpand == m_SelectedIndex )
    {
       MenuConfirmation* pMC = new MenuConfirmation("Reboot","This operation requires a reboot. Do you want to continue?", 10);
       add_menu_to_stack(pMC);
       return;
    }
 
-   if ( 1 == m_SelectedIndex ) // copy
+   if ( m_IndexCopy == m_SelectedIndex )
    {
       flowCopyMoveFiles(false);
       return;
    }
-   if ( 2 == m_SelectedIndex ) // move
+   if ( m_IndexMove == m_SelectedIndex )
    {
       flowCopyMoveFiles(true);   
       return;
    }
-   if ( 3 == m_SelectedIndex )
+   if ( m_IndexDelete == m_SelectedIndex )
    {
       MenuConfirmation* pMC = new MenuConfirmation("Confirmation","Are you sure you want to delete all files?",5);
       add_menu_to_stack(pMC);
@@ -452,12 +464,12 @@ void MenuStorage::onSelectItem()
    {
       m_ViewScreenShotIndex = media_get_screenshots_count()-1;
 
-      char szFile[1024];
-      sprintf(szFile, "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      char szFile[MAX_FILE_PATH_SIZE];
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
       log_line("Menu: Loading screenshot: %s", szFile );
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
-      if ( 0 != m_ScreenshotImageId && MAX_U32 != m_ScreenshotImageId )
-        log_line("Men: Image loaded ok");
+      if ( (0 != m_ScreenshotImageId) && (MAX_U32 != m_ScreenshotImageId) )
+         log_line("Men: Image loaded ok");
       return;
    }
 
@@ -499,7 +511,7 @@ void MenuStorage::onSelectItem()
       return;
    }
 
-   char szFile[1024];
+   char szFile[MAX_FILE_PATH_SIZE];
    char szBuff[1024];
    int index = m_UIFilesPerPage * m_UIFilesPage + m_SelectedIndex-m_StaticMenuItemsCountBeforeUIFiles;
    if ( index < 0 || index >= m_VideoInfoFilesCount )
@@ -632,6 +644,11 @@ void MenuStorage::buildFilesListVideo()
             fclose(fd);
             continue;
          }
+         if ( 1 != fscanf(fd, "%d", &(m_VideoFilesType[m_VideoInfoFilesCount])) )
+         {
+            log_softerror_and_alarm("Failed to read video info file video type: [%s], invalid format.", szBuff);
+            m_VideoFilesType[m_VideoInfoFilesCount] = VIDEO_TYPE_H264;
+         }
          fclose(fd);
 
          m_VideoInfoFilesCount++;
@@ -645,9 +662,9 @@ void MenuStorage::buildFilesListVideo()
 
 void MenuStorage::movePictures(bool bDelete)
 {
-   char szBuff[1024];
-   char szSrcFile[1024];
    char szCommand[1024];
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szSrcFile[MAX_FILE_PATH_SIZE];
 
    log_line("Moving pictures media files...");
 
@@ -660,8 +677,9 @@ void MenuStorage::movePictures(bool bDelete)
 
    buildFilesListPictures();
 
-   sprintf(szBuff, "%s/Ruby", FOLDER_USB_MOUNT);
-   snprintf(szCommand, 1023, "mkdir -p %s", szBuff );
+   strcpy(szFile, FOLDER_USB_MOUNT);
+   strcat(szFile, "Ruby");
+   snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mkdir -p %s", szFile );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_PicturesFilesCount; i++ )
@@ -677,22 +695,22 @@ void MenuStorage::movePictures(bool bDelete)
       if ( -1 == access(szSrcFile, R_OK) )
          continue;
 
-      sprintf(szCommand, "rm -rf %s/Ruby/%s", FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %s/Ruby/%s", FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       hw_execute_bash_command(szCommand, NULL);
 
       if ( bDelete )
-         snprintf(szCommand, 1023, "mv %s %s/Ruby/%s", szSrcFile, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mv %s %s/Ruby/%s", szSrcFile, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       else
-         snprintf(szCommand, 1023, "cp %s %s/Ruby/%s", szSrcFile, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "cp %s %s/Ruby/%s", szSrcFile, FOLDER_USB_MOUNT, m_szPicturesFiles[i]);
       hw_execute_bash_command(szCommand, NULL);
    }
 }
 
 void MenuStorage::moveVideos(bool bDelete)
 {
-   char szBuff[1024];
-   char szSrcFile[1024];
-   char szOutFile[1024];
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szSrcFile[MAX_FILE_PATH_SIZE];
+   char szOutFile[MAX_FILE_PATH_SIZE];
    char szCommand[1024];
    char szInfo[256];
    FILE* fd = NULL;
@@ -701,17 +719,18 @@ void MenuStorage::moveVideos(bool bDelete)
    log_line("Moving video media files...");
 
    if ( bDelete )
-      sprintf(szBuff, "Moving videos to USB memory stick [%s]. Please wait...", hardware_get_mounted_usb_name());
+      sprintf(szInfo, "Moving videos to USB memory stick [%s]. Please wait...", hardware_get_mounted_usb_name());
    else
-      sprintf(szBuff, "Copying videos to USB memory stick [%s]. Please wait...", hardware_get_mounted_usb_name());
+      sprintf(szInfo, "Copying videos to USB memory stick [%s]. Please wait...", hardware_get_mounted_usb_name());
 
-   m_pPopupProgress->setTitle(szBuff);
+   m_pPopupProgress->setTitle(szInfo);
    render_all(get_current_timestamp_ms());
 
    buildFilesListVideo();
 
-   sprintf(szBuff, "%s/Ruby", FOLDER_USB_MOUNT);
-   snprintf(szCommand, 1023, "mkdir -p %s", szBuff );
+   strcpy(szFile, FOLDER_USB_MOUNT);
+   strcat(szFile, "Ruby");
+   snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mkdir -p %s", szFile );
    hw_execute_bash_command(szCommand, NULL);
 
    for( int i=0; i<m_VideoInfoFilesCount; i++ )
@@ -725,8 +744,8 @@ void MenuStorage::moveVideos(bool bDelete)
       ruby_processing_loop(true);
       render_all(get_current_timestamp_ms());
 
-      sprintf(szBuff, "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i]);
-      fd = fopen(szBuff, "r");
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i]);
+      fd = fopen(szFile, "r");
       if ( NULL == fd )
          break;
       if ( 3 != fscanf(fd, "%s %d %d", szSrcFile, &fps, &duration ) )
@@ -740,15 +759,19 @@ void MenuStorage::moveVideos(bool bDelete)
       szOutFile[strlen(szOutFile)-3] = 'p';
       szOutFile[strlen(szOutFile)-2] = '4';
       szOutFile[strlen(szOutFile)-1] = 0;
-      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %s/Ruby/%s", FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %sRuby/%s", FOLDER_USB_MOUNT, szOutFile);
+      hw_execute_bash_command(szCommand, NULL);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %s%s", FOLDER_RUBY_TEMP, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
 
-      snprintf(szCommand, 1023, "./ruby_video_proc %s%s %s/Ruby/%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_USB_MOUNT, szOutFile);
-      log_line("Executing: %s", szCommand);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "./ruby_video_proc %s%s %s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY_TEMP, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
       //system(szCommand);
       log_line("Finished processing video %s", m_szVideoInfoFiles[i]);
       hardware_sleep_ms(100);
+      
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mv -rf %s%s %sRuby/%s", FOLDER_RUBY_TEMP, szOutFile, FOLDER_USB_MOUNT, szOutFile);
+      hw_execute_bash_command(szCommand, NULL);
       if ( bDelete )
          sprintf(szInfo, "Moving video %d of %d to USB stick [%s]. Please wait...", i+1, m_VideoInfoFilesCount, hardware_get_mounted_usb_name());
       else
@@ -771,7 +794,7 @@ void MenuStorage::moveVideos(bool bDelete)
          szCommand[strlen(szCommand)-4] = 'h';
          szCommand[strlen(szCommand)-3] = '2';
          szCommand[strlen(szCommand)-2] = '6';
-         szCommand[strlen(szCommand)-1] = '4';
+         szCommand[strlen(szCommand)-1] = '*';
          hw_execute_bash_command(szCommand, NULL);
       }
    }

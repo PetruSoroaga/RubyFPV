@@ -97,7 +97,7 @@ void MenuItemSection::Render(float xPos, float yPos, bool bSelected, float fWidt
       g_pRenderEngine->drawLine(xPos-dxpadding, yMid+dh, xPos+dx-g_pRenderEngine->getPixelWidth(), yMid+dh);
       g_pRenderEngine->drawLine(xPos+dx+2*dxp2+m_RenderTitleWidth, yMid+dh, xPos+m_pMenu->getUsableWidth(), yMid+dh);
    }
-   g_pRenderEngine->setFill(0,0,0,0.4*g_pRenderEngine->getGlobalAlfa());
+   g_pRenderEngine->setFill(2,2,2,0.98);
    g_pRenderEngine->drawRoundRect(xPos+dx, yMid-0.74*height_text, 2.0*dxp2+m_RenderTitleWidth, 1.4*height_text, 0.02*Menu::getMenuPaddingY());
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(0);

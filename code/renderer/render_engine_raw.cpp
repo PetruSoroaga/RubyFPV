@@ -66,130 +66,6 @@ RenderEngineRaw::~RenderEngineRaw()
    }
 }
 
-
-void RenderEngineRaw::setColors(double* color)
-{
-   setColors(color, 1.0);
-}
-
-void RenderEngineRaw::setColors(double* color, float fAlfaScale)
-{
-   m_ColorFill[0] = color[0];
-   m_ColorFill[1] = color[1];
-   m_ColorFill[2] = color[2];
-
-   m_ColorStroke[0] = color[0];
-   m_ColorStroke[1] = color[1];
-   m_ColorStroke[2] = color[2];
-
-   float fAlpha = color[3]*m_fGlobalAlfa*fAlfaScale;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-   m_ColorFill[3] = fAlpha * 255;
-   m_ColorStroke[3] = fAlpha * 255;
-}
-
-void RenderEngineRaw::setFill(double* pColor)
-{
-   m_ColorFill[0] = pColor[0];
-   m_ColorFill[1] = pColor[1];
-   m_ColorFill[2] = pColor[2];
-   float fAlpha = pColor[3]*m_fGlobalAlfa;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-   m_ColorFill[3] = fAlpha * 255; 
-}
-
-void RenderEngineRaw::setFill(float r, float g, float b, float a)
-{
-   m_ColorFill[0] = r;
-   m_ColorFill[1] = g;
-   m_ColorFill[2] = b;
-   float fAlpha = a*m_fGlobalAlfa;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-   m_ColorFill[3] = fAlpha * 255;
-}
-
-void RenderEngineRaw::setStroke(double* color)
-{
-   setStroke(color, 1.0);
-}
-
-void RenderEngineRaw::setStroke(double* color, float fStrokeSize)
-{
-   m_ColorStroke[0] = color[0];
-   m_ColorStroke[1] = color[1];
-   m_ColorStroke[2] = color[2];
-
-   float fAlpha = color[3]*m_fGlobalAlfa;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-
-   m_ColorStroke[3] = fAlpha * 255;
-   m_fStrokeSize = fStrokeSize;
-
-   // Is it in pixel size? convert to pixels;
-   if ( fStrokeSize < 0.8 )
-      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
-}
-
-void RenderEngineRaw::setStroke(float r, float g, float b, float a)
-{
-   m_ColorStroke[0] = r;
-   m_ColorStroke[1] = g;
-   m_ColorStroke[2] = b;
-
-   float fAlpha = a*m_fGlobalAlfa;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-
-   m_ColorStroke[3] = fAlpha * 255;
-}
-
-float RenderEngineRaw::getStrokeSize()
-{
-   return m_fStrokeSize;
-}
-
-void RenderEngineRaw::setStrokeSize(float fStrokeSize)
-{
-   m_fStrokeSize = fStrokeSize;
-
-   // Is it not in pixel size? convert to pixels;
-   if ( fStrokeSize < 0.8 )
-      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
-}
-
-void RenderEngineRaw::setFontColor(u32 fontId, double* color)
-{
-}
-
-void RenderEngineRaw::setFontBackgroundBoundingBoxFillColor(double* color)
-{
-   m_ColorTextBoundingBoxBgFill[0] = color[0];
-   m_ColorTextBoundingBoxBgFill[1] = color[1];
-   m_ColorTextBoundingBoxBgFill[2] = color[2];
-
-   float fAlpha = color[3]*m_fGlobalAlfa;
-   if ( fAlpha > 1.0 )
-      fAlpha = 1.0;
-   if ( fAlpha < 0.0 )
-      fAlpha = 0.0;
-
-   m_ColorTextBoundingBoxBgFill[3] = fAlpha * 255;
-}
-
 void* RenderEngineRaw::_loadRawFontImageObject(const char* szFileName)
 {
    struct _fbg_img* pImage = fbg_loadPNG(m_pFBG, szFileName);
@@ -499,6 +375,8 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
 
    if ( yPos < 0 )
       return;
+   if ( xPos >= 1.0 )
+      return;
    if ( yPos + pFont->lineHeight * m_fPixelHeight >= 1.0 )
       return;
 
@@ -789,9 +667,6 @@ void RenderEngineRaw::drawRect(float xPos, float yPos, float fWidth, float fHeig
 
 void RenderEngineRaw::drawRoundRect(float xPos, float yPos, float fWidth, float fHeight, float fCornerRadius)
 {
-   //drawRect(xPos, yPos,fWidth, fHeight);
-   //return;
-
    int x = xPos*m_iRenderWidth;
    int y = yPos*m_iRenderHeight;
    int w = fWidth*m_iRenderWidth;
@@ -819,9 +694,7 @@ void RenderEngineRaw::drawRoundRect(float xPos, float yPos, float fWidth, float 
    if ( y+h >= m_iRenderHeight )
       h = m_iRenderHeight-y-1;
 
-   if ( w <= 0 || h <= 0 )
-      return;
-   if ( w < 6.0*m_fPixelWidth || h < 6.0*m_fPixelHeight )
+   if ( (w < 6.0*m_fPixelWidth) || (h < 6.0*m_fPixelHeight) )
       return;
 
    if ( 0 != m_ColorFill[3] )

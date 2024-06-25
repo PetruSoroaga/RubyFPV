@@ -1737,9 +1737,13 @@ void fbg_imageDrawAlpha(struct _fbg *fbg, struct _fbg_img *img, int x, int y, in
     float dyImg = (float)ch/(float)h;
 
     float yImg = cy;
+    int iyImg = (int)yImg;
     for( int sy=0; sy<h; sy++ )
     {
-       int yImgOffset = ((int)yImg) * img->width;
+       iyImg = (int)yImg;
+       if ( iyImg >= ch )
+          break;
+       int yImgOffset = iyImg * img->width;
        float xImg = cx;
        for( int sx=0; sx<w; sx++ )
        {

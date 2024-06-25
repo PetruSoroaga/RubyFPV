@@ -1792,8 +1792,8 @@ void _main_loop()
          if ( ! bDebugNoVideoOutput )
          {
             //log_line("DEBUG sent %d video packs", videoPacketsReadyToSend);
-            if ( videoPacketsReadyToSend > 10 )
-               log_line("DEBUG video stall %d", videoPacketsReadyToSend );
+            //if ( videoPacketsReadyToSend > 10 )
+            //   log_line("DEBUG video stall %d", videoPacketsReadyToSend );
             process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
          }
       }

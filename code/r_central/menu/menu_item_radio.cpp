@@ -291,22 +291,57 @@ void MenuItemRadio::Render(float xPos, float yPos, bool bSelected, float fWidthS
    g_pRenderEngine->setColors(get_Color_MenuText());
    float y = yPos;
 
-  if ( bSelected )
-  {
-     if ( -1 == m_nFocusedIndex )
-        m_nFocusedIndex = 0;
-  }
-  else
-     m_nFocusedIndex = -1;
+   if ( bSelected )
+   {
+      if ( -1 == m_nFocusedIndex )
+         m_nFocusedIndex = 0;
+   }
+   else
+      m_nFocusedIndex = -1;
+
+   //bool bEnableBlending = g_pRenderEngine->isRectBlendingEnabled();
+   //g_pRenderEngine->enableRectBlending();
 
    for( int i=0; i<m_nSelectionsCount; i++ )
    {
       float yItem = y;
 
+      if ( bSelected )
+      if ( i == m_nFocusedIndex )
+      {
+         double pC[4];
+         memcpy(pC, get_Color_MenuBg(), 4*sizeof(double));
+         pC[0] += 40; pC[1] += 35; pC[2] += 30;
+         g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
+         g_pRenderEngine->setStrokeSize(2);
+
+         float fSelHeight = g_pRenderEngine->getMessageHeight(m_szSelections[i], MENU_TEXTLINE_SPACING, fWidthSelection - m_fSelectorWidth, g_idFontMenu);
+         if ( (NULL != m_szSelectionsLegend[i]) && (0 != m_szSelectionsLegend[i][0]) )
+         {
+            if ( m_bSmallLegend )
+            {
+               fSelHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenuSmall);
+               fSelHeight += height_text_small*0.5;
+            }
+            else
+               fSelHeight += g_pRenderEngine->getMessageHeight(m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenu) + height_text_small*0.2;
+         }
+         fSelHeight += 2.0 * Menu::getSelectionPaddingY();
+
+         g_pRenderEngine->drawRoundRect(xPos-Menu::getSelectionPaddingX(), yItem-Menu::getSelectionPaddingY(), fWidthSelection + 2.0 * Menu::getSelectionPaddingX(), fSelHeight, 0.01);
+      }
+
       // Draw circle
-      g_pRenderEngine->setColors(get_Color_MenuText());
+      
       if ( ! m_bEnabledSelections[i] )
          g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
+      else
+         g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStrokeSize(1.0);
+      //g_pRenderEngine->drawLine(xPos - m_fSelectorWidth, y, xPos + m_fSelectorWidth, y);
+      //g_pRenderEngine->drawCircle(xPos + m_fSelectorWidth*0.4 + 0.03, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.6);
+      //g_pRenderEngine->fillCircle(xPos + m_fSelectorWidth*0.4+0.06, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.4);
+      
 
       g_pRenderEngine->drawCircle(xPos + m_fSelectorWidth*0.4, y + m_fSelectorWidth*0.4*g_pRenderEngine->getAspectRatio(), m_fSelectorWidth*0.6);
       if ( i == m_nSelectedIndex )
@@ -325,22 +360,12 @@ void MenuItemRadio::Render(float xPos, float yPos, bool bSelected, float fWidthS
             y += g_pRenderEngine->drawMessageLines(xPos + m_fSelectorWidth + m_fLegendDx, y + height_text_small*0.2, m_szSelectionsLegend[i], MENU_TEXTLINE_SPACING, fWidthSelection-m_fSelectorWidth-m_fLegendDx - Menu::getSelectionPaddingX(), g_idFontMenu) + height_text_small*0.2;
       }
 
-      if ( bSelected )
-      if ( i == m_nFocusedIndex )
-      {
-         double pC[4];
-         memcpy(pC, get_Color_MenuItemSelectedBg(), 4*sizeof(double));
-         pC[3] = 0.2;
-         g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
-         g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]);
-         g_pRenderEngine->setStrokeSize(2);
-         g_pRenderEngine->drawRoundRect(xPos-Menu::getSelectionPaddingX(), yItem-Menu::getSelectionPaddingY(), fWidthSelection + 2.0 * Menu::getSelectionPaddingX(), (y-yItem) + 2.0 * Menu::getSelectionPaddingY(), 0.01);
-      }
-
       y += MENU_ITEM_SPACING * height_text;
    }
 
    g_pRenderEngine->setColors(get_Color_MenuText());
+   g_pRenderEngine->setStrokeSize(1);
+   //g_pRenderEngine->setRectBlendingEnabled(bEnableBlending);
 }
 
 void MenuItemRadio::RenderCondensed(float xPos, float yPos, bool bSelected, float fWidthSelection)

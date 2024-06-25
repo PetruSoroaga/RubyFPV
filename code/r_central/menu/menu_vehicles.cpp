@@ -158,6 +158,8 @@ void MenuVehicles::Render()
    float fFavoriteHeight = 1.2*g_pRenderEngine->textHeight(g_idFontMenu);
    float fFavoriteWidth = fFavoriteHeight / g_pRenderEngine->getAspectRatio();
 
+   bool bBlendingEnabled = g_pRenderEngine->isRectBlendingEnabled();
+
    for( int i=0; i<m_ItemsCount; i++ )
    {
       float y0 = y;
@@ -176,6 +178,7 @@ void MenuVehicles::Render()
             g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
       }
    }
+   g_pRenderEngine->setRectBlendingEnabled(bBlendingEnabled);
    RenderEnd(yTop);
 }
 

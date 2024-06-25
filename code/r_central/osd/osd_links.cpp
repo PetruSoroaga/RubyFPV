@@ -101,8 +101,8 @@ float _osd_render_local_radio_link_tag_new(float xPos, float yPos, int iLocalRad
    {
       g_pRenderEngine->drawBackgroundBoundingBoxes(false);
 
-      double* pC = get_Color_OSDText();
-      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.3);
+      double* pC = get_Color_OSDBackground();
+      g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.4);
       g_pRenderEngine->setStroke(0,0,0,0);
       g_pRenderEngine->drawRoundRect(xPos+1.0*g_pRenderEngine->getPixelWidth(), yPos + 1.0*g_pRenderEngine->getPixelHeight(), fWidthLink, fHeight, 0.003*osd_getScaleOSD());
 

@@ -18,6 +18,7 @@ class MenuSystemDevStats: public Menu
 
       int m_IndexDevStatsVideo;
       int m_IndexDevStatsRadio;
+      int m_IndexDevStatsVehicle;
       int m_IndexDevStatsVehicleTx;
       int m_IndexDevFullRXStats;
       int m_IndexDevVehicleVideoStreamStats;

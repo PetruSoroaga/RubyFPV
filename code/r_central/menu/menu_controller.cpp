@@ -165,7 +165,7 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
 
    if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
-      m_iMustStartUpdate = 3;
+      m_iMustStartUpdate = 1;
       log_line("Signaled event to start controller update.");
       return;
    }
@@ -177,13 +177,13 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
       hw_execute_bash_command("sudo reboot -f", NULL);
       return;
    }
-   if ( 5 == iChildMenuId/1000 )
+   if ( 5 == iChildMenuId/1000 ) // Update failed.
    {
       m_bWaitingForUserFinishUpdateConfirmation = false;
 
-      log_line("Closed message update. Will reboot now.");
-      onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      //log_line("Closed message update. Will reboot now.");
+      //onEventReboot();
+      //hw_execute_bash_command("sudo reboot -f", NULL);
       return;
    }
 
@@ -359,87 +359,126 @@ void MenuController::addMessage(const char* szMessage)
 
 void MenuController::updateSoftware()
 {
+   Popup* p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);
+   popups_add_topmost(p);
+
+   ruby_processing_loop(true);
+   render_all(g_TimeNow);
+   ruby_signal_alive();
+
    if ( ! hardware_try_mount_usb() )
    {
+      popups_remove(p);
+      ruby_processing_loop(true);
+      render_all(g_TimeNow);
+      ruby_signal_alive();
+
       addMessage("No USB memory stick detected. Please insert a USB stick");
       return;
    }
 
    log_line("Starting controller update procedure.");
 
-   ruby_pause_watchdog();
+   popups_remove(p);
 
+   ruby_pause_watchdog();
    pairing_stop();
+   
+   p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);
+   popups_add_topmost(p);
+
+   // Execute ruby_update_worker twice as the ruby_update_worker might have been updated itself too
 
    FILE* fd = fopen("tmp/tmp_update_result.txt", "wb");
    if ( fd != NULL )
    {
       fprintf(fd, "-10\n");
       fclose(fd);
+      fd = NULL;
    }
 
-   hw_execute_ruby_process(NULL, "ruby_update_worker", NULL, NULL);
-   
-   ruby_signal_alive();
+   int iCounter[2];
+   int iResult[2];
+   iCounter[0] = iCounter[1] = 0;
+   iResult[0] = iResult[1] = -1000;
 
-   Popup* p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);
-   popups_add_topmost(p);
-
-   log_line("Waiting for update process to start and finish...");
-   int counter = 0;
-   bool bFoundProcess = false;
-   bool bFinishedProcess = false;
-   do
+   for( int iCount=0; iCount<2; iCount++ )
    {
-      g_TimeNow = get_current_timestamp_ms();
-      char szTitle[64];
-      strcpy(szTitle, "Updating. Please wait..");
-      if ( 0 == (counter % 3) )
-         strcat(szTitle, ".");
-      if ( 1 == (counter % 3) )
-         strcat(szTitle, "..");
-      if ( 2 == (counter % 3) )
-         strcat(szTitle, "...");
-      p->setTitle(szTitle);
-      ruby_processing_loop(true);
-      render_all(g_TimeNow);
+      hw_execute_ruby_process(NULL, "ruby_update_worker", NULL, NULL);
       ruby_signal_alive();
-      hardware_sleep_ms(200);
-      if ( bFoundProcess )
-         log_line("Waiting for update worker to finish (%d)...", counter);
-      else
-         log_line("Waiting for update worker to start (%d)...", counter);
-      counter++;
 
-      if ( bFoundProcess )
+      log_line("Waiting for update process to start and finish...");
+      bool bFoundProcess = false;
+      bool bFinishedProcess = false;
+      do
       {
-          if ( 0 == hw_process_exists("ruby_update_worker") )
-          {
-             log_line("Update worker process finished.");
-             bFinishedProcess = true;
-          }
-      }
+         g_TimeNow = get_current_timestamp_ms();
+         char szTitle[64];
+         strcpy(szTitle, "Updating. Please wait..");
+         if ( 0 == (iCounter[iCount] % 3) )
+            strcat(szTitle, ".");
+         if ( 1 == (iCounter[iCount] % 3) )
+            strcat(szTitle, "..");
+         if ( 2 == (iCounter[iCount] % 3) )
+            strcat(szTitle, "...");
+         p->setTitle(szTitle);
+         ruby_processing_loop(true);
+         render_all(g_TimeNow);
+         ruby_signal_alive();
+         hardware_sleep_ms(100);
+         if ( bFoundProcess )
+            log_line("Waiting for update worker to finish (%d)...", iCounter[iCount]);
+         else
+            log_line("Waiting for update worker to start (%d)...", iCounter[iCount]);
+         iCounter[iCount]++;
 
-      if ( ! bFoundProcess )
-      {
-         if ( 0 != hw_process_exists("ruby_update_worker") )
+         if ( bFoundProcess )
          {
-            log_line("Found update worker process.");
-            bFoundProcess = true;
+             if ( 0 == hw_process_exists("ruby_update_worker") )
+             if ( 0 == hw_process_exists("unzip") )
+             {
+                log_line("Update worker process finished (test 1)");
+                hardware_sleep_ms(100);
+                if ( 0 == hw_process_exists("ruby_update_worker") )
+                if ( 0 == hw_process_exists("unzip") )
+                {
+                   log_line("Update worker process finished (test 2)");
+                   bFinishedProcess = true;
+                }
+             }
          }
+
+         if ( ! bFoundProcess )
+         {
+            if ( 0 != hw_process_exists("ruby_update_worker") )
+            {
+               log_line("Found update worker process.");
+               bFoundProcess = true;
+            }
+         }
+
+         if ( bFoundProcess )
+         if ( bFinishedProcess )
+            break;
+
       }
-
-      if ( bFoundProcess )
-      if ( bFinishedProcess )
+      while ( (iCounter[iCount] < 100) && (! bFinishedProcess) );
+      log_line("Done waiting for update worker process (on counter %d).", iCounter[iCount]);
+      iResult[iCount] = -10;
+      fd = fopen("tmp/tmp_update_result.txt", "rb");
+      if ( fd != NULL )
+      {
+         if ( 1 != fscanf(fd, "%d", &iResult[iCount] ) )
+            iResult[iCount] = -10;
+         fclose(fd);
+         fd = NULL;
+      }
+      hw_execute_bash_command("rm -rf tmp/tmp_update_result.txt", NULL);
+      if ( iResult[iCount] < 0 )
          break;
-
    }
-   while ( (counter < 50) && (! bFinishedProcess) );
 
-
-   log_line("Done waiting for update worker process (on counter %d).", counter);
    hardware_unmount_usb();
-
    ruby_processing_loop(true);
    render_all(g_TimeNow);
    ruby_signal_alive();
@@ -447,45 +486,43 @@ void MenuController::updateSoftware()
    ruby_resume_watchdog();
 
    popups_remove(p);
+   ruby_processing_loop(true);
+   render_all(g_TimeNow);
+   ruby_signal_alive();
 
-   int iResult = -10;
-   fd = fopen("tmp/tmp_update_result.txt", "rb");
-   if ( fd != NULL )
-   {
-      if ( 1 != fscanf(fd, "%d", &iResult ) )
-         iResult = -10;
-      fclose(fd);
-   }
-
-   hw_execute_bash_command("rm -rf tmp/tmp_update_result.txt", NULL);
-
-   if ( counter >= 50 )
+   if ( (iCounter[0] >= 100) || (iCounter[1] >= 100) )
    {
       m_bWaitingForUserFinishUpdateConfirmation = true;
-      MenuConfirmation* pMC = new MenuConfirmation("Update Failed", "Update failed.",5, true);
+      MenuConfirmation* pMC = new MenuConfirmation("Update Failed", "Update failed.", 5, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       log_line("Exit from main update procedure (1).");
       return;
-
    }
-   if ( iResult < 0 )
+
+   if ( (iResult[0] < 0) || (iResult[1] < 0) )
    {
       m_bWaitingForUserFinishUpdateConfirmation = true;
       MenuConfirmation* pMC = NULL;
       
-      if ( iResult == -1 )
+      if ( iResult[0] == -1 )
          pMC = new MenuConfirmation("Update Failed", "No update archive file found on the USB memory stick. No update done.",5, true);
-      else if ( iResult == -2 )
+      else if ( iResult[0] == -2 )
          pMC = new MenuConfirmation("Update Failed", "Can't do update. Can't access the controller files.",5, true);
-      else if ( iResult == -3 )
+      else if ( iResult[0] == -3 )
          pMC = new MenuConfirmation("Update Failed", "Update failed. Can't access the controller files.",5, true);
-      else if ( iResult == -4 )
+      else if ( iResult[0] == -4 )
          pMC = new MenuConfirmation("Update Info", "Files unchanged. Either you applyed the same update twice, either the update failed to write the new files.",5, true);
-      else if ( iResult == -10 )
+      else if ( iResult[0] == -10 )
          pMC = new MenuConfirmation("Update Failed", "The update archive file found on the USB memory stick looks to be invalid.",5, true);
+      else if ( iResult[1] < 0 )
+      {
+         char szMsg[256];
+         sprintf(szMsg, "The update procedure failed on second step, error code %d.", iResult[1]);
+         pMC = new MenuConfirmation("Update Failed", szMsg, 5, true);
+      }
       else
-         pMC = new MenuConfirmation("Update Failed", "Update failed.",5, true);
+         pMC = new MenuConfirmation("Update Failed", "Update failed.", 5, true);
 
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);

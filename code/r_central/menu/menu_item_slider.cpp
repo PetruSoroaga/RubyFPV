@@ -141,72 +141,64 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       if ( sliderWidth < fMinSliderWidth )
          sliderWidth = fMinSliderWidth;
    }
+   float fSizeSelectorH = m_RenderTitleHeight*0.8;
+   float fSizeSelectorW = fSizeSelectorH*0.4;
+
    float xPosSlider = xPos + m_pMenu->getUsableWidth() - sliderWidth - m_fMarginX;
+   float xPosSelector = xPosSlider + (float)(sliderWidth-fSizeSelectorW)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
 
-   if ( m_bIsEditing )
-   {
-      g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
-      g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
-   }
+   float yTop = yPos + paddingV;
+   float yBottom = yPos + m_RenderHeight - paddingV;
+   float yMid = yPos + 0.5*m_RenderHeight;
 
-   float fA = g_pRenderEngine->getGlobalAlfa();
    if (! m_bEnabled )
-      g_pRenderEngine->setGlobalAlfa(0.3);
-   g_pRenderEngine->setColors(get_Color_MenuText());
-   g_pRenderEngine->setStroke(get_Color_MenuText());
-   g_pRenderEngine->setStrokeSize(0);
-
-   if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
+   {
+      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
+   }
    else
    {
-      if ( m_bCustomTextColor )
-         g_pRenderEngine->setColors(&m_TextColor[0]);
+      if ( m_bIsEditing )
+      {
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
+         g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
+      }
+      if ( m_bIsEditing )
+         g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
       else
-         g_pRenderEngine->setColors(get_Color_MenuText());
+      {
+         if ( m_bCustomTextColor )
+            g_pRenderEngine->setColors(&m_TextColor[0]);
+         else
+            g_pRenderEngine->setColors(get_Color_MenuText());
+      }
    }
-   if ( ! m_bEnabled )
-      g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
+
+   g_pRenderEngine->setStrokeSize(0);
 
    g_pRenderEngine->drawTextLeft(xPosSlider-valueMargin, yPos, g_idFontMenu, szBuff);
    
-   if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText(), 0.2);
-   else
-      g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
    g_pRenderEngine->setStrokeSize(1);
+   g_pRenderEngine->drawRoundRect(xPosSelector, yTop, fSizeSelectorW, fSizeSelectorH, 0.1*Menu::getMenuPaddingY());
 
-   g_pRenderEngine->drawRoundRect(xPosSlider, yPos+m_RenderHeight-1.3*sliderHeight, sliderWidth, sliderHeight, 0.1*Menu::getMenuPaddingY());
+   g_pRenderEngine->setFill(0,0,0,0);
+   g_pRenderEngine->drawRoundRect(xPosSlider, yMid-sliderHeight*0.5, sliderWidth, sliderHeight, 0.1*Menu::getMenuPaddingY());
 
-   if ( m_bIsEditing )
-      g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
-   else
-      g_pRenderEngine->setColors(get_Color_MenuText());
-   g_pRenderEngine->setStrokeSize(1);
+   //g_pRenderEngine->drawLine(xPosSlider, yTop, xPosSlider, yBottom);
+   //g_pRenderEngine->drawLine(xPosSlider+sliderWidth, yTop, xPosSlider+sliderWidth, yBottom);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth/2, yTop, xPosSlider+sliderWidth/2, yBottom);
 
-   float yBottom = yPos + m_RenderHeight - 0.9*sliderHeight;
-   g_pRenderEngine->drawLine(xPosSlider, yBottom, xPosSlider, yBottom-1.6*sliderHeight);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth, yBottom, xPosSlider+sliderWidth, yBottom-1.6*sliderHeight);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth/2, yBottom, xPosSlider+sliderWidth/2, yBottom-1.6*sliderHeight);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.1, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.1, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.2, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.2, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.3, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.3, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.4, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.4, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.6, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.6, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.7, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.7, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.8, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.8, yMid + sliderHeight*0.5);
+   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.9, yMid - sliderHeight*0.5, xPosSlider+sliderWidth*0.9, yMid + sliderHeight*0.5);
 
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.1, yBottom, xPosSlider+sliderWidth*0.1, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.2, yBottom, xPosSlider+sliderWidth*0.2, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.3, yBottom, xPosSlider+sliderWidth*0.3, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.4, yBottom, xPosSlider+sliderWidth*0.4, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.6, yBottom, xPosSlider+sliderWidth*0.6, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.7, yBottom, xPosSlider+sliderWidth*0.7, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.8, yBottom, xPosSlider+sliderWidth*0.8, yBottom-sliderHeight*0.8);
-   g_pRenderEngine->drawLine(xPosSlider+sliderWidth*0.9, yBottom, xPosSlider+sliderWidth*0.9, yBottom-sliderHeight*0.8);
-
-   float fSizeSelectorH = sliderHeight*1.8;
-   float fSizeSelectorW = sliderHeight*1.2;
-   xPosSlider = xPosSlider + (float)(sliderWidth-fSizeSelectorW)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
-   g_pRenderEngine->drawRoundRect(xPosSlider, yBottom-fSizeSelectorH*0.6, fSizeSelectorW, fSizeSelectorH, 0.1*Menu::getMenuPaddingY());
-
-   g_pRenderEngine->setGlobalAlfa(fA);
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuBorder());
-   g_pRenderEngine->setStrokeSize(0);
+   g_pRenderEngine->setStrokeSize(1);
 }
 
 void MenuItemSlider::onKeyUp(bool bIgnoreReversion)

@@ -13,4 +13,4 @@ int hardware_isCameraVeye307();
 int hardware_isCameraHDMI();
 
 void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameters_t* pCameraParams, bool bForceUpdate);
-void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pCameraParams, type_video_link_profile* pVideoParams);
+void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pCameraParams, type_video_link_profile* pVideoLinkProfileParams, video_parameters_t* pVideoParams);

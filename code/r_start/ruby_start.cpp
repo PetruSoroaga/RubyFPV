@@ -855,14 +855,14 @@ int main(int argc, char *argv[])
       hw_execute_bash_command_silent(szComm, NULL);
       sprintf(szComm, "chmod -p %s", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "rm -rf %s/*", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "rm -rf %s*", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
       
-      sprintf(szComm, "mkdir -p %s/ruby", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "mkdir -p %sruby", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod -p %s/ruby", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "chmod -p %sruby", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "rm -rf %s/ruby/*", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "rm -rf %sruby/*", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
 
       sprintf(szComm, "mkdir -p %s", FOLDER_TEMP_VIDEO_MEM);
@@ -881,19 +881,19 @@ int main(int argc, char *argv[])
       hw_execute_bash_command_silent("mkdir -p media", NULL);
       hw_execute_bash_command_silent("mkdir -p updates", NULL);
 
-      sprintf(szComm, "chmod 777 %s/*", FOLDER_LOGS);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_LOGS);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      sprintf(szComm, "chmod 777 %s/*", FOLDER_CONFIG);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_CONFIG);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      sprintf(szComm, "chmod 777 %s/*", FOLDER_CONFIG_MODELS);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_CONFIG_MODELS);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      sprintf(szComm, "chmod 777 %s/*", FOLDER_MEDIA);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_MEDIA);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      sprintf(szComm, "chmod 777 %s/*", FOLDER_UPDATES);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_UPDATES);
       hw_execute_bash_command_silent(szComm, NULL);
 
       sprintf(szComm, "mkdir -p %s", FOLDER_OSD_PLUGINS);

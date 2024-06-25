@@ -1177,8 +1177,8 @@ float Menu::RenderItem(int index, float yPos, float dx)
    
    if ( m_bHasSeparatorAfter[index] && (!s_bMenuObjectsRenderEndItems) )
    {
-      g_pRenderEngine->setColors(get_Color_MenuBg());
-      g_pRenderEngine->setStroke(get_Color_MenuBorder());
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->setStroke(get_Color_MenuText());
       float yLine = yPos+hItem+0.55*(fHeightFont * MENU_ITEM_SPACING + fHeightFont * MENU_SEPARATOR_HEIGHT);
       g_pRenderEngine->drawLine(m_RenderXPos+m_sfMenuPaddingX+dx, yLine, m_RenderXPos+m_RenderWidth - m_sfMenuPaddingX, yLine);
 
@@ -1882,6 +1882,7 @@ bool Menu::checkCancelUpload()
 }
 
 static int s_iThreadGenerateUploadCounter = 0;
+static bool s_bThreadGenerateUploadError = false;
 
 static void * _thread_generate_upload(void *argument)
 {
@@ -1892,7 +1893,7 @@ static void * _thread_generate_upload(void *argument)
 
    log_line("ThreadGenerateUpload started, counter %d, archive file to generate: %s", s_iThreadGenerateUploadCounter, szFileNameArchive);
 
-   // Check and add update info file if missing
+   // Check and create update info file if missing
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
@@ -1920,6 +1921,7 @@ static void * _thread_generate_upload(void *argument)
          }
       }
    }
+   // Done - Check and create update info file if missing
 
    bool bVersion82Older = false;
    if ( NULL == g_pCurrentModel )
@@ -1936,60 +1938,82 @@ static void * _thread_generate_upload(void *argument)
    sprintf(szComm, "rm -rf %s 2>/dev/null", szFullPathOutputArchive);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "mkdir -p %stempUploadFiles", FOLDER_RUBY_TEMP);
+   char szPathTempUpload[MAX_FILE_PATH_SIZE];
+   strcpy(szPathTempUpload, FOLDER_RUBY_TEMP);
+   strcat(szPathTempUpload, "tempUploadFiles/");
+   sprintf(szComm, "mkdir -p %s", szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
-   // Generate binaries
+   // Add binaries to upload archive
+
+   char szFolderLocalUpdateBinaries[MAX_FILE_PATH_SIZE];
+
+   strcpy(szFolderLocalUpdateBinaries, FOLDER_UPDATES);
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+      strcat(szFolderLocalUpdateBinaries, SUBFOLDER_UPDATES_OIPC);
+   else
+      strcat(szFolderLocalUpdateBinaries, SUBFOLDER_UPDATES_PI);
+
+   strcpy(szFile, szFolderLocalUpdateBinaries);
+   strcat(szFile, "ruby_start");
+   if ( access(szFile, R_OK) == -1 )
+   {
+      log_softerror_and_alarm("ThreadGenerateUpload: vehicle update binaries are missing from folder: %s", szFolderLocalUpdateBinaries);
+      s_bThreadGenerateUploadError = true;
+      return NULL;
+   }
+
+   // Generate dummy ruby_vehicle binary for older versions of vehicles
+   if ( bVersion82Older )
+   {
+      sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", szFolderLocalUpdateBinaries);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s/ruby_vehicle", szFolderLocalUpdateBinaries);
+      hw_execute_bash_command(szComm, NULL);
+   }
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s* 2>/dev/null", szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s %s 2>/dev/null", FOLDER_CONFIG, FILE_INFO_LAST_UPDATE, szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
+         
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sruby_update %sruby_update_vehicle", szFolderLocalUpdateBinaries, szFolderLocalUpdateBinaries);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s/ruby_update_vehicle", szFolderLocalUpdateBinaries);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sruby_* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
 
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
-      sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_UPDATES_BIN_SSC338Q);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_UPDATES_BIN_SSC338Q);
-      hw_execute_bash_command(szComm, NULL);
-
-      sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "cp -rf %smaj* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "cp -rf %scustom* %stempUploadFiles/ 2>/dev/null", FOLDER_UPDATES_BIN_SSC338Q, FOLDER_RUBY_TEMP);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "tar -C %stempUploadFiles/ -cf %s . 2>&1", FOLDER_RUBY_TEMP, szFullPathOutputArchive);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %smaj* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
       hw_execute_bash_command(szComm, NULL);
    }
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %scustom* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
+
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+      sprintf(szComm, "tar -C %s -cf %s . 2>&1", szPathTempUpload, szFullPathOutputArchive);
+   else if ( bVersion82Older )
+      sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFullPathOutputArchive);
    else
-   {
-      sprintf(szComm, "cp -rf %sruby_update %sruby_update_vehicle", FOLDER_BINARIES, FOLDER_BINARIES);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/ruby_update_vehicle", FOLDER_BINARIES);
-      hw_execute_bash_command(szComm, NULL);
-
-      // Generate dummy ruby_vehicle binary for older versions of vehicles
-      if ( bVersion82Older )
-      {
-         sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", FOLDER_BINARIES);
-         hw_execute_bash_command(szComm, NULL);
-         sprintf(szComm, "chmod 777 %s/ruby_vehicle", FOLDER_BINARIES);
-         hw_execute_bash_command(szComm, NULL);
-      }
-
-      if ( bVersion82Older )
-         sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFullPathOutputArchive);
-      else
-      {
-         sprintf(szComm, "cp -rf %sruby_* %stempUploadFiles/", FOLDER_BINARIES, FOLDER_RUBY_TEMP);
-         hw_execute_bash_command(szComm, NULL);
-         sprintf(szComm, "tar -czf %s -C %stempUploadFiles/ . 2>&1", szFullPathOutputArchive, FOLDER_RUBY_TEMP);
-      }
-      hw_execute_bash_command(szComm, NULL);
-   }
-
-   sprintf(szComm, "rm -rf %stempUploadFiles/*", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "tar -czf %s -C %s . 2>&1", szFullPathOutputArchive, szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
+   
+   sprintf(szComm, "rm -rf %s*", szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
    sprintf(szComm, "chmod 777 %s 2>&1", szFullPathOutputArchive);
    hw_execute_bash_command(szComm, NULL);
 
+   char szOutput[4096];
+   szOutput[0] = 0;
+   sprintf(szComm, "tar -tvf %s 2>&1", szFullPathOutputArchive);
+   hw_execute_bash_command(szComm, szOutput);
+
+   log_line("ThreadGenerateUpload: generated tar achive contains: [[[%s]]]", szOutput);
    log_line("ThreadGenerateUpload finished, counter %d", s_iThreadGenerateUploadCounter);
    s_iThreadGenerateUploadCounter--;
    return NULL;
@@ -2000,6 +2024,7 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
    g_TimeNow = get_current_timestamp_ms();
    ruby_signal_alive();
 
+   s_bThreadGenerateUploadError = false;
    pthread_t pThread;
    if ( 0 != pthread_create(&pThread, NULL, &_thread_generate_upload, szArchiveName) )
    {
@@ -2013,7 +2038,7 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
 
    // Wait for the thread to finish
    u32 uTimeLastRender = 0;
-   while ( s_iThreadGenerateUploadCounter > 0 )
+   while ( (s_iThreadGenerateUploadCounter > 0) && (!s_bThreadGenerateUploadError) )
    {
       try_read_messages_from_router(5);
       hardware_sleep_ms(5);
@@ -2044,6 +2069,14 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
       s_iThreadGenerateUploadCounter = 0;
    g_TimeNow = get_current_timestamp_ms();
    ruby_signal_alive();
+
+   if ( s_bThreadGenerateUploadError )
+   {
+      render_commands_set_progress_percent(-1, true);
+      ruby_resume_watchdog();
+      g_bUpdateInProgress = false;
+      return false;
+   }
    return true;
 }
 
@@ -2069,7 +2102,10 @@ bool Menu::uploadSoftware()
       render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
-      addMessage("There was an error generating upload software archive.");
+      if ( s_bThreadGenerateUploadError )
+         addMessage("Vehicle update binary files are missing or update procedure changed. Please update (again) your controller.");
+      else
+         addMessage("There was an error generating upload software archive.");
       return false;
    }
 

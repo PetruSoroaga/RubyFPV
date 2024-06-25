@@ -110,10 +110,10 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_IndexForceCameraMode = -1;
    //if ( g_pCurrentModel->isActiveCameraCSI() )
    //{
-   //   m_pItemsSelect[10] = new MenuItemSelect("Force Camera Mode 1", "Force the camera sensor to 1920x1080 mode, non binned. Works only for Raspberry Pi cameras.");  
-   //   m_pItemsSelect[10]->addSelection("No");
-   //   m_pItemsSelect[10]->addSelection("Yes");
-   //   m_IndexForceCameraMode = addMenuItem(m_pItemsSelect[10]);
+   //   m_pItemsSelect[11] = new MenuItemSelect("Force Camera Mode 1", "Force the camera sensor to 1920x1080 mode, non binned. Works only for Raspberry Pi cameras.");  
+   //   m_pItemsSelect[11]->addSelection("No");
+   //   m_pItemsSelect[11]->addSelection("Yes");
+   //   m_IndexForceCameraMode = addMenuItem(m_pItemsSelect[11]);
    //}
       
 
@@ -131,6 +131,12 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSlider[2]->setTooltip("Sets a target desired bitrate for the video stream.");
    m_pItemsSlider[2]->enableHalfSteps();
    m_IndexVideoBitrate = addMenuItem(m_pItemsSlider[2]);
+
+   m_pItemsSelect[10] = new MenuItemSelect("Video Codec", "Change the codec used to encode the source video stream.");
+   m_pItemsSelect[10]->addSelection("H264");
+   m_pItemsSelect[10]->addSelection("H265");
+   m_pItemsSelect[10]->setIsEditable();
+   m_IndexVideoCodec = addMenuItem(m_pItemsSelect[10]);
 
    addMenuItem(new MenuItemSection("Video Link Mode"));
 
@@ -195,9 +201,15 @@ void MenuVehicleVideo::valuesToUI()
    int iCameraProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfile]);
 
+   m_pItemsSelect[10]->setEnabled(true);
+   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+      m_pItemsSelect[10]->setSelectedIndex(1);
+   else
+      m_pItemsSelect[10]->setSelectedIndex(0);
+
    if ( m_IndexForceCameraMode != -1 )
    if ( g_pCurrentModel->isActiveCameraCSI() )
-      m_pItemsSelect[10]->setSelection(pCamProfile->flags & CAMERA_FLAG_FORCE_MODE_1 ? 1:0);
+      m_pItemsSelect[11]->setSelection(pCamProfile->flags & CAMERA_FLAG_FORCE_MODE_1 ? 1:0);
 
    
    for(int i=0; i<m_iVideoResolutionsCount; i++ )
@@ -247,6 +259,7 @@ void MenuVehicleVideo::valuesToUI()
       m_pItemsSelect[6]->setEnabled(false);
       m_pItemsSelect[7]->setEnabled(false);
       m_pItemsSelect[8]->setEnabled(false);
+      m_pItemsSlider[1]->setEnabled(true);
    }
    else
    {
@@ -254,6 +267,11 @@ void MenuVehicleVideo::valuesToUI()
       m_pItemsSelect[6]->setEnabled(true);
       m_pItemsSelect[7]->setEnabled(true);
       m_pItemsSelect[8]->setEnabled(true);
+
+      if ( keyframe_ms > 0 )
+         m_pItemsSlider[1]->setEnabled(true);
+      else
+         m_pItemsSlider[1]->setEnabled(false);
    }
 
    if ( keyframe_ms > 0 )
@@ -482,7 +500,7 @@ void MenuVehicleVideo::onSelectItem()
       memcpy(&cparams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
       int iCameraProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
 
-      if ( m_pItemsSelect[10]->getSelectedIndex() == 0 )
+      if ( m_pItemsSelect[11]->getSelectedIndex() == 0 )
          cparams.profiles[iCameraProfile].flags &= ~CAMERA_FLAG_FORCE_MODE_1;
       else
          cparams.profiles[iCameraProfile].flags |= CAMERA_FLAG_FORCE_MODE_1;
@@ -519,6 +537,13 @@ void MenuVehicleVideo::onSelectItem()
 
    if ( (m_IndexRes == m_SelectedIndex) || (m_IndexFPS == m_SelectedIndex) || (m_IndexKeyframe == m_SelectedIndex) || (m_IndexAutoKeyframe == m_SelectedIndex) )
    {
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      if ( m_IndexFPS == m_SelectedIndex )
+      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      if ( m_pItemsSlider[0]->getCurrentValue() > 30 )
+         addMessage2(0, "Experimental", "FPS higher than 30 might have issues on Radxa+OpenIPC hardware for now. Revert to 30 if you see issues.");
+      #endif
+
       sendVideoLinkProfiles();
       return;
    }
@@ -571,5 +596,29 @@ void MenuVehicleVideo::onSelectItem()
          if ( 0 == ruby_start_recording() )
             m_pMenuItemVideoRecording->setTitle("Stop Video Recording");
       }
+   }
+
+   if ( m_IndexVideoCodec == m_SelectedIndex )
+   {
+      video_parameters_t paramsOld;
+      memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
+         g_pCurrentModel->video_params.uVideoExtraFlags &= ~VIDEO_FLAG_GENERATE_H265;
+      else
+      {
+         if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
+         {
+            addMessage("Raspberry Pi hardware supports only H264 video encoder.");
+            valuesToUI();
+            return;
+         }
+         g_pCurrentModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_GENERATE_H265;
+      }
+      video_parameters_t paramsNew;
+      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      memcpy(&g_pCurrentModel->video_params, &paramsOld, sizeof(video_parameters_t));
+
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+         valuesToUI();
    }
 }

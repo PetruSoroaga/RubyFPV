@@ -53,10 +53,15 @@ u32 g_uTimeMPPPeriodicChecks = 0;
 
 bool g_bMPPFramesBuffersInitialised = false;
 bool g_bMPPFrameEOS = false;
-pthread_t g_MPPDecodeThread;
-extern bool g_bQuit;
+bool g_bMPPStreamChangedFlag = false;
 
-int _mpp_send_commnad(MpiCmd command, RK_U32 value)
+pthread_t g_MPPDecodeThread;
+pthread_t g_MPPUpdateDisplayThread;
+extern bool g_bQuit;
+int g_iMPPFrameBufferIndexToDisplay = -1;
+uint32_t g_uMPPDRMBufferIdToDisplay = 0;
+
+int _mpp_send_command(MpiCmd command, RK_U32 value)
 {
    RK_U32 res = g_pMPPApi->control(g_MPPCtx, command, &value);
    if ( res )
@@ -80,28 +85,32 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
     uint64_t tTime = spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
     mpp_packet_set_pts(g_MPPInputPacket,(RK_S64) tTime);
 
-    static int s_iStallCount = 0;
+    int iStallCount = 0;
+    int iElapsed = 0;
     uint64_t tTimeStart = tTime;
-    int iRet = 0;
     while ( (!g_bQuit) && (MPP_OK != g_pMPPApi->decode_put_packet(g_MPPCtx, g_MPPInputPacket)) )
     {
+        iStallCount++;
         clock_gettime(1, &spec);
         uint64_t tTimeNow = spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
-        uint64_t uElapsed = tTimeNow - tTimeStart;
-        if ( uElapsed > 100 )
+        iElapsed = (int)(tTimeNow - tTimeStart);
+        if ( iElapsed > 200 )
         {
-            s_iStallCount++;
-            log_softerror_and_alarm("[MPP] Failed to feed data to MPP decoder, stall counter: %d", s_iStallCount);
-            return -1;
+            log_softerror_and_alarm("[MPP] Failed to feed data to MPP decoder, stalled for %d ms, stall counter: %d", iElapsed, iStallCount);
+            return iElapsed;
         }
-        usleep(1000);
+        usleep(2000);
     }
-    return 0;
+    if ( (iStallCount > 0) && (iElapsed > 20) )
+       log_softerror_and_alarm("[MPP] Stalled feeding data for %d ms, stall count: %d", iElapsed, iStallCount);
+    return iElapsed;
 }
 
 int _mpp_init_frames(MppFrame pFrame)
 {
    log_line("[MPP] Init frames...");
+   u32 uTimeStart = get_current_timestamp_ms();
+
    int w = mpp_frame_get_width(pFrame);
    int h = mpp_frame_get_height(pFrame);
    RK_U32 stride_h = mpp_frame_get_hor_stride(pFrame);
@@ -123,8 +132,6 @@ int _mpp_init_frames(MppFrame pFrame)
    {
       memset(&(g_Frames[i].drmBufferInfo), 0, sizeof(type_drm_buffer));
       struct drm_mode_create_dumb creq;
-      struct drm_mode_destroy_dumb dreq;
-      struct drm_mode_map_dumb mreq;
       struct drm_prime_handle dph;
  
       uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
@@ -163,7 +170,7 @@ int _mpp_init_frames(MppFrame pFrame)
       info.fd = dph.fd;
       iRet = mpp_buffer_commit(g_MPPBufferGroup, &info);
       g_Frames[i].prime_fd = info.fd;
-      if (g_Frames[i].drmBufferInfo.uBufferId != info.fd)
+      if (g_Frames[i].drmBufferInfo.uBufferId != (uint32_t)info.fd)
       {
          iRet = close(g_Frames[i].drmBufferInfo.uBufferId);
       }
@@ -193,42 +200,69 @@ int _mpp_init_frames(MppFrame pFrame)
    ruby_drm_set_video_source_size(w, h);
    ruby_drm_core_set_plane_properties_and_buffer(g_Frames[0].drmBufferInfo.uBufferId);
    g_bMPPFramesBuffersInitialised = true;
-   log_line("[MPP] Init frames done.");
+
+   u32 uTimeDiff = get_current_timestamp_ms() - uTimeStart;
+   
+   log_line("[MPP] Init frames done (took %u ms)", uTimeDiff);
    return 0;
 }
 
 void _mpp_core_periodic_checks()
 {
-   static uint64_t uCrtX = 0;
-   uCrtX += 20;
+   //log_line("[MPPThread periodic checks");
+   //static uint64_t uCrtX = 0;
+   //uCrtX += 20;
    //type_drm_object_info* pPlaneInfo = ruby_drm_get_plane_info();
    //ruby_drm_set_object_property(pPlaneInfo, "CRTC_X", uCrtX);
 }
 
+void* _mpp_thread_update_display(void *param)
+{
+   log_line("[MPPThreadUpdateDisplay] Started.");
+   u32 uLastDRMBufferIdDisplayed = 0;
+
+   while ( (!g_bMPPFrameEOS) && (!g_bQuit) )
+   {
+      if ( uLastDRMBufferIdDisplayed == g_uMPPDRMBufferIdToDisplay )
+      {
+         hardware_sleep_ms(1);
+         continue;
+      }
+
+      ruby_drm_core_set_plane_buffer(g_uMPPDRMBufferIdToDisplay);
+      uLastDRMBufferIdDisplayed = g_uMPPDRMBufferIdToDisplay;
+      
+      //log_line("Disp buff index %d, id %u", g_iMPPFrameBufferIndexToDisplay, g_uMPPDRMBufferIdToDisplay);
+
+   }
+   log_line("[MPPThreadUpdateDisplay] Finsihed.");
+   return NULL;
+}
+
 void* _mpp_thread_frame_decode(void *param)
 {
-   log_line("[MPPThread] Started.");
+   log_line("[MPPThreadDecoder] Started.");
    hw_increase_current_thread_priority("MPPFrameDecode", 40);
 
    MppFrame pFrame  = NULL;
-   uint64_t uTimeLastFrame;
 
-   log_line("[MPPThread] Start main thread loop...");
+   log_line("[MPPThreadDecoder] Start main thread loop...");
    while ( (!g_bMPPFrameEOS) && (!g_bQuit) ) 
    {
       g_pMPPApi->decode_get_frame(g_MPPCtx, &pFrame);
       if ( ! pFrame )
       {
-         log_softerror_and_alarm("[MPPThread] Received invalid frame. Skipping it.");
+         //log_softerror_and_alarm("[MPPThreadDecoder] Received invalid frame. Skipping it.");
+         hardware_sleep_ms(1);
          continue;
       }
   
       // Frame with resolution update
       if ( mpp_frame_get_info_change(pFrame) )
       {
-         log_line("[MPPThread] Received new frame resolution update.");
+         log_line("[MPPThreadDecoder] Received new frame resolution update.");
          _mpp_init_frames(pFrame);
-
+         g_bMPPStreamChangedFlag = true;
          g_bMPPFrameEOS = (mpp_frame_get_eos(pFrame))?true:false;
          mpp_frame_deinit(&pFrame);
          pFrame = NULL;
@@ -237,7 +271,7 @@ void* _mpp_thread_frame_decode(void *param)
 
       if ( ! g_bMPPFramesBuffersInitialised )
       {
-         log_softerror_and_alarm("[MPPThread] Received a frame but MPP frame buffers are not initialised yet.");
+         log_softerror_and_alarm("[MPPThreadDecoder] Received a frame but MPP frame buffers are not initialised yet.");
          mpp_frame_deinit(&pFrame);
          pFrame = NULL;
          continue;
@@ -247,7 +281,7 @@ void* _mpp_thread_frame_decode(void *param)
      
       if ( 0 == g_uTimeFirstFrame )
       {
-         //log_line("[MPPThread] Received first frame.");
+         //log_line("[MPPThreadDecoder] Received first frame.");
          g_uTimeFirstFrame = get_current_timestamp_ms();
       }
    
@@ -265,32 +299,23 @@ void* _mpp_thread_frame_decode(void *param)
                break;
             }
          }
-         //log_line("[MPPThread] Received a frame in primeId buffer index %d", iPrimeIndex);
-         ruby_drm_core_set_plane_buffer(g_Frames[iPrimeIndex].drmBufferInfo.uBufferId);
-
+         //static int s_iLastPrimeBufferIndex = -1;
+         //if ( (iPrimeIndex != s_iLastPrimeBufferIndex+1) && (iPrimeIndex != 0) )
+         //   log_line("[MPPThreadDecoder] Diff now index: %d, prev index: %d", iPrimeIndex, s_iLastPrimeBufferIndex);
+         //log_line("[MPPThreadDecoder] Received a frame in primeId buffer index %d (max %d)", iPrimeIndex, MAX_VIDEO_FRAMES);
+   
+         s_iLastPrimeBufferIndex = iPrimeIndex;
+         //ruby_drm_core_set_plane_buffer(g_Frames[iPrimeIndex].drmBufferInfo.uBufferId);
+         g_iMPPFrameBufferIndexToDisplay = iPrimeIndex;
+         g_uMPPDRMBufferIdToDisplay = g_Frames[iPrimeIndex].drmBufferInfo.uBufferId;
          u32 uTimeNow = get_current_timestamp_ms();
          if ( uTimeNow > g_uTimeMPPPeriodicChecks + 1000 )
          {
             g_uTimeMPPPeriodicChecks = uTimeNow;
-            log_line("[MPPThread periodic checks");
             _mpp_core_periodic_checks();
          }
-         /*
-         // send DRM FB to display thread
-         printf("Frame thread: must send DRM frame buffer %u to display thread...\n", (uint32_t)mpi.frame_to_drm[i].fb_id);
-         ret = pthread_mutex_lock(&video_mutex);
-         assert(!ret);
-         output_list->video_fb_id = mpi.frame_to_drm[i].fb_id;
-                        //output_list->video_fb_index=i;
-                        output_list->decoding_pts=feed_data_ts;
-         ret = pthread_cond_signal(&video_cond);
-         assert(!ret);
-         ret = pthread_mutex_unlock(&video_mutex);
-         assert(!ret);
-         */
       }
-      //log_line("[MPPThread] Done processing received frame");
-
+      
       g_bMPPFrameEOS = (mpp_frame_get_eos(pFrame))?true:false;
       mpp_frame_deinit(&pFrame);
       pFrame = NULL;
@@ -298,30 +323,35 @@ void* _mpp_thread_frame_decode(void *param)
    }
 
    if ( g_bQuit )
-      log_line("[MPPThread] Ending decoding thread due to quit signal.");
+      log_line("[MPPThreadDecoder] Ending decoding thread due to quit signal.");
    if ( g_bMPPFrameEOS )
-      log_line("[MPPThread] Ending decoding thread due to end of stream.");
+      log_line("[MPPThreadDecoder] Ending decoding thread due to end of stream.");
    log_line("[MPPThread] Ended.");
    return NULL;
 }
 
 int mpp_start_decoding_thread()
 {
+   pthread_create(&g_MPPUpdateDisplayThread, NULL, _mpp_thread_update_display, NULL);
    pthread_create(&g_MPPDecodeThread, NULL, _mpp_thread_frame_decode, NULL);
    return 0;
 }
 
 
-int mpp_init()
+int mpp_init(bool bUseH265Decoder)
 {
-   log_line("[MPP] Doing MPP Initialization...");
+   log_line("[MPP] Doing MPP Initialization (for codec %s)...", (bUseH265Decoder?"H265":"H264"));
+   g_MPPDecodeType = MPP_VIDEO_CodingAVC;
+   if ( bUseH265Decoder )
+      g_MPPDecodeType = MPP_VIDEO_CodingHEVC;
    int iRes = mpp_check_support_format(MPP_CTX_DEC, g_MPPDecodeType);
    if ( iRes != 0 )
    {
-      log_error_and_alarm("[MPP] Video decoding type not supported (%d). Exit.", iRes);
+      log_error_and_alarm("[MPP] Video decoding type %s not supported (%d). Exit.", (bUseH265Decoder?"H265":"H264"), iRes);
       return -1;
    }
 
+   g_bMPPStreamChangedFlag = false;
    g_pInputBuffer = (uint8_t*)malloc(READ_VIDEO_BUF_SIZE);
    if ( NULL == g_pInputBuffer )
    {
@@ -373,15 +403,15 @@ int mpp_init()
       return -6;
    }
 
-   _mpp_send_commnad(MPP_DEC_SET_PARSER_SPLIT_MODE, 0xffff);
-   _mpp_send_commnad(MPP_DEC_SET_DISABLE_ERROR, 0xffff);
-   _mpp_send_commnad(MPP_DEC_SET_IMMEDIATE_OUT, 0xffff);
-   _mpp_send_commnad(MPP_DEC_SET_ENABLE_FAST_PLAY, 0xffff); 
-   _mpp_send_commnad(MPP_SET_OUTPUT_BLOCK, MPP_POLL_BLOCK);
+   _mpp_send_command(MPP_DEC_SET_PARSER_SPLIT_MODE, 0xffff);
+   _mpp_send_command(MPP_DEC_SET_DISABLE_ERROR, 0xffff);
+   _mpp_send_command(MPP_DEC_SET_IMMEDIATE_OUT, 0xffff);
+   _mpp_send_command(MPP_DEC_SET_ENABLE_FAST_PLAY, 0xffff);
+   _mpp_send_command(MPP_SET_OUTPUT_BLOCK, MPP_POLL_BLOCK);
 
    // Use faster parallel hardware decoding? false for now
-   int iFastDec = 0;
-   _mpp_send_commnad(MPP_DEC_SET_PARSER_FAST_MODE, iFastDec);
+   int iFastDec = 1;
+   _mpp_send_command(MPP_DEC_SET_PARSER_FAST_MODE, iFastDec);
 
    log_line("[MPP] Done MPP Initialization.");
    return 0;
@@ -428,5 +458,13 @@ int mpp_mark_end_of_stream()
       usleep(10000);
    }
    pthread_join(g_MPPDecodeThread, NULL );
+   pthread_join(g_MPPUpdateDisplayThread, NULL );
    return 0;
+}
+
+bool mpp_get_clear_stream_changed_flag()
+{
+   bool bRet = g_bMPPStreamChangedFlag;
+   g_bMPPStreamChangedFlag = false;
+   return bRet;
 }

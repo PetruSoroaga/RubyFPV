@@ -511,6 +511,7 @@ u32 hardware_getOnlyBoardType()
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   char szBuff[256];
 
    s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
    hw_execute_bash_command("ipcinfo -c 2>/dev/null", szBuff);
@@ -953,8 +954,8 @@ void gpio_read_buttons_loop()
    int rQA3 = GPIORead(GPIO_PIN_QACTION3);
    #ifdef HW_PLATFORM_RASPBERRY
    int rQA22 = GPIORead(GPIO_PIN_QACTION2_2);
-   int rQAPlus = 0;//GPIORead(GPIO_PIN_QACTIONPLUS);
-   int rQAMinus = 0;//GPIORead(GPIO_PIN_QACTIONMINUS);
+   //int rQAPlus = 0;//GPIORead(GPIO_PIN_QACTIONPLUS);
+   //int rQAMinus = 0;//GPIORead(GPIO_PIN_QACTIONMINUS);
    #endif
 
    u32 time_now = get_current_timestamp_ms();
@@ -1524,7 +1525,6 @@ int hardware_try_mount_usb()
    if ( s_iUSBMounted )
       return 1;
 
-   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[128];
    char szCommand[128];
    char szOutput[2048];
@@ -1532,7 +1532,10 @@ int hardware_try_mount_usb()
    sprintf(szCommand, "mkdir -p %s", FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
-   hw_execute_bash_command_raw("lsblk -l -n -o NAME | grep s 2>&1", szOutput);
+   sprintf(szCommand, "rm -rf %s/*", FOLDER_USB_MOUNT); 
+   hw_execute_bash_command(szCommand, NULL);
+
+   hw_execute_bash_command_raw("lsblk -l -n -o NAME | grep sd 2>&1", szOutput);
    if ( 0 == szOutput[0] )
    {
       log_softerror_and_alarm("[Hardware] USB memory stick could NOT be mounted! Failed to iterate block devices.");
@@ -1610,10 +1613,21 @@ int hardware_try_mount_usb()
    strcpy(s_szUSBMountName, "UnknownUSB");
    szOutput[0] = 0;
    sprintf(szCommand, "ls -Al /dev/disk/by-label | grep %s", szToken);
-   hw_execute_bash_command(szCommand, szOutput);
+   hw_execute_bash_command_raw(szCommand, szOutput);
 
    if ( 0 != szOutput[0] )
    {
+      int iCountChars = 0;
+      char* pTmp = &szOutput[0];
+      while ((*pTmp) != 0 )
+      {
+         if ( ((*pTmp) == 10) || ((*pTmp) == 13) || ((*pTmp) == '\t') || ((*pTmp) < 32) )
+            *pTmp = ' ';
+         pTmp++;
+         iCountChars++;
+      }
+
+      log_line("[Hardware] USB stick name mapping: [%s], %d chars", szOutput, iCountChars);
       char* szToken = strstr(szOutput, "->");
       if ( NULL != szToken )
       {
@@ -1630,18 +1644,46 @@ int hardware_try_mount_usb()
          }
          if ( 0 < strlen(p) )
          {
-            char szTmp[2048];
-            strcpy(szTmp, p);
+            char szTmp[64];
+            strncpy(szTmp, p, sizeof(szTmp)/sizeof(szTmp[0]));
             szTmp[48] = 0;
+            for( int i=0; i<(int)strlen(szTmp); i++ )
+            {
+               if ( szTmp[i] == '\\' )
+               {
+                  szTmp[i] = ' ';
+                  if ( (szTmp[i+1] == 'n') || (szTmp[i+1] == 't') )
+                  if ( szTmp[i+1] != 0 )
+                     szTmp[i+1] = ' ';
+                  if ( szTmp[i+1] == 'x' )
+                  if ( szTmp[i+1] != 0 )
+                  {
+                     szTmp[i+1] = ' ';
+                     if ( isdigit(szTmp[i+2]) )
+                        szTmp[i+2] = ' ';
+                     if ( isdigit(szTmp[i+3]) )
+                        szTmp[i+3] = ' ';
+                  }
+               }
+            }
             strcpy(s_szUSBMountName, szTmp);
          }
       }
    }
 
+   // Cleanup usb name
+   strcpy(szBuff, s_szUSBMountName);
+
+   char* pStart = szBuff;
+   while ((*pStart) == ' ')
+   {
+      pStart++;
+   }
+   strcpy(s_szUSBMountName, pStart);
+   
+   log_line("[Hardware] USB stick name [%s]", s_szUSBMountName);
+
    return s_iUSBMounted;
-   #else
-   return 0;
-   #endif
 }
 
 void hardware_unmount_usb()
@@ -1649,20 +1691,15 @@ void hardware_unmount_usb()
    if ( 0 == s_iUSBMounted )
       return;
 
-   #ifdef HW_PLATFORM_RASPBERRY
    char szCommand[128];
    sprintf(szCommand, "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
    hw_execute_bash_command(szCommand, NULL);
 
    hardware_sleep_ms(200);
 
-   sprintf(szCommand, "rm -rf %s", FOLDER_USB_MOUNT); 
-   hw_execute_bash_command(szCommand, NULL);
-
    s_iUSBMounted = 0;
    log_line("[Hardware] USB memory stick [%s] has been unmounted!", s_szUSBMountName );
    s_szUSBMountName[0] = 0;
-   #endif
 }
 
 char* hardware_get_mounted_usb_name()

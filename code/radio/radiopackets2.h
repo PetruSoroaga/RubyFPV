@@ -126,13 +126,6 @@ typedef struct
 #define EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK2  0x02
 #define EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK3  0x03
 
-#define VIDEO_TYPE_NONE 0
-#define VIDEO_TYPE_H264 1
-#define VIDEO_TYPE_OPENIPC 2
-#define VIDEO_TYPE_RTP_H264 3
-#define VIDEO_TYPE_RTP_H265 4
-
-
 #define PACKET_TYPE_VIDEO_DATA_FULL 2
 
 //----------------------------------------------
@@ -143,7 +136,7 @@ typedef struct
 {
    u8 video_link_profile;
       // (video stream id: 0xF0 bits, current video link profile: 0x0F bits); added in v.5.6
-   u8 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc
+   u8 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
    u32 uEncodingFlags; // same as video_params.uEncodingFlags;
       // byte 0:
       //    bit 0..2  - scramble blocks count

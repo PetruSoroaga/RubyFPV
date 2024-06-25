@@ -50,7 +50,7 @@
 MenuSystemDevStats::MenuSystemDevStats(void)
 :Menu(MENU_ID_SYSTEM_DEV_STATS, "Developer Stats Windows", NULL)
 {
-   m_Width = 0.34;
+   m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.16;
    
    m_pItemsSelect[0] = new MenuItemSelect("Show Retransmissions Stats", "Shows the extended developer video retransmissions stats.");
@@ -83,6 +83,12 @@ MenuSystemDevStats::MenuSystemDevStats(void)
    m_pItemsSelect[3]->addSelection("On");
    m_pItemsSelect[3]->setUseMultiViewLayout();
    m_IndexDevStatsVehicleTx = addMenuItem(m_pItemsSelect[3]);
+
+   m_pItemsSelect[8] = new MenuItemSelect("Show Vehicle Stats", "Shows info about vehicle state.");
+   m_pItemsSelect[8]->addSelection("Off");
+   m_pItemsSelect[8]->addSelection("On");
+   m_pItemsSelect[8]->setUseMultiViewLayout();
+   m_IndexDevStatsVehicle = addMenuItem(m_pItemsSelect[8]);
 
    m_pItemsSelect[4] = new MenuItemSelect("Show Video Bitrate History", "Shows history graph on video bitrate and radio datarates.");
    m_pItemsSelect[4]->addSelection("Off");
@@ -141,6 +147,11 @@ void MenuSystemDevStats::valuesToUI()
    }
    else
       m_pItemsSelect[7]->setEnabled(false);
+
+   m_pItemsSelect[9]->setSelectedIndex(0);
+   if ( NULL != g_pCurrentModel )
+   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_VEHICLE_DEV_STATS )
+      m_pItemsSelect[9]->setSelectedIndex(1);
 }
 
 void MenuSystemDevStats::onShow()
@@ -219,6 +230,27 @@ void MenuSystemDevStats::onSelectItem()
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP;
       if ( ! handle_commands_send_developer_flags() )
          valuesToUI();  
+      return;    
+   }
+
+   if ( m_IndexDevStatsVehicle == m_SelectedIndex )
+   {
+      if ( NULL == g_pCurrentModel )
+      {
+         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
+         valuesToUI();
+         return;
+      }
+
+      osd_parameters_t params;
+      memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
+      int layoutIndex = g_pCurrentModel->osd_params.layout;
+
+      params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
+      if ( 1 == m_pItemsSelect[9]->getSelectedIndex() )
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t)) )
+         valuesToUI();
       return;    
    }
 

@@ -23,6 +23,7 @@ class MenuVehicleVideo: public Menu
       int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
       int m_IndexVideoBitrate;
       int m_IndexVideoProfile;
+      int m_IndexVideoCodec;
       int m_IndexExpert;
       int m_IndexForceCameraMode;
       int m_IndexVideoLinkMode;

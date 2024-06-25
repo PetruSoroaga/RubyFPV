@@ -8,18 +8,6 @@ class RenderEngineRaw: public RenderEngine
      RenderEngineRaw();
      virtual ~RenderEngineRaw();
 
-     virtual void setColors(double* color);
-     virtual void setColors(double* color, float fAlfaScale);
-     virtual void setFill(double* pColor);
-     virtual void setFill(float r, float g, float b, float a);
-     virtual void setStroke(double* color);
-     virtual void setStroke(double* color, float fStrokeSize); 
-     virtual void setStroke(float r, float g, float b, float a);
-     virtual float getStrokeSize();
-     virtual void setStrokeSize(float fStrokeSize);
-     virtual void setFontColor(u32 fontId, double* color);
-     virtual void setFontBackgroundBoundingBoxFillColor(double* color);
-
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
      virtual u32 loadIcon(const char* szFile);

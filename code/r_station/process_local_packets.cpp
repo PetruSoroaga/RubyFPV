@@ -176,13 +176,15 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    audio_parameters_t oldAudioParams;
    type_relay_parameters oldRelayParams;
    rc_parameters_t oldRCParams;
+   video_parameters_t oldVideoParams;
 
    memcpy(&oldRadioInterfacesParams, &(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(&oldRadioLinksParams, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
    memcpy(&oldRCParams, &(g_pCurrentModel->rc_params), sizeof(rc_parameters_t));
    memcpy(&oldAudioParams, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
    memcpy(&oldRelayParams, &(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
-
+   memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
+            
    u32 oldEFlags = g_pCurrentModel->enc_flags;
    ControllerSettings* pCS = get_ControllerSettings();
    int iOldTxPowerSiK = pCS->iTXPowerSiK;
@@ -429,6 +431,13 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    {
       log_line("Received notification from central that current model OSD params have changed.");
       return;       
+   }
+
+   if ( uChangeType == MODEL_CHANGED_VIDEO_CODEC )
+   {
+      log_line("Received notification that video codec changed. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
+      rx_video_output_signal_restart_player();
+      return;
    }
 
    // Signal other components about the model change if it's not from central or if settings where synchronised form vehicle

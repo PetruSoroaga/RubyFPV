@@ -76,7 +76,8 @@ u32 s_uTimeLastCheckMajestic = 0;
 void video_source_majestic_init_all_params()
 {
    hardware_camera_apply_all_majestic_settings(&(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
-          &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]));
+          &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]),
+          &(g_pCurrentModel->video_params));
    g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
    g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
    log_line("Completed setting initial majestic params. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
@@ -459,7 +460,8 @@ void video_source_majestic_periodic_checks()
       char szOutput[256];
       s_bRequestedVideoMajesticCaptureUpdate = false;
       camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      type_video_link_profile* pVideoParams = &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
+      type_video_link_profile* pVideoLinkProfileParams = &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
+      video_parameters_t* pVideoParams = &(g_pCurrentModel->video_params);
       u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
 
       bool bUpdatedImageParams = false;
@@ -495,7 +497,7 @@ void video_source_majestic_periodic_checks()
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_PARAMS )
          hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);
       else
-         hardware_camera_apply_all_majestic_settings(pCameraParams, pVideoParams);
+         hardware_camera_apply_all_majestic_settings(pCameraParams, pVideoLinkProfileParams, pVideoParams);
 
       if ( bUpdatedImageParams )
       {
@@ -503,7 +505,8 @@ void video_source_majestic_periodic_checks()
          s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
       }
 
-      if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_RESOLUTION )
+      if ( ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_RESOLUTION) ||
+           ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_CODEC) )
       {
          hardware_sleep_ms(50);
          video_source_majestic_stop_capture_program();

@@ -5158,5 +5158,6 @@ void osd_render_stats_panels()
       osd_render_stats_full_rx_port();
 
    if ( pCS->iDeveloperMode )
+   if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_VEHICLE_DEV_STATS )
       _osd_render_vehicle_dev_stats();
 }

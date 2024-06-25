@@ -118,7 +118,7 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
 int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
 {
    int iResult = 0;
-   radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
+   //radio_hw_info_t* pNICInfo = hardware_get_radio_info(iInterfaceIndex);
 
    bool bVideoData = false;
    t_packet_header* pPH = (t_packet_header*)pBuffer;
@@ -226,7 +226,7 @@ int try_read_packets(int iInterfaceIndex)
             
    int maxfd = -1;
    FD_ZERO(&g_Readset);
-   for(int i=0; i<hardware_get_radio_interfaces_count(); ++i)
+   for(int i=0; i<hardware_get_radio_interfaces_count(); i++)
    {
       if ( i != iInterfaceIndex )
          continue;
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
    log_enable_stdout();
    hardware_enumerate_radio_interfaces();
    int iInterfaceIndex = -1;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); ++i)
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++)
    {
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( 0 == strcmp(szCard, pNICInfo->szName ) )
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 
    radio_utils_set_interface_frequency(NULL, iInterfaceIndex, -1, iFreq, NULL, 0);
 
-   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq, port);
+   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq/1000, port);
 
    int pcapR =  radio_open_interface_for_read(iInterfaceIndex, port);
    if ( pcapR < 0 )
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
    g_SM_RadioStats.countLocalRadioInterfaces = 1;
    g_SM_RadioStats.countLocalRadioLinks = 1;
 
-   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq, port);
+   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq/1000, port);
 
    if ( -1 == g_iOnlyStreamId )
       printf("\nLooking for any stream\n");

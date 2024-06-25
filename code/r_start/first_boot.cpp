@@ -159,7 +159,8 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    {
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
       hardware_camera_apply_all_majestic_settings(&(s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].profiles[s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].iCurrentProfile]),
-          &(s_ModelFirstBoot.video_link_profiles[s_ModelFirstBoot.video_params.user_selected_video_link_profile]));
+          &(s_ModelFirstBoot.video_link_profiles[s_ModelFirstBoot.video_params.user_selected_video_link_profile]),
+          &(s_ModelFirstBoot.video_params));
       #endif
    }
    else

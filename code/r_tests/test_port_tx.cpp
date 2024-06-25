@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 
    int port = atoi(argv[1]);
    char* szMsg = argv[2];
-   printf("\nSending on port: %d, message: %s (%d bytes)\n", port, szMsg, strlen(szMsg)+1);
+   printf("\nSending on port: %d, message: %s (%d bytes)\n", port, szMsg, (int)strlen(szMsg)+1);
 
    printf("\nCreating socket...\n");
    int res = radio_open_interface_for_write(0);

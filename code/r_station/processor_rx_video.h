@@ -85,6 +85,7 @@ class ProcessorRxVideo
       int getVideoWidth();
       int getVideoHeight();
       int getVideoFPS();
+      int getVideoType();
       shared_mem_video_stream_stats* getVideoDecodeStats();
       shared_mem_video_stream_stats_history* getVideoDecodeStatsHistory();
       shared_mem_controller_retransmissions_stats* getControllerRetransmissionsStats();

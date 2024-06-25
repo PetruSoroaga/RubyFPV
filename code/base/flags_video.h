@@ -1,5 +1,11 @@
 #pragma once
 
+#define VIDEO_TYPE_NONE 0
+#define VIDEO_TYPE_H264 1
+#define VIDEO_TYPE_H265 2
+#define VIDEO_TYPE_RTP_H264 3
+#define VIDEO_TYPE_RTP_H265 4
+
 
 // Video link profiles: 5 profiles for video link quality management; 1 profile for PIP; rest: unused
 
@@ -45,3 +51,4 @@
 #define VIDEO_FLAG_IGNORE_TX_SPIKES          ((u32)(((u32)0x01)<<1))
 #define VIDEO_FLAG_ENABLE_LOCAL_HDMI_OUTPUT  ((u32)(((u32)0x01)<<2))
 #define VIDEO_FLAG_RETRANSMISSIONS_FAST      ((u32)(((u32)0x01)<<3))
+#define VIDEO_FLAG_GENERATE_H265             ((u32)(((u32)0x01)<<4))

@@ -1494,7 +1494,7 @@ bool process_command(u8* pBuffer, int length)
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 
-      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_OPENIPC_CAMERA)
+      #if defined (HW_PLATFORM_RASPBERRY)
       if ( g_pCurrentModel->isActiveCameraVeye() )
          hw_get_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, szOutput);
       else
@@ -1506,6 +1506,15 @@ bool process_command(u8* pBuffer, int length)
          g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
       #endif
         
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_get_proc_priority(VIDEO_RECORDER_COMMAND, szOutput);
+      strcat(szBuffer, szOutput);
+      strcat(szBuffer, "+");
+
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
+      #endif
+
       hw_execute_bash_command_raw("nproc --all", szOutput);
       szOutput[strlen(szOutput)-1] = 0;
       strcat(szBuffer, "CPU Cores: ");
@@ -2320,6 +2329,8 @@ bool process_command(u8* pBuffer, int length)
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
       );
 
+      if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+         log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
       bool bMustSignalTXVideo = false;
       bool bVideoResolutionChanged = false;
       bool bMustRestartCapture = false;
@@ -2419,7 +2430,14 @@ bool process_command(u8* pBuffer, int length)
       if ( bVideoResolutionChanged || bMustRestartCapture )
       {
          if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+         {
+            if ( bVideoResolutionChanged )
+               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+            else if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_CODEC);
+            else
+               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+         }
          signalReloadModel(0, 0);
       }
       if ( bMustSignalTXVideo )
@@ -2495,6 +2513,17 @@ bool process_command(u8* pBuffer, int length)
          log_line("[RX Commands]: Changed only user selected video profile adaptive video link flags.");
          signalReloadModel(MODEL_CHANGED_ADAPTIVE_VIDEO_FLAGS, 0);
          return true;
+      }
+
+      if ( hardware_is_running_on_openipc() )
+      if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
+      {
+         if ( oldVideoProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length )
+         {
+            signalReloadModel(MODEL_CHANGED_EC_SCHEME, 0);
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_CODEC);
+            return true;
+         }
       }
 
       if ( videoLinkProfileIsOnlyECSchemeChanged(&oldVideoProfiles[iProfileToCheck], &g_pCurrentModel->video_link_profiles[iProfileToCheck]) )

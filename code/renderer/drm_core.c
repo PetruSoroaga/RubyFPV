@@ -844,8 +844,6 @@ int ruby_drm_swap_mainback_buffers()
    int iRet = drmModeAtomicCommit(s_fdDRM, s_DRMRuntimeState.pAtomicRequest, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
    return iRet;
 
-   //log_line("DEBUG set buffer %u", s_DRMDrawBuffers[s_iDRMActiveOnScreenDrawBuffer].uBufferId);
-   
    //if ( (0 == s_iDRMTargetPlaneIndex) || (-1 == s_iDRMTargetPlaneIndex) )
    {
       /*

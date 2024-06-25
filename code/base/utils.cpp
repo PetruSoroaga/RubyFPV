@@ -1119,6 +1119,10 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
+   sprintf(cmd, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName );
+   hw_execute_bash_command(cmd, NULL);
+   hardware_sleep_ms(delayMs);
+
    sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);

@@ -393,9 +393,9 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
       hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
 
-void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pCameraParams, type_video_link_profile* pVideoParams)
+void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pCameraParams, type_video_link_profile* pVideoLinkProfileParams, video_parameters_t* pVideoParams)
 {
-   if ( (NULL == pCameraParams) || (NULL == pVideoParams) )
+   if ( (NULL == pCameraParams) || (NULL == pVideoLinkProfileParams) || (NULL == pVideoParams) )
    {
       log_softerror_and_alarm("Received invalid params to set majestic settings.");
       return;
@@ -404,26 +404,34 @@ void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pC
 
    hw_execute_bash_command_raw("cli -s .watchdog.enabled false", NULL);
    hw_execute_bash_command_raw("cli -s .system.logLevel info", NULL);
+   hw_execute_bash_command_raw("cli -s .rtsp.enabled false", NULL);
    hw_execute_bash_command_raw("cli -s .video1.enabled false", NULL);
    hw_execute_bash_command_raw("cli -s .video0.enabled true", NULL);
-   hw_execute_bash_command_raw("cli -s .video0.codec h264", NULL);
    hw_execute_bash_command_raw("cli -s .video0.rcMode cbr", NULL);
 
-   sprintf(szComm, "cli -s .video0.fps %d", pVideoParams->fps);
+   if ( pVideoParams->uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+      hw_execute_bash_command_raw("cli -s .video0.codec h265", NULL);
+   else
+      hw_execute_bash_command_raw("cli -s .video0.codec h264", NULL);
+
+   sprintf(szComm, "cli -s .video0.fps %d", pVideoLinkProfileParams->fps);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   sprintf(szComm, "cli -s .video0.bitrate %d", pVideoParams->bitrate_fixed_bps/1000);
+   sprintf(szComm, "cli -s .video0.bitrate %d", pVideoLinkProfileParams->bitrate_fixed_bps/1000);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   sprintf(szComm, "cli -s .video0.size %dx%d", pVideoParams->width, pVideoParams->height);
+   sprintf(szComm, "cli -s .video0.size %dx%d", pVideoLinkProfileParams->width, pVideoLinkProfileParams->height);
    hw_execute_bash_command_raw(szComm, NULL);
 
    float fGOP = 0.5;
-   if ( pVideoParams->keyframe_ms > 0 )
-      fGOP = (float)pVideoParams->keyframe_ms / 1000.0;
+   if ( pVideoLinkProfileParams->keyframe_ms > 0 )
+      fGOP = (float)pVideoLinkProfileParams->keyframe_ms / 1000.0;
    else
-      fGOP = -(float)pVideoParams->keyframe_ms / 1000.0;
+      fGOP = -(float)pVideoLinkProfileParams->keyframe_ms / 1000.0;
    
+   sprintf(szComm, "cli -s .outgoing.naluSize %d", pVideoLinkProfileParams->video_data_length);
+   hw_execute_bash_command_raw(szComm, NULL);
+
    sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    hw_execute_bash_command_raw(szComm, NULL);
 
