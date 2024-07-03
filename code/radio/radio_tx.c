@@ -55,6 +55,7 @@ typedef struct
 int s_iRadioTxInitialized = 0;
 int s_iRadioTxSingalStop = 0;
 int s_iRadioTxMarkedForQuit = 0;
+int s_iRadioTxDevMode = 0;
 int s_iRadioTxIPCQueue = -1;
 int s_iRadioTxSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
 int s_iRadioTxSerialPacketSize[MAX_RADIO_INTERFACES];
@@ -317,6 +318,12 @@ void radio_tx_mark_quit()
 void radio_tx_set_custom_thread_priority(int iPriority)
 {
    s_iCustomTxThreadPriority = iPriority;
+}
+
+void radio_tx_set_dev_mode()
+{
+   s_iRadioTxDevMode = 1;
+   log_line("[RadioTx] Set dev mode");
 }
 
 

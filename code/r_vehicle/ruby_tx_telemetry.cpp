@@ -970,7 +970,7 @@ void onRebootRequest()
    vehicle_stop_rx_rc();
    hardware_sleep_ms(100);
    log_line("Will reboot now.");
-   hw_execute_bash_command("reboot -f", NULL);
+   hardware_reboot();
 }
 
 

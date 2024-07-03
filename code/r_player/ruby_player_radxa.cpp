@@ -261,7 +261,7 @@ void* _thread_consume_pipe_buffer(void *param)
          fwrite( &(g_uPipeBuffer[g_iPipeBufferReadPos]), 1, iSize, fpTmp);
 
       int iRes = mpp_feed_data_to_decoder(&(g_uPipeBuffer[g_iPipeBufferReadPos]), iSize);
-      if ( iRes > 0 )
+      if ( iRes > 10 )
          log_line("[Thread] Stalled consuming %d bytes at pos %d (write pos: %d), stall for %d ms", iSize, g_iPipeBufferReadPos, g_iPipeBufferWritePos, iRes);
       
       if ( mpp_get_clear_stream_changed_flag() )
@@ -315,6 +315,8 @@ void _do_stream_mode_pipe()
 
    u32 uTimeLastCheck = get_current_timestamp_ms();
    int nRead = 1;
+   int nReadFailedCounter = 0;
+   u32 uTimeLastReadFailedLog = 0;
    int iCount =0;
    int iTotalRead = 0;
    bool bAnyInputEver = false;
@@ -365,7 +367,16 @@ void _do_stream_mode_pipe()
             log_line("Reached end of input stream data. Ending video streaming. errono: %d, (%s)", errno, strerror(errno));
             break;
          }
-         log_line("No read data. Continue, write pos: %d, write size: %d", g_iPipeBufferWritePos, iSizeToRead);
+         nReadFailedCounter++;
+         u32 uTimeNow = get_current_timestamp_ms();
+         if ( (uTimeNow > uTimeLastReadFailedLog + 200) || (nReadFailedCounter > 50) )
+         {
+            log_line("No read data. Failed counter: %d. Continue, write pos: %d, write size: %d",
+               nReadFailedCounter, g_iPipeBufferWritePos, iSizeToRead);
+            nReadFailedCounter = 0;
+            uTimeLastReadFailedLog = uTimeNow;
+         }
+         hardware_sleep_ms(2);
          continue;
       }
 

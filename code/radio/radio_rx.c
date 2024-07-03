@@ -42,6 +42,7 @@
 
 int s_iRadioRxInitialized = 0;
 int s_iRadioRxSingalStop = 0;
+int s_iRadioRxDevMode = 0;
 int s_iRadioRxLoopTimeoutInterval = 15;
 int s_iRadioRxMarkedForQuit = 0;
 int s_iDefaultRxThreadPriority = -1;
@@ -965,6 +966,12 @@ void radio_rx_resume_interface(int iInterfaceIndex)
 void radio_rx_mark_quit()
 {
    s_iRadioRxMarkedForQuit = 1;
+}
+
+void radio_rx_set_dev_mode()
+{
+   s_iRadioRxDevMode = 1;
+   log_line("[RadioRx] Set dev mode");
 }
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength)

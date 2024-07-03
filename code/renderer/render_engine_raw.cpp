@@ -389,7 +389,16 @@ void RenderEngineRaw::_drawSimpleText(RenderEngineRawFont* pFont, const char* sz
    m_pFBG->disableFontOutline = m_bDisableTextOutline?1:0;
 
    if ( m_bDrawBackgroundBoundingBoxes )
+   {
       _drawSimpleTextBoundingBox(pFont, szText, xPos, yPos, 1.0);
+      if ( m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor )
+      {
+         m_pFBG->mix_color.r = m_ColorTextBackgroundBoundingBoxStrike[0];
+         m_pFBG->mix_color.g = m_ColorTextBackgroundBoundingBoxStrike[1];
+         m_pFBG->mix_color.b = m_ColorTextBackgroundBoundingBoxStrike[2];
+         m_pFBG->mix_color.a = m_ColorTextBackgroundBoundingBoxStrike[3];
+      }
+   }
 
    float xTmp = xPos;
    while ( *szText )

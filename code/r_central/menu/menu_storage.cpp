@@ -394,8 +394,8 @@ void MenuStorage::onReturnFromChild(int iChildMenuId, int returnValue)
 
       // Expand FS
       #ifdef HW_PLATFORM_RASPBERRY
-      hw_execute_bash_command("sudo raspi-config --expand-rootfs > /dev/null 2>&1", NULL);   
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hw_execute_bash_command("sudo raspi-config --expand-rootfs > /dev/null 2>&1", NULL);
+      hardware_reboot();
       exit(0);
       #endif
       return;

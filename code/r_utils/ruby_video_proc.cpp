@@ -60,11 +60,27 @@ bool gbQuit = false;
 bool g_bDebug = false;
 int niceValue = 10;
 
+void _store_error(const char* szErrorMsg)
+{
+   if ( (NULL == szErrorMsg) || (0 == szErrorMsg[0]) )
+      return;
+   char szFileError[MAX_FILE_PATH_SIZE];
+   strcpy(szFileError, FOLDER_RUBY_TEMP);
+   strcat(szFileError, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+   FILE* fd = fopen(szFileError, "a");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%s\n", szErrorMsg);
+      fclose(fd);
+   }
+   else
+      log_softerror_and_alarm("Failed to store error in file: [%s], [%s]", szFileError, szErrorMsg);
+}
+
 bool store_video()
 {
-   char szFile[MAX_FILE_PATH_SIZE];
-   char szFileIn[MAX_FILE_PATH_SIZE];
-   char szFileInfo[MAX_FILE_PATH_SIZE];
+   char szFileInInfo[MAX_FILE_PATH_SIZE];
+   char szFileInVideo[MAX_FILE_PATH_SIZE];
    char szComm[1024];
    //char szCommOutput[4096];
 
@@ -73,92 +89,81 @@ bool store_video()
    int width, height;
    int iVideoType = VIDEO_TYPE_H264;
 
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
-   FILE* fd = fopen(szFile, "r");
+   strcpy(szFileInInfo, FOLDER_RUBY_TEMP);
+   strcat(szFileInInfo, FILE_TEMP_VIDEO_FILE_INFO);
+   FILE* fd = fopen(szFileInInfo, "r");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to open video recording info file: %s", szFile);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to read video recording info file.");
-      fclose(fd);
+      log_softerror_and_alarm("Failed to open video recording info file: %s", szFileInInfo);
+      _store_error("Failed to open video info file");
       return false;
    }
-   if ( 3 != fscanf(fd, "%s %d %d", szFileIn, &fps, &length) )
+   if ( 3 != fscanf(fd, "%s %d %d", szFileInVideo, &fps, &length) )
    {
       fclose(fd);
-      log_softerror_and_alarm("Failed to read video recording info file 1/2: %s", szFile);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to read video recording info file. Invalid file.");
-      fclose(fd);
+      log_softerror_and_alarm("Failed to read video recording info file 1/2: %s", szFileInInfo);
+      _store_error("Failed to read video recording info file. Invalid file.");
       return false;
    }
    if ( 2 != fscanf(fd, "%d %d", &width, &height) )
    {
-      log_softerror_and_alarm("Failed to read video recording info file 2/2: %s", szFile);
+      log_softerror_and_alarm("Failed to read video recording info file 2/2: %s", szFileInInfo);
       fclose(fd);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to read video recording info file. Invalid file.");
-      fclose(fd);
+      _store_error( "Failed to read video recording info file. Invalid file.");
       return false;
    }
    if ( 1 != fscanf(fd, "%d", &iVideoType) )
    {
-      log_softerror_and_alarm("Failed to read video recording info file video type from %s", szFile);
+      log_softerror_and_alarm("Failed to read video recording info file video type from %s", szFileInInfo);
       iVideoType = VIDEO_TYPE_H264;
    }
    fclose(fd);
 
-   if ( NULL != strstr(szFileIn, FOLDER_TEMP_VIDEO_MEM) )
+   log_line("Read video info file: fps: %d, length: %d, w x h: %d x %d, type: %d, in video file: [%s]",
+      fps, length, width, height, iVideoType, szFileInVideo);
+
+   if ( NULL != strstr(szFileInVideo, FOLDER_TEMP_VIDEO_MEM) )
    {
-      snprintf(szComm, 511, "nice -n %d mv %s %s%s", niceValue, szFileIn, FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE);
+      snprintf(szComm, 511, "nice -n %d mv %s %s%s", niceValue, szFileInVideo, FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE);
       hw_execute_bash_command(szComm, NULL);
 
       sprintf(szComm, "umount %s", FOLDER_TEMP_VIDEO_MEM);
       hw_execute_bash_command(szComm, NULL);
-      strcpy(szFileIn, FOLDER_RUBY_TEMP);
-      strcat(szFileIn, FILE_TEMP_VIDEO_FILE);
+      strcpy(szFileInVideo, FOLDER_RUBY_TEMP);
+      strcat(szFileInVideo, FILE_TEMP_VIDEO_FILE);
    }
 
-   char szOutFile[MAX_FILE_PATH_SIZE];
-   char szOutFileInfo[MAX_FILE_PATH_SIZE];
-   szOutFile[0] = 0;
-   szOutFileInfo[0] = 0;
-
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
-   fd = fopen(szFile, "r");
-   if ( NULL == fd )
+   long lSizeVideo = 0;
+   fd = fopen(szFileInVideo, "rb");
+   if ( NULL != fd )
    {
-      log_softerror_and_alarm("Failed to read video output info file 1/2: %s", szFile);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-      fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to read video output info file.");
+      fseek(fd, 0, SEEK_END);
+      lSizeVideo = ftell(fd);
+      fseek(fd, 0, SEEK_SET);
       fclose(fd);
+   }
+
+   if ( lSizeVideo < 100000 )
+   {
+      log_softerror_and_alarm("Input video file %s is too small (%d bytes)", szFileInVideo, (int)lSizeVideo);
+      _store_error( "Invalid video file. Too small. Discard it.");
       return false;
    }
-   else
+
+   if ( length < 3 )
    {
-      if ( 1 != fscanf(fd, "%s", szOutFileInfo) )
-      {
-         fclose(fd);
-         log_softerror_and_alarm("Failed to read video output info file 2/2: %s", szFile);
-         strcpy(szFile, FOLDER_RUBY_TEMP);
-         strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-         fd = fopen(szFile, "a");
-         fprintf(fd, "%s\n", "Failed to read video output info file. Invalid file.");
-         fclose(fd);
-         return false;
-      }
+      log_softerror_and_alarm("Input video file %s is too small (%d sec)", szFileInVideo, (int)length);
+      _store_error( "Invalid video file. Too short. Discard it.");
+      return false;
    }
-   fclose(fd);
+
+   log_line("Video input file size: %d bytes", (int) lSizeVideo);
+
+   char szOutFileVideo[MAX_FILE_PATH_SIZE];
+   char szOutFileInfo[MAX_FILE_PATH_SIZE];
+   char szFullOutFileInfo[MAX_FILE_PATH_SIZE];
+   szOutFileVideo[0] = 0;
+   szOutFileInfo[0] = 0;
 
    char vehicle_name[MAX_VEHICLE_NAME_LENGTH+1];
 
@@ -173,35 +178,38 @@ bool store_video()
    u32 timeNow = get_current_timestamp_ms();
    sprintf(szOutFileInfo, FILE_FORMAT_VIDEO_INFO, vehicle_name, g_iBootCount, timeNow/1000, timeNow%1000 );
 
-   strncpy(szOutFile, szOutFileInfo, 512);
-   szOutFile[strlen(szOutFile)-4] = 'h';
-   szOutFile[strlen(szOutFile)-3] = '2';
-   szOutFile[strlen(szOutFile)-2] = '6';
-   szOutFile[strlen(szOutFile)-1] = '4';
+   strncpy(szOutFileVideo, szOutFileInfo, sizeof(szOutFileVideo)/sizeof(szOutFileVideo[0]));
+   szOutFileVideo[strlen(szOutFileVideo)-4] = 'h';
+   szOutFileVideo[strlen(szOutFileVideo)-3] = '2';
+   szOutFileVideo[strlen(szOutFileVideo)-2] = '6';
+   szOutFileVideo[strlen(szOutFileVideo)-1] = '4';
    if ( iVideoType == VIDEO_TYPE_H265 )
-      szOutFile[strlen(szOutFile)-1] = '5';
+      szOutFileVideo[strlen(szOutFileVideo)-1] = '5';
 
-   snprintf(szFileInfo, 1023, "%s%s", FOLDER_MEDIA, szOutFileInfo);
-   fd = fopen(szFileInfo, "w");
+   snprintf(szFullOutFileInfo, sizeof(szFullOutFileInfo)/sizeof(szFullOutFileInfo[0]), "%s%s", FOLDER_MEDIA, szOutFileInfo);
+
+   log_line("Built output file names: out video file: [%s], out info file: [%s]", szOutFileVideo, szOutFileInfo);
+   log_line("Output info file: [%s]", szFullOutFileInfo);
+   
+   sprintf(szComm, "mkdir -p %s", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
+
+   fd = fopen(szFullOutFileInfo, "w");
    if ( NULL == fd )
    {
-      log_softerror_and_alarm("Failed to write video output info file: %s", szFile);
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_VIDEO_FILE_INFO);
-      fd = fopen(szFile, "a");
-      fprintf(fd, "%s\n", "Failed to write video output information file.");
-      fclose(fd);
+      log_softerror_and_alarm("Failed to write video output info file: %s", szFullOutFileInfo);
+      _store_error( "Failed to write video output information file.");
       return false;
    }
-   fprintf(fd, "%s\n", szOutFile);
+   fprintf(fd, "%s\n", szOutFileVideo);
    fprintf(fd, "%d %d\n", fps, length );
    fprintf(fd, "%d %d\n", width, height );
    fprintf(fd, "%d\n", iVideoType );
    fclose(fd);
 
-   log_line("Moving video file %s to: %s%s", szFileIn, FOLDER_MEDIA, szOutFile);
+   log_line("Moving temp video file [%s] to: [%s%s]", szFileInVideo, FOLDER_MEDIA, szOutFileVideo);
 
-   snprintf(szComm, 1023, "nice -n %d mv %s %s%s", niceValue, szFileIn, FOLDER_MEDIA, szOutFile);
+   snprintf(szComm, 1023, "nice -n %d mv %s %s%s", niceValue, szFileInVideo, FOLDER_MEDIA, szOutFileVideo);
    hw_execute_bash_command(szComm, NULL);
    //launch_set_proc_priority("cp", 10,0,1);
 
@@ -214,7 +222,7 @@ bool store_video()
 
 bool process_video(char* szFileInfo, char* szFileOut)
 {
-   char szFileIn[MAX_FILE_PATH_SIZE];
+   char szFileInVideo[MAX_FILE_PATH_SIZE];
    char szComm[1024];
    int fps = 0;
    int length = 0;
@@ -224,19 +232,26 @@ bool process_video(char* szFileInfo, char* szFileOut)
    FILE* fd = fopen(szFileInfo, "r");
    if ( NULL == fd )
       return false;
-   if ( 3 != fscanf(fd, "%s %d %d", szFileIn, &fps, &length) )
+   if ( 3 != fscanf(fd, "%s %d %d", szFileInVideo, &fps, &length) )
    {
+      log_softerror_and_alarm("Failed to read video info1 from info file: %s", szFileInfo);
       fclose(fd);
       return false;
    }
-   if ( 3 != fscanf(fd, "%d %d %d", szFileIn, &iWidth, &iHeight, &iVideoType) )
+   if ( 2 != fscanf(fd, "%d %d", &iWidth, &iHeight) )
+   {
+       log_softerror_and_alarm("Failed to read video info2 from info file: %s", szFileInfo);
+       fclose(fd);
+       return false;
+   }
+   if ( 1 != fscanf(fd, "%d",&iVideoType) )
    {
        log_softerror_and_alarm("Failed to read video type from info file: %s", szFileInfo);
        iVideoType = VIDEO_TYPE_H264;
    }
    fclose(fd);
 
-   log_line("Processing video file: %s, fps: %d, length: %d seconds, video type: %d", szFileIn, fps, length, iVideoType);
+   log_line("Processing video file: %s, fps: %d, length: %d seconds, video type: %d", szFileInVideo, fps, length, iVideoType);
    if ( length < 2 )
    {
       log_softerror_and_alarm("Empty video file (less than 3 seconds) received for processing. Ignoring it.");
@@ -244,7 +259,7 @@ bool process_video(char* szFileInfo, char* szFileOut)
    }
 
    // Convert input file to output file
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileIn, szFileOut);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileInVideo, szFileOut);
    log_line("Execute conversion: %s", szComm);
    //hw_execute_bash_command(szComm, NULL);
    system(szComm);
@@ -295,9 +310,11 @@ int main(int argc, char *argv[])
 
    char szFileInfo[MAX_FILE_PATH_SIZE];
    char szFileOut[MAX_FILE_PATH_SIZE];
-   
+   szFileInfo[0] = 0;
+   szFileOut[0] = 0;
+
    bool bStoreOnly = true;
-   // Default, when no params.
+   // Default, when no params:
    // Just store the temporary recording to media folder
 
    if ( argc >= 2 )
@@ -314,12 +331,18 @@ int main(int argc, char *argv[])
    
    if ( bStoreOnly )
    {
-      log_line("Processing input video file.");
+      log_line("Processing input video file to store it to media folder...");
       store_video();
+      log_line("Remove temporary recording files...");
+      char szComm[1024];
+      sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_INFO);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE);
+      hw_execute_bash_command(szComm, NULL);
    }
    else
    {
-      log_line("Processing info file %s to output video file %s", szFileInfo, szFileOut);
+      log_line("Processing info file %s to output video file %s ...", szFileInfo, szFileOut);
       process_video(szFileInfo, szFileOut);
    }
 

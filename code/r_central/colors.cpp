@@ -37,11 +37,11 @@
 
 double COLOR_DEV[4] = { 170,220,255,1.0 };
 
-double COLOR_POPUP_BG[4] = { 5,5,5, 0.76 };
+double COLOR_POPUP_BG[4] = { 5,5,5, 0.8 };
 double COLOR_POPUP_BORDER[4] = { 90,20,40,0.9 };
 double COLOR_POPUP_TEXT[4] = { 255,250,230,0.85 };
 
-double COLOR_POPUP_INV_BG[4] = { 180,180,180, 0.7 };
+double COLOR_POPUP_INV_BG[4] = { 180,180,180, 0.8 };
 double COLOR_POPUP_INV_BORDER[4] = { 100,100,100,0.7 };
 double COLOR_POPUP_INV_TEXT[4] = { 30,30,30,0.8 };
 

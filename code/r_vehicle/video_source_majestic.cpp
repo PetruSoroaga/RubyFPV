@@ -231,17 +231,12 @@ void video_source_majestic_set_videobitrate_value(u32 uBitrate)
    //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput); 
 }
 
-// Returns the buffer and number of bytes read
-u8* video_source_majestic_read(int* piReadSize, bool bAsync)
+int _video_source_majestic_try_read_input_udp_data(bool bAsync)
 {
-   if ( (NULL == piReadSize) )
-      return NULL;
-
-   *piReadSize = 0;
    if ( -1 == s_fInputVideoStreamUDPSocket )
-      return NULL;
+      return -1;
 
-   int nRecv = 0;
+   int nRecvBytes = 0;
    if ( bAsync )
    {
       static uint8_t cmsgbuf[CMSG_SPACE(sizeof(uint32_t))];
@@ -267,18 +262,18 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
       if ( res < 0 )
       {
          log_error_and_alarm("[VideoSourceUDP] Failed to poll UDP socket.");
-         return NULL;
+         return -1;
       }
       if ( 0 == res )
-         return NULL;
+         return 0;
 
       if (fds[0].revents & (POLLERR | POLLNVAL))
       {
          log_softerror_and_alarm("[VideoSourceUDP] Socket error pooling: %s", strerror(errno));
-         return NULL;
+         return -1;
       }
       if ( ! (fds[0].revents & POLLIN) )
-         return NULL;
+         return 0;
     
       struct iovec iov = { .iov_base = (void*)s_uInputVideoUDPBuffer,
                                             .iov_len = sizeof(s_uInputVideoUDPBuffer) };
@@ -292,17 +287,17 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
 
       memset(cmsgbuf, '\0', sizeof(cmsgbuf));
 
-      nRecv = recvmsg(s_fInputVideoStreamUDPSocket, &msghdr, 0);
-      if ( nRecv < 0 )
+      nRecvBytes = recvmsg(s_fInputVideoStreamUDPSocket, &msghdr, 0);
+      if ( nRecvBytes < 0 )
       {
          log_softerror_and_alarm("[VideoSourceUDP] Failed to recvmsg from UDP socket, error: %s", strerror(errno));
-         return NULL;
+         return -1;
       }
 
-      if ( nRecv > MAX_PACKET_TOTAL_SIZE )
+      if ( nRecvBytes > MAX_PACKET_TOTAL_SIZE )
       {
-         log_softerror_and_alarm("[VideoSourceUDP] Read too much data %d bytes from UDP socket", nRecv);
-         nRecv = MAX_PACKET_TOTAL_SIZE;
+         log_softerror_and_alarm("[VideoSourceUDP] Read too much data %d bytes from UDP socket", nRecvBytes);
+         nRecvBytes = MAX_PACKET_TOTAL_SIZE;
       }
 
       static uint32_t rxq_overflow = 0;
@@ -327,13 +322,13 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
       if ( iSelectResult < 0 )
       {
          log_error_and_alarm("[VideoSourceUDP] Failed to select socket.");
-         return NULL;
+         return -1;
       }
       if ( iSelectResult == 0 )
-         return NULL;
+         return 0;
 
       if( 0 == FD_ISSET(s_fInputVideoStreamUDPSocket, &readset) )
-         return NULL;
+         return 0;
 
       struct sockaddr_in client_addr;
       socklen_t len = sizeof(client_addr);
@@ -343,78 +338,140 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
       client_addr.sin_addr.s_addr = INADDR_ANY;
       client_addr.sin_port = htons( s_iInputVideoStreamUDPPort );
 
-      nRecv = recvfrom(s_fInputVideoStreamUDPSocket, s_uInputVideoUDPBuffer, sizeof(s_uInputVideoUDPBuffer)/sizeof(s_uInputVideoUDPBuffer[0]), 
+      nRecvBytes = recvfrom(s_fInputVideoStreamUDPSocket, s_uInputVideoUDPBuffer, sizeof(s_uInputVideoUDPBuffer)/sizeof(s_uInputVideoUDPBuffer[0]), 
                 MSG_WAITALL, ( struct sockaddr *) &client_addr,
                 &len);
       //int nRecv = recv(socket_server, szBuff, 1024, )
-      if ( nRecv < 0 )
+      if ( nRecvBytes < 0 )
       {
          log_error_and_alarm("[VideoSourceUDP] Failed to receive from UDP socket.");
-         return NULL;
+         return -1;
       }
-      if ( nRecv == 0 )
-         return NULL;
+      if ( nRecvBytes == 0 )
+         return 0;
    }
-   s_uDebugUDPInputBytes += nRecv;
-   s_uDebugUDPInputReads++;
+   return nRecvBytes;
+}
 
-   // Parse RTP frame, extract NAL frame or fragment
+// Parse input raw bytes and returns a NAL packet (in s_uOutputUDPNALFrameSegment)
 
-   if ( nRecv <= 12 )
-      return NULL;
+int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
+{
+   if ( iInputBytes <= 12 )
+   {
+      log_softerror_and_alarm("[VideoSourceUDP] Process RTP packet too small, only %d bytes", iInputBytes);
+      return 0;
+   }
+ 
+   int iRTPHeaderLength = 0;
+   if ( (pInputRawData[0] & 0x80) && (pInputRawData[1] & 0x60) )
+      iRTPHeaderLength = 12;
 
+   // ----------------------------------------------
+   // Begin - Check RTP sequence number
    static u16 s_uLastRTLSeqNumberInUDPFrame = 0;
    
-   u16 uRTPSeqNb = (((u16)s_uInputVideoUDPBuffer[2]) << 8) | s_uInputVideoUDPBuffer[3];
+   u16 uRTPSeqNb = (((u16)pInputRawData[2]) << 8) | pInputRawData[3];
 
    if ( 0 != s_uLastRTLSeqNumberInUDPFrame )
    if ( (s_uLastRTLSeqNumberInUDPFrame + 1) != uRTPSeqNb )
       log_softerror_and_alarm("[VideoSourceUDP] Read skipped RTP frames, from seqnb %d to seqnb %d", s_uLastRTLSeqNumberInUDPFrame, uRTPSeqNb);
    s_uLastRTLSeqNumberInUDPFrame = uRTPSeqNb;
 
-   u8 uNALHeaderByte = s_uInputVideoUDPBuffer[12];
-   //u8 uFUIndicator = s_uInputVideoUDPBuffer[12];
-   u8 uFUHeaderByte = s_uInputVideoUDPBuffer[13];
+   // End - Check RTP sequence number
+   // ----------------------------------------------
 
-   u8 uNALStartPrefix[4];
-   uNALStartPrefix[0] = 0;
-   uNALStartPrefix[1] = 0;
-   uNALStartPrefix[2] = 0;
-   uNALStartPrefix[3] = 0x01;
+   u8 uNALOutputHeader[6];
+   uNALOutputHeader[0] = 0;
+   uNALOutputHeader[1] = 0;
+   uNALOutputHeader[2] = 0;
+   uNALOutputHeader[3] = 0x01;
+   uNALOutputHeader[4] = 0xFF; // NAL type H264/H265
+   uNALOutputHeader[5] = 0xFF; // H265 extra header
+   
+   int iNALOutputHeaderSize = 5;
 
-   u8 uNALType = uNALHeaderByte & 0x1F;
-   u8 uFUStartBit = (uFUHeaderByte >> 7) & 0x01;
-   u8 uFUEndBit = (uFUHeaderByte>>6) & 0x01;
+   pInputRawData += iRTPHeaderLength;
+   iInputBytes -= iRTPHeaderLength;
 
-   int iOutputSize = 0;
+   u8 uNALHeaderByte = *pInputRawData;
+   u8 uNALTypeH264 = uNALHeaderByte & 0x1F;
+   u8 uNALTypeH265 = (uNALHeaderByte>>1) & 0x3F;
 
-   if ( uNALType < 24 )
+   pInputRawData++;
+   iInputBytes--;
+
+   int iOutputBytes = 0;
+
+   if ( (uNALTypeH264 != 28) && (uNALTypeH265 != 49) )
    {
-      memcpy(s_uOutputUDPNALFrameSegment, uNALStartPrefix, 4);
-      memcpy(&s_uOutputUDPNALFrameSegment[4], &s_uInputVideoUDPBuffer[12], nRecv-12);
-      iOutputSize = nRecv - 12 + 4;
-   }
-   else if ( uFUStartBit )
-   {
-      uNALType = 0;
-      uNALType = 0x60 | (uFUHeaderByte & 0x1F);
-      memcpy(s_uOutputUDPNALFrameSegment, uNALStartPrefix, 4);
-      memcpy(&s_uOutputUDPNALFrameSegment[4], &uNALType, 1);
-      memcpy(&s_uOutputUDPNALFrameSegment[5], &s_uInputVideoUDPBuffer[14], nRecv-14);
-      iOutputSize = nRecv - 14 + 5;      
-   }
-   else if ( uFUEndBit )
-   {
-      memcpy(s_uOutputUDPNALFrameSegment, &s_uInputVideoUDPBuffer[14], nRecv-14);
-      iOutputSize = nRecv - 14;
+      // Regular NAL unit
+      uNALOutputHeader[4] = uNALHeaderByte;
+      memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
+      memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
+      iOutputBytes = iInputBytes + iNALOutputHeaderSize;
    }
    else
    {
-      memcpy(s_uOutputUDPNALFrameSegment, &s_uInputVideoUDPBuffer[14], nRecv-14);
-      iOutputSize = nRecv - 14;
-   }
+      // Fragmentation unit (fragmented NAL over multiple packets)
+      u8 uFUHeaderByte = *pInputRawData;
+      u8 uFUStartBit = uFUHeaderByte & 0x80;
+      pInputRawData++;
+      iInputBytes--;
 
-   *piReadSize = iOutputSize;
+      if ( uNALTypeH264 == 28 ) 
+      {
+         // H264 fragment
+         uNALOutputHeader[4] = (uNALHeaderByte & 0xE0) | (uFUHeaderByte & 0x1F);
+      }
+      else 
+      {
+         // H265 fragment
+         uFUHeaderByte = *pInputRawData;
+         uFUStartBit = uFUHeaderByte & 0x80;
+         pInputRawData++;
+         iInputBytes--;
+
+         uNALOutputHeader[4] = (uNALHeaderByte & 0x81) | (uFUHeaderByte & 0x3F) << 1;
+         uNALOutputHeader[5] = 1;
+         iNALOutputHeaderSize++;
+      }
+
+      if (uFUStartBit) 
+      {
+         memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
+         memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
+         iOutputBytes = iInputBytes + iNALOutputHeaderSize;
+      }
+      else 
+      {
+         memcpy(s_uOutputUDPNALFrameSegment, pInputRawData, iInputBytes);
+         iOutputBytes = iInputBytes;
+      }
+   } 
+
+   return iOutputBytes;
+}
+
+
+// Returns the buffer and number of bytes read
+u8* video_source_majestic_read(int* piReadSize, bool bAsync)
+{
+   if ( NULL == piReadSize )
+      return NULL;
+
+   *piReadSize = 0;
+
+   int iRecvBytes = _video_source_majestic_try_read_input_udp_data(bAsync);
+   if ( iRecvBytes <= 0 )
+      return NULL;
+
+   s_uDebugUDPInputBytes += iRecvBytes;
+   s_uDebugUDPInputReads++;
+
+   int iOutputBytes = _video_source_majestic_parse_rtp_data(s_uInputVideoUDPBuffer, iRecvBytes);
+  
+   *piReadSize = iOutputBytes;
    return s_uOutputUDPNALFrameSegment;
 }
 

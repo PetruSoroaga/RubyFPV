@@ -110,6 +110,7 @@ RenderEngine::RenderEngine()
    m_bEnableFontScaling = false;
    m_bHighlightFirstWord = false;
    m_bDrawBackgroundBoundingBoxes = false;
+   m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor = false;
    m_fBoundingBoxPadding = 0.0;
 
    m_bDrawStrikeOnTextBackgroundBoundingBoxes = false;
@@ -190,10 +191,28 @@ void RenderEngine::setBackgroundBoundingBoxPadding(float fPadding)
    m_fBoundingBoxPadding = fPadding;
 }
 
+void RenderEngine::setFontBackgroundBoundingBoxSameTextColor(bool bSameColor)
+{
+   m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor = bSameColor;
+}
+
+bool RenderEngine::getFontBackgroundBoundingBoxSameTextColor()
+{
+   return m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor;
+}
+
 void RenderEngine::setFontBackgroundBoundingBoxStrikeColor(double* color)
 {
    memcpy(m_ColorTextBackgroundBoundingBoxStrike, color, 4*sizeof(double));
    m_bDrawStrikeOnTextBackgroundBoundingBoxes = true;
+
+   float fAlpha = color[3]*m_fGlobalAlfa;
+   if ( fAlpha > 1.0 )
+      fAlpha = 1.0;
+   if ( fAlpha < 0.0 )
+      fAlpha = 0.0;
+
+   m_ColorTextBackgroundBoundingBoxStrike[3] = fAlpha * 255;
 }
 
 void RenderEngine::clearFontBackgroundBoundingBoxStrikeColor()
@@ -741,7 +760,7 @@ void RenderEngine::_drawSimpleTextBoundingBox(RenderEngineRawFont* pFont, const 
          m_ColorStroke[0] = m_ColorTextBackgroundBoundingBoxStrike[0];
          m_ColorStroke[1] = m_ColorTextBackgroundBoundingBoxStrike[1];
          m_ColorStroke[2] = m_ColorTextBackgroundBoundingBoxStrike[2];
-         m_ColorStroke[3] = m_ColorTextBackgroundBoundingBoxStrike[3]*255;
+         m_ColorStroke[3] = m_ColorTextBackgroundBoundingBoxStrike[3];
          m_fStrokeSize = 1.0;
       }
       drawRoundRect(xBoundingStart - m_fBoundingBoxPadding/getAspectRatio(), yBoundingStart - m_fBoundingBoxPadding, (xBoundingEnd - xBoundingStart) + 2.0*m_fBoundingBoxPadding/getAspectRatio(), (yBoundingEnd - yBoundingStart) + 2.0*m_fBoundingBoxPadding, 5.0 );

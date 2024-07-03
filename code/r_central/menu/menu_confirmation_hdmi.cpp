@@ -102,7 +102,7 @@ void MenuConfirmationHDMI::onSelectItem()
       }
 
       menu_stack_pop(0);
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 

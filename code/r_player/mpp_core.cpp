@@ -303,8 +303,8 @@ void* _mpp_thread_frame_decode(void *param)
          //if ( (iPrimeIndex != s_iLastPrimeBufferIndex+1) && (iPrimeIndex != 0) )
          //   log_line("[MPPThreadDecoder] Diff now index: %d, prev index: %d", iPrimeIndex, s_iLastPrimeBufferIndex);
          //log_line("[MPPThreadDecoder] Received a frame in primeId buffer index %d (max %d)", iPrimeIndex, MAX_VIDEO_FRAMES);
-   
-         s_iLastPrimeBufferIndex = iPrimeIndex;
+         //s_iLastPrimeBufferIndex = iPrimeIndex;
+         
          //ruby_drm_core_set_plane_buffer(g_Frames[iPrimeIndex].drmBufferInfo.uBufferId);
          g_iMPPFrameBufferIndexToDisplay = iPrimeIndex;
          g_uMPPDRMBufferIdToDisplay = g_Frames[iPrimeIndex].drmBufferInfo.uBufferId;
@@ -350,6 +350,8 @@ int mpp_init(bool bUseH265Decoder)
       log_error_and_alarm("[MPP] Video decoding type %s not supported (%d). Exit.", (bUseH265Decoder?"H265":"H264"), iRes);
       return -1;
    }
+
+   log_line("[MPP] Done check for codec %s. Success.", (bUseH265Decoder?"H265":"H264"));
 
    g_bMPPStreamChangedFlag = false;
    g_pInputBuffer = (uint8_t*)malloc(READ_VIDEO_BUF_SIZE);

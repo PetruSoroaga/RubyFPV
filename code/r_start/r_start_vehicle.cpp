@@ -756,8 +756,7 @@ int r_start_vehicle(int argc, char *argv[])
                }
                else
                {
-                  hw_execute_bash_command("reboot -f", NULL);
-                  sleep(10); 
+                  hardware_reboot();
                }
             }
             else

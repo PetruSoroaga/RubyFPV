@@ -361,8 +361,12 @@ float osd_show_flight_mode(float x, float y)
 
    g_pRenderEngine->drawRect(x, y, w, osd_getBarHeight() );
 
-   osd_set_colors();
-
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( pCS->iDeveloperMode && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-100) )
+      g_pRenderEngine->setColors(get_Color_Dev());
+   else
+      osd_set_colors();
+   
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED) )
    {
       float yPos = y + 0.5*(osd_getBarHeight()-2.0*osd_getSpacingV()-osd_getFontHeight());
@@ -377,6 +381,8 @@ float osd_show_flight_mode(float x, float y)
       if ( g_pCurrentModel != NULL && g_pCurrentModel->is_spectator )
          osd_show_value_centered(x+0.5*w, y+0.7*osd_getSpacingV()+1.8*osd_getFontHeight(), "SPECTATOR", g_idFontOSDSmall);
    }
+
+   osd_set_colors();
    return w;
 }
 

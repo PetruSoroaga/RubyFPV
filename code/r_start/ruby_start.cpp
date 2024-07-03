@@ -345,7 +345,7 @@ bool _check_for_update_from_boot()
 
    log_line("Done executing update from %s folder. Rebooting now.", FOLDER_WINDOWS_PARTITION);
    fflush(stdout);
-   hw_execute_bash_command("reboot -f", NULL);
+   hardware_reboot();
    return true;
    #else
    return false;
@@ -745,48 +745,6 @@ int main(int argc, char *argv[])
    system("sudo mount -o remount,rw /");
    system("cd /home/radxa/ruby");
    hardware_sleep_ms(50);
-
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, "first_boot_config_radxa_done");
-   if ( access(szFile, R_OK) == -1 )
-   {
-      printf("\nRuby doing first time ever initialization on Radxa...\n");
-      fflush(stdout);
-
-      hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
-      hw_execute_bash_command("echo \"\nRuby doing first time ever initialization on Radxa...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
-      hw_execute_bash_command("depmod -a", NULL);
-      hw_execute_bash_command("rmmod 88XXau_wfb", NULL);
-      //hw_execute_bash_command("cp -rf /home/88XXau_wfb.ko /lib/modules/5.10.160-26-rk356x/kernel/drivers/net/wireless/", NULL);
-      //hw_execute_bash_command("insmod /lib/modules/5.10.160-26-rk356x/kernel/drivers/net/wireless/88XXau_wfb.ko", NULL);
-      hw_execute_bash_command("cp -rf /home/88XXau_wfb.ko /lib/modules/5.10.160-33-rk356x/kernel/drivers/net/wireless/", NULL);
-      hw_execute_bash_command("insmod /lib/modules/5.10.160-33-rk356x/kernel/drivers/net/wireless/88XXau_wfb.ko", NULL);
-      hw_execute_bash_command("depmod -a", NULL);
-      hw_execute_bash_command("sudo modprobe -f 88XXau_wfb", NULL);
-      //hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER);
-
-      sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "touch %s", szFile);
-      hw_execute_bash_command(szComm, NULL);
-
-      printf("\nRuby done doing first time ever initialization on Radxa. Rebooting now...\n");
-      fflush(stdout);
-      hw_execute_bash_command("echo \"\nRuby done doing first time ever initialization on Radxa. Rebooting now...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
-
-      if ( NULL != s_pSemaphoreStarted )
-         sem_close(s_pSemaphoreStarted);
-
-      if ( ! g_bDebug )
-         hw_execute_bash_command("reboot -f", NULL);
-      else
-         exit(0);
-      while (true)
-      {
-         hardware_sleep_ms(500);
-      }
-   }
-
    #endif
 
    sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
@@ -975,6 +933,13 @@ int main(int argc, char *argv[])
    char szOutput[4096];
    szOutput[0] = 0;
 
+   if ( bIsFirstBoot )
+      do_first_boot_pre_initialization();
+
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   hw_execute_bash_command("ip link set wlx down", NULL);
+   #endif
+
    #ifdef HW_CAPABILITY_I2C
    hw_execute_bash_command("modprobe i2c-dev", NULL);
    #endif
@@ -1028,10 +993,12 @@ int main(int argc, char *argv[])
 
       for( int i=0; i<iMaxWifiCardsToDetect; i++ )
       {
-         sprintf(szComm, "ifconfig wlan%d down", i );
+         //sprintf(szComm, "ifconfig wlan%d down", i );
+         sprintf(szComm, "ip link set dev wlan%d down", i );
          hw_execute_bash_command(szComm, NULL);
          hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
-         sprintf(szComm, "ifconfig wlan%d up", i );
+         //sprintf(szComm, "ifconfig wlan%d up", i );
+         sprintf(szComm, "ip link set dev wlan%d up", i );
          hw_execute_bash_command(szComm, NULL);
          hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
       }
@@ -1054,7 +1021,8 @@ int main(int argc, char *argv[])
          iWifiIndexToTry = 0;
    }
    
-   sprintf(szComm, "ifconfig -a 2>&1 | grep wlan%d", iWifiIndexToTry);
+   //sprintf(szComm, "ifconfig -a 2>&1 | grep wlan%d", iWifiIndexToTry);
+   sprintf(szComm, "ip link 2>&1 | grep wlan%d", iWifiIndexToTry);
    hw_execute_bash_command_raw(szComm, szOutput);
    log_line("Radio interface wlan%d state: [%s]", iWifiIndexToTry, szOutput);
 
@@ -1088,7 +1056,7 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("rm -rf config/*", NULL);
       sprintf(szComm, "touch %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
       hw_execute_bash_command(szComm, NULL);
-      hw_execute_bash_command("reboot -f", NULL);
+      hardware_reboot();
       hardware_sleep_ms(900);
    }
 
@@ -1141,9 +1109,9 @@ int main(int argc, char *argv[])
    hardware_getCameraType();
    hardware_getBoardType();
 
-   #ifdef HW_PLATFORM_RASPBERRY
+   //#ifdef HW_PLATFORM_RASPBERRY
    hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
-   #endif
+   //#endif
 
    detectSystemType();
 
@@ -1345,6 +1313,10 @@ int main(int argc, char *argv[])
 
    _check_for_update_from_boot();
 
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   //hw_stop_process("wpa_supplicant");
+   #endif
+
    if ( s_isVehicle )
    {
       strcpy(szFile, FOLDER_CONFIG);
@@ -1454,9 +1426,11 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("cp -rf /tmp/logs/log_start.txt /root/ruby/log_firstboot_start.txt", NULL);
       hw_execute_bash_command("cp -rf /tmp/logs/log_system.txt /root/ruby/log_firstboot.txt", NULL);
       #endif
+      hw_execute_bash_command("sync", NULL);
+
       hardware_sleep_ms(500);
       if ( ! g_bDebug )
-         hw_execute_bash_command("reboot -f", NULL);
+         hardware_reboot();
       return 0;
    }
  
@@ -1668,6 +1642,11 @@ int main(int argc, char *argv[])
       printf("Ruby: Starting controller...\n");
       log_line("Starting controller...");
       fflush(stdout);
+
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
+      #endif
+   
 
       hw_execute_ruby_process(NULL, "ruby_controller", NULL, NULL);
 

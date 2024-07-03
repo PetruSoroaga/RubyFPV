@@ -69,6 +69,7 @@ void radio_rx_set_timeout_interval(int iMiliSec);
 void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason);
 void radio_rx_resume_interface(int iInterfaceIndex);
 void radio_rx_mark_quit();
+void radio_rx_set_dev_mode();
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength);
 

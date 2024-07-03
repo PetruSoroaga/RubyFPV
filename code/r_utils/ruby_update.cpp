@@ -92,6 +92,42 @@ void validate_camera(Model* pModel)
 }
 
 
+void do_update_to_94()
+{
+   log_line("Doing update to 9.4");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      save_ControllerSettings();
+
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      char szOutput[2048];
+      szOutput[0] = 0;
+      hw_execute_bash_command_raw("cat /etc/NetworkManager/NetworkManager.conf | grep unmanaged-devices", szOutput);
+      if ( (0 == szOutput[0]) || (NULL == strstr(szOutput, "unmanaged-devices")) )
+      {
+         log_line("Updating network manager conf for Radxa...");
+         hw_execute_bash_command(" echo '[keyfile]' >> /etc/NetworkManager/NetworkManager.conf", NULL);
+         hw_execute_bash_command(" echo 'unmanaged-devices=interface-name:wlan0;interface-name:wlan1;interface-name:wlan2;interface-name:wlan3;interface-name:wlx' >> /etc/NetworkManager/NetworkManager.conf", NULL);
+         hw_execute_bash_command(" echo '' >> /etc/NetworkManager/NetworkManager.conf", NULL);
+      }
+      else
+         log_line("Network manager conf for Radxa is ok.");
+      #endif
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   log_line("Updated model VID %u (%s) to v9.4", pModel->uVehicleId, pModel->getLongName());
+}
+
+
 void do_update_to_93()
 {
    log_line("Doing update to 9.3");
@@ -114,11 +150,8 @@ void do_update_to_93()
 
 
    // To fix: Remove this when fast FPS decoding works fine on Radxa, for now set fps to 30
-   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-   {
-      pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-      pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
-   }
+   //for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   //   pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
 
    log_line("Updated model VID %u (%s) to v9.3", pModel->uVehicleId, pModel->getLongName());
 }
@@ -1250,6 +1283,7 @@ void do_generic_update()
    log_line("Doing generic update step");
    hw_execute_bash_command("chmod 777 ruby*", NULL);
 
+   #if defined (HW_PLATFORM_RASPBERRY)
    if( access( "ruby_capture_raspi", R_OK ) != -1 )
       hw_execute_bash_command("cp -rf ruby_capture_raspi /opt/vc/bin/raspivid", NULL);
    else
@@ -1264,6 +1298,7 @@ void do_generic_update()
       hw_execute_bash_command("cp -rf ruby_capture_veye307 /usr/local/bin/307/veye_raspivid", NULL);
    else
       hw_execute_bash_command("cp -rf /usr/local/bin/307/veye_raspivid ruby_capture_veye307", NULL);
+   #endif
 
    hw_execute_bash_command("chmod 777 ruby*", NULL);
    hw_execute_bash_command("chown root:root ruby_*", NULL);
@@ -1455,6 +1490,9 @@ int main(int argc, char *argv[])
       do_update_to_92();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 3) )
       do_update_to_93();
+
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 4) )
+      do_update_to_94();
 
    saveCurrentModel();
    

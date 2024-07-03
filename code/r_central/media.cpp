@@ -70,7 +70,7 @@ void _media_remove_invalid_files()
          if ( strlen(dir->d_name) < 4 )
             continue;
 
-         sprintf(szFile, "%s%s", FOLDER_MEDIA, dir->d_name);
+         snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, dir->d_name);
          long lSize = 0;
          fd = fopen(szFile, "rb");
          if ( NULL != fd )

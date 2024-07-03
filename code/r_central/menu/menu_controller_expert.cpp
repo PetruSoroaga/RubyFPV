@@ -92,6 +92,7 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexNiceCentral = addMenuItem(m_pItemsSlider[4]);
 
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    addMenuItem(new MenuItemSection("CPU"));
 
    m_pItemsSelect[2] = new MenuItemSelect("Enable CPU Overclocking", "Enables overclocking of the main ARM CPU.");  
@@ -126,6 +127,17 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexReset = addMenuItem(new MenuItem("Reset CPU Freq", "Resets the controller CPU and GPU frequencies to default values."));
 
    m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));
+   
+   #else
+   m_IndexCPUEnabled = -1;
+   m_IndexCPUSpeed = -1;
+   m_IndexGPUEnabled = -1;
+   m_IndexGPUSpeed = -1;
+   m_IndexVoltageEnabled = -1;
+   m_IndexVoltage = -1;
+   m_IndexReset = -1;
+   m_IndexReboot = -1;
+   #endif
 }
 
 void MenuControllerExpert::valuesToUI()
@@ -169,8 +181,10 @@ void MenuControllerExpert::valuesToUI()
       m_pItemsSlider[2]->setEnabled(false);
       m_pItemsSlider[3]->setEnabled(false);
    }
+
    // CPU
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    m_pItemsSelect[2]->setSelection(pcs->iFreqARM > 0);
    if ( pcs->iFreqARM <= 0 )
       m_pItemsSlider[5]->setCurrentValue(m_iDefaultARMFreq);
@@ -191,6 +205,7 @@ void MenuControllerExpert::valuesToUI()
    else
       m_pItemsSlider[7]->setCurrentValue(pcs->iOverVoltage);
    m_pItemsSlider[7]->setEnabled(pcs->iOverVoltage > 0);
+   #endif
 }
 
 
@@ -207,6 +222,7 @@ void MenuControllerExpert::readConfigFile()
 
    ruby_signal_alive();
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    m_iDefaultARMFreq = config_file_get_value("arm_freq");
    if ( m_iDefaultARMFreq < 0 )
       m_iDefaultARMFreq = - m_iDefaultARMFreq;
@@ -227,6 +243,8 @@ void MenuControllerExpert::readConfigFile()
    ruby_signal_alive();
 
    save_ControllerSettings();
+   #endif
+
    ruby_signal_alive();
 }
 
@@ -239,6 +257,7 @@ void MenuControllerExpert::writeConfigFile()
       return;
    }
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    ruby_signal_alive();
    hardware_mount_boot();
    hardware_sleep_ms(50);
@@ -267,6 +286,7 @@ void MenuControllerExpert::writeConfigFile()
    ruby_signal_alive();
 
    hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
+   #endif
    ruby_signal_alive();
 }
 
@@ -291,11 +311,13 @@ void MenuControllerExpert::addTopInfo()
    snprintf(szBuffer, sizeof(szBuffer)/sizeof(szBuffer[0]), "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
    addTopLine(szBuffer);
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command_raw("vcgencmd measure_clock core", szOutput);
    szOutput[0] = 'F';
    szOutput[strlen(szOutput)-1] = 0;
    sprintf(szBuffer, "GPU %s Hz", szOutput);
    addTopLine(szBuffer);
+   #endif
 
    /*
    hw_execute_bash_command_raw("vcgencmd measure_clock h264", szOutput);
@@ -311,6 +333,7 @@ void MenuControllerExpert::addTopInfo()
    addTopLine(szBuffer);
    */
 
+   #if defined(HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command_raw("vcgencmd measure_volts core", szOutput);
    sprintf(szBuffer, "CPU Voltage: %s", szOutput);
    addTopLine(szBuffer);
@@ -332,11 +355,12 @@ void MenuControllerExpert::addTopInfo()
    snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), ", P%s", szOutput);
    strcat(szBuffer, szTmp);
    addTopLine(szBuffer);
-
+   
    addTopLine(" ");
    addTopLine("Note: Changing overclocking settings requires a reboot.");
    addTopLine(" ");
-
+   #endif
+   
    log_line("Menu Controller Expert: added info.");
 }
 
@@ -364,7 +388,7 @@ void MenuControllerExpert::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
    }
 }
 
@@ -552,7 +576,7 @@ void MenuControllerExpert::onSelectItem()
       }
 
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 

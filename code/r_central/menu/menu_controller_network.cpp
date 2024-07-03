@@ -173,8 +173,8 @@ void MenuControllerNetwork::onSelectItem()
    {
       hw_execute_bash_command("touch /boot/ssh", NULL);
       addMessage("SSH enabled. Controller will reboot now.");
-      for( int i=0; i<10; i++ )
+      for( int i=0; i<5; i++ )
          hardware_sleep_ms(400);
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
    }
 }

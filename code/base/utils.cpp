@@ -1092,7 +1092,8 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
 
    char cmd[1024];
 
-   sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   //sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   sprintf(cmd, "ip link set dev %s down", pRadioHWInfo->szName);
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
@@ -1100,7 +1101,8 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(cmd, "ip link set dev %s up", pRadioHWInfo->szName);
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
@@ -1111,7 +1113,8 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   //sprintf(cmd, "ifconfig %s down", pRadioHWInfo->szName );
+   sprintf(cmd, "ip link set dev %s down", pRadioHWInfo->szName);
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
@@ -1123,7 +1126,8 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 
-   sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(cmd, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(cmd, "ip link set dev %s up", pRadioHWInfo->szName);
    hw_execute_bash_command(cmd, NULL);
    hardware_sleep_ms(delayMs);
 

@@ -1,0 +1,11 @@
+
+sudo apt update
+sudo apt-get install -y libdrm-dev libcairo-dev
+
+sudo apt install cmake
+
+git clone https://github.com/rockchip-linux/mpp.git
+cd mpp
+cmake -B build
+sudo cmake --build build --target install
+

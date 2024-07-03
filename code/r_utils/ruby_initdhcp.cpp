@@ -44,7 +44,11 @@ void configureDHCP()
    int i=0;
 
    hw_execute_bash_command("export PATH=/usr/local/bin:${PATH}", NULL);
+   #if defined (HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command("ip link set dev eth0 up", NULL);
+   #else
+   hw_execute_bash_command("ip link set eth0 up", NULL);
+   #endif
    log_line("Waiting for ETH up...");
    do
    {
@@ -69,8 +73,10 @@ void configureDHCP()
       else
          strcpy(szType, "STATION");
 
+      #ifdef HW_PLATFORM_RASPBERRY
       sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s", szType);
       hw_execute_bash_command(szBuff, NULL);
+      #endif
       //ETHCLIENTIP=`ip addr show eth0 | grep -Po 'inet \K[\d.]+'`            
       //echo "Ethernet IP: $ETHCLIENTIP"
       //ping -n -q -c 1 1.1.1.1 
@@ -142,12 +148,20 @@ int main(int argc, char *argv[])
                //hw_execute_bash_command("ip link set dev eth0 up", NULL);
                //execute_bash_command("ip link set dev eth0 down", NULL);
 
-               char szBuff[128];
+               char szBuff[256];
+               szBuff[0] = 0;
+               #ifdef HW_PLATFORM_RASPBERRY
                sprintf(szBuff, "ifconfig eth0 %d.%d.%d.%d up &", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
-               hw_execute_bash_command(szBuff, NULL);
+               #endif
+               #ifdef HW_PLATFORM_RADXA_ZERO3
+               sprintf(szBuff, "ip addr add %d.%d.%d.%d/24 dev eth0", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
+               #endif
+               if ( 0 != szBuff[0] )
+                  hw_execute_bash_command(szBuff, NULL);
                log_line("Setting a fixed IP done.");
                sprintf(szBuff, "ip r a default via 192.168.1.1 2>/dev/null");
                hw_execute_bash_command(szBuff, NULL);
+               hw_execute_bash_command("ip link set eth0 up", NULL);
                log_line("Added default ETH route done.");
             }
       }

@@ -785,7 +785,7 @@ void Popup::Render()
    {
       float fDelta = g_TimeNow - (m_uTimeoutEndTime-fFadeInterval);
       fDelta = fDelta/fFadeInterval;
-      alfa = alfaOrg - alfaOrg * fDelta;
+      alfa = alfaOrg * (1 - fDelta);
    }
    if ( alfa < 0 ) alfa = 0;
    if ( alfa > alfaOrg ) alfa = alfaOrg;

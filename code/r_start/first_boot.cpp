@@ -44,6 +44,45 @@
 
 Model s_ModelFirstBoot;
 
+void do_first_boot_pre_initialization()
+{
+   #if defined HW_PLATFORM_RADXA_ZERO3
+
+   printf("\nRuby doing first time ever initialization on Radxa. Please wait...\n");
+   fflush(stdout);
+
+   hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
+   log_init_local_only("RubyStartFirst");
+   //log_enable_stdout();
+   log_add_file("/tmp/ruby/log_first_radxa.log");
+   hw_execute_bash_command("echo \"\nRuby doing first time ever initialization on Radxa...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
+   hw_execute_bash_command("rmmod 88XXau_wfb 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("cp -rf /home/88XXau_wfb.ko /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", NULL);
+   hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/88XXau_wfb.ko", NULL);
+   hw_execute_bash_command("depmod -a", NULL);
+   hw_execute_bash_command("lsusb", NULL);
+   hw_execute_bash_command("sudo modprobe -f 88XXau_wfb", NULL);
+   hw_execute_bash_command("modprobe -r aic8800_fdrv 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("modprobe -r aic8800_bsp 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("lsusb", NULL);
+   hw_execute_bash_command("lsmod", NULL);
+   hw_execute_bash_command("ip link", NULL);
+   //hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER);
+
+   char szComm[256];
+   sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
+   hw_execute_bash_command(szComm, NULL);
+
+   hw_execute_bash_command("sync", NULL);
+   
+   printf("\nRuby done doing first time ever initialization on Radxa.\n");
+   fflush(stdout);
+   hw_execute_bash_command("echo \"\nRuby done doing first time ever initialization on Radxa.\n\" > /tmp/ruby/log_first_radxa.log", NULL);
+
+   #endif
+}
+
+
 void do_first_boot_initialization_raspberry(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for Raspberry platform...");

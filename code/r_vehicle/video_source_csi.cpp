@@ -294,7 +294,7 @@ u8* video_source_csi_read(int* piReadSize)
    timePipeInput.tv_sec = 0;
 
    if ( s_bLastCameraReadTimedOut )
-      timePipeInput.tv_usec = 2000; // 2 miliseconds timeout
+      timePipeInput.tv_usec = 1000; // 1 miliseconds timeout
    else
       timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
 

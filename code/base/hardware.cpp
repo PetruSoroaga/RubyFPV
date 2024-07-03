@@ -410,6 +410,7 @@ int init_hardware_only_status_led()
       return(0);
    }
 
+   #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[64];
    sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_DETECT_TYPE_VEHICLE);
    hw_execute_bash_command_silent(szBuff, NULL);
@@ -420,13 +421,27 @@ int init_hardware_only_status_led()
    hw_execute_bash_command_silent(szBuff, NULL);
    sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_DETECT_TYPE_CONTROLLER);
    hw_execute_bash_command_silent(szBuff, NULL);
-
+   #endif
+   
    log_line("HW: GPIO setup successfully.");
    #endif
    s_iHardwareJoystickCount = 0;
    s_bHardwareWasSetup = true;
    return 1;
 }
+
+void hardware_reboot()
+{
+   hardware_sleep_ms(200);
+   hw_execute_bash_command("sync", NULL);
+   hardware_sleep_sec(2);
+   hw_execute_bash_command("sudo reboot -f", NULL);
+   while (1)
+   {
+      hardware_sleep_ms(100);
+   }
+}
+
 
 void hardware_release()
 {
@@ -1834,13 +1849,13 @@ int hardware_has_eth()
    char szOutput[1024];
 
    #if defined(HW_PLATFORM_RASPBERRY)
-   hw_execute_bash_command_raw("ifconfig eth0 2>&1", szOutput);
+   hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
    #endif
 
    #if defined(HW_PLATFORM_RADXA_ZERO3)
-   hw_execute_bash_command_raw("ifconfig | grep enx 2>&1", szOutput);
+   hw_execute_bash_command_raw("ip link | grep enx 2>&1", szOutput);
    if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )
-      hw_execute_bash_command_raw("ifconfig eth0 2>&1", szOutput);
+      hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
    #endif
    
    if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )

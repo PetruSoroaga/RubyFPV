@@ -169,7 +169,7 @@ void rx_video_recording_start()
       log_softerror_and_alarm("[VideoRecording] Failed to set nonblock flag on video recording file");
 
    log_line("[VideoRecording] Video recording file flags: %s", str_get_pipe_flags(fcntl(s_iFileVideoRecordingOutput, F_GETFL)));
-  
+   log_line("[VideoOutput] Recording started.");
    s_bRecording = true;
 }
 
@@ -273,10 +273,7 @@ void rx_video_recording_periodic_loop()
    {
       log_line("[VideoRecording] Event to start recording is set.");
       if ( ! s_bRecording )
-      {
          rx_video_recording_start();
-         log_line("[VideoOutput] Recording started.");
-      }
       else
          log_softerror_and_alarm("[VideoRecording] Recording is already started.");
    }
@@ -289,10 +286,7 @@ void rx_video_recording_periodic_loop()
    {
       log_line("[VideoRecording] Event to stop recording is set.");
       if ( s_bRecording )
-      {
          rx_video_recording_stop();
-         log_line("[VideoRecording] Recording stopped.");
-      }
       else
          log_softerror_and_alarm("[VideoRecording] Recording is already stopped.");
    }

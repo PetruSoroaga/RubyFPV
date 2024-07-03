@@ -897,7 +897,7 @@ bool process_command(u8* pBuffer, int length)
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
       hardware_sleep_ms(50);
-      hw_execute_bash_command("reboot -f", NULL);
+      hardware_reboot();
       return true;
    }
 
@@ -2267,7 +2267,7 @@ bool process_command(u8* pBuffer, int length)
            szName);
          fclose(fd);
       }
-      hw_execute_bash_command("reboot -f", NULL);
+      hardware_reboot();
       return true;
    }
 
@@ -3477,7 +3477,7 @@ bool process_command(u8* pBuffer, int length)
 
       saveCurrentModel();
       hardware_sleep_ms(400);
-      hw_execute_bash_command("reboot -f", NULL); 
+      hardware_reboot();
       return true;
    }
 

@@ -776,12 +776,15 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
          yPos = osd_getMarginY() + 0.01*osd_getScaleOSD();
       }
    
-      osd_set_colors();
-      g_pRenderEngine->setFill(0,0,0,0.5);
-      g_pRenderEngine->setStroke(0,0,0,0);
-      g_pRenderEngine->disableRectBlending();
-      g_pRenderEngine->drawRect(xPos, yPos-0.003, 0.46, 0.03);
-      osd_set_colors();
+      if ( p->iShowCPULoad )
+      {
+         osd_set_colors();
+         g_pRenderEngine->setFill(0,0,0,0.5);
+         g_pRenderEngine->setStroke(0,0,0,0);
+         g_pRenderEngine->disableRectBlending();
+         g_pRenderEngine->drawRect(xPos, yPos-0.003, 0.46, 0.03);
+      }
+      osd_set_colors_text(get_Color_Dev());
       osd_show_value( xPos, yPos, "[D]", g_idFontOSD );
 
       if ( p->iShowCPULoad )
@@ -1832,6 +1835,25 @@ void start_loop()
          popups_add_topmost(p);
       }
 
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      FILE* fd = try_open_base_version_file(NULL);
+      if ( NULL == fd )
+      {
+         iMajor = 9;
+         iMinor = 3;
+      }
+      else
+         fclose(fd);
+      if ( (iMajor < 9) || ((iMajor == 9) && (iMinor < 4)))
+      {
+         char szText[128];
+         sprintf(szText, "You have a deprecated version (%d.%d). Please do a full install of your controller, to version 9.4 or newer.", iMajor, iMinor);
+         Popup* p = new Popup(true, szText, 10);
+         p->setIconId(g_idIconError, get_Color_IconError());
+         popups_add_topmost(p);
+      }
+      #endif
+
       if ( g_iBootCount == 2 )
       {
          log_line("First boot detected of the UI after install. Checking for import settings from USB...");
@@ -2155,7 +2177,7 @@ void main_loop_r_central()
          hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       }
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
    }
 }
 

@@ -94,6 +94,8 @@ u32 s_uIndexLastLowDataLinkPackets[MAX_RADIO_INTERFACES];
 pthread_mutex_t s_pMutexRadioSyncRxTxThreads;
 int s_iMutexRadioSyncRxTxThreadsInitialized = 0;
 
+u8 s_uLastRawPacketType = 0;
+int s_iLastRawPacketOffset = 0;
 
 u8 s_uRadiotapHeaderLegacy[] = {
 	0x00, 0x00, // <-- radiotap version
@@ -264,6 +266,7 @@ void radio_enable_crc_gen(int enable)
 void radio_set_debug_flag()
 {
    s_bRadioDebugFlag = 1;
+   log_line("Set radio link debug flag");
 }
 
 void radio_set_link_clock_delta(int iVehicleBehindMilisec)
@@ -279,6 +282,10 @@ int  radio_get_link_clock_delta()
 void radio_set_use_pcap_for_tx(int iEnablePCAPTx)
 {
    s_iUsePCAPForTx = iEnablePCAPTx;
+   if ( s_iUsePCAPForTx )
+      log_line("Set using ppcap for radio tx");
+   else
+      log_line("Set using sockets for radio tx");
 }
 
 // Returns 0 if the packet can't be sent (right now or ever)
@@ -1156,6 +1163,10 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
       s_uLastPacketSentIEEEHeaderLength = sizeof(s_uIEEEHeaderData);
    }
    
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+   s_uLastRawPacketType = pPH->packet_type;
+   s_iLastRawPacketOffset = totalRadioLength;
+
    memcpy(pRawPacket, pPacketData, nInputLength);
    totalRadioLength += nInputLength;
 
@@ -1182,7 +1193,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    while ( nLength > 0 )
    {
       nPCount++;
-      t_packet_header* pPH = (t_packet_header*)pData;
+      pPH = (t_packet_header*)pData;
       int nPacketLength = pPH->total_length;
 
       // Last packet in the chain? Add the extra data if present
@@ -1239,6 +1250,12 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    {
       log_softerror_and_alarm("RadioError: Tried to send an empty radio message.");
       return 0;
+   }
+
+   if ( s_bRadioDebugFlag )
+   {
+      //if ( s_uLastRawPacketType == PACKET_TYPE_RUBY_PING_CLOCK )
+      //   log_line("DEBUG sent PING");
    }
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS

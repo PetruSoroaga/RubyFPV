@@ -82,6 +82,8 @@ int init_hardware();
 int init_hardware_only_status_led();
 void _hardware_load_system_type();
 
+void hardware_reboot();
+
 void hardware_release();
 void hardware_loop();
 void hardware_swap_buttons(int swap);

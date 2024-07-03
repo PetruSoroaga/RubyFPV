@@ -98,7 +98,7 @@ void MenuConfirmationImport::onSelectItem()
          if ( ! load_ControllerInterfacesSettings() )
             save_ControllerInterfacesSettings();
    
-         hw_execute_bash_command("sudo reboot -f", NULL);
+         hardware_reboot();
       }
       else
          addMessage("Failed to import settings from USB memory stick.");         

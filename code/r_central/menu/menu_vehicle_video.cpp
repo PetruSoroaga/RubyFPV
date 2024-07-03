@@ -538,10 +538,10 @@ void MenuVehicleVideo::onSelectItem()
    if ( (m_IndexRes == m_SelectedIndex) || (m_IndexFPS == m_SelectedIndex) || (m_IndexKeyframe == m_SelectedIndex) || (m_IndexAutoKeyframe == m_SelectedIndex) )
    {
       #ifdef HW_PLATFORM_RADXA_ZERO3
-      if ( m_IndexFPS == m_SelectedIndex )
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      if ( m_pItemsSlider[0]->getCurrentValue() > 30 )
-         addMessage2(0, "Experimental", "FPS higher than 30 might have issues on Radxa+OpenIPC hardware for now. Revert to 30 if you see issues.");
+      //if ( m_IndexFPS == m_SelectedIndex )
+      //if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      //if ( m_pItemsSlider[0]->getCurrentValue() > 30 )
+      //   addMessage2(0, "Experimental", "FPS higher than 30 might have issues on Radxa+OpenIPC hardware for now. Revert to 30 if you see issues.");
       #endif
 
       sendVideoLinkProfiles();
@@ -602,11 +602,22 @@ void MenuVehicleVideo::onSelectItem()
    {
       video_parameters_t paramsOld;
       memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+
       if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
          g_pCurrentModel->video_params.uVideoExtraFlags &= ~VIDEO_FLAG_GENERATE_H265;
       else
       {
+         addMessage("H265 is not enabled yet.");
+         valuesToUI();
+         return;
+
+         bool bCanDoH265 = true;
          if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
+            bCanDoH265 = false;
+         #if defined (HW_PLATFORM_RASPBERRY)
+         bCanDoH265 = false;
+         #endif
+         if ( ! bCanDoH265 )
          {
             addMessage("Raspberry Pi hardware supports only H264 video encoder.");
             valuesToUI();
@@ -614,11 +625,18 @@ void MenuVehicleVideo::onSelectItem()
          }
          g_pCurrentModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_GENERATE_H265;
       }
+
       video_parameters_t paramsNew;
       memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
-      memcpy(&g_pCurrentModel->video_params, &paramsOld, sizeof(video_parameters_t));
-
+      
+      log_line("Changed video codec type from %s to %s",
+       (paramsOld.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264",
+       (paramsNew.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
+      if ( paramsOld.uVideoExtraFlags != paramsNew.uVideoExtraFlags )
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+      {
+         memcpy(&g_pCurrentModel->video_params, &paramsOld, sizeof(video_parameters_t));
          valuesToUI();
+      }
    }
 }

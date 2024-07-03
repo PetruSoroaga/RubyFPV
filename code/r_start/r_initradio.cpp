@@ -63,7 +63,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
-   sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName );
+   //sprintf(szComm, "iwconfig %s mode monitor", pRadioHWInfo->szName);
+   sprintf(szComm, "iw dev %s set type monitor", pRadioHWInfo->szName);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
 
@@ -71,7 +72,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
 
@@ -89,7 +91,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
    int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
@@ -112,7 +115,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
       sprintf(szComm, "iw dev %s set bitrates ht-mcs-2.4 %d lgi-2.4", pRadioHWInfo->szName, -dataRateMb-1 );
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
-   sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s down", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
    if ( 0 != szOutput[0] )
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
@@ -131,7 +135,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
    //hw_execute_bash_command(szComm, NULL);
    //hardware_sleep_ms(uDelayMS);
    
-   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
    //printf(szComm, "iw dev %s set monitor fcsfail", pRadioHWInfo->szName);
@@ -154,7 +159,8 @@ bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pR
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    
-   sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
 
@@ -170,7 +176,8 @@ bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pR
 
    #endif
 
-   sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s down 2>&1", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s down", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, szOutput);
    if ( 0 != szOutput[0] )
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
@@ -190,7 +197,8 @@ bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
    
-   sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, szOutput);
    if ( 0 != szOutput[0] )
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
@@ -214,7 +222,8 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
    }
 
    pRadioHWInfo->iCurrentDataRateBPS = 0;
-   sprintf(szComm, "ifconfig %s mtu 2304 2>&1", pRadioHWInfo->szName );
+   //sprintf(szComm, "ifconfig %s mtu 2304 2>&1", pRadioHWInfo->szName );
+   sprintf(szComm, "ip link set dev %s mtu 1400", pRadioHWInfo->szName);
    hw_execute_bash_command(szComm, szOutput);
    if ( 0 != szOutput[0] )
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
@@ -362,7 +371,8 @@ int init_Radios()
 
       for( int k=0; k<3; k++ )
       {
-         sprintf(szComm, "ifconfig | grep %s", pRadioHWInfo->szName);
+         //sprintf(szComm, "ifconfig | grep %s", pRadioHWInfo->szName);
+         sprintf(szComm, "ip link | grep %s", pRadioHWInfo->szName);
          hw_execute_bash_command(szComm, szOutput);
          if ( 0 != szOutput[0] )
          {

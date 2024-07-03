@@ -73,13 +73,15 @@ void radio_links_reinit_radio_interfaces()
    hardware_sleep_ms(200);
    hw_execute_bash_command("sudo systemctl restart networking", NULL);
    hardware_sleep_ms(200);
-   hw_execute_bash_command("sudo ifconfig -a", NULL);
+   //hw_execute_bash_command("sudo ifconfig -a", NULL);
+   hw_execute_bash_command("sudo ip link", NULL);
 
    hardware_sleep_ms(50);
 
    hw_execute_bash_command("sudo systemctl stop networking", NULL);
    hardware_sleep_ms(200);
-   hw_execute_bash_command("sudo ifconfig -a", NULL);
+   //hw_execute_bash_command("sudo ifconfig -a", NULL);
+   hw_execute_bash_command("sudo ip link", NULL);
 
    hardware_sleep_ms(50);
 
@@ -92,7 +94,8 @@ void radio_links_reinit_radio_interfaces()
 
    char szOutput[4096];
    szOutput[0] = 0;
-   hw_execute_bash_command_raw("sudo ifconfig -a | grep wlan", szOutput);
+   //hw_execute_bash_command_raw("sudo ifconfig -a | grep wlan", szOutput);
+   hw_execute_bash_command_raw("sudo ip link | grep wlan", NULL);
 
    if ( NULL != g_pProcessStats )
    {
@@ -101,20 +104,28 @@ void radio_links_reinit_radio_interfaces()
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
+   log_line("Reinitializing radio interfaces: found interfaces on ip link: [%s]", szOutput);
    sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
    
-   hw_execute_bash_command("ifconfig wlan0 down", NULL);
-   hw_execute_bash_command("ifconfig wlan1 down", NULL);
-   hw_execute_bash_command("ifconfig wlan2 down", NULL);
-   hw_execute_bash_command("ifconfig wlan3 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan0 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan1 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan2 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan3 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan0 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan1 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan2 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan3 down", NULL);
    hardware_sleep_ms(200);
 
-   hw_execute_bash_command("ifconfig wlan0 up", NULL);
-   hw_execute_bash_command("ifconfig wlan1 up", NULL);
-   hw_execute_bash_command("ifconfig wlan2 up", NULL);
-   hw_execute_bash_command("ifconfig wlan3 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan0 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan1 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan2 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan3 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan0 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan1 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan2 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan3 up", NULL);
    
    sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);

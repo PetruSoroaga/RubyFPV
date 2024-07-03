@@ -554,7 +554,7 @@ void RenderEngineCairo::drawLine(float x1, float y1, float x2, float y2)
       if ( y1 < y2 )
          _draw_vline(x1*m_iRenderWidth, y1*m_iRenderHeight, (y2-y1)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       else if ( y1 > y2 )
-         _draw_vline(x1*m_iRenderWidth, y1*m_iRenderHeight, (y1-y2)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
+         _draw_vline(x1*m_iRenderWidth, y2*m_iRenderHeight, (y1-y2)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       return;
    }
 
@@ -921,7 +921,11 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
    cairo_text_extents_t cte;
    cairo_text_extents(m_pCairoCtx, szText, &cte);
    //cairo_set_source_rgba (m_pCairoCtx, 0.2, 0, 0, 1);
-   cairo_set_source_rgba(m_pCairoCtx, m_ColorFill[0]/255.0, m_ColorFill[1]/255.0, m_ColorFill[2]/255.0, m_ColorFill[3]/255.0);
+
+   if ( m_bDrawBackgroundBoundingBoxes && m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor )
+      cairo_set_source_rgba(m_pCairoCtx, m_ColorTextBackgroundBoundingBoxStrike[0]/255.0, m_ColorTextBackgroundBoundingBoxStrike[1]/255.0, m_ColorTextBackgroundBoundingBoxStrike[2]/255.0, m_ColorTextBackgroundBoundingBoxStrike[3]/255.0);
+   else
+      cairo_set_source_rgba(m_pCairoCtx, m_ColorFill[0]/255.0, m_ColorFill[1]/255.0, m_ColorFill[2]/255.0, m_ColorFill[3]/255.0);
    //cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + cte.height);
    cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
    cairo_show_text (m_pCairoCtx, szText);

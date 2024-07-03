@@ -73,6 +73,7 @@ u32 s_LastRouterProcessCheckedAlarmFlags = 0;
 
 u32 s_CountProcessRouterFailures = 0;
 u32 s_CountProcessTelemetryFailures = 0;
+u32 s_CountTelemetryLostCount = 0;
 
 bool s_bLinkWatchIsRCOutputEnabled = false;
 
@@ -81,6 +82,7 @@ bool s_bLinkWatchShownSwitchVehicleMenu = false;
 void link_watch_init()
 {
    log_line("Link watch init.");
+   s_CountTelemetryLostCount = 0;
 }
 
 void link_watch_reset()
@@ -93,6 +95,7 @@ void link_watch_reset()
    s_LastRouterProcessCheckedAlarmFlags = 0;
    s_CountProcessRouterFailures = 0;
    s_CountProcessTelemetryFailures = 0;
+   s_CountTelemetryLostCount = 0;
 
    s_bLinkWatchShownSwitchVehicleMenu = false;
    g_bVideoLost = false;
@@ -632,13 +635,22 @@ void link_watch_loop_telemetry()
          {
             bOk = false;
             if ( ! g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
-               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Telemetry from vehicle lost!", g_idIconCPU, get_Color_IconError());
+            {
+               s_CountTelemetryLostCount++;
+               char szBuff[128];
+               sprintf(szBuff, "Telemetry from vehicle lost (%d)!", s_CountTelemetryLostCount);
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconError());
+            }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = true;
          }
          if ( bOk )
          {
             if ( g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
-               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Telemetry from vehicle recovered", g_idIconCPU, get_Color_IconSucces());
+            {
+               char szBuff[128];
+               sprintf(szBuff, "Telemetry from vehicle recovered (%d)", s_CountTelemetryLostCount);
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconSucces());
+            }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = false;
          }
       }
@@ -801,7 +813,7 @@ void link_watch_loop_processes()
             {
               printf("Retrieved line of length %zu:\n", read);
               if ( read > 0 )
-                 warnings_add(0, line, g_idIconCamera, get_Color_IconNormal());
+                 warnings_add(0, line, g_idIconCamera, get_Color_IconWarning());
             }
             if ( NULL != fd )
                fclose(fd);

@@ -176,9 +176,11 @@ MenuSystemExpert::MenuSystemExpert(void)
 
    m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
 
-   m_IndexDetailedPackets = addMenuItem( new MenuItem("RX/TX Scope") );
+   //m_IndexDetailedPackets = addMenuItem( new MenuItem("RX/TX Scope") );
    //m_IndexRXScope = addMenuItem( new MenuItem("RX Scope") );
-
+   m_IndexDetailedPackets = -1;
+   m_IndexRXScope = -1;
+   
    for( int i=0; i<m_ItemsCount; i++ )
       m_pMenuItems[i]->setTextColor(get_Color_Dev());
 }
@@ -297,7 +299,7 @@ void MenuSystemExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 
    if ( 3 == iChildMenuId/1000 )
    {
-      hw_execute_bash_command("sudo reboot -f", NULL);      
+      hardware_reboot();
    }
 }
 

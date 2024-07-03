@@ -129,7 +129,8 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    float paddingV = Menu::getSelectionPaddingY();
    float paddingH = Menu::getSelectionPaddingX();
 
-   float sliderHeight = 0.4 * m_RenderTitleHeight;
+   float fHeightEdit = height_text;
+   float sliderHeight = 0.4 * fHeightEdit;// 0.4 * m_RenderTitleHeight;
    float sliderWidth = m_SliderWidth * Menu::getScaleFactor();
    float fMinSliderWidth = 0.05;
    if ( sliderWidth < fMinSliderWidth )
@@ -141,15 +142,15 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       if ( sliderWidth < fMinSliderWidth )
          sliderWidth = fMinSliderWidth;
    }
-   float fSizeSelectorH = m_RenderTitleHeight*0.8;
+   float fSizeSelectorH = 0.8 * fHeightEdit;// 0.8 * m_RenderTitleHeight;
    float fSizeSelectorW = fSizeSelectorH*0.4;
 
    float xPosSlider = xPos + m_pMenu->getUsableWidth() - sliderWidth - m_fMarginX;
    float xPosSelector = xPosSlider + (float)(sliderWidth-fSizeSelectorW)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
 
    float yTop = yPos + paddingV;
-   float yBottom = yPos + m_RenderHeight - paddingV;
-   float yMid = yPos + 0.5*m_RenderHeight;
+   float yBottom = yPos + fHeightEdit - paddingV;
+   float yMid = yPos + 0.5*fHeightEdit;
 
    if (! m_bEnabled )
    {
@@ -160,7 +161,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       if ( m_bIsEditing )
       {
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
-         g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, m_RenderHeight + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
+         g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, fHeightEdit + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
       }
       if ( m_bIsEditing )
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());

@@ -174,7 +174,7 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
       m_bWaitingForUserFinishUpdateConfirmation = false;
       log_line("Closed message update. Will reboot now.");
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
    if ( 5 == iChildMenuId/1000 ) // Update failed.
@@ -190,14 +190,14 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( (10 == iChildMenuId/1000) && (1 == returnValue) )
    {
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 
    if ( (11 == iChildMenuId/1000) && (1 == returnValue) )
    {
       onEventReboot();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 
@@ -342,8 +342,7 @@ void MenuController::onSelectItem()
          return;
       }
       onEventReboot();
-      //sync();
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
    }
 }
 

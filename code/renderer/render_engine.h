@@ -81,6 +81,8 @@ class RenderEngine
      virtual void setFontBackgroundBoundingBoxStrikeColor(double* color);
      virtual void clearFontBackgroundBoundingBoxStrikeColor();
      virtual void setBackgroundBoundingBoxPadding(float fPadding);
+     virtual void setFontBackgroundBoundingBoxSameTextColor(bool bSameColor);
+     virtual bool getFontBackgroundBoundingBoxSameTextColor();
 
      virtual int loadRawFont(const char* szFontFile);
      virtual void freeRawFont(u32 idFont);
@@ -150,6 +152,8 @@ class RenderEngine
       bool m_bEnableFontScaling;
       bool m_bHighlightFirstWord;
       bool m_bDrawBackgroundBoundingBoxes;
+      bool m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor;
+      
       float m_fBoundingBoxPadding;
 
       bool m_bDisableTextOutline;

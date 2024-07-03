@@ -86,6 +86,23 @@ void power_leds(int onoff)
    #endif
 }
 
+void _check_cpu_watchdog(u32 uTimeNow, int iCounter)
+{
+   //if ( (iCounter%3) == 0 )
+   //   log_line("DEBUG Alive %d", iCounter);
+
+   static u32 s_uLastTimeWatchDog = 0;
+
+   if ( 0 == s_uLastTimeWatchDog )
+      s_uLastTimeWatchDog = uTimeNow;
+
+   if ( uTimeNow > (s_uLastTimeWatchDog + 200) )
+      log_softerror_and_alarm("FROZE FOR %u ms", uTimeNow - s_uLastTimeWatchDog);
+
+   s_uLastTimeWatchDog = uTimeNow;
+}
+
+
 void handle_sigint(int sig) 
 { 
    gbQuit = true;
@@ -102,7 +119,6 @@ int main(int argc, char *argv[])
    init_hardware_only_status_led();
 
    int counter = 0;
-   int nSleepMs = 100;
    int nLeds = 0;
 
    char szFile[128];
@@ -115,13 +131,18 @@ int main(int argc, char *argv[])
 
    bool bHasAlarm = false;
    bool bHasUpdateInProgress = false;
-   
+
+   int nSleepMs = 100;
+
    while ( ! gbQuit )
    {
       u32 uTimeStart = get_current_timestamp_ms();
 
+      _check_cpu_watchdog(uTimeStart, counter);
+
       hardware_sleep_ms(nSleepMs);
       counter++;
+
 
       if ( (counter % 20) == 0 )
       {

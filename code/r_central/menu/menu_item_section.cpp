@@ -87,7 +87,7 @@ void MenuItemSection::Render(float xPos, float yPos, bool bSelected, float fWidt
    float dxp2 = 0.6*Menu::getMenuPaddingX();
 
    g_pRenderEngine->setColors(get_Color_MenuBg());
-   g_pRenderEngine->setStroke(get_Color_MenuBorder());
+   g_pRenderEngine->setStroke(get_Color_MenuText());
    float yMid = yPos + m_fMarginTop + 0.3*m_RenderHeight;
    g_pRenderEngine->drawLine(xPos-dxpadding, yMid, xPos+dx-g_pRenderEngine->getPixelWidth(), yMid);
    g_pRenderEngine->drawLine(xPos+dx+2*dxp2+m_RenderTitleWidth, yMid, xPos+m_pMenu->getUsableWidth(), yMid);

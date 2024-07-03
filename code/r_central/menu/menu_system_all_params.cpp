@@ -104,32 +104,40 @@ void MenuSystemAllParams::Render()
       m_szIP[0] = 0;
       if ( uBoardType != BOARD_TYPE_PIZERO && uBoardType != BOARD_TYPE_PIZEROW && uBoardType != BOARD_TYPE_PI3APLUS )
       {
-      szOutput[0] = 0;
-      hw_execute_bash_command_raw("ifconfig | grep -A1 eth | head -2 | tail -1", szOutput);
-      log_line("Out: [%s]", szOutput);
-      int cSpaces = 0;
-      int cOther = 0;
-      for( int i=0; i<(int)strlen(szOutput); i++ )
-      {
-         if ( szOutput[i] != ' ' )
-            cOther++;
-
-         if ( szOutput[i] == ' ' )
-         if ( cOther )
-            cSpaces++;
-         if ( szOutput[i] == 10 || szOutput[i] == 13 || cSpaces >= 2 )
+         szOutput[0] = 0;
+         //hw_execute_bash_command_raw("ifconfig | grep -A1 eth | head -2 | tail -1", szOutput);
+         hw_execute_bash_command_raw("ip addr | grep eth | grep inet", szOutput);
+         log_line("Out: [%s]", szOutput);
+         
+         int cSpaces = 0;
+         int cOther = 0;
+         for( int i=0; i<(int)strlen(szOutput); i++ )
          {
-            szOutput[i] = 0;
-            break;
+            if ( szOutput[i] != ' ' )
+               cOther++;
+
+            if ( szOutput[i] == ' ' )
+            if ( cOther )
+               cSpaces++;
+            if ( szOutput[i] == 10 || szOutput[i] == 13 || cSpaces >= 2 )
+            {
+               szOutput[i] = 0;
+               break;
+            }
          }
-      }
-      log_line("Out: [%s]", szOutput);
-      char* p = &(szOutput[0]);
-      while ( *p == ' ' && *p != 0 )
-         p++;
-      if ( *p != 0 && strlen(p)>4 )
-         strcpy(m_szIP, p+4);
-      m_bGotIP = true;
+         log_line("Out: [%s]", szOutput);
+         char* p = &(szOutput[0]);
+         if ( NULL != strstr(szOutput, "inet") )
+         {
+            p = strstr(szOutput, "inet");
+            p += 5;
+         }
+
+         while ( (*p == ' ') && (*p != 0) )
+            p++;
+         if ( (*p != 0) && (strlen(p)>4) )
+            strcpy(m_szIP, p);
+         m_bGotIP = true;
       }
       else
          strcpy(m_szIP, "No ETH");

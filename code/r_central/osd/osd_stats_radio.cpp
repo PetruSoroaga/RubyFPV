@@ -332,9 +332,11 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
    if ( (!bIsCompact) && (!bIsMinimal) )
       height += height_text*s_OSDStatsLineSpacing + s_fOSDStatsMargin*0.3;
    
-   height += ( height_text*s_OSDStatsLineSpacing*2.0 + hGraph ) * pStats->countLocalRadioInterfaces;
+   float fHeightInterface = height_text*s_OSDStatsLineSpacing*2.0 + hGraph;
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
-      height += 3.0 * ( height_text_small*s_OSDStatsLineSpacing ) * pStats->countLocalRadioInterfaces;
+      fHeightInterface += 3.0 * ( height_text_small*s_OSDStatsLineSpacing );
+   
+   height += fHeightInterface * pStats->countLocalRadioInterfaces;
    
    height += height_text* 1.0 * (pStats->countLocalRadioInterfaces-1);
 
@@ -500,11 +502,33 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       if ( (iLocalRadioLinkId >= 0) && (pStats->radio_links[iLocalRadioLinkId].lastTxInterfaceIndex == i) )
          bIsTxCard = true;
          
+      if ( (iLocalRadioLinkId >= 0) && (pStats->radio_links[iLocalRadioLinkId].lastTxInterfaceIndex == i) && (1 < pStats->countLocalRadioInterfaces) )
+      {
+         float fmarginy = 0.002;
+         float fmarginx = 0.008/g_pRenderEngine->getAspectRatio();
+         double pC[4];
+         memcpy(pC, get_Color_OSDBackground(), 4*sizeof(double));
+         pC[0] += 20;
+         pC[1] += 20;
+         pC[2] += 20;
+         pC[3] += 0.1;
+         g_pRenderEngine->setFill(pC);
+         g_pRenderEngine->setStroke(pC[0], pC[1], pC[2], 0.0);
+
+
+         float fHeightInterface = height_text*s_OSDStatsLineSpacing*2.0 + hGraph;
+         if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+            fHeightInterface += 3.0 * ( height_text_small*s_OSDStatsLineSpacing );
+
+         g_pRenderEngine->drawRoundRect(xPos-fmarginx, ySt-1.5*fmarginy, rightMargin-xPos+2.0*fmarginx, fHeightInterface + 3.0*fmarginy + height_text*0.2, 0.05);
+         osd_set_colors();
+      }
+
       osd_set_colors();
 
       double* pcBarRx = get_Color_OSDText();
       //double* pcBarGreen = get_Color_IconSucces();
-      double colorGreen[4] = {160,255,170,1};
+      double colorGreen[4] = {120,200,130,1};
       double* pcBarGreen = &colorGreen[0];
       g_pRenderEngine->setFill(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
       g_pRenderEngine->setStroke(pcBarRx[0], pcBarRx[1], pcBarRx[2], s_fOSDStatsGraphBottomLinesAlpha);
@@ -704,18 +728,6 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
       y += height_text*s_OSDStatsLineSpacing;
-
-      if ( iLocalRadioLinkId >= 0 && pStats->radio_links[iLocalRadioLinkId].lastTxInterfaceIndex == i && 1 < pStats->countLocalRadioInterfaces )
-      {
-         float fmarginy = 0.002;
-         float fmarginx = 0.008/g_pRenderEngine->getAspectRatio();
-         double* pC = get_Color_OSDText();
-         g_pRenderEngine->setFill(0,0,0,0.2);
-         g_pRenderEngine->setStroke(pC[0], pC[1], pC[2], 0.0);
-
-         g_pRenderEngine->drawRoundRect(xPos-fmarginx, ySt-1.5*fmarginy, rightMargin-xPos+2.0*fmarginx, y-ySt+3.0*fmarginy + height_text*0.2, 0.05);
-         osd_set_colors();
-      }
 
       if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
       {

@@ -63,7 +63,10 @@ void reset_Preferences()
    s_Preferences.iStopVideoRecOnDisarm = 0;
    s_Preferences.iShowControllerCPUInfo = 1;
    s_Preferences.iShowBigRecordButton = 0;
+   s_Preferences.iSwapUpDownButtons = 0;
+   #ifdef HW_PLATFORM_RASPBERRY
    s_Preferences.iSwapUpDownButtons = 1;
+   #endif
    s_Preferences.iSwapUpDownButtonsValues = 0;
 
    s_Preferences.iAHIToSides = 0;

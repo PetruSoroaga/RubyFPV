@@ -149,7 +149,7 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
 
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 
@@ -237,7 +237,7 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
 
    if ( 12 == iChildMenuId/1000 )
    {
-      hw_execute_bash_command("sudo reboot -f", NULL);
+      hardware_reboot();
       return;
    }
 }

@@ -75,6 +75,7 @@ MenuTXInfo::MenuTXInfo()
    
    m_bValuesChangedVehicle = false;
    m_bValuesChangedController = false;
+   m_bValuesChangedController58 = false;
 }
 
 MenuTXInfo::~MenuTXInfo()
@@ -334,8 +335,14 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const int* 
    if ( (!bIsHeader) && (! pP->iShowOnlyPresentTxPowerCards) )
    if ( bIsPresentOnController || bIsPresentOnVehicle )
    {
-      g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
-      g_pRenderEngine->setFill(250,200,50,0.1);
+      //g_pRenderEngine->setColors(get_Color_MenuText(), 0.2);
+      //g_pRenderEngine->setFill(250,200,50,0.1);
+      double pColor[4];
+      memcpy(pColor,get_Color_MenuBgTooltip(), 4*sizeof(double));
+      pColor[0] -= 20;
+      pColor[1] -= 20;
+      pColor[2] -= 20;
+      g_pRenderEngine->setFill(pColor);
       g_pRenderEngine->setStroke(get_Color_MenuBorder());
       g_pRenderEngine->setStrokeSize(1);
       
@@ -347,7 +354,7 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const int* 
       g_pRenderEngine->drawRoundRect(x - m_sfMenuPaddingX*0.4, y - m_sfMenuPaddingY*0.2, m_RenderWidth - 2.0*m_sfMenuPaddingX + 0.8 * m_sfMenuPaddingX, h, MENU_ROUND_MARGIN * m_sfMenuPaddingY);
 
       g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->setStroke(get_Color_MenuBorder());
+      //g_pRenderEngine->setStroke(get_Color_MenuBorder());
       g_pRenderEngine->setStrokeSize(0);
    }
 
@@ -632,8 +639,13 @@ void MenuTXInfo::sendPowerToVehicle(int tx, int txAtheros, int txRTL)
 
 int MenuTXInfo::onBack()
 {
-   if ( m_bValuesChangedController )
+   if ( m_bValuesChangedController || m_bValuesChangedController58 )
    {
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      if ( m_bValuesChangedController58 )
+         return Menu::onBack();
+      #endif
+   
       MenuConfirmation* pMC = new MenuConfirmation("Restart Required","You need to restart the controller for the power changes to take effect.", 2);
       pMC->m_yPos = 0.3;
       pMC->addTopLine("");
@@ -675,7 +687,7 @@ void MenuTXInfo::onReturnFromChild(int iChildMenuId, int returnValue)
       if ( 1 == returnValue )
       {
          onEventReboot();
-         hw_execute_bash_command("sudo reboot -f", NULL);
+         hardware_reboot();
          return;
       }
       menu_stack_pop(0);
@@ -743,7 +755,10 @@ void MenuTXInfo::onSelectItem()
       if ( m_bControllerHas58Cards )
       {
          if ( pCS->iTXPowerRTL != m_pItemsSlider[5]->getCurrentValue() )
+         {
             m_bValuesChangedController = true;
+            m_bValuesChangedController58 = true;
+         }
          pCS->iTXPowerRTL = m_pItemsSlider[5]->getCurrentValue();
       }
       if ( m_bControllerHas24Cards )
@@ -790,7 +805,10 @@ void MenuTXInfo::onSelectItem()
    if ( m_IndexPowerControllerRTL == m_SelectedIndex )
    {
       if ( pCS->iTXPowerRTL != m_pItemsSlider[7]->getCurrentValue() )
+      {
          m_bValuesChangedController = true;
+         m_bValuesChangedController58 = true;
+      }
       pCS->iTXPowerRTL = m_pItemsSlider[7]->getCurrentValue();
       hardware_set_radio_tx_power_rtl(pCS->iTXPowerRTL);
       save_ControllerSettings();

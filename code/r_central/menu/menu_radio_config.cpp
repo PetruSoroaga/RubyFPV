@@ -319,11 +319,11 @@ void MenuRadioConfig::computeMenuItems()
 void MenuRadioConfig::Render()
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
-   double color[4];
-   color[0] = color[1] = color[2] = 150;
-   color[3] = 0.3;
-   g_pRenderEngine->setFontBackgroundBoundingBoxFillColor(color);
+   bool bbSameStroke = g_pRenderEngine->getFontBackgroundBoundingBoxSameTextColor();
+   g_pRenderEngine->setFontBackgroundBoundingBoxFillColor(get_Color_MenuItemSelectedBg());
+   g_pRenderEngine->setFontBackgroundBoundingBoxStrikeColor(get_Color_MenuItemSelectedText());
    g_pRenderEngine->setBackgroundBoundingBoxPadding(0.007);
+   g_pRenderEngine->setFontBackgroundBoundingBoxSameTextColor(true);
 
    if ( ! m_bComputedHeights )
    {
@@ -393,7 +393,7 @@ void MenuRadioConfig::Render()
 
       xLeft -= fWidthText + 2.0 * m_sfMenuPaddingX;
    }
-
+   g_pRenderEngine->setFontBackgroundBoundingBoxSameTextColor(bbSameStroke);
 }
 
 
@@ -1144,17 +1144,13 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
    float fWidth = (xEnd - xStart);
    float fXMid = xStart + fWidth*0.5;
    
-   double pColor[4];
-   memcpy(pColor,get_Color_MenuBg(), 4*sizeof(double));
-   pColor[3] = 0.94; 
-   g_pRenderEngine->setColors(pColor);
+   g_pRenderEngine->setColors(get_Color_MenuBg());
 
    g_pRenderEngine->drawRoundRect(xStart, fMarginY, fWidth, 1.0-2.0*fMarginY, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
    
    if ( 1 )
    {
-      static double bottomTooltipBgColor[4] = {250,30,50,0.1};
-      g_pRenderEngine->setColors(bottomTooltipBgColor);
+      g_pRenderEngine->setColors(get_Color_MenuBgTooltip());
       float yTooltip = 1.0-fMarginY-m_fFooterHeight;
       g_pRenderEngine->drawRoundRect(xStart, yTooltip, fWidth, m_fFooterHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
 
@@ -1212,9 +1208,6 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
       return yPos;  
    }
    */
-
-   double colorStrike[4] = {255,250,200,0.8};
-   g_pRenderEngine->setFontBackgroundBoundingBoxStrikeColor(colorStrike);
 
    float yTmp = yPos;
    m_fHeaderHeight = drawRadioPowersHeader(xStart, xEnd, yPos);
@@ -1878,15 +1871,22 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    // Begin - Draw link container rectangle
 
    double pColor[4];
-   memcpy(pColor,get_Color_MenuText(), 4*sizeof(double));
-   pColor[3] = 0.7; 
+   memcpy(pColor,get_Color_MenuBg(), 4*sizeof(double));
+   pColor[0] += 10;
+   pColor[1] += 10;
+   pColor[2] += 10;
    g_pRenderEngine->setColors(pColor);
+
+   memcpy(pColor,get_Color_MenuText(), 4*sizeof(double));
+   pColor[0] -= 20;
+   pColor[1] -= 20;
+   pColor[2] -= 20;
+   g_pRenderEngine->setStroke(pColor);
    g_pRenderEngine->setStrokeSize(2.0);
-   g_pRenderEngine->setFill(0,0,0, 0.2);
 
    if ( bShowLinkRed )
    {
-      g_pRenderEngine->setStroke(get_Color_IconError(),1.0);
+      g_pRenderEngine->setStroke(get_Color_IconError());
       g_pRenderEngine->setStrokeSize(2.0);
    }
 
@@ -2218,12 +2218,12 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       if ( bShowRed )
       {
          g_pRenderEngine->setColors(get_Color_IconError());
-         g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+         g_pRenderEngine->setStrokeSize(1);
       }
       else
       {
          g_pRenderEngine->setColors(get_Color_MenuText());
-         g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+         g_pRenderEngine->setStrokeSize(1);
       }
 
       //g_pRenderEngine->drawLine(xLeftMaxMax + fPaddingInnerX, yMidController[i] - height_text, xLeftMaxMax + fPaddingInnerX, yMidController[i] + height_text);
@@ -2261,8 +2261,10 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
          yp[0] = yLineEnd;
          osd_rotate_point(x1, y1, xLineEnd, yLineEnd, 26, &xp[1], &yp[1]);
          osd_rotate_point(x1, y1, xLineEnd, yLineEnd, -26, &xp[2], &yp[2]);
-         g_pRenderEngine->drawPolyLine(xp,yp,3);
-         g_pRenderEngine->fillPolygon(xp,yp,3);
+         //g_pRenderEngine->drawPolyLine(xp,yp,3);
+         //g_pRenderEngine->fillPolygon(xp,yp,3);
+         g_pRenderEngine->drawTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
+         g_pRenderEngine->fillTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
       }
       if ( bCanDownlink )
       {
@@ -2276,8 +2278,10 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
          yp[0] = yLineStart;
          osd_rotate_point(x1, y1, xLineStart, yLineStart, 26, &xp[1], &yp[1]);
          osd_rotate_point(x1, y1, xLineStart, yLineStart, -26, &xp[2], &yp[2]);
-         g_pRenderEngine->drawPolyLine(xp,yp,3);
-         g_pRenderEngine->fillPolygon(xp,yp,3);
+         //g_pRenderEngine->drawPolyLine(xp,yp,3);
+         //g_pRenderEngine->fillPolygon(xp,yp,3);
+         g_pRenderEngine->drawTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
+         g_pRenderEngine->fillTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
       }
 
       g_pRenderEngine->setColors(get_Color_MenuText());

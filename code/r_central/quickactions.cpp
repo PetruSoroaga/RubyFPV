@@ -50,6 +50,7 @@
 #include "shared_vars.h"
 #include "timers.h"
 #include "process_router_messages.h"
+#include "notifications.h"
 #include "../radio/radiopackets2.h"
 
 u32 s_uTimeLastQuickActionPress = 0;
@@ -86,6 +87,7 @@ void executeQuickActionTakePicture()
    Preferences* p = get_Preferences();
    if ( NULL == p )
       return;
+
    s_uTimeLastQuickActionPress = get_current_timestamp_ms();
    media_take_screenshot(p->iAddOSDOnScreenshots);
 }

@@ -455,7 +455,7 @@ void reinit_radio_interfaces()
       if ( get_current_timestamp_ms() > uTimeStart + 20000 )
       {
          g_bReinitializeRadioInProgress = false;
-         hw_execute_bash_command("reboot -f", NULL);
+         hardware_reboot();
          sleep(10);
       }
 
@@ -470,13 +470,13 @@ void reinit_radio_interfaces()
       hardware_sleep_ms(200);
       hw_execute_bash_command("systemctl restart networking", NULL);
       hardware_sleep_ms(200);
-      hw_execute_bash_command("ifconfig -a", NULL);
+      hw_execute_bash_command("ip link", NULL);
 
       hardware_sleep_ms(50);
 
       hw_execute_bash_command("systemctl stop networking", NULL);
       hardware_sleep_ms(200);
-      hw_execute_bash_command("ifconfig -a", NULL);
+      hw_execute_bash_command("ip link", NULL);
 
       hardware_sleep_ms(50);
 
@@ -489,7 +489,7 @@ void reinit_radio_interfaces()
 
       char szOutput[4096];
       szOutput[0] = 0;
-      hw_execute_bash_command_raw("ifconfig -a | grep wlan", szOutput);
+      hw_execute_bash_command_raw("ip link | grep wlan", szOutput);
       if ( 0 == strlen(szOutput) )
          continue;
 
@@ -500,7 +500,7 @@ void reinit_radio_interfaces()
          g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
 
-      log_line("Reinitializing radio interfaces: found interfaces on ifconfig: [%s]", szOutput);
+      log_line("Reinitializing radio interfaces: found interfaces on ip link: [%s]", szOutput);
       sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
       hw_execute_bash_command(szComm, NULL);
       hardware_reset_radio_enumerated_flag();
@@ -515,16 +515,24 @@ void reinit_radio_interfaces()
       g_pProcessStats->lastActiveTime = g_TimeNow;
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
-   hw_execute_bash_command("ifconfig wlan0 down", NULL);
-   hw_execute_bash_command("ifconfig wlan1 down", NULL);
-   hw_execute_bash_command("ifconfig wlan2 down", NULL);
-   hw_execute_bash_command("ifconfig wlan3 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan0 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan1 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan2 down", NULL);
+   //hw_execute_bash_command("ifconfig wlan3 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan0 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan1 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan2 down", NULL);
+   hw_execute_bash_command("ip link set dev wlan3 down", NULL);
    hardware_sleep_ms(200);
 
-   hw_execute_bash_command("ifconfig wlan0 up", NULL);
-   hw_execute_bash_command("ifconfig wlan1 up", NULL);
-   hw_execute_bash_command("ifconfig wlan2 up", NULL);
-   hw_execute_bash_command("ifconfig wlan3 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan0 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan1 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan2 up", NULL);
+   //hw_execute_bash_command("ifconfig wlan3 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan0 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan1 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan2 up", NULL);
+   hw_execute_bash_command("ip link set dev wlan3 up", NULL);
    
    sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
    hw_execute_bash_command(szComm, NULL);
@@ -1932,141 +1940,3 @@ void _main_loop()
       process_and_send_packets();
 
 }
-/*
-void _main_loop_old()
-{
-   static u32 uLastTotalTxPackets = 0;
-   static u32 uLastTotalTxBytes = 0;
-
-   hardware_sleep_micros(1000);
-   u32 tTime0 = g_TimeNow;
-
-   
-   uLastTotalTxPackets = g_SM_RadioStats.radio_links[0].totalTxPackets;
-   uLastTotalTxBytes = g_SM_RadioStats.radio_links[0].totalTxBytes;
-
-   process_data_tx_video_loop();
-
-   u32 tTime1 = get_current_timestamp_ms();
-
-   _check_rx_loop_consistency();
-   _consume_radio_rx_packets();
-
-   u32 tTime2 = get_current_timestamp_ms();
-
-   if ( periodicLoop() )
-   {
-      reinit_radio_interfaces();
-      return;
-   }
-
-   if ( g_pCurrentModel->hasCamera() )
-   {
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         video_source_csi_periodic_checks();
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         video_source_majestic_periodic_checks();
-   }
-   u32 tTimeD1 = get_current_timestamp_ms();
-
-   video_stats_overwrites_periodic_loop();
-   video_link_auto_keyframe_periodic_loop();
-
-   u32 tTimeD2 = get_current_timestamp_ms();
-
-   _synchronize_shared_mems();
-
-   u32 tTimeD3 = get_current_timestamp_ms();
-
-   _read_ipc_pipes(tTimeD3);
-
-   u32 tTimeD4 = get_current_timestamp_ms();
-
-   _consume_ipc_messages();
-
-   u32 tTimeD5 = get_current_timestamp_ms();
-
-   send_pending_alarms_to_controller();
-
-   if ( NULL != g_pProcessorTxAudio )
-      g_pProcessorTxAudio->tryReadAudioInputStream();
-
-   u32 tTimeD6 = get_current_timestamp_ms();
-
-   int iCountReads = 0;
-   int iTotalRead = 0;
-   int iReadSize = 0;
-   u8* pVideoData = NULL;
-   while (g_pCurrentModel->hasCamera() && (iCountReads < 5) )
-   {
-      iReadSize = 0;
-      pVideoData = NULL;
-
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         pVideoData = video_source_csi_read(&iReadSize);
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         pVideoData = video_source_majestic_read(&iReadSize, true);
-
-      if ( (NULL == pVideoData) || (iReadSize <= 0) )
-         break;
-
-      iTotalRead += iReadSize;
-      iCountReads++;
-      if ( ! bDebugNoVideoOutput )
-      {
-         if ( process_data_tx_video_on_new_data(pVideoData, iReadSize) )
-            s_debugVideoBlocksInCount++;
-      }
-   }
-
-   u32 tTime3 = get_current_timestamp_ms();
-
-   if ( tTime3 > (tTime2 + DEFAULT_MAX_LOOP_TIME_MILISECONDS) )
-      log_softerror_and_alarm("Router loop (inner part) too long (%u ms): %u + %u + %u + %u + %u + %u + %u",
-       tTime3-tTime2, 
-       tTimeD1 - tTime2, tTimeD2 - tTimeD1, tTimeD3 - tTimeD2, tTimeD4 - tTimeD3,
-       tTimeD5 - tTimeD4, tTimeD6 - tTimeD5, tTime3 - tTimeD6);
-
-   int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
-   
-   bool bSendPacketsNow = false;
-
-   if ( g_bVideoPaused || (! g_pCurrentModel->hasCamera()) )
-      bSendPacketsNow = true;
-
-   if ( 0 != g_uTimeLastCommandSowftwareUpload )
-   if ( g_TimeNow < g_uTimeLastCommandSowftwareUpload + 2000 )
-      bSendPacketsNow = true;
-
-   if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
-   if ( videoPacketsReadyToSend > 0 )
-      bSendPacketsNow = true;
-
-   if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
-   if ( (g_QueueRadioPacketsOut.timeFirstPacket+100 < g_TimeNow) || (g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_NONE) )
-      bSendPacketsNow = true;
-
-   if ( bSendPacketsNow )
-      process_and_send_packets();
-
-   //if ( NULL != g_pProcessorTxAudio )
-   //   g_pProcessorTxAudio->sendAudioPackets();
-
-   u32 tTime4 = get_current_timestamp_ms();
-
-   //if ( g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_NONE ||
-   //     g_pCurrentModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
-   {
-      if ( ! bDebugNoVideoOutput )
-      if ( videoPacketsReadyToSend > 0 )
-         process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
-
-      u32 tTime5 = get_current_timestamp_ms();
-      _check_loop_consistency(0, uLastTotalTxPackets, uLastTotalTxBytes, tTime0,tTime1, tTime2, tTime3, tTime4, tTime5);
-      return;
-   }
-
-   u32 tTime5 = get_current_timestamp_ms();
-   _check_loop_consistency(1, uLastTotalTxPackets, uLastTotalTxBytes, tTime0,tTime1, tTime2, tTime3, tTime4, tTime5);
-}
-*/

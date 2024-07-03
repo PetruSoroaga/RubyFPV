@@ -491,8 +491,8 @@ void log_add_file(const char* szFileName)
    if ( NULL == szFileName )
       return;
 
-   strncpy(s_szAdditionalLogFile, szFileName, 127);
-   s_szAdditionalLogFile[127] = 0;
+   strncpy(s_szAdditionalLogFile, szFileName, sizeof(s_szAdditionalLogFile)/sizeof(s_szAdditionalLogFile[0]));
+   s_szAdditionalLogFile[sizeof(s_szAdditionalLogFile)/sizeof(s_szAdditionalLogFile[0]) - 1] = 0;
    log_line("Starting additional log output to file: %s", s_szAdditionalLogFile);
 }
 

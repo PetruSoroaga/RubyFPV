@@ -1340,6 +1340,8 @@ int hardware_get_radio_tx_power_atheros()
 
 int hardware_get_radio_tx_power_rtl()
 {
+   int iTxPower = 0;
+
    #ifdef HW_PLATFORM_RASPBERRY
    if ( access( "/etc/modprobe.d/rtl8812au.conf", R_OK ) == -1 )
    {
@@ -1355,7 +1357,6 @@ int hardware_get_radio_tx_power_rtl()
    }
 
    char szBuff[512];
-   int iTxPower = 0;
 
    fseek(pF, 0, SEEK_END);
    long fsize = ftell(pF);
@@ -1389,21 +1390,19 @@ int hardware_get_radio_tx_power_rtl()
    return iTxPower;
    #endif
 
-   if ( hardware_is_running_on_openipc() )
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_RTL_POWER);
+   FILE* fd = fopen(szFile, "rb");
+   if ( NULL != fd )
    {
-      int iTxPower = 0;
-      char szFile[MAX_FILE_PATH_SIZE];
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat( szFile, FILE_CONFIG_RTL_POWER);
-      FILE* fd = fopen(szFile, "rb");
-      if ( NULL != fd )
-      {
-         fscanf(fd, "%d", &iTxPower);
-         fclose(fd);
-         return iTxPower;
-      }
-      log_softerror_and_alarm("Failed to read RTL tx power from config file [%s]", szFile);
+      fscanf(fd, "%d", &iTxPower);
+      fclose(fd);
+      log_line("Hardware: Read RTL radio configuration ok from file [%s]. RTL radio config tx power: %d", szFile, iTxPower);
+      return iTxPower;
    }
+
+   log_softerror_and_alarm("Failed to read RTL tx power from config file [%s]", szFile);
    return DEFAULT_RADIO_TX_POWER;
 }
 
@@ -1466,7 +1465,10 @@ int hardware_set_radio_tx_power_rtl(int txPower)
    if ( txPower < 1 || txPower > MAX_TX_POWER )
       txPower = DEFAULT_RADIO_TX_POWER;
 
+   int bSetPowerNow = 1;
+
    #ifdef HW_PLATFORM_RASPBERRY
+   bSetPowerNow = 0;
    int iHasOrgFile = 0;
    if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) != -1 )
       iHasOrgFile = 1;
@@ -1509,8 +1511,9 @@ int hardware_set_radio_tx_power_rtl(int txPower)
       hw_execute_bash_command(szBuff, NULL);
    #endif
 
-   if ( hardware_is_running_on_openipc() )
+   if ( bSetPowerNow )
    {
+      log_line("Set tx power now using iw dev...");
       char szComm[256];
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
@@ -1528,7 +1531,7 @@ int hardware_set_radio_tx_power_rtl(int txPower)
 
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
-   strcat( szFile, FILE_CONFIG_RTL_POWER);
+   strcat(szFile, FILE_CONFIG_RTL_POWER);
    FILE* fd = fopen(szFile, "wb");
    if ( NULL != fd )
    {
@@ -1539,7 +1542,7 @@ int hardware_set_radio_tx_power_rtl(int txPower)
       log_softerror_and_alarm("Failed to write RTL tx power to config file [%s]", szFile);
 
    int val = hardware_get_radio_tx_power_rtl();
-   log_line("RTL TX Power changed to: %d", val);
+   log_line("RTL TX Power changed to: %d, saved to file [%s]", val, szFile);
    return val;
 }
 

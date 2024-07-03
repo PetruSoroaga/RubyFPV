@@ -56,4 +56,5 @@ class MenuTXInfo: public Menu
 
       bool m_bValuesChangedVehicle;
       bool m_bValuesChangedController;
+      bool m_bValuesChangedController58;
 };
