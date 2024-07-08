@@ -70,6 +70,7 @@ typedef struct
     // bit 2: enable HDMI output
     // bit 3: retransmissions are started fast
     // bit 4: 1 to enable H265, 0 to enable H264
+    // bit 5: 1 to enable new adaptive video algorithm, 0 - use default one
    u32 dummy[3];
 } video_parameters_t;
 

@@ -74,6 +74,9 @@ typedef struct
    u32 uShowBigRxHistoryInterface;
 
    int iSiKPacketSize;
+
+   int iRadioRxThreadPriority;
+   int iRadioTxThreadPriority;
 } ControllerSettings;
 
 int save_ControllerSettings();

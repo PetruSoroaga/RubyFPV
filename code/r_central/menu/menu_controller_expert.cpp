@@ -36,6 +36,7 @@
 #include "menu_confirmation.h"
 #include "menu_controller_expert.h"
 #include "menu_item_section.h"
+#include "../process_router_messages.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -52,6 +53,10 @@ MenuControllerExpert::MenuControllerExpert(void)
 
    readConfigFile();
    addTopInfo();
+
+   m_IndexEnableRadioThreadsPriority = -1;
+   m_IndexRadioRxPriority = -1;
+   m_IndexRadioTxPriority = -1;
 
    addMenuItem(new MenuItemSection("Priorities"));
 
@@ -90,6 +95,19 @@ MenuControllerExpert::MenuControllerExpert(void)
 
    m_pItemsSlider[4] = new MenuItemSlider("Ruby UI/OSD priority", "Sets the priority for the Ruby UI process. Higher values means higher priority.", 0,15,5, fSliderWidth);
    m_IndexNiceCentral = addMenuItem(m_pItemsSlider[4]);
+
+
+   m_pItemsSelect[8] = new MenuItemSelect("Radio Threads Adjustment", "Change the way the priority of Ruby radio threads is adjusted.");
+   m_pItemsSelect[8]->addSelection("Default");
+   m_pItemsSelect[8]->addSelection("Custom");
+   m_pItemsSelect[8]->setIsEditable();
+   m_IndexEnableRadioThreadsPriority = addMenuItem(m_pItemsSelect[8]);
+
+   m_pItemsSlider[8] = new MenuItemSlider("   Rx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_IndexRadioRxPriority = addMenuItem(m_pItemsSlider[8]);
+
+   m_pItemsSlider[9] = new MenuItemSlider("   Tx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_IndexRadioTxPriority = addMenuItem(m_pItemsSlider[9]);
 
 
    #if defined(HW_PLATFORM_RASPBERRY)
@@ -180,6 +198,29 @@ void MenuControllerExpert::valuesToUI()
       m_pItemsSelect[1]->setEnabled(false);
       m_pItemsSlider[2]->setEnabled(false);
       m_pItemsSlider[3]->setEnabled(false);
+   }
+
+   // Radio Threads
+
+   if ( (pcs->iRadioRxThreadPriority <= 0) || (pcs->iRadioTxThreadPriority <= 0) )
+   {
+      m_pItemsSelect[8]->setSelectedIndex(0);
+      m_pItemsSlider[8]->setCurrentValue(1);
+      m_pItemsSlider[8]->setEnabled(false);
+      m_pItemsSlider[9]->setCurrentValue(1);
+      m_pItemsSlider[9]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[8]->setSelectedIndex(1);
+      if ( pcs->iRadioRxThreadPriority < 1 )
+         pcs->iRadioRxThreadPriority = 1;
+      if ( pcs->iRadioTxThreadPriority < 1 )
+         pcs->iRadioTxThreadPriority = 1;
+      m_pItemsSlider[8]->setCurrentValue(pcs->iRadioRxThreadPriority);
+      m_pItemsSlider[8]->setEnabled(true);
+      m_pItemsSlider[9]->setCurrentValue(pcs->iRadioTxThreadPriority);
+      m_pItemsSlider[9]->setEnabled(true);
    }
 
    // CPU
@@ -558,6 +599,31 @@ void MenuControllerExpert::onSelectItem()
       }
       #endif
       #endif
+   }
+
+   if ( m_IndexEnableRadioThreadsPriority == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[8]->getSelectedIndex() )
+      {
+         pcs->iRadioRxThreadPriority = -1;
+         pcs->iRadioTxThreadPriority = -1;
+      }
+      else
+      {
+         pcs->iRadioRxThreadPriority = m_pItemsSlider[8]->getCurrentValue();
+         pcs->iRadioTxThreadPriority = m_pItemsSlider[9]->getCurrentValue();
+      }
+      save_ControllerSettings();
+      valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+   }
+   if ( (m_IndexRadioRxPriority == m_SelectedIndex) || (m_IndexRadioTxPriority == m_SelectedIndex) )
+   {
+      pcs->iRadioRxThreadPriority = m_pItemsSlider[8]->getCurrentValue();
+      pcs->iRadioTxThreadPriority = m_pItemsSlider[9]->getCurrentValue();
+      save_ControllerSettings();
+      valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
    }
 
    if ( m_IndexReboot == m_SelectedIndex )

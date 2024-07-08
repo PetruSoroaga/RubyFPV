@@ -94,8 +94,9 @@ u32 s_uIndexLastLowDataLinkPackets[MAX_RADIO_INTERFACES];
 pthread_mutex_t s_pMutexRadioSyncRxTxThreads;
 int s_iMutexRadioSyncRxTxThreadsInitialized = 0;
 
-u8 s_uLastRawPacketType = 0;
-int s_iLastRawPacketOffset = 0;
+u8 s_uLastPacketBuilt[MAX_PACKET_TOTAL_SIZE];
+u32 s_uLastRadioPingSentTime = 0;
+u8 s_uLastRadioPingId = 0;
 
 u8 s_uRadiotapHeaderLegacy[] = {
 	0x00, 0x00, // <-- radiotap version
@@ -1163,12 +1164,11 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
       s_uLastPacketSentIEEEHeaderLength = sizeof(s_uIEEEHeaderData);
    }
    
-   t_packet_header* pPH = (t_packet_header*)pPacketData;
-   s_uLastRawPacketType = pPH->packet_type;
-   s_iLastRawPacketOffset = totalRadioLength;
-
    memcpy(pRawPacket, pPacketData, nInputLength);
    totalRadioLength += nInputLength;
+
+   if ( s_bRadioDebugFlag )
+      memcpy(s_uLastPacketBuilt, pPacketData, nInputLength);
 
    if ( (0 < iExtraData) && (NULL != pExtraData) )
    {
@@ -1193,7 +1193,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    while ( nLength > 0 )
    {
       nPCount++;
-      pPH = (t_packet_header*)pData;
+      t_packet_header* pPH = (t_packet_header*)pData;
       int nPacketLength = pPH->total_length;
 
       // Last packet in the chain? Add the extra data if present
@@ -1254,8 +1254,22 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 
    if ( s_bRadioDebugFlag )
    {
-      //if ( s_uLastRawPacketType == PACKET_TYPE_RUBY_PING_CLOCK )
-      //   log_line("DEBUG sent PING");
+      t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
+      if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
+      {
+         s_uLastRadioPingSentTime = get_current_timestamp_ms();
+         s_uLastRadioPingId = s_uLastPacketBuilt[sizeof(t_packet_header)];
+         //log_line("DEBUG sent PING, id: %d", s_uLastRadioPingId);
+      }
+
+      if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
+      {
+         u8 uPingId = s_uLastPacketBuilt[sizeof(t_packet_header)];
+         //if ( uPingId == s_uLastRadioPingId )
+         //   log_line("DEBUG send matching ping reply id %d, delta time: %u ms", uPingId, get_current_timestamp_ms() - s_uLastRadioPingSentTime);
+         //else
+         //   log_line("DEBUG send ping reply %d", uPingId);
+      }
    }
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS

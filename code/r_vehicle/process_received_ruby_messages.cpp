@@ -80,8 +80,11 @@ int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet+sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), &uSenderLocalRadioLinkId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &uLocalRadioLinkId, sizeof(u8));
 
-      //packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
-      packets_queue_inject_packet_first(&g_QueueRadioPacketsOut, packet);
+      if ( radio_packet_type_is_high_priority(pPH->packet_type) )
+         send_packet_to_radio_interfaces(packet, PH.total_length, -1);
+      else
+         //packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+         packets_queue_inject_packet_first(&g_QueueRadioPacketsOut, packet);
 
       if ( g_pCurrentModel->relay_params.uCurrentRelayMode != uTargetRelayMode )
       {

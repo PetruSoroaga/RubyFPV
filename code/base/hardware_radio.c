@@ -262,6 +262,10 @@ int _hardware_detect_card_model(const char* szProductId)
    if ( NULL != strstr( szProductId, "bda:8813" ) )
       return CARD_MODEL_RTL8814AU;
 
+   if ( NULL != strstr( szProductId, "bda:a81a" ) )
+      return CARD_MODEL_BLUE_8812EU;
+   if ( NULL != strstr( szProductId, "0bda:a81a" ) )
+      return CARD_MODEL_BLUE_8812EU;
    return 0;
 }
 
@@ -522,6 +526,10 @@ int _hardware_radio_get_product_id_open_ipc_wifi_radio_driver_id(const char* szP
         (0 == strcmp(szProdId, "40d:3801")) )
       return RADIO_HW_DRIVER_ATHEROS;
 
+   if ( (0 == strcmp(szProdId, "0bda:a81a")) ||
+        (0 == strcmp(szProdId, "bda:a81a")) )
+      return RADIO_HW_DRIVER_REALTEK_8812EU;
+
    return 0;
 }
 
@@ -770,7 +778,10 @@ int _hardware_enumerate_wifi_radios()
       if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
            (NULL != strstr(pszDriver,"8812au")) ||
            (NULL != strstr(pszDriver,"rtl8812au")) ||
-           (NULL != strstr(pszDriver,"rtl88XXau")) )
+           (NULL != strstr(pszDriver,"rtl88XXau")) ||
+           (NULL != strstr(pszDriver,"8812eu")) ||
+           (NULL != strstr(pszDriver,"88x2eu"))
+           )
       {
          s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
@@ -782,6 +793,8 @@ int _hardware_enumerate_wifi_radios()
             sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
          if ( NULL != strstr(pszDriver,"rtl8812au") )
             sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL8812AU<<8);
+         if ( (NULL != strstr(pszDriver,"8812eu")) || (NULL != strstr(pszDriver,"88x2eu")) )
+            sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812EU<<8);
       }
       // Experimental
       if ( NULL != strstr(pszDriver,"rtl88x2bu") )
@@ -1007,7 +1020,7 @@ int hardware_radio_load_radio_modules()
 
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA) || defined(HW_PLATFORM_RADXA_ZERO3)
 
    _hardware_find_usb_radio_interfaces_info();
    if ( 0 == s_iFoundUSBRadioInterfaces )
@@ -1015,20 +1028,45 @@ int hardware_radio_load_radio_modules()
       log_softerror_and_alarm("[HardwareRadio] No USB radio devices found!");
       return 0;
    }
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    log_line("[HardwareRadio] Adding radio modules on OpenIPC for detected radio cards...");
+   #endif
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   log_line("[HardwareRadio] Adding radio modules on Radxa for detected radio cards...");
+   #endif
    int iCountDetected = 0;
    int iRTLLoaded = 0;
    int iAtherosLoaded = 0;
+   int iRTL8812EULoaded = 0;
    for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
    {
+       #if defined HW_PLATFORM_OPENIPC_CAMERA
        if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_RTL88XXAU )
        if ( ! iRTLLoaded )
        {
-          log_line("[HardwareRadio] Found RTL8812 card. Loading module...");
+          log_line("[HardwareRadio] Found RTL8812AU card. Loading module...");
           hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=40", NULL);
           iRTLLoaded = 1;
           iCountDetected++;
        }
+       #endif
+
+       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_8812EU)
+       if ( ! iRTL8812EULoaded )
+       {
+          log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
+          hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+          #if defined HW_PLATFORM_RADXA_ZERO3
+          hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+          #endif
+          #if defined HW_PLATFORM_OPENIPC_CAMERA
+          hw_execute_bash_command("sudo insmod 8812eu_oipc.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+          #endif
+
+          iRTL8812EULoaded = 1;
+          iCountDetected++;
+       }
+
        if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_TYPE_ATHEROS )
        if ( ! iAtherosLoaded )
        {
@@ -1039,8 +1077,8 @@ int hardware_radio_load_radio_modules()
           iCountDetected++;
        }
    }
-   log_line("[HardwareRadio] Added %d modules. Added RTL? %s. Added Atheros? %s.",
-      iCountDetected, (iRTLLoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"));
+   log_line("[HardwareRadio] Added %d modules. Added RTL8812AU? %s. Added Atheros? %s. Added RTL8812EU? %s",
+      iCountDetected, (iRTLLoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"), (iRTL8812EULoaded?"yes":"no"));
    return iCountDetected;
 
    #endif

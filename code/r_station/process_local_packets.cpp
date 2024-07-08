@@ -802,8 +802,16 @@ void process_local_control_packet(t_packet_header* pPH)
          }
       }
 
-      radio_stats_set_graph_refresh_interval(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
+      if ( NULL != g_pControllerSettings )
+         radio_stats_set_graph_refresh_interval(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
       radio_stats_interfaces_rx_graph_reset(&g_SM_RadioStatsInterfacesRxGraph, 10);
+
+      if ( NULL != g_pControllerSettings )
+      {
+         log_line("Set new radio rx/tx threads priorities: %d/%d", g_pControllerSettings->iRadioRxThreadPriority, g_pControllerSettings->iRadioTxThreadPriority);
+         radio_rx_set_custom_thread_priority(g_pControllerSettings->iRadioRxThreadPriority);
+         radio_tx_set_custom_thread_priority(g_pControllerSettings->iRadioTxThreadPriority);
+      }
 
       if ( NULL != g_pSM_RadioStats )
          memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));

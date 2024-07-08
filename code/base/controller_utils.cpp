@@ -420,6 +420,14 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
       pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
    }
 
+   pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   if ( pUpdatedProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+   {
+      pAllProfiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+      pAllProfiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   }
+
    if ( (pOrgProfile->width != pUpdatedProfile->width) || (pOrgProfile->height != pUpdatedProfile->height) )
    {
       pAllProfiles[VIDEO_PROFILE_MQ].width = pUpdatedProfile->width;

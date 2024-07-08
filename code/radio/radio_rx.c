@@ -79,6 +79,9 @@ extern int s_iMutexRadioSyncRxTxThreadsInitialized;
 volatile int s_bHasPendingOperation = 0;
 volatile int s_bCanDoOperations = 0;
 
+extern u32 s_uLastRadioPingSentTime;
+extern u8 s_uLastRadioPingId;
+
 void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
 {
    if ( (NULL == pPacket) || ( iLength <= 2 ) )
@@ -472,7 +475,6 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    int iBufferLength = 0;
    u8* pBuffer = NULL;
    int iCountReads = 0;
-
    do
    {
       iBufferLength = 0;
@@ -503,6 +505,24 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       while ( (iLength > 0) && (NULL != pData) )
       { 
          t_packet_header* pPH = (t_packet_header*)pData;
+
+         if ( s_iRadioRxDevMode )
+         if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
+         {
+            s_uLastRadioPingSentTime = get_current_timestamp_ms();
+            s_uLastRadioPingId = *(pData +sizeof(t_packet_header));
+            //log_line("DEBUG recv PING, id: %d", s_uLastRadioPingId);
+         }
+
+         if ( s_iRadioRxDevMode )
+         if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
+         {
+            u8 uPingId = *(pData + sizeof(t_packet_header));
+            //if ( uPingId == s_uLastRadioPingId )
+            //   log_line("DEBUG recv matching ping reply id %d, delta time: %u ms", uPingId, get_current_timestamp_ms() - s_uLastRadioPingSentTime);
+            //else
+            //   log_line("DEBUG recv ping reply %d", uPingId);
+         }
 
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
             iIsVideoData = 1;
@@ -563,7 +583,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
       if ( NULL != s_pSMRadioStats )
          radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, 0, iIsVideoData, iDataIsOk);
-   } while (1);
+   } while ( 1 );
 
    return iReturn;
 }
@@ -648,6 +668,7 @@ static void * _thread_radio_rx(void *argument)
 
    int* piQuit = (int*) argument;
    int iLoopCounter = 0;
+   int iLoopOkCounter = 0;
    u32 uTimeLastLoopCheck = get_current_timestamp_ms();
    u32 uTimeLastRead = 0;
    u32 uTime = 0;
@@ -679,6 +700,14 @@ static void * _thread_radio_rx(void *argument)
       s_bCanDoOperations = 0;
       
       uTime = get_current_timestamp_ms();
+      if ( uTime - uTimeLastLoopCheck > 3 )
+      {
+         //log_line("DEBUG loop too long %u ms, loops ok before: %d", uTime - uTimeLastLoopCheck, iLoopOkCounter);
+         iLoopOkCounter = 0;
+      }
+      else
+         iLoopOkCounter++;
+
       if ( uTime - uTimeLastLoopCheck > s_iRadioRxLoopTimeoutInterval )
       {
          log_softerror_and_alarm("[RadioRxThread] Radio Rx loop took too long (%d ms, read: %u microsec, queue: %u microsec).", uTime - uTimeLastLoopCheck, s_uRadioRxLastTimeRead, s_uRadioRxLastTimeQueue);

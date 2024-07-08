@@ -110,6 +110,9 @@ void reset_ControllerSettings()
    s_CtrlSettings.uShowBigRxHistoryInterface = 0;
    s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
 
+   s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+   s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+
    log_line("Reseted controller settings.");
 }
 
@@ -162,6 +165,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", s_CtrlSettings.iAudioOutputDevice, s_CtrlSettings.iAudioOutputVolume);
    fprintf(fd, "%d %u\n", s_CtrlSettings.iDevRxLoopTimeout, s_CtrlSettings.uShowBigRxHistoryInterface);
    fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
+   fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -352,6 +356,12 @@ int load_ControllerSettings()
 
    if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iSiKPacketSize)) )
       { s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE; }
+
+   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioRxThreadPriority, &s_CtrlSettings.iRadioTxThreadPriority)) )
+   {
+      s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+   }
 
    fclose(fd);
 

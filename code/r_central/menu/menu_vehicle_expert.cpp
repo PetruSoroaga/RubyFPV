@@ -87,7 +87,7 @@ MenuVehicleExpert::MenuVehicleExpert(void)
 
    m_pItemsSelect[11] = new MenuItemSelect("Core Threads Adjustment", "Change the way the priority of Ruby threads is adjusted.");
    m_pItemsSelect[11]->addSelection("Auto");
-   m_pItemsSelect[11]->addSelection("Manual");
+   m_pItemsSelect[11]->addSelection("Custom");
    m_pItemsSelect[11]->setIsEditable();
    m_IndexEnableRouter = addMenuItem(m_pItemsSelect[11]);
 
@@ -96,7 +96,7 @@ MenuVehicleExpert::MenuVehicleExpert(void)
 
    m_pItemsSelect[12] = new MenuItemSelect("Radio Threads Adjustment", "Change the way the priority of Ruby radio threads is adjusted.");
    m_pItemsSelect[12]->addSelection("Auto");
-   m_pItemsSelect[12]->addSelection("Manual");
+   m_pItemsSelect[12]->addSelection("Custom");
    m_pItemsSelect[12]->setIsEditable();
    m_IndexEnableRadio = addMenuItem(m_pItemsSelect[12]);
 

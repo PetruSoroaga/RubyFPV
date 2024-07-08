@@ -262,9 +262,20 @@ bool process_video(char* szFileInfo, char* szFileOut)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ffmpeg -framerate %d -y -i %s%s -c:v copy %s 2>&1 1>/dev/null", fps, FOLDER_MEDIA, szFileInVideo, szFileOut);
    log_line("Execute conversion: %s", szComm);
    //hw_execute_bash_command(szComm, NULL);
+   //launcher_set_proc_priority("ffmpeg", 10,0,1);
    system(szComm);
    log_line("Finished processing video to mp4: %s", szFileOut);
-   //launcher_set_proc_priority("ffmpeg", 10,0,1);
+
+   long lSizeVideo = 0;
+   fd = fopen(szFileOut, "rb");
+   if ( NULL != fd )
+   {
+      fseek(fd, 0, SEEK_END);
+      lSizeVideo = ftell(fd);
+      fseek(fd, 0, SEEK_SET);
+      fclose(fd);
+   }
+   log_line("Output video file [%s] size: %d bytes", szFileOut, (int)lSizeVideo);
    return true;
 }
 

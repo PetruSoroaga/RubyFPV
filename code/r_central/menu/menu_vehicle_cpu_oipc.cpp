@@ -66,7 +66,7 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
 
    m_pItemsSelect[2] = new MenuItemSelect("Radio Threads Adjustment", "Change the way the priority of Ruby radio threads is adjusted.");
    m_pItemsSelect[2]->addSelection("Default");
-   m_pItemsSelect[2]->addSelection("Manual");
+   m_pItemsSelect[2]->addSelection("Custom");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexEnableRadio = addMenuItem(m_pItemsSelect[2]);
 

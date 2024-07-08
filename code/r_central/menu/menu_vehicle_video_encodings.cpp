@@ -69,6 +69,12 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[3]->setIsEditable();
    m_IndexAdaptiveLink = addMenuItem(m_pItemsSelect[3]);
 
+   m_pItemsSelect[20] = new MenuItemSelect("   Algorithm", "Change the way adaptive video works.");
+   m_pItemsSelect[20]->addSelection("Default");
+   m_pItemsSelect[20]->addSelection("New");
+   m_pItemsSelect[20]->setIsEditable();
+   m_IndexAdaptiveAlgorithm = addMenuItem(m_pItemsSelect[20]);
+
    m_pItemsSelect[9] = new MenuItemSelect("   Use Controller Feedback", "When vehicle adjusts video link params, use the feedback from the controller too in deciding the best video link params to be used.");  
    m_pItemsSelect[9]->addSelection("No");
    m_pItemsSelect[9]->addSelection("Yes");
@@ -312,14 +318,17 @@ void MenuVehicleVideoEncodings::valuesToUI()
       m_pItemsSelect[9]->setEnabled(false);
       m_pItemsSelect[10]->setEnabled(false);
       m_pItemsSlider[5]->setEnabled(false);
+      m_pItemsSelect[20]->setEnabled(false);
    }
    else
    {
       m_pItemsSelect[9]->setEnabled(true);
       m_pItemsSelect[10]->setEnabled(true);
       m_pItemsSlider[5]->setEnabled(true);
+      m_pItemsSelect[20]->setEnabled(true);
    }
 
+   m_pItemsSelect[20]->setSelection( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_NEW_ADAPTIVE_ALGORITHM)?1:0);
    m_pItemsSelect[4]->setSelection(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile);
    m_pItemsSelect[5]->setSelection(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level);
    m_pItemsSelect[6]->setSelection(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264refresh);
@@ -603,6 +612,18 @@ void MenuVehicleVideoEncodings::onSelectItem()
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
          valuesToUI();
       return;
+   }
+
+   if ( m_IndexAdaptiveAlgorithm == m_SelectedIndex )
+   {
+      video_parameters_t paramsNew;
+      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      paramsNew.uVideoExtraFlags &= ~VIDEO_FLAG_NEW_ADAPTIVE_ALGORITHM;
+      if ( 1 == m_pItemsSelect[20]->getSelectedIndex() )
+         paramsNew.uVideoExtraFlags |= VIDEO_FLAG_NEW_ADAPTIVE_ALGORITHM;
+
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+         valuesToUI();    
    }
 
    if ( m_IndexDataRate == m_SelectedIndex )

@@ -951,9 +951,8 @@ void rx_video_output_periodic_loop()
 {
    rx_video_recording_periodic_loop();
 
-   //if ( g_bDebugState )
-   // To fix: make it 1000 ms 
-   if ( g_TimeNow >= s_uLastTimeComputedOutputBitrate + 300 )
+   if ( g_bDebugState )
+   if ( g_TimeNow >= s_uLastTimeComputedOutputBitrate + 1000 )
    {
       log_line("[VideoOutput] Output to pipe: %u bps, output to UDP: %u bps", s_uOutputBitrateToLocalVideoPlayerPipe, s_uOutputBitrateToLocalVideoPlayerUDP );
       s_uLastTimeComputedOutputBitrate = g_TimeNow;

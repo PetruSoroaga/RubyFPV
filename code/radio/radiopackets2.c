@@ -70,6 +70,27 @@ int radio_packet_check_crc(u8* pBuffer, int length)
    return 1;
 }
 
+int radio_packet_type_is_high_priority(u8 uPacketType)
+{
+   switch(uPacketType)
+   {
+      case PACKET_TYPE_RUBY_PING_CLOCK:
+      case PACKET_TYPE_RUBY_PING_CLOCK_REPLY:
+      case PACKET_TYPE_VIDEO_DATA_FULL:
+      case PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS:
+      case PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2:
+      case PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL:
+      case PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK:
+      case PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE:
+      case PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK:
+         return 1;
+         break;
+      default:
+         return 0;
+         break;
+   }
+   return 0;
+}
 
 void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v1* pV1)
 {

@@ -706,7 +706,7 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    #endif
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   static const char* s_szBoardSTypeRadxaZero3 = "Radza Zero3";
+   static const char* s_szBoardSTypeRadxaZero3 = "Radxa Zero3";
    #endif
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
    static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
@@ -950,7 +950,7 @@ const char* str_get_radio_card_model_string(int cardModel)
    if ( cardModel == CARD_MODEL_ZIPRAY )            strcpy(s_szCardModelDescription, "Zipray 1W");
    if ( cardModel == CARD_MODEL_ARCHER_T2UPLUS )    strcpy(s_szCardModelDescription, "Archer T2U Plus");
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
-   
+   if ( cardModel == CARD_MODEL_BLUE_8812EU )       strcpy(s_szCardModelDescription, "Blue RTL8812EU");
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO_ELRS ) strcpy(s_szCardModelDescription, "ELRS-Radio");
@@ -980,7 +980,8 @@ const char* str_get_radio_card_model_string_short(int cardModel)
    if ( cardModel == CARD_MODEL_ZIPRAY )            strcpy(s_szCardModelDescription, "Zipray-1W");
    if ( cardModel == CARD_MODEL_ARCHER_T2UPLUS )    strcpy(s_szCardModelDescription, "T2U+");
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
-
+   if ( cardModel == CARD_MODEL_BLUE_8812EU )       strcpy(s_szCardModelDescription, "RTL8812EU");
+   
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO_ELRS ) strcpy(s_szCardModelDescription, "ELRS");

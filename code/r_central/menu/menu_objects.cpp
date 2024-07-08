@@ -469,6 +469,11 @@ float Menu::getUsableWidth()
    m_fIconSize = 0.0;
 
    m_RenderWidth = m_Width;
+
+   // Account for 4:3 screens or screen that do not have 16:9 aspect ratio
+   if ( g_pRenderEngine->getAspectRatio() < 1.7 )
+      m_RenderWidth *= 1.0 + 0.6*(1.7 - g_pRenderEngine->getAspectRatio());
+
    Preferences* pP = get_Preferences();
    m_sfScaleFactor = 1.0;
 
@@ -482,7 +487,9 @@ float Menu::getUsableWidth()
       if ( pP->iMenuStyle == 1 )
          m_sfScaleFactor *= 1.2;
    }
+   
    m_RenderWidth *= m_sfScaleFactor;
+
    m_fRenderScrollBarsWidth = 0.015 * m_sfScaleFactor;
 
    if ( (m_iColumnsCount > 1) && (!m_bEnableColumnSelection) )

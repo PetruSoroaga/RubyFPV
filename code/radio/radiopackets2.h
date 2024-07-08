@@ -745,6 +745,8 @@ void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 u
 void radio_packet_compute_crc(u8* pBuffer, int length);
 int radio_packet_check_crc(u8* pBuffer, int length);
 
+int radio_packet_type_is_high_priority(u8 uPacketType);
+
 void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v1* pV1);
 void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v2* pV2);
 

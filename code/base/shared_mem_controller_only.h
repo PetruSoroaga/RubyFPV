@@ -71,8 +71,8 @@ typedef struct
    u32 frames_type;
    u32 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc
    int video_link_profile; // 0xF0 - user selected one, 0x0F - current active one
-   u32 uEncodingFlags; // same as video uEncodingFlags from model and video radio packet
-   u32 uEncodingFlags2; // same as video packet uEncodingFlags2
+   u32 uEncodingFlags; // same as video profile uEncodingFlags from model and video radio packet
+   u32 uEncodingFlags2; // same as video profile packet uEncodingFlags2
    int width;
    int height;
    int fps;

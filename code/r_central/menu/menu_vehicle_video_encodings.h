@@ -28,10 +28,11 @@ class MenuVehicleVideoEncodings: public Menu
       int m_IndexResetParams;
       int m_IndexEnableAdaptiveQuantization;
       int m_IndexAdaptiveQuantizationStrength;
+      int m_IndexAdaptiveAlgorithm;
       int m_IndexIgnoreTxSpikes;
       int m_IndexHDMIOutput;
 
       bool m_ShowBitrateWarning;
-      MenuItemSlider* m_pItemsSlider[20];
+      MenuItemSlider* m_pItemsSlider[25];
       MenuItemSelect* m_pItemsSelect[40];
 };

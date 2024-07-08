@@ -92,6 +92,33 @@ void validate_camera(Model* pModel)
 }
 
 
+void do_update_to_95()
+{
+   log_line("Doing update to 9.5");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      save_ControllerSettings();      
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   pModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   
+   pModel->processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+   pModel->processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+   pModel->processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
+
+   log_line("Updated model VID %u (%s) to v9.5", pModel->uVehicleId, pModel->getLongName());
+}
+
+
 void do_update_to_94()
 {
    log_line("Doing update to 9.4");

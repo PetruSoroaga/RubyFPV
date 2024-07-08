@@ -162,7 +162,7 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[6]->setMargin(dxMargin);
    m_IndexAdaptiveVideo = addMenuItem(m_pItemsSelect[6]);
 
-   m_pItemsSelect[8] = new MenuItemSelect("Auto Bitrate", "Adjust the camera H264/H265 quantization to try to maintain a constant video bitrate.");
+   m_pItemsSelect[8] = new MenuItemSelect("Auto Quantization", "Adjust the camera H264/H265 quantization to try to maintain a constant video bitrate.");
    m_pItemsSelect[8]->addSelection("Off");
    m_pItemsSelect[8]->addSelection("On");
    m_pItemsSelect[8]->setIsEditable();
@@ -607,9 +607,9 @@ void MenuVehicleVideo::onSelectItem()
          g_pCurrentModel->video_params.uVideoExtraFlags &= ~VIDEO_FLAG_GENERATE_H265;
       else
       {
-         addMessage("H265 is not enabled yet.");
-         valuesToUI();
-         return;
+         //addMessage("H265 is not enabled yet.");
+         //valuesToUI();
+         //return;
 
          bool bCanDoH265 = true;
          if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
@@ -619,7 +619,7 @@ void MenuVehicleVideo::onSelectItem()
          #endif
          if ( ! bCanDoH265 )
          {
-            addMessage("Raspberry Pi hardware supports only H264 video encoder.");
+            addMessage("Raspberry Pi hardware supports only H264 video encoder/decoder.");
             valuesToUI();
             return;
          }

@@ -1034,7 +1034,7 @@ void video_stats_overwrites_periodic_loop()
    // Change on link to controller lost
 
    float fParamsChangeStrength = (float)g_pCurrentModel->video_params.videoAdjustmentStrength / 10.0;
-   iThresholdControllerLinkMs = 500 + (1.0 - fParamsChangeStrength)*1000.0;
+   iThresholdControllerLinkMs = 1000 + (1.0 - fParamsChangeStrength)*2000.0;
 
    if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
    if ( g_TimeNow > g_TimeStart + 5000 )

@@ -423,130 +423,6 @@ int MenuStorage::onBack()
    return Menu::onBack();
 }
 
-void MenuStorage::onSelectItem()
-{
-   if ( m_ViewScreenShotIndex != -1 )
-      return;
-
-   if ( g_bVideoPlaying )
-   {
-      stopVideoPlay();
-      return;
-   }
-
-   Menu::onSelectItem();
-
-   if ( m_IndexExpand == m_SelectedIndex )
-   {
-      MenuConfirmation* pMC = new MenuConfirmation("Reboot","This operation requires a reboot. Do you want to continue?", 10);
-      add_menu_to_stack(pMC);
-      return;
-   }
-
-   if ( m_IndexCopy == m_SelectedIndex )
-   {
-      flowCopyMoveFiles(false);
-      return;
-   }
-   if ( m_IndexMove == m_SelectedIndex )
-   {
-      flowCopyMoveFiles(true);   
-      return;
-   }
-   if ( m_IndexDelete == m_SelectedIndex )
-   {
-      MenuConfirmation* pMC = new MenuConfirmation("Confirmation","Are you sure you want to delete all files?",5);
-      add_menu_to_stack(pMC);
-      return;
-   }
-
-   if ( m_IndexViewPictures == m_SelectedIndex )
-   {
-      m_ViewScreenShotIndex = media_get_screenshots_count()-1;
-
-      char szFile[MAX_FILE_PATH_SIZE];
-      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
-      log_line("Menu: Loading screenshot: %s", szFile );
-      m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
-      if ( (0 != m_ScreenshotImageId) && (MAX_U32 != m_ScreenshotImageId) )
-         log_line("Men: Image loaded ok");
-      return;
-   }
-
-   int maxMenuIndex = m_StaticMenuItemsCount-1;
-   int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
-   if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
-      maxMenuIndex += m_UIFilesPerPage;
-   else
-      maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
-
-   if ( m_SelectedIndex == (maxMenuIndex-1))
-   {
-      if ( m_UIFilesPage > 0 )
-         m_UIFilesPage--;
-
-      int maxMenuIndex = m_StaticMenuItemsCount-1;
-      int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
-      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
-         maxMenuIndex += m_UIFilesPerPage;
-      else
-         maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
-      m_SelectedIndex = maxMenuIndex-1;
-
-      return;
-   }
-   if ( m_SelectedIndex == maxMenuIndex )
-   {
-      int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
-      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
-         m_UIFilesPage++;
-
-      int maxMenuIndex = m_StaticMenuItemsCount-1;
-      indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
-      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
-         maxMenuIndex += m_UIFilesPerPage;
-      else
-         maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
-      m_SelectedIndex = maxMenuIndex;
-      return;
-   }
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   char szBuff[1024];
-   int index = m_UIFilesPerPage * m_UIFilesPage + m_SelectedIndex-m_StaticMenuItemsCountBeforeUIFiles;
-   if ( index < 0 || index >= m_VideoInfoFilesCount )
-      return;
-
-   snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
-   FILE* fd = fopen(szFile, "r");
-   if ( NULL == fd )
-      return;
-
-   if ( 1 != fscanf(fd, "%s", szFile) )
-   {
-      fclose(fd);
-      return;
-   }
-   fclose(fd);
-
-   if ( pairing_isStarted() )
-   {
-      pairing_stop();
-      m_bWasPairingStarted = true;
-   }
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
-   #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
-   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s -f %s%s &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
-   #endif
-   hw_execute_bash_command(szBuff,NULL);
-   g_bVideoPlaying = true;
-   g_uVideoPlayingStartTime = get_current_timestamp_ms();
-   g_uVideoPlayingLengthSec = m_VideoFilesDuration[index];
-}
-
 void MenuStorage::buildFilesListPictures()
 {
    DIR *d;
@@ -770,8 +646,26 @@ void MenuStorage::moveVideos(bool bDelete)
       log_line("Finished processing video %s", m_szVideoInfoFiles[i]);
       hardware_sleep_ms(100);
       
-      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mv -rf %s%s %sRuby/%s", FOLDER_RUBY_TEMP, szOutFile, FOLDER_USB_MOUNT, szOutFile);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "mv -f %s%s %sRuby/%s", FOLDER_RUBY_TEMP, szOutFile, FOLDER_USB_MOUNT, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
+      
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%sRuby/%s", FOLDER_USB_MOUNT, szOutFile);
+      if ( access(szFile, R_OK) == -1 )
+         log_softerror_and_alarm("Failed to access the output video file [%s]. Not written to USB stick", szFile);
+      else
+      {
+         long lSizeVideo = 0;
+         fd = fopen(szFile, "rb");
+         if ( NULL != fd )
+         {
+            fseek(fd, 0, SEEK_END);
+            lSizeVideo = ftell(fd);
+            fseek(fd, 0, SEEK_SET);
+            fclose(fd);
+         }
+         log_line("Final USB stick output video file [%s] size: %d bytes", szFile, (int)lSizeVideo);
+      }
+
       if ( bDelete )
          sprintf(szInfo, "Moving video %d of %d to USB stick [%s]. Please wait...", i+1, m_VideoInfoFilesCount, hardware_get_mounted_usb_name());
       else
@@ -860,4 +754,129 @@ void MenuStorage::stopVideoPlay()
    if ( m_bWasPairingStarted )
       pairing_start_normal();
    render_all(get_current_timestamp_ms(), true);
+}
+
+
+void MenuStorage::onSelectItem()
+{
+   if ( m_ViewScreenShotIndex != -1 )
+      return;
+
+   if ( g_bVideoPlaying )
+   {
+      stopVideoPlay();
+      return;
+   }
+
+   Menu::onSelectItem();
+
+   if ( m_IndexExpand == m_SelectedIndex )
+   {
+      MenuConfirmation* pMC = new MenuConfirmation("Reboot","This operation requires a reboot. Do you want to continue?", 10);
+      add_menu_to_stack(pMC);
+      return;
+   }
+
+   if ( m_IndexCopy == m_SelectedIndex )
+   {
+      flowCopyMoveFiles(false);
+      return;
+   }
+   if ( m_IndexMove == m_SelectedIndex )
+   {
+      flowCopyMoveFiles(true);   
+      return;
+   }
+   if ( m_IndexDelete == m_SelectedIndex )
+   {
+      MenuConfirmation* pMC = new MenuConfirmation("Confirmation","Are you sure you want to delete all files?",5);
+      add_menu_to_stack(pMC);
+      return;
+   }
+
+   if ( m_IndexViewPictures == m_SelectedIndex )
+   {
+      m_ViewScreenShotIndex = media_get_screenshots_count()-1;
+
+      char szFile[MAX_FILE_PATH_SIZE];
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szPicturesFiles[m_ViewScreenShotIndex]); 
+      log_line("Menu: Loading screenshot: %s", szFile );
+      m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
+      if ( (0 != m_ScreenshotImageId) && (MAX_U32 != m_ScreenshotImageId) )
+         log_line("Men: Image loaded ok");
+      return;
+   }
+
+   int maxMenuIndex = m_StaticMenuItemsCount-1;
+   int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
+   if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
+      maxMenuIndex += m_UIFilesPerPage;
+   else
+      maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
+
+   if ( m_SelectedIndex == (maxMenuIndex-1))
+   {
+      if ( m_UIFilesPage > 0 )
+         m_UIFilesPage--;
+
+      int maxMenuIndex = m_StaticMenuItemsCount-1;
+      int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
+      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
+         maxMenuIndex += m_UIFilesPerPage;
+      else
+         maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
+      m_SelectedIndex = maxMenuIndex-1;
+
+      return;
+   }
+   if ( m_SelectedIndex == maxMenuIndex )
+   {
+      int indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
+      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
+         m_UIFilesPage++;
+
+      int maxMenuIndex = m_StaticMenuItemsCount-1;
+      indexStartThisPage = m_UIFilesPerPage * m_UIFilesPage;
+      if ( m_VideoInfoFilesCount > indexStartThisPage + m_UIFilesPerPage )
+         maxMenuIndex += m_UIFilesPerPage;
+      else
+         maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
+      m_SelectedIndex = maxMenuIndex;
+      return;
+   }
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szBuff[1024];
+   int index = m_UIFilesPerPage * m_UIFilesPage + m_SelectedIndex-m_StaticMenuItemsCountBeforeUIFiles;
+   if ( index < 0 || index >= m_VideoInfoFilesCount )
+      return;
+
+   snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, m_szVideoInfoFiles[index]); 
+   FILE* fd = fopen(szFile, "r");
+   if ( NULL == fd )
+      return;
+
+   if ( 1 != fscanf(fd, "%s", szFile) )
+   {
+      fclose(fd);
+      return;
+   }
+   fclose(fd);
+
+   if ( pairing_isStarted() )
+   {
+      pairing_stop();
+      m_bWasPairingStarted = true;
+   }
+
+   #ifdef HW_PLATFORM_RASPBERRY
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s -f %s%s &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
+   #endif
+   hw_execute_bash_command(szBuff,NULL);
+   g_bVideoPlaying = true;
+   g_uVideoPlayingStartTime = get_current_timestamp_ms();
+   g_uVideoPlayingLengthSec = m_VideoFilesDuration[index];
 }

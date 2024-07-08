@@ -21,6 +21,10 @@ class MenuControllerExpert: public Menu
       int m_IndexNiceCentral;
       int m_IndexAutoRxVideo, m_IndexNiceRXVideo, m_IndexIONiceRXVideo, m_IndexIONiceValueRXVideo;
 
+      int m_IndexEnableRadioThreadsPriority;
+      int m_IndexRadioRxPriority;
+      int m_IndexRadioTxPriority;
+
       int m_IndexCPUEnabled;
       int m_IndexGPUEnabled;
       int m_IndexVoltageEnabled;
