@@ -908,8 +908,8 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
    else
    {
       radio_hw_info_t* pRadioInfo2 = hardware_get_radio_info(iRadioIndex);
-      log_line("Setting radio interface %d (%s, %s) to frequency %s (freq for wifi: %u) (guard interval: %d ms) for model radio link %d", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver), str_format_frequency(uFrequencyKhz), uFreqWifi, (int)delayMs, iAssignedModelRadioLink+1);
-      sprintf(szInfo, "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->typeAndDriver));
+      log_line("Setting radio interface %d (%s, %s) to frequency %s (freq for wifi: %u) (guard interval: %d ms) for model radio link %d", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->iRadioDriver), str_format_frequency(uFrequencyKhz), uFreqWifi, (int)delayMs, iAssignedModelRadioLink+1);
+      sprintf(szInfo, "radio interface %d (%s, %s)", iRadioIndex+1, pRadioInfo2->szName, str_get_radio_driver_description(pRadioInfo2->iRadioDriver));
       iStartIndex = iRadioIndex;
       iEndIndex = iRadioIndex;
    }
@@ -935,7 +935,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioInfo || (0 == hardware_radioindex_supports_frequency(i, uFrequencyKhz)) )
       {
-         log_line("Radio interface %d (%s, %s) does not support %s. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz));
+         log_line("Radio interface %d (%s, %s) does not support %s. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz));
          pRadioInfo->lastFrequencySetFailed = 1;
          pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;
          failed = true;
@@ -944,7 +944,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
 
       if ( ! pRadioInfo->isConfigurable )
       {
-         log_line("Radio interface %d (%s, %s) is not configurable. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver));
+         log_line("Radio interface %d (%s, %s) is not configurable. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver));
          continue;
       }
 
@@ -977,7 +977,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          if ( bTryHT40 )
          {
             #if defined(HW_PLATFORM_RASPBERRY)
-            if ( (pRadioInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
+            if ( pRadioInfo->iRadioType == RADIO_TYPE_ATHEROS )
             {
                sprintf(cmd, "iw dev %s set freq %u HT40+ 2>&1", pRadioInfo->szName, uFreqWifi);
                bUsedHT40 = true;
@@ -1010,7 +1010,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
                if ( szOutput[i] == 10 || szOutput[i] == 13 )
                   szOutput[i] = '.';
 
-            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
+            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             szOutput[0] = 0;
             #if defined(HW_PLATFORM_RASPBERRY)
@@ -1031,7 +1031,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             for( int i=0; i<len; i++ )
                if ( szOutput[i] == 10 || szOutput[i] == 13 )
                   szOutput[i] = '.';
-            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s, returned error: [%s]", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz), szOutput);
+            log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s, returned error: [%s]", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             continue;
          }
@@ -1042,7 +1042,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          log_softerror_and_alarm("Detected unknown radio interface type.");
          continue;
       }
-      log_line("Setting radio interface %d (%s, %s) to frequency %s succeeded.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->typeAndDriver), str_format_frequency(uFrequencyKhz));
+      log_line("Setting radio interface %d (%s, %s) to frequency %s succeeded.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz));
       pRadioInfo->uCurrentFrequencyKhz = uFrequencyKhz;
       pRadioInfo->lastFrequencySetFailed = 0;
       pRadioInfo->uFailedFrequencyKhz = 0;

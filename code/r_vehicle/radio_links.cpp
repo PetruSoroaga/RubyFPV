@@ -98,8 +98,8 @@ int radio_links_open_rxtx_radio_interfaces()
       else
          log_line("Open radio interface %d (%s) for radio link %d ...", i+1, pRadioHWInfo->szName, iRadioLinkId+1);
 
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       {
          int nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLinkId];
          if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] )
@@ -359,8 +359,8 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
       if ( NULL == pRadioHWInfo )
          continue;
       
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
-        ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType != RADIO_TYPE_ATHEROS) &&
+           (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
          continue;
 
       int nRateTx = pRadioLinkParamsNew->link_datarate_video_bps[iRadioLink];

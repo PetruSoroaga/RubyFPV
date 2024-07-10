@@ -284,8 +284,8 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
             log_line("Configuring radio interface %d (%s): radio interface is not configurable. Skipping it.", i+1, pRadioHWInfo->szName);
             continue;
          }
-         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_REALTEK) ||
-              ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+         if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
+              (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
          {
             sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*pModel->radioInterfacesParams.txPowerRTL);
             hw_execute_bash_command(szComm, NULL);          

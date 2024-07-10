@@ -664,7 +664,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    {
       int countUnsuported = 0;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
-         if ( 0 == (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF0000) )
+         if ( 0 == (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF0000) )
             countUnsuported++;
    
       if ( countUnsuported == pModel->radioInterfacesParams.interfaces_count )

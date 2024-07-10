@@ -287,7 +287,7 @@ float MenuSystemAllParams::renderRadioInfo(float xPos, float yPos, float width, 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-      sprintf(szBuff, "Radio Interface %d: USB port %s: %s, driver: %s", i+1, pNICInfo->szUSBPort, pNICInfo->szDescription, str_get_radio_driver_description(pNICInfo->typeAndDriver));
+      sprintf(szBuff, "Radio Interface %d: USB port %s: %s, driver: %s", i+1, pNICInfo->szUSBPort, pNICInfo->szDescription, str_get_radio_driver_description(pNICInfo->iRadioDriver));
       g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
       yPos += 1.4*height_text;
 
@@ -344,7 +344,7 @@ float MenuSystemAllParams::renderRadioInfo(float xPos, float yPos, float width, 
    else
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            sprintf(szBuff, "Radio Interface %d: USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]));
+            sprintf(szBuff, "Radio Interface %d: USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]));
             g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
             yPos += 1.4*height_text;
             sprintf(szBuff, "   Now at %s, bands: ", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i]));

@@ -72,7 +72,7 @@
 pthread_t s_pThreadRxVideoOutputPlayer;
 sem_t* s_pRxVideoSemaphoreRestartVideoPlayer = NULL;
 bool s_bRxVideoOutputPlayerThreadMustStop = false;
-bool s_bRxVideoOutputPlayerReinitializing = false;
+bool s_bRxVideoOutputPlayerMustReinitialize = false;
 int s_iPIDVideoPlayer = -1;
 int s_fPipeVideoOutToPlayer = -1;
 bool s_bDidSentAnyDataToVideoPlayerPipe = false;
@@ -306,16 +306,17 @@ static void * _thread_rx_video_output_player(void *argument)
       tWait.tv_nsec = 100*1000*1000;
       int iRet = sem_timedwait(pSemaphore, &tWait);
       if ( ETIMEDOUT == iRet )
-      {
          continue;
-      }
+   
+      if ( 0 == iRet )
+         log_line("[VideoOutputThread] Semaphore to restart video player was set.");
 
-      if ( (0 != iRet) && (!s_bRxVideoOutputPlayerReinitializing) )
+      if ( (0 != iRet) && (!s_bRxVideoOutputPlayerMustReinitialize) )
          continue;
 
       bMustRestartPlayer = false;
 
-      if ( s_bRxVideoOutputPlayerReinitializing )
+      if ( s_bRxVideoOutputPlayerMustReinitialize )
          bMustRestartPlayer = true;
 
       int iVal = 0;
@@ -328,7 +329,14 @@ static void * _thread_rx_video_output_player(void *argument)
          log_line("[VideoOutputThread] Thread: Semaphore to restart video player is signaled.");
          _rx_video_output_stop_video_player();
          _rx_video_output_launch_video_player();
-         s_bRxVideoOutputPlayerReinitializing = false;
+         s_bRxVideoOutputPlayerMustReinitialize = false;
+      }
+
+      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+      {
+         if ( NULL == g_pVideoProcessorRxList[i] )
+            break;
+         g_pVideoProcessorRxList[i]->resumeProcessing();
       }
    }
 
@@ -454,7 +462,7 @@ void rx_video_output_init()
    else
       log_line("[VideoOutput] Created semaphore for signaling video player worker thread.");
    s_bRxVideoOutputPlayerThreadMustStop = false;
-   s_bRxVideoOutputPlayerReinitializing = false;
+   s_bRxVideoOutputPlayerMustReinitialize = false;
    if ( 0 != pthread_create(&s_pThreadRxVideoOutputPlayer, NULL, &_thread_rx_video_output_player, NULL) )
       log_error_and_alarm("[VideoOutput] Failed to create thread for video player output check");
 
@@ -480,9 +488,7 @@ void rx_video_output_uninit()
    }
 
    s_bRxVideoOutputPlayerThreadMustStop = true;
-   s_bRxVideoOutputPlayerReinitializing = true;
-   if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
-      sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
+   rx_video_output_signal_restart_player();
  
    pthread_cancel(s_pThreadRxVideoOutputPlayer);
 
@@ -649,7 +655,7 @@ void _processor_rx_video_forward_parse_h264_stream(u8* pBuffer, int length)
 
 void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
 {
-   if ( (-1 == s_fPipeVideoOutToPlayer) || s_bRxVideoOutputPlayerReinitializing )
+   if ( (-1 == s_fPipeVideoOutToPlayer) || s_bRxVideoOutputPlayerMustReinitialize )
       return;
 
    // Check for video resolution changes
@@ -668,12 +674,8 @@ void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8*
          uVehicleId, s_iRxVideoForwardLastWidth, s_iRxVideoForwardLastHeight, width, height);
       s_iRxVideoForwardLastWidth = width;
       s_iRxVideoForwardLastHeight = height;
-      s_bRxVideoOutputPlayerReinitializing = true;
-      if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
-      {
-         sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
-         log_line("[VideoOutput] Signaled restart of player");
-      }
+      rx_video_output_signal_restart_player();
+      log_line("[VideoOutput] Signaled restart of player");
       return;
    }
 
@@ -731,22 +733,14 @@ void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8*
       if ( (0 != s_uTimeLastOkVideoPlayerOutput) && (g_TimeNow > s_uTimeLastOkVideoPlayerOutput + 3000) )
       {
          log_line("[VideoOutput] Error outputing video data to video player. Reinitialize video player...");
-         s_bRxVideoOutputPlayerReinitializing = true;
-         if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
-         {
-            sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
-            log_line("[VideoOutput] Signaled restart of player");
-         }
+         rx_video_output_signal_restart_player();
+         log_line("[VideoOutput] Signaled restart of player");
       }
       if ( 0 == s_uTimeLastOkVideoPlayerOutput && g_TimeNow > g_TimeStart + 5000 )
       {
          log_line("[VideoOutput] Error outputing any video data to video player. Reinitialize video player...");
-         s_bRxVideoOutputPlayerReinitializing = true;
-         if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
-         {
-            sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
-            log_line("[VideoOutput] Signaled restart of player");
-         }
+         rx_video_output_signal_restart_player();
+         log_line("[VideoOutput] Signaled restart of player");
       }
    }
 }
@@ -940,11 +934,19 @@ void rx_video_output_signal_restart_player()
 {
    if ( NULL != s_pRxVideoSemaphoreRestartVideoPlayer )
    {
+      s_bRxVideoOutputPlayerMustReinitialize = true;
       sem_post(s_pRxVideoSemaphoreRestartVideoPlayer);
       log_line("[VideoOutput] Signaled restart of player on request.");
    }
    else
       log_softerror_and_alarm("[VideoOutput] Can't signal video player to restart. No signal.");
+
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL == g_pVideoProcessorRxList[i] )
+         break;
+      g_pVideoProcessorRxList[i]->pauseProcessing();
+   }
 }
 
 void rx_video_output_periodic_loop()

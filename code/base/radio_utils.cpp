@@ -71,8 +71,8 @@ void update_atheros_card_datarate(Model* pModel, int iInterfaceIndex, int iDataR
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
    if ( NULL == pRadioHWInfo )
       return;
-   if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
-        ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+   if ( (pRadioHWInfo->iRadioType != RADIO_TYPE_ATHEROS) &&
+        (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
       return;
 
    if ( pRadioHWInfo->iCurrentDataRateBPS == iDataRateBPS )

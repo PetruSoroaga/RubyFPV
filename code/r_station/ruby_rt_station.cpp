@@ -687,8 +687,8 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioHWInfo )
          continue;
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_REALTEK) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
+           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       { 
          sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*iTxPower1);
          hw_execute_bash_command(szComm, NULL);
@@ -2179,8 +2179,8 @@ int main(int argc, char *argv[])
             continue;
          if ( ! pRadioHWInfo->isConfigurable )
             continue;
-         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
-           ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+         if ( (pRadioHWInfo->iRadioType != RADIO_TYPE_ATHEROS) &&
+              (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
             continue;
 
          int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, &(g_pCurrentModel->radioLinksParams));

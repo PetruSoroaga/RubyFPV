@@ -1021,7 +1021,7 @@ bool handle_last_command_result()
          
          for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            sprintf(szBuff, "Radio Interface %d: %s, USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szMAC[i], g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]));
+            sprintf(szBuff, "Radio Interface %d: %s, USB port %s,  %s, driver %s", i+1, g_pCurrentModel->radioInterfacesParams.interface_szMAC[i], g_pCurrentModel->radioInterfacesParams.interface_szPort[i], str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]), str_get_radio_driver_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]));
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
             sprintf(szBuff, ". . . currently at %s, supported bands: ", str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i]));
             if ( g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i] & RADIO_HW_SUPPORTED_BAND_433 )
@@ -1612,9 +1612,9 @@ bool handle_last_command_result()
             bool bIsAtheros = false;
             if ( iRadioInterfaceId >= 0 )
             {
-               if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
+               if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
                   bIsAtheros = true;
-               if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
+               if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
                   bIsAtheros = true; 
             }      
             if ( bIsAtheros )
@@ -2425,12 +2425,12 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
       if ( NULL != g_pCurrentModel )
          for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+            if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
             {
                log_line("[Commands] Current model has Atheros radio cards. Using longer timeouts to send radio flags.");
                bModelHasAtheros = true;
             }
-            if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
+            if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
             {
                log_line("[Commands] Current model has RaLink radio cards. Using longer timeouts to send radio flags.");
                bModelHasAtheros = true;

@@ -227,7 +227,7 @@ void MenuRadioConfig::computeMenuItems()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      log_line("MenuRadio: Detected controller radio interface %d type: %s", i+1, str_get_radio_type_description(pRadioHWInfo->typeAndDriver));
+      log_line("MenuRadio: Detected controller radio interface %d type: %s", i+1, str_get_radio_type_description(pRadioHWInfo->iRadioType));
       if ( hardware_radio_index_is_sik_radio(i) )
       {
          m_bHasSiKPowerController = true;
@@ -236,7 +236,7 @@ void MenuRadioConfig::computeMenuItems()
       }
       else
       {
-         if ( (NULL != pRadioHWInfo) && (((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) || (((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK))) )
+         if ( (NULL != pRadioHWInfo) && ((pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) || ((pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK))) )
             m_bHas24PowerController = true;
          else
             m_bHas58PowerController = true;
@@ -247,14 +247,14 @@ void MenuRadioConfig::computeMenuItems()
    {
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         log_line("MenuRadio: Detected vehicle radio interface %d type: %s", i+1, str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i]));
+         log_line("MenuRadio: Detected vehicle radio interface %d type: %s", i+1, str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]));
 
-         if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
+         if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
          {
             m_bHasSiKPowerVehicle = true;
             m_uBandsSiKVehicle |= g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i];
          }
-         else if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) || ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) )
+         else if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) || ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) )
             m_bHas24PowerVehicle = true;
          else
             m_bHas58PowerVehicle = true;

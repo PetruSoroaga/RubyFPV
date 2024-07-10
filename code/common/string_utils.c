@@ -883,47 +883,47 @@ void str_get_supported_bands_string(u32 bands, char* szOut)
 }
 
 
-const char* str_get_radio_type_description(int typeAndDriver)
+const char* str_get_radio_type_description(int iRadioType)
 {
    static char sszNICTypeDescription[32];
    strcpy(sszNICTypeDescription, "N/A");
-   typeAndDriver = typeAndDriver & 0xFF;
-   if ( typeAndDriver == RADIO_TYPE_RALINK )
+   if ( iRadioType == RADIO_TYPE_RALINK )
       strcpy(sszNICTypeDescription, "Ralink");
-   if ( typeAndDriver == RADIO_TYPE_ATHEROS )
+   if ( iRadioType == RADIO_TYPE_ATHEROS )
       strcpy(sszNICTypeDescription, "Atheros");
-   if ( typeAndDriver == RADIO_TYPE_REALTEK )
+   if ( iRadioType == RADIO_TYPE_REALTEK )
       strcpy(sszNICTypeDescription, "Realtek");
-   if ( typeAndDriver == RADIO_TYPE_MEDIATEK )
+   if ( iRadioType == RADIO_TYPE_MEDIATEK )
       strcpy(sszNICTypeDescription, "Mediatek");
-   if ( typeAndDriver == RADIO_TYPE_SIK )
+   if ( iRadioType == RADIO_TYPE_SIK )
       strcpy(sszNICTypeDescription, "SiK-Radio");
-   if ( typeAndDriver == RADIO_TYPE_SERIAL )
+   if ( iRadioType == RADIO_TYPE_SERIAL )
       strcpy(sszNICTypeDescription, "Serial-Radio");
    return sszNICTypeDescription;
 }
 
-const char* str_get_radio_driver_description(int typeAndDriver)
+const char* str_get_radio_driver_description(int iDriverType)
 {
    static char sszNICDriverDescription[32];
    strcpy(sszNICDriverDescription, "N/A");
   
-   typeAndDriver = (typeAndDriver >> 8) & 0xFF;
-   if ( typeAndDriver == RADIO_HW_DRIVER_ATHEROS )
+   if ( iDriverType == RADIO_HW_DRIVER_ATHEROS )
       strcpy(sszNICDriverDescription, "ath9k_htc");
-   if ( typeAndDriver == RADIO_HW_DRIVER_RALINK )
+   if ( iDriverType == RADIO_HW_DRIVER_RALINK )
       strcpy(sszNICDriverDescription, "rt2800usb");
-   if ( typeAndDriver == RADIO_HW_DRIVER_MEDIATEK )
+   if ( iDriverType == RADIO_HW_DRIVER_MEDIATEK )
       strcpy(sszNICDriverDescription, "mt7601u");
-   if ( typeAndDriver == RADIO_HW_DRIVER_REALTEK_RTL88XXAU )
+   if ( iDriverType == RADIO_HW_DRIVER_REALTEK_RTL88XXAU )
       strcpy(sszNICDriverDescription, "rtl88xxau");
-   if ( typeAndDriver == RADIO_HW_DRIVER_REALTEK_RTL8812AU )
+   if ( iDriverType == RADIO_HW_DRIVER_REALTEK_RTL8812AU )
       strcpy(sszNICDriverDescription, "rtl8812au");
-   if ( typeAndDriver == RADIO_HW_DRIVER_REALTEK_8812AU )
+   if ( iDriverType == RADIO_HW_DRIVER_REALTEK_8812AU )
       strcpy(sszNICDriverDescription, "8812au");
-   if ( typeAndDriver == RADIO_HW_DRIVER_SERIAL_SIK )
+   if ( iDriverType == RADIO_HW_DRIVER_REALTEK_8812EU )
+      strcpy(sszNICDriverDescription, "8812eu");
+   if ( iDriverType == RADIO_HW_DRIVER_SERIAL_SIK )
       strcpy(sszNICDriverDescription, "SiK");
-   if ( typeAndDriver == RADIO_HW_DRIVER_SERIAL )
+   if ( iDriverType == RADIO_HW_DRIVER_SERIAL )
       strcpy(sszNICDriverDescription, "Serial");
    return sszNICDriverDescription;
 }

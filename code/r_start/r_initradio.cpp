@@ -229,7 +229,7 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
       log_softerror_and_alarm("Unexpected result: [%s]", szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   if ( ((pRadioHWInfo->typeAndDriver) & 0xFF) == RADIO_TYPE_ATHEROS )
+   if ( pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS )
       _configure_radio_interface_atheros(iInterfaceIndex, pRadioHWInfo, uDelayMS);
    else
       _configure_radio_interface_realtek(iInterfaceIndex, pRadioHWInfo, uDelayMS);

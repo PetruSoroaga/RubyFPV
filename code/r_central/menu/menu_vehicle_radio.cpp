@@ -333,9 +333,9 @@ void MenuVehicleRadioConfig::valuesToUI()
       bool bHas58Cards = false;
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
+         if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
             bHas24Cards = true;
-         if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
+         if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
             bHas24Cards = true;
          else
             bHas58Cards = true;

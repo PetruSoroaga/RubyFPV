@@ -21,6 +21,8 @@ class ProcessorTxVideo
       bool init();
       bool uninit();
       
+      void updateVideoStreamType();
+
       void periodicLoop();
 
       u32 getCurrentVideoBitrate();

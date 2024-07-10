@@ -194,8 +194,8 @@ void _test_link_close_interfaces()
          }
       }
 
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-        ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
          s_uTimeEndCurrentStep = g_TimeNow + 2*TIMEOUT_TEST_LINK_STATE_START;
    }
 }

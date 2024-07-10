@@ -456,7 +456,7 @@ bool Model::loadVersion8(FILE* fd)
          { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
       radioInterfacesParams.interface_capabilities_flags[i] = u4;
       radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
-      radioInterfacesParams.interface_type_and_driver[i] = tmp32;
+      radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
       radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
       radioInterfacesParams.interface_datarate_video_bps[i] = tmp6;
       radioInterfacesParams.interface_datarate_data_bps[i] = tmp7;
@@ -1065,7 +1065,7 @@ bool Model::loadVersion9(FILE* fd)
          { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
       radioInterfacesParams.interface_capabilities_flags[i] = u4;
       radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
-      radioInterfacesParams.interface_type_and_driver[i] = tmp32;
+      radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
       radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
       radioInterfacesParams.interface_datarate_video_bps[i] = tmp6;
       radioInterfacesParams.interface_datarate_data_bps[i] = tmp7;
@@ -1642,7 +1642,7 @@ bool Model::loadVersion10(FILE* fd)
          { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
       radioInterfacesParams.interface_capabilities_flags[i] = u4;
       radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
-      radioInterfacesParams.interface_type_and_driver[i] = tmp32;
+      radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
       radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
       radioInterfacesParams.interface_datarate_video_bps[i] = tmp6;
       radioInterfacesParams.interface_datarate_data_bps[i] = tmp7;
@@ -2326,7 +2326,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    {
       sprintf(szSetting, "%d %d %u\n", radioInterfacesParams.interface_card_model[i], radioInterfacesParams.interface_link_id[i], radioInterfacesParams.interface_current_frequency_khz[i]);
       strcat(szModel, szSetting);
-      sprintf(szSetting, "  %u %d %u %d %d %d %s- %s-\n", radioInterfacesParams.interface_capabilities_flags[i], radioInterfacesParams.interface_supported_bands[i], radioInterfacesParams.interface_type_and_driver[i], radioInterfacesParams.interface_current_radio_flags[i], radioInterfacesParams.interface_datarate_video_bps[i], radioInterfacesParams.interface_datarate_data_bps[i], radioInterfacesParams.interface_szMAC[i], radioInterfacesParams.interface_szPort[i]);
+      sprintf(szSetting, "  %u %d %u %d %d %d %s- %s-\n", radioInterfacesParams.interface_capabilities_flags[i], radioInterfacesParams.interface_supported_bands[i], radioInterfacesParams.interface_radiotype_and_driver[i], radioInterfacesParams.interface_current_radio_flags[i], radioInterfacesParams.interface_datarate_video_bps[i], radioInterfacesParams.interface_datarate_data_bps[i], radioInterfacesParams.interface_szMAC[i], radioInterfacesParams.interface_szPort[i]);
       strcat(szModel, szSetting);
    }
    sprintf(szSetting, "%d %d %d %d %d %d %d %d %d\n", enableDHCP, radioInterfacesParams.txPower, radioInterfacesParams.txPowerAtheros, radioInterfacesParams.txPowerRTL, radioInterfacesParams.txMaxPower, radioInterfacesParams.txMaxPowerAtheros, radioInterfacesParams.txMaxPowerRTL, radioInterfacesParams.slotTime, radioInterfacesParams.thresh62); 
@@ -3104,7 +3104,7 @@ void Model::populateRadioInterfacesInfoFromHardware()
       radioInterfacesParams.interface_datarate_video_bps[i] = 0;
       radioInterfacesParams.interface_datarate_data_bps[i] = 0;
 
-      radioInterfacesParams.interface_type_and_driver[i] = 0;
+      radioInterfacesParams.interface_radiotype_and_driver[i] = 0;
       radioInterfacesParams.interface_supported_bands[i] = 0;
       radioInterfacesParams.interface_szMAC[i][0] = 0;
       radioInterfacesParams.interface_szPort[i][0] = 0;
@@ -3128,9 +3128,9 @@ void Model::populateRadioInterfacesInfoFromHardware()
          radioInterfacesParams.interface_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_DISABLED;
         
       radioInterfacesParams.interface_supported_bands[i] = pRadioHWInfo->supportedBands;
-      radioInterfacesParams.interface_type_and_driver[i] = pRadioHWInfo->typeAndDriver;
+      radioInterfacesParams.interface_radiotype_and_driver[i] = ((pRadioHWInfo->iRadioType) & 0xFF) | ((pRadioHWInfo->iRadioDriver << 8) & 0xFF00);
       if ( pRadioHWInfo->isSupported )
-         radioInterfacesParams.interface_type_and_driver[i] |= 0xFF0000;
+         radioInterfacesParams.interface_radiotype_and_driver[i] |= 0xFF0000;
       strcpy(radioInterfacesParams.interface_szMAC[i], pRadioHWInfo->szMAC );
       strcpy(radioInterfacesParams.interface_szPort[i], pRadioHWInfo->szUSBPort);
 
@@ -3356,7 +3356,7 @@ bool Model::check_update_radio_links()
       {
          log_line("Model: Making sure radio link 1 (first one in the model) has all required capabilities flags. Enable them on radio link 1.");
          radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-         if ( (radioInterfacesParams.interface_type_and_driver[iInterface] & 0xFF) != RADIO_TYPE_SIK )
+         if ( (radioInterfacesParams.interface_radiotype_and_driver[iInterface] & 0xFF) != RADIO_TYPE_SIK )
             radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
          radioLinksParams.link_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
          radioLinksParams.link_capabilities_flags[0] &= (~RADIO_HW_CAPABILITY_FLAG_DISABLED);
@@ -3447,14 +3447,14 @@ void Model::logVehicleRadioInfo()
          radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
          if ( (NULL != pRadioInfo) && (0 == strcmp(pRadioInfo->szMAC, radioInterfacesParams.interface_szMAC[i]) ) )
             log_line("* %sRadio Interface %d: %s, %s, %s on port %s, %s, supported bands: %s, current frequency: %s, assigned to radio link %d, current capabilities: %s, current radio flags: %s",
-                szPrefix, i+1, pRadioInfo->szName, radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_type_and_driver[i]), szBands, str_format_frequency(pRadioInfo->uCurrentFrequencyKhz), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
+                szPrefix, i+1, pRadioInfo->szName, radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_radiotype_and_driver[i]), szBands, str_format_frequency(pRadioInfo->uCurrentFrequencyKhz), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
          else
             log_line("* %sRadio Interface %d: %s on port %s, %s, supported bands: %s, current frequency: %s, assigned to radio link %d, current capabilities: %s, current radio flags: %s",
-               szPrefix, i+1, str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_type_and_driver[i]), szBands, str_format_frequency(radioInterfacesParams.interface_current_frequency_khz[i]), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
+               szPrefix, i+1, str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_radiotype_and_driver[i]), szBands, str_format_frequency(radioInterfacesParams.interface_current_frequency_khz[i]), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
       }
       else
           log_line("* Radio Interface %d: %s, %s on port %s, %s, supported bands: %s, current frequency: %s, assigned to radio link %d, current capabilities: %s, current radio flags: %s",
-               i+1, radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_type_and_driver[i]), szBands, str_format_frequency(radioInterfacesParams.interface_current_frequency_khz[i]), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
+               i+1, radioInterfacesParams.interface_szMAC[i], str_get_radio_card_model_string(radioInterfacesParams.interface_card_model[i]), radioInterfacesParams.interface_szPort[i], str_get_radio_driver_description(radioInterfacesParams.interface_radiotype_and_driver[i]), szBands, str_format_frequency(radioInterfacesParams.interface_current_frequency_khz[i]), radioInterfacesParams.interface_link_id[i]+1, szBuff, szBuff2);
 
       char szDR1[32];
       char szDR2[32];
@@ -4783,10 +4783,10 @@ bool Model::radioLinkIsWiFiRadio(int iRadioLinkIndex)
       if ( radioInterfacesParams.interface_link_id[i] != iRadioLinkIndex )
          continue;
 
-      if ( ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) ||
-           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_REALTEK) ||
-           ((radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_MEDIATEK) )
+      if ( ((radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) ||
+           ((radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) ||
+           ((radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_REALTEK) ||
+           ((radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_MEDIATEK) )
          return true;
       else
          return false;
@@ -4805,7 +4805,7 @@ bool Model::radioLinkIsSiKRadio(int iRadioLinkIndex)
       if ( radioInterfacesParams.interface_link_id[i] != iRadioLinkIndex )
          continue;
 
-      if ( (radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
+      if ( (radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
          return true;
       else
          return false;
@@ -4823,7 +4823,7 @@ bool Model::radioLinkIsELRSRadio(int iRadioLinkIndex)
       if ( radioInterfacesParams.interface_link_id[i] != iRadioLinkIndex )
          continue;
 
-      if ( ( (radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_SERIAL ) &&
+      if ( ( (radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_SERIAL ) &&
            ( radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS) )
          return true;
       else
@@ -5507,7 +5507,7 @@ void Model::populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_e
    radioInterfacesParams.interface_supported_bands[0] = getBand(radioLinksParams.link_frequency_khz[0]);
 
    if ( getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_58 )
-      radioInterfacesParams.interface_type_and_driver[0] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
 
    // Assign radio interfaces to all radio links
    for( int i=1; i<MAX_RADIO_INTERFACES-1; i++ )
@@ -5606,13 +5606,13 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
    radioInterfacesParams.interface_card_model[0] = 0;
 
    if ( getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_58 )
-      radioInterfacesParams.interface_type_and_driver[0] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
    else if ( (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_23) || 
        (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_24) ||
        (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_25) )
-      radioInterfacesParams.interface_type_and_driver[0] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
    else
-      radioInterfacesParams.interface_type_and_driver[0] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
 
    // Assign radio interfaces to all radio links
 
@@ -5633,13 +5633,13 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
       radioInterfacesParams.interface_datarate_data_bps[iInterfaceIndex] = 0;
       radioInterfacesParams.interface_supported_bands[iInterfaceIndex] = getBand(radioLinksParams.link_frequency_khz[i]);
       if ( getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_58 )
-         radioInterfacesParams.interface_type_and_driver[iInterfaceIndex] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
       else if ( (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_23) || 
               (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_24) ||
               (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_25) )
-         radioInterfacesParams.interface_type_and_driver[iInterfaceIndex] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
       else
-         radioInterfacesParams.interface_type_and_driver[iInterfaceIndex] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
       
       radioInterfacesParams.interface_card_model[iInterfaceIndex] = 0;
       radioInterfacesParams.interfaces_count++;
@@ -5982,7 +5982,7 @@ void Model::copy_radio_interface_params(int iFrom, int iTo)
    radioInterfacesParams.interface_card_model[iTo] = radioInterfacesParams.interface_card_model[iFrom];
    radioInterfacesParams.interface_link_id[iTo] = radioInterfacesParams.interface_link_id[iFrom];
    radioInterfacesParams.interface_power[iTo] = radioInterfacesParams.interface_power[iFrom];
-   radioInterfacesParams.interface_type_and_driver[iTo] = radioInterfacesParams.interface_type_and_driver[iFrom];
+   radioInterfacesParams.interface_radiotype_and_driver[iTo] = radioInterfacesParams.interface_radiotype_and_driver[iFrom];
    radioInterfacesParams.interface_supported_bands[iTo] = radioInterfacesParams.interface_supported_bands[iFrom];
    strcpy( radioInterfacesParams.interface_szMAC[iTo], radioInterfacesParams.interface_szMAC[iFrom]);
    strcpy( radioInterfacesParams.interface_szPort[iTo], radioInterfacesParams.interface_szPort[iFrom]);

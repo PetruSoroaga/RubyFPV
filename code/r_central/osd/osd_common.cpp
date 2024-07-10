@@ -479,8 +479,7 @@ void osd_rotate_point(float x, float y, float xCenter, float yCenter, float angl
 float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLeft)
 {
    float fWidth = 0;
-   char szBuff[32];
-
+   char szBuff[64];
    szBuff[0] = 0;
    
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
@@ -512,6 +511,9 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
      
    if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
       strcat(szBuff, "-1Way");
+   if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+      strcat(szBuff, " H265");
+     
    fWidth = g_pRenderEngine->textWidth(uFontId, szBuff);
 
    if ( bLeft )

@@ -631,7 +631,7 @@ int hardware_radio_sik_detect_interfaces()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       pRadioInfo = hardware_get_radio_info(i);
-      if ( (NULL == pRadioInfo) || ((pRadioInfo->typeAndDriver & 0xFF) != RADIO_TYPE_SIK) )
+      if ( (NULL == pRadioInfo) || (pRadioInfo->iRadioType != RADIO_TYPE_SIK) )
          continue;
       s_iSiKRadioCount++;
    }
@@ -647,7 +647,7 @@ int hardware_radio_sik_save_configuration()
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
-      if ( (NULL == pRadioInfo) || ((pRadioInfo->typeAndDriver & 0xFF) != RADIO_TYPE_SIK) )
+      if ( (NULL == pRadioInfo) || (pRadioInfo->iRadioType != RADIO_TYPE_SIK) )
          continue;
       s_iSiKRadioCount++;
    }
@@ -870,7 +870,8 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
       log_line("[HardwareRadio] Closed serial port fd %d", iSerialPort);
       close(iSerialPort);
 
-      s_radioHWInfoSikTemp.typeAndDriver = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
+      s_radioHWInfoSikTemp.iRadioType = RADIO_TYPE_SIK;
+      s_radioHWInfoSikTemp.iRadioDriver = RADIO_HW_DRIVER_SERIAL_SIK;
       s_radioHWInfoSikTemp.iCardModel = CARD_MODEL_SIK_RADIO;
       s_radioHWInfoSikTemp.isSerialRadio = 1;
       s_radioHWInfoSikTemp.isConfigurable = 1;

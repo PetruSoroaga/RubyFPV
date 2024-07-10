@@ -27,10 +27,7 @@ class MenuVehicleVideo: public Menu
       int m_IndexExpert;
       int m_IndexForceCameraMode;
       int m_IndexVideoLinkMode;
-      int m_IndexAutoKeyframe;
-      int m_IndexAdaptiveVideo;
-      int m_IndexAutoQuantization;
-      int m_IndexRetransmissions;
+      int m_IndexAdaptiveVideoSettings;
       int m_IndexRecording;
       MenuItem* m_pMenuItemVideoWarning;
       MenuItem* m_pMenuItemVideoRecording;

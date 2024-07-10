@@ -55,9 +55,9 @@ MenuTXPowerMax::MenuTXPowerMax()
       radio_hw_info_t* pNIC = hardware_get_radio_info(n);
       if ( NULL == pNIC )
          continue;
-      if ( (pNIC->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
+      if ( pNIC->iRadioType == RADIO_TYPE_ATHEROS )
          m_bControllerHas24OnlyCards = true;
-      else if ( (pNIC->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK )
+      else if ( pNIC->iRadioType == RADIO_TYPE_RALINK )
          m_bControllerHas24OnlyCards = true;
       else
          m_bControllerHas58Cards = true;
@@ -70,9 +70,9 @@ MenuTXPowerMax::MenuTXPowerMax()
    {
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
+         if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
             m_bVehicleHas24OnlyCards = true;
-         else if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
+         else if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
             m_bVehicleHas24OnlyCards = true;
          else
             m_bVehicleHas58Cards = true;
@@ -103,9 +103,9 @@ MenuTXPowerMax::MenuTXPowerMax()
        szCards[0] = 0;
        for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
        {
-          if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
+          if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_ATHEROS )
              strcat(szCards, " Atheros");
-          if ( ((g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
+          if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF00) >> 8) == RADIO_HW_DRIVER_RALINK )
              strcat(szCards, " RaLink");
        }
 
@@ -133,9 +133,9 @@ MenuTXPowerMax::MenuTXPowerMax()
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(n);
          if ( NULL == pRadioHWInfo )
             continue;
-         if ( (pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS )
             strcat(szCards, " Atheros");
-         if ( (pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK )
+         if ( pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK )
             strcat(szCards, " RaLink");
       }
 

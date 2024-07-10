@@ -560,9 +560,9 @@ void do_update_to_76()
       bool bHasAtheros = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
             bHasAtheros = true;
-         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
+         if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
             bHasAtheros = true;
       }
 
@@ -573,10 +573,10 @@ void do_update_to_76()
             bool bLinkOnAtheros = false;
             for( int k=0; k<pModel->radioInterfacesParams.interfaces_count; k++ )
             {
-               if ( (pModel->radioInterfacesParams.interface_type_and_driver[k] & 0xFF) == RADIO_TYPE_ATHEROS )
+               if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[k] & 0xFF) == RADIO_TYPE_ATHEROS )
                if ( pModel->radioInterfacesParams.interface_link_id[k] == i )
                   bLinkOnAtheros = true;
-               if ( (pModel->radioInterfacesParams.interface_type_and_driver[k] & 0xFF) == RADIO_TYPE_RALINK )
+               if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[k] & 0xFF) == RADIO_TYPE_RALINK )
                if ( pModel->radioInterfacesParams.interface_link_id[k] == i )
                   bLinkOnAtheros = true;
             }
@@ -1108,9 +1108,9 @@ void do_update_to_66()
       bool bHasAtheros = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
             bHasAtheros = true;
-         if ( (pModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
+         if ( (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK )
             bHasAtheros = true;
       }
 

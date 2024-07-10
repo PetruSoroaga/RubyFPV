@@ -530,8 +530,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
    if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
       strcat(szCurrentProfile, "-");
-   if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
-      strcat(szCurrentProfile, "-1Way");
+   //if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
+   //   strcat(szCurrentProfile, "-1Way");
 
    // Stream Info
 
@@ -542,13 +542,20 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          uVehicleIdVideo = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId;
       if ( link_has_received_videostream(uVehicleIdVideo) )
       {
+         char szVideoType[64];
+         strcpy(szVideoType, "N/A");
+         if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+            strcpy(szVideoType, "H265");
+         else if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H264 )
+            strcpy(szVideoType, "H264");
+
          strcpy(szBuff, "N/A");
          for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
          {
             if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
             if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
             {
-               snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %d fps %d ms KF", szCurrentProfile, g_listCaptureResolutions[i].szName, pVDS->fps, pVDS->keyframe_ms);
+               snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %s %d fps %d ms KF", szCurrentProfile, szVideoType, g_listCaptureResolutions[i].szName, pVDS->fps, pVDS->keyframe_ms);
                break;
             }
          }

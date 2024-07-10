@@ -730,7 +730,8 @@ int _hardware_enumerate_wifi_radios()
       sRadioInfo[s_iHwRadiosCount].szMAC[0] = 0;
       sRadioInfo[s_iHwRadiosCount].szUSBPort[0] = 'X';
       sRadioInfo[s_iHwRadiosCount].szUSBPort[1] = '0';
-      sRadioInfo[s_iHwRadiosCount].typeAndDriver = RADIO_TYPE_OTHER;
+      sRadioInfo[s_iHwRadiosCount].iRadioType = RADIO_TYPE_OTHER;
+      sRadioInfo[s_iHwRadiosCount].iRadioDriver = 0;
       memset(&(sRadioInfo[s_iHwRadiosCount].uHardwareParamsList[0]), 0, sizeof(u32)*MAX_RADIO_HW_PARAMS);
       sRadioInfo[s_iHwRadiosCount].openedForRead = 0;
       sRadioInfo[s_iHwRadiosCount].openedForWrite = 0;
@@ -788,13 +789,25 @@ int _hardware_enumerate_wifi_radios()
          strcpy(sRadioInfo[i].szDescription, "Realtek");
          if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
               (NULL != strstr(pszDriver,"rtl88XXau")) )
-            sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL88XXAU<<8);
+         {
+            sRadioInfo[i].iRadioType = RADIO_TYPE_REALTEK;
+            sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_REALTEK_RTL88XXAU;
+         }
          if ( NULL != strstr(pszDriver,"8812au") )
-            sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+         {
+            sRadioInfo[i].iRadioType = RADIO_TYPE_REALTEK;
+            sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_REALTEK_8812AU;
+         }
          if ( NULL != strstr(pszDriver,"rtl8812au") )
-            sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL8812AU<<8);
+         {
+            sRadioInfo[i].iRadioType = RADIO_TYPE_REALTEK;
+            sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_REALTEK_RTL8812AU;
+         }
          if ( (NULL != strstr(pszDriver,"8812eu")) || (NULL != strstr(pszDriver,"88x2eu")) )
-            sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812EU<<8);
+         {
+            sRadioInfo[i].iRadioType = RADIO_TYPE_REALTEK;
+            sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_REALTEK_8812EU;
+         }
       }
       // Experimental
       if ( NULL != strstr(pszDriver,"rtl88x2bu") )
@@ -803,7 +816,8 @@ int _hardware_enumerate_wifi_radios()
          sRadioInfo[i].isSupported = 1;
          sRadioInfo[i].isTxCapable = 0;
          strcpy(sRadioInfo[i].szDescription, "Realtek");
-         sRadioInfo[i].typeAndDriver = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_RTL88X2BU<<8);
+         sRadioInfo[i].iRadioType = RADIO_TYPE_REALTEK;
+         sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_REALTEK_RTL88X2BU;
       }
 
       if ( NULL != strstr(pszDriver,"rt2800usb") )
@@ -811,21 +825,24 @@ int _hardware_enumerate_wifi_radios()
          s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Ralink");
-         sRadioInfo[i].typeAndDriver = RADIO_TYPE_RALINK | (RADIO_HW_DRIVER_RALINK<<8);
+         sRadioInfo[i].iRadioType = RADIO_TYPE_RALINK;
+         sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_RALINK;
       }
       if ( NULL != strstr(pszDriver, "mt7601u") )
       {
          s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Mediatek");
-         sRadioInfo[i].typeAndDriver = RADIO_TYPE_MEDIATEK | (RADIO_HW_DRIVER_MEDIATEK<<8);
+         sRadioInfo[i].iRadioType = RADIO_TYPE_MEDIATEK;
+         sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_MEDIATEK;
       }
       if ( NULL != strstr(pszDriver, "ath9k_htc") )
       {
          s_iHwRadiosSupportedCount++;
          sRadioInfo[i].isSupported = 1;
          strcpy(sRadioInfo[i].szDescription, "Atheros");
-         sRadioInfo[i].typeAndDriver = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
+         sRadioInfo[i].iRadioType = RADIO_TYPE_ATHEROS;
+         sRadioInfo[i].iRadioDriver = RADIO_HW_DRIVER_ATHEROS;
       }
 
       int iCopyPos = strlen(szDriver);
@@ -842,7 +859,7 @@ int _hardware_enumerate_wifi_radios()
       if ( ! sRadioInfo[i].isSupported )
          log_softerror_and_alarm("Found unsupported radio (%s), driver %s, skipping.", sRadioInfo[i].szName, szDriver);
       else
-         log_line("[HardwareRadio] Found supported radio type: %s, driver: %s, driver string short: %s, driver string: [%s]", str_get_radio_type_description(sRadioInfo[i].typeAndDriver), str_get_radio_driver_description(sRadioInfo[i].typeAndDriver), sRadioInfo[i].szDriver, pszDriver);
+         log_line("[HardwareRadio] Found supported radio type: %s, driver: %s, driver string short: %s, driver string: [%s]", str_get_radio_type_description(sRadioInfo[i].iRadioType), str_get_radio_driver_description(sRadioInfo[i].iRadioDriver), sRadioInfo[i].szDriver, pszDriver);
       sRadioInfo[i].iCardModel = 0;
 
       for( int kk=0; kk<(int)(sizeof(sRadioInfo[i].szUSBPort)/sizeof(sRadioInfo[i].szUSBPort[0])); kk++ )
@@ -1060,7 +1077,7 @@ int hardware_radio_load_radio_modules()
           hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
           #endif
           #if defined HW_PLATFORM_OPENIPC_CAMERA
-          hw_execute_bash_command("sudo insmod 8812eu_oipc.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+          hw_execute_bash_command("sudo insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
           #endif
 
           iRTL8812EULoaded = 1;
@@ -1178,11 +1195,10 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
    if ( NULL == pRadioInfo )
       return 0;
 
-   u32 uType = pRadioInfo->typeAndDriver & 0xFF;
-   if ( uType == RADIO_TYPE_RALINK ||
-        uType == RADIO_TYPE_ATHEROS ||
-        uType == RADIO_TYPE_REALTEK ||
-        uType == RADIO_TYPE_MEDIATEK )
+   if ( pRadioInfo->iRadioType == RADIO_TYPE_RALINK ||
+        pRadioInfo->iRadioType == RADIO_TYPE_ATHEROS ||
+        pRadioInfo->iRadioType == RADIO_TYPE_REALTEK ||
+        pRadioInfo->iRadioType == RADIO_TYPE_MEDIATEK )
       return 1;
 
    return 0;
@@ -1243,8 +1259,7 @@ int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo)
    if ( NULL == pRadioInfo )
       return 0;
 
-   u32 uType = pRadioInfo->typeAndDriver & 0xFF;
-   if ( uType == RADIO_TYPE_SIK )
+   if ( pRadioInfo->iRadioType == RADIO_TYPE_SIK )
       return 1;
 
    return 0;
@@ -1558,8 +1573,8 @@ int hardware_set_radio_tx_power_rtl(int txPower)
          radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
          if ( NULL == pRadioHWInfo )
             continue;
-         if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_REALTEK) ||
-              ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+         if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
+              (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
          { 
             sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*txPower);
             hw_execute_bash_command(szComm, NULL);

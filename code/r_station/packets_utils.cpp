@@ -275,8 +275,8 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
       nRateTx = nRateTxCard;
 
 
-   if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+   if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       return nRateTx;
 
    if ( g_bIsVehicleLinkToControllerLost )
@@ -404,8 +404,8 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    int nRateTx = compute_packet_uplink_datarate(iVehicleRadioLinkId, iRadioInterfaceIndex, &(g_pCurrentModel->radioLinksParams));
    radio_set_out_datarate(nRateTx);
 
-   if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-        ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+   if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+        (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
    {
       //update_atheros_card_datarate(g_pCurrentModel, iRadioInterfaceIndex, nRateTx, g_pProcessStats);
       g_TimeNow = get_current_timestamp_ms();

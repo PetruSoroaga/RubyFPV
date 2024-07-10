@@ -193,8 +193,8 @@ void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioInfo )
          continue;
-      if ( ((pRadioInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
-           ((pRadioInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+      if ( (pRadioInfo->iRadioType != RADIO_TYPE_ATHEROS) &&
+           (pRadioInfo->iRadioType != RADIO_TYPE_RALINK) )
          continue;
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] != (int)linkIndex )
          continue;

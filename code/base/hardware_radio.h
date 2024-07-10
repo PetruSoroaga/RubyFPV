@@ -119,7 +119,8 @@ typedef struct
    char szMAC[MAX_MAC_LENGTH]; // MAC or serial port name or SPI name
    char szProductId[12];
    char szUSBPort[6];  // [A-X], [A-X][1-9], ... or serial port name or SPI name
-   int typeAndDriver; // first byte: radio type, second byte = driver type
+   int iRadioType;
+   int iRadioDriver;
    u32 uHardwareParamsList[MAX_RADIO_HW_PARAMS];
    int openedForRead;
    int openedForWrite;

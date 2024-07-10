@@ -1051,8 +1051,8 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
                   continue;
 
                if ( NULL != pRadioHWInfo )
-               if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-                    ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+               if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+                    (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
                {
                   int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
                   if ( 0 == nRateTx )

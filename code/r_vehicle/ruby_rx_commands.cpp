@@ -2113,9 +2113,9 @@ bool process_command(u8* pBuffer, int length)
       bool bIsAtheros = false;
       if ( iRadioInterfaceId >= 0 )
       {
-         if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_ATHEROS )
             bIsAtheros = true;
-         if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
+         if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[iRadioInterfaceId] & 0xFF) == RADIO_TYPE_RALINK )
             bIsAtheros = true; 
       }
       if ( bIsAtheros )

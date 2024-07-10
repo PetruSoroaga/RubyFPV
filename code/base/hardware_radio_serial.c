@@ -81,7 +81,8 @@ int hardware_radio_serial_add_radio_interface_for_port(hw_serial_port_info_t* pS
    pRadioHWInfo->iCurrentDataRateBPS = DEFAULT_RADIO_DATARATE_SERIAL_AIR;
    pRadioHWInfo->isTxCapable = 1;
    pRadioHWInfo->iCardModel = CARD_MODEL_SERIAL_RADIO_ELRS;
-   pRadioHWInfo->typeAndDriver = RADIO_TYPE_SERIAL | (RADIO_HW_DRIVER_SERIAL << 8);
+   pRadioHWInfo->iRadioType = RADIO_TYPE_SERIAL;
+   pRadioHWInfo->iRadioDriver = RADIO_HW_DRIVER_SERIAL;
 
    if ( pSerialPortInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
    {

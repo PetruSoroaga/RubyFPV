@@ -83,9 +83,9 @@ bool _check_update_hardware_one_interface_after_and_before(Model* pModel)
    memcpy(&currentRadioInterfacesParams, &(pModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
 
    pModel->radioInterfacesParams.interface_supported_bands[0] = pRadioHWInfo->supportedBands;
-   pModel->radioInterfacesParams.interface_type_and_driver[0] = pRadioHWInfo->typeAndDriver;
+   pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = (pRadioHWInfo->iRadioType & 0xFF) | ((pRadioHWInfo->iRadioDriver << 8) & 0xFF00);
    if ( pRadioHWInfo->isSupported )
-      pModel->radioInterfacesParams.interface_type_and_driver[0] = pModel->radioInterfacesParams.interface_type_and_driver[0] | 0xFF0000;
+      pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = pModel->radioInterfacesParams.interface_radiotype_and_driver[0] | 0xFF0000;
    strcpy(pModel->radioInterfacesParams.interface_szMAC[0], pRadioHWInfo->szMAC );
    strcpy(pModel->radioInterfacesParams.interface_szPort[0], pRadioHWInfo->szUSBPort);
 
@@ -210,10 +210,10 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
       pModel->radioInterfacesParams.interface_datarate_video_bps[0] = 0;
       pModel->radioInterfacesParams.interface_datarate_data_bps[0] = 0;
 
-      pModel->radioInterfacesParams.interface_type_and_driver[0] = pRadioInfo->typeAndDriver;
+      pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);
       pModel->radioInterfacesParams.interface_supported_bands[0] = pRadioInfo->supportedBands;
       if ( pRadioInfo->isSupported )
-         pModel->radioInterfacesParams.interface_type_and_driver[0] = pModel->radioInterfacesParams.interface_type_and_driver[0] | 0xFF0000;
+         pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = pModel->radioInterfacesParams.interface_radiotype_and_driver[0] | 0xFF0000;
       
       strcpy(pModel->radioInterfacesParams.interface_szMAC[0], pRadioInfo->szMAC );
       strcpy(pModel->radioInterfacesParams.interface_szPort[0], pRadioInfo->szUSBPort);
@@ -250,10 +250,10 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
    pModel->radioInterfacesParams.interface_datarate_video_bps[0] = 0;
    pModel->radioInterfacesParams.interface_datarate_data_bps[0] = 0;
 
-   pModel->radioInterfacesParams.interface_type_and_driver[0] = pRadioInfo->typeAndDriver;
+   pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);
    pModel->radioInterfacesParams.interface_supported_bands[0] = pRadioInfo->supportedBands;
    if ( pRadioInfo->isSupported )
-      pModel->radioInterfacesParams.interface_type_and_driver[0] = pModel->radioInterfacesParams.interface_type_and_driver[0] | 0xFF0000;
+      pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = pModel->radioInterfacesParams.interface_radiotype_and_driver[0] | 0xFF0000;
       
    strcpy(pModel->radioInterfacesParams.interface_szMAC[0], pRadioInfo->szMAC );
    strcpy(pModel->radioInterfacesParams.interface_szPort[0], pRadioInfo->szUSBPort);
@@ -483,7 +483,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
             if ( k != i )
             {
                log_line("[HW Radio Check] Found HW radio interface %s on hardware position %d and on model radio interface position %d.", pRadioInfo->szMAC, i+1, k+1);
-               log_line("[HW Radio Check] Moving existing model radio interface %s (%s, now at %s) from slot index %d to slot index %d", pRadioInfo->szMAC, str_get_radio_driver_description(pModel->radioInterfacesParams.interface_type_and_driver[k]), str_format_frequency(pModel->radioInterfacesParams.interface_current_frequency_khz[k]), k+1, i+1);
+               log_line("[HW Radio Check] Moving existing model radio interface %s (%s, now at %s) from slot index %d to slot index %d", pRadioInfo->szMAC, str_get_radio_driver_description(pModel->radioInterfacesParams.interface_radiotype_and_driver[k]), str_format_frequency(pModel->radioInterfacesParams.interface_current_frequency_khz[k]), k+1, i+1);
                iCountMovedInterfaces++;
                int tmp;
                u32 u;
@@ -501,9 +501,9 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
                pModel->radioInterfacesParams.interface_power[i] = pModel->radioInterfacesParams.interface_power[k];
                pModel->radioInterfacesParams.interface_power[k] = tmp;
 
-               u = pModel->radioInterfacesParams.interface_type_and_driver[i];
-               pModel->radioInterfacesParams.interface_type_and_driver[i] = pModel->radioInterfacesParams.interface_type_and_driver[k];
-               pModel->radioInterfacesParams.interface_type_and_driver[k] = u;
+               u = pModel->radioInterfacesParams.interface_radiotype_and_driver[i];
+               pModel->radioInterfacesParams.interface_radiotype_and_driver[i] = pModel->radioInterfacesParams.interface_radiotype_and_driver[k];
+               pModel->radioInterfacesParams.interface_radiotype_and_driver[k] = u;
 
                u = pModel->radioInterfacesParams.interface_supported_bands[i];
                pModel->radioInterfacesParams.interface_supported_bands[i] = pModel->radioInterfacesParams.interface_supported_bands[k];
@@ -583,10 +583,10 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
       pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
       pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
 
-      pModel->radioInterfacesParams.interface_type_and_driver[i] = pRadioInfo->typeAndDriver;
+      pModel->radioInterfacesParams.interface_radiotype_and_driver[i] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);
       pModel->radioInterfacesParams.interface_supported_bands[i] = pRadioInfo->supportedBands;
       if ( pRadioInfo->isSupported )
-         pModel->radioInterfacesParams.interface_type_and_driver[i] |= 0xFF0000;
+         pModel->radioInterfacesParams.interface_radiotype_and_driver[i] |= 0xFF0000;
 
       strcpy(pModel->radioInterfacesParams.interface_szMAC[i], pRadioInfo->szMAC );
       strcpy(pModel->radioInterfacesParams.interface_szPort[i], pRadioInfo->szUSBPort);

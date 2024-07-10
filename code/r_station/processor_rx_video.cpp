@@ -139,6 +139,8 @@ ProcessorRxVideo::ProcessorRxVideo(u32 uVehicleId, u32 uVideoStreamIndex)
    m_uTimeLastReceivedVideoPacket = 0;
    for( int i=0; i<MAX_RXTX_BLOCKS_BUFFER; i++ )
       m_pRXBlocksStack[i] = NULL;
+
+   m_bPaused = false;
 }
 
 ProcessorRxVideo::~ProcessorRxVideo()
@@ -441,7 +443,7 @@ void ProcessorRxVideo::resetReceiveBuffersBlock(int rx_buffer_block_index)
 
 void ProcessorRxVideo::resetState()
 {
-   log_line("[VideoRx] Reset state, full.");
+   log_line("[VideoRx] VID %d, video stream %u: Reset state, full.", m_uVehicleId, m_uVideoStreamIndex);
    resetReceiveState();
    resetOutputState();
 }
@@ -517,6 +519,19 @@ void ProcessorRxVideo::onControllerSettingsChanged()
    m_uLastHardEncodingsChangeVideoBlockIndex = tmp1;
    m_uLastVideoResolutionChangeVideoBlockIndex = tmp2;
 }
+
+void ProcessorRxVideo::pauseProcessing()
+{
+   m_bPaused = true;
+   log("[VideoRx] VID %u, video stream %u: paused processing.", m_uVehicleId, m_uVideoStreamIndex);
+}
+
+void ProcessorRxVideo::resumeProcessing()
+{
+   m_bPaused = false;
+   log("[VideoRx] VID %u, video stream %u: resumed processing.", m_uVehicleId, m_uVideoStreamIndex);
+}
+
       
 void ProcessorRxVideo::logCurrentRxBuffers(bool bIncludeRetransmissions)
 {
@@ -1057,6 +1072,9 @@ void ProcessorRxVideo::periodicLoop(u32 uTimeNow)
 
 int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length)
 {
+   if ( m_bPaused )
+      return 1;
+
    #ifdef PROFILE_RX
    u32 uTimeStart = get_current_timestamp_ms();
    int iStackIndexStart = m_iRXBlocksStackTopIndex;

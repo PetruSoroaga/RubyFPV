@@ -937,7 +937,7 @@ int main(int argc, char *argv[])
       do_first_boot_pre_initialization();
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   hw_execute_bash_command("ip link set wlx down", NULL);
+   hw_execute_bash_command("ip link set wlx down 2>&1 1>/dev/null", NULL);
    #endif
 
    #ifdef HW_CAPABILITY_I2C
@@ -1481,7 +1481,7 @@ int main(int argc, char *argv[])
    {
       for ( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
       {
-         if ( (modelVehicle.radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( (modelVehicle.radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
          if ( modelVehicle.radioInterfacesParams.interface_link_id[i] >= 0 )
          if ( modelVehicle.radioInterfacesParams.interface_link_id[i] < modelVehicle.radioLinksParams.links_count )
          {

@@ -76,6 +76,9 @@ class ProcessorRxVideo
       void resetRetransmissionsStats();
       void onControllerSettingsChanged();
 
+      void pauseProcessing();
+      void resumeProcessing();
+
       u32 getLastTimeVideoStreamChanged();
       u32 getLastTimeReceivedVideoPacket();
       int getCurrentlyReceivedVideoProfile();
@@ -135,6 +138,7 @@ class ProcessorRxVideo
       static bool m_sbFECInitialized;
       bool m_bInitialized;
       int m_iInstanceIndex;
+      bool m_bPaused;
 
       // Configuration
 

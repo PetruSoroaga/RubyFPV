@@ -344,6 +344,8 @@ void video_source_capture_mark_needs_update_or_restart(u32 uChangeType)
       return;
    }
 
+   if ( NULL != g_pProcessorTxVideo )
+      g_pProcessorTxVideo->updateVideoStreamType();
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       video_source_majestic_request_update_program(uChangeType);
    else if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
@@ -419,7 +421,7 @@ void reinit_radio_interfaces()
    strcpy(szCommRadioParams, "-initradio");
    for ( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+      if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] >= 0 )
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] < g_pCurrentModel->radioLinksParams.links_count )
       {

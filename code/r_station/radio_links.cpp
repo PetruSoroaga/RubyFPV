@@ -140,7 +140,7 @@ void radio_links_reinit_radio_interfaces()
    strcpy(szCommRadioParams, "-initradio");
    for ( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      if ( (g_pCurrentModel->radioInterfacesParams.interface_type_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+      if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] >= 0 )
       if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] < g_pCurrentModel->radioLinksParams.links_count )
       {
@@ -280,7 +280,7 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
               
             if ( iRes > 0 )
             {
-               log_line("Opened radio interface %d for read: USB port %s %s %s", i+1, pRadioHWInfo->szUSBPort, str_get_radio_type_description(pRadioHWInfo->typeAndDriver), pRadioHWInfo->szMAC);
+               log_line("Opened radio interface %d for read: USB port %s %s %s", i+1, pRadioHWInfo->szUSBPort, str_get_radio_type_description(pRadioHWInfo->iRadioType), pRadioHWInfo->szMAC);
                g_SM_RadioStats.radio_interfaces[i].openedForRead = 1;
                iCountOpenRead++;
             }
@@ -378,8 +378,8 @@ void radio_links_open_rxtx_radio_interfaces()
          continue;
 
       if ( NULL != pRadioHWInfo )
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS) ||
-           ((pRadioHWInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
+           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       {
          int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
          if ( (0 == nRateTx) && (NULL != g_pCurrentModel) )
@@ -597,8 +597,8 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
       radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
       if ( NULL == pRadioHWInfo )
          continue;
-      if ( ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_ATHEROS) &&
-        ((pRadioHWInfo->typeAndDriver & 0xFF) != RADIO_TYPE_RALINK) )
+      if ( (pRadioHWInfo->iRadioType != RADIO_TYPE_ATHEROS) &&
+           (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
          continue;
 
       //int nRateTx = pRadioLinkParams->uplink_datarate_data_bps[iRadioLink];

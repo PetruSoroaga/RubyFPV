@@ -359,7 +359,7 @@ typedef struct
    int  interface_card_model[MAX_RADIO_INTERFACES]; // 0 or positive - autodetected, negative - user set
    int  interface_link_id[MAX_RADIO_INTERFACES];
    int  interface_power[MAX_RADIO_INTERFACES];
-   u32  interface_type_and_driver[MAX_RADIO_INTERFACES]; // first byte: radio type, second byte = driver type, third byte: supported card flag
+   u32  interface_radiotype_and_driver[MAX_RADIO_INTERFACES]; // first byte: radio type, second byte = driver type, third byte: supported card flag
    u8   interface_supported_bands[MAX_RADIO_INTERFACES];  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
    char interface_szMAC[MAX_RADIO_INTERFACES][MAX_MAC_LENGTH];
    char interface_szPort[MAX_RADIO_INTERFACES][6]; // first byte - first char, sec byte - sec char

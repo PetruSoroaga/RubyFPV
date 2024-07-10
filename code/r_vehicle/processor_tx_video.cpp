@@ -199,6 +199,20 @@ bool ProcessorTxVideo::uninit()
    return true;
 }
 
+void ProcessorTxVideo::updateVideoStreamType()
+{
+   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+   {
+      s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H265<<4);
+      log_line("[VideoTx] Reinit as H265 stream");
+   }
+   else
+   {
+      s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
+      log_line("[VideoTx] Reinit as H264 stream");
+   }
+}
+
 // Returns bps
 u32 ProcessorTxVideo::getCurrentVideoBitrate()
 {
@@ -1187,13 +1201,17 @@ bool process_data_tx_video_init()
 
    _check_update_video_link_profile_data();
 
-   s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+   {
       s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H265<<4);
-   #endif
-   
+      log_line("[VideoTx] Init as H265 stream");
+   }
+   else
+   {
+      s_CurrentPHVF.video_stream_and_type = 0 | (VIDEO_TYPE_H264<<4);
+      log_line("[VideoTx] Init as H264 stream");
+   }
+
    s_CurrentPHVF.video_keyframe_interval_ms = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;
    s_CurrentPHVF.video_block_index = 0;
    s_CurrentPHVF.video_block_packet_index = 0;

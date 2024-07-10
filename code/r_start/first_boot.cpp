@@ -294,9 +294,9 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
          radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-         if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( pNICInfo->iRadioType == RADIO_TYPE_ATHEROS )
             bHasAtheros = true;
-         if ( (pNICInfo->typeAndDriver & 0xFF) == RADIO_TYPE_RALINK )
+         if ( pNICInfo->iRadioType == RADIO_TYPE_RALINK )
             bHasAtheros = true;
       }
 
@@ -331,7 +331,7 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
       s_ModelFirstBoot.resetRadioLinksParams();
 
       s_ModelFirstBoot.radioInterfacesParams.interfaces_count = 1;
-      s_ModelFirstBoot.radioInterfacesParams.interface_type_and_driver[0] = 0xFF0000;
+      s_ModelFirstBoot.radioInterfacesParams.interface_radiotype_and_driver[0] = 0xFF0000;
       s_ModelFirstBoot.radioInterfacesParams.interface_supported_bands[0] = RADIO_HW_SUPPORTED_BAND_24;
       strcpy(s_ModelFirstBoot.radioInterfacesParams.interface_szMAC[0], "YYYYYY");
       strcpy(s_ModelFirstBoot.radioInterfacesParams.interface_szPort[0], "Y");
