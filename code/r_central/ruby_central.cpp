@@ -368,11 +368,9 @@ void render_router_pachets_history()
 
    int sliceStart = 0;
 
-   int* pRates = getDataRatesBPS();
 
    double colorVideo[4] = {180,180,180,0.4};
    double colorRetr1[4] = {0,0,255,0.8};
-   double colorRetr2[4] = {0,255,0,0.8};
    double colorPing[4] = {250,0,0,0.9};
    double colorTelem[4] = {250,255,0,0.7};
    double colorRC[4] = {240,0,160,0.9};
@@ -470,7 +468,6 @@ void render_router_pachets_history()
       u8 cPing  = (val>>6) & 0x01;
       u8 cTelem = (val>>7) & 0x03;
       u8 cRC = (val>>9) & 0x03;
-      u8 cRate = (val>>13) & 0x07;
       totalCountTelemetry += cTelem;
       totalCountRCIn += cRC;
       if ( cVideo > 0 )
@@ -489,11 +486,6 @@ void render_router_pachets_history()
          g_pRenderEngine->setFill(colorRetr1[0], colorRetr1[1], colorRetr1[2], colorRetr1[3]);
          g_pRenderEngine->setStroke(colorRetr1[0], colorRetr1[1], colorRetr1[2], 0.4);
          g_pRenderEngine->setStrokeSize(0.2);
-         if ( NULL != g_pCurrentModel && cRate > 0 && pRates[cRate] != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[0] )
-         {
-            g_pRenderEngine->setFill(colorRetr2[0], colorRetr2[1], colorRetr2[2], colorRetr2[3]);
-            g_pRenderEngine->setStroke(colorRetr2[0], colorRetr2[1], colorRetr2[2], 0.4);
-         }
          g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
          g_pRenderEngine->setStrokeSize(0);
          y += h;
@@ -2300,25 +2292,6 @@ int main(int argc, char *argv[])
       log_line("Done reinitializing graphics engine. Exit now.");
       return 0;
       */
-   }
-   
-   if ( ! g_bIsReinit )
-   {
-      #ifdef HW_PLATFORM_RASPBERRY
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-      if ( access(szFile, R_OK ) == -1 )
-      if ( ! hw_process_exists("ruby_gpio_detect") )
-      {
-         hardware_sleep_ms(100);
-         if ( ! hw_process_exists("ruby_gpio_detect") )
-         {
-            hardware_sleep_ms(500);
-            if ( ! hw_process_exists("ruby_gpio_detect") )
-               hw_execute_bash_command("./ruby_gpio_detect&", NULL);
-         }
-      }
-      #endif
    }
 
    strcpy(s_szFileHDMIChanged, FOLDER_CONFIG);

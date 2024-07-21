@@ -8,7 +8,7 @@
 #define COMMAND_ID_SET_VEHICLE_NAME 3
 
 #define COMMAND_ID_SET_TX_POWERS 4
-// 8 bytes: 0...5: u8 global, u8 atheros, u8 RTL, u8 maxGlobal, u8 maxAtheros, u8 maxRTL,
+// 8 bytes: 0...5: u8 RTL8812AU, u8 RTL8812EU, u8 Atheros, u8 maxRTL8812AU, u8 maxRTL8812EU, u8 maxAtheros,
 //          6: u8 radio card index, 
 //          7: u8 power, if 0 -> not set
 // First 8 bytes can be 0xFF or 0x00 for no changes in those params

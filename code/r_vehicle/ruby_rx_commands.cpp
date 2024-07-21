@@ -2324,9 +2324,9 @@ bool process_command(u8* pBuffer, int length)
 
       log_line("Video flags for video profile %s: %s, %s, %s",
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
       );
 
       if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
@@ -2357,41 +2357,41 @@ bool process_command(u8* pBuffer, int length)
 
       // Copy the bidirectional video and adaptive video flags to MQ and LQ profiles too
 
-      int retr = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?1:0;
-      int adaptive = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
-      int useControllerInfo = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
+      int retr = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)?1:0;
+      int adaptive = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
+      int useControllerInfo = ((g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
 
       if ( retr == 0 )
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS );
       }
       else
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS );
       }
 
       if ( adaptive == 0 )
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK );
       }
       else
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK );
       }
 
       if ( useControllerInfo == 0 )
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags & (~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags & (~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
       }
       else
       {
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
-         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags | (VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags | (VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO );
       }
 
       saveCurrentModel();
@@ -2472,9 +2472,9 @@ bool process_command(u8* pBuffer, int length)
 
       log_line("Received video flags for video profile %s: %s, %s, %s",
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
-      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
       );
       log_line("Received video data rate for current video profile %s: %d, (current: %d)",
          str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
@@ -2493,11 +2493,11 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = g_pCurrentModel->video_link_profiles[iProfileToCheck].fps;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms;
       
-      u32 retransmissionWindow = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & 0xFF00) >> 8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags &= 0xFFFF00FF;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (retransmissionWindow<<8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags &= 0xFFFF00FF;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (retransmissionWindow<<8);
+      u32 retransmissionWindow = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & 0xFF00) >> 8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= 0xFFFF00FF;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (retransmissionWindow<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= 0xFFFF00FF;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (retransmissionWindow<<8);
 
       saveCurrentModel();
 
@@ -2556,8 +2556,8 @@ bool process_command(u8* pBuffer, int length)
       }
 
       bool bChangedOneWayVideo = false;
-      if ( (oldVideoProfiles[oldVideoParams.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO ) !=
-        (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO) )
+      if ( (oldVideoProfiles[oldVideoParams.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO ) !=
+        (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO) )
          bChangedOneWayVideo = true;
 
       if ( bChangedOneWayVideo )
@@ -3147,17 +3147,17 @@ bool process_command(u8* pBuffer, int length)
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
-      u8 txPowerGlobal = *pData;
+      u8 txPowerRTL8812AU = *pData;
+      pData++;
+      u8 txPowerRTL8812EU = *pData;
       pData++;
       u8 txPowerAtheros = *pData;
       pData++;
-      u8 txPowerRTL = *pData;
+      u8 txMaxPowerRTL8812AU = *pData;
       pData++;
-      u8 txMaxPower = *pData;
+      u8 txMaxPowerRTL8812EU = *pData;
       pData++;
       u8 txMaxPowerAtheros = *pData;
-      pData++;
-      u8 txMaxPowerRTL = *pData;
       pData++;
       u8 cardIndex = *pData;
       pData++;
@@ -3187,11 +3187,16 @@ bool process_command(u8* pBuffer, int length)
             log_softerror_and_alarm("Received invalid power levels message (for SiK radio interfaces). Ignoring it.");
       }
       else
-         log_line("Received radio power levels: Global: %d, Atheros: %d, RTL: %d, MaxG: %d, MaxAth: %d, MaxRTL: %d", txPowerGlobal, txPowerAtheros, txPowerRTL, txMaxPower, txMaxPowerAtheros, txMaxPowerRTL);
+         log_line("Received radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros, txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros);
       
-      if ( (txMaxPower != 0xFF) && (txMaxPower > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPower != txMaxPower) )
+      if ( (txMaxPowerRTL8812AU != 0xFF) && (txMaxPowerRTL8812AU > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU != txMaxPowerRTL8812AU) )
       {
-         g_pCurrentModel->radioInterfacesParams.txMaxPower = txMaxPower;
+         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;
+         bUpdated = true;
+      }
+      if ( (txMaxPowerRTL8812EU != 0xFF) && (txMaxPowerRTL8812EU > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU != txMaxPowerRTL8812EU) )
+      {
+         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU = txMaxPowerRTL8812EU;
          bUpdated = true;
       }
       if ( (txMaxPowerAtheros != 0xFF) && (txMaxPowerAtheros > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros != txMaxPowerAtheros))
@@ -3199,23 +3204,17 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros = txMaxPowerAtheros;
          bUpdated = true;
       }
-      if ( (txMaxPowerRTL != 0xFF) && (txMaxPowerRTL > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL != txMaxPowerRTL) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL = txMaxPowerRTL;
-         bUpdated = true;
-      }
 
-      if ( (txPowerGlobal != 0xFF) && (txPowerGlobal > 0) && (txPowerAtheros == 0) && (txPowerRTL == 0) )
+      if ( (txPowerRTL8812AU != 0xFF) && (txPowerRTL8812AU > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU != txPowerRTL8812AU) )
       {
-         txPowerAtheros = txPowerGlobal;
-         txPowerRTL = txPowerGlobal;
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = txPowerRTL8812AU;
          bUpdatedWiFi = true;
          bUpdated = true;
       }
-
-      if ( (txPowerGlobal != 0xFF) && (txPowerGlobal > 0) && (g_pCurrentModel->radioInterfacesParams.txPower != txPowerGlobal) )
+      if ( (txPowerRTL8812EU != 0xFF) && (txPowerRTL8812EU > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU != txPowerRTL8812EU) )
       {
-         g_pCurrentModel->radioInterfacesParams.txPower = txPowerGlobal;
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = txPowerRTL8812EU;
+         bUpdatedWiFi = true;
          bUpdated = true;
       }
       if ( (txPowerAtheros != 0xFF) && (txPowerAtheros > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerAtheros != txPowerAtheros) )
@@ -3224,27 +3223,22 @@ bool process_command(u8* pBuffer, int length)
          bUpdatedWiFi = true;
          bUpdated = true;
       }
-      if ( (txPowerRTL != 0xFF) && (txPowerRTL > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerRTL != txPowerRTL) )
+
+      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU )
       {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL = txPowerRTL;
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
          bUpdatedWiFi = true;
          bUpdated = true;
       }
-
-      if ( g_pCurrentModel->radioInterfacesParams.txPower > g_pCurrentModel->radioInterfacesParams.txMaxPower )
+      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU > g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU )
       {
-         g_pCurrentModel->radioInterfacesParams.txPower = g_pCurrentModel->radioInterfacesParams.txMaxPower;
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU;
+         bUpdatedWiFi = true;
          bUpdated = true;
       }
       if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros )
       {
          g_pCurrentModel->radioInterfacesParams.txPowerAtheros = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL > g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL;
          bUpdatedWiFi = true;
          bUpdated = true;
       }
@@ -3269,8 +3263,8 @@ bool process_command(u8* pBuffer, int length)
             if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > 0 )
                hardware_set_radio_tx_power_atheros((int)g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
 
-            if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL > 0 )
-               hardware_set_radio_tx_power_rtl((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+            if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > 0 )
+               hardware_set_radio_tx_power_rtl((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
          }
 
          saveCurrentModel();
@@ -3455,21 +3449,21 @@ bool process_command(u8* pBuffer, int length)
 
       g_pCurrentModel->uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
 
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
       g_pCurrentModel->resetVideoLinkProfiles(VIDEO_PROFILE_MQ);
       g_pCurrentModel->resetVideoLinkProfiles(VIDEO_PROFILE_LQ);

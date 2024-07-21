@@ -1562,13 +1562,6 @@ int main(int argc, char *argv[])
       //hw_launch_process("./ruby_controller");
       #endif
 
-      #if defined(HW_CAPABILITY_GPIO) && defined(HW_PLATFORM_RASPBERRY)
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-      if ( access(szFile, R_OK ) == -1 )
-         hw_execute_ruby_process(NULL, "ruby_gpio_detect", NULL, NULL);
-      #endif
-
       if ( hardware_radio_has_sik_radios() )
       {
          printf("Ruby: Configuring SiK radios...\n");

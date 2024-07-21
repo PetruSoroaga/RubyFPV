@@ -1082,35 +1082,33 @@ void str_get_radio_frame_flags_description(u32 frameFlags, char* szOutput)
       strcat(szOutput, " [LDPC C]");
 }
 
-char* str_format_video_encoding_flags(u32 uVideoEncodingFlags)
+char* str_format_video_encoding_flags(u32 uVideoProfileEncodingFlags)
 {
    static char sl_szVideoEncodingFlagsString[256];
    sl_szVideoEncodingFlagsString[0] = 0;
 
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
       strcat(sl_szVideoEncodingFlagsString, " ONE_WAY");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS )
       strcat(sl_szVideoEncodingFlagsString, " RETRANSMISSIONS_ENABLED");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
-      strcat(sl_szVideoEncodingFlagsString, " IS_ON_LOWER_BITRATE");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_VIDEO");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_USE_CONTROLLER_INFO_TOO");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_GO_LOWER_ON_LINK_LOST");
 
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
       strcat(sl_szVideoEncodingFlagsString, " ADAPTIVE_USE_MEDIUM_STRENGTH");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
-      strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_ENABLED");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
+      strcat(sl_szVideoEncodingFlagsString, " AUTO_H264_QUANTISATION_ENABLED");
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
       strcat(sl_szVideoEncodingFlagsString, " AUTO_QUANTISATION_HIGH");
-   if ( uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME )
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME )
       strcat(sl_szVideoEncodingFlagsString, " AUTO_EC_SCHEME");
 
-   u32 uECSpreadHigh = (uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-   u32 uECSpreadLow = (uVideoEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+   u32 uECSpreadHigh = (uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+   u32 uECSpreadLow = (uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
    char szBuff[16];
    sprintf(szBuff, " EC_SPREAD: %u", (uECSpreadHigh<<1) | uECSpreadLow);
    strcat(sl_szVideoEncodingFlagsString, szBuff);

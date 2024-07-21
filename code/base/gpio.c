@@ -66,21 +66,10 @@ void _GPIO_PullAllUp()
 {
 }
 
-int GPIOButtonsResetDetectionFlag()
-{
-   return 1;
-}
-
-
 // Returns 0 on success, 1 on failure
 
 int GPIOInitButtons()
 {
    return 0;
-}
-
-int GPIOButtonsTryDetectPullUpDown()
-{
-   return 1;
 }
 #endif

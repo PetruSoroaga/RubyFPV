@@ -28,7 +28,7 @@ void check_encoding_change(t_packet_header_video_full_77* pdpv)
    bool schemeChanged = false;
    if ( s_iCurrentEncodingScheme != pdpv->encoding_scheme )
       schemeChanged = true;
-   if ( s_uCurrentEncodingExtraInfo != pdpv->uEncodingFlags )
+   if ( s_uCurrentEncodingExtraInfo != pdpv->uProfileEncodingFlags )
       schemeChanged = true;
    if ( s_iCurrentEncodingBlockPackets != pdpv->block_packets )
       schemeChanged = true;
@@ -41,7 +41,7 @@ void check_encoding_change(t_packet_header_video_full_77* pdpv)
    s_iCurrentEncodingRecvPackets = 0;
 
    s_iCurrentEncodingScheme = pdpv->encoding_scheme;
-   s_uCurrentEncodingExtraInfo = pdpv->uEncodingFlags;
+   s_uCurrentEncodingExtraInfo = pdpv->uProfileEncodingFlags;
    s_iCurrentEncodingBlockPackets = pdpv->block_packets;
    s_iCurrentEncodingBlockFECs = pdpv->block_fecs;
 

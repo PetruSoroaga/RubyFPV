@@ -742,6 +742,13 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       bShowAsWarning = true;
    }
 
+   if ( uAlarms & ALARM_ID_UNSUPPORTED_VIDEO_TYPE )
+   {
+      warnings_add_unsupported_video(uFlags1, uFlags2);
+      return;
+      //sprintf(szAlarmText, "Your vehicle is using H265 video encoding. Your controller does not support H265 video decoding. Switch your vehicle to H264 video encoder from vehicle's Video menu.");
+   }
+
    if ( uAlarms & ALARM_ID_CONTROLLER_IO_ERROR )
    {
       if ( g_uLastControllerAlarmIOFlags == uFlags1 )

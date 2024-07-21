@@ -418,7 +418,7 @@ ControllerSettings* get_ControllerSettings()
    return &s_CtrlSettings;
 }
 
-u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags)
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoProfileFlags)
 {
    u32 ping_interval_ms = 1000/DEFAULT_PING_FREQUENCY;
    if ( s_CtrlSettings.nPingClockSyncFrequency != 0 )
@@ -428,8 +428,8 @@ u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVid
       ping_interval_ms /= 2;
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( uCurrentVideoFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( uCurrentVideoFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+   if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    {
       if ( ping_interval_ms > 100 )
       {
@@ -448,5 +448,5 @@ int load_ControllerSettings() { return 0; }
 void reset_ControllerSettings() {}
 ControllerSettings* get_ControllerSettings() { return NULL; }
 
-u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags) { return 200000; }
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoProfileFlags) { return 200000; }
 #endif

@@ -148,6 +148,9 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    float xPosSlider = xPos + m_pMenu->getUsableWidth() - sliderWidth - m_fMarginX;
    float xPosSelector = xPosSlider + (float)(sliderWidth-fSizeSelectorW)*(m_ValueCurrent-m_ValueMin)/(float)(m_ValueMax-m_ValueMin);
 
+   xPosSlider += m_fMarginX;
+   xPosSelector += m_fMarginX;
+   
    float yTop = yPos + paddingV;
    float yBottom = yPos + fHeightEdit - paddingV;
    float yMid = yPos + 0.5*fHeightEdit;

@@ -531,7 +531,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          {
             t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));    
             if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-            if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+            if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
             if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
             {
                u8* pExtraData = pData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;

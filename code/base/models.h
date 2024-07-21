@@ -71,6 +71,7 @@ typedef struct
     // bit 3: retransmissions are started fast
     // bit 4: 1 to enable H265, 0 to enable H264
     // bit 5: 1 to enable new adaptive video algorithm, 0 - use default one
+
    u32 dummy[3];
 } video_parameters_t;
 
@@ -80,7 +81,7 @@ typedef struct
    u32 flags;
       // bit x: not used now
 
-   u32 uEncodingFlags; // same as radio video packet uEncodingFlags
+   u32 uProfileEncodingFlags; // same as radio video packet uProfileEncodingFlags
 
    // byte 0:
    //    bit 0..2  - scramble blocks count
@@ -99,6 +100,7 @@ typedef struct
    //    bit 3  - one way video link
    //    bit 4  - video profile should use EC scheme as auto;
    //    bit 5,6 - EC scheme spreading factor (0...3)
+   //    bit 7  - try to keep constant video bitrate when it fluctuates
 
    int radio_datarate_video_bps; // radio data rate to use for this video profile for video packets: 0 - to use auto datarate, positive: bps, negative: MCS
    int radio_datarate_data_bps;  // radio data rate to use for this video profile for data packets: 0 - to use auto datarate, positive: bps, negative: MCS
@@ -345,13 +347,13 @@ typedef struct
 
 typedef struct
 {
-   int txPower;
+   int txPowerRTL8812AU;
+   int txPowerRTL8812EU;
    int txPowerAtheros;
-   int txPowerRTL;
    int txPowerSiK;
-   int txMaxPower;
+   int txMaxPowerRTL8812AU;
+   int txMaxPowerRTL8812EU;
    int txMaxPowerAtheros;
-   int txMaxPowerRTL;
    int slotTime;
    int thresh62;
 
@@ -366,8 +368,13 @@ typedef struct
    u32  interface_capabilities_flags[MAX_RADIO_INTERFACES]; // what the card is used for: video/data/relay/tx/rx
    u32  interface_current_frequency_khz[MAX_RADIO_INTERFACES]; // current frequency for this card
    u32  interface_current_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: frame type, STBC, LDP, MCS etc
-   int  interface_datarate_video_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
-   int  interface_datarate_data_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
+   
+   // Deprecated in 9.5
+   //int  interface_datarate_video_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
+   //int  interface_datarate_data_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
+   int  interface_dummy1[MAX_RADIO_INTERFACES];
+   int  interface_dummy2[MAX_RADIO_INTERFACES];
+
 } type_radio_interfaces_parameters;
 
 

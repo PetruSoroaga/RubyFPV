@@ -31,7 +31,6 @@
 
 #include "menu.h"
 #include "menu_vehicle_cpu_oipc.h"
-#include "menu_txinfo.h"
 #include "menu_item_select.h"
 #include "menu_confirmation.h"
 #include "menu_item_section.h"

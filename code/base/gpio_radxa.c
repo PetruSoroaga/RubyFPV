@@ -136,13 +136,6 @@ void _GPIO_PullAllUp()
 {
 }
 
-int GPIOButtonsResetDetectionFlag()
-{
-   log_line("[GPIO] Reset buttons direction detection flag.");
-   return 1;
-}
-
-
 // Returns 0 on success, 1 on failure
 
 int GPIOInitButtons()
@@ -238,9 +231,4 @@ int GPIOInitButtons()
    */
 
    return failed;
-}
-
-int GPIOButtonsTryDetectPullUpDown()
-{
-   return 1;
 }

@@ -381,8 +381,8 @@ void radio_links_open_rxtx_radio_interfaces()
       if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
            (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       {
-         int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
-         if ( (0 == nRateTx) && (NULL != g_pCurrentModel) )
+         int nRateTx = DEFAULT_RADIO_DATARATE_DATA;
+         if ( NULL != g_pCurrentModel )
          {
             nRateTx = compute_packet_uplink_datarate(nVehicleRadioLinkId, i, &(g_pCurrentModel->radioLinksParams));
             log_line("Current model uplink radio datarate for vehicle radio link %d (%s): %d, %u, uplink rate type: %d",

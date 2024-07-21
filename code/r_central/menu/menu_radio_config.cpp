@@ -38,7 +38,7 @@
 #include "menu_radio_config.h"
 #include "menu_confirmation.h"
 #include "menu_item_text.h"
-#include "menu_txinfo.h"
+#include "menu_tx_power.h"
 #include "menu_controller_radio_interface.h"
 #include "menu_controller_radio_interface_sik.h"
 #include "menu_vehicle_radio_link.h"
@@ -725,7 +725,7 @@ void MenuRadioConfig::onSelectItem()
 
    if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24 )
    {
-      MenuTXInfo* pMenu = new MenuTXInfo();
+      MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowVehicle = false;
       add_menu_to_stack(pMenu);
       return;
@@ -734,7 +734,7 @@ void MenuRadioConfig::onSelectItem()
    if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58) ||
         ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_2458) )
    {
-      MenuTXInfo* pMenu = new MenuTXInfo();
+      MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowVehicle = false;
       if ( m_bHas24PowerController && m_bHas58PowerController )
          pMenu->m_bSelectSecond = true;
@@ -755,7 +755,7 @@ void MenuRadioConfig::onSelectItem()
          addMessage(szConnectMsg);
          return;
       }
-      MenuTXInfo* pMenu = new MenuTXInfo();
+      MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowController = false;
       add_menu_to_stack(pMenu);
       return;
@@ -769,7 +769,7 @@ void MenuRadioConfig::onSelectItem()
          addMessageWithTitle(0, szConnectTitle, szConnectMsg);
          return;
       }
-      MenuTXInfo* pMenu = new MenuTXInfo();
+      MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowController = false;
       if ( m_bHas24PowerVehicle && m_bHas58PowerVehicle )
          pMenu->m_bSelectSecond = true;
@@ -1423,7 +1423,7 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
 
       if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58 )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+      sprintf(szBuff,"Tx Power 5.8Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos +hIconBig + height_text*1.4, m_iIdFontRegular, szBuff);
       if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58 )
          g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
@@ -1438,7 +1438,7 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
            ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_2458) )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
       if ( m_bHas58PowerVehicle )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
       else
          sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
       g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);
@@ -1564,7 +1564,7 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
    szAuto[0] = 0;
    if ( (NULL != g_pCurrentModel) && ( ! g_pCurrentModel->radioLinkIsSiKRadio(iVehicleRadioLink) ) )
    {
-      int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+      int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
       if ( adaptive )
          strcpy(szAuto, " (Auto)");
       else
@@ -2420,19 +2420,6 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
       bShowRed = true;
       strcpy(szError, "Neither Uplink or Downlink enabled");
    }
-
-   if ( controllerGetCardDataRate(pRadioHWInfo->szMAC) != 0 )
-   if ( iRadioLink >= 0 )
-   if ( controllerGetCardDataRate(pRadioHWInfo->szMAC) != g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink] )
-   {
-      if ( 0 != szBuff[0] )
-         strcat(szBuff, ", ");
-      char szTmp[64], szTmp2[64];
-      str_getDataRateDescription(controllerGetCardDataRate(pRadioHWInfo->szMAC), 0, szTmp2);
-      snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Datarate: %s", szTmp2);
-      strcat(szBuff, szTmp);
-   }
-
 
    if ( pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_DISABLED )
    {

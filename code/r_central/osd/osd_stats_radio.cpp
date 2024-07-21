@@ -1077,7 +1077,7 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
 
    if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
-      height += 5 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
+      height += 3 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
       height += height_text_small*s_OSDStatsLineSpacing; // Ping frequency
       height += height_text_small*s_OSDStatsLineSpacing; // Last response recv from vehicle
 
@@ -1298,6 +1298,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
          }
       }
 
+      /*
       int iIndexVehicleRuntimeInfo = -1;
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
@@ -1307,7 +1308,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
             break;
          }
       }
-      
+      */
       g_pRenderEngine->setColors(get_Color_Dev());
 
       if ( NULL != pCRS )
@@ -1326,6 +1327,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;
 
+      /*
       if ( -1 == iIndexVehicleRuntimeInfo )
          strcpy(szBuff, "N/A");
       else if ( (g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[iIndexVehicleRuntimeInfo] == MAX_U32) || (pActiveModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
@@ -1345,6 +1347,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Commands RT delay (min):", szBuff);
       y += height_text*s_OSDStatsLineSpacing;
+      */
    }
    osd_set_colors();
 
@@ -1442,7 +1445,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
       if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
       {
-         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uEncodingFlags);
+         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uProfileEncodingFlags);
          sprintf(szBuff, "%d ms", ping_interval_ms);
          g_pRenderEngine->setColors(get_Color_Dev());
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Clock Sync Freq:", szBuff);

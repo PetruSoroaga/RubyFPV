@@ -137,7 +137,7 @@ typedef struct
    u8 video_link_profile;
       // (video stream id: 0xF0 bits, current video link profile: 0x0F bits); added in v.5.6
    u8 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
-   u32 uEncodingFlags; // same as video_params.uEncodingFlags;
+   u32 uProfileEncodingFlags; // same as video link profile's uProfileEncodingFlags;
       // byte 0:
       //    bit 0..2  - scramble blocks count
       //    bit 3     - enables restransmission of missing packets
@@ -155,8 +155,9 @@ typedef struct
       //    bit 3  - one way video link
       //    bit 4  - video profile should use EC scheme as auto;
       //    bit 5,6 - EC scheme spreading factor (0...3)
+      //    bit 7  - try to keep constant video bitrate when it fluctuates
 
-   u32 uEncodingFlags2;
+   u32 uVideoStatusFlags2;
       // Byte 0: current h264 quantization value
       // Byte 1:
       //    bit 0  - 0/1: has debug timings info after the video data:
@@ -168,6 +169,7 @@ typedef struct
       //                  u32 - local timestamp sent to video processing;
       //                  u32 - local timestamp sent to video output;
       //    bit 1  - 0/1: is this video packet part of a I-frame
+      //    bit 2  - 1: is on lower video bitrate
 
    u16 video_width;
    u16 video_height;

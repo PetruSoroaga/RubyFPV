@@ -822,8 +822,8 @@ void _process_and_send_packets_individually()
             for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
             {
                // positive: regular datarates, negative: mcs rates;
-               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate(i, 0);
-               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate(i, 1);
+               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate_bps_video(i);
+               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate_bps_data(i);
                //log_line("DBG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
 
                pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
@@ -965,8 +965,8 @@ void process_and_send_packets()
             for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
             {
                // positive: regular datarates, negative: mcs rates;
-               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate(i, 0);
-               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate(i, 1);
+               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate_bps_video(i);
+               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate_bps_data(i);
                //log_line("DBG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
 
                pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
@@ -1548,6 +1548,7 @@ int main(int argc, char *argv[])
       radio_set_debug_flag();
    }
    fec_init();
+   packet_utils_init();
 
    if ( NULL != g_pProcessStats )
    {
@@ -1620,6 +1621,7 @@ int main(int argc, char *argv[])
    g_SM_DevVideoBitrateHistory.uGraphSliceInterval = 100;
    g_SM_DevVideoBitrateHistory.uTotalDataPoints = MAX_INTERVALS_VIDEO_BITRATE_HISTORY;
    g_SM_DevVideoBitrateHistory.uCurrentDataPoint = 0;
+   g_SM_DevVideoBitrateHistory.uLastTimeSendToController = 0;
 
    log_line("Start sequence: Done setting up stats structures.");
 

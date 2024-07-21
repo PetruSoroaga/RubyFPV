@@ -30,7 +30,7 @@
 */
 
 #include "menu.h"
-#include "menu_txinfo.h"
+#include "menu_tx_power.h"
 #include "menu_objects.h"
 #include "menu_item_text.h"
 #include "menu_confirmation.h"
@@ -55,7 +55,7 @@ static int s_iTxBoosterGainTable4W[][2] =
    {100, 4000}
 };
 
-MenuTXInfo::MenuTXInfo()
+MenuTXPower::MenuTXPower()
 :Menu(MENU_ID_TXINFO, "Radio Output Power Levels", NULL)
 {
    m_Width = 0.72;
@@ -78,11 +78,11 @@ MenuTXInfo::MenuTXInfo()
    m_bValuesChangedController58 = false;
 }
 
-MenuTXInfo::~MenuTXInfo()
+MenuTXPower::~MenuTXPower()
 {
 }
 
-void MenuTXInfo::onShow()
+void MenuTXPower::onShow()
 {
    float fSliderWidth = 0.18;
    ControllerSettings* pCS = get_ControllerSettings();
@@ -155,7 +155,7 @@ void MenuTXInfo::onShow()
          if ( m_bVehicleHas24Cards )
             m_pItemsSlider[0] = new MenuItemSlider("Vehicle Tx Power", "Sets the radio TX power used on the vehicle. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros/2, fSliderWidth);
          else
-            m_pItemsSlider[0] = new MenuItemSlider("Vehicle Tx Power", "Sets the radio TX power used on the vehicle. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL/2, fSliderWidth);
+            m_pItemsSlider[0] = new MenuItemSlider("Vehicle Tx Power", "Sets the radio TX power used on the vehicle. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU/2, fSliderWidth);
          m_IndexPowerVehicle = addMenuItem(m_pItemsSlider[0]);
       }
       else
@@ -175,7 +175,7 @@ void MenuTXInfo::onShow()
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Vehicle Tx Power (2.4Ghz%s)", szCards);
          m_pItemsSlider[1] = new MenuItemSlider(szBuff, "Sets the radio TX power used on the vehicle for Atheros/RaLink cards. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros/2, fSliderWidth);
          m_IndexPowerVehicleAtheros = addMenuItem(m_pItemsSlider[1]);
-         m_pItemsSlider[2] = new MenuItemSlider("Vehicle Tx Power (5.8Ghz)", "Sets the radio TX power used on the vehicle for RTL cards. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL/2, fSliderWidth);
+         m_pItemsSlider[2] = new MenuItemSlider("Vehicle Tx Power (5.8Ghz)", "Sets the radio TX power used on the vehicle for RTL cards. Requires a reboot of the vehicle after change.", 1, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU/2, fSliderWidth);
          m_IndexPowerVehicleRTL = addMenuItem(m_pItemsSlider[2]);
       }
    }
@@ -239,7 +239,7 @@ void MenuTXInfo::onShow()
       m_SelectedIndex = 1;
 } 
       
-void MenuTXInfo::valuesToUI()
+void MenuTXPower::valuesToUI()
 {
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();
@@ -270,16 +270,16 @@ void MenuTXInfo::valuesToUI()
       if ( m_bVehicleHas24Cards )
          m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
       if ( m_bVehicleHas58Cards )
-         m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+         m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
    }
    if ( -1 != m_IndexPowerVehicleAtheros && m_bVehicleHas24Cards )
       m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
    if ( -1 != m_IndexPowerVehicleRTL && m_bVehicleHas58Cards )
-      m_pItemsSlider[2]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+      m_pItemsSlider[2]->setCurrentValue(g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
 }
 
 
-void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine)
+void MenuTXPower::RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine)
 {
    Preferences* pP = get_Preferences();
 
@@ -461,7 +461,7 @@ void MenuTXInfo::RenderTableLine(int iCardModel, const char* szText, const int* 
    }
 }
 
-void MenuTXInfo::drawPowerLine(const char* szText, float yPos, int value)
+void MenuTXPower::drawPowerLine(const char* szText, float yPos, int value)
 {
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float xPos = m_RenderXPos + m_sfMenuPaddingX;
@@ -493,7 +493,7 @@ void MenuTXInfo::drawPowerLine(const char* szText, float yPos, int value)
 }
 
 
-void MenuTXInfo::Render()
+void MenuTXPower::Render()
 {
    Preferences* pP = get_Preferences();
    RenderPrepare();
@@ -585,14 +585,14 @@ void MenuTXInfo::Render()
       if ( m_bShowBothOnVehicle )
       {
          drawPowerLine("Vehicle TX Power (2.4 Ghz band):", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerAtheros );
-         drawPowerLine("Vehicle TX Power (5.8 Ghz band):", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerRTL );
+         drawPowerLine("Vehicle TX Power (5.8 Ghz band):", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU );
       }
       else
       {
          if ( m_bVehicleHas24Cards )
             drawPowerLine("Vehicle TX Power:", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerAtheros );
          else
-            drawPowerLine("Vehicle TX Power:", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerRTL );
+            drawPowerLine("Vehicle TX Power:", m_yTopRender, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU );
       }
       m_yTopRender += 1.4*height_text;   
    }
@@ -621,23 +621,23 @@ void MenuTXInfo::Render()
 }
 
 
-void MenuTXInfo::sendPowerToVehicle(int tx, int txAtheros, int txRTL)
+void MenuTXPower::sendPowerToVehicle(int txRTL8812AU, int txRTL8812EU, int txAtheros)
 {
    u8 buffer[10];
    memset(&(buffer[0]), 0, 10);
-   buffer[0] = tx;
-   buffer[1] = txAtheros;
-   buffer[2] = txRTL;
-   buffer[3] = g_pCurrentModel->radioInterfacesParams.txMaxPower;
-   buffer[4] = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
-   buffer[5] = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL;
+   buffer[0] = txRTL8812AU;
+   buffer[1] = txRTL8812EU;
+   buffer[2] = txAtheros;
+   buffer[3] = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
+   buffer[4] = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU;
+   buffer[5] = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
 
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TX_POWERS, 0, buffer, 8) )
        valuesToUI();
 }
 
 
-int MenuTXInfo::onBack()
+int MenuTXPower::onBack()
 {
    if ( m_bValuesChangedController || m_bValuesChangedController58 )
    {
@@ -677,7 +677,7 @@ int MenuTXInfo::onBack()
    return Menu::onBack();
 }
 
-void MenuTXInfo::onReturnFromChild(int iChildMenuId, int returnValue)
+void MenuTXPower::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
 
@@ -710,7 +710,7 @@ void MenuTXInfo::onReturnFromChild(int iChildMenuId, int returnValue)
    valuesToUI();
 }
 
-void MenuTXInfo::onSelectItem()
+void MenuTXPower::onSelectItem()
 {
    Menu::onSelectItem();
    
@@ -829,9 +829,9 @@ void MenuTXInfo::onSelectItem()
    if ( (m_IndexPowerVehicle == m_SelectedIndex) && menu_check_current_model_ok_for_edit() )
    {
       int val = m_pItemsSlider[0]->getCurrentValue();
-      int tx = g_pCurrentModel->radioInterfacesParams.txPower;
+      int txRTL8812AU = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
+      int txRTL8812EU = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU;
       int txAtheros = g_pCurrentModel->radioInterfacesParams.txPowerAtheros;
-      int txRTL = g_pCurrentModel->radioInterfacesParams.txPowerRTL;
 
       if ( m_bVehicleHas24Cards )
       {
@@ -841,11 +841,11 @@ void MenuTXInfo::onSelectItem()
       }
       if ( m_bVehicleHas58Cards )
       {
-         if ( val != txRTL )
+         if ( val != txRTL8812AU )
             m_bValuesChangedVehicle = true;
-         txRTL = val;
+         txRTL8812AU = val;
       }
-      sendPowerToVehicle(tx, txAtheros, txRTL);
+      sendPowerToVehicle(txRTL8812AU, txRTL8812EU, txAtheros);
 
       if ( val > 59 )
       {
@@ -860,13 +860,13 @@ void MenuTXInfo::onSelectItem()
    }
    if ( (m_IndexPowerVehicleAtheros == m_SelectedIndex) && menu_check_current_model_ok_for_edit() )
    {
-      int tx = g_pCurrentModel->radioInterfacesParams.txPower;
+      int txRTL8812AU = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU;
       int txAtheros = m_pItemsSlider[1]->getCurrentValue();
       if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros != txAtheros )
          m_bValuesChangedVehicle = true;
 
-      int txRTL = g_pCurrentModel->radioInterfacesParams.txPowerRTL;
-      sendPowerToVehicle(tx, txAtheros, txRTL);
+      int txRTL8812EU = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU;
+      sendPowerToVehicle(txRTL8812AU, txRTL8812EU, txAtheros);
 
       if ( txAtheros > 59 )
       {
@@ -881,14 +881,14 @@ void MenuTXInfo::onSelectItem()
 
    if ( (m_IndexPowerVehicleRTL == m_SelectedIndex) && menu_check_current_model_ok_for_edit() )
    {
-      int tx = g_pCurrentModel->radioInterfacesParams.txPower;
+      int txRTL8812AU = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU;
       int txAtheros = g_pCurrentModel->radioInterfacesParams.txPowerAtheros;
-      int txRTL = m_pItemsSlider[2]->getCurrentValue();
-      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL != txRTL )
+      int txRTL8812EU = m_pItemsSlider[2]->getCurrentValue();
+      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU != txRTL8812EU )
          m_bValuesChangedVehicle = true;
-      sendPowerToVehicle(tx, txAtheros, txRTL);
+      sendPowerToVehicle(txRTL8812AU, txRTL8812EU, txAtheros);
 
-      if ( txRTL > 59 )
+      if ( txRTL8812EU > 59 )
       {
          MenuConfirmation* pMC = new MenuConfirmation("High Power Levels","Setting a card to a very high power level can fry it if it does not have proper cooling.", 1, true);
          pMC->m_yPos = 0.3;

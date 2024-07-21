@@ -38,6 +38,7 @@
 #include "../renderer/render_engine.h"
 #include "colors.h"
 #include "menu/menu.h"
+#include "menu/menu_confirmation.h"
 #include "osd/osd.h"
 #include "osd/osd_common.h"
 #include "shared_vars.h"
@@ -51,6 +52,7 @@
 
 Popup* s_PopupSwitchingRadioLink = NULL;
 
+MenuConfirmation* s_pMenuUnsupportedVideo = NULL;
 Popup* s_PopupConfigureRadioLink = NULL;
 u32 s_uTimeLastPopupConfigureRadioLinkUpdate = 0;
 char s_szLastMessageConfigureRadioLink[256];
@@ -77,6 +79,9 @@ void warnings_on_changed_vehicle()
    }
    popups_remove(s_PopupConfigureRadioLink);
    s_PopupConfigureRadioLink = NULL;
+
+   remove_menu_from_stack(s_pMenuUnsupportedVideo);
+   s_pMenuUnsupportedVideo = NULL;
 }
 
 void warnings_remove_all()
@@ -468,6 +473,32 @@ void warnings_remove_configuring_radio_link(bool bSucceeded)
          s_PopupConfigureRadioLink->setTimeout(3.2);
       }
    }
+}
+
+void warnings_add_unsupported_video(u32 uVehicleId, u32 uType)
+{
+   #if defined (HW_PLATFORM_RASPBERRY)
+   static u32 s_uTimeLastWarningUnsupportedVideo = 0;
+
+   if ( g_TimeNow > s_uTimeLastWarningUnsupportedVideo + 9000 )
+   {
+      s_uTimeLastWarningUnsupportedVideo = g_TimeNow;
+
+      char szText[256];
+      strcpy(szText, "Your vehicle is sending H265 video. Your controller does not support H265 video decoding. Switch your vehicle to H264 video encoding from vehicle's Video menu.");
+      
+      if ( NULL == s_pMenuUnsupportedVideo )
+      {
+         s_pMenuUnsupportedVideo = new MenuConfirmation("Unsupported Video Type",szText, 0, true);
+         s_pMenuUnsupportedVideo->m_yPos = 0.3;
+         s_pMenuUnsupportedVideo->setIconId(g_idIconCamera);
+         add_menu_to_stack(s_pMenuUnsupportedVideo);
+
+      }
+      else
+         warnings_add(uVehicleId, szText, g_idIconCamera, get_Color_IconError());
+   }
+   #endif
 }
 
 void warnings_add_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz)

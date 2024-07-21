@@ -144,17 +144,16 @@ typedef struct
 } __attribute__((packed)) shared_mem_video_link_graphs;
 
 
-#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 30
+#define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 70
 
 typedef struct
 {
-   u8  uMaxVideoDataRateMbps; // in Mbps (mcs is converted to Mbps)
+   u8  uMinVideoDataRateMbps; // in Mbps (mcs is converted to Mbps)
    u8  uVideoQuantization; // H264 quantization
    u16 uVideoBitrateCurrentProfileKb; // set video bitrate for current video profile
    u16 uVideoBitrateTargetKb; // target video bitrate for current video profile and overwrites
    u16 uVideoBitrateKb; // only video data
    u16 uVideoBitrateAvgKb; // only video data
-   u16 uTotalVideoBitrateKb; // video data + EC + radio headers
    u16 uTotalVideoBitrateAvgKb; // video data + EC + radio headers
    u8  uVideoProfileSwitches; // bit 0..3 - level, bit 4..7 - profile 
 } __attribute__((packed)) shared_mem_dev_video_bitrate_history_datapoint;
@@ -163,6 +162,7 @@ typedef struct
 {
    u32 uGraphSliceInterval;
    u32 uLastGraphSliceTime;
+   u32 uLastTimeSendToController;
    u8  uTotalDataPoints;
    u8  uCurrentDataPoint;
    u8  uQuantizationOverflowValue;

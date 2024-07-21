@@ -72,7 +72,7 @@ void _controller_interfaces_add_card(const char* szMAC)
    if ( hardware_radio_is_sik_radio(pRadioInfo) )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
 
-   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].datarateBPSMCS = 0;
+   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iDummy1 = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName = (char*)malloc(2);
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName[0] = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iInternal = false;
@@ -146,9 +146,9 @@ int save_ControllerInterfacesSettings()
       if ( szBuff[0] == '~' && szBuff[1] == 0 )
          szBuff[0] = 0;
       if (  0 == szBuff[0] )
-         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarateBPSMCS);
+         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iDummy1);
       else
-         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].datarateBPSMCS);
+         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iDummy1);
       fprintf(fd, "%d\n", s_CIS.listRadioInterfaces[i].iInternal);
    }
 
@@ -260,7 +260,7 @@ int load_ControllerInterfacesSettings()
          }
 
          s_CIS.listRadioInterfaces[i].capabilities_flags = tmp;
-         s_CIS.listRadioInterfaces[i].datarateBPSMCS = tmp2;
+         s_CIS.listRadioInterfaces[i].iDummy1 = tmp2;
 
          int kSize = (int)strlen(s_CIS.listRadioInterfaces[i].szUserDefinedName);
          for( int k=0; k<kSize; k++ )
@@ -271,13 +271,11 @@ int load_ControllerInterfacesSettings()
          {
              s_CIS.listRadioInterfaces[i].szUserDefinedName[0] = 0;
          }
-         char szDatarate[64];
          char szFlags[128];
-         str_getDataRateDescription(s_CIS.listRadioInterfaces[i].datarateBPSMCS, 0, szDatarate);
          str_get_radio_capabilities_description(s_CIS.listRadioInterfaces[i].capabilities_flags, szFlags);
-         log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], custom datarate: %s, flags: %s",
+         log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], flags: %s",
             i, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].szUserDefinedName,
-            szDatarate, szFlags );
+            szFlags );
       }
    }
    s_CIS.listMACTXPreferredCount = 0;
@@ -407,11 +405,9 @@ void controllerRadioInterfacesLogInfo()
       else
          log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       u32 uFlags = controllerGetCardFlags(pRadioInfo->szMAC);
-      char szDataRate[64];
-      str_getDataRateDescription(controllerGetCardDataRate(pRadioInfo->szMAC), 0, szDataRate);
       szBuff[0] = 0;
       str_get_radio_capabilities_description(uFlags, szBuff);
-      log_line("      Controller set rate: %s, set flags: %s", szDataRate, szBuff);
+      log_line("      Controller set flags: %s", szBuff);
    }
    log_line("=================================================================");
 }
@@ -624,21 +620,6 @@ void controllerSetCardFlags(const char* szMAC, u32 flags)
    s_CIS.listRadioInterfaces[index].capabilities_flags = flags;
 }
 
-int controllerGetCardDataRate(const char* szMAC)
-{
-   int index = _controller_interfaces_get_card_index(szMAC);
-   if ( -1 == index )
-      return 0;
-   return s_CIS.listRadioInterfaces[index].datarateBPSMCS;
-}
-
-void controllerSetCardDataRate(const char* szMAC, int dataRateBPS)
-{
-   int index = _controller_interfaces_get_card_index(szMAC);
-   if ( -1 == index )
-      return;
-   s_CIS.listRadioInterfaces[index].datarateBPSMCS = dataRateBPS;
-}
 
 void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char* szOutput)
 {
@@ -1210,5 +1191,4 @@ int load_ControllerInterfacesSettings() { return 0; }
 void reset_ControllerInterfacesSettings() {}
 ControllerInterfacesSettings* get_ControllerInterfacesSettings() { return NULL; }
 void controllerRadioInterfacesLogInfo() {}
-int controllerGetCardDataRate(const char* szMAC) { return 0; }
 #endif

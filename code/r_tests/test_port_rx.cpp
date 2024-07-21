@@ -69,25 +69,24 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
       return;
 
    uSummaryLastUpdateTime = get_current_timestamp_ms();
-   printf("Total recv pckts: %u/sec; ", g_uTotalRecvPackets );
+   log_line("Total recv pckts: %u/sec; ", g_uTotalRecvPackets );
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
       if ( g_uTotalRecvPacketsOnStreams[i] > 0 )
-         printf(" %u/sec on stream %d, ", g_uTotalRecvPacketsOnStreams[i], i);
+         log_line(" %u/sec on stream %d, ", g_uTotalRecvPacketsOnStreams[i], i);
       g_uTotalRecvPacketsTypes[i] = 0;
       g_uTotalRecvPacketsOnStreams[i] = 0;
    }
 
-   printf("\nTotal lost pckts: %d/sec", g_uTotalLostPackets);
+   log_line("\nTotal lost pckts: %d/sec", g_uTotalLostPackets);
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
       if ( g_uStreamsTotalLostPackets[i] > 0 )
-         printf(", %u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
+         log_line(", %u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
       g_uStreamsTotalLostPackets[i] = 0;
    }
-   printf("\n");
    if ( g_uTotalRecvPackets + g_uTotalLostPackets > 0 )
-      printf(" Lost: %.1f %% / sec\n", (100.0*(float)g_uTotalLostPackets)/((float)(g_uTotalLostPackets + g_uTotalRecvPackets)));
+      log_line(" Lost: %.1f %% / sec\n", (100.0*(float)g_uTotalLostPackets)/((float)(g_uTotalLostPackets + g_uTotalRecvPackets)));
    g_uTotalRecvPackets = 0;
    g_uTotalLostPackets = 0;
 
@@ -107,11 +106,10 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    }
    char szBuff[256];
    if ( iTotalRecv + iTotalLostBad > 0 )
-      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d, Lost: %.1f %%\n", iSlices, iTotalRecv, iTotalLostBad, 100.0*(float)iTotalLostBad/(float)(iTotalRecv+iTotalLostBad));
+      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d, Lost: %.1f %%", iSlices, iTotalRecv, iTotalLostBad, 100.0*(float)iTotalLostBad/(float)(iTotalRecv+iTotalLostBad));
    else
-      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d \n", iSlices, iTotalRecv, iTotalLostBad);
-   printf(szBuff);
-   printf("\n\n");
+      sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d", iSlices, iTotalRecv, iTotalLostBad);
+   log_line(szBuff);
    fflush(stdout);
 }
 
@@ -142,9 +140,8 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
    {
       g_uTotalLostPackets += gap-1;
       g_uStreamsTotalLostPackets[uStreamId] += gap-1;
-      printf("\nMissing %u packets on stream %d, received index: %u, last index: %u\n",
+      log_line("Missing %u packets on stream %d, received index: %u, last index: %u",
          gap-1, uStreamId, packetIndex, g_uStreamsLastPacketIndex[uStreamId] );
-      fflush(stdout);
       iResult = gap-1;
    }
 
@@ -155,8 +152,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
       videogap = pPHVF->video_block_index - g_uLastVideoBlock;
       if ( videogap > 1 )
       {
-         printf("\nMissing video packets: %u [%u to %u], video gap: %d [%u jump to %u]\n", gap-1, g_uStreamsLastPacketIndex[uStreamId], packetIndex, videogap-1, g_uLastVideoBlock, pPHVF->video_block_index );
-         fflush(stdout);
+         log_line("Missing video packets: %u [%u to %u], video gap: %d [%u jump to %u]", gap-1, g_uStreamsLastPacketIndex[uStreamId], packetIndex, videogap-1, g_uLastVideoBlock, pPHVF->video_block_index );
       }
    }
 
@@ -173,7 +169,7 @@ void process_packet(int iInterfaceIndex )
    u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength); 
    if ( NULL == pBuffer )
    {
-      printf("NULL receive buffer. Ignoring...\n");
+      log_line("NULL receive buffer. Ignoring...");
       fflush(stdout);
       return;
    }
@@ -195,21 +191,20 @@ void process_packet(int iInterfaceIndex )
 
       if ( iMissingPackets > 0 )
       {
-         printf("Missing %d packets. Buffer: %d bytes, packet: %d bytes, type: %s ", iMissingPackets, nLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
+         log_line("Missing %d packets. Buffer: %d bytes, packet: %d bytes, type: %s ", iMissingPackets, nLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
          bool bHasFlags = false;
          if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY )
             { bHasFlags = true; printf("[Sent on Low Link Only] "); }
          if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_HIGH_CAPACITY_LINK_ONLY )
             { bHasFlags = true; printf("[Sent on High Link Only] "); }
          if ( ! bHasFlags )
-            printf("[No Link Affinity]");
-         printf("\n");
+            log_line("[No Link Affinity]");
          fflush(stdout);
       }
       if ( -1 != g_iOnlyStreamId )
       if ( uStreamId != (u32)g_iOnlyStreamId )
       {
-         printf("x");
+         log_line("x");
          fflush(stdout);
       }
       pBuffer += pPH->total_length;
@@ -287,7 +282,7 @@ int main(int argc, char *argv[])
 
    if ( -1 == iInterfaceIndex )
    {
-      printf("\nCan't find interface %s\n", szCard);
+      log_line("Can't find interface %s", szCard);
       return 0;
    }
 
@@ -296,18 +291,18 @@ int main(int argc, char *argv[])
 
    radio_utils_set_interface_frequency(NULL, iInterfaceIndex, -1, iFreq, NULL, 0);
 
-   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq/1000, port);
+   log_line("Start receiving on lan: %s (interface %d), %d Mhz, port: %d", szCard, iInterfaceIndex+1, iFreq/1000, port);
 
    int pcapR =  radio_open_interface_for_read(iInterfaceIndex, port);
    if ( pcapR < 0 )
    {
-      printf("\nFailed to open port.\n");
+      log_line("Failed to open port.");
       return -1;
    }
 
    radio_open_interface_for_write(iInterfaceIndex);
 
-   printf("Opened wlan interface for read and write.\n");
+   log_line("Opened wlan interface for read and write.");
 
    //FILE* fd = fopen("out.bin", "w");
    
@@ -330,14 +325,14 @@ int main(int argc, char *argv[])
    g_SM_RadioStats.countLocalRadioInterfaces = 1;
    g_SM_RadioStats.countLocalRadioLinks = 1;
 
-   printf("\nStart receiving on lan: %s (interface %d), %d Mhz, port: %d\n", szCard, iInterfaceIndex+1, iFreq/1000, port);
+   log_line("Start receiving on lan: %s (interface %d), %d Mhz, port: %d", szCard, iInterfaceIndex+1, iFreq/1000, port);
 
    if ( -1 == g_iOnlyStreamId )
-      printf("\nLooking for any stream\n");
+      log_line("Looking for any stream");
    else
-      printf("\nLooking only for stream id %d\n", g_iOnlyStreamId);
+      log_line("Looking only for stream id %d", g_iOnlyStreamId);
 
-   printf("\n\n\nStarted.\nWaiting for data...\n\n\n");
+   log_line("Started. Waiting for data...");
    fflush(stdout);
    
    while (!quit)
@@ -361,6 +356,6 @@ int main(int argc, char *argv[])
    //fclose(fd);
    radio_close_interface_for_write(iInterfaceIndex);
    radio_close_interface_for_read(iInterfaceIndex);
-   printf("\nFinised receiving test.\n");
+   log_line("Finised receiving test.");
    return (0);
 }

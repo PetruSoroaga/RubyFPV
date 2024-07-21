@@ -255,27 +255,6 @@ int init_hardware()
    int failed = 0;
 
    #ifdef HW_CAPABILITY_GPIO
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-   if ( access(szFile, R_OK ) != -1 )
-   {
-      int failedButtons = GPIOInitButtons();
-      if ( failedButtons )
-      {
-         log_softerror_and_alarm("[Hardware] Failed to set GPIOs for buttons.");
-         failed = 1;
-      }
-      else
-         log_line("[Hardware] Loaded file with current GPIO detection for buttons.");
-      s_iButtonsWhereInited = 1;
-   }
-   else
-      log_line("[Hardware] No file with current GPIO detection for buttons.");
-   #else
-
    int failedButtons = GPIOInitButtons();
    if ( failedButtons )
    {
@@ -287,7 +266,6 @@ int init_hardware()
       log_line("[Hardware] Initialized GPIO buttons (for Radxa)");
       s_iButtonsWhereInited = 1;
    }
-   #endif
 
    if (-1 == GPIOExport(GPIO_PIN_BUZZER))
    {
@@ -871,94 +849,6 @@ void gpio_read_buttons_loop()
    int iForceBackPressed = 0;
    int iForceQA1Pressed = 0;
 
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-   if ( access(szFile, R_OK ) == -1 )
-   {
-      sKeyMenuPressed = 0;
-      keyMenuDownStartTime = 0;
-      keyMenuInitialDownStartTime = 0;
-      sKeyBackPressed = 0;
-      keyBackDownStartTime = 0;
-      sKeyPlusPressed = 0;
-      keyPlusDownStartTime = 0;
-      keyPlusInitialDownStartTime = 0;
-      sKeyMinusPressed = 0;
-      keyMinusDownStartTime = 0;
-      keyMinusInitialDownStartTime = 0;
-      sKeyQA1Pressed = 0;
-      keyQA1DownStartTime = 0;
-      sKeyQA2Pressed = 0;
-      keyQA2DownStartTime = 0;
-      sKeyQA22Pressed = 0;
-      keyQA22DownStartTime = 0;
-      sKeyQA3Pressed = 0;
-      keyQA3DownStartTime = 0;
-      sKeyQAPlusPressed = 0;
-      keyQAPlusDownStartTime = 0;
-      sKeyQAMinusPressed = 0;
-      keyQAMinusDownStartTime = 0;
-
-      sLastReadMenu = 0;
-      sLastReadBack = 0;
-      sLastReadPlus = 0;
-      sLastReadMinus = 0;
-      sLastReadQA1 = 0;
-      sLastReadQA2 = 0;
-      sLastReadQA22 = 0;
-      sLastReadQA3 = 0;
-      sLastReadQAPlus = 0;
-      sLastReadQAMinus = 0;
-      return;
-   }
-   
-   if ( (0 == s_iButtonsWhereInited) && s_bHardwareWasSetup )
-   {
-      FILE* fp = fopen(szFile, "rb");
-      int i1,i2,i3;
-      i3 = 0;
-      if ( NULL != fp )
-      {
-         if ( 3 == fscanf(fp, "%d %d %d", &i1, &i2, &i3) )
-         {
-            if ( i3 == GPIO_PIN_MENU )
-               iForceMenuPressed = 1;
-            else if ( i3 == GPIO_PIN_BACK )
-               iForceBackPressed = 1;
-            else if ( i3 == GPIO_PIN_QACTION1 )
-               iForceQA1Pressed = 1;
-            else
-              log_softerror_and_alarm("[Hardware] File [%s] has invalid first state of first button pressed. Button pin: %d", szFile, i3);
-            log_line("[Hardware] Detection done: %s, pull direction: %s, first state of first button pressed detected. Button pin: %d",
-               (i1==1)?"yes":"no",
-               (i2==1)?"pullup":"pulldown",
-                i3);
-         }
-         else
-            log_softerror_and_alarm("[Hardware] Can't read file [%s] to read first state of first button pressed.", szFile);
-         fclose(fp);
-      }
-      else
-         log_softerror_and_alarm("[Hardware] Can't access file [%s] to read first state of first button pressed.", szFile);
-
-      GPIOInitButtons();
-      s_iButtonsWhereInited = 1;
-
-      sInitialReadQA1 = GPIORead(GPIO_PIN_QACTION1);
-      sInitialReadQA2 = GPIORead(GPIO_PIN_QACTION2);
-      sInitialReadQA3 = GPIORead(GPIO_PIN_QACTION3);
-      #ifdef HW_PLATFORM_RASPBERRY
-      sInitialReadQA22 = GPIORead(GPIO_PIN_QACTION2_2);
-      sInitialReadQAPlus = GPIORead(GPIO_PIN_QACTIONPLUS);
-      sInitialReadQAMinus = GPIORead(GPIO_PIN_QACTIONMINUS);
-      #endif
-      log_line("Initial read of Quick Actions buttons: %d %d-%d %d, [%d, %d]", sInitialReadQA1, sInitialReadQA2, sInitialReadQA22, sInitialReadQA3, sInitialReadQAPlus, sInitialReadQAMinus);
-   }
-   #endif
-
    // Check inputs
    int rMenu = GPIORead(GPIO_PIN_MENU);
    int rBack = GPIORead(GPIO_PIN_BACK);
@@ -974,16 +864,6 @@ void gpio_read_buttons_loop()
    #endif
 
    u32 time_now = get_current_timestamp_ms();
-
-   // If too many buttons are detected as "pressed", something is wrong
-   if ( GPIOGetButtonsPullDirection() != rMenu )
-   if ( GPIOGetButtonsPullDirection() != rBack )
-   if ( GPIOGetButtonsPullDirection() != rPlus )
-   if ( GPIOGetButtonsPullDirection() != rMinus )
-   {
-      GPIOButtonsResetDetectionFlag();
-      return;
-   }
 
    if ( GPIOGetButtonsPullDirection() == rMenu )
    {

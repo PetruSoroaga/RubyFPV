@@ -34,7 +34,6 @@
 #include "menu_controller_peripherals.h"
 #include "menu_controller_joystick.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
 #include "menu_confirmation.h"
 #include "menu_item_section.h"
 #include "menu_item_legend.h"

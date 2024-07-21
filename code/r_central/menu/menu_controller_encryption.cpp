@@ -34,7 +34,6 @@
 #include "menu_objects.h"
 #include "menu_controller_encryption.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
 #include "menu_item_text.h"
 #include "menu_item_section.h"
 #include "menu_confirmation.h"

@@ -95,13 +95,13 @@ bool videoLinkProfileIsOnlyAdaptiveVideoChanged(type_video_link_profile* pOldPro
 
    type_video_link_profile tmp;
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
-   tmp.uEncodingFlags = (tmp.uEncodingFlags & (~(VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO))) | (pOldProfile->uEncodingFlags & ( VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO));
+   tmp.uProfileEncodingFlags = (tmp.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO))) | (pOldProfile->uProfileEncodingFlags & ( VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO));
 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
    {
-      if ( (pOldProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) != (pNewProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+      if ( (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) != (pNewProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
          return true;
-      if ( (pOldProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) != (pNewProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) )
+      if ( (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) != (pNewProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) )
          return true;
    }
    return false;
@@ -287,7 +287,7 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
          if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
               (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
          {
-            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*pModel->radioInterfacesParams.txPowerRTL);
+            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*pModel->radioInterfacesParams.txPowerRTL8812AU);
             hw_execute_bash_command(szComm, NULL);          
          }
       }

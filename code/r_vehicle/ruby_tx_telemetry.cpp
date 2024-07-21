@@ -813,7 +813,7 @@ void _send_rc_data_to_FC()
 
    mavlink_message_t msg;
    int len;
-   if ( g_TimeNow > g_TimeLastMAVLinkHeartbeatSent + 700 )
+   if ( g_TimeNow > g_TimeLastMAVLinkHeartbeatSent + 800 )
    {
       g_TimeLastMAVLinkHeartbeatSent = g_TimeNow;
       //log_line("Sending MAVLink heartbeat...");

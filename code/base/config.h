@@ -25,7 +25,7 @@
 // dword: BB.BB.MM.mm  (BB.BB: build number, MM: major ver, mm: minor ver) 
 #define SYSTEM_SW_VERSION_MAJOR 9
 #define SYSTEM_SW_VERSION_MINOR 50
-#define SYSTEM_SW_BUILD_NUMBER  227
+#define SYSTEM_SW_BUILD_NUMBER  228
 
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117

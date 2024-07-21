@@ -91,7 +91,7 @@ int video_link_get_default_quantization_for_videobitrate(u32 uVideoBitRate)
 
 void video_link_quantization_shift(int iDelta)
 {
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION) )
    {
       if ( 0 != g_SM_VideoLinkStats.overwrites.currentH264QUantization )
          video_link_set_fixed_quantization_values(0);
@@ -127,6 +127,14 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    if ( g_bVideoPaused )
       return;
 
+   // Auto quantization is turned off ?
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION) )
+   {
+      if ( 0 != g_SM_VideoLinkStats.overwrites.currentH264QUantization )
+         video_link_set_fixed_quantization_values(0);
+      return;
+   }
+
    // To fix : add autoquantization to sigmastar boards
    if ( hardware_board_is_openipc(hardware_getBoardType()) )
       return;
@@ -143,11 +151,11 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    if ( g_TimeNow < g_TimeLastVideoProfileChanged + 500 )
       return;
 
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    if ( g_TimeNow < s_uTimeLastH264QuantizationCheck + 100 )
       return;
 
-   if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH ) )
    if ( g_TimeNow < s_uTimeLastH264QuantizationCheck + 200 )
       return;
    
@@ -160,7 +168,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    u32 uVideoBitRateAvgSlow = g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(1000);
    
    // This in Mbps. 1 = 1 Mbps
-   u32 uMinVideoMbBitrateTxUsed = (u32) get_last_tx_video_datarate_mbps();
+   u32 uMinVideoMbBitrateTxUsed = (u32) get_last_tx_minimum_video_radio_datarate_bps()/1000/1000;
    if ( uMinVideoMbBitrateTxUsed < 2 )
    {
       log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", uMinVideoMbBitrateTxUsed);
@@ -178,21 +186,13 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
       (float)g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/1000.0/1000.0 );
    */
 
-   // Auto quantization is turned off ?
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION) )
-   {
-      if ( 0 != g_SM_VideoLinkStats.overwrites.currentH264QUantization )
-         video_link_set_fixed_quantization_values(0);
-      return;
-   }
-
    // Adaptive video is turned off
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
    {
       int dTime = 1000;
       bool bOverflow = false;
 
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
       {
          dTime = 250;
          if ( uVideoBitRateAvgFast > g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.1 )
@@ -233,7 +233,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
 
    bool bOverflow = false;
    int dTime = 400;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 250;
       if ( uVideoBitRateAvgFast >= g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.1 )
@@ -262,7 +262,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    // Must shift bitrate down slower to target
 
    bOverflow = false;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 250;
       if ( uVideoBitRateAvgFast >= g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate * 1.05 )
@@ -291,7 +291,7 @@ void video_link_check_adjust_quantization_for_overload_periodic_loop()
    // Must shift up to target
 
    bool bUndeflow = false;
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
    {
       dTime = 500;
       if ( uVideoBitRateAvgFast < g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate*0.9 )
@@ -342,7 +342,7 @@ void video_link_check_adjust_bitrate_for_overload()
       uMaxTxTime = 900;
 
    // This is in Mbps: 1 = 1 Mbps
-   int iMinVideoRadioTxMbBitrateUsed = get_last_tx_video_datarate_mbps();
+   int iMinVideoRadioTxMbBitrateUsed = get_last_tx_minimum_video_radio_datarate_bps()/1000/1000;
    if ( iMinVideoRadioTxMbBitrateUsed < 2 )
    {
       log_softerror_and_alarm("VideoAdaptiveBitrate: Invalid minimum tx video radio datarate: %d Mbps. Reseting to 2 Mbps.", iMinVideoRadioTxMbBitrateUsed);

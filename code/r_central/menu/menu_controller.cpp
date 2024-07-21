@@ -33,12 +33,10 @@
 #include "menu_objects.h"
 #include "menu_controller.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
 #include "menu_item_section.h"
 #include "menu_confirmation.h"
 #include "menu_controller_expert.h"
 #include "menu_controller_peripherals.h"
-#include "menu_controller_radio_interfaces.h"
 #include "menu_controller_video.h"
 #include "menu_controller_telemetry.h"
 #include "menu_controller_network.h"
@@ -64,10 +62,6 @@ MenuController::MenuController(void)
    
    m_IndexPorts = addMenuItem(new MenuItem("Peripherals / Ports", "Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)"));
    //m_pMenuItems[m_IndexPorts]->showArrow();
-
-   //m_IndexInterfaces = addMenuItem(new MenuItem("Radio Interfaces", "Change controller radio interfaces settings"));
-   //m_pMenuItems[m_IndexInterfaces]->showArrow();
-   m_IndexInterfaces = -1;
    
    m_IndexVideo = addMenuItem(new MenuItem("Audio & Video Output", "Change Audio and Video Output Settings (HDMI, USB Tethering, Audio output device)"));
    //m_pMenuItems[m_IndexVideo]->showArrow();
@@ -246,12 +240,6 @@ void MenuController::onSelectItem()
    if ( m_IndexCPU == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuControllerExpert());
-      return;
-   }
-
-   if ( m_IndexInterfaces == m_SelectedIndex )
-   {
-      add_menu_to_stack(new MenuControllerRadioInterfaces());
       return;
    }
 

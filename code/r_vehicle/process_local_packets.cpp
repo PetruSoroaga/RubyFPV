@@ -368,10 +368,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
    if ( changeType == MODEL_CHANGED_RADIO_POWERS )
    {
-      log_line("Tx powers before updating local model: global: %d, Atheros: %d, RTL: %d, SiK: %d",
-         g_pCurrentModel->radioInterfacesParams.txPower,
+      log_line("Tx powers before updating local model: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d, SiK: %d",
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU,
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU,
          g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL,
          g_pCurrentModel->radioInterfacesParams.txPowerSiK);
    }
 
@@ -427,7 +427,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = uActiveKF;
 
       if ( g_pCurrentModel->isVideoLinkFixedOneWay() ||
-           (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION)) ) 
+           (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION)) ) 
          video_link_set_fixed_quantization_values(0);
 
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
@@ -684,7 +684,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       if ( ! g_pCurrentModel->hasCamera() )
          return;
 
-      bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
+      bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?true:false;
       if ( ! bUseAdaptiveVideo )
       {
          if ( iQuant > 0 )
@@ -761,10 +761,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( changeType == MODEL_CHANGED_RADIO_POWERS )
    {
       log_line("Received local notification that radio powers have changed.");
-      log_line("Tx powers after updating local model: global: %d, Atheros: %d, RTL: %d, SiK: %d",
-         g_pCurrentModel->radioInterfacesParams.txPower,
+      log_line("Tx powers after updating local model: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d, SiK: %d",
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU,
+         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU,
          g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL,
          g_pCurrentModel->radioInterfacesParams.txPowerSiK);
 
       if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != oldRadioInterfacesParams.txPowerSiK )
@@ -844,7 +844,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       log_line("Received local notification that adaptive video link capabilities changed.");
       bMustSignalOtherComponents = false;
       bMustReinitVideo = false;
-      //bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?true:false;
+      //bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?true:false;
 
       //if ( (! bOldUseAdaptiveVideo) && bUseAdaptiveVideo )
          video_stats_overwrites_init();

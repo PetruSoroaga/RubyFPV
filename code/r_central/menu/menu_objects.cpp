@@ -726,6 +726,7 @@ void Menu::computeRenderSizes()
             w = m_pMenuItems[i]->getTitleWidth(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
          else
             m_pMenuItems[i]->getTitleWidth(getUsableWidth() - m_pMenuItems[i]->m_fMarginX);
+         w += m_pMenuItems[i]->m_fMarginX;
          m_pMenuItems[i]->getValueWidth(getUsableWidth());
       }
       if ( m_fSelectionWidth < w )

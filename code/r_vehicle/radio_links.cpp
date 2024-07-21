@@ -102,9 +102,6 @@ int radio_links_open_rxtx_radio_interfaces()
            (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
       {
          int nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLinkId];
-         if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] )
-         if ( getRealDataRateFromRadioDataRate(g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i], 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
-            nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i];
          radio_utils_set_datarate_atheros(g_pCurrentModel, i, nRateTx, 0);
       }
 

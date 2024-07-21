@@ -38,7 +38,7 @@
 #include "menu_vehicle_radio_link.h"
 #include "menu_vehicle_radio_link_sik.h"
 #include "menu_radio_config.h"
-#include "menu_txinfo.h"
+#include "menu_tx_power.h"
 
 #include "../link_watch.h"
 #include "../launchers_controller.h"
@@ -345,9 +345,9 @@ void MenuVehicleRadioConfig::valuesToUI()
       if ( bHas58Cards )
       {
          if ( bHas24Cards )
-            sprintf(szBuff, "%d / %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros, g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+            sprintf(szBuff, "%d / %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
          else
-            sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerRTL);
+            sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
       }
       m_pMenuItems[m_IndexPower]->setValue(szBuff);
    }
@@ -489,7 +489,7 @@ void MenuVehicleRadioConfig::onSelectItem()
 
    if ( m_IndexPower == m_SelectedIndex )
    {
-      MenuTXInfo* pMenu = new MenuTXInfo();
+      MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowController = false;
       pMenu->m_bShowVehicle = true;
       add_menu_to_stack(pMenu);

@@ -53,7 +53,6 @@
 #define FILE_CONFIG_CONTROLLER_SETTINGS "controller_settings.cfg"
 #define FILE_CONFIG_CONTROLLER_INTERFACES "controller_interfaces.cfg"
 #define FILE_CONFIG_CONTROLLER_ID "controller_id.cfg"
-#define FILE_CONFIG_CONTROLLER_BUTTONS "controller_btns.cfg"
 #define FILE_CONFIG_CONTROLLER_OSD_WIDGETS "osd_widgets.cfg"
 #define FILE_CONFIG_CONTROLLER_FAVORITES_VEHICLES "favorites.cfg"
 #define FILE_CONFIG_RTL_POWER "rtlpower.cfg"

@@ -32,7 +32,7 @@
 #include "menu_objects.h"
 #include "menu_controller_radio_interface.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
+#include "menu_tx_power.h"
 #include "menu_confirmation.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"
@@ -57,7 +57,6 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
    sprintf(szBuff, "Controller Radio Interface %d Settings", iInterfaceIndex+1);
    setTitle(szBuff);
    
-   m_IndexDataRate = -1;
    m_IndexName = -1;
 
    if ( 0 == hardware_get_radio_interfaces_count() )
@@ -101,21 +100,6 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
    m_pItemsSelect[4]->addSelection("Uplink Only");
    m_pItemsSelect[4]->setIsEditable();
    m_IndexCapabilities = addMenuItem(m_pItemsSelect[4]);
-
-   m_pItemsSelect[5] = new MenuItemSelect("Radio Data Rate", "Overwrites the radio link datarate settings and sets a physical radio data rate to use on this interface. Default (auto) is to use the vehicle radio datarate set for the radio link that will be associated with this interface. Or can be set to a fixed custom value, no matter what the vehicle radio link configuration is.");
-   m_pItemsSelect[5]->addSelection("Auto (Radio Link)");
-   for( int i=0; i<getDataRatesCount(); i++ )
-   {
-      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
-      m_pItemsSelect[5]->addSelection(szBuff);
-   }
-   for( int i=0; i<=MAX_MCS_INDEX; i++ )
-   {
-      str_getDataRateDescription(-i-1, 0, szBuff);
-      m_pItemsSelect[5]->addSelection(szBuff);
-   }
-   m_pItemsSelect[5]->setIsEditable();
-   m_IndexDataRate = addMenuItem(m_pItemsSelect[5]);
 
    m_pItemsSelect[6] = new MenuItemSelect("Card Location", "Marks this card as internal or external.");
    m_pItemsSelect[6]->addSelection("External");
@@ -227,7 +211,6 @@ void MenuControllerRadioInterface::valuesToUI()
       if ( -1 != m_IndexUsage )
          m_pItemsSelect[3]->setEnabled(false);
       m_pItemsSelect[4]->setEnabled(false);
-      m_pItemsSelect[5]->setEnabled(false);
    }
 
    if ( controllerIsCardRXOnly(pNIC->szMAC) )
@@ -247,22 +230,6 @@ void MenuControllerRadioInterface::valuesToUI()
       if ( (g_pCurrentModel->sw_version>>16) >= 45 )
       if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
          m_pItemsSelect[3]->setSelection(3);
-   }
-
-   int nRateTxForCard = controllerGetCardDataRate(pNIC->szMAC);
-   if ( 0 == nRateTxForCard )
-      m_pItemsSelect[5]->setSelection(0);
-   else
-   {
-      int selectedIndex = 0;
-      for( int i=0; i<getDataRatesCount(); i++ )
-         if ( nRateTxForCard == getDataRatesBPS()[i] )
-            selectedIndex = i+1;
-      for( int i=0; i<=MAX_MCS_INDEX; i++ )
-         if ( nRateTxForCard == -1-i )
-            selectedIndex = i+getDataRatesCount()+1;
-
-      m_pItemsSelect[5]->setSelection(selectedIndex);
    }
 
    m_pItemsSelect[6]->setSelectedIndex(controllerIsCardInternal(pNIC->szMAC));
@@ -514,25 +481,6 @@ void MenuControllerRadioInterface::onSelectItem()
       else
          valuesToUI();
       return;
-   }
-
-   if ( m_IndexDataRate == m_SelectedIndex )
-   {
-         int dataRate = 0; // Auto
-         int indexRate = m_pItemsSelect[5]->getSelectedIndex();
-         if ( indexRate > 0 && indexRate <= getDataRatesCount() )
-            dataRate = getDataRatesBPS()[indexRate-1];
-         else if ( indexRate > getDataRatesCount() )
-            dataRate = -1-(indexRate - getDataRatesCount()-1);
-
-         controllerSetCardDataRate(pNIC->szMAC, dataRate);
-         save_ControllerInterfacesSettings();
-         valuesToUI();
-         showProgressInfo();
-         pairing_stop();
-         pairing_start_normal();
-         hideProgressInfo();
-         return;
    }
 
    if ( m_IndexInternal == m_SelectedIndex )

@@ -306,7 +306,7 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
    // If video profile changed (so did the target video bitrate):
    // Send default video quantization param to raspivid based on target video bitrate
    if ( bVideoProfileChanged )
-   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
    {
       g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
       video_link_quantization_shift(2);
@@ -852,7 +852,7 @@ void _video_stats_overwrites_check_update_params()
    // Init computation data
 
    s_iMaxLevelShiftForCurrentProfile = g_pCurrentModel->get_video_profile_total_levels(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
-   s_bUseControllerInfo = (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
+   s_bUseControllerInfo = (g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
    
    s_iTargetProfile = g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile;
    s_iTargetShiftLevel = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel;
@@ -952,8 +952,8 @@ void _video_stats_overwrites_check_update_params()
       else if ( bUseControllerDown )
          _check_video_link_params_using_controller_info(true);
 
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+      if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
       if ( g_bHadEverLinkToController )
       if ( (! g_bHasLinkToController) || ( g_SM_RadioStats.iMaxRxQuality< 30) )
       {
@@ -1025,6 +1025,22 @@ void video_stats_overwrites_periodic_loop()
       #endif
    }
 
+   // Update adaptive video rate for tx radio:
+
+   if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
+      packet_utils_set_adaptive_video_datarate(0);
+   else
+   {
+      int nRateTxVideo = DEFAULT_RADIO_DATARATE_VIDEO;
+      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
+         nRateTxVideo = utils_get_video_profile_mq_radio_datarate(g_pCurrentModel);
+
+      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
+         nRateTxVideo = utils_get_video_profile_lq_radio_datarate(g_pCurrentModel);
+
+      packet_utils_set_adaptive_video_datarate(nRateTxVideo);
+   }
+
    video_link_check_adjust_quantization_for_overload_periodic_loop();
    
    // On link from controller lost, switch to lower profile and keyframe
@@ -1039,8 +1055,8 @@ void video_stats_overwrites_periodic_loop()
    if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
    if ( g_TimeNow > g_TimeStart + 5000 )
    if ( g_TimeNow > get_video_capture_start_program_time() + 3000 )
-   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
+   if ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST )
    if ( (g_TimeNow > g_TimeLastReceivedRadioPacketFromController + iThresholdControllerLinkMs) ||
         (g_SM_RadioStats.iMaxRxQuality< 30) )
    if ( g_TimeNow > g_SM_VideoLinkStats.timeLastProfileChangeDown + iThresholdControllerLinkMs*0.7 )
@@ -1051,7 +1067,7 @@ void video_stats_overwrites_periodic_loop()
          log_line("[Video] Switch to MQ profile due to controller link lost and adaptive video is on.");
          video_stats_overwrites_switch_to_profile_and_level(g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile), VIDEO_PROFILE_MQ,0);
       }
-      else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO) )
+      else if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       {
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_MQ )
          {
@@ -1061,16 +1077,17 @@ void video_stats_overwrites_periodic_loop()
       }
    }
    
-   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
-   {
+   if ( ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) ||
+        ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE) )
       video_link_check_adjust_bitrate_for_overload();
+   
+
+   if (!((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
       return;
-   }
+
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
    if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
       _video_stats_overwrites_check_update_params();
-   #else
-   video_link_check_adjust_bitrate_for_overload();
    #endif
 }
 
@@ -1202,21 +1219,23 @@ int _video_stats_overwrites_get_lower_datarate_value(int iDataRateBPS, int iLeve
 int video_stats_overwrites_get_current_radio_datarate_video(int iRadioLink, int iRadioInterface)
 {
    int nRateTx = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink];
-   if ( 0 != g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface] )
-      nRateTx = g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[iRadioInterface];
-
+   bool bUsesHT40 = false;
+   if ( g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAG_HT40_VEHICLE )
+      bUsesHT40 = true;
+   
    int nRateUserVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.userVideoLinkProfile].radio_datarate_video_bps;
    if ( 0 != nRateUserVideoProfile )
-   if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
+   if ( getRealDataRateFromRadioDataRate(nRateUserVideoProfile, bUsesHT40) < getRealDataRateFromRadioDataRate(nRateTx, bUsesHT40) )
       nRateTx = nRateUserVideoProfile;
 
-   // nRateTx is now the top radio rate (highest one)
+   // nRateTx is now the top radio rate (highest one, set by user)
 
    if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
       return nRateTx;
 
+
    int nRateCurrentVideoProfile = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].radio_datarate_video_bps;
-   if ( (0 != nRateCurrentVideoProfile) && ( getRealDataRateFromRadioDataRate(nRateCurrentVideoProfile, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) ) )
+   if ( (0 != nRateCurrentVideoProfile) && ( getRealDataRateFromRadioDataRate(nRateCurrentVideoProfile, bUsesHT40) < getRealDataRateFromRadioDataRate(nRateTx, bUsesHT40) ) )
       nRateTx = nRateCurrentVideoProfile;
 
    // Decrease nRateTx for MQ, LQ profiles

@@ -311,8 +311,8 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
          }
          for( int i=0; i<s_ModelFirstBoot.radioInterfacesParams.interfaces_count; i++ )
          {
-            s_ModelFirstBoot.radioInterfacesParams.interface_datarate_video_bps[i] = 0;
-            s_ModelFirstBoot.radioInterfacesParams.interface_datarate_data_bps[i] = 0;
+            s_ModelFirstBoot.radioInterfacesParams.interface_dummy1[i] = 0;
+            s_ModelFirstBoot.radioInterfacesParams.interface_dummy2[i] = 0;
          }
          s_ModelFirstBoot.video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
          s_ModelFirstBoot.video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = 5000000;

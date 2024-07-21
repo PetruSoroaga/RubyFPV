@@ -3,11 +3,11 @@
 #include "menu_item_select.h"
 #include "menu_item_slider.h"
 
-class MenuTXInfo: public Menu
+class MenuTXPower: public Menu
 {
    public:
-      MenuTXInfo();
-      virtual ~MenuTXInfo();
+      MenuTXPower();
+      virtual ~MenuTXPower();
       virtual void onShow(); 
       virtual void valuesToUI();
       virtual int onBack();
@@ -22,7 +22,7 @@ class MenuTXInfo: public Menu
    private:
       void RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine);
       void drawPowerLine(const char* szText, float yPos, int value);
-      void sendPowerToVehicle(int tx, int txAtheros, int txRTL);
+      void sendPowerToVehicle(int txRTL8812AU, int txRTL8812EU, int txAtheros);
 
       float m_yTemp;
       float m_yTopRender;

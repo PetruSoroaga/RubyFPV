@@ -52,13 +52,23 @@ u8 s_RadioRawPacket[MAX_PACKET_TOTAL_SIZE];
 
 u32 s_StreamsTxPacketIndex[MAX_RADIO_STREAMS];
 u16 s_StreamsLastTxTime[MAX_RADIO_STREAMS];
-bool s_bAnyPacketsSentToRadio = false;
 
 u32 s_TimeLastLogAlarmNoInterfacesCanSend = 0;
 
 int s_LastSetAtherosCardsDatarates[MAX_RADIO_INTERFACES];
 
 bool s_bFirstTimeLogTxAssignment = true;
+
+void packet_utils_init()
+{
+   for( int i=0; i<MAX_RADIO_STREAMS; i++ )
+   {
+      s_StreamsTxPacketIndex[i] = 0;
+      s_StreamsLastTxTime[i] = 0;
+   }
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      s_LastSetAtherosCardsDatarates[i] = 5000;
+}
 
 
 void _computeBestTXCardsForEachLocalRadioLink(int* pIndexCardsForRadioLinks)
@@ -268,12 +278,6 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
             nRateTx = -1;
          break;
    }  
-   
-   int nRateTxCard = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
-   if ( nRateTxCard != 0 )
-   if ( getRealDataRateFromRadioDataRate(nRateTxCard, 0) < getRealDataRateFromRadioDataRate(nRateTx, 0) )
-      nRateTx = nRateTxCard;
-
 
    if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
            (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
@@ -465,17 +469,6 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
 
 int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSendToSingleRadioLink)
 {
-   if ( ! s_bAnyPacketsSentToRadio )
-   {
-      for( int i=0; i<MAX_RADIO_STREAMS; i++ )
-      {
-         s_StreamsTxPacketIndex[i] = 0;
-         s_StreamsLastTxTime[i] = 0;
-      }
-      for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-         s_LastSetAtherosCardsDatarates[i] = 5000;
-   }
-
    if ( nPacketLength <= 0 )
       return -1;
 
@@ -622,7 +615,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
             continue;
          radio_stats_update_on_packet_sent_for_radio_stream(&g_SM_RadioStats, g_TimeNow, uDestVehicleId, i, iTotalBytesOnEachStream[i]);
       }
-      s_bAnyPacketsSentToRadio = true;
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastRadioTxTime = g_TimeNow;
 

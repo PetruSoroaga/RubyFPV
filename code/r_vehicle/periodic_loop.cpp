@@ -583,15 +583,19 @@ void _update_videobitrate_history_data()
    if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 3000) )
       g_SM_DevVideoBitrateHistory.history[iIndex].uVideoQuantization = 0xFF;
 
-   g_SM_DevVideoBitrateHistory.history[iIndex].uMaxVideoDataRateMbps = get_last_tx_video_datarate_mbps();
+   g_SM_DevVideoBitrateHistory.history[iIndex].uMinVideoDataRateMbps = get_last_tx_minimum_video_radio_datarate_bps()/1000/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateCurrentProfileKb = g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateTargetKb = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateKb = g_pProcessorTxVideo->getCurrentVideoBitrate()/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentVideoBitrateAverage()/1000;
-   g_SM_DevVideoBitrateHistory.history[iIndex].uTotalVideoBitrateKb = g_pProcessorTxVideo->getCurrentTotalVideoBitrate()/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uTotalVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage()/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoProfileSwitches = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
 
+   u32 uMinSendTime = 100;
+   if ( g_SM_DevVideoBitrateHistory.uGraphSliceInterval > uMinSendTime )
+      uMinSendTime = g_SM_DevVideoBitrateHistory.uGraphSliceInterval;
+   if ( g_TimeNow < g_SM_DevVideoBitrateHistory.uLastTimeSendToController + uMinSendTime )
+      return;
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_DEV_VIDEO_BITRATE_HISTORY, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;

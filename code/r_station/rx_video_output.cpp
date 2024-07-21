@@ -308,11 +308,14 @@ static void * _thread_rx_video_output_player(void *argument)
       if ( ETIMEDOUT == iRet )
          continue;
    
-      if ( 0 == iRet )
-         log_line("[VideoOutputThread] Semaphore to restart video player was set.");
-
+      // If neither the semaphore is signaled, neither the reinitialize flag is set, then just skip reinitialization
       if ( (0 != iRet) && (!s_bRxVideoOutputPlayerMustReinitialize) )
          continue;
+
+      if ( 0 == iRet )
+         log_line("[VideoOutputThread] Semaphore to restart video player is set.");
+      if ( s_bRxVideoOutputPlayerMustReinitialize )
+         log_line("[VideoOutputThread] Flag to restart video player is set.");
 
       bMustRestartPlayer = false;
 
@@ -326,7 +329,7 @@ static void * _thread_rx_video_output_player(void *argument)
 
       if ( bMustRestartPlayer )
       {
-         log_line("[VideoOutputThread] Thread: Semaphore to restart video player is signaled.");
+         log_line("[VideoOutputThread] Thread: Semaphore and/or flag to restart video player is signaled.");
          _rx_video_output_stop_video_player();
          _rx_video_output_launch_video_player();
          s_bRxVideoOutputPlayerMustReinitialize = false;
@@ -334,9 +337,8 @@ static void * _thread_rx_video_output_player(void *argument)
 
       for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
       {
-         if ( NULL == g_pVideoProcessorRxList[i] )
-            break;
-         g_pVideoProcessorRxList[i]->resumeProcessing();
+         if ( NULL != g_pVideoProcessorRxList[i] )
+            g_pVideoProcessorRxList[i]->resumeProcessing();
       }
    }
 
@@ -842,7 +844,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
                int iVehicleTimestampNow = (int)uVehicleTimestampOrg + radio_get_link_clock_delta();
                if ( (int)uTimeNow - (int)iVehicleTimestampNow > 3 )
                   log_line("DEBUG (%s)[%u/%d]%d rx v-org: %u, now-loc: %u, tr-time: %u, dclks: %d",
-                    (pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_IS_IFRAME)?"I":"P",
+                    (pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME)?"I":"P",
                     pPHVF->video_block_index, (int)pPHVF->video_block_packet_index, iCountReads,
                     uVehicleTimestampOrg, uTimeNow,
                     (int)uTimeNow - (int)iVehicleTimestampNow, radio_get_link_clock_delta());
@@ -943,9 +945,8 @@ void rx_video_output_signal_restart_player()
 
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
    {
-      if ( NULL == g_pVideoProcessorRxList[i] )
-         break;
-      g_pVideoProcessorRxList[i]->pauseProcessing();
+      if ( NULL != g_pVideoProcessorRxList[i] )
+         g_pVideoProcessorRxList[i]->pauseProcessing();
    }
 }
 

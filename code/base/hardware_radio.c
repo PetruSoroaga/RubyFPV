@@ -1072,12 +1072,13 @@ int hardware_radio_load_radio_modules()
        if ( ! iRTL8812EULoaded )
        {
           log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
-          hw_execute_bash_command("sudo modprobe cfg80211", NULL);
           #if defined HW_PLATFORM_RADXA_ZERO3
+          hw_execute_bash_command("sudo modprobe cfg80211", NULL);
           hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
           #endif
           #if defined HW_PLATFORM_OPENIPC_CAMERA
-          hw_execute_bash_command("sudo insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+          hw_execute_bash_command("modprobe cfg80211", NULL);
+          hw_execute_bash_command("insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
           #endif
 
           iRTL8812EULoaded = 1;

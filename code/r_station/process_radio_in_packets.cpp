@@ -710,7 +710,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
 
    if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( pPHVF->uEncodingFlags2 & VIDEO_ENCODING_FLAGS2_HAS_DEBUG_TIMESTAMPS )
+   if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
    if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
    {
       u8* pExtraData = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
@@ -1054,9 +1054,7 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
                if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
                     (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
                {
-                  int nRateTx = controllerGetCardDataRate(pRadioHWInfo->szMAC); // Returns 0 if radio link datarate must be used (no custom datarate set for this radio card);
-                  if ( 0 == nRateTx )
-                     nRateTx = g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand;
+                  int nRateTx = g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand;
                   update_atheros_card_datarate(g_pCurrentModel, i, nRateTx, g_pProcessStats);
                   g_TimeNow = get_current_timestamp_ms();
                }

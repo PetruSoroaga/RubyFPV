@@ -17,19 +17,13 @@ class MenuVehicleVideoEncodings: public Menu
 
       int m_IndexPacketSize, m_IndexBlockPackets, m_IndexBlockFECs, m_IndexECSchemeSpread;
       int m_IndexDataRate;
-      int m_IndexBidirectionalVideo, m_IndexRetransmissions, m_IndexAdaptiveLink, m_IndexAdaptiveUseControllerToo;
-      int m_IndexMaxKeyFrame, m_IndexRetransmissionsFast;
       int m_IndexH264Profile, m_IndexH264Level, m_IndexH264Refresh, m_IndexH264Headers;
       int m_IndexH264SPSTimings;
       int m_IndexH264Slices;
       int m_IndexCustomQuant, m_IndexQuantValue;
-      int m_IndexVideoAdjustStrength;
-      int m_IndexVideoLinkLost;
       int m_IndexResetParams;
       int m_IndexEnableAdaptiveQuantization;
-      int m_IndexAdaptiveQuantizationStrength;
-      int m_IndexAdaptiveAlgorithm;
-      int m_IndexIgnoreTxSpikes;
+      int m_IndexAdaptiveH264QuantizationStrength;
       int m_IndexHDMIOutput;
 
       bool m_ShowBitrateWarning;

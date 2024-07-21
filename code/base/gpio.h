@@ -67,9 +67,6 @@ int GPIORead(int pin);
 int GPIOWrite(int pin, int value);
 
 int GPIOInitButtons();
-int GPIOButtonsResetDetectionFlag();
-int GPIOButtonsTryDetectPullUpDown();
-
 int GPIOGetButtonsPullDirection();
 
 #ifdef __cplusplus

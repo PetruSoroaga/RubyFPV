@@ -33,7 +33,6 @@
 #include "menu_objects.h"
 #include "menu_controller.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
 #include "menu_system_expert.h"
 #include "menu_system_dev_logs.h"
 #include "menu_system_video_profiles.h"

@@ -482,19 +482,19 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             strcat(szMode, szTmp);
          }
 
-         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+         if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
             strcat(szMode, "-");
-         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
+         if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
             strcat(szMode, "-1Way");
 
          sprintf(szBuff, "%s %.1f Mbs", szMode, frecv_video_mbps);
-         if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+         if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
 
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
          {
             sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
-            if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+            if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
                sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
          }
          u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
@@ -528,9 +528,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    char szCurrentProfile[64];
    szCurrentProfile[0] = 0;
    strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-   if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+   if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szCurrentProfile, "-");
-   //if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO )
+   //if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
    //   strcat(szCurrentProfile, "-1Way");
 
    // Stream Info
@@ -589,20 +589,20 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
          bECChanged = true;
 
-      u32 uECSpreadHigh = (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpreadHigh = (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
       u32 uECSpread = uECSpreadLow | (uECSpreadHigh<<1);
       szBuff2[0] = 0;
       if ( pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
          sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
       }
       else
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
+            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
          sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
       }
 
@@ -635,7 +635,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       float wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( ! (pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS) )
+      if ( ! (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
       {
          strcpy(szBuff, "Off");
          g_pRenderEngine->setColors(get_Color_IconWarning());
@@ -664,9 +664,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          osd_set_colors();
 
          //sprintf(szBuff, "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
-         //       szBuff3, 5*(((pVDS->uEncodingFlags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
+         //       szBuff3, 5*(((pVDS->uProfileEncodingFlags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
             
-         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->uEncodingFlags) & 0xFF00) >> 8));
+         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->uProfileEncodingFlags) & 0xFF00) >> 8));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
          if ( bIsNormal || bIsExtended )
          {
@@ -683,7 +683,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
+      if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
       {
          char szBuff3[64];
          sprintf(szBuff3, "On");
@@ -710,7 +710,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
+      if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
       {
          sprintf(szBuff, "On ");
          g_pRenderEngine->setColors(get_Color_IconSucces());
@@ -718,7 +718,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          osd_set_colors();
 
-         sprintf(szBuff, "(%d)", (int)(pVDS->uEncodingFlags2 & 0xFF));
+         sprintf(szBuff, "(%d)", (int)(pVDS->uVideoStatusFlags2 & 0xFF));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff);
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          
@@ -805,7 +805,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          sprintf(szTmp, "-%d", diffEC);
          strcat(szVideoLevelRecv, szTmp);
       }
-      else if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+      else if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
          strcat(szVideoLevelRecv, "-");
       
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s / %s", szVideoLevelRequested, szVideoLevelAck, szVideoLevelRecv);
@@ -3550,7 +3550,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeAverage && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeMinim )
       sprintf(szBuff, "%d/%d ms", g_SM_ControllerRetransmissionsStats.retransmissionTimeMinim, g_SM_ControllerRetransmissionsStats.retransmissionTimeAverage);
-   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Min/Avg:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
@@ -3558,7 +3558,7 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    strcpy(szBuff, "N/A");
    if ( NULL != g_pSM_ControllerRetransmissionsStats && MAX_U32 != g_SM_ControllerRetransmissionsStats.retransmissionTimeLast )
       sprintf(szBuff, "%d ms", g_SM_ControllerRetransmissionsStats.retransmissionTimeLast);
-   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS ) )
+   if ( ! (g_pCurrentModel->video_link_profiles[(g_SM_VideoDecodeStats.video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS ) )
       strcpy(szBuff, "Disabled");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Video RT Last:", szBuff);
    y += height_text*s_OSDStatsLineSpacing;

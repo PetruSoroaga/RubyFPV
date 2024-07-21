@@ -180,13 +180,13 @@ void MenuTXPowerMax::valuesToUI()
       if ( m_bVehicleHas24OnlyCards )
          m_pItemsSlider[0]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
       if ( m_bVehicleHas58Cards )
-         m_pItemsSlider[0]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL );
+         m_pItemsSlider[0]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU );
    }
    if ( -1 != m_IndexPowerMaxVehicleAtheros && m_bVehicleHas24OnlyCards )
       m_pItemsSlider[1]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
 
    if ( -1 != m_IndexPowerMaxVehicleRTL && m_bVehicleHas58Cards )
-      m_pItemsSlider[2]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL);
+      m_pItemsSlider[2]->setCurrentValue( g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU);
 }
 
 
@@ -201,16 +201,16 @@ void MenuTXPowerMax::Render()
    RenderEnd(yTop);    
 }
 
-void MenuTXPowerMax::sendMaxPowerToVehicle(int txMax, int txMaxAtheros, int txMaxRTL)
+void MenuTXPowerMax::sendMaxPowerToVehicle(int txMaxRTL8812AU, int txMaxRTL8812EU, int txMaxAtheros)
 {
    u8 buffer[10];
    memset(&(buffer[0]), 0, 10);
-   buffer[0] = g_pCurrentModel->radioInterfacesParams.txPower;
-   buffer[1] = g_pCurrentModel->radioInterfacesParams.txPowerAtheros;
-   buffer[2] = g_pCurrentModel->radioInterfacesParams.txPowerRTL;
-   buffer[3] = txMax;
-   buffer[4] = txMaxAtheros;
-   buffer[5] = txMaxRTL;
+   buffer[0] = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU;
+   buffer[1] = g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU;
+   buffer[2] = g_pCurrentModel->radioInterfacesParams.txPowerAtheros;
+   buffer[3] = txMaxRTL8812AU;
+   buffer[4] = txMaxRTL8812EU;
+   buffer[5] = txMaxAtheros;
 
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TX_POWERS, 0, buffer, 8) )
        valuesToUI();
@@ -277,9 +277,9 @@ void MenuTXPowerMax::onSelectItem()
    if ( m_IndexPowerMaxVehicle == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
    {
       int val = m_pItemsSlider[0]->getCurrentValue();
-      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPower;
+      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
       int txMaxAtheros = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
-      int txMaxRTL = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL;
+      int txMaxRTL = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
 
       if ( m_bVehicleHas24OnlyCards )
          txMaxAtheros = val;
@@ -291,16 +291,16 @@ void MenuTXPowerMax::onSelectItem()
    }
    if ( m_IndexPowerMaxVehicleAtheros == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
    {
-      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPower;
+      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
       int txMaxAtheros = m_pItemsSlider[1]->getCurrentValue();
-      int txMaxRTL = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL;
+      int txMaxRTL = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
       sendMaxPowerToVehicle(txMax, txMaxAtheros, txMaxRTL);
       return;
    }
 
    if ( m_IndexPowerMaxVehicleRTL == m_SelectedIndex && menu_check_current_model_ok_for_edit() )
    {
-      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPower;
+      int txMax = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
       int txMaxAtheros = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
       int txMaxRTL = m_pItemsSlider[2]->getCurrentValue();
       sendMaxPowerToVehicle(txMax, txMaxAtheros, txMaxRTL);

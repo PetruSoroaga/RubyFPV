@@ -33,7 +33,6 @@
 #include "menu_objects.h"
 #include "menu_controller.h"
 #include "menu_text.h"
-#include "menu_txinfo.h"
 #include "menu_system_expert.h"
 #include "menu_system_video_profiles.h"
 #include "menu_item_section.h"
@@ -309,7 +308,7 @@ void MenuSystemVideoProfiles::valuesToUI()
       m_pItemsSlider[0]->setEnabled(false);
    else
    {
-      int miliSec = ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & 0xFF00 ) >> 8;
+      int miliSec = ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & 0xFF00 ) >> 8;
       m_pItemsSlider[0]->setCurrentValue(miliSec*5);
       m_pItemsSlider[0]->setEnabled(true);
    }
@@ -407,9 +406,9 @@ void MenuSystemVideoProfiles::valuesToUI()
       return;
    }
 
-   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT ) != VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO )
+   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT ) != VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO )
    {
-       u32 percent = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT;
+       u32 percent = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT;
        percent = percent >> 16;
        percent = (percent >> 4) & 0x0F;
        if ( percent <= 10 )
@@ -468,8 +467,8 @@ void MenuSystemVideoProfiles::valuesToUI()
       }
 
       m_pItemsSelect[k*20+18]->setEnabled(true);
-      m_pItemsSelect[k*20+18]->setSelectedIndex((g_pCurrentModel->video_link_profiles[k].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME)?1:0);
-      if ( g_pCurrentModel->video_link_profiles[k].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME )
+      m_pItemsSelect[k*20+18]->setSelectedIndex((g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?1:0);
+      if ( g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME )
       {
          if ( NULL != m_pItemsSlider[k*20+12] )
             m_pItemsSlider[k*20+12]->setEnabled(false);
@@ -477,13 +476,13 @@ void MenuSystemVideoProfiles::valuesToUI()
             m_pItemsSlider[k*20+13]->setEnabled(false);
       }
 
-      int miliSec = ( g_pCurrentModel->video_link_profiles[k].uEncodingFlags & 0xFF00 ) >> 8;
+      int miliSec = ( g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & 0xFF00 ) >> 8;
       m_pItemsSlider[k*20+15]->setCurrentValue(miliSec*5);
       m_pItemsSlider[k*20+15]->setEnabled(true);
 
-      if ( (g_pCurrentModel->video_link_profiles[k].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT ) != VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO )
+      if ( (g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT ) != VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO )
       {
-         u32 percent = g_pCurrentModel->video_link_profiles[k].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT;
+         u32 percent = g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT;
          percent = percent >> 16;
          percent = percent & 0x0F;
          if ( percent <= 10 )
@@ -521,8 +520,8 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 
    u32 miliSec = m_pItemsSlider[0]->getCurrentValue()/5;
    miliSec = (miliSec & 0xFF) << 8;
-   profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags &= 0xFFFF00FF;
-   profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags |= miliSec;
+   profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags &= 0xFFFF00FF;
+   profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags |= miliSec;
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
@@ -533,7 +532,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       if ( i == VIDEO_PROFILE_MQ || i == VIDEO_PROFILE_LQ )
          iDuplication = m_pItemsSelect[i*20+14]->getSelectedIndex();
 
-      pProfile->uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT);
+      pProfile->uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT);
       u32 value = 0;
       if ( iDuplication >= 1 )
          value = value | ((u32)(iDuplication-1));
@@ -545,7 +544,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       else
          value = value | 0xF0;
 
-      pProfile->uEncodingFlags |= (value<<16);
+      pProfile->uProfileEncodingFlags |= (value<<16);
    }
 
    // Propagate changes to lower video profile
@@ -580,8 +579,8 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 
       miliSec = m_pItemsSlider[k*20+15]->getCurrentValue()/5;
       miliSec = (miliSec & 0xFF) << 8;
-      profiles[k].uEncodingFlags &= 0xFFFF00FF;
-      profiles[k].uEncodingFlags |= miliSec;
+      profiles[k].uProfileEncodingFlags &= 0xFFFF00FF;
+      profiles[k].uProfileEncodingFlags |= miliSec;
 
       log_line("Set video profile %d radio data rate to (video/data): %d/%d", k, profiles[k].radio_datarate_video_bps, profiles[k].radio_datarate_data_bps);
 
@@ -596,18 +595,18 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
          profiles[k].keyframe_ms = -m_pItemsSlider[k*20+17]->getCurrentValue();
       
       if ( 0 == m_pItemsSelect[k*20+18]->getSelectedIndex() )
-         profiles[k].uEncodingFlags &= (~VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME);
+         profiles[k].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME);
       else
-         profiles[k].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
+         profiles[k].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
       profiles[k].video_data_length = m_pItemsSlider[k*20+11]->getCurrentValue();
       profiles[k].block_packets = m_pItemsSlider[k*20+12]->getCurrentValue();
       profiles[k].block_fecs    = m_pItemsSlider[k*20+13]->getCurrentValue();
       profiles[k].bitrate_fixed_bps = m_pItemsSlider[k*20+10]->getCurrentValue()*1000*1000/4;
    }
 
-   log_line("Sending video encoding flags for user selected profile: %s", str_format_video_encoding_flags(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags));
-   log_line("Sending video encoding flags for MQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_MQ].uEncodingFlags));
-   log_line("Sending video encoding flags for LQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_LQ].uEncodingFlags));
+   log_line("Sending video encoding flags for user selected profile: %s", str_format_video_encoding_flags(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags));
+   log_line("Sending video encoding flags for MQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags));
+   log_line("Sending video encoding flags for LQ video profile: %s", str_format_video_encoding_flags(profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags));
 
    u8 buffer[1024];
    memcpy( buffer, &(profiles[0]), MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile) );

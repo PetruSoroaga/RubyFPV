@@ -374,7 +374,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    y += 0.25 * height_text*s_OSDStatsLineSpacing;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Video Lookup Intv. U/D:");
-   int adaptiveVideoIsOn = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int adaptiveVideoIsOn = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
    if ( adaptiveVideoIsOn )
       sprintf(szBuff, "%u / %u of %d", (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 >> 16 ) & 0xFFFF, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexVehicleRuntimeInfo].uIntervalsAdaptive1 & 0xFFFF, MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS );
    else
@@ -508,7 +508,7 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
       sprintf(szTmp, "-%d", diffEC);
       strcat(szBuff, szTmp);
    }
-   else if ( pVDS->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE )
+   else if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
 
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -754,7 +754,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    {
       bool bAdaptiveVideoOn = false;
       if ( NULL != g_pCurrentModel )
-         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
+         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK?true:false;
       if ( bAdaptiveVideoOn )
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, "No Info Available");
       else
@@ -765,7 +765,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "User / Current Profile :");
    strcpy(szBuff1, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.userVideoLinkProfile) );
    strcpy(szBuff2, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) );
-   //if ( (NULL != g_pSM_VideoDecodeStats) && (g_SM_VideoDecodeStats.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_STATUS_ON_LOWER_BITRATE) )
+   //if ( (NULL != g_pSM_VideoDecodeStats) && (g_SM_VideoDecodeStats.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
    //   strcat(szBuff2, "-");
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szBuff1, szBuff2 );
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -811,7 +811,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
 
    /*
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Uses Controller Feedback:");
-   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
       strcpy(szBuff, "Yes");
    else
       strcpy(szBuff, "No");
@@ -947,7 +947,7 @@ float osd_render_stats_video_graphs_get_width()
 
 void osd_render_stats_video_graphs(float xPos, float yPos)
 {
-   bool useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
+   bool useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?true:false;
    
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
@@ -990,7 +990,7 @@ void osd_render_stats_video_graphs(float xPos, float yPos)
    {
       bool bAdaptiveVideoOn = false;
       if ( NULL != g_pCurrentModel )
-         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS?true:false;
+         bAdaptiveVideoOn = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK?true:false;
       if ( bAdaptiveVideoOn )
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, "No Info Available");
       else

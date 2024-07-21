@@ -22,12 +22,14 @@ class MenuVehicleVideo: public Menu
       int m_iVideoResolutionsCount;
       int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
       int m_IndexVideoBitrate;
+      int m_IndexVideoConstantBitrate;
       int m_IndexVideoProfile;
       int m_IndexVideoCodec;
+      int m_IndexIgnoreTxSpikes;
       int m_IndexExpert;
       int m_IndexForceCameraMode;
       int m_IndexVideoLinkMode;
-      int m_IndexAdaptiveVideoSettings;
+      int m_IndexBidirectionalVideoSettings;
       int m_IndexRecording;
       MenuItem* m_pMenuItemVideoWarning;
       MenuItem* m_pMenuItemVideoRecording;

@@ -96,15 +96,8 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(uDelayMS);
    int dataRateMb = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS/1000/1000;
-   if ( s_bIsStation )
-   {
-      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
-      dataRateMb = controllerGetCardDataRate(pRadioHWInfo->szMAC);
-      if ( dataRateMb > 0 )
-         dataRateMb = dataRateMb / 1000 / 1000;
-      #endif
-   }
-   else if ( giDataRateMbAtheros > 0 )
+   if ( ! s_bIsStation )
+   if ( giDataRateMbAtheros > 0 )
       dataRateMb = giDataRateMbAtheros;
    
    if ( dataRateMb == 0 )

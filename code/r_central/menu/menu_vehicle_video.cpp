@@ -34,7 +34,7 @@
 #include "../../base/controller_utils.h"
 #include "menu.h"
 #include "menu_vehicle_video.h"
-#include "menu_vehicle_video_adaptive.h"
+#include "menu_vehicle_video_bidir.h"
 #include "menu_vehicle_video_profile.h"
 #include "menu_vehicle_video_encodings.h"
 #include "menu_item_select.h"
@@ -46,9 +46,11 @@
 MenuVehicleVideo::MenuVehicleVideo(void)
 :Menu(MENU_ID_VEHICLE_VIDEO, "Video Settings", NULL)
 {
-   m_Width = 0.36;
+   m_Width = 0.42;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.1;
    float fSliderWidth = 0.12 * Menu::getScaleFactor();
+   float dxMargin = 0.03 * Menu::getScaleFactor();
+
    char szBuff[32];
 
    char szCam[256];
@@ -66,6 +68,12 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSelect[2]->disableClick();
    m_pItemsSelect[2]->setExtraHeight(3.0*Menu::getSelectionPaddingY());
    m_IndexVideoProfile = addMenuItem(m_pItemsSelect[2]);
+
+   m_pItemsSelect[10] = new MenuItemSelect("Video Codec", "Change the codec used to encode the source video stream.");
+   m_pItemsSelect[10]->addSelection("H264");
+   m_pItemsSelect[10]->addSelection("H265");
+   m_pItemsSelect[10]->setIsEditable();
+   m_IndexVideoCodec = addMenuItem(m_pItemsSelect[10]);
 
    m_pMenuItemVideoWarning = new MenuItemText("", true);
    m_pMenuItemVideoWarning->setHidden(true);
@@ -133,32 +141,43 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSlider[2]->enableHalfSteps();
    m_IndexVideoBitrate = addMenuItem(m_pItemsSlider[2]);
 
-   m_pItemsSelect[10] = new MenuItemSelect("Video Codec", "Change the codec used to encode the source video stream.");
-   m_pItemsSelect[10]->addSelection("H264");
-   m_pItemsSelect[10]->addSelection("H265");
-   m_pItemsSelect[10]->setIsEditable();
-   m_IndexVideoCodec = addMenuItem(m_pItemsSelect[10]);
+   m_pItemsSelect[13] = new MenuItemSelect("Keep constant", "Adjust camera bitrate (when there are variations due to scenery change) to try to keep the set fixed bitrate.");
+   m_pItemsSelect[13]->addSelection("Off");
+   m_pItemsSelect[13]->addSelection("On");
+   m_pItemsSelect[13]->setIsEditable();
+   m_pItemsSelect[13]->setMargin(dxMargin);
+   m_IndexVideoConstantBitrate = addMenuItem(m_pItemsSelect[13]);
+
+   m_pItemsSelect[12] = new MenuItemSelect("Ignore Video Spikes", "Ignores momentary spikes in video bandwidth or tx time and don't do any video bitrate adjustments.");
+   m_pItemsSelect[12]->addSelection("Off");
+   m_pItemsSelect[12]->addSelection("On");
+   m_pItemsSelect[12]->setIsEditable();
+   m_pItemsSelect[12]->setMargin(dxMargin);
+   m_IndexIgnoreTxSpikes = addMenuItem(m_pItemsSelect[12]);
 
    addMenuItem(new MenuItemSection("Video Link Mode"));
 
    m_pItemsRadio[0] = new MenuItemRadio("", "Set the way video link behaves: fixed broadcast video, or auto adaptive video link and stream.");
-   m_pItemsRadio[0]->addSelection("Fixed One Way Video Link", "The radio video link will be fixed, one way broadcast, no retransmissions will take place, video quality or video parameters are not adjusted in real time.");
-   m_pItemsRadio[0]->addSelection("Adaptive Video Link", "Radio video link and video link parameters will automatically adjust in real time based on radio conditions.");
+   m_pItemsRadio[0]->addSelection("Fixed One Way Video Link", "The radio video link will be fixed, one way broadcast, no retransmissions will take place, video quality and video parameters are not adjusted in real time.");
+   m_pItemsRadio[0]->addSelection("Bidirectional/Adaptive Video Link", "Video and radio link parameters will be adjusted automatically in real time based on radio conditions.");
    m_pItemsRadio[0]->setEnabled(true);
    m_pItemsRadio[0]->useSmallLegend(true);
    m_IndexVideoLinkMode = addMenuItem(m_pItemsRadio[0]);
 
-   m_IndexAdaptiveVideoSettings = addMenuItem(new MenuItem("Adaptive Video Settings", "Change adaptive video settings."));
-   m_pMenuItems[m_IndexAdaptiveVideoSettings]->showArrow();
+   m_IndexBidirectionalVideoSettings = addMenuItem(new MenuItem("Bidirectional/Adaptive Video Settings", "Change retransmissions, auto keyframe, adaptive video settings."));
+   m_pMenuItems[m_IndexBidirectionalVideoSettings]->showArrow();
+   m_pMenuItems[m_IndexBidirectionalVideoSettings]->setMargin( 0.024 * Menu::getScaleFactor());
 
+   addSeparator();
+
+   m_IndexExpert = addMenuItem(new MenuItem("Advanced Video Settings", "Change advanced video parameters for current profile."));
+   m_pMenuItems[m_IndexExpert]->showArrow();
+   
    m_pMenuItemVideoRecording = new MenuItem("Start Video Recording");
    if ( g_bVideoRecordingStarted )
        m_pMenuItemVideoRecording->setTitle("Stop Video Recording");
    m_pMenuItemVideoRecording->setTooltip("Manually start or stop video recording right now for this video stream");
    m_IndexRecording = addMenuItem(m_pMenuItemVideoRecording);
-
-   m_IndexExpert = addMenuItem(new MenuItem("Advanced Video Settings", "Change advanced video parameters for current profile."));
-   m_pMenuItems[m_IndexExpert]->showArrow();
 }
 
 MenuVehicleVideo::~MenuVehicleVideo()
@@ -174,6 +193,7 @@ void MenuVehicleVideo::valuesToUI()
 
    int iCameraProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    camera_profile_parameters_t* pCamProfile = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfile]);
+   u32 uVideoProfileEncodingFlags = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags;
 
    m_pItemsSelect[10]->setEnabled(true);
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
@@ -221,6 +241,18 @@ void MenuVehicleVideo::valuesToUI()
    if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_HIGH_QUALITY )
       m_pItemsSelect[2]->setSelectedIndex(1);
 
+   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE )
+   {
+      m_pItemsSelect[13]->setSelectedIndex(1);
+      m_pItemsSelect[12]->setEnabled(true);
+   }
+   else
+   {
+      m_pItemsSelect[13]->setSelectedIndex(0);
+      m_pItemsSelect[12]->setEnabled(false);
+   }
+   m_pItemsSelect[12]->setSelectedIndex((uVideoProfileEncodingFlags & VIDEO_FLAG_IGNORE_TX_SPIKES)?1:0);
+
    int iFixedVideoLink = 0;
    if ( g_pCurrentModel->isVideoLinkFixedOneWay() )
       iFixedVideoLink = 1;
@@ -228,9 +260,9 @@ void MenuVehicleVideo::valuesToUI()
    m_pItemsRadio[0]->setFocusedIndex(1-iFixedVideoLink);
 
    if ( iFixedVideoLink )
-      m_pMenuItems[m_IndexAdaptiveVideoSettings]->setEnabled(false);
+      m_pMenuItems[m_IndexBidirectionalVideoSettings]->setEnabled(false);
    else
-      m_pMenuItems[m_IndexAdaptiveVideoSettings]->setEnabled(true);
+      m_pMenuItems[m_IndexBidirectionalVideoSettings]->setEnabled(true);
 }
 
 void MenuVehicleVideo::Render()
@@ -361,13 +393,16 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    pProfile->bitrate_fixed_bps = m_pItemsSlider[2]->getCurrentValue()*1000*1000/4;
 
-   pProfile->uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
+   pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO;
    if ( 0 == m_pItemsRadio[0]->getSelectedIndex() )
-      pProfile->uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ONE_WAY_FIXED_VIDEO;
+      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO;
 
+   pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE;
+   if ( 1 == m_pItemsSelect[13]->getSelectedIndex() )
+      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE;
 
    if ( ! forceUpdates )
-   if ( pProfile->uEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags )
+   if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags )
    if ( pProfile->width == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
    if ( pProfile->height == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
    if ( pProfile->fps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
@@ -381,7 +416,7 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
 
    if ( pProfile->fps != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
      log_line("Sending new video FPS %d -> %d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps, pProfile->fps);
-   log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uEncodingFlags));
+   log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
       
    u8 buffer[1024];
    memcpy( buffer, &(profiles[0]), MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile) );
@@ -458,7 +493,7 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( m_IndexVideoBitrate == m_SelectedIndex )
+   if ( (m_IndexVideoBitrate == m_SelectedIndex) || (m_IndexVideoConstantBitrate == m_SelectedIndex) )
    {
       sendVideoLinkProfiles();
       return;
@@ -466,6 +501,24 @@ void MenuVehicleVideo::onSelectItem()
    if ( m_IndexVideoProfile == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuVehicleVideoProfileSelector());
+      return;
+   }
+
+   if ( m_IndexIgnoreTxSpikes == m_SelectedIndex )
+   {
+      video_parameters_t paramsOld;
+      memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      if ( 0 == m_pItemsSelect[12]->getSelectedIndex() )
+         g_pCurrentModel->video_params.uVideoExtraFlags &= ~(VIDEO_FLAG_IGNORE_TX_SPIKES);
+      else
+         g_pCurrentModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
+
+      video_parameters_t paramsNew;
+      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      memcpy(&g_pCurrentModel->video_params, &paramsOld, sizeof(video_parameters_t));
+
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+         valuesToUI();
       return;
    }
 
@@ -485,8 +538,8 @@ void MenuVehicleVideo::onSelectItem()
       sendVideoLinkProfiles();
    }
 
-   if ( m_IndexAdaptiveVideoSettings == m_SelectedIndex )
-      add_menu_to_stack(new MenuVehicleVideoAdaptive());
+   if ( m_IndexBidirectionalVideoSettings == m_SelectedIndex )
+      add_menu_to_stack(new MenuVehicleVideoBidirectional());
 
    if ( m_IndexExpert == m_SelectedIndex )
       add_menu_to_stack(new MenuVehicleVideoEncodings());
@@ -514,22 +567,17 @@ void MenuVehicleVideo::onSelectItem()
          paramsNew.uVideoExtraFlags &= ~VIDEO_FLAG_GENERATE_H265;
       else
       {
-         //addMessage("H265 is not enabled yet.");
-         //valuesToUI();
-         //return;
-
-         bool bCanDoH265 = true;
-         if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
-            bCanDoH265 = false;
          #if defined (HW_PLATFORM_RASPBERRY)
-         bCanDoH265 = false;
+         addMessage("Your controller Raspberry Pi hardware supports only H264 video decoder. Can't use H265 codec.");
+         valuesToUI();
+         return;
          #endif
-         if ( ! bCanDoH265 )
+         if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
          {
-            addMessage("Raspberry Pi hardware supports only H264 video encoder/decoder.");
+            addMessage("Your vehicle raspberry Pi hardware supports only H264 video encoder/decoder.");
             valuesToUI();
             return;
-         }
+         }         
          paramsNew.uVideoExtraFlags |= VIDEO_FLAG_GENERATE_H265;
       }
 

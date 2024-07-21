@@ -201,9 +201,9 @@ float MenuSystemAllParams::renderVehicleCamera(float xPos, float yPos, float wid
       strcpy(szTemp, "[USR]");
 
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "S: %s/%d/%d/%d", szTemp, 
-              (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS)?1:0,
+              (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)?1:0,
               0,
-              (((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags)>>8)&0xFF)*5);
+              (((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags)>>8)&0xFF)*5);
    yPos += g_pRenderEngine->drawMessageLines(xPos+ 0.16*m_sfScaleFactor, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
@@ -397,7 +397,6 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 
    char szBuff[1024];
-   char szTemp[1024];
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText(), 0.6);
@@ -411,53 +410,15 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   sprintf(szBuff, "Controller radio datarates: ");
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-      int dataRateCard = controllerGetCardDataRate(pNICInfo->szMAC);
-      sprintf(szTemp, "%d: ", i);
-      strcat(szBuff, szTemp);
-      if ( dataRateCard == 0 )
-         strcat(szBuff, "Same as vehicle");
-      else
-         str_getDataRateDescription(dataRateCard, 0, szTemp);
-      
-      if ( i < hardware_get_radio_interfaces_count()-1 )
-         strcat(szBuff, ", ");
-   }
-
-   yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
-   yPos += MENU_TEXTLINE_SPACING * height_text;
-
    if ( NULL == g_pCurrentModel )
       return 0.0;
 
-   sprintf(szBuff, "Vehicle TX power: %d", g_pCurrentModel->radioInterfacesParams.txPower);
+   sprintf(szBuff, "Vehicle TX power (RTL8812AU): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
-   sprintf(szBuff, "Vehicle radio datarates: ");
-   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
-   {
-      if ( i != 0 )
-         strcat(szBuff,", ");
-      if ( g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i] < 0 )
-      {
-         sprintf(szTemp, "MCS-%d (%d Mbps), STBC: %s", -g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, getRealDataRateFromMCSRate(-g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]-1, 0)/1000/1000, (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[i] & RADIO_FLAG_STBC_VEHICLE)?"Yes":"No");
-         strcat(szBuff, szTemp);
-      }
-      else
-      {
-         sprintf(szTemp, "%d Mbps", g_pCurrentModel->radioInterfacesParams.interface_datarate_video_bps[i]);
-         strcat(szBuff, szTemp);
-      }
-   }
-   yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
-   yPos += MENU_TEXTLINE_SPACING * height_text;
-
-   //sprintf(szBuff, "Vehicle adaptive video link: %s", (g_pCurrentModel->video_params.uEncodingFlags & VIDEO_ENCODINGS_FLAGS_AUTO_SWITCH_VIDEO_LINK_QUALITY)?"yes":"no");
+   //sprintf(szBuff, "Vehicle adaptive video link: %s", (g_pCurrentModel->video_params.uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_SWITCH_VIDEO_LINK_QUALITY)?"yes":"no");
    //yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    //yPos += 0.4 * m_sfMenuPaddingY*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING)*fScale;
 
@@ -548,7 +509,7 @@ float MenuSystemAllParams::renderDeveloperFlags(float xPos, float yPos, float wi
    g_pRenderEngine->setColors(get_Color_MenuText());
 
    if ( NULL != g_pCurrentModel )
-      sprintf(szBuff, "LiveLog: %d, RSFS: %d, RTW: %d ms", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?1:0, (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?1:0, (( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & 0xFF00 ) >> 8 ) * 5);
+      sprintf(szBuff, "LiveLog: %d, RSFS: %d, RTW: %d ms", (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LIVE_LOG)?1:0, (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE)?1:0, (( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & 0xFF00 ) >> 8 ) * 5);
    else
       sprintf(szBuff, "No vehicle selected.");
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);

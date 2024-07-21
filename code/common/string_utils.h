@@ -41,7 +41,7 @@ void str_get_radio_capabilities_description(u32 flags, char* szOutput);
 void str_get_radio_frame_flags_description(u32 radioFlags, char* szOutput);
 char* str_get_radio_frame_flags_description2(u32 radioFlags);
 
-char* str_format_video_encoding_flags(u32 uVideoEncodingFlags);
+char* str_format_video_encoding_flags(u32 uVideoProfileEncodingFlags);
 char* str_get_video_profile_name(u32 videoProfileId);
 char* str_get_radio_stream_name(int iStreamId);
 

@@ -1782,17 +1782,17 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_TX_POWERS:
       {
          u8* pData = &s_CommandBuffer[0];
-         u8 txPowerGlobal = *pData;
+         u8 txPowerRTL8812AU = *pData;
+         pData++;
+         u8 txPowerRTL8812EU = *pData;
          pData++;
          u8 txPowerAtheros = *pData;
          pData++;
-         u8 txPowerRTL = *pData;
+         u8 txMaxPowerRTL8812AU = *pData;
          pData++;
-         u8 txMaxPower = *pData;
+         u8 txMaxPowerRTL8812EU = *pData;
          pData++;
          u8 txMaxPowerAtheros = *pData;
-         pData++;
-         u8 txMaxPowerRTL = *pData;
          pData++;
          u8 cardIndex = *pData;
          pData++;
@@ -1800,28 +1800,22 @@ bool handle_last_command_result()
          pData++;
 
          log_line("[Commands] Received set tx powers confirmation: set: %d, %d, %d / max: %d, %d, %d / card: %d %d",
-            txPowerGlobal, txPowerAtheros, txPowerRTL,
-            txMaxPower, txMaxPowerAtheros, txMaxPowerRTL, cardIndex, cardPower);
+            txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros,
+            txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros, cardIndex, cardPower);
 
-         if ( (txMaxPower > 0) && (txMaxPower != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txMaxPower = txMaxPower;
+         if ( (txMaxPowerRTL8812AU > 0) && (txMaxPowerRTL8812AU != 0xFF) )
+            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;
+         if ( (txMaxPowerRTL8812EU > 0) && (txMaxPowerRTL8812EU != 0xFF) )
+            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU = txMaxPowerRTL8812EU;
          if ( (txMaxPowerAtheros > 0) && (txMaxPowerAtheros != 0xFF) )
             g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros = txMaxPowerAtheros;
-         if ( (txMaxPowerRTL > 0) && (txMaxPowerRTL != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL = txMaxPowerRTL;
 
-         if ( (txPowerGlobal > 0) && (txPowerGlobal != 0xFF) && (txPowerAtheros == 0) && (txPowerRTL == 0) )
-         {
-            txPowerAtheros = txPowerGlobal;
-            txPowerRTL = txPowerGlobal;
-         }          
-
-         if ( (txPowerGlobal > 0) && (txPowerGlobal != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txPower = txPowerGlobal;
+         if ( (txPowerRTL8812EU > 0) && (txPowerRTL8812EU != 0xFF) )
+            g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = txPowerRTL8812EU;
+         if ( (txPowerRTL8812AU > 0) && (txPowerRTL8812AU != 0xFF) )
+            g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = txPowerRTL8812AU;
          if ( (txPowerAtheros > 0) && (txPowerAtheros != 0xFF) )
             g_pCurrentModel->radioInterfacesParams.txPowerAtheros = txPowerAtheros;
-         if ( (txPowerRTL > 0) && (txPowerRTL != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txPowerRTL = txPowerRTL;
 
          if ( (cardPower > 0) && (cardPower != 0xFF) )
          if ( cardIndex < g_pCurrentModel->radioInterfacesParams.interfaces_count )

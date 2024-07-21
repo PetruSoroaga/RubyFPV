@@ -84,7 +84,7 @@ int load_ControllerSettings();
 void reset_ControllerSettings();
 ControllerSettings* get_ControllerSettings();
 
-u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoFlags);
+u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVideoProfileFlags);
 
 #ifdef __cplusplus
 }  

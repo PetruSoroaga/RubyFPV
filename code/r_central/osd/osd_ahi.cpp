@@ -70,6 +70,7 @@ float s_LineThicknessPx = 1.0;
 float s_ShadowThicknessPx = 1.0;
 
 
+float s_fAHIAverageConstant = 0.3;
 float s_ahi_lastGSpeed = 0.0;
 float s_ahi_lastASpeed = 0.0;
 float s_ahi_lastAltitude = 0.0;
@@ -130,10 +131,10 @@ void osd_show_ahi_heading(float yTop, float fWidth)
    //static int heading = 0;
    //heading++;
 
-   if ( heading > 360 )
-      heading -= 360;
+   if ( heading >= 360 )
+      heading = (heading % 360);
    if ( heading < 0 )
-      heading += 360;
+      heading = (((heading %360) + 360) % 360);
 
    char szBuff[64];
    int headingValues = 100;
@@ -152,7 +153,7 @@ void osd_show_ahi_heading(float yTop, float fWidth)
       int hdng = i;
       if ( hdng < 0 )
          hdng += 360;
-
+      hdng = hdng % 360;
       float xPos = 0.5 + (i - heading) * fWidth/headingValues;
       if ( (i%5) == 0 )
       {         
@@ -528,7 +529,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
         tmp32 = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.aspeed;
         fSpeed = (tmp32/100.0f-1000.0)*3.6f; // m/s->km/h
         fSpeed = _osd_convertKm(fSpeed);     
-        s_ahi_lastASpeed = s_ahi_lastASpeed * 0.6 + 0.4 * fSpeed;
+        s_ahi_lastASpeed = s_ahi_lastASpeed * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * fSpeed;
         fUISpeed = s_ahi_lastASpeed;
         sprintf(szBuff, "%.1f", s_ahi_lastASpeed);
         if ( 0 == tmp32 )
@@ -548,7 +549,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
       }
       else
          fSpeed = _osd_convertMeters(fSpeed);
-      s_ahi_lastGSpeed = s_ahi_lastGSpeed * 0.6 + 0.4 * fSpeed;
+      s_ahi_lastGSpeed = s_ahi_lastGSpeed * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * fSpeed;
       fUISpeed = s_ahi_lastGSpeed;
       sprintf(szBuff, "%.1f", s_ahi_lastGSpeed);
       if ( 0 == g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.hspeed )
@@ -581,7 +582,7 @@ void osd_ahi_detailed_show_main_panels_info(float roll, float pitch)
 
       fAltitude = _osd_convertMeters(fAltitude);
 
-      s_ahi_lastAltitude = s_ahi_lastAltitude * 0.6 + 0.4 * fAltitude;
+      s_ahi_lastAltitude = s_ahi_lastAltitude * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * fAltitude;
       if ( fabs(s_ahi_lastAltitude) < 1000.0 )
       {
          if ( fabs(s_ahi_lastAltitude) < 0.1 )
@@ -966,7 +967,7 @@ void osd_ahi_detailed_show_auxiliary_info(float roll, float pitch)
          else
             fSpeed = _osd_convertMeters(fSpeed);
 
-         s_ahi_lastGSpeed = s_ahi_lastGSpeed * 0.6 + 0.4 * fSpeed;
+         s_ahi_lastGSpeed = s_ahi_lastGSpeed * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * fSpeed;
          sprintf(szBuff, "GS: %.1f", s_ahi_lastGSpeed);
          if ( 0 == g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.hspeed )
             strcpy(szBuff, "GS: 0");
@@ -1336,8 +1337,8 @@ void osd_show_ahi(float roll, float pitch)
 
       osd_show_ahi_heading(yHeading, 0.32*ahi_fScale);
    }
-   s_ahi_lastRoll = s_ahi_lastRoll * 0.6 + 0.4 * roll;
-   s_ahi_lastPitch = s_ahi_lastPitch * 0.6 + 0.4 * pitch;
+   s_ahi_lastRoll = s_ahi_lastRoll * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * roll;
+   s_ahi_lastPitch = s_ahi_lastPitch * s_fAHIAverageConstant + (1.0-s_fAHIAverageConstant) * pitch;
 
    /*
    if ( s_bDebugAHIShowAll || (g_pCurrentModel->osd_params.instruments_flags[osd_get_current_layout_index()] & INSTRUMENTS_FLAG_SHOW_HORIZONT) )

@@ -129,6 +129,8 @@ bool popups_has_popup(Popup* p)
 
 void popups_remove(Popup* p)
 {
+   if ( NULL == p )
+      return;
    int i = 0;
    for( ; i<countPopups; i++ )
       if ( NULL != sPopups[i] && sPopups[i] == p )

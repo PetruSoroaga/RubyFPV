@@ -100,7 +100,8 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       strcat(szOutput, " CONTROLLER_STORAGE_WRITE_ERRROR");
    if ( uAlarms & ALARM_ID_CONTROLLER_PAIRING_COMPLETED )
       strcat(szOutput, " CONTROLLER_PAIRING_COMPLETED");
-
+   if ( uAlarms & ALARM_ID_UNSUPPORTED_VIDEO_TYPE )
+      strcat(szOutput, " CONTROLLER_UNSUPPORTED_VIDEO_TYPE");
    if ( uAlarms & ALARM_ID_FIRMWARE_OLD )
       strcat(szOutput, " FIRMWARE_OLD");
    if ( uAlarms & ALARM_ID_CPU_RX_LOOP_OVERLOAD )

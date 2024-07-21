@@ -26,6 +26,8 @@ void warnings_remove_configuring_radio_link(bool bSucceeded);
 Popup* warnings_get_configure_radio_link_popup();
 char* warnings_get_last_message_configure_radio_link();
 
+void warnings_add_unsupported_video(u32 uVehicleId, u32 uType);
+
 
 void warnings_add_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz);
 void warnings_remove_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz, bool bSucceeded);

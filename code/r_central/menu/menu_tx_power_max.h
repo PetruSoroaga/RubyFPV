@@ -13,7 +13,7 @@ class MenuTXPowerMax: public Menu
       virtual void onSelectItem();
 
    private:
-      void sendMaxPowerToVehicle(int txMax, int txMaxAtheros, int txMaxRTL);
+      void sendMaxPowerToVehicle(int txMaxRTL8812AU, int txMaxRTL8812EU, int txMaxAtheros);
 
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemSelect* m_pItemsSelect[10];

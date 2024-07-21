@@ -64,7 +64,7 @@ void video_link_adaptive_switch_to_med_level(u32 uVehicleId)
    if ( NULL == pModel )
       return;
 
-   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
    if ( ! isAdaptiveVideoOn )
       return;
 
@@ -169,7 +169,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    if ( NULL == pModel )
       return;
 
-   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+   int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
    if ( ! isAdaptiveVideoOn )
       return;
 
@@ -208,7 +208,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    int iLevelsLQ = pModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
    int iMaxLevels = iLevelsHQ;
    iMaxLevels +=  iLevelsMQ;
-   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO) )
+   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
       iMaxLevels += iLevelsLQ;
 
    // videoAdjustmentStrength is 1 (lowest strength) to 10 (highest strength)
@@ -530,7 +530,7 @@ void video_link_adaptive_periodic_loop()
          continue;
       }
 
-      int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uEncodingFlags) & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS)?1:0;
+      int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
       int isAdaptiveKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ? 0 : 1;
 
       if ( ! isAdaptiveVideoOn )

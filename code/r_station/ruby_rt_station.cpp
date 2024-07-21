@@ -567,17 +567,12 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
          continue;
 
       u32 flags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-      t_ControllerRadioInterfaceInfo* pRadioInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-      char szDatarate[64];
       char szFlags[128];
-      szDatarate[0] = 0;
       szFlags[0] = 0;
-      if ( NULL != pRadioInfo )
-         str_getDataRateDescription(pRadioInfo->datarateBPSMCS, 0, szDatarate);
       str_get_radio_capabilities_description(flags, szFlags);
          
-      log_line("Checking controller radio interface %d (%s) settings: MAC: [%s], custom datarate: %s, flags: %s",
-            i+1, pRadioHWInfo->szName, pRadioHWInfo->szMAC, szDatarate, szFlags );
+      log_line("Checking controller radio interface %d (%s) settings: MAC: [%s], flags: %s",
+            i+1, pRadioHWInfo->szName, pRadioHWInfo->szMAC, szFlags );
 
       if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
       {
@@ -908,7 +903,7 @@ int _must_inject_ping_now()
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
       return 0;
 
-   u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags);
+   u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags);
 
    //if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
    //   ping_interval_ms /= g_pCurrentModel->radioLinksParams.links_count;
@@ -1024,8 +1019,8 @@ bool _check_send_or_queue_ping()
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8);
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS )
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
       PH.total_length += get_controller_radio_link_stats_size();
    #endif
@@ -1041,7 +1036,7 @@ bool _check_send_or_queue_ping()
       memcpy(packet+sizeof(t_packet_header)+3*sizeof(u8), &uDestinationRelayMode, sizeof(u8));
    }
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( NULL != g_pCurrentModel && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS) )
+   if ( NULL != g_pCurrentModel && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
    if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
    {
       if ( (g_pCurrentModel->sw_version>>16) > 79 ) // 7.7
@@ -2125,6 +2120,8 @@ int main(int argc, char *argv[])
       radio_rx_set_dev_mode();
       radio_set_debug_flag();
    }
+
+   packet_utils_init();
 
    if ( NULL != g_pControllerSettings )
    {

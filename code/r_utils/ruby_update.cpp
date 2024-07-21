@@ -99,7 +99,7 @@ void do_update_to_95()
    if ( ! s_isVehicle )
    {
       load_ControllerSettings();
-      ControllerSettings* pCS = get_ControllerSettings();
+      //ControllerSettings* pCS = get_ControllerSettings();
       save_ControllerSettings();      
    }
 
@@ -109,8 +109,12 @@ void do_update_to_95()
 
    pModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
-   
+   {
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;   
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+   }
+
    pModel->processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
    pModel->processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
    pModel->processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
@@ -288,31 +292,31 @@ void do_update_to_90()
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
 
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-      pModel->video_link_profiles[i].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
    }
 
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   pModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-   pModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags &= ~(VIDEO_ENCODINGS_FLAGS_MAX_RETRANSMISSION_WINDOW_MASK);
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
    pModel->video_params.user_selected_video_link_profile = VIDEO_PROFILE_BEST_PERF;
 
@@ -351,17 +355,17 @@ void do_update_to_82()
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
 
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= 0xFFFF00FF;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= 0xFFFF00FF;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
 
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_AUTO_EC_SCHEME;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
 
    pModel->video_params.user_selected_video_link_profile = VIDEO_PROFILE_BEST_PERF;
 
@@ -455,22 +459,23 @@ void do_update_to_78()
    pModel->video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
       
    // Update MQ and LQ profiles too
-   type_video_link_profile* pProfile = &(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile]);
+   //type_video_link_profile* pProfile = &(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile]);
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      pModel->video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
-      pModel->video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
-      if ( i == pModel->video_params.user_selected_video_link_profile )
-         continue;
-      if ( (i != VIDEO_PROFILE_MQ) && (i != VIDEO_PROFILE_LQ) )
-         continue;
-      pModel->video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-      pModel->video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
-      if ( pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION )
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-      if ( pProfile->uEncodingFlags & VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+      
+      //if ( i == pModel->video_params.user_selected_video_link_profile )
+      //   continue;
+      //if ( (i != VIDEO_PROFILE_MQ) && (i != VIDEO_PROFILE_LQ) )
+      //   continue;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
+      //if ( pProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
+      //   pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+      //if ( pProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH )
+      //   pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
    }
 
    for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
@@ -512,10 +517,6 @@ void do_update_to_77()
    }
    else
    {
-      char szFile[128];
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CONTROLLER_BUTTONS);
-      unlink(szFile);
       load_ControllerSettings();
       get_ControllerSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
       save_ControllerSettings(); 
@@ -590,8 +591,8 @@ void do_update_to_76()
          }
          for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
-            pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
+            pModel->radioInterfacesParams.interface_dummy1[i] = 0;
+            pModel->radioInterfacesParams.interface_dummy2[i] = 0;
          }
 
          if ( pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
@@ -651,8 +652,8 @@ void do_update_to_74()
          if ( pModel->video_link_profiles[i].h264profile == 3 )
             pModel->video_link_profiles[i].h264profile = 2;
 
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_VIDEO_ADAPTIVE_QUANTIZATION;
-         pModel->video_link_profiles[i].uEncodingFlags &= ~VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+         pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
       }
 
       pModel->setDefaultVideoBitrate();
@@ -694,7 +695,7 @@ void do_update_to_73()
    
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_USE_MEDIUM_ADAPTIVE_VIDEO;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
          // Auto radio datarates for all video profiles
          pModel->video_link_profiles[i].radio_datarate_video_bps = 0;
          pModel->video_link_profiles[i].radio_datarate_data_bps = 0;
@@ -958,21 +959,21 @@ void do_update_to_69()
       pModel->video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
       
 
-      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags &= (~(u32)0xFF00);
-      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags &= (~(u32)0xFF00);
-      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags &= (~(u32)0xFF00);
-      pModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
       
 
       pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
       pModel->video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags &= (~(u32)0xFF00);
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags &= (~(u32)0xFF00);
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= (~(u32)0xFF00);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
    
       pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
       pModel->processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
@@ -984,8 +985,8 @@ void do_update_to_69()
 
       for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       {
-         pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
-         pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
+         pModel->radioInterfacesParams.interface_dummy1[i] = 0;
+         pModel->radioInterfacesParams.interface_dummy2[i] = 0;
       }
 
       pModel->rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
@@ -1027,11 +1028,11 @@ void do_update_to_68()
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
 
-      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_USER].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
       for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
          pModel->osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
@@ -1125,8 +1126,8 @@ void do_update_to_66()
          }
          for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            pModel->radioInterfacesParams.interface_datarate_video_bps[i] = 0;
-            pModel->radioInterfacesParams.interface_datarate_data_bps[i] = 0;
+            pModel->radioInterfacesParams.interface_dummy1[i] = 0;
+            pModel->radioInterfacesParams.interface_dummy2[i] = 0;
          }
          if ( pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
             pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = 5000000;
@@ -1165,7 +1166,7 @@ void do_update_to_65()
    
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       {
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
          pModel->video_link_profiles[i].h264profile = 1; // main profile
          pModel->video_link_profiles[i].h264level = 1; // 4.1
       }
@@ -1226,7 +1227,7 @@ void do_update_to_63()
       pModel->video_params.iH264Slices = 1;
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
 
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
@@ -1278,7 +1279,7 @@ void do_update_to_62()
       pModel->video_params.iH264Slices = 1;
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-         pModel->video_link_profiles[i].uEncodingFlags |= VIDEO_ENCODINGS_FLAGS_ENABLE_RETRANSMISSIONS | VIDEO_ENCODINGS_FLAGS_ENABLE_ADAPTIVE_VIDEO_LINK_PARAMS | VIDEO_ENCODINGS_FLAGS_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO;
 
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
