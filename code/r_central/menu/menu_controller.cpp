@@ -518,8 +518,32 @@ void MenuController::updateSoftware()
    }
 
    m_bWaitingForUserFinishUpdateConfirmation = true;
+
+   char szComm[256];
+   char szOutput[4096];
+   memset(szOutput, 0, 4096);
+   sprintf(szComm, "./ruby_update %d %d", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR);
+   hw_execute_bash_command_raw(szComm, szOutput);
+
+
    MenuConfirmation* pMC = new MenuConfirmation("Update Complete", "Update complete. You can now remove the USB stick. The system will reboot now.",3, true);
    pMC->m_yPos = 0.3;
+
+   if ( 0 < strlen(szOutput) )
+   {
+      char* pSt = szOutput;
+      while (*pSt)
+      {
+         char* pEnd = pSt;
+         while ( (*pEnd != 0) && (*pEnd != 10) && (*pEnd != 13) )
+            pEnd++;
+         *pEnd = 0;
+         if ( pEnd > pSt )
+            pMC->addTopLine(pSt);
+         pSt = pEnd+1;
+      }
+   }
+
    add_menu_to_stack(pMC);
    log_line("Exit from main update procedure (normal exit).");
 }

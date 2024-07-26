@@ -554,6 +554,7 @@ void sendCommandReply(u8 responseFlags, int iResponseExtraParam, int delayMiliSe
 
 void save_config_file()
 {
+   #if defined (HW_PLATFORM_RASPBERRY)
    hardware_mount_boot();
    hardware_sleep_ms(200);
    hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
@@ -576,6 +577,7 @@ void save_config_file()
    config_file_set_value("config.txt", "sdram_freq_min", g_pCurrentModel->processesPriorities.iFreqGPU);
 
    hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
+   #endif
 }
 
 bool _process_file_download_request( u8* pBuffer, int length)
@@ -1013,9 +1015,18 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->processesPriorities.iFreqARM = params->freq_arm;
       g_pCurrentModel->processesPriorities.iFreqGPU = params->freq_gpu;
       g_pCurrentModel->processesPriorities.iOverVoltage = params->overvoltage;
-      log_line("Received overclocking params: %d arm freq, %d gpu freq, %d overvoltage", g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU, g_pCurrentModel->processesPriorities.iOverVoltage);
+      log_line("Received overclocking params: %d mhz arm freq, %d mhz gpu freq, %d overvoltage", g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU, g_pCurrentModel->processesPriorities.iOverVoltage);
       saveCurrentModel();
       save_config_file();
+
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+      char szComm[256];
+      sprintf(szComm, "echo %d | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", g_pCurrentModel->processesPriorities.iFreqARM*1000);
+      hw_execute_bash_command_raw(szComm, NULL);
+      hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+      #endif
+
       return true;
    }
 
@@ -1595,11 +1606,6 @@ bool process_command(u8* pBuffer, int length)
       strcat(szBuffer, szOutput);
       strcat(szBuffer, "+");
       #endif
-
-      sprintf(szOutput, "TxPower Atheros: %d; ", hardware_get_radio_tx_power_atheros());
-      strcat(szBuffer, szOutput);
-      sprintf(szOutput, "TxPower RTL: %d +", hardware_get_radio_tx_power_rtl());
-      strcat(szBuffer, szOutput);
 
       sprintf(szOutput, "Avg/Max loops (ms): rx_commands: %u/%u;", g_pProcessStats->uAverageLoopTimeMs, g_pProcessStats->uMaxLoopTimeMs);
       strcat(szBuffer, szOutput);
@@ -3251,22 +3257,26 @@ bool process_command(u8* pBuffer, int length)
          bUpdated = true;
       }
 
+      if ( bUpdatedWiFi )
+      {
+         #ifdef HW_PLATFORM_RASPBERRY 
+         system("sudo mount -o remount,rw /");
+         system("sudo mount -o remount,rw /boot");
+         #endif
+
+         if ( hardware_radio_has_atheros_cards() )
+         if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > 0 )
+            hardware_radio_set_txpower_atheros((int)g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
+         if ( hardware_radio_has_rtl8812au_cards() )
+         if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > 0 )
+            hardware_radio_set_txpower_rtl8812au((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
+         if ( hardware_radio_has_rtl8812eu_cards() )
+         if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU > 0 )
+            hardware_radio_set_txpower_rtl8812eu((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU);
+      }
+
       if ( bUpdated )
       {
-         if ( bUpdatedWiFi )
-         {
-            #ifdef HW_PLATFORM_RASPBERRY 
-            system("sudo mount -o remount,rw /");
-            system("sudo mount -o remount,rw /boot");
-            #endif
-
-            if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > 0 )
-               hardware_set_radio_tx_power_atheros((int)g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
-
-            if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > 0 )
-               hardware_set_radio_tx_power_rtl((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
-         }
-
          saveCurrentModel();
          signalReloadModel(MODEL_CHANGED_RADIO_POWERS, 0);
       }

@@ -243,6 +243,7 @@ void video_stats_overwrites_switch_to_profile_and_level(int iTotalLevelsShift, i
       bVideoProfileChanged = true;
 
    g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile = iVideoProfile;
+   g_SM_VideoLinkStats.overwrites.uTimeSetCurrentVideoLinkProfile = g_TimeNow;
    g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel = iLevelShift;
    g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate( g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
 
@@ -336,6 +337,7 @@ void _video_stats_overwrites_apply_profile_changes(bool bDownDirection)
    onEventBeforeRuntimeCurrentVideoProfileChanged(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile, s_iTargetProfile);
 
    g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile = s_iTargetProfile;
+   g_SM_VideoLinkStats.overwrites.uTimeSetCurrentVideoLinkProfile = g_TimeNow;
    g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel = s_iTargetShiftLevel;
    g_SM_VideoLinkStats.overwrites.currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(g_pCurrentModel, g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile);
 
@@ -1038,7 +1040,13 @@ void video_stats_overwrites_periodic_loop()
       if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == VIDEO_PROFILE_LQ )
          nRateTxVideo = utils_get_video_profile_lq_radio_datarate(g_pCurrentModel);
 
-      packet_utils_set_adaptive_video_datarate(nRateTxVideo);
+      // If it's increasing, set it right away
+      if ( (0 != packet_utils_get_last_set_adaptive_video_datarate()) &&
+           (getRealDataRateFromRadioDataRate(nRateTxVideo, 0) >= getRealDataRateFromRadioDataRate(packet_utils_get_last_set_adaptive_video_datarate(), 0)) )
+         packet_utils_set_adaptive_video_datarate(nRateTxVideo);
+      // It's decreasing, set it after a short period
+      else if ( g_TimeNow > g_SM_VideoLinkStats.overwrites.uTimeSetCurrentVideoLinkProfile + 80 )
+         packet_utils_set_adaptive_video_datarate(nRateTxVideo);
    }
 
    video_link_check_adjust_quantization_for_overload_periodic_loop();

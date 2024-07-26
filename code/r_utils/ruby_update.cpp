@@ -107,14 +107,28 @@ void do_update_to_95()
    if ( NULL == pModel )
       return;
 
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+   hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
+   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+   pModel->processesPriorities.iFreqARM = 1100;
+   #endif
+
    pModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
       pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;   
       pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
       pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
-   }
 
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      {
+         if ( pModel->video_link_profiles[i].fps < DEFAULT_VIDEO_FPS_OIPC )
+            pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+      }
+      #endif
+   }
    pModel->processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
    pModel->processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
    pModel->processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
@@ -1351,11 +1365,29 @@ void handle_sigint(int sig)
 
 int main(int argc, char *argv[])
 {
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
+   {
+      printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      return 0;
+   }
+
    signal(SIGINT, handle_sigint);
    signal(SIGTERM, handle_sigint);
    signal(SIGQUIT, handle_sigint);
 
    log_init("RubyUpdate");
+
+   if ( argc >= 3 )
+   {
+      int iMajor = atoi(argv[1]);
+      int iMinor = atoi(argv[2]);
+      if ( iMinor >= 10 )
+         iMinor /= 10;
+      if ( (iMajor < 9) || ((iMajor == 9) && (iMinor <= 4)) )
+         printf("There is a new driver added for RTL8812EU cards. Please do this update again to complete the drivers instalation.\n");
+      return 0;
+   }
+
    char szUpdateCommand[1024];
 
    szUpdateCommand[0] = 0;
@@ -1521,6 +1553,9 @@ int main(int argc, char *argv[])
 
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 4) )
       do_update_to_94();
+
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 5) )
+      do_update_to_95();
 
    saveCurrentModel();
    

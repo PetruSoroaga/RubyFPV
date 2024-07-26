@@ -51,6 +51,7 @@
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
+#include "launchers_vehicle.h"
 
 extern ParserH264 s_ParserH264CameraOutput;
 
@@ -497,6 +498,7 @@ void video_source_majestic_periodic_checks()
       {
          log_softerror_and_alarm("[VideoSourceUDP] majestic is not running. starting it.");
          video_source_majestic_start_capture_program();
+         vehicle_check_update_processes_affinities(false, false);
       }
    }
 
@@ -571,6 +573,7 @@ void video_source_majestic_periodic_checks()
          video_source_majestic_stop_capture_program();
          hardware_sleep_ms(50);
          video_source_majestic_start_capture_program();
+         vehicle_check_update_processes_affinities(false, false);
       }
       s_uRequestedVideoMajesticCaptureUpdateReason = 0;
    }

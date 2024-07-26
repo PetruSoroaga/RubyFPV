@@ -405,7 +405,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
 
    g_pRenderEngine->setColors(get_Color_MenuText());
 
-   sprintf(szBuff, "Controller TX power: %d", pCS->iTXPower);
+   sprintf(szBuff, "Controller TX power: %d", pCS->iTXPowerRTL8812AU);
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;

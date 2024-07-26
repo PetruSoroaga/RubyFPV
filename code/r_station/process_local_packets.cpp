@@ -437,6 +437,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    {
       log_line("Received notification that video codec changed. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
       rx_video_output_signal_restart_player();
+      // Reset local info so that we show the "Waiting for video feed" message
+      log_line("Reset received video stream flag");
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+         g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].totalRxBytes = 0;
       return;
    }
 

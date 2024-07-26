@@ -669,29 +669,6 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
 
 bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
 {
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
-   log_line("Set tx power now using iw dev...");
-   int iTxPower1 = g_pControllerSettings->iTXPowerRTL;
-   int iTxPower2 = hardware_get_radio_tx_power_rtl();
-   log_line("TxPower in controller settings: %d, in rtl config file: %d", iTxPower1, iTxPower2 );
-   if ( iTxPower2 < iTxPower1 )
-      iTxPower1 = iTxPower2;
-   char szComm[256];
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
-           (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
-      { 
-         sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*iTxPower1);
-         hw_execute_bash_command(szComm, NULL);
-      }
-   }
-   log_line("Done setting tx power now using iw dev.");
-   #endif
-
    if ( g_bSearching || (NULL == g_pCurrentModel) )
    {
       log_error_and_alarm("Invalid parameters for setting radio interfaces frequencies");

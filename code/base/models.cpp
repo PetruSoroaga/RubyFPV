@@ -2633,7 +2633,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
 
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
-      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
          video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
         
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
@@ -4775,6 +4775,44 @@ bool Model::radioLinkIsELRSRadio(int iRadioLinkIndex)
    }
    return false;
 }
+
+int Model::hasRadioCardsRTL8812AU()
+{
+   int iCount = 0;
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+       if ( (((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_REALTEK_RTL88XXAU) ||
+            (((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_REALTEK_RTL8812AU) ||
+            (((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_REALTEK_8812AU) ||
+            (((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_REALTEK_RTL88X2BU) ||
+            (((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_MEDIATEK) )
+          iCount++;
+   }
+   return iCount; 
+}
+
+int Model::hasRadioCardsRTL8812EU()
+{
+   int iCount = 0;
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+       if ( ((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_REALTEK_8812EU )
+          iCount++;
+   }
+   return iCount;
+}
+
+int Model::hasRadioCardsAtheros()
+{
+   int iCount = 0;
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+       if ( ((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) == RADIO_HW_DRIVER_ATHEROS )
+          iCount++;
+   }
+   return iCount;
+}
+
 
 bool Model::hasCamera()
 {

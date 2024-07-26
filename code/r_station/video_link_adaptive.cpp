@@ -395,7 +395,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       iLongestReconstructionUp = iCurrentReconstructionLength;
    iCurrentReconstructionLength = 0;
 
-   bool bTriedAnyShift = false;
+   bool bDidAnyShift = false;
 
    // Check for shift down
 
@@ -417,7 +417,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
    {
       if ( iCountRetransmissionsDown > iThresholdRetransmissionsDown )
       {
-         bTriedAnyShift = true;
+         bDidAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
          
          // Go directly to next video profile down
@@ -432,17 +432,33 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift = iMaxLevels - 1;
       }
 
-      if ( ! bTriedAnyShift )
+      if ( ! bDidAnyShift )
       if ( (iCountReconstructedDown > iThresholdReconstructedDown) ||
            (iLongestReconstructionDown > iThresholdLongestRecontructionDown) )
       {
-         bTriedAnyShift = true;
+         bDidAnyShift = true;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
          
          if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift >= iMaxLevels )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift = iMaxLevels - 1;
       }
+
+      if ( ! bDidAnyShift )
+      if ( (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == 0) ||
+           (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == iLevelsHQ) ||
+           (g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift == iLevelsMQ) )
+      if ( (iCountReconstructedDown > iThresholdReconstructedDown/2+1) ||
+           (iLongestReconstructionDown > iThresholdLongestRecontructionDown/2+1) )
+      {
+         bDidAnyShift = true;
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uTimeLastLevelShiftDown = g_TimeNow;
+         g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift++;
+         
+         if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift >= iMaxLevels )
+            g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentTargetLevelShift = iMaxLevels - 1;
+      }
+
    }
 
    // Check for shift up ?
@@ -467,7 +483,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       if ( iLongestReconstructionUp < iThresholdLongestRecontructionUp )
       if ( iCountRetransmissionsUp < iThresholdRetransmissionsUp )
       {
-         bTriedAnyShift = true;
+         bDidAnyShift = true;
 
          if ( 0 == s_uTimeStartGoodIntervalForProfileShiftUp )
             s_uTimeStartGoodIntervalForProfileShiftUp = g_TimeNow;
@@ -492,7 +508,7 @@ void _video_link_adaptive_check_adjust_video_params(u32 uVehicleId)
       }
    }
    
-   if ( ! bTriedAnyShift )
+   if ( ! bDidAnyShift )
       s_uTimeStartGoodIntervalForProfileShiftUp = 0;
 }
 

@@ -215,12 +215,14 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
          g_pRenderEngine->setStroke(250,50,100, s_fOSDStatsGraphLinesAlpha);
 
          g_pRenderEngine->drawLine(xBarMiddle-widthBar, y+hGraph-hDataratePrev, xBarMiddle, y+hGraph-hDataratePrev);
+         if ( i != g_SM_DevVideoBitrateHistory.uCurrentDataPoint )
          if ( fabs(hDatarate-hDataratePrev) >= g_pRenderEngine->getPixelHeight() )           
             g_pRenderEngine->drawLine(xBarMiddle, y+hGraph-hDatarate, xBarMiddle, y+hGraph-hDataratePrev);
          
          g_pRenderEngine->setStroke(250,100,150, s_fOSDStatsGraphLinesAlpha);
 
          g_pRenderEngine->drawLine(xBarMiddle-widthBar, y+hGraph-hDatarateLow, xBarMiddle, y+hGraph-hDatarateLow);
+         if ( i != g_SM_DevVideoBitrateHistory.uCurrentDataPoint )
          if ( fabs(hDatarateLow-hDatarateLowPrev) >= g_pRenderEngine->getPixelHeight() )           
             g_pRenderEngine->drawLine(xBarMiddle, y+hGraph-hDatarateLow, xBarMiddle, y+hGraph-hDatarateLowPrev);
       

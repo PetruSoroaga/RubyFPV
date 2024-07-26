@@ -1692,6 +1692,8 @@ bool handle_last_command_result()
             {
                log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
                send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
+               // Reset local info so that we show the "Waiting for video feed" message
+               link_reset_has_received_videostream(0);
             }
             else
                send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);

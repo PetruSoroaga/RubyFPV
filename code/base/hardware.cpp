@@ -413,7 +413,7 @@ void hardware_reboot()
    hardware_sleep_ms(200);
    hw_execute_bash_command("sync", NULL);
    hardware_sleep_sec(2);
-   hw_execute_bash_command("sudo reboot -f", NULL);
+   hw_execute_bash_command("reboot -f", NULL);
    while (1)
    {
       hardware_sleep_ms(100);
@@ -1786,13 +1786,31 @@ int hardware_get_cpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
-   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   #endif
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
    char szOutput[1024];
    hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
    return atoi(szOutput)/1000;
-   #else
-   return 1000;
    #endif
+
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   char szOutput[1024];
+   hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq 2>/dev/null", szOutput);
+   int iFreqMhz = atoi(szOutput)/1000;
+   if ( access("/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq", R_OK) != -1 )
+   {
+      hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq 2>/dev/null", szOutput);
+      int iFreqMhz1 = atoi(szOutput)/1000;
+      if ( iFreqMhz1 > 10 )
+      if ( iFreqMhz1 < iFreqMhz )
+         iFreqMhz = iFreqMhz1;
+   }
+   return iFreqMhz;
+   #endif
+
+   return 1000;
+
 }
 
 int hardware_get_gpu_speed()

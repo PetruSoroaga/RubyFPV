@@ -1,5 +1,6 @@
 #pragma once
 #include "config.h"
+#include "hardware_radio_txpower.h"
 #include "../radio/radiotap.h"
 #include "../radio/radiopackets2.h"
 
@@ -169,6 +170,9 @@ int hardware_add_radio_interface_info(radio_hw_info_t* pRadioInfo);
 int hardware_get_radio_index_by_name(const char* szName);
 int hardware_get_radio_index_from_mac(const char* szMAC);
 int hardware_radio_has_low_capacity_links();
+int hardware_radio_has_rtl8812au_cards();
+int hardware_radio_has_rtl8812eu_cards();
+int hardware_radio_has_atheros_cards();
 
 const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
@@ -188,14 +192,6 @@ int hardware_get_radio_count_opened_for_read();
 radio_hw_info_t* hardware_get_radio_info(int iRadioIndex);
 radio_hw_info_t* hardware_get_radio_info_for_usb_port(const char* szUSBPort);
 radio_hw_info_t* hardware_get_radio_info_from_mac(const char* szMAC);
-
-int hardware_get_radio_tx_power_atheros();
-int hardware_get_radio_tx_power_rtl();
-
-int hardware_set_radio_tx_power_atheros(int txPower);
-int hardware_set_radio_tx_power_rtl(int txPower);
-
-int hardware_get_basic_radio_wifi_info(radio_info_wifi_t* pdptr);
 
 #ifdef __cplusplus
 }  

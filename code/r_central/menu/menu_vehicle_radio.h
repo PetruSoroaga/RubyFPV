@@ -20,7 +20,9 @@ class MenuVehicleRadioConfig: public Menu
       int m_IndexPrioritizeUplink;
       int m_IndexDisableUplink;
       int m_IndexEncryption;
-      int m_IndexPower;
+      int m_IndexTxPowerRTL8812AU;
+      int m_IndexTxPowerRTL8812EU;
+      int m_IndexTxPowerAtheros;
       int m_IndexRadioConfig;
       int m_IndexFreq[MAX_RADIO_INTERFACES];
       int m_IndexConfigureLinks[MAX_RADIO_INTERFACES];

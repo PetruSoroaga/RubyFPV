@@ -1393,24 +1393,17 @@ void start_loop()
       popupStartup.addLine("Getting radio hardware info...");
       hardware_enumerate_radio_interfaces();
 
-      ControllerSettings* pcs = get_ControllerSettings();
-      radio_info_wifi_t dptr;
-      if ( hardware_get_basic_radio_wifi_info(&dptr) )
-      {
-         if ( dptr.tx_power != pcs->iTXPower ||
-              dptr.tx_powerAtheros != pcs->iTXPowerAtheros ||
-              dptr.tx_powerRTL != pcs->iTXPowerRTL )
-         {
-            log_line("Radio config differs from stored preferences (txpower on system: %d,%d,%d != txpower on config file: %d,%d,%d). Updating controller settings.", dptr.tx_power, dptr.tx_powerAtheros, dptr.tx_powerRTL, pcs->iTXPower, pcs->iTXPowerAtheros, pcs->iTXPowerRTL);
-            pcs->iTXPower = dptr.tx_power;
-            pcs->iTXPowerAtheros = dptr.tx_powerAtheros;
-            pcs->iTXPowerRTL = dptr.tx_powerRTL;
-            save_ControllerSettings();
-            popupStartup.addLine("Radio config was updated.");
-         }
-         else
-            popupStartup.addLine("Radio config loaded ok.");
-      }
+      ControllerSettings* pCS = get_ControllerSettings();
+
+      if ( hardware_radio_has_atheros_cards() )
+      if ( pCS->iTXPowerAtheros > 0 )
+         hardware_radio_set_txpower_atheros(pCS->iTXPowerAtheros);
+      if ( hardware_radio_has_rtl8812au_cards() )
+      if ( pCS->iTXPowerRTL8812AU > 0 )
+         hardware_radio_set_txpower_rtl8812au(pCS->iTXPowerRTL8812AU);
+      if ( hardware_radio_has_rtl8812eu_cards() )
+      if ( pCS->iTXPowerRTL8812EU )
+         hardware_radio_set_txpower_rtl8812eu(pCS->iTXPowerRTL8812EU);
 
       log_line("Finished executing start up sequence step: %d", s_StartSequence);
       s_StartSequence = START_SEQ_NICS;

@@ -60,6 +60,7 @@
 #include "../r_vehicle/ruby_rx_commands.h"
 #include "../r_vehicle/ruby_rx_rc.h"
 #include "first_boot.h"
+#include "r_test.h"
 
 static sem_t* s_pSemaphoreStarted = NULL; 
 
@@ -401,116 +402,6 @@ bool _init_timestamp_and_boot_count()
    return bFirstBoot;
 }
 
-
-void _test()
-{
-   log_init("Test");
-   log_enable_stdout();
-   log_line("\nStarted.\n");
-
-
-   u32 uTime1 = get_current_timestamp_ms();
-   u32 uTime2 = 0;
-   for( int i=0; i<50; i++ )
-   {
-      hardware_sleep_ms(1);
-      uTime2 = get_current_timestamp_ms();
-      log_line("Sleep 1ms, diff: %u - %u = %u", uTime2, uTime1, uTime2-uTime1);
-      uTime1 = uTime2;
-   }
-
-   uTime1 = get_current_timestamp_ms();
-   int tmp = 0;
-   float f = 0;
-   float b = 0;
-
-   for( int i=0; i<40; i++ )
-   {
-      for( int k=0; k<i*20000; k++ )
-      {
-         tmp += i;
-         f += k;
-         b = f-tmp*3;
-         b = b-1;
-      }
-      uTime2 = get_current_timestamp_ms();
-      log_line("Work %d, diff: %u - %u = %u", i, uTime2, uTime1, uTime2-uTime1);
-      uTime1 = uTime2;
-   }
-
-   int socket_server;
-   struct sockaddr_in server_addr, client_addr;
- 
-   socket_server = socket(AF_INET , SOCK_DGRAM, 0);
-   if (socket_server == -1)
-   {
-      return;
-   }
-
-   memset(&server_addr, 0, sizeof(server_addr));
-   memset(&client_addr, 0, sizeof(client_addr));
-    
-   server_addr.sin_family = AF_INET;
-   server_addr.sin_addr.s_addr = INADDR_ANY;
-   server_addr.sin_port = htons( 5555 );
- 
-   client_addr.sin_family = AF_INET;
-   client_addr.sin_addr.s_addr = INADDR_ANY;
-   client_addr.sin_port = htons( 5555 );
-
-   if( bind(socket_server,(struct sockaddr *)&server_addr, sizeof(server_addr)) < 0 )
-   {
-      return;
-   }
-
-   uTime1 = get_current_timestamp_ms();
-   int iLoop = 0;
-   while ( ! s_bQuit )
-   {
-       iLoop++;
-       if ( iLoop > 20 )
-          break;
-
-      fd_set readset;
-      FD_ZERO(&readset);
-      FD_SET(socket_server, &readset);
-
-      struct timeval timePipeInput;
-      timePipeInput.tv_sec = 0;
-      timePipeInput.tv_usec = iLoop*500; // x miliseconds timeout
-
-      int selectResult = select(socket_server+1, &readset, NULL, NULL, &timePipeInput);
-      
-      uTime2 = get_current_timestamp_ms();
-      log_line("Select %d, %d ms, result: %d, diff: %u - %u = %u", iLoop, iLoop/2, selectResult, uTime2, uTime1, uTime2-uTime1);
-      uTime1 = uTime2;
-   }
-
-   uTime1 = get_current_timestamp_ms();
-   iLoop = 0;
-   while ( ! s_bQuit )
-   {
-       iLoop++;
-       if ( iLoop > 20 )
-          break;
-
-      fd_set readset;
-      FD_ZERO(&readset);
-      FD_SET(socket_server, &readset);
-
-      struct timeval timePipeInput;
-      timePipeInput.tv_sec = 0;
-      timePipeInput.tv_usec = 0;
-
-      int selectResult = select(socket_server+1, &readset, NULL, NULL, &timePipeInput);
-      
-      uTime2 = get_current_timestamp_ms();
-      log_line("Select no wait, %d result: %d, diff: %u - %u = %u", iLoop, selectResult, uTime2, uTime1, uTime2-uTime1);
-      uTime1 = uTime2;
-   }
-   close(socket_server);
-}
-
 void _test_log(int argc, char *argv[])
 {
    log_enable_stdout();
@@ -650,7 +541,7 @@ int main(int argc, char *argv[])
 
    if ( strcmp(argv[argc-1], "-test") == 0 )
    {
-      _test();
+      start_test();
       return 0;
    }
 
@@ -1258,6 +1149,15 @@ int main(int argc, char *argv[])
    log_line("Feature radio RxTx thread syncronization is: Off.");
 #endif
 
+   if ( bIsFirstBoot )
+      do_first_boot_initialization(s_isVehicle, board_type);
+   
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+   if ( access( szFile, R_OK) == -1 )
+      first_boot_create_default_model(s_isVehicle, board_type);
+   
+
    if ( s_isVehicle )
    {
       int c = 0;
@@ -1282,14 +1182,6 @@ int main(int argc, char *argv[])
          return 0;
       }
    }
-
-   if ( bIsFirstBoot )
-      do_first_boot_initialization(s_isVehicle, board_type);
-   
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-   if ( access( szFile, R_OK) == -1 )
-      first_boot_create_default_model(s_isVehicle, board_type);
    
    hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
    log_line("ruby_start: [%s]", szOutput);
@@ -1454,10 +1346,6 @@ int main(int argc, char *argv[])
    printf(" Done.\n");
    log_line("Checking for HW changes complete.");
    fflush(stdout);
-
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
-   hw_execute_bash_command_raw("echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
-   #endif
 
    ruby_init_ipc_channels();
    

@@ -89,7 +89,14 @@ void packet_utils_init()
 
 void packet_utils_set_adaptive_video_datarate(int iDatarateBPS)
 {
+   //if ( iDatarateBPS != s_VideoAdaptiveTxDatarateBPS )
+   //   log_line("DEBUG switched to video datarate %d", iDatarateBPS);
    s_VideoAdaptiveTxDatarateBPS = iDatarateBPS;
+}
+
+int packet_utils_get_last_set_adaptive_video_datarate()
+{
+   return s_VideoAdaptiveTxDatarateBPS;
 }
 
 // Returns the actual datarate bps used last time for data or video

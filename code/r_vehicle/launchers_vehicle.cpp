@@ -244,7 +244,6 @@ void vehicle_stop_audio_capture(Model* pModel)
    hw_stop_process("arecord");
 }
 
-#ifdef HW_PLATFORM_RASPBERRY
 static bool s_bThreadBgAffinitiesStarted = false;
 static int s_iCPUCoresCount = -1;
 static bool s_bAdjustAffinitiesIsVeyeCamera = false;
@@ -289,6 +288,10 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
       // To fix
       //hw_set_proc_affinity("ruby_rx_rc", 2,2);
 
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_set_proc_affinity("majestic", 3, s_iCPUCoresCount);
+      #endif
+
       #ifdef HW_PLATFORM_RASPBERRY
       if ( bVeYe )
          hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 3, s_iCPUCoresCount);
@@ -299,6 +302,9 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
    else
    {
       hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_set_proc_affinity("majestic", 2, s_iCPUCoresCount);
+      #endif
       #ifdef HW_PLATFORM_RASPBERRY
       if ( bVeYe )
          hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 2, s_iCPUCoresCount);
@@ -311,14 +317,20 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
    s_bThreadBgAffinitiesStarted = false;
    return NULL;
 }
-#endif
+
 
 void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
 {
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   log_line("Adjusting process affinities for OpenIPC hardware. Use thread: %s", (bUseThread?"Yes":"No"));
+   s_bAdjustAffinitiesIsVeyeCamera = false;
+   #endif
+  
+   #if defined (HW_PLATFORM_RASPBERRY)
    s_bAdjustAffinitiesIsVeyeCamera = bVeYe;
    log_line("Adjust processes affinities. Use thread: %s, veye camera: %s",
       (bUseThread?"Yes":"No"), (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
+   #endif
 
    if ( ! bUseThread )
    {
@@ -343,6 +355,4 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
    }
 
    log_line("Created thread for adjusting processes affinities (veye: %s)", (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
-
-   #endif
 }

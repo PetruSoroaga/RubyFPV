@@ -736,8 +736,6 @@ void MenuRadioConfig::onSelectItem()
    {
       MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowVehicle = false;
-      if ( m_bHas24PowerController && m_bHas58PowerController )
-         pMenu->m_bSelectSecond = true;
       add_menu_to_stack(pMenu);
       return;
    }
@@ -771,8 +769,6 @@ void MenuRadioConfig::onSelectItem()
       }
       MenuTXPower* pMenu = new MenuTXPower();
       pMenu->m_bShowController = false;
-      if ( m_bHas24PowerVehicle && m_bHas58PowerVehicle )
-         pMenu->m_bSelectSecond = true;
       add_menu_to_stack(pMenu);
       return;
    }
@@ -1359,7 +1355,7 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
 
       if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58 )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", pCS->iTXPowerRTL);
+      sprintf(szBuff,"Tx Power 5.8Ghz: %d", pCS->iTXPowerRTL8812AU);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig + height_text*1.4, m_iIdFontRegular, szBuff);
       if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58 )
          g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
@@ -1374,7 +1370,7 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
            ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_2458) )
          bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
       if ( m_bHas58PowerController )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerRTL);
+         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerRTL8812AU);
       else
          sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerAtheros);
       g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);

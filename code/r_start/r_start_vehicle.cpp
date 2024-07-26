@@ -442,25 +442,6 @@ int r_start_vehicle(int argc, char *argv[])
    if ( read_config_file() )
       bMustSave = true;
 
-   radio_info_wifi_t dptr;
-   dptr.slot_time = modelVehicle.radioInterfacesParams.slotTime;
-   dptr.thresh62 = modelVehicle.radioInterfacesParams.thresh62;
-   if ( hardware_get_basic_radio_wifi_info(&dptr) )
-   if ( dptr.tx_power != modelVehicle.radioInterfacesParams.txPowerRTL8812AU ||
-        dptr.tx_powerAtheros != modelVehicle.radioInterfacesParams.txPowerAtheros ||
-        dptr.tx_powerRTL != modelVehicle.radioInterfacesParams.txPowerRTL8812AU ||
-        dptr.slot_time != modelVehicle.radioInterfacesParams.slotTime ||
-        dptr.thresh62 != modelVehicle.radioInterfacesParams.thresh62 )
-   {
-      log_line("Start sequence: 2.4/5.8 Radio interfaces power parameters have changed (tx power: %d,%d,%d slot time: %d, thresh62: %d). Updating model.", dptr.tx_power, dptr.tx_powerAtheros, dptr.tx_powerRTL, dptr.slot_time, dptr.thresh62);
-      modelVehicle.radioInterfacesParams.txPowerRTL8812AU = dptr.tx_power;
-      modelVehicle.radioInterfacesParams.txPowerAtheros = dptr.tx_powerAtheros;
-      modelVehicle.radioInterfacesParams.txPowerRTL8812AU = dptr.tx_powerRTL;
-      modelVehicle.radioInterfacesParams.slotTime = dptr.slot_time;
-      modelVehicle.radioInterfacesParams.thresh62 = dptr.thresh62;
-      bMustSave = true;
-   }
-
    u32 uBoardType = hardware_getBoardType();
    if ( uBoardType != modelVehicle.hwCapabilities.uBoardType )
    {
@@ -619,6 +600,17 @@ int r_start_vehicle(int argc, char *argv[])
          }
       }
    }
+
+   if ( hardware_radio_has_atheros_cards() )
+   if ( modelVehicle.radioInterfacesParams.txPowerAtheros > 0 )
+      hardware_radio_set_txpower_atheros((int)modelVehicle.radioInterfacesParams.txPowerAtheros);
+   if ( hardware_radio_has_rtl8812au_cards() )
+   if ( modelVehicle.radioInterfacesParams.txPowerRTL8812AU > 0 )
+      hardware_radio_set_txpower_rtl8812au((int)modelVehicle.radioInterfacesParams.txPowerRTL8812AU);
+   if ( hardware_radio_has_rtl8812eu_cards() )
+   if ( modelVehicle.radioInterfacesParams.txPowerRTL8812EU > 0 )
+      hardware_radio_set_txpower_rtl8812eu((int)modelVehicle.radioInterfacesParams.txPowerRTL8812EU);
+
 
    #ifdef HW_PLATFORM_RASPBERRY
    hw_launch_process("./ruby_alive");

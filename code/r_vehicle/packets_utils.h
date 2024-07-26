@@ -3,6 +3,8 @@
 
 void packet_utils_init();
 void packet_utils_set_adaptive_video_datarate(int iDatarateBPS);
+int packet_utils_get_last_set_adaptive_video_datarate();
+
 int get_last_tx_used_datarate_bps_video(int iInterface);
 int get_last_tx_used_datarate_bps_data(int iInterface);
 int get_last_tx_minimum_video_radio_datarate_bps();

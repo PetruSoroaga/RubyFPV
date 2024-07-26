@@ -38,6 +38,7 @@
 #include "../common/string_utils.h"
 #include "utils_vehicle.h"
 #include "shared_vars.h"
+#include "timers.h"
 
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
 {
@@ -116,7 +117,7 @@ void video_overwrites_init(shared_mem_video_link_overwrites* pSMLVO, Model* pMod
 
    pSMLVO->userVideoLinkProfile = pModel->video_params.user_selected_video_link_profile;
    pSMLVO->currentVideoLinkProfile = pSMLVO->userVideoLinkProfile;
-
+   pSMLVO->uTimeSetCurrentVideoLinkProfile = g_TimeNow;
    pSMLVO->currentProfileMaxVideoBitrate = utils_get_max_allowed_video_bitrate_for_profile_or_user_video_bitrate(pModel, pSMLVO->currentVideoLinkProfile);
    pSMLVO->currentProfileAndLevelDefaultBitrate = pSMLVO->currentProfileMaxVideoBitrate;
    pSMLVO->currentSetVideoBitrate = pSMLVO->currentProfileMaxVideoBitrate;

@@ -362,7 +362,7 @@ float osd_show_flight_mode(float x, float y)
    g_pRenderEngine->drawRect(x, y, w, osd_getBarHeight() );
 
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( pCS->iDeveloperMode && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-100) )
+   if ( pCS->iDeveloperMode && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-70) )
       g_pRenderEngine->setColors(get_Color_Dev());
    else
       osd_set_colors();

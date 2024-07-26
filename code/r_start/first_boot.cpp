@@ -50,6 +50,7 @@ void do_first_boot_pre_initialization()
 
    printf("\nRuby doing first time ever initialization on Radxa. Please wait...\n");
    fflush(stdout);
+   hw_execute_bash_command_raw("echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
 
    hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
    log_init_local_only("RubyStartFirst");
@@ -77,7 +78,6 @@ void do_first_boot_pre_initialization()
    hw_execute_bash_command("lsusb", NULL);
    hw_execute_bash_command("lsmod", NULL);
    hw_execute_bash_command("ip link", NULL);
-   //hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER);
 
    char szComm[256];
    sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
@@ -88,6 +88,14 @@ void do_first_boot_pre_initialization()
    printf("\nRuby done doing first time ever initialization on Radxa.\n");
    fflush(stdout);
    hw_execute_bash_command("echo \"\nRuby done doing first time ever initialization on Radxa.\n\" > /tmp/ruby/log_first_radxa.log", NULL);
+
+   #endif
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+
+   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+   hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
+   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
 
    #endif
 }
@@ -140,7 +148,7 @@ void do_first_boot_initialization_openipc(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for OpenIPC platform...");
    hw_execute_bash_command("ln -s /lib/firmware/ath9k_htc/htc_9271.fw.3 /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw", NULL);
-   hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER);
+
 }
 
 void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
@@ -214,9 +222,10 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    }
    else
    {
-      #ifdef HW_PLATFORM_RASPBERRY
       load_ControllerSettings(); 
       ControllerSettings* pcs = get_ControllerSettings();
+
+      #ifdef HW_PLATFORM_RASPBERRY
       if ( NULL != pcs )
       {
          pcs->iFreqARM = 900;
@@ -240,6 +249,12 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
          hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       }
       #endif
+
+      #if defined (HW_PLATFORM_RADXA_ZERO3)
+      if ( NULL != pcs )
+         pcs->iFreqARM = hardware_get_cpu_speed();
+      #endif
+      save_ControllerSettings();
    }
 
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
@@ -247,6 +262,11 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    hardware_sleep_ms(50);
    //if ( ! s_isVehicle )
    //   execute_bash_command("raspi-config --expand-rootfs > /dev/null 2>&1", NULL);   
+
+
+   hardware_radio_set_txpower_rtl8812au(DEFAULT_RADIO_TX_POWER);
+   hardware_radio_set_txpower_rtl8812eu(DEFAULT_RADIO_TX_POWER);
+   hardware_radio_set_txpower_atheros(DEFAULT_RADIO_TX_POWER);
 
    log_line("First boot initialization completed.");
    log_line("---------------------------------------------------------");
@@ -279,6 +299,10 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
       else if ( ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZERO) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PIZEROW) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_NONE) 
                && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2B) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV11) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV12) )
          s_ModelFirstBoot.processesPriorities.iFreqARM = 1200;
+
+      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+      s_ModelFirstBoot.processesPriorities.iFreqARM = hardware_get_cpu_speed();
+      #endif
 
       config_file_set_value("config.txt", "arm_freq", s_ModelFirstBoot.processesPriorities.iFreqARM);
       config_file_set_value("config.txt", "arm_freq_min", s_ModelFirstBoot.processesPriorities.iFreqARM);

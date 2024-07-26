@@ -196,8 +196,8 @@ typedef struct
 typedef struct
 {
    int overvoltage; // 0 or negative - disabled, negative - default value
-   int freq_arm; // 0 - disabled
-   int freq_gpu; // 0 - disabled
+   int freq_arm; // 0 - disabled; in mhz
+   int freq_gpu; // 0 - disabled; in mhz
    
 } __attribute__((packed)) command_packet_overclocking_params;
 

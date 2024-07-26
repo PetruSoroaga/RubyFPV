@@ -76,6 +76,7 @@ typedef struct
 {
    u8 userVideoLinkProfile;
    u8 currentVideoLinkProfile;
+   u32 uTimeSetCurrentVideoLinkProfile;
    u32 currentProfileMaxVideoBitrate;
    u32 currentProfileAndLevelDefaultBitrate;
    u32 currentSetVideoBitrate;

@@ -1991,7 +1991,7 @@ static void * _thread_generate_upload(void *argument)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s/ruby_update_vehicle", szFolderLocalUpdateBinaries);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sruby_* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )

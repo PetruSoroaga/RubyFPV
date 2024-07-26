@@ -930,6 +930,16 @@ bool link_has_received_videostream(u32 uVehicleId)
    return false;
 }
 
+void link_reset_has_received_videostream(u32 uVehicleId)
+{
+   log_line("LinkWatch: Reset received video stream flag for VID: %u", uVehicleId);
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( (uVehicleId == 0) || (g_SM_RadioStats.radio_streams[i][0].uVehicleId == uVehicleId) || (g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].uVehicleId == uVehicleId) )
+         g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].totalRxBytes = 0;
+   }
+}
+
 bool link_has_received_vehicle_telemetry_info(u32 uVehicleId)
 {
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )

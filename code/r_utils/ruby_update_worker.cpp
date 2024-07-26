@@ -380,6 +380,37 @@ int main(int argc, char *argv[])
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(50);
 
+   // Begin Check and update drivers
+
+   char szDriver[MAX_FILE_PATH_SIZE];
+   strcpy(szDriver, szUpdateFromSrcFolder);
+   #ifdef HW_PLATFORM_RASPBERRY
+   strcat(szDriver, SUBFOLDER_UPDATES_PI);
+   strcat(szDriver, "drivers/8812eu_pi.ko");
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   strcat(szDriver, SUBFOLDER_UPDATES_RADXA);
+   strcat(szDriver, "drivers/8812eu_radxa.ko");
+   #endif
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   strcat(szDriver, SUBFOLDER_UPDATES_OIPC);
+   strcat(szDriver, "drivers/8812eu.ko");
+   #endif
+
+   if ( access(szDriver, R_OK) != -1 )
+   {
+      #ifdef HW_PLATFORM_RADXA_ZERO3
+      hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+      sprintf(szComm, "cp -rf %s /home/", szDriver);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "cp -rf %s /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", szDriver);
+      hw_execute_bash_command(szComm, NULL);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+      #endif
+   }
+
+   // End check and update drivers
+
    g_TimeNow = get_current_timestamp_ms();
 
    #ifdef HW_PLATFORM_RASPBERRY

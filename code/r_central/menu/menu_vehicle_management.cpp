@@ -145,19 +145,37 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
    {
       if ( uploadSoftware() )
       {
-         if ( NULL != g_pCurrentModel )
-         {
-            g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
-            saveControllerModel(g_pCurrentModel);
-         }
+         char szComm[256];
+         char szOutput[4096];
+         memset(szOutput, 0, 4096);
+         sprintf(szComm, "./ruby_update %d %d", get_sw_version_major(g_pCurrentModel->sw_version), get_sw_version_minor(g_pCurrentModel->sw_version));
+         hw_execute_bash_command_raw(szComm, szOutput);
+
+         g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
+         saveControllerModel(g_pCurrentModel);
+
          //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Upload Succeeded",NULL);
          //pm->addTopLine("Your vehicle was updated. It will reboot now.");
          Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", MENU_ID_SIMPLE_MESSAGE+3*1000, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
-         add_menu_to_stack(pm);
 
+         if ( 0 < strlen(szOutput) )
+         {
+            char* pSt = szOutput;
+            while (*pSt)
+            {
+               char* pEnd = pSt;
+               while ( (*pEnd != 0) && (*pEnd != 10) && (*pEnd != 13) )
+                  pEnd++;
+               *pEnd = 0;
+               if ( pEnd > pSt )
+                  pm->addTopLine(pSt);
+               pSt = pEnd+1;
+            }
+         }
+         add_menu_to_stack(pm);
       }
       return;
    }

@@ -23,6 +23,7 @@ class MenuVehicleCPU_OIPC: public Menu
       int m_IndexEnableRadio;
       int m_IndexRadioRx;
       int m_IndexRadioTx;
+      int m_IndexCPUSpeed;
       
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemSelect* m_pItemsSelect[10];

@@ -170,13 +170,39 @@ void _process_upload_apply()
    hardware_sleep_ms(50);
 
    log_line("Binaries versions after update:");
+   hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
+   log_line("ruby_start: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_rt_vehicle", "-ver", szOutput, 1);
    log_line("ruby_rt_vehicle: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
+   hw_execute_ruby_process_wait(NULL, "ruby_update", "-ver", szOutput, 1);
+   log_line("ruby_update: [%s]", szOutput);
+   hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", "-ver", szOutput, 1);
+   log_line("ruby_update_vehicle: [%s]", szOutput);
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastActiveTime = g_TimeNow;
+
+   // Begin Check and update drivers
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   char szDriver[MAX_FILE_PATH_SIZE];
+   strcpy(szDriver, FOLDER_BINARIES);
+   strcat(szDriver, "drivers/8812eu.ko");
+   
+   if ( access(szDriver, R_OK) != -1 )
+   {
+      sprintf(szComm, "mv -f %s /lib/modules/$(uname -r)/extra/", szDriver);
+      hw_execute_bash_command(szComm, NULL);
+      hw_execute_bash_command("modprobe cfg80211", NULL);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   }
+   else
+      log_line("No new driver in file [%s]", szDriver);
+
+   #endif
+   // End check and update drivers
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( access( "ruby_capture_raspi", R_OK ) != -1 )

@@ -11,13 +11,13 @@ extern "C" {
 typedef struct
 {
    int iUseBrokenVideoCRC;
-   int iTXPower;
+   int iTXPowerRTL8812AU;
+   int iTXPowerRTL8812EU;
    int iTXPowerAtheros;
-   int iTXPowerRTL;
    int iTXPowerSiK;
-   int iMaxTXPower;
+   int iMaxTXPowerRTL8812AU;
+   int iMaxTXPowerRTL8812EU;
    int iMaxTXPowerAtheros;
-   int iMaxTXPowerRTL;
    int iHDMIBoost;
    int iOverVoltage; // 0 - disabled
    int iFreqARM; // 0 - disabled

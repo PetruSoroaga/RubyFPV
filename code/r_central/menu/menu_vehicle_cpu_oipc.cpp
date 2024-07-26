@@ -38,10 +38,14 @@
 MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
 :Menu(MENU_ID_VEHICLE_CPU_OIPC, "CPU Settings", NULL)
 {
-   m_Width = 0.32;
+   m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.13;
    float fSliderWidth = 0.10;
    setSubTitle("Change vehicle processes priorities, for expert users.");
+
+   m_pItemsSlider[5] = new MenuItemSlider("CPU Speed (Mhz)", "Sets the main CPU frequency.", 700, 1200, 900, fSliderWidth);
+   m_pItemsSlider[5]->setStep(25);
+   m_IndexCPUSpeed = addMenuItem(m_pItemsSlider[5]);
    
    addMenuItem(new MenuItemSection("Priorities"));
 
@@ -87,6 +91,9 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
 
 void MenuVehicleCPU_OIPC::valuesToUI()
 {
+   if ( g_pCurrentModel->processesPriorities.iFreqARM > 0 )
+      m_pItemsSlider[5]->setCurrentValue(g_pCurrentModel->processesPriorities.iFreqARM);
+
    if ( g_pCurrentModel->processesPriorities.iNiceRouter == 0 )
    {
       m_pItemsSelect[0]->setSelectedIndex(0);
@@ -250,5 +257,22 @@ void MenuVehicleCPU_OIPC::onSelectItem()
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_NICE_VALUES, val , NULL, 0) )
          valuesToUI();
       return;
+   }
+
+   bool sendUpdate = false;
+   command_packet_overclocking_params params;
+   params.freq_arm = g_pCurrentModel->processesPriorities.iFreqARM;
+   params.freq_gpu = g_pCurrentModel->processesPriorities.iFreqGPU;
+   params.overvoltage = g_pCurrentModel->processesPriorities.iOverVoltage;
+
+   if ( m_IndexCPUSpeed == m_SelectedIndex )
+   {
+      params.freq_arm = m_pItemsSlider[5]->getCurrentValue();
+      sendUpdate = true;
+   }   
+   if ( sendUpdate )
+   {
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OVERCLOCKING_PARAMS, 0, (u8*)(&params), sizeof(command_packet_overclocking_params)) )
+         valuesToUI();
    }
 }

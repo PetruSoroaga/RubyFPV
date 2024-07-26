@@ -55,7 +55,6 @@
 #define FILE_CONFIG_CONTROLLER_ID "controller_id.cfg"
 #define FILE_CONFIG_CONTROLLER_OSD_WIDGETS "osd_widgets.cfg"
 #define FILE_CONFIG_CONTROLLER_FAVORITES_VEHICLES "favorites.cfg"
-#define FILE_CONFIG_RTL_POWER "rtlpower.cfg"
 
 #define FILE_TEMP_USB_TETHERING_DEVICE "usb_tethering"
 #define FILE_TEMP_VIDEO_MEM_FILE "tmpVideo.h26x"

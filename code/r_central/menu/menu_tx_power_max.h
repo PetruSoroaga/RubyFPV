@@ -8,9 +8,13 @@ class MenuTXPowerMax: public Menu
    public:
       MenuTXPowerMax();
       virtual ~MenuTXPowerMax();
+      virtual void onShow(); 
       virtual void valuesToUI();
       virtual void Render();
       virtual void onSelectItem();
+
+      bool m_bShowController;
+      bool m_bShowVehicle;
 
    private:
       void sendMaxPowerToVehicle(int txMaxRTL8812AU, int txMaxRTL8812EU, int txMaxAtheros);
@@ -18,17 +22,10 @@ class MenuTXPowerMax: public Menu
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemSelect* m_pItemsSelect[10];
 
-      int m_IndexPowerMaxVehicle;
+      int m_IndexPowerMaxVehicleRTL8812AU;
+      int m_IndexPowerMaxVehicleRTL8812EU;
       int m_IndexPowerMaxVehicleAtheros;
-      int m_IndexPowerMaxVehicleRTL;
-      int m_IndexPowerMaxController;
+      int m_IndexPowerMaxControllerRTL8812AU;
+      int m_IndexPowerMaxControllerRTL8812EU;
       int m_IndexPowerMaxControllerAtheros;
-      int m_IndexPowerMaxControllerRTL;
-
-      bool m_bShowBothOnController;
-      bool m_bShowBothOnVehicle;
-      bool m_bControllerHas24OnlyCards;
-      bool m_bControllerHas58Cards;
-      bool m_bVehicleHas24OnlyCards;
-      bool m_bVehicleHas58Cards;
 };

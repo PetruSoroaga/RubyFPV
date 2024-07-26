@@ -54,6 +54,8 @@
 
 #define MAX_USB_DEVICES_INFO 12
 
+static int s_iEnumeratedUSBRadioInterfaces = 0;
+
 static usb_radio_interface_info_t s_USB_RadioInterfacesInfo[MAX_USB_DEVICES_INFO];
 static int s_iFoundUSBRadioInterfaces = 0;
 
@@ -535,6 +537,7 @@ int _hardware_radio_get_product_id_open_ipc_wifi_radio_driver_id(const char* szP
 
 void _hardware_find_usb_radio_interfaces_info()
 {
+   s_iEnumeratedUSBRadioInterfaces = 1;
    s_iFoundUSBRadioInterfaces = 0;
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    log_line("[HardwareRadio] Finding USB radio interfaces and devices for OpenIPC platform...");
@@ -643,9 +646,13 @@ void _hardware_find_usb_radio_interfaces_info()
          }
          else
          {
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, szBuff+i, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1 );
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = 0;
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1] = 0;
+            //strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, szBuff+i, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1 );
+            //s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = 0;
+            //s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1] = 0;
+            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = _hardware_radio_get_product_id_open_ipc_wifi_radio_driver_id(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
+            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, str_get_radio_card_model_string(_hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)), sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) );
+            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) - 1] = 0;
+
             s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iPortNb = -1;
             log_line("[HardwareRadio] Found USB device: bus %d, device %d: prod id: %s, name: %s",
                 s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb,
@@ -1022,86 +1029,94 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
 // Called only once, from ruby_start process
 int hardware_radio_load_radio_modules()
 {
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   char szOutput[1024];
-   log_line("[HardwareRadio] Loading radio modules...");
-   hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1", szOutput);
-   if ( 0 != szOutput[0] )
-   if ( strlen(szOutput) > 10 )
-   {
-      log_softerror_and_alarm("[HardwareRadio] Error on loading driver: [%s]", szOutput);
-      return 0;
-   }
-   return 1;
-
-   #endif
-
-   #if defined(HW_PLATFORM_OPENIPC_CAMERA) || defined(HW_PLATFORM_RADXA_ZERO3)
-
    _hardware_find_usb_radio_interfaces_info();
+
    if ( 0 == s_iFoundUSBRadioInterfaces )
    {
       log_softerror_and_alarm("[HardwareRadio] No USB radio devices found!");
       return 0;
    }
+
+   #if defined(HW_PLATFORM_RASPBERRY)
+   log_line("[HardwareRadio] Adding radio modules on Raspberry for detected radio cards...");
+   #endif
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    log_line("[HardwareRadio] Adding radio modules on OpenIPC for detected radio cards...");
    #endif
    #if defined(HW_PLATFORM_RADXA_ZERO3)
    log_line("[HardwareRadio] Adding radio modules on Radxa for detected radio cards...");
    #endif
-   int iCountDetected = 0;
-   int iRTLLoaded = 0;
-   int iAtherosLoaded = 0;
+
+
+   char szOutput[1024];
+   log_line("[HardwareRadio] Loading radio modules...");
+
+   int iRTL8812AULoaded = 0;
    int iRTL8812EULoaded = 0;
-   for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
+   int iAtherosLoaded = 0;
+   int iCountLoaded = 0;
+
+   if ( hardware_radio_has_rtl8812au_cards() )
    {
-       #if defined HW_PLATFORM_OPENIPC_CAMERA
-       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_RTL88XXAU )
-       if ( ! iRTLLoaded )
-       {
-          log_line("[HardwareRadio] Found RTL8812AU card. Loading module...");
-          hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=40", NULL);
-          iRTLLoaded = 1;
-          iCountDetected++;
-       }
-       #endif
+      #if defined(HW_PLATFORM_RASPBERRY)
+      hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1", szOutput);
+      #endif
 
-       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_8812EU)
-       if ( ! iRTL8812EULoaded )
-       {
-          log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
-          #if defined HW_PLATFORM_RADXA_ZERO3
-          hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-          hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-          #endif
-          #if defined HW_PLATFORM_OPENIPC_CAMERA
-          hw_execute_bash_command("modprobe cfg80211", NULL);
-          hw_execute_bash_command("insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-          #endif
+      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+      hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=40", szOutput);
+      #endif
 
-          iRTL8812EULoaded = 1;
-          iCountDetected++;
-       }
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      hw_execute_bash_command("sudo modprobe -f 88XXau_wfb", szOutput);
+      #endif
 
-       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_TYPE_ATHEROS )
-       if ( ! iAtherosLoaded )
-       {
-          log_line("[HardwareRadio] Found RTL8812 card. Loading module...");
-          hw_execute_bash_command("modprobe ath9k_hw txpower=10", NULL);
-          hw_execute_bash_command("modprobe ath9k_htc", NULL);
-          iAtherosLoaded = 1;
-          iCountDetected++;
-       }
+      if ( (0 != szOutput[0]) && (strlen(szOutput) > 10) )
+         log_softerror_and_alarm("[HardwareRadio] Error on loading driver: [%s]", szOutput);
+      else
+      {
+         iRTL8812AULoaded = 1;
+         iCountLoaded++;
+      }
    }
-   log_line("[HardwareRadio] Added %d modules. Added RTL8812AU? %s. Added Atheros? %s. Added RTL8812EU? %s",
-      iCountDetected, (iRTLLoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"), (iRTL8812EULoaded?"yes":"no"));
-   return iCountDetected;
 
-   #endif
-   
-   return 0;
+   if ( hardware_radio_has_rtl8812eu_cards() )
+   {
+      log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
+      #if defined(HW_PLATFORM_RASPBERRY)
+      hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+      hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_pi.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+      #endif
+
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+      hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+      #endif
+
+      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+      hw_execute_bash_command("modprobe cfg80211", NULL);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+      #endif
+
+      if ( (0 != szOutput[0]) && (strlen(szOutput) > 10) )
+         log_softerror_and_alarm("[HardwareRadio] Error on loading driver: [%s]", szOutput);
+      else
+      {
+         iRTL8812EULoaded = 1;
+         iCountLoaded++;    
+      }
+   }
+
+   if ( hardware_radio_has_atheros_cards() )
+   {
+      hw_execute_bash_command("modprobe ath9k_hw txpower=10", szOutput);
+      hw_execute_bash_command("modprobe ath9k_htc", szOutput);
+      iAtherosLoaded = 1;
+      iCountLoaded++;
+   }
+
+   log_line("[HardwareRadio] Added %d modules. Added RTL8812AU? %s. Added RTL8812EU? %s. Added Atheros? %s",
+      iCountLoaded, (iRTL8812AULoaded?"yes":"no"), (iRTL8812EULoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"));
+   return iCountLoaded;
 }
 
 int hardware_get_radio_interfaces_count()
@@ -1188,6 +1203,95 @@ int hardware_radio_has_low_capacity_links()
       if ( ! sRadioInfo[i].isHighCapacityInterface )
          return 1;
    return 0;
+}
+
+int hardware_radio_has_rtl8812au_cards()
+{
+   if ( ! s_HardwareRadiosEnumeratedOnce )
+   if ( 0 == s_iHwRadiosCount )
+   if ( ! s_iEnumeratedUSBRadioInterfaces )
+      _hardware_find_usb_radio_interfaces_info();
+
+   int iCount = 0;
+
+   if ( 0 < s_iHwRadiosCount )
+   {
+      for( int i=0; i<s_iHwRadiosCount; i++ )
+      {
+         if ( (sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_8812AU) ||
+              (sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_RTL88XXAU) ||
+              (sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_RTL8812AU) ||
+              (sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_RTL88X2BU) ||
+              (sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_MEDIATEK) )
+            iCount++;
+      }
+      return iCount;
+   }
+
+   for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
+   {
+       if ( (s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_RTL88XXAU) ||
+            (s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_RTL8812AU) ||
+            (s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_8812AU) ||
+            (s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_RTL88X2BU) ||
+            (s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_MEDIATEK) )
+          iCount++;
+   }
+   return iCount;
+}
+
+int hardware_radio_has_rtl8812eu_cards()
+{
+   if ( ! s_HardwareRadiosEnumeratedOnce )
+   if ( 0 == s_iHwRadiosCount )
+   if ( ! s_iEnumeratedUSBRadioInterfaces )
+      _hardware_find_usb_radio_interfaces_info();
+
+   int iCount = 0;
+
+   if ( 0 < s_iHwRadiosCount )
+   {
+      for( int i=0; i<s_iHwRadiosCount; i++ )
+      {
+         if ( sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_8812EU )
+            iCount++;
+      }
+      return iCount;
+   }
+
+   for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
+   {
+       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_8812EU )
+          iCount++;
+   }
+   return iCount;
+}
+
+int hardware_radio_has_atheros_cards()
+{
+   if ( ! s_HardwareRadiosEnumeratedOnce )
+   if ( 0 == s_iHwRadiosCount )
+   if ( ! s_iEnumeratedUSBRadioInterfaces )
+      _hardware_find_usb_radio_interfaces_info();
+
+   int iCount = 0;
+
+   if ( 0 < s_iHwRadiosCount )
+   {
+      for( int i=0; i<s_iHwRadiosCount; i++ )
+      {
+         if ( sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_ATHEROS )
+            iCount++;
+      }
+      return iCount;
+   }
+
+   for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
+   {
+       if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_ATHEROS )
+          iCount++;
+   }
+   return iCount;
 }
 
 
@@ -1336,300 +1440,4 @@ radio_hw_info_t* hardware_get_radio_info_from_mac(const char* szMAC)
       if ( 0 == strcmp(szMAC, sRadioInfo[i].szMAC) )
          return &(sRadioInfo[i]);
    return NULL;
-}
-
-
-int hardware_get_radio_tx_power_atheros()
-{
-   #ifdef HW_PLATFORM_RASPBERRY
-   if ( access( "/etc/modprobe.d/ath9k_hw.conf", R_OK ) == -1 )
-   {
-      log_softerror_and_alarm("Hardware: There are no Atheros radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   FILE *pF = fopen("/etc/modprobe.d/ath9k_hw.conf", "rb");
-   if ( NULL == pF )
-   {
-      log_softerror_and_alarm("Hardware: There are no Atheros radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   char szBuff[512];
-   int iTxPower = 0;
-
-   fseek(pF, 0, SEEK_END);
-   long fsize = ftell(pF);
-   fseek(pF, 0, SEEK_SET);
-   fread(szBuff, 1, fsize, pF);
-   fclose(pF);
-
-   if ( fsize < 10 || fsize > 256 )
-   {
-      log_softerror_and_alarm("Hardware: Invalid Atheros radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   szBuff[fsize] = 0;
-
-   char* szPos = strstr(szBuff, "txpower=");
-   int val = 0;
-   if ( NULL != szPos )
-   {
-      if ( 1 != sscanf(szPos+8, "%d", &val) )
-         iTxPower = 0;
-      else
-         iTxPower = val;
-   }
-   else
-   {
-      log_softerror_and_alarm("Hardware: Invalid Atheros radio interface configuration file to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-   log_line("Hardware: Read Atheros radio configuration ok. Atheros radio config tx power: %d", iTxPower);
-   return iTxPower;
-   #endif
-   return DEFAULT_RADIO_TX_POWER;
-}
-
-int hardware_get_radio_tx_power_rtl()
-{
-   int iTxPower = 0;
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   if ( access( "/etc/modprobe.d/rtl8812au.conf", R_OK ) == -1 )
-   {
-      log_softerror_and_alarm("Hardware: There are no RTL radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   FILE *pF = fopen("/etc/modprobe.d/rtl8812au.conf", "rb");
-   if ( NULL == pF )
-   {
-      log_softerror_and_alarm("Hardware: There are no RTL radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   char szBuff[512];
-
-   fseek(pF, 0, SEEK_END);
-   long fsize = ftell(pF);
-   fseek(pF, 0, SEEK_SET);
-   fread(szBuff, 1, fsize, pF);
-   fclose(pF);
-
-   if ( fsize < 10 || fsize > 256 )
-   {
-      log_softerror_and_alarm("Hardware: Invalid RTL radio interfaces configuration files to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-
-   szBuff[fsize] = 0;
-   char* szPos = strstr(szBuff, "tx_pwr_idx_override=");
-   int val = 0;
-
-   if ( NULL != szPos )
-   {
-      if ( 1 != sscanf(szPos+20, "%d", &val) )
-         iTxPower = 0;
-      else
-         iTxPower = val;
-   }
-   else
-   {
-      log_softerror_and_alarm("Hardware: Invalid RTL radio interface configuration file to read radio config from in /etc/modprobe.d");
-      return -1;
-   }
-   log_line("Hardware: Read RTL radio configuration ok. RTL radio config tx power: %d", iTxPower);
-   return iTxPower;
-   #endif
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_RTL_POWER);
-   FILE* fd = fopen(szFile, "rb");
-   if ( NULL != fd )
-   {
-      fscanf(fd, "%d", &iTxPower);
-      fclose(fd);
-      log_line("Hardware: Read RTL radio configuration ok from file [%s]. RTL radio config tx power: %d", szFile, iTxPower);
-      return iTxPower;
-   }
-
-   log_softerror_and_alarm("Failed to read RTL tx power from config file [%s]", szFile);
-   return DEFAULT_RADIO_TX_POWER;
-}
-
-
-int hardware_set_radio_tx_power_atheros(int txPower)
-{
-   log_line("Setting Atheros TX Power to: %d", txPower);
-   if ( txPower < 1 || txPower > MAX_TX_POWER )
-      txPower = DEFAULT_RADIO_TX_POWER;
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   int iHasOrgFile = 0;
-   if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) != -1 )
-      iHasOrgFile = 1;
-   if ( iHasOrgFile )
-   {
-      FILE *pF = fopen("/etc/modprobe.d/ath9k_hw.conf.org", "rb");
-      if ( NULL == pF )
-         iHasOrgFile = 0;
-      else
-      {
-         fseek(pF, 0, SEEK_END);
-         long fsize = ftell(pF);
-         fclose(pF);
-         if ( fsize < 20 || fsize > 512 )
-            iHasOrgFile = 0;
-      }
-   }
-
-   char szBuff[256];
-   szBuff[0] = 0;
-   if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf.org tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
-   else if ( access( "/etc/modprobe.d/ath9k_hw.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/ath9k_hw.conf; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", txPower);
-   else
-      log_softerror_and_alarm("Can't access/find Atheros power config files.");
-
-   if ( 0 != szBuff[0] )
-      hw_execute_bash_command(szBuff, NULL);
-
-   // Change power for RALINK cards too. They are 2.4Ghz only cards 
-   if ( access( "/etc/modprobe.d/rt2800usb.conf", R_OK ) != -1 )
-   {
-      txPower = (txPower/10)-2;
-      if ( txPower < 0 ) txPower = 0;
-      if ( txPower > 5 ) txPower = 5;
-      sprintf(szBuff, "cp /etc/modprobe.d/rt2800usb.conf tmp/; sed -i 's/txpower=[0-9]*/txpower=%d/g' tmp/rt2800usb.conf; cp tmp/rt2800usb.conf /etc/modprobe.d/", txPower );
-      hw_execute_bash_command(szBuff, NULL);
-   }
-   #endif
-   int val = hardware_get_radio_tx_power_atheros();
-   log_line("Atheros TX Power changed to: %d", val);
-   return val;
-}
-
-int hardware_set_radio_tx_power_rtl(int txPower)
-{
-   log_line("Setting RTL TX Power to: %d", txPower);
-   if ( txPower < 1 || txPower > MAX_TX_POWER )
-      txPower = DEFAULT_RADIO_TX_POWER;
-
-   int bSetPowerNow = 1;
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   bSetPowerNow = 0;
-   int iHasOrgFile = 0;
-   if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) != -1 )
-      iHasOrgFile = 1;
-   if ( iHasOrgFile )
-   {
-      FILE *pF = fopen("/etc/modprobe.d/rtl8812au.conf.org", "rb");
-      if ( NULL == pF )
-         iHasOrgFile = 0;
-      else
-      {
-         fseek(pF, 0, SEEK_END);
-         long fsize = ftell(pF);
-         fclose(pF);
-         if ( fsize < 20 || fsize > 512 )
-            iHasOrgFile = 0;
-      }
-   }
-
-   char szBuff[256];
-   szBuff[0] = 0;
-   if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl8812au.conf.org tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
-   else if ( access( "/etc/modprobe.d/rtl8812au.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl8812au.conf tmp/rtl8812au.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl8812au.conf; cp tmp/rtl8812au.conf /etc/modprobe.d/", txPower);
-   else
-      log_softerror_and_alarm("Can't access/find RTL power config files.");
-
-   if ( 0 != szBuff[0] )
-      hw_execute_bash_command(szBuff, NULL);
-
-   szBuff[0] = 0;
-   if ( iHasOrgFile )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl88XXau.conf.org tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
-   else if ( access( "/etc/modprobe.d/rtl88XXau.conf", R_OK ) != -1 )
-      sprintf(szBuff, "cp /etc/modprobe.d/rtl88XXau.conf tmp/rtl88XXau.conf; sed -i 's/rtw_tx_pwr_idx_override=[0-9]*/rtw_tx_pwr_idx_override=%d/g' tmp/rtl88XXau.conf; cp tmp/rtl88XXau.conf /etc/modprobe.d/", txPower);
-   else
-      log_softerror_and_alarm("Can't access/find RTL-XX power config files.");
-
-   if ( 0 != szBuff[0] )
-      hw_execute_bash_command(szBuff, NULL);
-   #endif
-
-   if ( bSetPowerNow )
-   {
-      log_line("Set tx power now using iw dev...");
-      char szComm[256];
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo )
-            continue;
-         if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
-              (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
-         { 
-            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*txPower);
-            hw_execute_bash_command(szComm, NULL);
-         }
-      }
-   }
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_RTL_POWER);
-   FILE* fd = fopen(szFile, "wb");
-   if ( NULL != fd )
-   {
-      fprintf(fd, "%d\n", txPower);
-      fclose(fd);
-   }
-   else
-      log_softerror_and_alarm("Failed to write RTL tx power to config file [%s]", szFile);
-
-   int val = hardware_get_radio_tx_power_rtl();
-   log_line("RTL TX Power changed to: %d, saved to file [%s]", val, szFile);
-   return val;
-}
-
-
-int hardware_get_basic_radio_wifi_info(radio_info_wifi_t* pdptr)
-{
-   if ( NULL == pdptr )
-   {
-      log_softerror_and_alarm("Hardware: invalid output parameter for telemetry radio structure");
-      return 0;
-   }
-   
-   pdptr->tx_powerAtheros = hardware_get_radio_tx_power_atheros();
-   pdptr->tx_powerRTL = hardware_get_radio_tx_power_rtl();
-
-   if ( pdptr->tx_powerAtheros < 1 || pdptr->tx_powerAtheros > MAX_TX_POWER )
-   {
-      log_softerror_and_alarm("Invalid TX power for Atheros cards. Setting %d as default value.", DEFAULT_RADIO_TX_POWER);
-      pdptr->tx_powerAtheros = DEFAULT_RADIO_TX_POWER;
-      hardware_set_radio_tx_power_atheros(pdptr->tx_powerAtheros);
-   }
-
-   if ( pdptr->tx_powerRTL < 1 || pdptr->tx_powerRTL > MAX_TX_POWER )
-   {
-      log_softerror_and_alarm("Invalid TX power for RTL cards. Setting %d as default value.", DEFAULT_RADIO_TX_POWER);
-      pdptr->tx_powerRTL = DEFAULT_RADIO_TX_POWER;
-      hardware_set_radio_tx_power_rtl(pdptr->tx_powerRTL);
-   }
-
-   if ( pdptr->tx_powerRTL > 0 )
-      pdptr->tx_power = pdptr->tx_powerRTL;
-   else
-      pdptr->tx_power = pdptr->tx_powerAtheros;
-   log_line("Hardware: parsed radio interfaces config files in /etc/modeprobe.d: tx power: %d,%d,%d", pdptr->tx_power, pdptr->tx_powerAtheros, pdptr->tx_powerRTL);
-   return 1;
 }

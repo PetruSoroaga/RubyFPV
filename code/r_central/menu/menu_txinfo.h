@@ -3,25 +3,26 @@
 #include "menu_item_select.h"
 #include "menu_item_slider.h"
 
-class MenuTXPower: public Menu
+class MenuTXInfo: public Menu
 {
    public:
-      MenuTXPower();
-      virtual ~MenuTXPower();
-      virtual void onShow();
+      MenuTXInfo();
+      virtual ~MenuTXInfo();
+      virtual void onShow(); 
       virtual void valuesToUI();
       virtual int onBack();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void Render();
       virtual void onSelectItem();
 
+      bool m_bSelectSecond;
       bool m_bShowController;
       bool m_bShowVehicle;
 
-   protected:
+   private:
       void RenderTableLine(int iCardModel, const char* szText, const int* piValues, bool bIsHeader, bool bIsBoosterLine);
       void drawPowerLine(const char* szText, float yPos, int value);
-      void sendPowerToVehicle(int txRTL8812AU, int txRTL8812EU, int txAtheros);
+      void sendPowerToVehicle(int tx, int txAtheros, int txRTL);
 
       float m_yTemp;
       float m_yTopRender;
@@ -33,17 +34,27 @@ class MenuTXPower: public Menu
       MenuItemSelect* m_pItemsSelect[10];
 
       bool m_bShowThinLine;
+      bool m_bShowBothOnController;
+      bool m_bShowBothOnVehicle;
+      bool m_bDisplay24Cards;
+      bool m_bDisplay58Cards;
 
-      int m_IndexPowerVehicleRTL8812AU;
-      int m_IndexPowerVehicleRTL8812EU;
+      bool m_bControllerHas24Cards;
+      bool m_bControllerHas58Cards;
+      bool m_bVehicleHas24Cards;
+      bool m_bVehicleHas58Cards;
+
+      int m_IndexPowerVehicle;
       int m_IndexPowerVehicleAtheros;
-      int m_IndexPowerControllerRTL8812AU;
-      int m_IndexPowerControllerRTL8812EU;
+      int m_IndexPowerVehicleRTL;
+      int m_IndexPowerController;
       int m_IndexPowerControllerAtheros;
+      int m_IndexPowerControllerRTL;
       int m_IndexPowerMax;
       int m_IndexShowAllCards;
       int m_IndexShowBoosters;
 
       bool m_bValuesChangedVehicle;
       bool m_bValuesChangedController;
+      bool m_bValuesChangedController58;
 };

@@ -33,6 +33,7 @@
 #include "config.h"
 #include "ctrl_settings.h"
 #include "hardware.h"
+#include "hardware_radio.h"
 #include "hw_procs.h"
 #include "flags.h"
 
@@ -45,13 +46,13 @@ void reset_ControllerSettings()
 {
    memset(&s_CtrlSettings, 0, sizeof(s_CtrlSettings));
    s_CtrlSettings.iUseBrokenVideoCRC = 0;
-   s_CtrlSettings.iTXPower = DEFAULT_RADIO_TX_POWER_CONTROLLER;
+   s_CtrlSettings.iTXPowerRTL8812AU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
+   s_CtrlSettings.iTXPowerRTL8812EU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
    s_CtrlSettings.iTXPowerAtheros = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-   s_CtrlSettings.iTXPowerRTL = DEFAULT_RADIO_TX_POWER_CONTROLLER;
    s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
-   s_CtrlSettings.iMaxTXPower = MAX_TX_POWER;
+   s_CtrlSettings.iMaxTXPowerRTL8812AU = MAX_TX_POWER;
+   s_CtrlSettings.iMaxTXPowerRTL8812EU = MAX_TX_POWER;
    s_CtrlSettings.iMaxTXPowerAtheros = MAX_TX_POWER;
-   s_CtrlSettings.iMaxTXPowerRTL = MAX_TX_POWER;
    s_CtrlSettings.iHDMIBoost = 6;
    s_CtrlSettings.iOverVoltage = 0;
    s_CtrlSettings.iFreqARM = 0;
@@ -129,7 +130,7 @@ int save_ControllerSettings()
    }
    fprintf(fd, "%s\n", CONTROLLER_SETTINGS_STAMP_ID);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iDeveloperMode, s_CtrlSettings.iUseBrokenVideoCRC, s_CtrlSettings.iHDMIBoost);
-   fprintf(fd, "%d %d %d %d %d %d\n", s_CtrlSettings.iTXPower, s_CtrlSettings.iTXPowerAtheros, s_CtrlSettings.iTXPowerRTL, s_CtrlSettings.iMaxTXPower, s_CtrlSettings.iMaxTXPowerAtheros, s_CtrlSettings.iMaxTXPowerRTL);
+   fprintf(fd, "%d %d %d %d %d %d\n", s_CtrlSettings.iTXPowerRTL8812AU, s_CtrlSettings.iTXPowerRTL8812EU, s_CtrlSettings.iTXPowerAtheros, s_CtrlSettings.iMaxTXPowerRTL8812AU, s_CtrlSettings.iMaxTXPowerRTL8812EU, s_CtrlSettings.iMaxTXPowerAtheros);
 
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iOverVoltage, s_CtrlSettings.iFreqARM, s_CtrlSettings.iFreqGPU);
 
@@ -213,20 +214,21 @@ int load_ControllerSettings()
    if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iHDMIBoost) )
       s_CtrlSettings.iHDMIBoost = 5;
 
-   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iTXPower, &s_CtrlSettings.iTXPowerAtheros, &s_CtrlSettings.iTXPowerRTL) )
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iTXPowerRTL8812AU, &s_CtrlSettings.iTXPowerRTL8812EU, &s_CtrlSettings.iTXPowerAtheros) )
    {
-      s_CtrlSettings.iTXPower = DEFAULT_RADIO_TX_POWER_CONTROLLER;
+      s_CtrlSettings.iTXPowerRTL8812AU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
+      s_CtrlSettings.iTXPowerRTL8812EU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
       s_CtrlSettings.iTXPowerAtheros = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-      s_CtrlSettings.iTXPowerRTL = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-      hardware_set_radio_tx_power_atheros(DEFAULT_RADIO_TX_POWER_CONTROLLER);
-      hardware_set_radio_tx_power_rtl(DEFAULT_RADIO_TX_POWER_CONTROLLER);
+      hardware_radio_set_txpower_rtl8812au(DEFAULT_RADIO_TX_POWER_CONTROLLER);
+      hardware_radio_set_txpower_rtl8812eu(DEFAULT_RADIO_TX_POWER_CONTROLLER);
+      hardware_radio_set_txpower_atheros(DEFAULT_RADIO_TX_POWER_CONTROLLER);
    }
 
-   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iMaxTXPower, &s_CtrlSettings.iMaxTXPowerAtheros, &s_CtrlSettings.iMaxTXPowerRTL) )
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iMaxTXPowerRTL8812AU, &s_CtrlSettings.iMaxTXPowerRTL8812EU, &s_CtrlSettings.iMaxTXPowerAtheros) )
    {
-      s_CtrlSettings.iMaxTXPower = MAX_TX_POWER;
+      s_CtrlSettings.iMaxTXPowerRTL8812AU = MAX_TX_POWER;
+      s_CtrlSettings.iMaxTXPowerRTL8812EU = MAX_TX_POWER;
       s_CtrlSettings.iMaxTXPowerAtheros = MAX_TX_POWER;
-      s_CtrlSettings.iMaxTXPowerRTL = MAX_TX_POWER;
    }
 
    if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iOverVoltage, &s_CtrlSettings.iFreqARM, &s_CtrlSettings.iFreqGPU) )

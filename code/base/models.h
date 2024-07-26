@@ -432,8 +432,8 @@ typedef struct
    int ioNiceVideo; // 0 or negative - disabled;
    int iNiceOthers;
    int iOverVoltage; // 0 or negative - disabled, negative - default value
-   int iFreqARM; // 0 or negative - disabled
-   int iFreqGPU; // 0 or negative - disabled
+   int iFreqARM; // 0 or negative - disabled; in Mhz
+   int iFreqGPU; // 0 or negative - disabled; in Mhz
 
    int iThreadPriorityRouter; // 0 - disabled, 1...99, higher number - higher priority
    int iThreadPriorityRadioRx; // 0 - disabled, 1...99, higher number - higher priority
@@ -580,7 +580,10 @@ class Model
       bool radioLinkIsWiFiRadio(int iRadioLinkIndex);
       bool radioLinkIsSiKRadio(int iRadioLinkIndex);
       bool radioLinkIsELRSRadio(int iRadioLinkIndex);
-
+      int hasRadioCardsRTL8812AU();
+      int hasRadioCardsRTL8812EU();
+      int hasRadioCardsAtheros();
+      
       bool hasCamera();
       char* getCameraName(int iCameraIndex);
       bool setCameraName(int iCameraIndex, const char* szCamName);
