@@ -46,3 +46,14 @@ or by sending an email to petrusoroaga@yahoo.com, providing a short explanation 
 # Adding code
 
 You can create pull requests, if that's what you really want, and I will code review them.
+
+# SSH default logins
+
+To login using SSH to your hardware (for debuging purposes), use these credentials:
+* Raspberry: pi/raspberry
+* Radxa: radxa/radxa
+* OpenIPC hardware: root/12345
+
+# Adding support for new hardware
+
+If you are a hardware manufacturer and you want to add support in Ruby for your device (be it a SBC, camera, radio module, etc), please contact us at the address above.
