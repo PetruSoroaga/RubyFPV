@@ -617,7 +617,7 @@ bool Model::loadVersion8(FILE* fd)
 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].flags) )
+         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].uFlags) )
             { log_softerror_and_alarm("Load model8: Error on line 21, cam profile %d", i); return false; }
          if ( 1 != fscanf(fd, "%d", &tmp1) )
             { log_softerror_and_alarm("Load model8: Error on line 21b, cam profile %d", i); return false; }
@@ -1209,7 +1209,7 @@ bool Model::loadVersion9(FILE* fd)
 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].flags) )
+         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].uFlags) )
             { log_softerror_and_alarm("Load model8: Error on line 21, cam profile %d", i); return false; }
          if ( 1 != fscanf(fd, "%d", &tmp1) )
             { log_softerror_and_alarm("Load model8: Error on line 21b, cam profile %d", i); return false; }
@@ -1789,7 +1789,7 @@ bool Model::loadVersion10(FILE* fd)
 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].flags) )
+         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].uFlags) )
             { log_softerror_and_alarm("Load model8: Error on line 21, cam profile %d", i); return false; }
          if ( 1 != fscanf(fd, "%d", &tmp1) )
             { log_softerror_and_alarm("Load model8: Error on line 21b, cam profile %d", i); return false; }
@@ -2406,7 +2406,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
-      sprintf(szSetting, "cam_profile_%d: %d %d\n", i, camera_params[k].profiles[i].flags, camera_params[k].profiles[i].flip_image); 
+      sprintf(szSetting, "cam_profile_%d: %d %d\n", i, camera_params[k].profiles[i].uFlags, camera_params[k].profiles[i].flip_image); 
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d %d %d\n", camera_params[k].profiles[i].brightness, camera_params[k].profiles[i].contrast, camera_params[k].profiles[i].saturation, camera_params[k].profiles[i].sharpness);
       strcat(szModel, szSetting);
@@ -2617,6 +2617,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
          continue;
       video_link_profiles[i].flags = 0;
       video_link_profiles[i].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       video_link_profiles[i].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
       video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[i].radio_datarate_video_bps = 0; // Auto
@@ -2669,7 +2670,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
    if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
@@ -2718,7 +2719,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
    video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
    video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
-   video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
+   video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
    if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
       video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
@@ -2743,7 +2744,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
    video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
    video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
-   video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
+   video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
    if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
       video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
    video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
@@ -2775,6 +2776,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
       video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
       video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION;
+      video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
    }
 
    // Auto H264 quantization is not implemented in openIPC
@@ -3662,6 +3664,21 @@ bool Model::find_and_validate_camera_settings()
    return bUpdated;
 }
 
+// Returns true if changes where made
+bool Model::validate_fps_and_exposure_settings(type_video_link_profile* pVideoLinkProfile, camera_profile_parameters_t* pCameraProfile)
+{
+   if ( isRunningOnOpenIPCHardware() )
+   if ( hardware_board_is_sigmastar(hwCapabilities.uBoardType) )
+   {
+      if ( pVideoLinkProfile->fps > 0 )
+      if ( pCameraProfile->shutterspeed >= 1000/pVideoLinkProfile->fps )
+      {
+         pCameraProfile->shutterspeed = 1000/pVideoLinkProfile->fps - 1;
+         return true;
+      }
+   }
+   return false;
+}
 
 bool Model::validate_settings()
 {
@@ -4000,9 +4017,18 @@ void Model::resetToDefaults(bool generateId)
 
    enableDHCP = false;
    bDeveloperMode = false;
+   
    uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
    uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
    uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+
+   if ( DEFAULT_USE_PPCAP_FOR_TX )
+      uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+   else
+      uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
+
+   uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
+
 
    resetRelayParamsToDefaults(&relay_params);
 
@@ -4080,7 +4106,9 @@ void Model::resetRadioLinksParams()
    
    radioLinksParams.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
    radioLinksParams.uGlobalRadioLinksFlags = 0;
-   
+   if ( DEFAULT_BYPASS_SOCKET_BUFFERS )
+      radioLinksParams.uGlobalRadioLinksFlags |= MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS;
+     
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       radioInterfacesParams.interface_power[i] = DEFAULT_RADIO_TX_POWER;
@@ -4135,7 +4163,7 @@ void Model::resetOSDFlags()
    osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_CPU_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
    osd_params.osd_flags[3] = 0;
    osd_params.osd_flags[4] = 0;
-   osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_STATS_RADIO_LINKS | OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES | OSD_FLAG2_SHOW_RC_RSSI;
+   osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES | OSD_FLAG2_SHOW_RC_RSSI;
    osd_params.osd_flags2[1] = OSD_FLAG2_LAYOUT_ENABLED |OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_BATTERY_CELLS | OSD_FLAG2_SHOW_RC_RSSI;
    osd_params.osd_flags2[2] = OSD_FLAG2_LAYOUT_ENABLED |OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_BATTERY_CELLS | OSD_FLAG2_SHOW_RC_RSSI;
    osd_params.osd_flags2[3] = OSD_FLAG2_LAYOUT_ENABLED |OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_RC_RSSI;
@@ -4329,7 +4357,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
 
 void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams)
 {
-   pCamParams->flags = 0;
+   pCamParams->uFlags = 0;
    pCamParams->flip_image = 0;
    pCamParams->brightness = 47;
    pCamParams->contrast = 50;
@@ -5008,8 +5036,8 @@ void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamPro
       return;
    }
 
-   if ( pCamProfile1->flags != pCamProfile2->flags )
-      log_line(" * Cam flags is different: %u - %u", pCamProfile1->flags, pCamProfile2->flags);
+   if ( pCamProfile1->uFlags != pCamProfile2->uFlags )
+      log_line(" * Cam flags is different: %u - %u", pCamProfile1->uFlags, pCamProfile2->uFlags);
    if ( pCamProfile1->flip_image != pCamProfile2->flip_image )
       log_line(" * Cam flip image is different: %u - %u", pCamProfile1->flip_image, pCamProfile2->flip_image);
    if ( pCamProfile1->brightness != pCamProfile2->brightness )
@@ -5070,11 +5098,15 @@ bool Model::isVideoLinkFixedOneWay()
 
 int Model::getInitialKeyframeIntervalMs(int iVideoProfile)
 {
-   int iKeyframeMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+   int iKeyframeMs = video_link_profiles[iVideoProfile].keyframe_ms;
+
+   if ( ! isVideoLinkFixedOneWay() )
+   if ( video_link_profiles[iVideoProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
+      iKeyframeMs = DEFAULT_VIDEO_AUTO_INITIAL_KEYFRAME_INTERVAL;
+   
    if ( hardware_board_is_goke(hardware_getBoardType()) )
        iKeyframeMs = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-   if ( (video_link_profiles[iVideoProfile].keyframe_ms > 0) || isVideoLinkFixedOneWay() )
-      iKeyframeMs = video_link_profiles[iVideoProfile].keyframe_ms;
+
    if ( iKeyframeMs < 0 )
       iKeyframeMs = -iKeyframeMs;
    return iKeyframeMs;
@@ -5106,7 +5138,7 @@ void Model::setDefaultVideoBitrate()
 
 void Model::setAWBMode()
 {
-   //if ( camera_params[iCurrentCamera].profiles[camera_params[iCurrentCamera].iCurrentProfile].flags & CAMERA_FLAG_AWB_MODE_OLD )
+   //if ( camera_params[iCurrentCamera].profiles[camera_params[iCurrentCamera].iCurrentProfile].uFlags & CAMERA_FLAG_AWB_MODE_OLD )
    //   hw_execute_bash_command("vcdbg set awb_mode 0 > /dev/null 2>&1", NULL);
    //else
    //   hw_execute_bash_command("vcdbg set awb_mode 1 > /dev/null 2>&1", NULL);
@@ -5327,7 +5359,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
       case 3: strcat(szVideoFlags, " -if cyclicrows"); break;
    }
 
-   if ( pCamParams->flags & CAMERA_FLAG_FORCE_MODE_1 )
+   if ( pCamParams->uFlags & CAMERA_FLAG_FORCE_MODE_1 )
       strcat(szVideoFlags, " -md 1");
 }
 

@@ -547,7 +547,7 @@ void video_link_adaptive_periodic_loop()
       }
 
       int isAdaptiveVideoOn = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
-      int isAdaptiveKeyframe = pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ? 0 : 1;
+      int isAdaptiveKeyframe = ((pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME)?1:0;
 
       if ( ! isAdaptiveVideoOn )
       {

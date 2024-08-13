@@ -54,6 +54,7 @@ bool menu_has_children(Menu* pMenu);
 bool menu_has_menu(int menuId);
 int menu_had_disable_stacking(int iMenuId);
 Menu* menu_get_menu_by_id(int menuId);
+Menu* menu_get_top_menu();
 bool isMenuOn();
 
 void menu_invalidate_all();

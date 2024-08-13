@@ -679,6 +679,11 @@ int main(int argc, char *argv[])
       readWriteRetryCount++;
       power_leds(readWriteRetryCount%2);
 
+      if ( readWriteRetryCount > 50 )
+      {
+         printf("\nError accessing the file system. Abort.\n\n");
+         return 0;
+      }
       hardware_sleep_ms(100);
 
       #ifdef HW_PLATFORM_RASPBERRY
@@ -693,6 +698,8 @@ int main(int argc, char *argv[])
 
       #if defined(HW_PLATFORM_RADXA_ZERO3)
       system("sudo mount -o remount,rw /");
+      system("sudo mount -o remount,rw /config");
+      system("cd /config; sudo mount -o remount,rw /config; cd /home/radxa/ruby");
       system("cd /home/radxa/ruby");
       hardware_sleep_ms(100);
       #endif
@@ -760,7 +767,10 @@ int main(int argc, char *argv[])
       strcat(szFile, LOG_FILE_START);
       fd = fopen(szFile, "a+");
       if ( NULL == fd )
+      {
+         printf("Can't access logs folder (%s)\n", FOLDER_LOGS);
          continue;
+      }
 
       fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, ((tty_name != NULL)?tty_name:"N/A"));
 
@@ -772,6 +782,7 @@ int main(int argc, char *argv[])
          fprintf(fd, "Failed to open boot count config file for write [%s].", szFile);
          fclose(fd);
          fd = NULL;
+         printf("Can't access config folder (%s)\n", FOLDER_CONFIG);
          continue;
       }
       fprintf(fd2, "%d\n", s_iBootCount);
@@ -1656,7 +1667,8 @@ int main(int argc, char *argv[])
       log_line("Copy boot log to /config partition. Done.");
       #endif
 
-      system("clear");
+      if ( ! g_bDebug )
+         system("clear");
    }
 
    if ( NULL != s_pSemaphoreStarted )

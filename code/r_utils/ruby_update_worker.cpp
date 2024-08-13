@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
       hw_execute_bash_command(szComm, NULL);
       sprintf(szComm, "cp -rf %s /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", szDriver);
       hw_execute_bash_command(szComm, NULL);
-      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", NULL);
       #endif
    }
 

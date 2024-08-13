@@ -362,7 +362,7 @@ float osd_show_flight_mode(float x, float y)
    g_pRenderEngine->drawRect(x, y, w, osd_getBarHeight() );
 
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( pCS->iDeveloperMode && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-70) )
+   if ( (pCS->iDeveloperMode || ((g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].pModel != NULL) && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].pModel->bDeveloperMode)) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-70) )
       g_pRenderEngine->setColors(get_Color_Dev());
    else
       osd_set_colors();
@@ -1830,18 +1830,7 @@ void _render_osd_left_right()
       if ( NULL == pVDS )
          strcpy(szBuff, "N/A");
       else if ( link_has_received_videostream(uVehicleIdVideo) )
-      {
-         strcpy(szBuff, "N/A");
-         for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-         {
-            if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
-            if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
-            {
-               strcpy(szBuff, g_listCaptureResolutions[i].szName);
-               break;
-            }
-         }
-      }
+         strcpy(szBuff, getOptionVideoResolutionName(pVDS->width, pVDS->height));
       else
          sprintf(szBuff, "[waiting]");
       osd_show_value_left(x,y, szBuff, g_idFontOSD);
@@ -2217,17 +2206,7 @@ void osd_render_elements()
       else if ( link_has_received_videostream(uVehicleIdVideo) )
       {
          //sprintf(szBuff, "%d x %d  %d fps", g_SM_VideoDecodeStats.width, g_SM_VideoDecodeStats.height, g_SM_VideoDecodeStats.fps);
-         strcpy(szBuff, "N/A");
-
-         for( int i=0; i<getOptionsVideoResolutionsCount(); i++ )
-         {
-            if ( g_listCaptureResolutions[i].iWidth == pVDS->width )
-            if ( g_listCaptureResolutions[i].iHeight == pVDS->height )
-            {
-               sprintf(szBuff, "%s %d fps", g_listCaptureResolutions[i].szName, pVDS->fps);
-               break;
-            }
-         }
+         sprintf(szBuff, "%s %d fps", getOptionVideoResolutionName(pVDS->width, pVDS->height), pVDS->fps);
       }
       else
          sprintf(szBuff, "[waiting]");

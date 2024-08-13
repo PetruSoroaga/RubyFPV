@@ -40,6 +40,7 @@
 
 #include "../../base/flags_video.h"
 #include "../media.h"
+#include "../shared_vars.h"
 #include "../launchers_controller.h"
 
 
@@ -48,7 +49,7 @@ const char* s_szWarningFreeDiskSpace = "You are running low on free storage spac
 MenuStorage::MenuStorage(void)
 :Menu(MENU_ID_STORAGE, "Media & Storage", NULL)
 {
-   m_Width = 0.58;
+   m_Width = 0.68;
    m_Height = 0.62;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
    m_VideoInfoFilesCount = 0;
@@ -262,7 +263,20 @@ void MenuStorage::Render()
       g_pRenderEngine->drawText(xpi+w, ypi, g_idFontMenu, szBuff );
       w += g_pRenderEngine->textWidth(g_idFontMenu, szBuff );
       w += 0.5*height_text / g_pRenderEngine->getAspectRatio();
-      sprintf(szBuff, "%dx%d, %d fps",m_VideoFilesWidth[index], m_VideoFilesHeight[index], m_VideoFilesFPS[index]);
+      char szRes[64];
+      strcpy(szRes, "1080p");
+      if ( m_VideoFilesHeight[index] < 800 )
+         strcpy(szRes, "720p");
+      else if ( m_VideoFilesHeight[index] < 1100 )
+         strcpy(szRes, "1080p");
+      else if ( m_VideoFilesHeight[index] < 1400 )
+         strcpy(szRes, "2k");
+      else if ( m_VideoFilesHeight[index] < 1900 )
+         strcpy(szRes, "3k");
+      else if ( m_VideoFilesHeight[index] < 2400 )
+         strcpy(szRes, "4k");
+
+      sprintf(szBuff, "%s %d fps", szRes, m_VideoFilesFPS[index]);
       g_pRenderEngine->drawText(xpi+w, ypi, g_idFontMenu, szBuff );
       w += g_pRenderEngine->textWidth(g_idFontMenu, szBuff );
       ypi += heightItem;
@@ -283,8 +297,10 @@ void MenuStorage::Render()
    else
       maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
 
+   y += height_text*0.4;
+
    sprintf(szBuff, "Page %d of %d", m_UIFilesPage+1,1+(m_VideoInfoFilesCount/m_UIFilesPerPage));
-   g_pRenderEngine->drawTextLeft(x+maxWidth-2*m_sfMenuPaddingX, y+height_text*0.4, g_idFontMenu, szBuff); 
+   g_pRenderEngine->drawTextLeft(x+maxWidth-2*m_sfMenuPaddingX, y, g_idFontMenu, szBuff); 
 
    m_pMenuItems[m_StaticMenuItemsCount-2]->Render(m_RenderXPos + m_sfMenuPaddingX, y, m_SelectedIndex == (maxMenuIndex-1), m_fSelectionWidth*0.34);
    m_pMenuItems[m_StaticMenuItemsCount-1]->Render(m_RenderXPos + 2.0*m_sfMenuPaddingX + m_fSelectionWidth*0.34, y, m_SelectedIndex == (maxMenuIndex), m_fSelectionWidth*0.34);
@@ -582,7 +598,7 @@ void MenuStorage::movePictures(bool bDelete)
    }
 }
 
-void MenuStorage::moveVideos(bool bDelete)
+bool MenuStorage::moveVideos(bool bDelete)
 {
    char szFile[MAX_FILE_PATH_SIZE];
    char szSrcFile[MAX_FILE_PATH_SIZE];
@@ -603,6 +619,7 @@ void MenuStorage::moveVideos(bool bDelete)
    render_all(get_current_timestamp_ms());
 
    buildFilesListVideo();
+   bool bHadErrors = false;
 
    strcpy(szFile, FOLDER_USB_MOUNT);
    strcat(szFile, "Ruby");
@@ -630,6 +647,28 @@ void MenuStorage::moveVideos(bool bDelete)
          break;
       }
       fclose(fd);
+
+      int iFreeSpaceKb = hardware_get_free_space_kb();
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", FOLDER_MEDIA, szSrcFile);
+      long lSizeVideo = 0;
+      fd = fopen(szFile, "rb");
+      if ( NULL != fd )
+      {
+         fseek(fd, 0, SEEK_END);
+         lSizeVideo = ftell(fd);
+         fseek(fd, 0, SEEK_SET);
+         fclose(fd);
+      }
+      log_line("Video file (%s) size: %d kb, free space: %d kb", szFile, lSizeVideo/1000, iFreeSpaceKb);
+      if ( iFreeSpaceKb < ((lSizeVideo/1000)*5)/3 )
+      {
+         ruby_signal_alive();
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "Not enough free space to process video file %s; %d Mb free.", szSrcFile, (int)iFreeSpaceKb/1000);
+         m_pPopupProgress->addLine(szCommand);
+         bHadErrors = true;
+         continue;
+      }
+
       strcpy(szOutFile, szSrcFile);
       szOutFile[strlen(szOutFile)-4] = 'm';
       szOutFile[strlen(szOutFile)-3] = 'p';
@@ -640,9 +679,38 @@ void MenuStorage::moveVideos(bool bDelete)
       snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "rm -rf %s%s", FOLDER_RUBY_TEMP, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
 
-      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "./ruby_video_proc %s%s %s%s", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY_TEMP, szOutFile);
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "./ruby_video_proc %s%s %s%s &", FOLDER_MEDIA, m_szVideoInfoFiles[i], FOLDER_RUBY_TEMP, szOutFile);
       hw_execute_bash_command(szCommand, NULL);
-      //system(szCommand);
+      
+      g_TimeNow = get_current_timestamp_ms();
+      u32 uTimeStart = g_TimeNow;
+
+      log_line("Waiting for video processing...");
+
+      // Wait a little for processing process to start
+      while ( get_current_timestamp_ms() < uTimeStart + 2000 )
+      {
+         hardware_sleep_ms(200);
+         g_TimeNow = get_current_timestamp_ms();
+         ruby_signal_alive();
+         ruby_processing_loop(true);
+         render_all(get_current_timestamp_ms());
+      }
+
+      // Wait for processing process to finish
+      while ( ! g_bQuit )
+      {
+         hardware_sleep_ms(300);
+         g_TimeNow = get_current_timestamp_ms();
+         ruby_signal_alive();
+         ruby_processing_loop(true);
+         render_all(get_current_timestamp_ms());
+         if ( hw_process_exists("ruby_video_proc") )
+            log_line("Waiting for video processing to finish...");
+         else
+            break;
+      }
+
       log_line("Finished processing video %s", m_szVideoInfoFiles[i]);
       hardware_sleep_ms(100);
       
@@ -697,9 +765,10 @@ void MenuStorage::moveVideos(bool bDelete)
    sync();
    ruby_signal_alive();
    hardware_sleep_ms(100);
+   return bHadErrors;
 }
 
-void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
+bool MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
 {
    char szBuff[256];
    char szCommand[256];
@@ -720,16 +789,15 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
       ruby_resume_watchdog();
       m_pPopupProgress->setTitle("No USB memory stick available.");
       m_pPopupProgress->setTimeout(5);
-      return;
+      return false;
    }
 
    movePictures(bDeleteToo);
-   moveVideos(bDeleteToo);
+   bool bHadErrors = moveVideos(bDeleteToo);
 
    if ( bDeleteToo )
-   {
       onShow();
-   }
+
    char szUSBDeviceName[128];
    strncpy(szUSBDeviceName, hardware_get_mounted_usb_name(), 127);
 
@@ -741,21 +809,51 @@ void MenuStorage::flowCopyMoveFiles(bool bDeleteToo)
    invalidate();
    sprintf(szBuff, "Done. It's safe now to remove the USB memory stick [%s].", szUSBDeviceName);
    m_pPopupProgress->setTitle(szBuff);
-   m_pPopupProgress->setTimeout(5);
+   if ( bHadErrors )
+   {
+      m_pPopupProgress->addLine(szBuff);
+      m_pPopupProgress->setTimeout(10);
+   }
+   else
+     m_pPopupProgress->setTimeout(5);
+   return true;
 }
 
 
 void MenuStorage::stopVideoPlay()
 {
+   log_line("Stopping video playback...");
    hw_stop_process(VIDEO_PLAYER_OFFLINE);
  
    g_bVideoPlaying = false;
    render_all(get_current_timestamp_ms(), true);
+
+   log_line("Stopped video playback.");
+
    if ( m_bWasPairingStarted )
       pairing_start_normal();
    render_all(get_current_timestamp_ms(), true);
 }
 
+bool MenuStorage::periodicLoop()
+{
+   if ( g_bVideoPlaying )
+   {
+      if ( g_TimeNow > g_uVideoPlayingStartTime + 1000 )
+      if ( ! hw_process_exists(VIDEO_PLAYER_OFFLINE) )
+      {
+         log_line("MenuStorage: video player process (%s) does not exist, exit playback.", VIDEO_PLAYER_OFFLINE);
+         stopVideoPlay();
+      }
+      if ( g_TimeNow > g_uVideoPlayingStartTime + g_uVideoPlayingLengthSec*1000 + 1000 )
+      {
+         log_line("Video playback duration reached. Stopping video player.");
+         stopVideoPlay();
+      }
+   }
+
+   return false;
+}
 
 void MenuStorage::onSelectItem()
 {
@@ -845,9 +943,14 @@ void MenuStorage::onSelectItem()
       return;
    }
 
+   playVideoFile(m_SelectedIndex);
+}
+
+void MenuStorage::playVideoFile(int iMenuItemIndex)
+{
    char szFile[MAX_FILE_PATH_SIZE];
    char szBuff[1024];
-   int index = m_UIFilesPerPage * m_UIFilesPage + m_SelectedIndex-m_StaticMenuItemsCountBeforeUIFiles;
+   int index = m_UIFilesPerPage * m_UIFilesPage + iMenuItemIndex - m_StaticMenuItemsCountBeforeUIFiles;
    if ( index < 0 || index >= m_VideoInfoFilesCount )
       return;
 
@@ -867,16 +970,22 @@ void MenuStorage::onSelectItem()
    {
       pairing_stop();
       m_bWasPairingStarted = true;
+      ruby_signal_alive();
    }
 
    #ifdef HW_PLATFORM_RASPBERRY
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s %s%s 30 &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
    #endif
+
    #ifdef HW_PLATFORM_RADXA_ZERO3
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s -f %s%s &", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile);
    #endif
    hw_execute_bash_command(szBuff,NULL);
+   hardware_sleep_ms(100);
    g_bVideoPlaying = true;
    g_uVideoPlayingStartTime = get_current_timestamp_ms();
    g_uVideoPlayingLengthSec = m_VideoFilesDuration[index];
+
+   log_line("Started video playback of file: (%s%s)", FOLDER_MEDIA, szFile);
+
 }

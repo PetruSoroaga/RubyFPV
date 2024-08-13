@@ -1459,6 +1459,15 @@ int main(int argc, char *argv[])
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
       log_only_errors();
 
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   log_line("Setting CPU speed for OpenIPC hardware...");
+   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+   char szComm[256];
+   sprintf(szComm, "echo %d | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", g_pCurrentModel->processesPriorities.iFreqARM*1000);
+   hw_execute_bash_command_raw(szComm, NULL);
+   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+   #endif
+
    radio_rx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioRx);
    radio_tx_set_custom_thread_priority(g_pCurrentModel->processesPriorities.iThreadPriorityRadioTx);
 
@@ -1533,11 +1542,17 @@ int main(int argc, char *argv[])
   
    hardware_sleep_ms(50);
    radio_init_link_structures();
+
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
       radio_set_use_pcap_for_tx(1);
    else
       radio_set_use_pcap_for_tx(0);
    
+   if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
+      radio_set_bypass_socket_buffers(1);
+   else
+      radio_set_bypass_socket_buffers(0);
+
    radio_enable_crc_gen(1);
 
    if ( NULL != g_pCurrentModel )

@@ -77,6 +77,8 @@ typedef struct
 
    int iRadioRxThreadPriority;
    int iRadioTxThreadPriority;
+   int iRadioTxUsesPPCAP;
+   int iRadioBypassSocketBuffers;
 } ControllerSettings;
 
 int save_ControllerSettings();

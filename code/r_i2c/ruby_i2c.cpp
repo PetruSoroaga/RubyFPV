@@ -989,7 +989,7 @@ int main(int argc, char *argv[])
 
       g_TimeNow = get_current_timestamp_ms();
 
-      if (  g_TimeNow >= g_TimeLastReloadCheck+300 )
+      if (  g_TimeNow >= g_TimeLastReloadCheck+500 )
       {
          g_TimeLastReloadCheck = g_TimeNow;
          if ( access(szFile, R_OK) != -1 )

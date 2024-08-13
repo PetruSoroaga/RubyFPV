@@ -698,7 +698,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
       log_line("Received notification from central that relay mode changed to %d (%s)", g_pCurrentModel->relay_params.uCurrentRelayMode, str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
       int iCurrentFPS = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
-      int iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+      int iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
       if ( ! relay_controller_must_display_main_video(g_pCurrentModel) )
          iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
       log_line("Set current keyframe to %d ms for FPS %d for current vehicle (VID: %u)", iDefaultKeyframeIntervalMs, iCurrentFPS, g_pCurrentModel->uVehicleId);
@@ -707,7 +707,7 @@ void process_local_control_packet(t_packet_header* pPH)
       pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 102);
       if ( NULL != pModel )
       {
-         iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+         iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
          if ( ! relay_controller_must_display_remote_video(g_pCurrentModel) )
             iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
          log_line("Set current keyframe to %d ms for remote vehicle (VID: %u)", iDefaultKeyframeIntervalMs, pModel->uVehicleId);
@@ -734,6 +734,10 @@ void process_local_control_packet(t_packet_header* pPH)
    {
       log_line("Received control packet to reload controller settings.");
 
+      g_pControllerSettings = get_ControllerSettings();
+      int iOldTxMode = g_pControllerSettings->iRadioTxUsesPPCAP;
+      int iOldSocketBuffers = g_pControllerSettings->iRadioBypassSocketBuffers;
+
       hw_serial_port_info_t oldSerialPorts[MAX_SERIAL_PORTS];
       for( int i=0; i<hardware_get_serial_ports_count(); i++ )
       {
@@ -748,6 +752,17 @@ void process_local_control_packet(t_packet_header* pPH)
       hardware_reload_serial_ports_settings();
       load_ControllerSettings();
       g_pControllerSettings = get_ControllerSettings();
+
+      if ( g_pControllerSettings->iRadioTxUsesPPCAP != iOldTxMode )
+      {
+         log_line("Radio Tx mode (PPCAP/Socket) changed. Reinit radio interfaces...");
+         reasign_radio_links(true);
+      }
+      if ( g_pControllerSettings->iRadioBypassSocketBuffers != iOldSocketBuffers )
+      {
+         log_line("Radio bypass socket buffers changed. Reinit radio interfaces...");
+         reasign_radio_links(true);       
+      }
 
       if ( NULL != g_pControllerSettings )
          radio_rx_set_timeout_interval(g_pControllerSettings->iDevRxLoopTimeout);

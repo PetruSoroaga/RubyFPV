@@ -91,6 +91,7 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexWDR = -1;
    m_IndexDayNight = -1;
    m_IndexVideoStab = m_IndexFlip = m_IndexReset = -1;
+   m_IndexIRCut = -1;
 }
 
 void MenuVehicleCamera::addItems()
@@ -384,6 +385,19 @@ void MenuVehicleCamera::addItems()
    m_pItemsSelect[9]->setMargin(fMargin);
    m_IndexFlip = addMenuItem(m_pItemsSelect[9]);
 
+
+   m_IndexIRCut = -1;
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");  
+      m_pItemsSelect[20]->addSelection("On");
+      m_pItemsSelect[20]->addSelection("Off");
+      m_pItemsSelect[20]->setIsEditable();
+      m_pItemsSelect[20]->setMargin(fMargin);
+      m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
+   }
+
    m_IndexReset = addMenuItem(new MenuItem("Reset Profile", "Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile."));
    m_pMenuItems[m_IndexReset]->setMargin(fMargin);
 
@@ -652,6 +666,16 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
       bSendToVehicle = true;
    }
 
+   if ( -1 != m_IndexIRCut )
+   if ( (m_IndexIRCut == itemIndex) || (itemIndex == -1) )
+   {    
+      if ( 0 == m_pItemsSelect[20]->getSelectedIndex() )
+         cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_IR_FILTER_OFF;
+      else
+         cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_IR_FILTER_OFF;
+      bSendToVehicle = true;
+   }
+
    if ( (m_IndexSharpness != -1 && m_IndexSharpness == itemIndex ) || itemIndex == -1 )
    if ( m_pItemsSlider[3] != NULL )
    {
@@ -698,9 +722,9 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
    if ( m_IndexAWBMode != -1 )
    {
       if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
-         cparams.profiles[iProfile].flags |= CAMERA_FLAG_AWB_MODE_OLD;
+         cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_AWB_MODE_OLD;
       else
-         cparams.profiles[iProfile].flags &= ~CAMERA_FLAG_AWB_MODE_OLD;
+         cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_AWB_MODE_OLD;
    }
 
    if ( (m_IndexAGC != -1) && (m_pItemsSlider[7] != NULL) )
@@ -730,6 +754,10 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
             cparams.profiles[iProfile].shutterspeed = 0;
          else if ( m_pItemsSlider[6] != NULL )
             cparams.profiles[iProfile].shutterspeed = m_pItemsSlider[6]->getCurrentValue();
+
+         if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+         if ( g_pCurrentModel->validate_fps_and_exposure_settings(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &cparams.profiles[iProfile]))
+            addMessage("You camera exposure time was adjusted to accomodate the currently set video FPS.");
       }
       else
       {
@@ -835,8 +863,12 @@ void MenuVehicleCamera::onSelectItem()
          case 8: iCamType = CAMERA_TYPE_OPENIPC_IMX415; break;
       }
       if ( iCamType != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_FORCE_CAMERA_TYPE, iCamType, NULL, 0) )
-         valuesToUI();
+      {
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_FORCE_CAMERA_TYPE, iCamType, NULL, 0) )
+            valuesToUI();
+         if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+            addMessage("Vehicle will reboot to update the firmware state.");
+      }
       return;
    }
 
@@ -946,6 +978,10 @@ void MenuVehicleCamera::onSelectItem()
       sendCameraParams(-1, false);
 
    if ( m_IndexWDR != -1 && m_IndexWDR == m_SelectedIndex )
+      sendCameraParams(-1, false);
+
+   if ( m_IndexIRCut != -1 )
+   if ( m_IndexIRCut == m_SelectedIndex )
       sendCameraParams(-1, false);
 
    if ( m_IndexCalibrateHDMI == m_SelectedIndex )

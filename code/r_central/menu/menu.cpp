@@ -191,6 +191,13 @@ Menu* menu_get_menu_by_id(int menuId)
    return NULL;
 }
 
+Menu* menu_get_top_menu()
+{
+   if ( g_iMenuStackTopIndex > 0 )
+      return g_pMenuStack[g_iMenuStackTopIndex-1];
+   return NULL;
+}
+
 void add_menu_to_stack(Menu* pMenu)
 {
    if ( NULL == pMenu )

@@ -141,7 +141,7 @@ typedef struct
       // byte 0:
       //    bit 0..2  - scramble blocks count
       //    bit 3     - enables restransmission of missing packets
-      //    bit 4     - signals that current video is on reduced video bitrate due to tx time overload on vehicle
+      //    bit 4     - enable adaptive video keyframe interval
       //    bit 5     - enable adaptive video link params
       //    bit 6     - use controller info too when adjusting video link params
       //    bit 7     - go lower adaptive video profile when controller link lost

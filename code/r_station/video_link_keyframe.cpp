@@ -248,7 +248,7 @@ void _video_link_keyframe_do_adaptive_check(int iVehicleIndex)
    if ( (NULL != pProcessorVideo) && (pProcessorVideo->getLastTimeReceivedVideoPacket() < g_TimeNow - (10-pModel->video_params.videoAdjustmentStrength)*20) )
    {
       g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAG_NO_VIDEO_PACKETS;
-      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs > DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs > DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
       {
          int iNewKeyFrameIntervalMs = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iLastRequestedKeyFrameMs / 2;
          if ( iNewKeyFrameIntervalMs < DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
@@ -290,7 +290,7 @@ void _video_link_keyframe_do_adaptive_check(int iVehicleIndex)
       
       if ( iIntervalsToCheckDown >= iThresholdDownLevelSlow )
       if ( iCountReconstructed >= iThresholdDownLevelSlow )
-      if ( iNewKeyFrameIntervalMs > 4*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      if ( iNewKeyFrameIntervalMs > 4*DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
       {
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN;
          iNewKeyFrameIntervalMs = (iNewKeyFrameIntervalMs * 3)/4;
@@ -305,17 +305,17 @@ void _video_link_keyframe_do_adaptive_check(int iVehicleIndex)
 
       if ( iIntervalsToCheckDown >= iThresholdDownLevelRetrSlow )
       if ( (iCountRetransmissions >= iThresholdDownLevelRetrSlow) || (iCountMissingSegments >= iThresholdDownLevelRetrSlow/2+1) )
-      if ( iNewKeyFrameIntervalMs > 2*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
+      if ( iNewKeyFrameIntervalMs > 2*DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
       {
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN;
-         iNewKeyFrameIntervalMs = 2*DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+         iNewKeyFrameIntervalMs /= 2;
       }
 
       if ( iIntervalsToCheckDown >= iThresholdDownLevelRetrFast )
       if ( (iCountRetransmissions >= iThresholdDownLevelRetrFast) || (iCountMissingSegments >= iThresholdDownLevelRetrFast/2+1) )
       {
          g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].uIntervalsFlags[g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iVehicleIndex].iCurrentIntervalIndex] |= ADAPTIVE_STATS_FLAGS_SHIFT_DOWN_FAST;
-         iNewKeyFrameIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+         iNewKeyFrameIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
       }
 
       // Apply the change, if any
@@ -421,7 +421,7 @@ void video_link_keyframe_periodic_loop()
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
 
-      if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
+      if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
          continue;
       if ( pModel->isVideoLinkFixedOneWay() )
          continue;
@@ -448,7 +448,7 @@ void video_link_keyframe_periodic_loop()
       if ( (NULL == pModel) || (pModel->is_spectator) )
          continue;
         
-      if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 )
+      if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
          continue;
       if ( pModel->isVideoLinkFixedOneWay() )
          continue;
@@ -472,7 +472,8 @@ void video_link_keyframe_periodic_loop()
          iCurrentVideoProfile = pModel->video_params.user_selected_video_link_profile;
    
       int iCurrentProfileKeyFrameMs = pModel->video_link_profiles[iCurrentVideoProfile].keyframe_ms;
-
+      if ( iCurrentProfileKeyFrameMs < 0 )
+         iCurrentProfileKeyFrameMs = -iCurrentProfileKeyFrameMs;
       if ( iCurrentFPS < 1 )
          iCurrentFPS = pModel->video_link_profiles[iCurrentVideoProfile].fps;
 

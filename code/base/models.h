@@ -17,11 +17,14 @@
 
 #define CAMERA_FLAG_FORCE_MODE_1 1
 #define CAMERA_FLAG_AWB_MODE_OLD ((u32)(((u32)0x01)<<1))
-
+#define CAMERA_FLAG_IR_FILTER_OFF ((u32)(((u32)0x01)<<2))
 
 typedef struct
 {
-   u32 flags;
+   u32 uFlags; // See CAMERA_FLAG_... above
+   // bit 0: force mode 1
+   // bit 1: AWB mode old
+   // bit 2: 1: turn IR Cut off
    u8 flip_image;
    u8 brightness; // 0...100
    u8 contrast;   // 0...100
@@ -40,6 +43,7 @@ typedef struct
    u8 ev;    // -10 to 10, 0 default, translated to 1...21, default 11
    u16 iso; // 100 - 800, 0 for off
    u16 shutterspeed; // in 1/x of a second, 0 for off, min is 30, max is 30000 (1/30 to 1/30000);
+      // For IMX415 OpenIPC is exposure in miliseconds
    u8 wdr; // used for IMX327 camera for WDR mode
    u8 dayNightMode; // 0 - day mode, 1 - night mode, only for Veye cameras
    u8 hue; // 0...100
@@ -86,7 +90,7 @@ typedef struct
    // byte 0:
    //    bit 0..2  - scramble blocks count
    //    bit 3     - enables restransmission of missing packets
-   //    bit 4     - signals that current video is on reduced video bitrate due to tx time overload on vehicle
+   //    bit 4     - enable adaptive video keyframe interval
    //    bit 5     - enable adaptive video link params
    //    bit 6     - use controller info too when adjusting video link params
    //    bit 7     - go lower adaptive video profile when controller link lost
@@ -117,7 +121,6 @@ typedef struct
    int block_fecs;
    int video_data_length;
    int keyframe_ms;
-   // positive: fixed keyframe, negative: auto keyframe interval (negative value is the stored fixed one)
    // v 7.7: changed keyframe to miliseconds instead of frames count
    int fps;
    u32 bitrate_fixed_bps; // in bits per second, 0 for auto
@@ -399,7 +402,10 @@ typedef struct
    u8  uUplinkDataDataRateType[MAX_RADIO_INTERFACES]; // DataRate Type
    u8  uDownlinkDataDataRateType[MAX_RADIO_INTERFACES];
    int iSiKPacketSize;
-   u32 uGlobalRadioLinksFlags; // 0 - none, 1 - disable uplinks
+   u32 uGlobalRadioLinksFlags; // See MODEL_RADIOLINKS_FLAGS_...
+   // bit 0 - none, 1 - disable uplinks
+   // bit 1 - bypass sockets buffers
+   
    u32 uDummyRadio[7];
 } type_radio_links_parameters;
 
@@ -540,7 +546,7 @@ class Model
       bool reloadIfChanged(bool bLoadStats);
       bool loadFromFile(const char* filename, bool bLoadStats = false);
       bool saveToFile(const char* filename, bool isOnController);
-      int getLoadedFileVersion();
+      int  getLoadedFileVersion();
       bool isRunningOnOpenIPCHardware();
       void populateHWInfo();
       bool populateVehicleSerialPorts();
@@ -566,6 +572,7 @@ class Model
       int logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, type_radio_links_parameters* pData2);
       
       bool find_and_validate_camera_settings();
+      bool validate_fps_and_exposure_settings(type_video_link_profile* pVideoLinkProfile, camera_profile_parameters_t* pCameraProfile);
       bool validate_settings();
       bool validate_relay_links_flags();
       void updateRadioInterfacesRadioFlagsFromRadioLinksFlags();

@@ -607,7 +607,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
       g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
       log_line("Updated runtime info index 0");
-      warnings_add(0, "First pairing complete.");
+      warnings_add(0, "First pairing started...");
       onModelAdded(g_pCurrentModel->uVehicleId);
       return 0;
    }

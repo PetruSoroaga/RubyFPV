@@ -34,15 +34,18 @@
 #include "menu_controller.h"
 #include "menu_text.h"
 #include "menu_system.h"
-#include "menu_system_expert.h"
 #include "menu_confirmation.h"
 #include "menu_system_all_params.h"
 #include "menu_system_hardware.h"
 #include "../../base/controller_utils.h"
 #include "menu_system_dev_logs.h"
 #include "menu_system_alarms.h"
+#include "menu_controller_dev.h"
+#include "menu_vehicle_dev.h"
 #include "../osd/osd_common.h"
 #include "../process_router_messages.h"
+#include "../pairing.h"
+#include "../link_watch.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -80,14 +83,24 @@ MenuSystem::MenuSystem(void)
 
    m_IndexReset = addMenuItem(new MenuItem("Factory Reset", "Resets all the settings an files on the controller, as they where when the image was flashed."));
 
-   m_pItemsSelect[0] = new MenuItemSelect("Enable Developer Mode", "Used to debug issues. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
+   m_pItemsSelect[0] = new MenuItemSelect("Enable Vehicle Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
    m_pItemsSelect[0]->addSelection("Off");
    m_pItemsSelect[0]->addSelection("On");
    m_pItemsSelect[0]->setUseMultiViewLayout();
-   m_IndexDeveloper = addMenuItem(m_pItemsSelect[0]);
+   m_IndexDeveloperVehicle = addMenuItem(m_pItemsSelect[0]);
 
-   m_IndexExpert = addMenuItem(new MenuItem("Developer Settings", "Changes expert system settings. For debuging only."));
-   m_pMenuItems[m_IndexExpert]->showArrow();
+   m_IndexDevOptionsVehicle = addMenuItem( new MenuItem("Vehicle Developer Settings") );
+   m_pMenuItems[m_IndexDevOptionsVehicle]->showArrow();
+
+
+   m_pItemsSelect[2] = new MenuItemSelect("Enable Controller Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
+   m_pItemsSelect[2]->addSelection("Off");
+   m_pItemsSelect[2]->addSelection("On");
+   m_pItemsSelect[2]->setUseMultiViewLayout();
+   m_IndexDeveloperController = addMenuItem(m_pItemsSelect[2]);
+
+   m_IndexDevOptionsController = addMenuItem( new MenuItem("Controller Developer Settings") );
+   m_pMenuItems[m_IndexDevOptionsController]->showArrow();
 }
 
 void MenuSystem::valuesToUI()
@@ -95,13 +108,23 @@ void MenuSystem::valuesToUI()
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();
 
-   m_pItemsSelect[0]->setSelection(0);
-   if ( NULL != pCS && (0 != pCS->iDeveloperMode) )
-      m_pItemsSelect[0]->setSelection(1);
-
    m_pItemsSelect[1]->setSelectedIndex(pP->iAutoExportSettings);
 
-   m_pMenuItems[m_IndexExpert]->setEnabled(pCS->iDeveloperMode);
+   m_pItemsSelect[0]->setSelection(0);
+   m_pMenuItems[m_IndexDevOptionsVehicle]->setEnabled(false);
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   {
+      m_pItemsSelect[0]->setSelection(1);
+      m_pMenuItems[m_IndexDevOptionsVehicle]->setEnabled(true);
+   }
+
+   m_pItemsSelect[2]->setSelection(0);
+   m_pMenuItems[m_IndexDevOptionsController]->setEnabled(false);
+   if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
+   {
+      m_pItemsSelect[2]->setSelection(1);
+      m_pMenuItems[m_IndexDevOptionsController]->setEnabled(true);
+   }
 }
 
 void MenuSystem::onShow()
@@ -138,12 +161,24 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( 1 == iChildMenuId/1000 )
    {
       onEventReboot();
+      #if defined(HW_PLATFORM_RASPBERRY)
       hw_execute_bash_command("rm -rf /home/pi/ruby/logs", NULL);
       hw_execute_bash_command("rm -rf /home/pi/ruby/media", NULL);
       hw_execute_bash_command("rm -rf /home/pi/ruby/config", NULL);
       hw_execute_bash_command("rm -rf /home/pi/ruby/tmp", NULL);
       hw_execute_bash_command("mkdir -p config", NULL);
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
+      #endif
+
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      hw_execute_bash_command("rm -rf /home/radxa/ruby/logs", NULL);
+      hw_execute_bash_command("rm -rf /home/radxa/ruby/media", NULL);
+      hw_execute_bash_command("rm -rf /home/radxa/ruby/config", NULL);
+      hw_execute_bash_command("rm -rf /home/radxa/ruby/tmp", NULL);
+      hw_execute_bash_command("mkdir -p config", NULL);
+      hw_execute_bash_command("touch /home/radxa/ruby/config/firstboot.txt", NULL);
+      #endif
+
       char szBuff[128];
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
@@ -296,27 +331,53 @@ void MenuSystem::onSelectItem()
       save_Preferences();
    }
 
-   if ( m_IndexDeveloper == m_SelectedIndex && (! m_pMenuItems[m_IndexDeveloper]->isEditing()) )
+   if ( (m_IndexDeveloperVehicle == m_SelectedIndex) && (! m_pMenuItems[m_IndexDeveloperVehicle]->isEditing()) )
    {
-      int val = m_pItemsSelect[0]->getSelectedIndex();
-      ControllerSettings* pCS = get_ControllerSettings();
-
-      if ( val != pCS->iDeveloperMode )
+      if ( NULL == g_pCurrentModel )
       {
-         log_line("MenuSystem: Changed developer mode flag to: %s", val?"true":"false");
-         pCS->iDeveloperMode = val;
-         save_ControllerSettings();
-         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
-         if ( NULL != g_pCurrentModel )
-            g_pCurrentModel->b_mustSyncFromVehicle = true;
+         addMessage("You must be connected to a vehicle to enable vehicle developer mode.");
+         valuesToUI();
+         return;
+      }
+
+      if ( g_pCurrentModel->is_spectator )
+      {
+         addMessage("You must be connected to a vehicle in controll mode to enable developer mode, not in spectator mode.");
+         valuesToUI();
+         return;
+      }
+      if ( (!pairing_isStarted()) || (!link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
+      {
+         addMessage("You must be connected to a vehicle to enable vehicle developer mode.");
+         valuesToUI();
+         return;
+      }
+
+      int val = m_pItemsSelect[0]->getSelectedIndex();
+
+      if ( val != (int)g_pCurrentModel->bDeveloperMode )
+      {
+         log_line("MenuSystem: Changed vehicle developer mode flag to: %s", val?"true":"false");
+         g_pCurrentModel->bDeveloperMode = (bool)val;
+         g_pCurrentModel->b_mustSyncFromVehicle = true;
          valuesToUI();
       }
       return;
    }
 
-   if ( m_IndexExpert == m_SelectedIndex )
+   if ( (m_IndexDeveloperController == m_SelectedIndex) && (! m_pMenuItems[m_IndexDeveloperController]->isEditing()) )
    {
-      add_menu_to_stack(new MenuSystemExpert());
+      int val = m_pItemsSelect[2]->getSelectedIndex();
+      ControllerSettings* pCS = get_ControllerSettings();
+
+      if ( val != pCS->iDeveloperMode )
+      {
+         log_line("MenuSystem: Changed controller developer mode flag to: %s", val?"true":"false");
+         pCS->iDeveloperMode = val;
+         save_ControllerSettings();
+         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
+         valuesToUI();
+      }
       return;
    }
 
@@ -325,6 +386,17 @@ void MenuSystem::onSelectItem()
       MenuConfirmation* pMC = new MenuConfirmation("Factory Reset Controller","Are you sure you want to reset the controller to default settings?", 1, false);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
+      return;
+   }
+
+   if ( m_IndexDevOptionsVehicle == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuVehicleDev());
+      return;
+   }
+   if ( m_IndexDevOptionsController == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuControllerDev());
       return;
    }
 }

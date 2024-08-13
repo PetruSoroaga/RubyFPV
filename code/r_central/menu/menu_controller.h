@@ -25,6 +25,7 @@ class MenuController: public Menu
       int m_IndexVideo, m_IndexTelemetry, m_IndexRecording;
       bool m_bShownHDMIChangeNotif;
       int m_iMustStartUpdate;
+      int m_IndexDeveloper;
       bool m_bWaitingForUserFinishUpdateConfirmation;
       void addMessage(const char* szMessage);
       void addMessage2(const char* szMessage, const char* szMsg2);

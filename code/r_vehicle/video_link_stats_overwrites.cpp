@@ -1045,7 +1045,7 @@ void video_stats_overwrites_periodic_loop()
            (getRealDataRateFromRadioDataRate(nRateTxVideo, 0) >= getRealDataRateFromRadioDataRate(packet_utils_get_last_set_adaptive_video_datarate(), 0)) )
          packet_utils_set_adaptive_video_datarate(nRateTxVideo);
       // It's decreasing, set it after a short period
-      else if ( g_TimeNow > g_SM_VideoLinkStats.overwrites.uTimeSetCurrentVideoLinkProfile + 80 )
+      else if ( g_TimeNow > g_SM_VideoLinkStats.overwrites.uTimeSetCurrentVideoLinkProfile + DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS )
          packet_utils_set_adaptive_video_datarate(nRateTxVideo);
    }
 

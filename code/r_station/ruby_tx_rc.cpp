@@ -352,14 +352,13 @@ int main (int argc, char *argv[])
       g_iFPSFramesCount++;
       hardware_sleep_ms(iSleepTime);
 
+      g_TimeNow = get_current_timestamp_ms();
+      u32 tTime0 = g_TimeNow;
       if ( NULL != s_pProcessStats )
       {
          s_pProcessStats->uLoopCounter++;
          s_pProcessStats->lastActiveTime = g_TimeNow;
       }
-
-      g_TimeNow = get_current_timestamp_ms();
-      u32 tTime0 = g_TimeNow;
 
       if ( g_TimeNow > g_TimeLastFPSCalculation + 1000 )
       {
@@ -370,7 +369,8 @@ int main (int argc, char *argv[])
          g_iFPSTotalJoystickEvents = 0;
       }
 
-      try_read_pipes();
+      if ( (g_pCurrentModel->rc_params.rc_enabled && (!g_pCurrentModel->is_spectator)) || ((g_iFPSFramesCount % 3) == 0) )
+         try_read_pipes();
 
       iSleepTime = 50;
 

@@ -32,6 +32,7 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include "../base/hardware_radio_txpower.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
@@ -123,11 +124,6 @@ bool _configure_radio_interface_atheros(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   // Test only
-   //sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
-   //hw_execute_bash_command(szComm, NULL);
-   //hardware_sleep_ms(uDelayMS);
-   
    //sprintf(szComm, "ifconfig %s up", pRadioHWInfo->szName );
    sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, NULL);
@@ -186,8 +182,9 @@ bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   sprintf(szComm, "iwconfig %s txpower 27", pRadioHWInfo->szName);
-   hw_execute_bash_command(szComm, NULL);
+   hardware_radio_set_txpower_rtl8812eu(25);
+   hardware_sleep_ms(uDelayMS);
+   hardware_radio_set_txpower_rtl8812au(25);
    hardware_sleep_ms(uDelayMS);
    
    //sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );

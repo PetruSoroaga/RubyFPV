@@ -53,7 +53,8 @@
 //#define DEBUG_PACKET_SENT
 
 int s_bRadioDebugFlag = 0;
-int s_iUsePCAPForTx = 1;
+int s_iUsePCAPForTx = DEFAULT_USE_PPCAP_FOR_TX;
+int s_iBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
 int s_iRadioInterfacesBroken = 0;
 int s_iRadioLastReadErrorCode = RADIO_READ_ERROR_NO_ERROR;
 int s_iVehicleBehindMilisec = 0;
@@ -284,9 +285,18 @@ void radio_set_use_pcap_for_tx(int iEnablePCAPTx)
 {
    s_iUsePCAPForTx = iEnablePCAPTx;
    if ( s_iUsePCAPForTx )
-      log_line("Set using ppcap for radio tx");
+      log_line("[Radio] Set using ppcap for radio tx");
    else
-      log_line("Set using sockets for radio tx");
+      log_line("[Radio] Set using sockets for radio tx");
+}
+
+void radio_set_bypass_socket_buffers(int iBypass)
+{
+   s_iBypassSocketBuffers = iBypass;
+   if ( s_iBypassSocketBuffers )
+      log_line("[Radio] Set bypass radio sockets buffers.");
+   else
+      log_line("[Radio] Unset bypass radio sockets buffers.");
 }
 
 // Returns 0 if the packet can't be sent (right now or ever)
@@ -695,15 +705,25 @@ int radio_open_interface_for_write(int interfaceIndex)
       log_line("Using socket for tx packets.");
       struct sockaddr_ll ll_addr;
       struct ifreq ifr;
-      pRadioHWInfo->monitor_interface_write.selectable_fd = socket(AF_PACKET, SOCK_RAW, 0);
+      pRadioHWInfo->monitor_interface_write.selectable_fd = socket(PF_PACKET, SOCK_RAW, 0);
       if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1)
       {
          log_error_and_alarm("Error:\tSocket failed");
          return -1;
       }
+
+      if ( s_iBypassSocketBuffers )
+      {
+          const int iVal = 1;
+          if ( 0 != setsockopt(pRadioHWInfo->monitor_interface_write.selectable_fd, SOL_PACKET, PACKET_QDISC_BYPASS, (const void *)&iVal, sizeof(iVal)) )
+             log_softerror_and_alarm("Failed to set PACKET_QDISC_BYPASS option on socket fd %d, error code: %d, error: (%s)", pRadioHWInfo->monitor_interface_write.selectable_fd, errno, strerror(errno));
+          else
+             log_line("Did set PACKET_QDISC_BYPASS option on socket fd %d", pRadioHWInfo->monitor_interface_write.selectable_fd);
+      }
       ll_addr.sll_family = AF_PACKET;
       ll_addr.sll_protocol = 0;
-      ll_addr.sll_halen = ETH_ALEN;
+      // "DEBUG" Test if still works with it commented (test if for few updates)
+      //ll_addr.sll_halen = ETH_ALEN;
 
       if ( strlen(pRadioHWInfo->szName) < IFNAMSIZ-1 )
          strcpy(ifr.ifr_name, pRadioHWInfo->szName);

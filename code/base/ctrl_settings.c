@@ -113,6 +113,8 @@ void reset_ControllerSettings()
 
    s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
    s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+   s_CtrlSettings.iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+   s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
 
    log_line("Reseted controller settings.");
 }
@@ -167,6 +169,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %u\n", s_CtrlSettings.iDevRxLoopTimeout, s_CtrlSettings.uShowBigRxHistoryInterface);
    fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
+   fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -175,6 +178,7 @@ int save_ControllerSettings()
 
 int load_ControllerSettings()
 {
+   reset_ControllerSettings();
    s_CtrlSettingsLoaded = 1;
 
    char szFile[128];
@@ -365,8 +369,21 @@ int load_ControllerSettings()
       s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
    }
 
+   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioRxThreadPriority, &s_CtrlSettings.iRadioTxThreadPriority)) )
+   {
+      s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+   }
+
+   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioTxUsesPPCAP, &s_CtrlSettings.iRadioBypassSocketBuffers)) )
+   {
+      s_CtrlSettings.iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+      s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
+   }
+
    fclose(fd);
 
+   //--------------------------------------------------------
    // Validate settings
 
    if ( s_CtrlSettings.iMAVLinkSysIdController <= 0 || s_CtrlSettings.iMAVLinkSysIdController > 255 )

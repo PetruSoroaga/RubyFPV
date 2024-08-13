@@ -325,7 +325,7 @@ void relay_on_relay_mode_changed(u8 uOldMode, u8 uNewMode)
    if ( uOldMode & RELAY_MODE_REMOTE )
    if ( ! (uNewMode & RELAY_MODE_REMOTE) )
    {
-      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL, "relay mode changed");
+      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL, "relay mode changed");
    }
 
    g_iDebugShowKeyFramesAfterRelaySwitch = 6;

@@ -1,0 +1,418 @@
+/*
+    Ruby Licence
+    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Copyright info and developer info must be preserved as is in the user
+        interface, additions could be made to that info.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+#include "menu.h"
+#include "menu_objects.h"
+#include "menu_text.h"
+#include "menu_controller_dev.h"
+#include "menu_item_section.h"
+#include "menu_confirmation.h"
+#include "../../radio/radiolink.h"
+#include "../../base/utils.h"
+#include "../pairing.h"
+#include "../link_watch.h"
+
+
+
+MenuControllerDev::MenuControllerDev(void)
+:Menu(MENU_ID_CONTROLLER_DEV, "Developer Settings", NULL)
+{
+   m_Width = 0.36;
+   m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.16;
+}
+
+void MenuControllerDev::valuesToUI()
+{
+   addItems();
+}
+
+void MenuControllerDev::addItems()
+{
+   int iTmp = getSelectedMenuItemIndex();
+   Preferences* pP = get_Preferences();
+   ControllerSettings* pCS = get_ControllerSettings();
+   float fSliderWidth = 0.14 * m_sfScaleFactor;
+
+   removeAllItems();
+
+   if ( (NULL == pCS) || (NULL == pP) )
+      return;
+
+   addMenuItem(new MenuItemSection("Radio Links"));
+
+   char szTitle[128];
+   if ( pCS->iRadioTxUsesPPCAP )
+      strcpy(szTitle, "Controller Radio Tx Type (now PPCAP)");
+   else
+      strcpy(szTitle, "Controller Radio Tx Type (now socket)");
+   m_pItemsSelect[9] = new MenuItemSelect(szTitle, "What method the controller uses for transmitting radio packets.");
+   m_pItemsSelect[9]->addSelection("Sockets");
+   m_pItemsSelect[9]->addSelection("PPCAP");
+   m_pItemsSelect[9]->setIsEditable();
+   m_pItemsSelect[9]->setSelectedIndex(0);
+   if ( pCS->iRadioTxUsesPPCAP )
+      m_pItemsSelect[9]->setSelectedIndex(1);
+
+   m_IndexPCAPRadioTx = addMenuItem(m_pItemsSelect[9]);
+
+   m_pItemsSelect[6] = new MenuItemSelect("Bypass kernel sockets buffers", "Skip kernel's qdisc (traffic control) layer (PACKET_QDISC_BYPASS).");
+   m_pItemsSelect[6]->addSelection("No");
+   m_pItemsSelect[6]->addSelection("Yes");
+   m_pItemsSelect[6]->setIsEditable();
+   m_pItemsSelect[6]->setSelectedIndex(pCS->iRadioBypassSocketBuffers);
+   m_IndexBypassSocketBuffers = addMenuItem(m_pItemsSelect[6]);
+
+   m_pItemsSlider[2] = new MenuItemSlider("Max Radio Packet Size", "Maximum size in bytes that can be set for a radio packet in the user interface.", 100,1500,1250, fSliderWidth);
+   m_pItemsSlider[2]->setStep(10);
+   m_pItemsSlider[2]->setCurrentValue(pP->iDebugMaxPacketSize);
+   m_IndexMaxPacketSize = addMenuItem(m_pItemsSlider[2]);
+
+
+   m_pItemsSlider[7] = new MenuItemSlider("Ping/Clock Sync Frequency", "How often is the clock sync done with the vehicle.", 1,50,10, fSliderWidth);
+   m_pItemsSlider[7]->setStep(1);
+   m_pItemsSlider[7]->setCurrentValue(pCS->nPingClockSyncFrequency);
+   m_IndexPingClockSpeed = addMenuItem(m_pItemsSlider[7]);
+
+   m_pItemsSlider[8] = new MenuItemSlider("Radio Reconfiguration Delay (ms)", "When 2.4/5.8Ghz radio interfaces need to be reconfigured, allow a delay for reconfiguration. Important for Atheros chipset cards mostly (in miliseconds).", 1,100,10, fSliderWidth);
+   m_pItemsSlider[8]->setStep(1);
+   m_pItemsSlider[8]->setCurrentValue(pP->iDebugWiFiChangeDelay);
+   m_IndexWiFiChangeDelay = addMenuItem(m_pItemsSlider[8]);
+
+   m_pItemsSlider[9] = new MenuItemSlider("Radio Rx Loop Check Max Time (ms)", "The threshold for generating an alarm when radio Rx loop takes too much time (in miliseconds).", 1,100,10, fSliderWidth);
+   m_pItemsSlider[9]->setStep(1);
+   m_pItemsSlider[9]->setCurrentValue(pCS->iDevRxLoopTimeout);
+   m_IndexRxLoopTimeout = addMenuItem(m_pItemsSlider[9]);
+
+   addMenuItem(new MenuItemSection("OSD"));
+
+   m_pItemsSelect[3] = new MenuItemSelect("OSD Render FPS", "How often should the OSD be drawn.");
+   m_pItemsSelect[3]->addSelection("10");
+   m_pItemsSelect[3]->addSelection("15");
+   m_pItemsSelect[3]->addSelection("20");
+   m_pItemsSelect[3]->addSelection("25");
+   m_pItemsSelect[3]->setIsEditable();
+   m_pItemsSelect[3]->setSelection( (pCS->iRenderFPS-10)/5 );
+   m_IndexRenderOSDFSP = addMenuItem(m_pItemsSelect[3]);
+
+   m_pItemsSelect[13] = new MenuItemSelect("Show UI/OSD CPU Usage", "Shows the CPU resources used by the UI and OSD interface.");
+   m_pItemsSelect[13]->addSelection("No");
+   m_pItemsSelect[13]->addSelection("Yes");
+   m_pItemsSelect[13]->setIsEditable();
+   m_pItemsSelect[13]->setSelectedIndex(pP->iShowCPULoad);
+   m_IndexCPULoad = addMenuItem(m_pItemsSelect[13]);
+
+   m_pItemsSelect[14] = new MenuItemSelect("Pause OSD", "Pause/Resume OSD using the [Cancel]/[Back] button.");
+   m_pItemsSelect[14]->addSelection("No");
+   m_pItemsSelect[14]->addSelection("Yes");
+   m_pItemsSelect[14]->setIsEditable();
+   m_pItemsSelect[14]->setSelectedIndex(pCS->iFreezeOSD);
+   m_IndexFreezeOSD = addMenuItem(m_pItemsSelect[14]);
+
+   addMenuItem(new MenuItemSection("Other Settings"));
+
+   m_IndexVersion = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
+
+   m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
+
+   for( int i=0; i<m_ItemsCount; i++ )
+      m_pMenuItems[i]->setTextColor(get_Color_Dev());
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
+}
+
+void MenuControllerDev::onShow()
+{
+   addItems();
+   Menu::onShow();
+}
+
+void MenuControllerDev::Render()
+{
+   RenderPrepare();
+   float yTop = RenderFrameAndTitle();
+   float y = yTop;
+   for( int i=0; i<m_ItemsCount; i++ )
+      y += RenderItem(i,y);
+
+   RenderEnd(yTop);
+}
+
+
+void MenuControllerDev::onReturnFromChild(int iChildMenuId, int returnValue)
+{
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
+
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) )
+   {
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
+      pCS->nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
+      pCS->nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
+      pCS->iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+      save_ControllerSettings();
+      save_Preferences();
+      valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      //Menu* pm = new MenuConfirmation("Developer Settings Reset", "Controller will reboot now.", 3, true);
+      //pm->m_yPos = 0.4;
+      //add_menu_to_stack(pm);
+      //return;
+   }
+
+   if ( 3 == iChildMenuId/1000 )
+   {
+      hardware_reboot();
+   }
+}
+
+void MenuControllerDev::onSelectItem()
+{
+   Preferences* pP = get_Preferences();
+   ControllerSettings* pCS = get_ControllerSettings();
+   bool bUpdatedController = false;
+
+   Menu::onSelectItem();
+   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+      return;
+
+   if ( (NULL == pP) || (NULL == pCS) )
+      return;
+
+   if ( m_IndexMaxPacketSize == m_SelectedIndex )
+   {
+      int val = m_pItemsSlider[2]->getCurrentValue();
+      pP->iDebugMaxPacketSize = val;
+      save_Preferences();
+   }
+
+   if ( m_IndexPCAPRadioTx == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->iRadioTxUsesPPCAP = 0;
+      else
+         pCS->iRadioTxUsesPPCAP = 1;
+      bUpdatedController = true;
+   }
+
+   if ( m_IndexBypassSocketBuffers == m_SelectedIndex )
+   {
+      pCS->iRadioBypassSocketBuffers = m_pItemsSelect[6]->getSelectedIndex();
+      bUpdatedController = true;
+   }
+
+   if ( m_IndexPingClockSpeed == m_SelectedIndex )
+   {
+      pCS->nPingClockSyncFrequency = m_pItemsSlider[7]->getCurrentValue();
+      bUpdatedController = true;
+   }
+
+   if ( m_IndexWiFiChangeDelay == m_SelectedIndex )
+   {
+      pP->iDebugWiFiChangeDelay = m_pItemsSlider[8]->getCurrentValue();
+      bUpdatedController = true;
+   }
+
+   if ( m_IndexRxLoopTimeout == m_SelectedIndex )
+   {
+      pCS->iDevRxLoopTimeout = m_pItemsSlider[9]->getCurrentValue();
+      
+      if ( NULL != g_pCurrentModel )
+      if ( ! g_pCurrentModel->is_spectator )
+      if ( pairing_isStarted() && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
+      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+         valuesToUI(); 
+   }
+
+   if ( m_IndexRenderOSDFSP == m_SelectedIndex )
+   {
+      pCS->iRenderFPS = 10 + m_pItemsSelect[3]->getSelectedIndex()*5;
+      save_ControllerSettings();
+      valuesToUI();
+      return;
+   }
+
+   if ( m_IndexCPULoad == m_SelectedIndex )
+   {
+      pP->iShowCPULoad = m_pItemsSelect[13]->getSelectedIndex();
+      save_Preferences();
+      valuesToUI();
+      return;
+   }
+
+   if ( m_IndexFreezeOSD == m_SelectedIndex )
+   {
+      pCS->iFreezeOSD = m_pItemsSelect[14]->getSelectedIndex();
+      save_ControllerSettings();
+      valuesToUI();
+      return;
+   }
+
+   if ( m_IndexVersion == m_SelectedIndex )
+   {
+      char szBuff[1024];
+      char szOutput[1024];
+
+      Menu* pMenu = new Menu(0,"All Modules Versions",NULL);
+      pMenu->m_xPos = 0.32;
+      pMenu->m_yPos = 0.17;
+      pMenu->m_Width = 0.6;
+      
+      hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_start: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_controller -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_controller: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_central -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_central: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rt_station -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_station: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rx_telemetry -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_telemetry: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_tx_rc -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_rc: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_i2c -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_i2c: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_player_p -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_player_p: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_update_worker -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_update_worker: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_vehicle: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      if ( strlen(szOutput)> 0 )
+      if ( szOutput[strlen(szOutput)-1] == 10 || szOutput[strlen(szOutput)-1] == 13 )
+         szOutput[strlen(szOutput)-1] = 0;
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_telemetry: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      add_menu_to_stack(pMenu);
+      return;
+   }
+
+   if ( m_IndexResetDev == m_SelectedIndex )
+   {
+      Menu* pm = new MenuConfirmation("Developer Settings Reset", "All developer settings where reset.", 2);
+      pm->m_yPos = 0.4;
+      add_menu_to_stack(pm);
+   }
+
+   if ( bUpdatedController )
+   {
+      save_ControllerSettings();
+      save_Preferences();
+      valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+   }
+}
+

@@ -76,8 +76,8 @@ u32 s_uTimeLastCheckMajestic = 0;
 
 void video_source_majestic_init_all_params()
 {
-   hardware_camera_apply_all_majestic_settings(&(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
-          &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]),
+   hardware_camera_apply_all_majestic_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
+          g_pCurrentModel->video_params.user_selected_video_link_profile,
           &(g_pCurrentModel->video_params));
    g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
    g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
@@ -519,7 +519,6 @@ void video_source_majestic_periodic_checks()
       char szOutput[256];
       s_bRequestedVideoMajesticCaptureUpdate = false;
       camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      type_video_link_profile* pVideoLinkProfileParams = &(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
       video_parameters_t* pVideoParams = &(g_pCurrentModel->video_params);
       u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
 
@@ -556,7 +555,11 @@ void video_source_majestic_periodic_checks()
       else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_PARAMS )
          hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);
       else
-         hardware_camera_apply_all_majestic_settings(pCameraParams, pVideoLinkProfileParams, pVideoParams);
+      {
+         hardware_camera_apply_all_majestic_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams);
+         g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+         g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+      }
 
       if ( bUpdatedImageParams )
       {

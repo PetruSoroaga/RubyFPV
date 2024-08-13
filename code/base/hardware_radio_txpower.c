@@ -54,7 +54,7 @@ void hardware_radio_set_txpower_rtl8812au(int iTxPower)
       hw_execute_bash_command(szBuff, NULL);
    #endif
 
-   #if defined(HW_PLATFORM_OPENIPC_CAMERA) || defined(HW_PLATFORM_OPENIPC_CAMERA)
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA) || defined(HW_PLATFORM_RADXA_ZERO3)
 
    log_line("Set tx power now using iw dev...");
    char szComm[256];

@@ -115,42 +115,34 @@ void MenuSystemDevStats::valuesToUI()
 {
    Preferences* pP = get_Preferences();
 
-   int layoutIndex = 0;
-   if ( NULL != g_pCurrentModel )
-      layoutIndex = g_pCurrentModel->osd_params.layout;
+   if ( NULL == g_pCurrentModel )
+      return;
+
+   int layoutIndex = g_pCurrentModel->osd_params.layout;
 
    m_pItemsSelect[0]->setSelectedIndex(pP->iDebugShowDevVideoStats);
    m_pItemsSelect[1]->setSelectedIndex(pP->iDebugShowDevRadioStats);
    m_pItemsSelect[2]->setSelectedIndex(pP->iDebugShowFullRXStats);
    
    m_pItemsSelect[3]->setSelectedIndex(0);
-   if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP )
       m_pItemsSelect[3]->setSelectedIndex(1);
 
    m_pItemsSelect[4]->setSelectedIndex(0);
-   if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY )
       m_pItemsSelect[4]->setSelectedIndex(1);
 
    m_pItemsSelect[5]->setSelectedIndex(pP->iDebugShowVehicleVideoStats);
    m_pItemsSelect[6]->setSelectedIndex(pP->iDebugShowVehicleVideoGraphs);
+   
    m_pItemsSelect[7]->setSelectedIndex(0);
-   if ( NULL != g_pCurrentModel )
-   {
-      m_pItemsSelect[7]->setEnabled(true);
-      if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_CONTROLLER_ADAPTIVE_VIDEO_INFO )
-         m_pItemsSelect[7]->setSelectedIndex(1);
-      else
-         m_pItemsSelect[7]->setSelectedIndex(0);
-   }
-   else
-      m_pItemsSelect[7]->setEnabled(false);
+   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_CONTROLLER_ADAPTIVE_VIDEO_INFO )
+      m_pItemsSelect[7]->setSelectedIndex(1);
+   
 
-   m_pItemsSelect[9]->setSelectedIndex(0);
-   if ( NULL != g_pCurrentModel )
+   m_pItemsSelect[8]->setSelectedIndex(0);
    if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_VEHICLE_DEV_STATS )
-      m_pItemsSelect[9]->setSelectedIndex(1);
+      m_pItemsSelect[8]->setSelectedIndex(1);
 }
 
 void MenuSystemDevStats::onShow()
@@ -176,6 +168,13 @@ void MenuSystemDevStats::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
+   if ( NULL == g_pCurrentModel )
+   {
+      addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
+      valuesToUI();
+      return;
+   }
+
    Preferences* pP = get_Preferences();
 
    if ( m_IndexDevStatsVideo == m_SelectedIndex )
@@ -200,7 +199,6 @@ void MenuSystemDevStats::onSelectItem()
    }
 
    if ( m_IndexShowControllerAdaptiveInfoStats == m_SelectedIndex )
-   if ( NULL != g_pCurrentModel )
    {
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
@@ -216,37 +214,23 @@ void MenuSystemDevStats::onSelectItem()
    
    if ( m_IndexDevStatsVehicleTx == m_SelectedIndex )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
-         valuesToUI();
-         return;
-      }
-
       if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP;
-      if ( ! handle_commands_send_developer_flags() )
+      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
       return;    
    }
 
    if ( m_IndexDevStatsVehicle == m_SelectedIndex )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
-         valuesToUI();
-         return;
-      }
-
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
       int layoutIndex = g_pCurrentModel->osd_params.layout;
 
       params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
-      if ( 1 == m_pItemsSelect[9]->getSelectedIndex() )
+      if ( 1 == m_pItemsSelect[8]->getSelectedIndex() )
          params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t)) )
          valuesToUI();
@@ -255,13 +239,6 @@ void MenuSystemDevStats::onSelectItem()
 
    if ( m_IndexDevVehicleVideoBitrateHistory == m_SelectedIndex )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
-         valuesToUI();
-         return;
-      }
-
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
       int layoutIndex = g_pCurrentModel->osd_params.layout;
@@ -275,13 +252,6 @@ void MenuSystemDevStats::onSelectItem()
 
    if ( m_IndexDevVehicleVideoStreamStats == m_SelectedIndex )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
-         valuesToUI();
-         return;
-      }
-
       pP->iDebugShowVehicleVideoStats = m_pItemsSelect[5]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
@@ -291,13 +261,6 @@ void MenuSystemDevStats::onSelectItem()
 
    if ( m_IndexDevVehicleVideoGraphs == m_SelectedIndex )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessageNeedsVehcile("You need to be connected to a vehicle to change this.", 1);
-         valuesToUI();
-         return;
-      }
-
       pP->iDebugShowVehicleVideoGraphs = m_pItemsSelect[6]->getSelectedIndex();
       save_Preferences();
       valuesToUI();

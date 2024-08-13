@@ -123,8 +123,8 @@ MenuVehicleVideoBidirectional::~MenuVehicleVideoBidirectional()
 
 void MenuVehicleVideoBidirectional::valuesToUI()
 { 
-   int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
    int adaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
+   int adaptiveKeyframe = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME)?1:0;
    int useControllerInfo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?1:0;
    int controllerLinkLost = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST)?1:0;
    
@@ -133,15 +133,15 @@ void MenuVehicleVideoBidirectional::valuesToUI()
 
    m_pItemsSelect[0]->setSelection( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_NEW_ADAPTIVE_ALGORITHM)?1:0);
    m_pItemsSelect[0]->setEnabled(false);
-   if ( keyframe_ms > 0 )
-   {
-      m_pItemsSelect[1]->setSelectedIndex(0);
-      m_pItemsSlider[3]->setEnabled(false);
-   }
-   else
+   if (adaptiveKeyframe && (! g_pCurrentModel->isVideoLinkFixedOneWay()) )
    {
       m_pItemsSelect[1]->setSelectedIndex(1);
       m_pItemsSlider[3]->setEnabled(true);
+   }
+   else
+   {
+      m_pItemsSelect[1]->setSelectedIndex(0);
+      m_pItemsSlider[3]->setEnabled(false);
    }
    m_pItemsSlider[3]->setCurrentValue(g_pCurrentModel->video_params.uMaxAutoKeyframeIntervalMs);
 
@@ -204,11 +204,14 @@ void MenuVehicleVideoBidirectional::sendVideoLinkProfiles()
 
    type_video_link_profile* pProfile = &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
    int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+   if ( keyframe_ms < 0 )
+      keyframe_ms = -keyframe_ms;
+   pProfile->keyframe_ms = keyframe_ms;
 
    if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
-      pProfile->keyframe_ms = (keyframe_ms>0)?keyframe_ms:(-keyframe_ms);
+      pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
    else
-      pProfile->keyframe_ms = (keyframe_ms>0)?-keyframe_ms:(keyframe_ms);
+      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
 
    if ( 0 == m_pItemsSelect[2]->getSelectedIndex() )  
       pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;

@@ -309,8 +309,6 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
    if ( NULL == pStats )
       return 0.0;
 
-   ControllerSettings* pCS = get_ControllerSettings();
-
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = osd_getFontHeightSmall();
    float hGraph = height_text * 1.8;
@@ -333,7 +331,7 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
       height += height_text*s_OSDStatsLineSpacing + s_fOSDStatsMargin*0.3;
    
    float fHeightInterface = height_text*s_OSDStatsLineSpacing*2.0 + hGraph;
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       fHeightInterface += 3.0 * ( height_text_small*s_OSDStatsLineSpacing );
    
    height += fHeightInterface * pStats->countLocalRadioInterfaces;
@@ -348,7 +346,7 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
       height += ( height_text*s_OSDStatsLineSpacing*2.0 + hGraph ) * pActiveModel->radioInterfacesParams.interfaces_count;
       height += height_text*1.0 * (pActiveModel->radioInterfacesParams.interfaces_count-1);
    
-      if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+      if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
          height += 3.0 * ( height_text_small*s_OSDStatsLineSpacing ) * pActiveModel->radioInterfacesParams.interfaces_count;
    }
    return height;
@@ -388,7 +386,6 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
    if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RADIO_INTERFACES_COMPACT )
       bIsCompact = true;
 
-   ControllerSettings* pCS = get_ControllerSettings();
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
    float hGraph = height_text * 1.8;
@@ -517,7 +514,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
 
          float fHeightInterface = height_text*s_OSDStatsLineSpacing*2.0 + hGraph;
-         if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+         if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
             fHeightInterface += 3.0 * ( height_text_small*s_OSDStatsLineSpacing );
 
          g_pRenderEngine->drawRoundRect(xPos-fmarginx, ySt-1.5*fmarginy, rightMargin-xPos+2.0*fmarginx, fHeightInterface + 3.0*fmarginy + height_text*0.2, 0.05);
@@ -729,7 +726,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
       y += height_text*s_OSDStatsLineSpacing;
 
-      if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+      if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       {
          g_pRenderEngine->setColors(get_Color_Dev());
          sprintf(szBuff, "Avg / Max Gap: %d / %d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
@@ -999,7 +996,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
-      if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+      if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       {
          g_pRenderEngine->setColors(get_Color_Dev());
          sprintf(szBuff, "Avg / Max Gap: %d / %d ms, %d pkts", (int) uGapAverage, (int)uMaxGapMs, maxBadLost);
@@ -1045,8 +1042,6 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
    if ( NULL == pRadioStats || NULL == g_pCurrentModel )
       return 0.0;
 
-   ControllerSettings* pCS = get_ControllerSettings();
-
    float height_text = g_pRenderEngine->textHeight(s_idFontStats)*scale;
    float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall)*scale;
    float height = 2.0 *s_fOSDStatsMargin*scale*1.1 + height_text*s_OSDStatsLineSpacing;
@@ -1057,6 +1052,8 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
    height += height_text*s_OSDStatsLineSpacing + 0.6*height_text;
 
    height += 2 * height_text * s_OSDStatsLineSpacing * g_pCurrentModel->radioLinksParams.links_count;
+
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
 
    int iCountVehicles = 1;
    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
@@ -1072,10 +1069,12 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
       height += height_text * s_OSDStatsLineSpacing * iCountRadioLinks * (1+iCountVehicles);
 
    // Retransmissions roundtrip
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( NULL != pActiveModel )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       height += 3.0 * height_text * s_OSDStatsLineSpacing;
 
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( NULL != pActiveModel )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
       height += 3 * height_text*s_OSDStatsLineSpacing + 0.3*height_text;
       height += height_text_small*s_OSDStatsLineSpacing; // Ping frequency
@@ -1084,7 +1083,8 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
       height += hGraph + height_text_small*s_OSDStatsLineSpacing; // Radio rx queue graph
    }
 
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( NULL != pActiveModel )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
       int countStreams = 0;
       for( int k=0; k<MAX_CONCURENT_VEHICLES; k++ )
@@ -1139,7 +1139,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    float rightMargin = xPos + width;
 
    sprintf(szBuff, "%s", szTitle);
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
       sprintf(szBuff, "%s (ping freq %d)", szTitle, pCS->nPingClockSyncFrequency );
    }
@@ -1285,7 +1285,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    // End: Radio links round trip
    //---------------------------------------------
 
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
 
       shared_mem_controller_retransmissions_stats* pCRS = NULL;
@@ -1443,7 +1443,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff2, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
 
-      if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+      if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       {
          u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uProfileEncodingFlags);
          sprintf(szBuff, "%d ms", ping_interval_ms);
@@ -1455,7 +1455,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       y += height_text*0.3;
    }
 
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    for( int iVehicleRadioLink=0; iVehicleRadioLink<g_pCurrentModel->radioLinksParams.links_count; iVehicleRadioLink++ )
    {
       if ( ! bConnectedToVehicleRadioLinks[iVehicleRadioLink] )
@@ -1470,7 +1470,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       osd_set_colors();
    }
 
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
       double* pColorDev = get_Color_Dev();
 
@@ -1526,7 +1526,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    }
 
    // Radio Rx queue graph
-   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
+   if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
       float hGraph = height_text*3.0;
       float marginH = height_text*1.0;

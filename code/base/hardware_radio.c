@@ -1089,12 +1089,12 @@ int hardware_radio_load_radio_modules()
 
       #if defined(HW_PLATFORM_RADXA_ZERO3)
       hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-      hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+      hw_execute_bash_command("sudo insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", szOutput);
       #endif
 
       #if defined(HW_PLATFORM_OPENIPC_CAMERA)
       hw_execute_bash_command("modprobe cfg80211", NULL);
-      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", szOutput);
       #endif
 
       if ( (0 != szOutput[0]) && (strlen(szOutput) > 10) )

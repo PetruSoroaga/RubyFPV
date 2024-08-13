@@ -91,6 +91,49 @@ void validate_camera(Model* pModel)
    }
 }
 
+void do_update_to_96()
+{
+   log_line("Doing update to 9.6");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+      save_ControllerSettings();      
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   if ( DEFAULT_USE_PPCAP_FOR_TX )
+      pModel->uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+   else
+      pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
+
+   pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
+   pModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE;
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( pModel->video_link_profiles[i].keyframe_ms < 0 )
+      {
+         pModel->video_link_profiles[i].keyframe_ms = - pModel->video_link_profiles[i].keyframe_ms;
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;   
+      }
+      else
+         pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;   
+   }
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_flags2[i] &= (~OSD_FLAG2_SHOW_STATS_RADIO_LINKS);
+   }
+
+   log_line("Updated model VID %u (%s) to v9.6", pModel->uVehicleId, pModel->getLongName());
+}
+
 
 void do_update_to_95()
 {
@@ -245,8 +288,7 @@ void do_update_to_91()
    pModel->telemetry_params.flags |= TELEMETRY_FLAGS_ALLOW_ANY_VEHICLE_SYSID;
    pModel->video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
    pModel->video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
-
+   
    if ( s_isVehicle )
    if ( hardware_board_is_openipc(hardware_getBoardType()) )
    {
@@ -302,7 +344,6 @@ void do_update_to_90()
 
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
@@ -365,7 +406,6 @@ void do_update_to_82()
 
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_HP_VIDEO_KEYFRAME;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
@@ -887,8 +927,6 @@ void do_update_to_70()
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
          pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
       }
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
 
       validate_camera(pModel);
 
@@ -940,14 +978,12 @@ void do_update_to_69()
       }
 
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
@@ -1038,7 +1074,6 @@ void do_update_to_68()
 
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
 
@@ -1089,10 +1124,8 @@ void do_update_to_67()
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       }
       
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_MQ_VIDEO_KEYFRAME;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
 
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_LQ_VIDEO_KEYFRAME;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
    }
@@ -1556,6 +1589,8 @@ int main(int argc, char *argv[])
 
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 5) )
       do_update_to_95();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 6) )
+      do_update_to_96();
 
    saveCurrentModel();
    

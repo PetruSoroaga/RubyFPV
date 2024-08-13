@@ -788,7 +788,7 @@ void periodic_checks()
       s_TimeLastUplinkKbpsComputation = g_TimeNow;
    }
 
-   if ( s_TelemetryUSBOutputInfo.bUSBTethering && pCS->iTelemetryForwardUSBType == 0 )
+   if ( s_TelemetryUSBOutputInfo.bUSBTethering && (pCS->iTelemetryForwardUSBType == 0) )
    {
       if ( -1 != s_TelemetryUSBOutputInfo.socketUSBOutput )
          close(s_TelemetryUSBOutputInfo.socketUSBOutput);
@@ -938,29 +938,28 @@ int main(int argc, char *argv[])
 
    g_TimeStart = get_current_timestamp_ms();
  
-   int iSleepTime = 20;
+   int iSleepTime = 50;
 
    while (!g_bQuit) 
    {
-      u32 uTimeStart = get_current_timestamp_ms();
+      hardware_sleep_ms(iSleepTime);
 
+      g_TimeNow = get_current_timestamp_ms();
       if ( NULL != g_pProcessStats )
       {
          g_pProcessStats->uLoopCounter++;
          g_pProcessStats->lastActiveTime = g_TimeNow;
       }
 
-      hardware_sleep_ms(iSleepTime);
-
-      g_TimeNow = get_current_timestamp_ms();
+      u32 uTimeStart = g_TimeNow;
       u32 tTime0 = g_TimeNow;
 
       periodic_checks();
 
-      iSleepTime = 20;
+      iSleepTime = 50;
       if ( g_bInputTelemetryFromSerial )
       {
-         iSleepTime = 5;
+         iSleepTime = 10;
          try_read_serial_telemetry();
          if ( telemetryBufferToVehicleCount >= RAW_TELEMETRY_MIN_SEND_LENGTH || 
              (telemetryBufferToVehicleCount > 0 && g_TimeNow >= telemetryBufferToVehicleLastSendTime + RAW_TELEMETRY_SEND_TIMEOUT ) )
@@ -969,7 +968,7 @@ int main(int argc, char *argv[])
 
       if ( -1 != g_iSerialPortDataLink )
       {
-         iSleepTime = 5;
+         iSleepTime = 10;
          try_read_serial_datalink();
          if ( dataLinkBufferToVehicleCount >= AUXILIARY_DATA_LINK_MIN_SEND_LENGTH || 
              (dataLinkBufferToVehicleCount > 0 && g_TimeNow >= dataLinkBufferToVehicleLastSendTime + AUXILIARY_DATA_LINK_SEND_TIMEOUT ) )

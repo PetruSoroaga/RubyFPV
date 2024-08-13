@@ -19,11 +19,14 @@ class MenuStorage: public Menu
       virtual void onMoveLeft(bool bIgnoreReversion);
       virtual void onMoveRight(bool bIgnoreReversion);
       virtual void onFocusedItemChanged();
+      virtual bool periodicLoop();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual int onBack();
       virtual void onSelectItem();
 
    private:
+      void playVideoFile(int iMenuItemIndex);
+
       MenuItemSelect* m_pItemsSelect[10];
       char* m_szVideoInfoFiles[MAX_STORAGE_MENU_FILES];
       char* m_szPicturesFiles[MAX_STORAGE_MENU_FILES];
@@ -58,9 +61,9 @@ class MenuStorage: public Menu
       void buildFilesListPictures();
       void buildFilesListVideo();
       void movePictures(bool bDelete);
-      void moveVideos(bool bDelete);
+      bool moveVideos(bool bDelete);
 
-      void flowCopyMoveFiles(bool bDeleteToo);
+      bool flowCopyMoveFiles(bool bDeleteToo);
 
       void stopVideoPlay();
 };

@@ -23,6 +23,7 @@ class MenuVehicleVideo: public Menu
       int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
       int m_IndexVideoBitrate;
       int m_IndexVideoConstantBitrate;
+      int m_IndexVideoOverloadCheck;
       int m_IndexVideoProfile;
       int m_IndexVideoCodec;
       int m_IndexIgnoreTxSpikes;
@@ -32,9 +33,10 @@ class MenuVehicleVideo: public Menu
       int m_IndexBidirectionalVideoSettings;
       int m_IndexRecording;
       MenuItem* m_pMenuItemVideoWarning;
+      MenuItem* m_pMenuItemVideoKeyframeWarning;
       MenuItem* m_pMenuItemVideoRecording;
-      MenuItemSlider* m_pItemsSlider[15];
-      MenuItemSelect* m_pItemsSelect[15];
+      MenuItemSlider* m_pItemsSlider[20];
+      MenuItemSelect* m_pItemsSelect[20];
       MenuItemRadio* m_pItemsRadio[5];
 
       void checkAddWarningInMenu();

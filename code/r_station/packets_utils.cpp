@@ -406,6 +406,10 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    radio_set_frames_flags(radioFlags);
 
    int nRateTx = compute_packet_uplink_datarate(iVehicleRadioLinkId, iRadioInterfaceIndex, &(g_pCurrentModel->radioLinksParams));
+   
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+   if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
+      nRateTx = DEFAULT_RADIO_DATARATE_DATA;
    radio_set_out_datarate(nRateTx);
 
    if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
@@ -435,7 +439,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       int nLength = nPacketLength;
       while ( nLength > 0 )
       {
-         t_packet_header* pPH = (t_packet_header*)pData;
+         pPH = (t_packet_header*)pData;
          u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
 
          iCountChainedPackets[uStreamId]++;

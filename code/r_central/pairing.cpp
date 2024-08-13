@@ -133,7 +133,7 @@ bool _pairing_start()
 
    g_bMenuPopupUpdateVehicleShown = false;
 
-   s_uTimeToSetAffinities = g_TimeNow + 8000;
+   s_uTimeToSetAffinities = g_TimeNow + 3000;
    
    log_line("-----------------------------------------");
    log_line("Started pairing processes successfully.");
@@ -209,12 +209,12 @@ bool pairing_stop()
    log_line("----------------------------------");
    log_line("Stopping pairing processes...");
 
+   s_uTimeToSetAffinities = 0;
+
    onEventBeforePairingStop();
 
    forward_streams_on_pairing_stop();
    hardware_recording_led_set_off();
-
-   s_uTimeToSetAffinities = 0;
 
    _pairing_close_shared_mem();
 
@@ -222,18 +222,25 @@ bool pairing_stop()
 
    handle_commands_stop_on_pairing();
 
+   ruby_signal_alive();
    controller_stop_tx_rc();
 
+   ruby_signal_alive();
    controller_stop_router();
 
+   ruby_signal_alive();
    controller_stop_rx_telemetry();
 
+   ruby_signal_alive();
    controller_wait_for_stop_all();
 
+   ruby_signal_alive();
    onEventPairingStopped();
 
    stop_pipes_to_router();
    handle_commands_stop_on_pairing();
+
+   ruby_signal_alive();
 
    s_isRXStarted = false;
    s_isVideoReceiving = false;

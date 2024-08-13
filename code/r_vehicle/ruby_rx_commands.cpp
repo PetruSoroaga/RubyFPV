@@ -1717,13 +1717,21 @@ bool process_command(u8* pBuffer, int length)
       if ( !hardware_hasCamera() )
          return true;
         
-      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags;
+      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags;
       camera_profile_parameters_t oldParams;
       memcpy(&oldParams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
 
       memcpy(&(g_pCurrentModel->camera_params[nCamera]), pcpt, sizeof(type_camera_parameters));
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_CAMERA_PARAMS, 0);
+
+      if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+      {
+         u32 uNewFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags;
+         if ( (oldFlags & CAMERA_FLAG_IR_FILTER_OFF) != (uNewFlags & CAMERA_FLAG_IR_FILTER_OFF) )
+            hardware_camera_set_irfilter_off(uNewFlags & CAMERA_FLAG_IR_FILTER_OFF);
+         return true;
+      }
 
       bool bSentUsingPipe = false;
       camera_profile_parameters_t* pCamParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
@@ -1789,7 +1797,7 @@ bool process_command(u8* pBuffer, int length)
          vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
       else if ( g_pCurrentModel->hasCamera() )
       {
-         if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].flags) & CAMERA_FLAG_AWB_MODE_OLD) )
+         if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags) & CAMERA_FLAG_AWB_MODE_OLD) )
             g_pCurrentModel->setAWBMode();
 
          sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
@@ -1800,7 +1808,7 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PROFILE )
    {
       int iOldCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
-      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iOldCamProfileIndex].flags;
+      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iOldCamProfileIndex].uFlags;
       camera_profile_parameters_t oldCamParams;
       camera_profile_parameters_t oldCamParamsCheck;
       memcpy(&oldCamParams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
@@ -1831,11 +1839,11 @@ bool process_command(u8* pBuffer, int length)
 
       g_pCurrentModel->log_camera_profiles_differences(&oldCamParams, pCamParams, iOldCamProfileIndex, iNewCamProfileIndex);
 
-      if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != (pCamParams->flags & CAMERA_FLAG_AWB_MODE_OLD) )
+      if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != (pCamParams->uFlags & CAMERA_FLAG_AWB_MODE_OLD) )
          g_pCurrentModel->setAWBMode();
 
       bool bSentUsingPipe = false;
-      oldCamParamsCheck.flags = pCamParams->flags;
+      oldCamParamsCheck.uFlags = pCamParams->uFlags;
       oldCamParamsCheck.brightness = pCamParams->brightness;
       oldCamParamsCheck.contrast = pCamParams->contrast;
       oldCamParamsCheck.saturation = pCamParams->saturation;
@@ -1916,8 +1924,14 @@ bool process_command(u8* pBuffer, int length)
       signalReloadModel(0, 0);
 
       if ( g_pCurrentModel->hasCamera() )
+      {
+         if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+         {
+            hw_execute_bash_command("fw_setenv sensor", NULL);
+            hardware_reboot();
+         }
          sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM,0);
-
+      }
       return true;
    }
 
@@ -2489,6 +2503,12 @@ bool process_command(u8* pBuffer, int length)
       );
       int iProfileToCheck = g_pCurrentModel->video_params.user_selected_video_link_profile;
    
+      camera_profile_parameters_t* pCameraParams = &g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile];
+      if ( g_pCurrentModel->isRunningOnOpenIPCHardware() &&
+           g_pCurrentModel->validate_fps_and_exposure_settings(&g_pCurrentModel->video_link_profiles[iProfileToCheck], pCameraParams))
+      {
+         log_line("Camera exposure (%d ms) was updated to accomodate the new video FPS value.", pCameraParams->shutterspeed);
+      }
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].width = g_pCurrentModel->video_link_profiles[iProfileToCheck].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].height = g_pCurrentModel->video_link_profiles[iProfileToCheck].height;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = g_pCurrentModel->video_link_profiles[iProfileToCheck].fps;
@@ -3413,14 +3433,16 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_DEVELOPER_FLAGS )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->uDeveloperFlags = pPHC->command_param;
+      u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
+      u32 uTmp = 0;
+      memcpy((u8*)&uTmp, pData, sizeof(u32));
+      g_pCurrentModel->bDeveloperMode = (bool) uTmp;
+      memcpy((u8*)&uTmp, pData + sizeof(u32), sizeof(u32));
+      g_pCurrentModel->uDeveloperFlags = uTmp;
 
-      u8* pExtraData = (pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      if ( iParamsLength >= (int)sizeof(u32) )
+      if ( iParamsLength >= 3*(int)sizeof(u32) )
       {
-         u32 uTmp = 0;
-         memcpy((u8*)&uTmp, pExtraData, sizeof(u32));
-         pExtraData += sizeof(u32);
+         memcpy((u8*)&uTmp, pData + 2*sizeof(u32), sizeof(u32));
          log_line("Received developer value for max radio Rx loop time: %u ms", uTmp);
          VehicleSettings* pVS = get_VehicleSettings();
          if ( NULL != pVS )
@@ -3429,6 +3451,8 @@ bool process_command(u8* pBuffer, int length)
             save_VehicleSettings();
          }
       }
+      log_line("[Commands] Received new vehicle development mode: %d", (int)g_pCurrentModel->bDeveloperMode);
+      log_line("[Commands] Received new vehicle new development flags: %u (%s)", g_pCurrentModel->uDeveloperFlags, str_get_developer_flags(g_pCurrentModel->uDeveloperFlags));
       saveCurrentModel();
       signalReloadModel(0, 0);
       return true;
@@ -3480,8 +3504,8 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
 
       saveCurrentModel();
-      hardware_sleep_ms(400);
-      hardware_reboot();
+      //hardware_sleep_ms(400);
+      //hardware_reboot();
       return true;
    }
 

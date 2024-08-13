@@ -369,7 +369,7 @@ void MenuSystemDevLogs::onSelectItem()
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
 
-      if ( ! handle_commands_send_developer_flags() )
+      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
    }
 

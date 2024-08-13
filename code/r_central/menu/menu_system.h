@@ -24,7 +24,9 @@ class MenuSystem: public Menu
       int m_IndexExport;
       int m_IndexImport;
       int m_IndexAutoExport;
-      int m_IndexDeveloper;
-      int m_IndexExpert;
+      int m_IndexDeveloperVehicle;
+      int m_IndexDeveloperController;
+      int m_IndexDevOptionsVehicle;
+      int m_IndexDevOptionsController;
       int m_IndexReset;
 };

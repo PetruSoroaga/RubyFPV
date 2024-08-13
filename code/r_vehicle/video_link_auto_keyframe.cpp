@@ -136,7 +136,7 @@ void video_link_auto_keyframe_do_adjustments()
 
    if ( bGoToLowestLevel )
    {
-      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL, "go lowest level");
+      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL, "go lowest level");
       return;
    }
 
@@ -145,7 +145,7 @@ void video_link_auto_keyframe_do_adjustments()
    int iNewKeyframeIntervalMs = 0;
 
    if ( iHighestRXQuality < 20 )
-       iNewKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+       iNewKeyframeIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
    
    // RX Quality going down ?
 
@@ -155,15 +155,15 @@ void video_link_auto_keyframe_do_adjustments()
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 300 )
       {
          iNewKeyframeIntervalMs = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs/2;
-         if ( iNewKeyframeIntervalMs < 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL )
-            iNewKeyframeIntervalMs = 2 * DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+         if ( iNewKeyframeIntervalMs < 2 * DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL )
+            iNewKeyframeIntervalMs = 2 * DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
          s_uLastTimeKeyFrameMovedDown = g_TimeNow;
       }
 
       if ( iHighestRXQuality < 50 )
       if ( g_TimeNow > s_uLastTimeKeyFrameMovedDown + 300 )
       {
-         iNewKeyframeIntervalMs = DEFAULT_VIDEO_AUTO_KEYFRAME_INTERVAL;
+         iNewKeyframeIntervalMs = DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL;
          s_uLastTimeKeyFrameMovedDown = g_TimeNow;
       }
    }
@@ -233,8 +233,8 @@ void video_link_auto_keyframe_periodic_loop()
       video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "fixed by user or one way");
    }
    
-   // Fixed keyframe interval, set by user? Just make sure it's the current one
-   else if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms > 0 ) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES) )
+   // Fixed keyframe interval, set by user? (no adaptive keyframe) Just make sure it's the current one
+   else if ( (NULL != g_pCurrentModel) && (!(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME)) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile >= 0) && (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile < MAX_VIDEO_LINK_PROFILES) )
    {
       int iKeyframeMs = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
       if ( iKeyframeMs < 0 )

@@ -102,6 +102,8 @@
 #define MENU_ID_VEHICLE_CPU_OIPC 115
 #define MENU_ID_VEHICLE_VIDEO_BIDIRECTIONAL 116
 #define MENU_ID_TX_POWER_8812EU 117
+#define MENU_ID_VEHICLE_DEV 118
+#define MENU_ID_CONTROLLER_DEV 119
 
 
 #define MAX_MENU_ITEMS 150
@@ -207,6 +209,11 @@ class Menu
      void startAnimationOnChildMenuAdd();
      void startAnimationOnChildMenuClosed();
      
+     void addMessageWithTitle(int iId, const char* szTitle, const char* szMessage);
+     void addMessage(const char* szMessage);
+     void addMessage(int iId, const char* szMessage);
+     void addMessage2(int iId, const char* szMessage, const char* szLine2);
+
    protected:
      void computeRenderSizes();
      float _computeRenderTopHeaderSize();
@@ -216,10 +223,6 @@ class Menu
      void _debugDrawBoundingBoxes(float yPos);
      void updateScrollingOnSelectionChange();
      bool checkIsArmed();
-     void addMessageWithTitle(int iId, const char* szTitle, const char* szMessage);
-     void addMessage(const char* szMessage);
-     void addMessage(int iId, const char* szMessage);
-     void addMessage2(int iId, const char* szMessage, const char* szLine2);
      void addMessageNeedsVehcile(const char* szMessage, int iConfirmationId);
      char* addMessageVideoBitrate(Model* pModel);
      void addUnsupportedMessageOpenIPC(const char* szMessage);

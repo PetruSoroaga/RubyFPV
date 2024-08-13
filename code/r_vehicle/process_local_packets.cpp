@@ -361,6 +361,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    memcpy(&oldProcesses, &g_pCurrentModel->processesPriorities, sizeof(type_processes_priorities));
    
    bool bWasOneWayVideo = g_pCurrentModel->isVideoLinkFixedOneWay();
+   u32 uOldDevFlags = g_pCurrentModel->uDeveloperFlags;
    u32 old_ef = g_pCurrentModel->enc_flags;
    bool bMustSignalOtherComponents = true;
    bool bMustReinitVideo = true;
@@ -388,6 +389,51 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
       log_error_and_alarm("Can't load current model vehicle.");
+
+
+      if ( (g_pCurrentModel->uDeveloperFlags &DEVELOPER_FLAGS_USE_PCAP_RADIO_TX ) != (uOldDevFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX) )
+      {
+         log_line("Radio Tx mode (PPCAP/Socket) changed. Reinit radio interfaces...");
+         radio_links_close_rxtx_radio_interfaces();
+         if ( NULL != g_pProcessStats )
+         {
+            g_TimeNow = get_current_timestamp_ms();
+            g_pProcessStats->lastActiveTime = g_TimeNow;
+            g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
+         }
+         if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+            radio_set_use_pcap_for_tx(1);
+         else
+            radio_set_use_pcap_for_tx(0);
+         
+         if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
+            radio_set_bypass_socket_buffers(1);
+         else
+            radio_set_bypass_socket_buffers(0);
+         radio_links_open_rxtx_radio_interfaces();
+      }
+      if ( (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) != (oldRadioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) )
+      {
+         log_line("Radio bypass socket buffers changed. Reinit radio interfaces...");
+         radio_links_close_rxtx_radio_interfaces();
+         if ( NULL != g_pProcessStats )
+         {
+            g_TimeNow = get_current_timestamp_ms();
+            g_pProcessStats->lastActiveTime = g_TimeNow;
+            g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
+         }
+         if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+            radio_set_use_pcap_for_tx(1);
+         else
+            radio_set_use_pcap_for_tx(0);
+         
+         if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
+            radio_set_bypass_socket_buffers(1);
+         else
+            radio_set_bypass_socket_buffers(0);
+         radio_links_open_rxtx_radio_interfaces();
+      }
+
 
    if ( iPreviousRadioGraphsRefreshInterval != g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )
    {
@@ -722,8 +768,10 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       int iKeyFrameProfile = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
       int keyframe_ms = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms;
+      if ( keyframe_ms < 0 )
+         keyframe_ms = -keyframe_ms;
       log_line("Received local notification that video keyframe interval changed. New value for user selected video profile: %d ms, value for current video profile (%s): %d ms", iKeyFrameProfile, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile), keyframe_ms);
-      if ( iKeyFrameProfile > 0 )
+      if ( ! (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
       {
          log_line("User video profile %s is on fixed keyframe, new value: %d ms. Adjust now the video capture keyframe param.", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), iKeyFrameProfile);  
          video_link_auto_keyframe_set_local_requested_value(0, iKeyFrameProfile, "user set a fixed keyframe");

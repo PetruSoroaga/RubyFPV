@@ -118,6 +118,7 @@
 
 // Used on radioLinksParams.uGlobalRadioLinksFlags :
 #define MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY ((u32)(((u32)0x01)))
+#define MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS ((u32)(((u32)0x02)))
 
 // Used on uDeveloperFlags :
 #define DEVELOPER_FLAGS_BIT_LIVE_LOG ((u32)(((u32)0x01)))

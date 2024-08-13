@@ -212,6 +212,7 @@ typedef struct
 // param - 0/1 to enable live log
 
 #define COMMAND_ID_SET_DEVELOPER_FLAGS 205
+// u32 param - 0/1 enable developer mode
 // u32 param - developer flags
 // extra params (optional):
 // u32 - radio rx loop timeout interval

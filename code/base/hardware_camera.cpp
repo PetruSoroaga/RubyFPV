@@ -389,13 +389,15 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
       hw_execute_bash_command_raw(szComm, NULL);
    }
 
+   hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
+  
    if ( bForceUpdate )
       hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
 
-void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pCameraParams, type_video_link_profile* pVideoLinkProfileParams, video_parameters_t* pVideoParams)
+void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_parameters_t* pCameraParams, int iVideoProfile, video_parameters_t* pVideoParams)
 {
-   if ( (NULL == pCameraParams) || (NULL == pVideoLinkProfileParams) || (NULL == pVideoParams) )
+   if ( (NULL == pCameraParams) || (NULL == pModel) || (iVideoProfile < 0) || (NULL == pVideoParams) )
    {
       log_softerror_and_alarm("Received invalid params to set majestic settings.");
       return;
@@ -414,26 +416,78 @@ void hardware_camera_apply_all_majestic_settings(camera_profile_parameters_t* pC
    else
       hw_execute_bash_command_raw("cli -s .video0.codec h264", NULL);
 
-   sprintf(szComm, "cli -s .video0.fps %d", pVideoLinkProfileParams->fps);
+   sprintf(szComm, "cli -s .video0.fps %d", pModel->video_link_profiles[iVideoProfile].fps);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   sprintf(szComm, "cli -s .video0.bitrate %d", pVideoLinkProfileParams->bitrate_fixed_bps/1000);
+   sprintf(szComm, "cli -s .video0.bitrate %d", pModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps/1000);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   sprintf(szComm, "cli -s .video0.size %dx%d", pVideoLinkProfileParams->width, pVideoLinkProfileParams->height);
+   sprintf(szComm, "cli -s .video0.size %dx%d", pModel->video_link_profiles[iVideoProfile].width, pModel->video_link_profiles[iVideoProfile].height);
    hw_execute_bash_command_raw(szComm, NULL);
 
    float fGOP = 0.5;
-   if ( pVideoLinkProfileParams->keyframe_ms > 0 )
-      fGOP = (float)pVideoLinkProfileParams->keyframe_ms / 1000.0;
-   else
-      fGOP = -(float)pVideoLinkProfileParams->keyframe_ms / 1000.0;
+   int keyframe_ms = pModel->getInitialKeyframeIntervalMs(iVideoProfile);
+   fGOP = ((float)keyframe_ms) / 1000.0;
    
-   sprintf(szComm, "cli -s .outgoing.naluSize %d", pVideoLinkProfileParams->video_data_length);
+   sprintf(szComm, "cli -s .outgoing.naluSize %d", pModel->video_link_profiles[iVideoProfile].video_data_length);
    hw_execute_bash_command_raw(szComm, NULL);
 
    sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    hw_execute_bash_command_raw(szComm, NULL);
 
    hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);
+}
+
+void hardware_camera_set_irfilter_off(int iOff)
+{
+   if ( ! hardware_board_is_openipc(hardware_getBoardType()) )
+      return;
+
+   // IR cut filer off?
+   if ( iOff )
+   {
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
+      {
+         hw_execute_bash_command("gpio set 23", NULL);
+         hw_execute_bash_command("gpio clear 24", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
+      {
+         hw_execute_bash_command("gpio set 14", NULL);
+         hw_execute_bash_command("gpio clear 15", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
+      {
+         hw_execute_bash_command("gpio set 13", NULL);
+         hw_execute_bash_command("gpio clear 15", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
+      {
+         hw_execute_bash_command("gpio set 10", NULL);
+         hw_execute_bash_command("gpio clear 11", NULL);
+      }
+   }
+   else
+   {
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
+      {
+         hw_execute_bash_command("gpio set 24", NULL);
+         hw_execute_bash_command("gpio clear 23", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
+      {
+         hw_execute_bash_command("gpio set 15", NULL);
+         hw_execute_bash_command("gpio clear 14", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
+      {
+         hw_execute_bash_command("gpio set 15", NULL);
+         hw_execute_bash_command("gpio clear 13", NULL);
+      }
+      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
+      {
+         hw_execute_bash_command("gpio set 11", NULL);
+         hw_execute_bash_command("gpio clear 10", NULL);
+      }
+   }
 }

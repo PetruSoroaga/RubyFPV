@@ -972,7 +972,7 @@ void MenuVehicleOSDStats::onSelectItem()
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP;
-      if ( ! handle_commands_send_developer_flags() )
+      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
       return;    
    }

@@ -33,7 +33,6 @@
 #include "menu_objects.h"
 #include "menu_controller.h"
 #include "menu_text.h"
-#include "menu_system_expert.h"
 #include "menu_system_video_profiles.h"
 #include "menu_item_section.h"
 #include "menu_confirmation.h"
@@ -453,17 +452,17 @@ void MenuSystemVideoProfiles::valuesToUI()
 
       int keyframe_ms = g_pCurrentModel->video_link_profiles[k].keyframe_ms;
 
-      if ( keyframe_ms >= 0 )
+      if ( g_pCurrentModel->video_link_profiles[k].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
+      {
+         m_pItemsSelect[k*20+17]->setSelectedIndex(1);
+         m_pItemsSlider[k*20+17]->setCurrentValue(keyframe_ms);
+         m_pItemsSlider[k*20+17]->setEnabled(false);       
+      }
+      else
       {
          m_pItemsSelect[k*20+17]->setSelectedIndex(0);
          m_pItemsSlider[k*20+17]->setCurrentValue(keyframe_ms);
          m_pItemsSlider[k*20+17]->setEnabled(true);
-      }
-      else
-      {
-         m_pItemsSelect[k*20+17]->setSelectedIndex(1);
-         m_pItemsSlider[k*20+17]->setCurrentValue(-keyframe_ms);
-         m_pItemsSlider[k*20+17]->setEnabled(false);       
       }
 
       m_pItemsSelect[k*20+18]->setEnabled(true);
@@ -589,10 +588,11 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       if ( profiles[k].fps == 1 )
          profiles[k].fps = 2;
       
+      profiles[k].keyframe_ms = m_pItemsSlider[k*20+17]->getCurrentValue();
       if ( 0 == m_pItemsSelect[k*20+17]->getSelectedIndex() )
-         profiles[k].keyframe_ms = m_pItemsSlider[k*20+17]->getCurrentValue();
+         profiles[k].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       else
-         profiles[k].keyframe_ms = -m_pItemsSlider[k*20+17]->getCurrentValue();
+         profiles[k].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       
       if ( 0 == m_pItemsSelect[k*20+18]->getSelectedIndex() )
          profiles[k].uProfileEncodingFlags &= (~VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME);

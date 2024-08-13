@@ -228,6 +228,7 @@ void _do_player_mode()
       }
    }
    fclose(fp);
+   log_line("Playback of file finished. End of file (%s).", g_szPlayFileName);
    mpp_mark_end_of_stream();
 
    ruby_drm_core_uninit();
@@ -621,6 +622,8 @@ int main(int argc, char *argv[])
          g_bPlayFile = true;
          iParam++;
          strncpy(g_szPlayFileName, argv[iParam], MAX_FILE_PATH_SIZE);
+         if ( NULL != strstr(g_szPlayFileName, ".h265") )
+            g_bUseH265Decoder = true;
       }
       if ( 0 == strcmp(argv[iParam], "-m") )
       {

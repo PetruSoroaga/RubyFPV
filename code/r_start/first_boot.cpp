@@ -59,15 +59,16 @@ void do_first_boot_pre_initialization()
    hw_execute_bash_command("echo \"\nRuby doing first time ever initialization on Radxa...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
    if ( access("/home/88XXau_wfb.ko", R_OK) != -1 )
    {
-      hw_execute_bash_command("rmmod 88XXau_wfb 2>&1 1>/dev/null", NULL);
       hw_execute_bash_command("cp -rf /home/88XXau_wfb.ko /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", NULL);
+      hw_execute_bash_command("rmmod 88XXau_wfb 2>&1 1>/dev/null", NULL);
       hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/88XXau_wfb.ko", NULL);
    }
    if ( access("/home/8812eu_radxa.ko", R_OK) != -1 )
    {
-      hw_execute_bash_command("sudo modprobe cfg80211", NULL);
       hw_execute_bash_command("cp -rf /home/8812eu_radxa.ko /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", NULL);
-      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+      //Radxa EU driver will be loaded by hardware_radio_load_radio_modules()
+      //hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+      //hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
    }
    hw_execute_bash_command("depmod -a", NULL);
    hw_execute_bash_command("lsusb", NULL);
@@ -215,8 +216,8 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    if ( bIsVehicle )
    {
       #ifdef HW_PLATFORM_OPENIPC_CAMERA
-      hardware_camera_apply_all_majestic_settings(&(s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].profiles[s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].iCurrentProfile]),
-          &(s_ModelFirstBoot.video_link_profiles[s_ModelFirstBoot.video_params.user_selected_video_link_profile]),
+      hardware_camera_apply_all_majestic_settings(&s_ModelFirstBoot, &(s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].profiles[s_ModelFirstBoot.camera_params[s_ModelFirstBoot.iCurrentCamera].iCurrentProfile]),
+          s_ModelFirstBoot.video_params.user_selected_video_link_profile,
           &(s_ModelFirstBoot.video_params));
       #endif
    }

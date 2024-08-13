@@ -118,7 +118,6 @@ u32 s_idBgImageMenu = 0;
 bool g_bMarkedHDMIReinit = false;
 bool g_bIsReinit = false;
 bool g_bIsHDMIConfirmation = false;
-bool quit = false;
 
 static int s_iRubyFPS = 0;
 static int s_iFPSCount = 0;
@@ -2124,7 +2123,7 @@ void main_loop_r_central()
 
       if ( g_bIsReinit )
       if ( s_iFPSCount > 5 )
-         quit = true;
+         g_bQuit = true;
    }
 
    if ( g_bIsHDMIConfirmation )
@@ -2217,7 +2216,7 @@ void handle_sigint(int sig)
    log_line("--------------------------");
    log_line("Caught signal to stop: %d", sig);
    log_line("--------------------------");
-   quit = true;
+   g_bQuit = true;
 } 
 
 int main(int argc, char *argv[])
@@ -2408,7 +2407,7 @@ int main(int argc, char *argv[])
 
    log_line("Start main loop.");
 
-   while (!quit) 
+   while (!g_bQuit) 
    {
       g_TimeNow = get_current_timestamp_ms();
       g_TimeNowMicros = get_current_timestamp_micros();

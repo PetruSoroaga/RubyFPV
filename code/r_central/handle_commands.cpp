@@ -929,10 +929,17 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_SET_DEVELOPER_FLAGS:
-         g_pCurrentModel->uDeveloperFlags = s_CommandParam;
-         saveControllerModel(g_pCurrentModel);  
-         sprintf(szBuff, "[Commands] Vehicle development flags: %d", s_CommandParam);
-         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+         {
+           u32 uTmp = 0;
+           memcpy(&uTmp, &s_CommandBuffer[0], sizeof(u32));
+           g_pCurrentModel->bDeveloperMode = (bool)uTmp;
+           memcpy(&uTmp, &s_CommandBuffer[sizeof(u32)], sizeof(u32));
+           g_pCurrentModel->uDeveloperFlags = uTmp;
+           saveControllerModel(g_pCurrentModel);  
+           log_line("[Commands] Vehicle new development mode: %d", (int)g_pCurrentModel->bDeveloperMode);
+           log_line("[Commands] Vehicle new development flags: %u (%s)", g_pCurrentModel->uDeveloperFlags, str_get_developer_flags(g_pCurrentModel->uDeveloperFlags));
+           send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+         }
          break;
 
       case COMMAND_ID_ENABLE_LIVE_LOG:
@@ -1400,11 +1407,23 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES:
-         for( tmp=0; tmp<MAX_VIDEO_LINK_PROFILES; tmp++ )
-            memcpy(&(g_pCurrentModel->video_link_profiles[tmp]), s_CommandBuffer + tmp * sizeof(type_video_link_profile), sizeof(type_video_link_profile));
-         saveControllerModel(g_pCurrentModel);         
-         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
-         break;
+         {
+            for( tmp=0; tmp<MAX_VIDEO_LINK_PROFILES; tmp++ )
+               memcpy(&(g_pCurrentModel->video_link_profiles[tmp]), s_CommandBuffer + tmp * sizeof(type_video_link_profile), sizeof(type_video_link_profile));
+            
+            camera_profile_parameters_t* pCameraParams = &g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile];
+            if ( g_pCurrentModel->isRunningOnOpenIPCHardware() &&
+                 g_pCurrentModel->validate_fps_and_exposure_settings(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pCameraParams))
+            //if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+            {
+               if ( NULL != menu_get_top_menu() )
+                  menu_get_top_menu()->addMessage(0, "Your camera exposure setting was updated to accommodate the new FPS value.");
+            }
+            
+            saveControllerModel(g_pCurrentModel);         
+            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            break;
+         }
 
       case COMMAND_ID_SET_VIDEO_H264_QUANTIZATION:
          if ( s_CommandParam > 0 )
@@ -1958,8 +1977,13 @@ bool _commands_check_send_get_settings()
       Preferences* pP = get_Preferences();
       u32 flags = 0;
       flags = 0;
-      if ( pCS->iDeveloperMode )
+      if ( g_pCurrentModel->bDeveloperMode )
+      {
          flags |= 0x01;
+         log_line("[Commands] Request developer mode from vehicle");
+      }
+      else
+         log_line("[Commands] Do not request developer mode from vehicle");
       if ( (pCS->iTelemetryOutputSerialPortIndex >= 0) || (pCS->iTelemetryForwardUSBType != 0) )
          flags |= (((u32)0x01)<<1);
       if ( pCS->iTelemetryInputSerialPortIndex >= 0 )
@@ -2714,7 +2738,7 @@ void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName)
    g_bHasFileUploadInProgress = true;
 }
 
-bool handle_commands_send_developer_flags()
+bool handle_commands_send_developer_flags(bool bEnableDevMode, u32 uDevFlags)
 {
    if ( NULL == g_pCurrentModel )
       return false;
@@ -2722,9 +2746,15 @@ bool handle_commands_send_developer_flags()
    ControllerSettings* pCS = get_ControllerSettings();
 
    u8 buffer[32];
-   u32 uTmp = pCS->iDevRxLoopTimeout;
+   u32 uTmp = 0;
+   if ( bEnableDevMode )
+      uTmp = 1;
    memcpy(buffer, (u8*)&uTmp, sizeof(u32));
-   if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_DEVELOPER_FLAGS, g_pCurrentModel->uDeveloperFlags, buffer, sizeof(u32)) )
+   uTmp = uDevFlags;
+   memcpy(&buffer[sizeof(u32)], (u8*)&uTmp, sizeof(u32));
+   uTmp = pCS->iDevRxLoopTimeout;
+   memcpy(&buffer[2*sizeof(u32)], (u8*)&uTmp, sizeof(u32));
+   if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_DEVELOPER_FLAGS, 0, buffer, 3*sizeof(u32)) )
       return false;
    return true;
 }

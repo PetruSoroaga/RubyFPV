@@ -50,6 +50,7 @@
 #include "menu_vehicle_peripherals.h"
 #include "menu_vehicle_radio.h"
 #include "menu_vehicle_cpu_oipc.h"
+#include "menu_vehicle_dev.h"
 #include "menu_item_text.h"
 #include "../link_watch.h"
 
@@ -164,6 +165,13 @@ void MenuVehicle::onShow()
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexManagement]->setEnabled(false);
 
+   m_IndexDeveloper = -1;
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   {
+      m_IndexDeveloper = addMenuItem( new MenuItem("Developer Settings") );
+      m_pMenuItems[m_IndexDeveloper]->showArrow();
+      m_pMenuItems[m_IndexDeveloper]->setTextColor(get_Color_Dev());
+   }
    Menu::onShow();
 }
 
@@ -443,6 +451,11 @@ void MenuVehicle::onSelectItem()
    if ( m_IndexAlarms == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuVehicleAlarms());
+      return;
+   }
+   if ( (m_IndexDeveloper != -1) && (m_IndexDeveloper == m_SelectedIndex) )
+   {
+      add_menu_to_stack(new MenuVehicleDev());
       return;
    }
 }

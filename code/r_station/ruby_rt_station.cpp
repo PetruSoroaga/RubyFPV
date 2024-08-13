@@ -796,6 +796,17 @@ void reasign_radio_links(bool bSilent)
 
    radio_rx_stop_rx_thread();
    radio_links_close_rxtx_radio_interfaces();
+
+   if ( g_pControllerSettings->iRadioTxUsesPPCAP )
+      radio_set_use_pcap_for_tx(1);
+   else
+      radio_set_use_pcap_for_tx(0);
+
+   if ( g_pControllerSettings->iRadioBypassSocketBuffers )
+      radio_set_bypass_socket_buffers(1);
+   else
+      radio_set_bypass_socket_buffers(0);
+
    _compute_radio_interfaces_assignment();
    links_set_cards_frequencies_and_params(-1);
    radio_links_open_rxtx_radio_interfaces();
@@ -1748,7 +1759,11 @@ void _check_send_pairing_requests()
          if ( g_State.vehiclesRuntimeInfo[i].uPairingRequestId < 2 )
             send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST, PH.vehicle_id_dest);
          if ( (g_State.vehiclesRuntimeInfo[i].uPairingRequestId % 5) == 0 )
+         {
             log_line("Sent pairing request to vehicle (retry count: %u). CID: %u, VID: %u", g_State.vehiclesRuntimeInfo[i].uPairingRequestId, PH.vehicle_id_src, PH.vehicle_id_dest);  
+            if ( (g_State.vehiclesRuntimeInfo[i].uPairingRequestId % 10) == 0 )
+               send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST, PH.vehicle_id_dest);
+         }
       }
    }
 }
@@ -2071,6 +2086,16 @@ int main(int argc, char *argv[])
    if ( NULL != g_pControllerSettings )
       radio_rx_set_timeout_interval(g_pControllerSettings->iDevRxLoopTimeout);
      
+   if ( g_pControllerSettings->iRadioBypassSocketBuffers )
+      radio_set_bypass_socket_buffers(1);
+   else
+      radio_set_bypass_socket_buffers(0);
+
+   if ( g_pControllerSettings->iRadioTxUsesPPCAP )
+      radio_set_use_pcap_for_tx(1);
+   else
+      radio_set_use_pcap_for_tx(0);
+
    g_uControllerId = controller_utils_getControllerId();
    log_line("Controller UID: %u", g_uControllerId);
 

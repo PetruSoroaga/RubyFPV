@@ -46,8 +46,16 @@ void _test_clock_resolution()
    {
       hardware_sleep_ms(1);
       uTime2 = get_current_timestamp_ms();
-      log_line("Sleep 1ms, diff: %u - %u = %u", uTime2, uTime1, uTime2-uTime1);
+      log_line("Sleep 1 ms, diff: %u - %u = %u", uTime2, uTime1, uTime2-uTime1);
       uTime1 = uTime2;
+   }
+
+   for( int i=1; i<30; i++ )
+   {
+      uTime1 = get_current_timestamp_ms();
+      hardware_sleep_ms(i);
+      uTime2 = get_current_timestamp_ms();
+      log_line("Sleep %d ms, diff: %u - %u = %u", i, uTime2, uTime1, uTime2-uTime1);
    }
 
    uTime1 = get_current_timestamp_ms();
@@ -144,14 +152,13 @@ void _test_clock_resolution()
 
 void _test_speed(const char* szId)
 {
-   log_line("Start speed %s", szId);
    u32 uTimeStart = get_current_timestamp_ms();
    
    char* pArray = (char*)malloc(2005);
 
    int k = 0;
    int p = 15;
-   for( int i=0; i<1000000; i++ )
+   for( int i=0; i<500000; i++ )
    {
       k += rand();
       p += 5;
@@ -164,7 +171,7 @@ void _test_speed(const char* szId)
 
    u32 uTimeEnd = get_current_timestamp_ms();
    free(pArray);
-   log_line("End speed %s. Executed in %u milisec", szId, uTimeEnd - uTimeStart);
+   log_line("Speed test: %s. Executed in %u milisec", szId, uTimeEnd - uTimeStart);
 }
 
 static void * _thread_speed(void *argument)
@@ -173,9 +180,37 @@ static void * _thread_speed(void *argument)
    return NULL;
 }
 
-static void * _thread_speed2(void *argument)
+static void * _thread_speed10(void *argument)
+{
+   hw_increase_current_thread_priority((char*)argument, 10);
+   _test_speed((char*)argument);
+   return NULL;
+}
+
+static void * _thread_speed20(void *argument)
+{
+   hw_increase_current_thread_priority((char*)argument, 20);
+   _test_speed((char*)argument);
+   return NULL;
+}
+
+static void * _thread_speed30(void *argument)
+{
+   hw_increase_current_thread_priority((char*)argument, 30);
+   _test_speed((char*)argument);
+   return NULL;
+}
+
+static void * _thread_speed50(void *argument)
 {
    hw_increase_current_thread_priority((char*)argument, 50);
+   _test_speed((char*)argument);
+   return NULL;
+}
+
+static void * _thread_speed70(void *argument)
+{
+   hw_increase_current_thread_priority((char*)argument, 70);
    _test_speed((char*)argument);
    return NULL;
 }
@@ -195,11 +230,17 @@ void start_test()
    log_line("Test speed single thread...");
    _test_speed("SingleThread");
 
-   hw_increase_current_thread_priority("main", 50);
-
-   log_line("------------------------------------------------");
-   log_line("Test speed single thread high priority...");
-   _test_speed("SingleThreadHigh");
+   for( int i=0; i<2; i++ )
+   {
+      hw_increase_current_thread_priority("main", 10);
+      _test_speed("SingleThreadPri10");
+      hw_increase_current_thread_priority("main", 30);
+      _test_speed("SingleThreadPri30");
+      hw_increase_current_thread_priority("main", 50);
+      _test_speed("SingleThreadPri50");
+      hw_increase_current_thread_priority("main", 70);
+      _test_speed("SingleThreadPri70");
+   }
 
    log_line("------------------------------------------------");
    log_line("Test speed multiple threads, default priority...");
@@ -218,15 +259,43 @@ void start_test()
 
    log_line("------------------------------------------------");
    log_line("Test speed multiple threads, high priority...");
-   strcpy(szId1, "ThreadHigh1");
-   strcpy(szId2, "ThreadHigh2");
 
-   pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed2, szId1);
-   pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed2, szId2);
+   for( int i=0; i<2; i++ )
+   {
+      strcpy(szId1, "ThreadHighA10");
+      strcpy(szId2, "ThreadHighB10");
+      pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed10, szId1);
+      pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed10, szId2);
+      pthread_join(s_pThreadTestSpeed1, NULL );
+      pthread_join(s_pThreadTestSpeed2, NULL );
 
-   log_line("Threads started, waiting to finish...");
-   pthread_join(s_pThreadTestSpeed1, NULL );
-   pthread_join(s_pThreadTestSpeed2, NULL );
+      strcpy(szId1, "ThreadHighA20");
+      strcpy(szId2, "ThreadHighB20");
+      pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed20, szId1);
+      pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed20, szId2);
+      pthread_join(s_pThreadTestSpeed1, NULL );
+      pthread_join(s_pThreadTestSpeed2, NULL );
 
+      strcpy(szId1, "ThreadHighA30");
+      strcpy(szId2, "ThreadHighB30");
+      pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed30, szId1);
+      pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed30, szId2);
+      pthread_join(s_pThreadTestSpeed1, NULL );
+      pthread_join(s_pThreadTestSpeed2, NULL );
+
+      strcpy(szId1, "ThreadHighA50");
+      strcpy(szId2, "ThreadHighB50");
+      pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed50, szId1);
+      pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed50, szId2);
+      pthread_join(s_pThreadTestSpeed1, NULL );
+      pthread_join(s_pThreadTestSpeed2, NULL );
+
+      strcpy(szId1, "ThreadHighA70");
+      strcpy(szId2, "ThreadHighB70");
+      pthread_create(&s_pThreadTestSpeed1, NULL, &_thread_speed70, szId1);
+      pthread_create(&s_pThreadTestSpeed2, NULL, &_thread_speed70, szId2);
+      pthread_join(s_pThreadTestSpeed1, NULL );
+      pthread_join(s_pThreadTestSpeed2, NULL );
+   }
    log_line("Threads finished.");
 }

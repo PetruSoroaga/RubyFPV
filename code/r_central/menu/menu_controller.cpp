@@ -43,9 +43,11 @@
 #include "menu_controller_plugins.h"
 #include "menu_controller_encryption.h"
 #include "menu_controller_recording.h"
+#include "menu_controller_dev.h"
 #include "menu_preferences_buttons.h"
 #include "menu_preferences_ui.h"
 #include "menu_preferences.h"
+#include "../../base/ctrl_settings.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -98,6 +100,15 @@ MenuController::MenuController(void)
    m_IndexPreferences = -1;
    //m_IndexPreferences = addMenuItem(new MenuItem("Preferences", "Change preferences about messages."));
    m_IndexPreferencesUI = addMenuItem(new MenuItem("User Interface", "Change user interface preferences."));
+
+   ControllerSettings* pCS = get_ControllerSettings();
+   m_IndexDeveloper = -1;
+   if ( (NULL != pCS) && pCS->iDeveloperMode )
+   {
+      m_IndexDeveloper = addMenuItem( new MenuItem("Developer Settings") );
+      m_pMenuItems[m_IndexDeveloper]->showArrow();
+      m_pMenuItems[m_IndexDeveloper]->setTextColor(get_Color_Dev());
+   }
 
    addMenuItem(new MenuItemSection("Management"));
 
@@ -331,6 +342,12 @@ void MenuController::onSelectItem()
       }
       onEventReboot();
       hardware_reboot();
+   }
+
+   if ( (m_IndexDeveloper != -1) && (m_IndexDeveloper == m_SelectedIndex) )
+   {
+      add_menu_to_stack(new MenuControllerDev());
+      return;
    }
 }
 

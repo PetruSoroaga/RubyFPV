@@ -323,6 +323,7 @@ void MenuControllerPlugins::importFromUSB()
    }
 
    int countImportedTotal = 0;
+   int countInvalidOSD = 0;
    int countImportedOSD = 0;
    int countImportedCore = 0;
 
@@ -355,13 +356,13 @@ void MenuControllerPlugins::importFromUSB()
 
       if ( NULL == strstr(dir->d_name, ".so") )
          continue;
-
       sprintf(szFile, "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
       void* pLibrary = NULL;
       pLibrary = dlopen(szFile, RTLD_LAZY | RTLD_GLOBAL);
       if ( NULL == pLibrary )
       {
          log_softerror_and_alarm("Invalid plugin library on USB stick: %s. Skipped.", dir->d_name);
+         countInvalidOSD++;
          continue;
       }
 
@@ -375,7 +376,7 @@ void MenuControllerPlugins::importFromUSB()
       pFunctionOSDGetName = (char* (*)(void)) dlsym(pLibrary, "getName");
       pFunctionOSDGetUID = (char* (*)(void)) dlsym(pLibrary, "getUID");
       
-      if ( NULL != pFunctionOSDInit && NULL != pFunctionOSDRender && NULL != pFunctionOSDGetName && NULL != pFunctionOSDGetUID )
+      if ( (NULL != pFunctionOSDInit) && (NULL != pFunctionOSDRender) && (NULL != pFunctionOSDGetName) && (NULL != pFunctionOSDGetUID) )
       {
          dlclose(pLibrary);
          sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_OSD_PLUGINS);
@@ -386,6 +387,8 @@ void MenuControllerPlugins::importFromUSB()
          countImportedTotal++;
          continue;
       }
+      else
+         countInvalidOSD++;
 
       int (*pFunctionCoreInit)(u32, u32);
       u32 (*pFunctionCoreRequestCapab)(void);
@@ -397,8 +400,9 @@ void MenuControllerPlugins::importFromUSB()
       pFunctionCoreGetName = (const char* (*)(void)) dlsym(pLibrary, "core_plugin_get_name");
       pFunctionCoreGetUID = (const char* (*)(void)) dlsym(pLibrary, "core_plugin_get_guid");
 
-      if ( NULL != pFunctionCoreInit && NULL != pFunctionCoreRequestCapab && NULL != pFunctionCoreGetName && NULL != pFunctionCoreGetUID )
+      if ( (NULL != pFunctionCoreInit) && (NULL != pFunctionCoreRequestCapab) && (NULL != pFunctionCoreGetName) && (NULL != pFunctionCoreGetUID) )
       {
+         countInvalidOSD--;
          dlclose(pLibrary);
          sprintf(szComm, "cp -rf %s/%s %s", FOLDER_USB_MOUNT, dir->d_name, FOLDER_CORE_PLUGINS);
          hw_execute_bash_command(szComm, NULL);
@@ -415,14 +419,21 @@ void MenuControllerPlugins::importFromUSB()
 
    log_line("Searching for plugins complete.");
    hardware_unmount_usb();
+   char szBuff[128];
 
    if ( 0 == countImportedTotal )
    {
-      addMessage("No plugins found.");
+      if ( 0 == countInvalidOSD )
+         addMessage("No plugins found.");
+      else
+      {
+         sprintf(szBuff, "No valid plugins found. Found %d invalid plugins.", countInvalidOSD);
+         addMessage(szBuff);
+      }
+
       hardware_unmount_usb();
       return;
    }
-   char szBuff[128];
    if ( 1 == countImportedTotal )
    {
       if ( 1 == countImportedOSD )

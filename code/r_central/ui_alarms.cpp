@@ -398,9 +398,8 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
    if ( uAlarms & ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD )
    if ( !g_bUpdateInProgress )
    {
-      ControllerSettings* pCS = get_ControllerSettings();
       bool bShow = false;
-      if ( pCS->iDeveloperMode )
+      if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
          bShow = true;
       else
       {
