@@ -176,8 +176,8 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
    char szUSBFile[MAX_FILE_PATH_SIZE];
    char szInFile[MAX_FILE_PATH_SIZE];
 
-   hw_execute_bash_command_raw("which zip", szOutput);
-   if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "zip") )
+   hw_execute_bash_command_raw("which unzip", szOutput);
+   if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "unzip") )
       return -1;
 
    if ( ! hardware_try_mount_usb() )

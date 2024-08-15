@@ -51,7 +51,19 @@ MenuControllerNetwork::MenuControllerNetwork(void)
    ControllerSettings* pCS = get_ControllerSettings();
    char szBuff[128];
    char szOutput[1024];
+   szOutput[0] = 0;
    hw_execute_bash_command_raw("hostname -I", szOutput);
+   int k = strlen(szOutput)-1;
+   while ( k > 0 )
+   {
+      if ( (szOutput[k] == 10) || (szOutput[k] == 13) )
+      {
+         szOutput[k] = 0;
+         k--;
+      }
+      else
+         break;
+   }
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Current IP: %s", szOutput);
    addMenuItem(new MenuItemText(szBuff));
 

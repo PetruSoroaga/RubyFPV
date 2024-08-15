@@ -1729,8 +1729,10 @@ bool process_command(u8* pBuffer, int length)
       {
          u32 uNewFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags;
          if ( (oldFlags & CAMERA_FLAG_IR_FILTER_OFF) != (uNewFlags & CAMERA_FLAG_IR_FILTER_OFF) )
+         {
             hardware_camera_set_irfilter_off(uNewFlags & CAMERA_FLAG_IR_FILTER_OFF);
-         return true;
+            return true;
+         }
       }
 
       bool bSentUsingPipe = false;
@@ -1758,7 +1760,7 @@ bool process_command(u8* pBuffer, int length)
             signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
          }
       }
-      log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
+      //log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
       if ( hardware_is_running_on_openipc() )
       if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
       {

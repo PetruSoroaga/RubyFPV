@@ -52,6 +52,7 @@
 #include "timers.h"
 #include "shared_vars.h"
 #include "launchers_vehicle.h"
+#include "packets_utils.h"
 
 extern ParserH264 s_ParserH264CameraOutput;
 
@@ -72,6 +73,7 @@ bool s_bHasPendingMajesticRealTimeChanges = false;
 u32 s_uTimeLastMajesticImageRealTimeUpdate = 0;
 
 u32 s_uTimeLastCheckMajestic = 0;
+int s_iCountMajestigProcessNotRunning = 0;
 
 
 void video_source_majestic_init_all_params()
@@ -167,10 +169,10 @@ u32 video_source_majestic_get_program_start_time()
 void video_source_majestic_start_capture_program()
 {
    hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
-
+   s_uTimeLastCheckMajestic = g_TimeNow;
+   hardware_sleep_ms(50);
    if ( g_pCurrentModel->processesPriorities.iNiceVideo < 0 )
    {
-      hardware_sleep_ms(50);
       int iPID = hw_process_exists("majestic");
       if ( iPID > 1 )
       {
@@ -488,7 +490,7 @@ void video_source_majestic_periodic_checks()
       s_uDebugUDPInputReads = 0;
    }
 
-   if ( g_TimeNow > s_uTimeLastCheckMajestic + 10000 )
+   if ( g_TimeNow > s_uTimeLastCheckMajestic + 5000 )
    {
       s_uTimeLastCheckMajestic = g_TimeNow;
       char szOutput[128];
@@ -496,6 +498,13 @@ void video_source_majestic_periodic_checks()
       hw_execute_bash_command_silent("pidof majestic", szOutput);
       if ( (strlen(szOutput) < 3) || (strlen(szOutput) > 5) )
       {
+         s_iCountMajestigProcessNotRunning++;
+         if ( s_iCountMajestigProcessNotRunning >= 2 )
+         {
+            send_alarm_to_controller(ALARM_ID_VIDEO_CAPTURE_MALFUNCTION,0,0, 5);
+            s_iCountMajestigProcessNotRunning = -2;
+         }
+
          log_softerror_and_alarm("[VideoSourceUDP] majestic is not running. starting it.");
          video_source_majestic_start_capture_program();
          vehicle_check_update_processes_affinities(false, false);

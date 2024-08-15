@@ -10,6 +10,7 @@
 #define ALARM_ID_UNSUPORTED_USB_SERIAL  ((u32)(((u32)0x01)))
 #define ALARM_ID_RECEIVED_INVALID_RADIO_PACKET  ((u32)(((u32)0x01)<<1))
 #define ALARM_ID_RECEIVED_INVALID_RADIO_PACKET_RECONSTRUCTED  ((u32)(((u32)0x01)<<2))
+#define ALARM_ID_VIDEO_CAPTURE_MALFUNCTION  ((u32)(((u32)0x01)<<3))
 #define ALARM_ID_LINK_TO_CONTROLLER_LOST  ((u32)(((u32)0x01)<<4))
 #define ALARM_ID_LINK_TO_CONTROLLER_RECOVERED  ((u32)(((u32)0x01)<<5))
 #define ALARM_ID_VEHICLE_VIDEO_DATA_OVERLOAD ((u32)(((u32)0x01)<<6)) // param: low word: video total bitrate in kb, high word: current radio datarate in kb

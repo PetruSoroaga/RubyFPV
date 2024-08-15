@@ -100,6 +100,7 @@ void do_update_to_96()
       load_ControllerSettings();
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+      pCS->iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
       save_ControllerSettings();      
    }
 
@@ -114,6 +115,11 @@ void do_update_to_96()
 
    pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
    pModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE;
+
+   if ( DEFAULT_BYPASS_SOCKET_BUFFERS )
+      pModel->radioLinksParams.uGlobalRadioLinksFlags |= MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS;
+   else
+      pModel->radioLinksParams.uGlobalRadioLinksFlags &= ~MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS;
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {

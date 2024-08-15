@@ -227,6 +227,14 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
          strcpy(szAlarmText2, "Update the SiK radio firmware to version 2.2");
    }
 
+   if ( uAlarms & ALARM_ID_VIDEO_CAPTURE_MALFUNCTION )
+   {
+      uIconId = g_idIconCamera;
+      strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
+      strcpy(szAlarmText2, "Reinstall your vehicle firmware.");
+   }
+
+
    if ( uAlarms & ALARM_ID_CPU_RX_LOOP_OVERLOAD )
    {
       uIconId = g_idIconRadio;

@@ -50,6 +50,9 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
    if ( uAlarms & ALARM_ID_RECEIVED_INVALID_RADIO_PACKET_RECONSTRUCTED )
       strcat(szOutput, " RECEIVED_INVALID_RADIO_PACKET_RECONSTRUCTED");
 
+   if ( uAlarms & ALARM_ID_VIDEO_CAPTURE_MALFUNCTION )
+      strcat(szOutput, " VIDEO_CAPTURE_MALFUNCTION");
+
    if ( uAlarms & ALARM_ID_LINK_TO_CONTROLLER_LOST )
       strcat(szOutput, " LINK_TO_CONTROLLER_LOST");
 

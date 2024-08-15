@@ -282,6 +282,9 @@ int main(int argc, char *argv[])
       sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
       hw_execute_bash_command(szComm, NULL);
       
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %sbin/", FOLDER_UPDATES);
+      hw_execute_bash_command(szComm, NULL);
+
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s", szZipFullFilePath, FOLDER_UPDATES);
       hw_execute_bash_command(szComm, NULL);
 
@@ -362,7 +365,7 @@ int main(int argc, char *argv[])
       return -1;
    }
 
-   log_line("Copying update files from zip archive [%s], to folder [%s] ...", szZipFileName, szUpdateFromSrcFolder);
+   log_line("Copying update files from zip archive [%s], from unzipped folder [%s] ...", szZipFileName, szUpdateFromSrcFolder);
 
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s %s%s 2>/dev/null", szUpdateFromSrcFolder, FILE_INFO_SHORT_LAST_UPDATE, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
    hw_execute_bash_command(szComm, NULL);
@@ -372,6 +375,10 @@ int main(int argc, char *argv[])
 
    sprintf(szComm, "mkdir -p %sbin/", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %sbin/", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sbin/* %sbin 2>/dev/null", szUpdateFromSrcFolder, FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
@@ -408,6 +415,8 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", NULL);
       #endif
    }
+   else
+      log_line("No driver file found (%d)", szDriver);
 
    // End check and update drivers
 
