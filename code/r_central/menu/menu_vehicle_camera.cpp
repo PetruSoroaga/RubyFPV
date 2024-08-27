@@ -92,6 +92,7 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexDayNight = -1;
    m_IndexVideoStab = m_IndexFlip = m_IndexReset = -1;
    m_IndexIRCut = -1;
+   m_IndexOpenIPCDayNight = -1;
 }
 
 void MenuVehicleCamera::addItems()
@@ -387,16 +388,23 @@ void MenuVehicleCamera::addItems()
 
 
    m_IndexIRCut = -1;
-   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-   {
-      m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");  
-      m_pItemsSelect[20]->addSelection("On");
-      m_pItemsSelect[20]->addSelection("Off");
-      m_pItemsSelect[20]->setIsEditable();
-      m_pItemsSelect[20]->setMargin(fMargin);
-      m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
-   }
+   m_IndexOpenIPCDayNight = -1;
+   if (g_pCurrentModel->isRunningOnOpenIPCHardware())
+      if (g_pCurrentModel->isActiveCameraOpenIPC())
+      {
+         m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");
+         m_pItemsSelect[20]->addSelection("On");
+         m_pItemsSelect[20]->addSelection("Off");
+         m_pItemsSelect[20]->setIsEditable();
+         m_pItemsSelect[20]->setMargin(fMargin);
+         m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
+
+         m_pItemsSelect[21] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color) or night (black and white).");
+         m_pItemsSelect[21]->addSelection("Daylight");
+         m_pItemsSelect[21]->addSelection("Night B/W");
+         m_pItemsSelect[21]->setMargin(fMargin);
+         m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
+      }
 
    m_IndexReset = addMenuItem(new MenuItem("Reset Profile", "Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile."));
    m_pMenuItems[m_IndexReset]->setMargin(fMargin);
@@ -675,6 +683,16 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
          cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_IR_FILTER_OFF;
       bSendToVehicle = true;
    }
+
+   if (-1 != m_IndexOpenIPCDayNight)
+      if ((m_IndexOpenIPCDayNight == itemIndex) || (itemIndex == -1))
+      {
+         if (0 == m_pItemsSelect[20]->getSelectedIndex())
+            cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
+         else
+            cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
+         bSendToVehicle = true;
+      }
 
    if ( (m_IndexSharpness != -1 && m_IndexSharpness == itemIndex ) || itemIndex == -1 )
    if ( m_pItemsSlider[3] != NULL )
@@ -983,6 +1001,10 @@ void MenuVehicleCamera::onSelectItem()
    if ( m_IndexIRCut != -1 )
    if ( m_IndexIRCut == m_SelectedIndex )
       sendCameraParams(-1, false);
+
+   if (m_IndexOpenIPCDayNight != -1)
+      if (m_IndexOpenIPCDayNight == m_SelectedIndex)
+         sendCameraParams(-1, false);
 
    if ( m_IndexCalibrateHDMI == m_SelectedIndex )
    {

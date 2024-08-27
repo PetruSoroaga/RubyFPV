@@ -18,6 +18,7 @@
 #define CAMERA_FLAG_FORCE_MODE_1 1
 #define CAMERA_FLAG_AWB_MODE_OLD ((u32)(((u32)0x01)<<1))
 #define CAMERA_FLAG_IR_FILTER_OFF ((u32)(((u32)0x01)<<2))
+#define CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF ((u32)(((u32)0x01) << 3))
 
 typedef struct
 {
@@ -25,6 +26,7 @@ typedef struct
    // bit 0: force mode 1
    // bit 1: AWB mode old
    // bit 2: 1: turn IR Cut off
+   // bit 3: 1: turn off daylight mode for OpenIPC cameras, activate night mode
    u8 flip_image;
    u8 brightness; // 0...100
    u8 contrast;   // 0...100

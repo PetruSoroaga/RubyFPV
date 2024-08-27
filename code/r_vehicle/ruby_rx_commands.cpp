@@ -1733,6 +1733,12 @@ bool process_command(u8* pBuffer, int length)
             hardware_camera_set_irfilter_off(uNewFlags & CAMERA_FLAG_IR_FILTER_OFF);
             return true;
          }
+
+         if ((oldFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) != (uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF))
+         {
+            hardware_camera_set_daylight_off(uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
+            return true;
+         }
       }
 
       bool bSentUsingPipe = false;

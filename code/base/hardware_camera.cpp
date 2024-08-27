@@ -390,7 +390,9 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    }
 
    hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
-  
+
+   hardware_camera_set_daylight_off(pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
+
    if ( bForceUpdate )
       hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
@@ -489,5 +491,20 @@ void hardware_camera_set_irfilter_off(int iOff)
          hw_execute_bash_command("gpio set 11", NULL);
          hw_execute_bash_command("gpio clear 10", NULL);
       }
+   }
+}
+
+void hardware_camera_set_daylight_off(int dlOff) {
+   if (!hardware_board_is_openipc(hardware_getBoardType()))
+      return;
+
+   // Daylight Off? Activate Night Mode
+   if (dlOff)
+   {
+      hw_execute_bash_command("curl localhost/night/on", NULL);
+   } 
+   else 
+   {
+      hw_execute_bash_command("curl localhost/night/off", NULL);
    }
 }
