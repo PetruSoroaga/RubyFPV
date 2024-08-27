@@ -402,6 +402,7 @@ void MenuVehicleCamera::addItems()
          m_pItemsSelect[21] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color) or night (black and white).");
          m_pItemsSelect[21]->addSelection("Daylight");
          m_pItemsSelect[21]->addSelection("Night B/W");
+         m_pItemsSelect[21]->setIsEditable();
          m_pItemsSelect[21]->setMargin(fMargin);
          m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
       }
