@@ -688,7 +688,7 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
    if (-1 != m_IndexOpenIPCDayNight)
       if ((m_IndexOpenIPCDayNight == itemIndex) || (itemIndex == -1))
       {
-         if (0 == m_pItemsSelect[20]->getSelectedIndex())
+         if (0 == m_pItemsSelect[21]->getSelectedIndex())
             cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
          else
             cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
