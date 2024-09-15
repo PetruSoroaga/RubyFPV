@@ -34,6 +34,7 @@
 #include "menu_item_section.h"
 
 #include "../../base/utils.h"
+#include "../../base/hardware_files.h"
 #include "../../radio/radiolink.h"
 #include "../osd/osd_common.h"
 #include "menu.h"
@@ -1891,6 +1892,7 @@ bool Menu::checkCancelUpload()
 
 static int s_iThreadGenerateUploadCounter = 0;
 static bool s_bThreadGenerateUploadError = false;
+static char s_szThreadGenerateUploadErrorString[256];
 
 static void * _thread_generate_upload(void *argument)
 {
@@ -1957,17 +1959,19 @@ static void * _thread_generate_upload(void *argument)
    char szFolderLocalUpdateBinaries[MAX_FILE_PATH_SIZE];
 
    strcpy(szFolderLocalUpdateBinaries, FOLDER_UPDATES);
-   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+   if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       strcat(szFolderLocalUpdateBinaries, SUBFOLDER_UPDATES_OIPC);
    else
       strcat(szFolderLocalUpdateBinaries, SUBFOLDER_UPDATES_PI);
 
    strcpy(szFile, szFolderLocalUpdateBinaries);
    strcat(szFile, "ruby_start");
-   if ( access(szFile, R_OK) == -1 )
+   if ( ! hardware_file_check_and_fix_access(szFile) )
    {
       log_softerror_and_alarm("ThreadGenerateUpload: vehicle update binaries are missing from folder: %s", szFolderLocalUpdateBinaries);
       s_bThreadGenerateUploadError = true;
+      snprintf(s_szThreadGenerateUploadErrorString, sizeof(s_szThreadGenerateUploadErrorString)/sizeof(s_szThreadGenerateUploadErrorString[0]),
+        "Error: Failed to access file (%s)", szFile);
       return NULL;
    }
 
@@ -2033,6 +2037,7 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
    ruby_signal_alive();
 
    s_bThreadGenerateUploadError = false;
+   s_szThreadGenerateUploadErrorString[0] = 0;
    pthread_t pThread;
    if ( 0 != pthread_create(&pThread, NULL, &_thread_generate_upload, szArchiveName) )
    {
@@ -2111,7 +2116,7 @@ bool Menu::uploadSoftware()
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
       if ( s_bThreadGenerateUploadError )
-         addMessage("Vehicle update binary files are missing or update procedure changed. Please update (again) your controller.");
+         addMessage2(0, "Vehicle update binary files are missing or update procedure changed. Please update (again) your controller.", s_szThreadGenerateUploadErrorString);
       else
          addMessage("There was an error generating upload software archive.");
       return false;

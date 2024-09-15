@@ -110,7 +110,7 @@ void MenuControllerTelemetry::valuesToUI()
    m_pItemsSelect[1]->setEnabled(false);
    m_pItemsSelect[2]->setEnabled(false);
 
-   if ( NULL == pCS || NULL == pCI || NULL == pp )
+   if ( (NULL == pCS) || (NULL == pCI) || (NULL == pp) )
    {
       log_softerror_and_alarm("Failed to get pointer to controller settings structures.");
       return;
@@ -130,14 +130,14 @@ void MenuControllerTelemetry::valuesToUI()
    }
 
    m_pItemsSelect[1]->setSelectedIndex(0);
-   if ( -1 == pCS->iTelemetryOutputSerialPortIndex && -1 == pCS->iTelemetryInputSerialPortIndex )
+   if ( (-1 == pCS->iTelemetryOutputSerialPortIndex) && (-1 == pCS->iTelemetryInputSerialPortIndex) )
    {
       m_pItemsSelect[0]->setSelectedIndex(0);
       m_pItemsSelect[1]->setSelectedIndex(0);
       m_pItemsSelect[1]->setEnabled(false);
       m_pItemsSelect[2]->setEnabled(false);
    }
-   else if ( pCS->iTelemetryOutputSerialPortIndex >= 0 && pCS->iTelemetryInputSerialPortIndex >= 0 )
+   else if ( (pCS->iTelemetryOutputSerialPortIndex >= 0) && (pCS->iTelemetryInputSerialPortIndex >= 0) )
    {
       m_pItemsSelect[0]->setSelectedIndex(3);
       m_pItemsSelect[1]->setEnabled(true);
@@ -148,11 +148,13 @@ void MenuControllerTelemetry::valuesToUI()
          m_pItemsSelect[2]->setEnabled(true);
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(pCS->iTelemetryOutputSerialPortIndex);
          for(int n=0; n<m_pItemsSelect[2]->getSelectionsCount(); n++ )
+         {
             if ( (NULL != pPortInfo) && (hardware_get_serial_baud_rates()[n] == pPortInfo->lPortSpeed) )
             {
                m_pItemsSelect[2]->setSelection(n);
                break;
             }
+         }
       }
    }
    else if ( pCS->iTelemetryOutputSerialPortIndex >= 0 )
@@ -166,11 +168,13 @@ void MenuControllerTelemetry::valuesToUI()
          m_pItemsSelect[2]->setEnabled(true);
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(pCS->iTelemetryOutputSerialPortIndex);
          for(int n=0; n<m_pItemsSelect[2]->getSelectionsCount(); n++ )
+         {
             if ( (NULL != pPortInfo) && (hardware_get_serial_baud_rates()[n] == pPortInfo->lPortSpeed) )
             {
                m_pItemsSelect[2]->setSelection(n);
                break;
             }
+         }
       }
    }
    else if ( pCS->iTelemetryInputSerialPortIndex >= 0 )
@@ -184,11 +188,13 @@ void MenuControllerTelemetry::valuesToUI()
          m_pItemsSelect[2]->setEnabled(true);
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(pCS->iTelemetryInputSerialPortIndex);
          for(int n=0; n<m_pItemsSelect[2]->getSelectionsCount(); n++ )
+         {
             if ( (NULL != pPortInfo) && (hardware_get_serial_baud_rates()[n] == pPortInfo->lPortSpeed) )
             {
                m_pItemsSelect[2]->setSelection(n);
                break;
             }
+         }
       }
    }
 
@@ -225,7 +231,7 @@ void MenuControllerTelemetry::onSelectItem()
 
    ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
-   if ( NULL == pCS || NULL == pCI )
+   if ( (NULL == pCS) || (NULL == pCI) )
    {
       log_softerror_and_alarm("Failed to get pointer to controller settings structure");
       return;
@@ -280,10 +286,10 @@ void MenuControllerTelemetry::onSelectItem()
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(i);
          if ( NULL == pPortInfo )
             continue;
-         if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
+         if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
             pPortInfo->iPortUsage = SERIAL_PORT_USAGE_NONE;
          if ( i == portIndex )
-            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY;
+            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
       }
 
       hardware_serial_save_configuration();
@@ -314,7 +320,7 @@ void MenuControllerTelemetry::onSelectItem()
             hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(i);
             if ( NULL == pPortInfo )
                continue;
-            if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
+            if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
                pPortInfo->iPortUsage = SERIAL_PORT_USAGE_NONE;
          }
          hardware_serial_save_configuration();
@@ -333,10 +339,10 @@ void MenuControllerTelemetry::onSelectItem()
             hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(i);
             if ( NULL == pPortInfo )
                continue;
-            if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
+            if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
                pPortInfo->iPortUsage = SERIAL_PORT_USAGE_NONE;
             if ( i == portIndex )
-               pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY;
+               pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
          }
          hardware_serial_save_configuration();
          save_ControllerSettings();
@@ -349,7 +355,7 @@ void MenuControllerTelemetry::onSelectItem()
 
 
    if ( m_IndexSerialSpeed == m_SelectedIndex )
-   if ( -1 != pCS->iTelemetryOutputSerialPortIndex || -1 != pCS->iTelemetryInputSerialPortIndex )
+   if ( (-1 != pCS->iTelemetryOutputSerialPortIndex) || (-1 != pCS->iTelemetryInputSerialPortIndex) )
    {
       int portIndex = pCS->iTelemetryOutputSerialPortIndex;
       if ( -1 == portIndex )

@@ -2637,6 +2637,59 @@ void osd_render_warnings()
       osd_warnings_render();
 }
 
+void _osd_render_msp(Model* pModel)
+{
+   if ( NULL == pModel )
+      return;
+
+   t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(pModel->uVehicleId);
+   if ( NULL == pRuntimeInfo )
+      return;
+
+   if ( (pRuntimeInfo->mspState.headerTelemetryMSP.uRows == 0) ||
+        (pRuntimeInfo->mspState.headerTelemetryMSP.uCols == 0) ||
+        ((pRuntimeInfo->mspState.headerTelemetryMSP.uFlags & MSP_FLAGS_FC_TYPE_MASK) == 0) )
+      return;
+      
+   u32 uImgId = g_idImgMSPOSDBetaflight;
+   if ( (pRuntimeInfo->mspState.headerTelemetryMSP.uFlags & MSP_FLAGS_FC_TYPE_MASK) == MSP_FLAGS_FC_TYPE_INAV )
+      uImgId = g_idImgMSPOSDINAV;
+   if ( (pRuntimeInfo->mspState.headerTelemetryMSP.uFlags & MSP_FLAGS_FC_TYPE_MASK) == MSP_FLAGS_FC_TYPE_ARDUPILOT )
+      uImgId = g_idImgMSPOSDArdupilot;
+   if ( (pModel->osd_params.uFlags & OSD_BIT_FLAGS_MASK_MSPOSD_FONT) != 0 )
+   {
+      u32 uFont = pModel->osd_params.uFlags & OSD_BIT_FLAGS_MASK_MSPOSD_FONT;
+      if ( uFont == 1 )
+         uImgId = g_idImgMSPOSDBetaflight;
+      if ( uFont == 2 )
+         uImgId = g_idImgMSPOSDINAV;
+      if ( uFont == 3 )
+         uImgId = g_idImgMSPOSDArdupilot;
+   }
+
+   int iImgCharWidth = 36;
+   int iImgCharHeight = 54;
+
+   float fScreenCharWidth = (1.0 - 2.0*osd_getMarginX()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uCols;
+   float fSrceenCharHeight = (1.0 - 2.0*osd_getMarginY()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uRows;
+
+   for( int y=0; y<pRuntimeInfo->mspState.headerTelemetryMSP.uRows; y++ )
+   for( int x=0; x<pRuntimeInfo->mspState.headerTelemetryMSP.uCols; x++ )
+   {
+      u16 uChar = pRuntimeInfo->mspState.uScreenChars[x + y*pRuntimeInfo->mspState.headerTelemetryMSP.uCols];
+      if ( 0 == (uChar & 0xFF) )
+         continue;
+      u8 uPage = uChar >> 8;
+
+      int iImgSrcX = ((int)(uPage & 0x03)) * iImgCharWidth;
+      int iImgSrcY = ((int)(uChar & 0xFF))*iImgCharHeight;
+      g_pRenderEngine->bltImage(osd_getMarginX() + x * fScreenCharWidth,
+                                osd_getMarginY() + y * fSrceenCharHeight,
+         fScreenCharWidth, fSrceenCharHeight,
+         iImgSrcX, iImgSrcY, iImgCharWidth, iImgCharHeight, uImgId);
+   }
+}
+
 
 void osd_show_monitor()
 {
@@ -2766,8 +2819,12 @@ void osd_render_all()
    osd_set_colors();
 
    if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
+   {
+      if ( pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+      if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_RENDER_MSP_OSD )
+         _osd_render_msp(pModel);
       osd_render_elements();
-
+   }
    // Set again default OSD colors as OSD elements might have just flashed (yellow)
 
    set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);

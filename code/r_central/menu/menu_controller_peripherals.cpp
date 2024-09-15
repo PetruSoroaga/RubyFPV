@@ -115,18 +115,13 @@ MenuControllerPeripherals::MenuControllerPeripherals(void)
       else
       {
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_NONE));
-         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_TELEMETRY));
-         #ifdef FEATURE_MSP_OSD
-         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_MSP_OSD_PITLAB));
-         #else
-         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_MSP_OSD_PITLAB), false);
-         #endif
+         m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_TELEMETRY_MAVLINK));
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_DATA_LINK));
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433));
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868));
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915));
          m_pItemsSelect[10+i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24));
-         m_iSerialBuiltInOptionsCount = 8;
+         m_iSerialBuiltInOptionsCount = 7;
          
          for( int n=0; n<get_CorePluginsCount(); n++ )
          {
@@ -223,22 +218,20 @@ void MenuControllerPeripherals::valuesToUI()
       {
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_NONE )
             m_pItemsSelect[10+i*2]->setSelectedIndex(0);
-         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
+         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
             m_pItemsSelect[10+i*2]->setSelectedIndex(1);
-         if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_MSP_OSD_PITLAB )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(2);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_DATA_LINK )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(3);
+            m_pItemsSelect[10+i*2]->setSelectedIndex(2);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(4);
+            m_pItemsSelect[10+i*2]->setSelectedIndex(3);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(5);
+            m_pItemsSelect[10+i*2]->setSelectedIndex(4);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(6);
+            m_pItemsSelect[10+i*2]->setSelectedIndex(5);
          if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
-            m_pItemsSelect[10+i*2]->setSelectedIndex(7);
+            m_pItemsSelect[10+i*2]->setSelectedIndex(6);
       }
-      else if ( pInfo->iPortUsage - 20 > get_CorePluginsCount() )
+      else if ( (pInfo->iPortUsage - 20) > get_CorePluginsCount() )
          m_pItemsSelect[10+i*2]->setSelectedIndex(0);
       else
       {
@@ -322,7 +315,7 @@ bool MenuControllerPeripherals::periodicLoop()
    if ( s_bFirstTimeI2CDetectionMenuPeripheralsDone )
       return false;
 
-   if ( NULL == m_pItemWait || m_nSearchI2CDeviceAddress == 128 )
+   if ( (NULL == m_pItemWait) || (m_nSearchI2CDeviceAddress == 128) )
       return false;
    if ( m_bIsAnimationInProgress )
       return false;
@@ -446,18 +439,16 @@ void MenuControllerPeripherals::onSelectItem()
             if ( 0 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_NONE;
             if ( 1 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_TELEMETRY;
+               newUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
             if ( 2 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_MSP_OSD_PITLAB;
-            if ( 3 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_DATA_LINK;
-            if ( 4 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+            if ( 3 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433;
-            if ( 5 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+            if ( 4 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868;
-            if ( 6 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+            if ( 5 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
-            if ( 7 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
+            if ( 6 == m_pItemsSelect[10+i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24;
             if ( newUsage == pPortInfo->iPortUsage )
                return;
@@ -489,7 +480,7 @@ void MenuControllerPeripherals::onSelectItem()
             return;
 
          bool bTelemetryChanged = false;
-         if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY)
+         if ( (pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) )
          {
             pCS->iTelemetryOutputSerialPortIndex = -1;
             pCS->iTelemetryInputSerialPortIndex = -1;
@@ -505,7 +496,7 @@ void MenuControllerPeripherals::onSelectItem()
             hw_serial_port_info_t* pInfo = hardware_get_serial_port_info(n);
             if ( NULL == pInfo )
                continue;
-            if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
+            if ( pInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
                iCountPortsTelemetry++;
          }
 
@@ -529,8 +520,7 @@ void MenuControllerPeripherals::onSelectItem()
             }
          }
 
-         
-         if ( newUsage == SERIAL_PORT_USAGE_TELEMETRY )
+         if ( newUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
          {
             pCS->iTelemetryOutputSerialPortIndex = i;
             pCS->iTelemetryInputSerialPortIndex = i;

@@ -610,6 +610,22 @@ void RenderEngine::freeIcon(u32 idIcon)
 {
 }
 
+int RenderEngine::getImageWidth(u32 uImageId)
+{
+   return 0;
+}
+
+int RenderEngine::getImageHeight(u32 uImageId)
+{
+   return 0;
+}
+
+void RenderEngine::changeImageHue(u32 uImageId, u8 r, u8 g, u8 b)
+{
+
+}
+
+     
 void RenderEngine::startFrame()
 {
 }
@@ -624,6 +640,11 @@ void RenderEngine::rotate180()
 
 void RenderEngine::drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId)
 {
+}
+
+void RenderEngine::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+
 }
 
 void RenderEngine::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId)

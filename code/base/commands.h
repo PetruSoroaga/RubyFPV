@@ -201,6 +201,8 @@ typedef struct
    
 } __attribute__((packed)) command_packet_overclocking_params;
 
+#define COMMAND_ID_SET_VEHICLE_BOARD_TYPE 110
+// param: u32 uBoardType, only subtype is used, rest is ignored
 
 
 #define COMMAND_ID_DEBUG_GET_TOP 201

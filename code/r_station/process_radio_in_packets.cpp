@@ -82,81 +82,6 @@ void init_radio_rx_structures()
    s_ParserH264RadioInput.init(camera_get_active_camera_h264_slices(g_pCurrentModel));
 }
 
-void _process_extra_data_from_packet(u8 dataType, u8 dataSize, u8* pExtraData)
-{
-   log_line("Processing received extra data in packet : extra data type: %d, extra data size: %d", (int)dataType, (int)dataSize);
-   if ( dataType == EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK1 || dataType == EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK2 || dataType == EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK3 )
-   if ( dataSize == 6 )
-   {
-      int nLink = 0;
-      if ( dataType == EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK2 )
-         nLink = 1;
-      if ( dataType == EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK3 )
-         nLink = 2;
-      u32 freq = 0;
-      memcpy((u8*)&freq, pExtraData, sizeof(u32));
-      u32 freqNew = freq;
-      log_line("Received extra packet info to change frequency on radio link %d, new frequency: %s", nLink+1, str_format_frequency(freqNew));
-      bool bChanged = false;
-      if ( g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink] != freqNew )
-         bChanged = true;
-
-      if ( ! bChanged )
-      {
-         log_line("Same frequency as current one. Ignoring info from vehicle.");
-         return;
-      }
-      u32 freqOld = g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink];
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo || (0 == pRadioHWInfo->isEnabled) )
-            continue;
-         if ( 0 == hardware_radioindex_supports_frequency(i, freqNew) )
-            continue;
-
-         u32 flags = controllerGetCardFlags(pRadioHWInfo->szMAC);
-         if ( (flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
-            continue;
-
-         if ( pRadioHWInfo->uCurrentFrequencyKhz == freqOld )
-         {
-            Preferences* pP = get_Preferences();
-            radio_utils_set_interface_frequency(g_pCurrentModel, i, nLink, freqNew, g_pProcessStats, pP->iDebugWiFiChangeDelay);
-            g_SM_RadioStats.radio_interfaces[i].uCurrentFrequencyKhz = freqNew;
-            radio_stats_set_card_current_frequency(&g_SM_RadioStats, i, freqNew);
-         }
-      }
-      hardware_save_radio_info();
-
-      if ( NULL != g_pSM_RadioStats )
-         memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-
-      g_pCurrentModel->radioLinksParams.link_frequency_khz[nLink] = freqNew;
-      saveControllerModel(g_pCurrentModel);
-      log_line("Notifying all other components of the link frequency change.");
-
-      t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, STREAM_ID_DATA);
-      PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-      PH.vehicle_id_dest = 0;
-      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
-   
-      u8 buffer[MAX_PACKET_TOTAL_SIZE];
-      memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-      u32* pI = (u32*)((&buffer[0])+sizeof(t_packet_header));
-      *pI = (u32)nLink;
-      pI++;
-      *pI = freqNew;
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-
-      ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length);
-      ruby_ipc_channel_send_message(g_fIPCToTelemetry, buffer, PH.total_length);
-      log_line("Done notifying all other components about the link frequency change.");
-   }
-}
 
 int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 {
@@ -947,25 +872,6 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
 
    //log_line("Recv packet: index: %u, interfaceIndex: %d,  stream id: %u, len: %d", (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), interfaceIndex, uStreamId, pPH->total_length);
 
-   if ( ! bIsRelayedPacket )
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8* pEnd = pData + pPH->total_length;
-      pEnd--;
-      u8 size = *pEnd;
-      pEnd--;
-      u8 type = *pEnd;
-      pEnd -= size-2;
-      _process_extra_data_from_packet(type, size, pEnd);
-
-      #ifdef PROFILE_RX
-      u32 dTimeEx = get_current_timestamp_ms() - timeStart;
-      if ( dTimeEx >= PROFILE_RX_MAX_TIME )
-         log_softerror_and_alarm("[Profile-Rx] Processing extra info from single radio packet (type: %d len: %d bytes), from radio interface %d took too long: %d ms.", pPH->packet_type, pPH->total_length, interfaceIndex+1, (int)dTimeEx);
-      #endif
-
-   }
-
    //if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
    //   log_line("Received packet from vehicle: module: %d, type: %d, length: %d", (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->packet_type, pPH->total_length);
 
@@ -1097,7 +1003,8 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
       if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
            (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY) ||
-           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY_EXTENDED) )
+           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY_EXTENDED) ||
+           (pPH->packet_type == PACKET_TYPE_TELEMETRY_MSP))
           bSendToCentral = true;
 
       if ( bIsRelayedPacket )
@@ -1116,7 +1023,8 @@ int process_received_single_radio_packet(int interfaceIndex, u8* pData, int leng
            (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS) ||
            (pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_DOWNLOAD) ||
            (pPH->packet_type == PACKET_TYPE_DEBUG_INFO) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY) )
+           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY) ||
+           (pPH->packet_type == PACKET_TYPE_TELEMETRY_MSP))
          bSendToCentral = true;
 
       if ( bSendToCentral )

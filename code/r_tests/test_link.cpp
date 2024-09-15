@@ -78,7 +78,7 @@ void _send_data()
    memcpy(packet+sizeof(t_packet_header), &g_TimeNow, sizeof(u32));
 
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0, 0, NULL);
+   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
    if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
       log_line("Failed to write video packet to radio interface.\n");
    g_uTotalBPSSentLastSecond += totalLength;
@@ -119,7 +119,7 @@ void _send_ping()
    memcpy(packet+sizeof(t_packet_header)+3*sizeof(u8), &uZero, sizeof(u8));
  
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0, 0, NULL);
+   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
 
    if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
       log_line("Failed to write PING to radio interface.\n");
@@ -158,7 +158,7 @@ void _process_rx_packet(u8* pPacketBuffer, int nLength, int iCount)
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &uZero, sizeof(u8));
 
       u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-      int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0, 0, NULL);
+      int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
 
       if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
          log_line("Failed to write PING_REPLY to radio interface.\n");

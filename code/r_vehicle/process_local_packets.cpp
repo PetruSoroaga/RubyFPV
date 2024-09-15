@@ -337,6 +337,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
          log_error_and_alarm("Can't load current model vehicle.");
       hardware_reload_serial_ports_settings();
+      ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return;
@@ -391,49 +392,49 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       log_error_and_alarm("Can't load current model vehicle.");
 
 
-      if ( (g_pCurrentModel->uDeveloperFlags &DEVELOPER_FLAGS_USE_PCAP_RADIO_TX ) != (uOldDevFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX) )
+   if ( (g_pCurrentModel->uDeveloperFlags &DEVELOPER_FLAGS_USE_PCAP_RADIO_TX ) != (uOldDevFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX) )
+   {
+      log_line("Radio Tx mode (PPCAP/Socket) changed. Reinit radio interfaces...");
+      radio_links_close_rxtx_radio_interfaces();
+      if ( NULL != g_pProcessStats )
       {
-         log_line("Radio Tx mode (PPCAP/Socket) changed. Reinit radio interfaces...");
-         radio_links_close_rxtx_radio_interfaces();
-         if ( NULL != g_pProcessStats )
-         {
-            g_TimeNow = get_current_timestamp_ms();
-            g_pProcessStats->lastActiveTime = g_TimeNow;
-            g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-         }
-         if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
-            radio_set_use_pcap_for_tx(1);
-         else
-            radio_set_use_pcap_for_tx(0);
-         
-         if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
-            radio_set_bypass_socket_buffers(1);
-         else
-            radio_set_bypass_socket_buffers(0);
-         radio_links_open_rxtx_radio_interfaces();
+         g_TimeNow = get_current_timestamp_ms();
+         g_pProcessStats->lastActiveTime = g_TimeNow;
+         g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
-      if ( (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) != (oldRadioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) )
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+         radio_set_use_pcap_for_tx(1);
+      else
+         radio_set_use_pcap_for_tx(0);
+      
+      if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
+         radio_set_bypass_socket_buffers(1);
+      else
+         radio_set_bypass_socket_buffers(0);
+      radio_links_open_rxtx_radio_interfaces();
+   }
+   
+   if ( (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) != (oldRadioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS) )
+   {
+      log_line("Radio bypass socket buffers changed. Reinit radio interfaces...");
+      radio_links_close_rxtx_radio_interfaces();
+      if ( NULL != g_pProcessStats )
       {
-         log_line("Radio bypass socket buffers changed. Reinit radio interfaces...");
-         radio_links_close_rxtx_radio_interfaces();
-         if ( NULL != g_pProcessStats )
-         {
-            g_TimeNow = get_current_timestamp_ms();
-            g_pProcessStats->lastActiveTime = g_TimeNow;
-            g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-         }
-         if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
-            radio_set_use_pcap_for_tx(1);
-         else
-            radio_set_use_pcap_for_tx(0);
-         
-         if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
-            radio_set_bypass_socket_buffers(1);
-         else
-            radio_set_bypass_socket_buffers(0);
-         radio_links_open_rxtx_radio_interfaces();
+         g_TimeNow = get_current_timestamp_ms();
+         g_pProcessStats->lastActiveTime = g_TimeNow;
+         g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
       }
-
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_USE_PCAP_RADIO_TX )
+         radio_set_use_pcap_for_tx(1);
+      else
+         radio_set_use_pcap_for_tx(0);
+      
+      if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_BYPASS_SOCKETS_BUFFERS )
+         radio_set_bypass_socket_buffers(1);
+      else
+         radio_set_bypass_socket_buffers(0);
+      radio_links_open_rxtx_radio_interfaces();
+   }
 
    if ( iPreviousRadioGraphsRefreshInterval != g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )
    {
@@ -1305,81 +1306,6 @@ void process_local_control_packet(t_packet_header* pPH)
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-      return;
-   }
-
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_UP )
-   {
-      log_line("Received request to change frequency up on radio link 1 using a RC channel");
-      if ( g_pCurrentModel->functions_params.bEnableRCTriggerFreqSwitchLink1 )
-      if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1 >= 0 )
-      {
-         u32 freq = _get_previous_frequency_switch(0);
-         char szFreq2[64];
-         strcpy(szFreq2, str_format_frequency(freq));
-         log_line("Switching (using RC switch) radio link 1 from %s to %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]), szFreq2 );
-         if ( freq != g_pCurrentModel->radioLinksParams.link_frequency_khz[0] )
-         {
-            s_iPendingFrequencyChangeLinkId = 0;
-            s_uPendingFrequencyChangeTo = freq;
-            s_uTimeFrequencyChangeRequest = g_TimeNow;
-         }
-      }
-   }
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_DOWN )
-   {
-      log_line("Received request to change frequency down on radio link 1 using a RC channel");
-      if ( g_pCurrentModel->functions_params.bEnableRCTriggerFreqSwitchLink1 )
-      if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink1 >= 0 )
-      {
-         u32 freq = _get_next_frequency_switch(0);
-         char szFreq2[64];
-         strcpy(szFreq2, str_format_frequency(freq));
-         log_line("Switching (using RC switch) radio link 1 from %s to %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]), szFreq2 );
-         if ( freq != g_pCurrentModel->radioLinksParams.link_frequency_khz[0] )
-         {
-            s_iPendingFrequencyChangeLinkId = 0;
-            s_uPendingFrequencyChangeTo = freq;
-            s_uTimeFrequencyChangeRequest = g_TimeNow;
-         }
-      }
-      return;
-   }
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_UP )
-   {
-      log_line("Received request to change frequency up on radio link 2 using a RC channel");
-      if ( g_pCurrentModel->functions_params.bEnableRCTriggerFreqSwitchLink2 )
-      if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink2 >= 0 )
-      {
-         u32 freq = _get_previous_frequency_switch(1);
-         char szFreq2[64];
-         strcpy(szFreq2, str_format_frequency(freq));
-         log_line("Switching (using RC switch) radio link 2 from %s to %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]), szFreq2 );
-         if ( freq != g_pCurrentModel->radioLinksParams.link_frequency_khz[1] )
-         {
-            s_iPendingFrequencyChangeLinkId = 1;
-            s_uPendingFrequencyChangeTo = freq;
-            s_uTimeFrequencyChangeRequest = g_TimeNow;
-         }
-      }
-   }
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_DOWN )
-   {
-      log_line("Received local request to change frequency down on radio link 2 using a RC channel");
-      if ( g_pCurrentModel->functions_params.bEnableRCTriggerFreqSwitchLink2 )
-      if ( g_pCurrentModel->functions_params.iRCTriggerChannelFreqSwitchLink2 >= 0 )
-      {
-         u32 freq = _get_next_frequency_switch(1);
-         char szFreq2[64];
-         strcpy(szFreq2, str_format_frequency(freq));
-         log_line("Switching (using RC switch) radio link 2 from %s to %s", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[2]), szFreq2 );
-         if ( freq != g_pCurrentModel->radioLinksParams.link_frequency_khz[2] )
-         {
-            s_iPendingFrequencyChangeLinkId = 1;
-            s_uPendingFrequencyChangeTo = freq;
-            s_uTimeFrequencyChangeRequest = g_TimeNow;
-         }
-      }
       return;
    }
 

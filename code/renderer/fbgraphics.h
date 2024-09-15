@@ -677,6 +677,7 @@ extern "C" {
       \sa fbg_createImage(), fbg_loadPNG(), fbg_loadJPEG(), fbg_loadImage()
     */
     extern void fbg_imageFlip(struct _fbg_img *img);
+    extern void fbg_imageChangeHue(struct _fbg *fbg, struct _fbg_img *img, unsigned char r, unsigned char g, unsigned char b);
 
     //! draw an image with support for clipping and scaling (Nearest-neighbor algorithm)
     /*!

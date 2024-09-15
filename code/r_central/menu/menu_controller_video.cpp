@@ -55,6 +55,10 @@ MenuControllerVideo::MenuControllerVideo(void)
    
    char szBuff[64];
 
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Current real display resolution: %dx%d",
+       g_pRenderEngine->getScreenWidth(), g_pRenderEngine->getScreenHeight() );
+   addTopLine(szBuff);
+
    m_hdmigroupOrg = hdmi_get_current_resolution_group();
    m_hdmimodeOrg = hdmi_get_current_resolution_mode();
    log_line("Current HDMI resolution: group: %d, mode: %d", m_hdmigroupOrg, m_hdmimodeOrg);

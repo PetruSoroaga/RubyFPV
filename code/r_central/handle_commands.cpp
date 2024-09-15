@@ -347,13 +347,6 @@ void _handle_received_command_response_to_get_all_params_zip(u8* pPacket, int iL
 
    u8* pDataBuffer = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
    int iDataLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command_response);
-
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8 size = *(((u8*)pPH) + pPH->total_length-1);
-      iDataLength -= (int)size;
-   }
-
    
    // Did we a full, complete, single zip response?
    if ( iDataLength > 500 )
@@ -928,6 +921,24 @@ bool handle_last_command_result()
          send_model_changed_message_to_router(MODEL_CHANGED_SIK_PACKET_SIZE, s_CommandParam);
          break;
 
+      case COMMAND_ID_SET_VEHICLE_BOARD_TYPE:
+         {
+            log_line("Received confirmation on set board type. Set board type to: %s", str_get_hardware_board_name(s_CommandParam));
+            g_pCurrentModel->hwCapabilities.uBoardType = s_CommandParam;
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            if ( menu_has_menu(MENU_ID_VEHICLE_BOARD) )
+            {
+               Menu* pMenu = menu_get_menu_by_id(MENU_ID_VEHICLE_BOARD);
+               remove_menu_from_stack(pMenu);
+            }
+            menu_refresh_all_menus();
+            char szName[128];
+            snprintf(szName, sizeof(szName)/sizeof(szName[0]), "Did set vehicle type to: %s", str_get_hardware_board_name(s_CommandParam));
+            warnings_add(g_pCurrentModel->uVehicleId, szName, g_idIconCPU);
+         }
+         break;
+
       case COMMAND_ID_SET_DEVELOPER_FLAGS:
          {
            u32 uTmp = 0;
@@ -960,11 +971,6 @@ bool handle_last_command_result()
 
 
       case COMMAND_ID_GET_MODULES_INFO:
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            iDataLength -= size;
-         }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
          
          if ( 0 == s_CommandParam )
@@ -1012,11 +1018,6 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_GET_CURRENT_VIDEO_CONFIG:
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            iDataLength -= size;
-         }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
@@ -1083,11 +1084,6 @@ bool handle_last_command_result()
             break;
 
       case COMMAND_ID_GET_MEMORY_INFO:
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            iDataLength -= size;
-         }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
          pTmp32 = (u32*)pBuffer;
          if ( iDataLength >= 2*(int)sizeof(u32) )
@@ -1108,11 +1104,6 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_GET_CPU_INFO:
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            iDataLength -= size;
-         }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          //s_pMenuVehicleHWInfo->addTopLine("CPU Info:");
@@ -1141,11 +1132,6 @@ bool handle_last_command_result()
         s_pMenuUSBInfoVehicle->m_Width = 0.56;
         add_menu_to_stack(s_pMenuUSBInfoVehicle);
 
-        if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-        {
-           u8 size = *(((u8*)pPH) + pPH->total_length-1);
-           iDataLength -= size;
-        }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info.", iDataLength);
         
@@ -1222,11 +1208,6 @@ bool handle_last_command_result()
         if ( NULL == s_pMenuUSBInfoVehicle )
            break;
         s_pMenuUSBInfoVehicle->addTopLine("List:");
-        if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-        {
-           u8 size = *(((u8*)pPH) + pPH->total_length-1);
-           iDataLength -= size;
-        }
         pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
         log_line("[Commands] Received %d bytes for vehicle USB radio interfaces info2.", iDataLength);
         char szComm[256];
@@ -1911,11 +1892,6 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_DEBUG_GET_TOP:
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            iDataLength -= size;
-         }
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
 
          log_line("[Commands] Vehicle TOP output (%d chars):\n%s", iDataLength, pBuffer);
@@ -2277,20 +2253,24 @@ void handle_commands_on_response_received(u8* pPacketBuffer, int iLength)
       return;
    }
 
-   if ( s_CommandLastProcessedResponseToCommandCounter == s_CommandCounter )
-   if ( s_CommandType != COMMAND_ID_GET_ALL_PARAMS_ZIP )
-   {
-      log_line_commands( "[Commands] [Ignoring duplicate response] of vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
-      return;
-   }
-   s_CommandLastProcessedResponseToCommandCounter = s_CommandCounter;
-   
+   // Received a response to an old command? Ignore it
    if ( pPHCR->origin_command_counter != s_CommandCounter )
    {
       log_line_commands( "[Commands] [Recv] Ignore out of bound response from vId %u, cmd resp nb. %d, origin cmd nb. %d, origin retry %d, type [%s], flags %d, extra info length: %d]", pPH->vehicle_id_src, pPHCR->response_counter, pPHCR->origin_command_counter, pPHCR->origin_command_resend_counter, commands_get_description(pPHCR->origin_command_type), pPHCR->command_response_flags, pPH->total_length-sizeof(t_packet_header)-sizeof(t_packet_header_command_response));
       return;
    }
 
+   // Received duplicate response to the last sent command?
+   if ( s_CommandLastProcessedResponseToCommandCounter == s_CommandCounter )
+   if ( s_CommandType != COMMAND_ID_GET_ALL_PARAMS_ZIP )
+   {
+      log_line_commands( "[Commands] [Ignoring duplicate response] of vId %u, cmd nb. %d, retry %d, type [%s], param: %u]", g_pCurrentModel->uVehicleId, s_CommandCounter, s_CommandResendCounter, commands_get_description(s_CommandType), s_CommandParam);
+      return;
+   }
+
+   // Process this response to the last command sent
+   s_CommandLastProcessedResponseToCommandCounter = s_CommandCounter;
+   
    memcpy( s_CommandReplyBuffer, pPacketBuffer, pPH->total_length );
    s_CommandReplyLength = pPH->total_length;
 
@@ -2409,9 +2389,9 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
    if ( s_CommandType == COMMAND_ID_SET_RADIO_LINK_FREQUENCY )
       s_CommandTimeout = 250;
    if ( s_CommandType == COMMAND_ID_GET_MEMORY_INFO )
-      s_CommandTimeout = 400;
+      s_CommandTimeout = 1000;
    if ( s_CommandType == COMMAND_ID_GET_CPU_INFO )
-      s_CommandTimeout = 400;
+      s_CommandTimeout = 1000;
    if ( s_CommandType == COMMAND_ID_SET_CAMERA_PARAMETERS )
       s_CommandTimeout = 250;
    if ( s_CommandType == COMMAND_ID_SET_VIDEO_PARAMS )
@@ -2467,6 +2447,15 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
       s_CommandTimeout = 250;
       s_CommandMaxResendCounter = 12;
    }
+
+   if ( s_CommandTimeout >= 100 )
+      s_CommandMaxResendCounter = 30;
+   if ( s_CommandTimeout >= 200 )
+      s_CommandMaxResendCounter = 15;
+   if ( s_CommandTimeout >= 500 )
+      s_CommandMaxResendCounter = 10;
+   if ( s_CommandTimeout >= 1000 )
+      s_CommandMaxResendCounter = 5;
 
    handle_commands_send_current_command();
 

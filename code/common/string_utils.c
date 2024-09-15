@@ -91,7 +91,7 @@ void str_sanitize_modelname(char* szName)
          isValid = 0;
       if ( isValid )
          break;
-      isValid++;
+      iSkip++;
    }
 
    if ( iSkip > 0 )
@@ -325,10 +325,6 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS"); break;
       case PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED:          strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_UP:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_UP"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_DOWN: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ1_DOWN"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_UP:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_UP"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_DOWN: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_RCCHANGE_FREQ2_DOWN"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY:             strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY"); break;
@@ -648,6 +644,10 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
    static const char* s_szBoardTypeOpenIPCGoke300 = "OpenIPC Goke300";
    static const char* s_szBoardTypeOpenIPCSigmaster338Q = "OpenIPC SSC338Q";
+   static const char* s_szBoardTypeOpenIPCSigmasterGeneric = "OpenIPC SSC338Q Generic";
+   static const char* s_szBoardTypeOpenIPCSigmasterUltrasight = "Ultrasight AIO";
+   static const char* s_szBoardTypeOpenIPCSigmasterMario = "Mario AIO";
+   static const char* s_szBoardTypeOpenIPCSigmasterRuncam = "Runcam";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
@@ -684,8 +684,18 @@ const char* str_get_hardware_board_name(u32 board_type)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardTypeOpenIPCGoke300;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
-      return s_szBoardTypeOpenIPCSigmaster338Q;
-
+   {
+      if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_GENERIC )
+         return s_szBoardTypeOpenIPCSigmasterGeneric;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT )
+         return s_szBoardTypeOpenIPCSigmasterUltrasight;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_MARIO )
+         return s_szBoardTypeOpenIPCSigmasterMario;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM )
+         return s_szBoardTypeOpenIPCSigmasterRuncam;
+      else
+         return s_szBoardTypeOpenIPCSigmaster338Q;
+   }
    return s_szBoardTypeUnknown;
 }
 
@@ -708,10 +718,15 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    #ifdef HW_PLATFORM_RADXA_ZERO3
    static const char* s_szBoardSTypeRadxaZero3 = "Radxa Zero3";
    #endif
+
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
    static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
    static const char* s_szBoardSTypeOpenIPCGoke300 = "Goke300";
    static const char* s_szBoardSTypeOpenIPCSigmaster338Q = "SSC338Q";
+   static const char* s_szBoardSTypeOpenIPCSigmasterGeneric = "SSC338Q Generic";
+   static const char* s_szBoardSTypeOpenIPCSigmasterUltrasight = "Ultrasight";
+   static const char* s_szBoardSTypeOpenIPCSigmasterMario = "Mario";
+   static const char* s_szBoardSTypeOpenIPCSigmasterRuncam = "Runcam";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
@@ -748,7 +763,18 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardSTypeOpenIPCGoke300;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
-      return s_szBoardSTypeOpenIPCSigmaster338Q;
+   {
+      if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_GENERIC )
+         return s_szBoardSTypeOpenIPCSigmasterGeneric;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT )
+         return s_szBoardSTypeOpenIPCSigmasterUltrasight;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_MARIO )
+         return s_szBoardSTypeOpenIPCSigmasterMario;
+      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM )
+         return s_szBoardSTypeOpenIPCSigmasterRuncam;
+      else
+         return s_szBoardSTypeOpenIPCSigmaster338Q;
+   }
 
    return s_szBoardSTypeUnknown;
 }
@@ -1181,16 +1207,12 @@ char* str_get_serial_port_usage(int iSerialPortUsage)
 
    strcpy(s_szSerialPortUsage, "None");
 
-   if ( iSerialPortUsage == SERIAL_PORT_USAGE_TELEMETRY )
-      strcpy(s_szSerialPortUsage, "Telemetry");
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
-      strcpy(s_szSerialPortUsage, "Telemetry MAVLink");
+      strcpy(s_szSerialPortUsage, "MAVLink FC Telemetry");
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_TELEMETRY_LTM )
-      strcpy(s_szSerialPortUsage, "Telemetry LTM");
+      strcpy(s_szSerialPortUsage, "LTM FC Telemetry");
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_MSP_OSD )
       strcpy(s_szSerialPortUsage, "MSP OSD");
-   if ( iSerialPortUsage == SERIAL_PORT_USAGE_MSP_OSD_PITLAB )
-      strcpy(s_szSerialPortUsage, "MSP OSD PitLab");
    if ( iSerialPortUsage == SERIAL_PORT_USAGE_DATA_LINK )
       strcpy(s_szSerialPortUsage, "Data Link");
 

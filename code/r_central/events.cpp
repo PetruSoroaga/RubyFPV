@@ -56,6 +56,7 @@
 #include "menu.h"
 #include "menu_update_vehicle.h"
 #include "menu_confirmation.h"
+#include "menu_confirmation_vehicle_board.h"
 #include "process_router_messages.h"
 #include "fonts.h"
 
@@ -373,7 +374,10 @@ void onEventDisarmed(u32 uVehicleId)
    log_line("Vehicle %u is Disarmed", uVehicleId);
    local_stats_on_disarm(uVehicleId);
    notification_add_disarmed(uVehicleId);
-   osd_add_stats_flight_end();
+   t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleId);
+   if ( (NULL != pRuntimeInfo) && (NULL != pRuntimeInfo->pModel) )
+   if ( pRuntimeInfo->pModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS )
+      osd_add_stats_flight_end();
    Preferences* p = get_Preferences();
    if ( NULL != p && p->iStopVideoRecOnDisarm )
       ruby_stop_recording();
@@ -636,6 +640,15 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;
       }
+   }
+
+   if ( !bMustUpdate )
+   if ( is_sw_version_atleast(g_pCurrentModel->sw_version, 9, 7) )
+   if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType) )
+   if ( (pModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
+   if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
+   {
+      add_menu_to_stack( new MenuConfirmationVehicleBoard() );
    }
 
    pModel->is_spectator = is_spectator;

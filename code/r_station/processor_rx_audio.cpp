@@ -323,11 +323,6 @@ void process_received_audio_packet(u8* pPacketBuffer)
    pData += sizeof(u32);
 
    u32 uAudioSize = pPH->total_length-sizeof(u32);
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8 size = *(((u8*)pPH) + pPH->total_length-1);
-      uAudioSize -= size;
-   }
 
    s_AudioPacketSize = uAudioSize;
    

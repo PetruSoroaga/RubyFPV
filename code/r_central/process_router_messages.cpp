@@ -53,6 +53,7 @@
 #include "colors.h"
 #include "ruby_central.h"
 #include "ui_alarms.h"
+#include "parse_msp.h"
 
 #define MAX_ROUTER_MESSAGES 80
 
@@ -418,6 +419,21 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
    }
 }
 
+void _process_received_msp_telemetry(u8* pPacketBuffer)
+{
+   t_packet_header* pPH = (t_packet_header*) pPacketBuffer;
+   t_structure_vehicle_info* pRuntimeInfo = _get_runtime_info_for_packet(pPacketBuffer);
+   if ( NULL == pRuntimeInfo )
+   {
+      log_softerror_and_alarm("Process received MSP telemetry from router: Failed to find vehicle runtime info for vehicle %u. Ignoring this telemetry packet.", pPH->vehicle_id_src);
+      return;
+   }
+   t_packet_header_telemetry_msp* pPHMSP = (t_packet_header_telemetry_msp*)(pPacketBuffer + sizeof(t_packet_header));
+   memcpy(&(pRuntimeInfo->mspState.headerTelemetryMSP), pPHMSP, sizeof(t_packet_header_telemetry_msp));
+
+   parse_msp_incoming_data(pRuntimeInfo, pPacketBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_telemetry_msp), pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_telemetry_msp));
+}
+
 void _process_received_model_settings(u8* pPacketBuffer)
 {
    if ( NULL == pPacketBuffer )
@@ -430,11 +446,6 @@ void _process_received_model_settings(u8* pPacketBuffer)
       
    u8* pData = pPacketBuffer + sizeof(t_packet_header);
    int iDataSize = (int)pPH->total_length - sizeof(t_packet_header);
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8 size = *(((u8*)pPH) + pPH->total_length-1);
-      iDataSize -= size;
-   }
 
    u32 uStartFlag = MAX_U32;
    if ( (pRuntimeInfo->pModel->sw_version >> 16) > 79 ) // v 7.7
@@ -789,6 +800,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       }
       
       t_packet_header_ruby_telemetry_short* pPHRTS = (t_packet_header_ruby_telemetry_short*)(pPacketBuffer+sizeof(t_packet_header));
+      memcpy(&(pRuntimeInfo->headerRubyTelemetryShort), pPacketBuffer+sizeof(t_packet_header), sizeof(t_packet_header_ruby_telemetry_short) );
       
       if ( ! pRuntimeInfo->bGotFCTelemetry )
       {
@@ -858,6 +870,12 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
    {
       _process_received_ruby_telemetry_extended(pPacketBuffer);
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_TELEMETRY_MSP )
+   {
+      _process_received_msp_telemetry(pPacketBuffer);
       return 0;
    }
 
@@ -1072,11 +1090,6 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       {
          t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
          int len = pPH->total_length - sizeof(t_packet_header)-sizeof(t_packet_header_telemetry_raw);
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-         {
-            u8 size = *(((u8*)pPH) + pPH->total_length-1);
-            len -= size;
-         }
          u8* pTelemetryData = pPacketBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw);
 
          for( int i=0; i<g_iPluginsOSDCount; i++ )
@@ -1182,11 +1195,6 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( g_bFirstModelPairingDone )
    {
       int iDataSize = (int)pPH->total_length - sizeof(t_packet_header);
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-      {
-         u8 size = *(((u8*)pPH) + pPH->total_length-1);
-         iDataSize -= size;
-      }
 
       t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(pPH->vehicle_id_src);
       if ( NULL == pRuntimeInfo )

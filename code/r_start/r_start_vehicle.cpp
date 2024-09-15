@@ -381,17 +381,17 @@ int r_start_vehicle(int argc, char *argv[])
    
    ruby_clear_all_ipc_channels();
 
-   g_uBoardType = 0;
+   u32 uBoardType = 0;
    char szBoardId[256];
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    FILE* fd = fopen(szFile, "r");
    if ( NULL != fd )
    {
-      fscanf(fd, "%u %s", &g_uBoardType, szBoardId);
+      fscanf(fd, "%u %s", &uBoardType, szBoardId);
       fclose(fd);
    }
-   log_line("Start sequence: Board type: %u -> %s", g_uBoardType, str_get_hardware_board_name(g_uBoardType));
+   log_line("Start sequence: Board type: %u -> %s", uBoardType, str_get_hardware_board_name(uBoardType));
 
 
    sprintf(szBuff, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
@@ -442,8 +442,8 @@ int r_start_vehicle(int argc, char *argv[])
    if ( read_config_file() )
       bMustSave = true;
 
-   u32 uBoardType = hardware_getBoardType();
-   if ( uBoardType != modelVehicle.hwCapabilities.uBoardType )
+   uBoardType = hardware_getBoardType();
+   if ( (uBoardType & BOARD_TYPE_MASK) != (modelVehicle.hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
    {
       modelVehicle.hwCapabilities.uBoardType = uBoardType;
       bMustSave = true;
@@ -580,12 +580,12 @@ int r_start_vehicle(int argc, char *argv[])
 
    for( int i=0; i<modelVehicle.hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+      if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
       if ( (modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) != SERIAL_PORT_USAGE_NONE )
       {
          int iPortId = ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] >> 8 ) & 0x0F;
          // USB serial
-         if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<4)<<8) )
+         if ( modelVehicle.hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_EXTRNAL_USB )
          {
             char szPort[32];
             sprintf(szPort, "/dev/ttyUSB%d", iPortId);

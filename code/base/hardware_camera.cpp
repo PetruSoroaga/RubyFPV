@@ -390,7 +390,6 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    }
 
    hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
-
    hardware_camera_set_daylight_off(pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
 
    if ( bForceUpdate )
@@ -431,6 +430,7 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    int keyframe_ms = pModel->getInitialKeyframeIntervalMs(iVideoProfile);
    fGOP = ((float)keyframe_ms) / 1000.0;
    
+   log_line("Hardware camera: set majestic NAL size to %d bytes (for video profile index: %d)", pModel->video_link_profiles[iVideoProfile].video_data_length, iVideoProfile);
    sprintf(szComm, "cli -s .outgoing.naluSize %d", pModel->video_link_profiles[iVideoProfile].video_data_length);
    hw_execute_bash_command_raw(szComm, NULL);
 
@@ -494,17 +494,14 @@ void hardware_camera_set_irfilter_off(int iOff)
    }
 }
 
-void hardware_camera_set_daylight_off(int dlOff) {
-   if (!hardware_board_is_openipc(hardware_getBoardType()))
+void hardware_camera_set_daylight_off(int iDLOff)
+{
+   if ( !hardware_board_is_openipc(hardware_getBoardType()) )
       return;
 
    // Daylight Off? Activate Night Mode
-   if (dlOff)
-   {
+   if (iDLOff)
       hw_execute_bash_command("curl localhost/night/on", NULL);
-   } 
    else 
-   {
       hw_execute_bash_command("curl localhost/night/off", NULL);
-   }
 }

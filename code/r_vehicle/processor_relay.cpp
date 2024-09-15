@@ -423,7 +423,7 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
       u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
       radio_set_frames_flags(radioFlags);
 
-      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_DOWNLINK, 0, 0, NULL);
+      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_DOWNLINK, 0);
 
       if ( (totalLength >0) && radio_write_raw_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength) )
       {           
@@ -510,7 +510,7 @@ void relay_send_single_packet_to_relayed_vehicle(u8* pBufferData, int iBufferLen
       u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
       radio_set_frames_flags(radioFlags);
 
-      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_UPLINK, 0, 0, NULL);
+      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_UPLINK, 0);
 
       if ( (totalLength>0) && radio_write_raw_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength) )
       {           

@@ -388,24 +388,28 @@ void MenuVehicleCamera::addItems()
 
 
    m_IndexIRCut = -1;
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");  
+      m_pItemsSelect[20]->addSelection("On");
+      m_pItemsSelect[20]->addSelection("Off");
+      m_pItemsSelect[20]->setIsEditable();
+      m_pItemsSelect[20]->setMargin(fMargin);
+      m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
+   }
+
    m_IndexOpenIPCDayNight = -1;
    if (g_pCurrentModel->isRunningOnOpenIPCHardware())
-      if (g_pCurrentModel->isActiveCameraOpenIPC())
-      {
-         m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");
-         m_pItemsSelect[20]->addSelection("On");
-         m_pItemsSelect[20]->addSelection("Off");
-         m_pItemsSelect[20]->setIsEditable();
-         m_pItemsSelect[20]->setMargin(fMargin);
-         m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
-
-         m_pItemsSelect[21] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color) or night (black and white).");
-         m_pItemsSelect[21]->addSelection("Daylight");
-         m_pItemsSelect[21]->addSelection("Night B/W");
-         m_pItemsSelect[21]->setIsEditable();
-         m_pItemsSelect[21]->setMargin(fMargin);
-         m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
-      }
+   if (g_pCurrentModel->isActiveCameraOpenIPC())
+   {
+      m_pItemsSelect[21] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color) or night (black and white).");
+      m_pItemsSelect[21]->addSelection("Daylight");
+      m_pItemsSelect[21]->addSelection("Night B/W");
+      m_pItemsSelect[21]->setIsEditable();
+      m_pItemsSelect[21]->setMargin(fMargin);
+      m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
+   }
 
    m_IndexReset = addMenuItem(new MenuItem("Reset Profile", "Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile."));
    m_pMenuItems[m_IndexReset]->setMargin(fMargin);
@@ -582,7 +586,22 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
    if ( (-1 != m_IndexFlip) && (NULL != m_pItemsSelect[9]) )
       m_pItemsSelect[9]->setSelection((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].flip_image!=0)?1:0);
 
- 
+   if ( (-1 != m_IndexIRCut) && (NULL != m_pItemsSelect[20]) )
+   {
+      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].uFlags & CAMERA_FLAG_IR_FILTER_OFF )
+         m_pItemsSelect[20]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[20]->setSelectedIndex(0);
+   }
+
+   if ( (-1 != m_IndexOpenIPCDayNight) && (NULL != m_pItemsSelect[21]) )
+   {
+      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF )
+         m_pItemsSelect[21]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[21]->setSelectedIndex(0);
+   }
+
    //if ( m_IndexAWBMode != -1 )
    //   m_pItemsSelect[10]->setSelection((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].flags & CAMERA_FLAG_AWB_MODE_OLD)?0:1);
 }
@@ -686,14 +705,14 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
    }
 
    if (-1 != m_IndexOpenIPCDayNight)
-      if ((m_IndexOpenIPCDayNight == itemIndex) || (itemIndex == -1))
-      {
-         if (0 == m_pItemsSelect[21]->getSelectedIndex())
-            cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
-         else
-            cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
-         bSendToVehicle = true;
-      }
+   if ((m_IndexOpenIPCDayNight == itemIndex) || (itemIndex == -1))
+   {
+      if (0 == m_pItemsSelect[21]->getSelectedIndex())
+         cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
+      else
+         cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF;
+      bSendToVehicle = true;
+   }
 
    if ( (m_IndexSharpness != -1 && m_IndexSharpness == itemIndex ) || itemIndex == -1 )
    if ( m_pItemsSlider[3] != NULL )
@@ -1004,8 +1023,8 @@ void MenuVehicleCamera::onSelectItem()
       sendCameraParams(-1, false);
 
    if (m_IndexOpenIPCDayNight != -1)
-      if (m_IndexOpenIPCDayNight == m_SelectedIndex)
-         sendCameraParams(-1, false);
+   if (m_IndexOpenIPCDayNight == m_SelectedIndex)
+      sendCameraParams(-1, false);
 
    if ( m_IndexCalibrateHDMI == m_SelectedIndex )
    {

@@ -1035,7 +1035,7 @@ bool process_command(u8* pBuffer, int length)
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       #ifdef HW_PLATFORM_RASPBERRY
       u32 board_type = (hardware_getBoardType() & BOARD_TYPE_MASK);
-      g_pCurrentModel->processesPriorities.iFreqARM = 900;
+      g_pCurrentModel->processesPriorities.iFreqARM = DEFAULT_ARM_FREQ;
       if ( board_type == BOARD_TYPE_PIZERO2 )
          g_pCurrentModel->processesPriorities.iFreqARM = 1000;
       else if ( board_type == BOARD_TYPE_PI3B )
@@ -1045,12 +1045,19 @@ bool process_command(u8* pBuffer, int length)
       else if ( (board_type != BOARD_TYPE_PIZERO) && (board_type != BOARD_TYPE_PIZEROW) && (board_type != BOARD_TYPE_NONE) 
                && (board_type != BOARD_TYPE_PI2B) && (board_type != BOARD_TYPE_PI2BV11) && (board_type != BOARD_TYPE_PI2BV12) )
          g_pCurrentModel->processesPriorities.iFreqARM = 1200;
+      #endif
 
+      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+      g_pCurrentModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+      hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+      hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
+      hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+      #endif
+      
       g_pCurrentModel->processesPriorities.iFreqGPU = 400;
       g_pCurrentModel->processesPriorities.iOverVoltage = 3;
       saveCurrentModel();
       save_config_file();
-      #endif
       return true;
    }
 
@@ -1065,10 +1072,23 @@ bool process_command(u8* pBuffer, int length)
          #ifdef HW_PLATFORM_RASPBERRY
          strcpy(szBuffer, "Platform: Raspberry Pi#");
          #endif
+
          #ifdef HW_PLATFORM_OPENIPC_CAMERA
          strcpy(szBuffer, "Platform: OpenIPC#");
          strcat(szBuffer, "SOC: ");
          strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
+         strcat(szBuffer, "#");
+
+         strcat(szBuffer, "Build: ");
+         char szTmpBuild[256];
+         szTmpBuild[0] = 0;
+         hw_execute_bash_command("cat /etc/os-release | grep VERSION_ID", szTmpBuild);
+         for( int i=0; i<strlen(szTmpBuild); i++ )
+         {
+            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
+               szTmpBuild[i] = ' ';
+         }
+         strcat(szBuffer, szTmpBuild);
          strcat(szBuffer, "#");
          #endif
 
@@ -1423,7 +1443,9 @@ bool process_command(u8* pBuffer, int length)
          resp[1] = (u32)lf;
 
          szTemp[0] = 0;
-         hw_execute_bash_command_raw("du -h logs/", szTemp);
+         char szComm[128];
+         sprintf(szComm, "du -h %s", FOLDER_LOGS);
+         hw_execute_bash_command_raw(szComm, szTemp);
          for( int i=0; i<(int)strlen(szTemp); i++ )
          {
            if ( isspace(szTemp[i]) )
@@ -1698,6 +1720,16 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
+   if ( uCommandType == COMMAND_ID_SET_VEHICLE_BOARD_TYPE )
+   {
+      g_pCurrentModel->hwCapabilities.uBoardType &= ~(u32)BOARD_SUBTYPE_MASK;
+      g_pCurrentModel->hwCapabilities.uBoardType |= pPHC->command_param & BOARD_SUBTYPE_MASK;
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_GENERIC, 0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      return true;
+   }
+
    if ( uCommandType == COMMAND_ID_SET_RADIO_LINKS_FLAGS )
    {
       g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags = pPHC->command_param;
@@ -1733,8 +1765,7 @@ bool process_command(u8* pBuffer, int length)
             hardware_camera_set_irfilter_off(uNewFlags & CAMERA_FLAG_IR_FILTER_OFF);
             return true;
          }
-
-         if ((oldFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) != (uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF))
+         if ( (oldFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) != (uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) )
          {
             hardware_camera_set_daylight_off(uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
             return true;
@@ -2638,6 +2669,13 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_OSD_PARAMS )
    {
+      if ( iParamsLength != sizeof(osd_parameters_t) )
+      {
+         log_softerror_and_alarm("Received OSD params size invalid (%d bytes received, expected %d bytes)",
+            iParamsLength, sizeof(osd_parameters_t));
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         return true;
+      }
       osd_parameters_t* params = (osd_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       //log_line("Received osd params %d bytes, expected %d bytes", iParamsLength, sizeof(osd_parameters_t));
       memcpy(&g_pCurrentModel->osd_params, params, sizeof(osd_parameters_t));
@@ -2772,8 +2810,76 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_TELEMETRY_PARAMETERS )
    {
       telemetry_parameters_t* params = (telemetry_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      log_line("Received telemetry params %d bytes, expected %d bytes", iParamsLength, sizeof(telemetry_parameters_t));
+      log_line("Received telemetry params, size: %d bytes, expected %d bytes", iParamsLength, sizeof(telemetry_parameters_t));
       memcpy(&g_pCurrentModel->telemetry_params, params, sizeof(telemetry_parameters_t));
+      log_line("Received telemetry type: %d", g_pCurrentModel->telemetry_params.fc_telemetry_type);
+      // Remove serial port used, if telemetry is set to None.
+      if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
+      {
+         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+         {
+            u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+            if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
+                 (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
+                 (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
+            {
+               // Remove serial port usage (set it to none)
+               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] &= 0xFFFFFF00;
+               log_line("Did set serial port %d to type None as it was used for telemetry.");
+            }
+         }
+      }
+
+      if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
+      {
+         int iCurrentSerialPortIndexForTelemetry = -1;
+         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+         {
+             u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+             
+             if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+             if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
+                  (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
+                  (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
+             {
+                iCurrentSerialPortIndexForTelemetry = i;
+                break;
+             }
+         }
+         log_line("Currently serial port index used for telemetry: %d", iCurrentSerialPortIndexForTelemetry);
+         if ( -1 == iCurrentSerialPortIndexForTelemetry )
+         {
+            for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+            {
+               u32 uPortUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+               
+               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+               if ( uPortUsage == SERIAL_PORT_USAGE_NONE )
+               {
+                  iCurrentSerialPortIndexForTelemetry = i;
+                  break;
+               }
+            }
+            if ( -1 == iCurrentSerialPortIndexForTelemetry )
+              log_line("Could not find a default serial port for telemetry.");
+            else
+            {
+               log_line("Found a default serial port for telemetry. Serial port index %d", iCurrentSerialPortIndexForTelemetry);
+
+               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] <= 0 )
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+
+               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+               if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK )
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+               if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM )
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_LTM;
+               if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_MSP_OSD;
+            }
+         }
+      }
+
       saveCurrentModel();
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       //vehicle_stop_tx_telemetry();

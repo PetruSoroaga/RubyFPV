@@ -68,7 +68,7 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
       sprintf( szBuff, "%s Usage:", g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i] );
       
       m_pItemsSelect[i*2] = new MenuItemSelect(szBuff);
-      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
+      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED) )
       {
          m_pItemsSelect[i*2]->addSelection("Not Supported");
          m_pItemsSelect[i*2]->setEnabled(false);
@@ -82,19 +82,16 @@ MenuVehiclePeripherals::MenuVehiclePeripherals(void)
          }
          else
          {
-            m_pItemsSelect[i*2]->addSelection("None");
-            m_pItemsSelect[i*2]->addSelection("Telemetry");
-            #ifdef FEATURE_MSP_OSD
-            m_pItemsSelect[i*2]->addSelection("MSP OSD PitLab");
-            #else
-            m_pItemsSelect[i*2]->addSelection("MSP OSD PitLab", false);
-            #endif
-            m_pItemsSelect[i*2]->addSelection("Custom Data Link");
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_NONE));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_TELEMETRY_MAVLINK));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_TELEMETRY_LTM));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_MSP_OSD));
+            m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_DATA_LINK));
             m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433));
             m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868));
             m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915));
             m_pItemsSelect[i*2]->addSelection(str_get_serial_port_usage(SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24));
-            m_IndexStartPortUsagePluginsStartIndex[i] = 8;
+            m_IndexStartPortUsagePluginsStartIndex[i] = 9;
 
             for( int n=0; n<g_iVehicleCorePluginsCount; n++ )
             {
@@ -143,7 +140,7 @@ void MenuVehiclePeripherals::valuesToUI()
 {
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8)) )
+      if ( ! (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED) )
       {
          m_pItemsSelect[i*2]->setSelectedIndex(0);
          m_pItemsSelect[i*2]->setEnabled(false);
@@ -162,22 +159,24 @@ void MenuVehiclePeripherals::valuesToUI()
       {
          if ( uUsage == SERIAL_PORT_USAGE_NONE )
             m_pItemsSelect[i*2]->setSelectedIndex(0);
-         if ( uUsage == SERIAL_PORT_USAGE_TELEMETRY )
+         if ( uUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK )
             m_pItemsSelect[i*2]->setSelectedIndex(1);
-         if ( uUsage == SERIAL_PORT_USAGE_MSP_OSD_PITLAB )
+         if ( uUsage == SERIAL_PORT_USAGE_TELEMETRY_LTM )
             m_pItemsSelect[i*2]->setSelectedIndex(2);
-         if ( uUsage == SERIAL_PORT_USAGE_DATA_LINK )
+         if ( uUsage == SERIAL_PORT_USAGE_MSP_OSD )
             m_pItemsSelect[i*2]->setSelectedIndex(3);
-         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
+         if ( uUsage == SERIAL_PORT_USAGE_DATA_LINK )
             m_pItemsSelect[i*2]->setSelectedIndex(4);
-         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433 )
             m_pItemsSelect[i*2]->setSelectedIndex(5);
-         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868 )
             m_pItemsSelect[i*2]->setSelectedIndex(6);
-         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915 )
             m_pItemsSelect[i*2]->setSelectedIndex(7);
+         if ( uUsage == SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24 )
+            m_pItemsSelect[i*2]->setSelectedIndex(8);
       }
-      else if ( (int)uUsage - 20 > g_iVehicleCorePluginsCount )
+      else if ( ((int)uUsage - 20) > g_iVehicleCorePluginsCount )
          m_pItemsSelect[i*2]->setSelectedIndex(0);
       else
       {
@@ -255,18 +254,20 @@ void MenuVehiclePeripherals::onSelectItem()
             if ( 0 == m_pItemsSelect[i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_NONE;
             if ( 1 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_TELEMETRY;
+               newUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
             if ( 2 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_MSP_OSD_PITLAB;
+               newUsage = SERIAL_PORT_USAGE_TELEMETRY_LTM;
             if ( 3 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_DATA_LINK;
+               newUsage = SERIAL_PORT_USAGE_MSP_OSD;
             if ( 4 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433;
+               newUsage = SERIAL_PORT_USAGE_DATA_LINK;
             if ( 5 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868;
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_433;
             if ( 6 == m_pItemsSelect[i*2]->getSelectedIndex() )
-               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_868;
             if ( 7 == m_pItemsSelect[i*2]->getSelectedIndex() )
+               newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_915;
+            if ( 8 == m_pItemsSelect[i*2]->getSelectedIndex() )
                newUsage = SERIAL_PORT_USAGE_SERIAL_RADIO_ELRS_24;
             if ( newUsage == (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) )
                return;

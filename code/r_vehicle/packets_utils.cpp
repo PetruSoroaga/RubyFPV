@@ -432,22 +432,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       }
    }
    
-   int totalLength = 0;
-   if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) && (s_uTimeFrequencyChangeRequest != 0) && (g_TimeNow > s_uTimeFrequencyChangeRequest) && (g_TimeNow > VEHICLE_SWITCH_FREQUENCY_AFTER_MS) && (s_uTimeFrequencyChangeRequest + VEHICLE_SWITCH_FREQUENCY_AFTER_MS >= g_TimeNow) )
-   {
-      u8 extraData[6];
-      memcpy(&extraData[0], (u8*)&s_uPendingFrequencyChangeTo, sizeof(u32));
-      extraData[4] = EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK1;
-      if ( s_iPendingFrequencyChangeLinkId == 1 )
-         extraData[4] = EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK2;
-      if ( s_iPendingFrequencyChangeLinkId == 2 )
-         extraData[4] = EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK3;
-      extraData[5] = 6;
-      //log_line("Sending extra data: %d %d, %d, %d, %d, %d", extraData[5], extraData[4], extraData[3], extraData[2], extraData[1], extraData[0]);
-      totalLength = radio_build_new_raw_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_DOWNLINK, be, 6, &extraData[0]);
-   }
-   else
-      totalLength = radio_build_new_raw_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_DOWNLINK, be, 0, NULL);
+   int totalLength = radio_build_new_raw_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_DOWNLINK, be);
 
    u32 microT1 = get_current_timestamp_micros();
 
@@ -491,7 +476,10 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       return true;
    }
 
-   log_softerror_and_alarm("Failed to write to radio interface %d.", iRadioInterfaceIndex+1);
+   log_softerror_and_alarm("Failed to write to radio interface %d (type %s, size: %d bytes, raw: %d bytes)",
+      iRadioInterfaceIndex+1,
+      str_get_packet_type(pPH->packet_type), nPacketLength, totalLength);
+      
    return false;
 }
 

@@ -34,6 +34,7 @@
 #include "../../base/config.h"
 #include "../../base/commands.h"
 #include "../colors.h"
+#include "../osd/osd_common.h"
 #include "../../renderer/render_engine.h"
 #include "menu.h"
 
@@ -131,8 +132,8 @@ void MenuColorPicker::onSelectItem()
 {
    Menu::onSelectItem();
    Preferences* p = get_Preferences();
-   
-   if ( m_IndexColor[0] == m_SelectedIndex && ! m_pMenuItems[m_IndexColor[0]]->isEditing() )
+   bool bChanged = false;
+   if ( (m_IndexColor[0] == m_SelectedIndex) && (! m_pMenuItems[m_IndexColor[0]]->isEditing()) )
    {
       if ( m_ColorType == COLORPICKER_TYPE_OSD )
          p->iColorOSD[0] = m_pItemsRange[0]->getCurrentValue();
@@ -141,8 +142,9 @@ void MenuColorPicker::onSelectItem()
       if ( m_ColorType == COLORPICKER_TYPE_AHI )
          p->iColorAHI[0] = m_pItemsRange[0]->getCurrentValue();
       save_Preferences();
+      bChanged = true;
    }
-   if ( m_IndexColor[1] == m_SelectedIndex && ! m_pMenuItems[m_IndexColor[1]]->isEditing() )
+   if ( (m_IndexColor[1] == m_SelectedIndex) && (! m_pMenuItems[m_IndexColor[1]]->isEditing()) )
    {
       if ( m_ColorType == COLORPICKER_TYPE_OSD )
          p->iColorOSD[1] = m_pItemsRange[1]->getCurrentValue();
@@ -151,8 +153,9 @@ void MenuColorPicker::onSelectItem()
       if ( m_ColorType == COLORPICKER_TYPE_AHI )
          p->iColorAHI[1] = m_pItemsRange[1]->getCurrentValue();
       save_Preferences();
+      bChanged = true;
    }
-   if ( m_IndexColor[2] == m_SelectedIndex && ! m_pMenuItems[m_IndexColor[2]]->isEditing() )
+   if ( (m_IndexColor[2] == m_SelectedIndex) && (! m_pMenuItems[m_IndexColor[2]]->isEditing()) )
    {
       if ( m_ColorType == COLORPICKER_TYPE_OSD )
          p->iColorOSD[2] = m_pItemsRange[2]->getCurrentValue();
@@ -161,5 +164,10 @@ void MenuColorPicker::onSelectItem()
       if ( m_ColorType == COLORPICKER_TYPE_AHI )
          p->iColorAHI[2] = m_pItemsRange[2]->getCurrentValue();
       save_Preferences();
+      bChanged = true;
    }
+
+   if ( bChanged )
+   if ( m_ColorType == COLORPICKER_TYPE_OSD )
+      osd_reload_msp_resources();
 }

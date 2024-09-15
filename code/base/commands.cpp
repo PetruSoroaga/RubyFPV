@@ -110,7 +110,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_DOWNLOAD_FILE: strcpy(szCommandDesc, "Download_File"); break;
       case COMMAND_ID_DOWNLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Download_File_Segment"); break;
       case COMMAND_ID_CLEAR_LOGS: strcpy(szCommandDesc, "Clear_Logs"); break;
-       
+      case COMMAND_ID_SET_VEHICLE_BOARD_TYPE: strcpy(szCommandDesc, "Set_Vehicle_Board_Type"); break;
       case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW: strcpy(szCommandDesc, "Manual switch to video link low quality"); break;
       case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED: strcpy(szCommandDesc, "Manual switch to video link med quality"); break;
       case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_NORMAL: strcpy(szCommandDesc, "Manual switch to video link normal quality"); break;

@@ -164,8 +164,8 @@ void _do_player_mode()
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
-      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
-   log_line("HDMI mode to use: %d", iHDMIIndex);
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
 
    if ( g_bInitUILayerToo )
    {
@@ -288,8 +288,8 @@ void _do_stream_mode_pipe()
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
-      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
-   log_line("HDMI mode to use: %d", iHDMIIndex);
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
    hw_increase_current_thread_priority("RubyPlayer", 50);
@@ -435,8 +435,8 @@ void _do_stream_mode_udp()
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
-      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
-   log_line("HDMI mode to use: %d", iHDMIIndex);
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
    int iSock = -1;

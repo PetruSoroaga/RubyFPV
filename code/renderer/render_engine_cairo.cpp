@@ -66,6 +66,10 @@ RenderEngineCairo::RenderEngineCairo()
    type_drm_buffer* pMainDisplayBuffer = ruby_drm_core_get_main_draw_buffer();
    type_drm_buffer* pBackDisplayBuffer = ruby_drm_core_get_back_draw_buffer();
    
+   log_line("RendererCairo: Display buffers size: front: %d x %d, back: %d x %d",
+      pMainDisplayBuffer->uWidth, pMainDisplayBuffer->uHeight,
+      pBackDisplayBuffer->uWidth, pBackDisplayBuffer->uHeight );
+   
    m_uRenderDrawSurfacesIds[0] = pMainDisplayBuffer->uBufferId;
    m_uRenderDrawSurfacesIds[1] = pBackDisplayBuffer->uBufferId;
 
@@ -243,8 +247,10 @@ u32 RenderEngineCairo::loadIcon(const char* szFile)
    if ( NULL != strstr(szFile, ".png") )
    {
       m_pIcons[m_iCountIcons] = cairo_image_surface_create_from_png(szFile);
-      m_pIconsMip[m_iCountIcons][0] = cairo_image_surface_create_from_png(szFile);
-      m_pIconsMip[m_iCountIcons][1] = cairo_image_surface_create_from_png(szFile);
+      //m_pIconsMip[m_iCountIcons][0] = cairo_image_surface_create_from_png(szFile);
+      //m_pIconsMip[m_iCountIcons][1] = cairo_image_surface_create_from_png(szFile);
+      m_pIconsMip[m_iCountIcons][0] = NULL;
+      m_pIconsMip[m_iCountIcons][1] = NULL;
    }
    else
    {
@@ -269,11 +275,13 @@ void RenderEngineCairo::freeIcon(u32 idIcon)
 {
    int indexIcon = -1;
    for( int i=0; i<m_iCountIcons; i++ )
+   {
       if ( m_IconIds[i] == idIcon )
       {
          indexIcon = i;
          break;
       }
+   }
    if ( -1 == indexIcon )
       return;
 
@@ -291,6 +299,87 @@ void RenderEngineCairo::freeIcon(u32 idIcon)
       m_IconIds[i] = m_IconIds[i+1];
    }
    m_iCountIcons--;
+}
+
+int RenderEngineCairo::getImageWidth(u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return 0;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( (-1 == indexImage) || (NULL == m_pImages[indexImage]) )
+      return 0;
+  
+   return (int)cairo_image_surface_get_width(m_pImages[indexImage]);
+}
+
+int RenderEngineCairo::getImageHeight(u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return 0;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( (-1 == indexImage) || (NULL == m_pImages[indexImage]) )
+      return 0;
+  
+   return (int)cairo_image_surface_get_height(m_pImages[indexImage]);
+}
+
+void RenderEngineCairo::changeImageHue(u32 uImageId, u8 r, u8 g, u8 b)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( (-1 == indexImage) || (NULL == m_pImages[indexImage]) )
+      return;
+
+
+   int iWidth = cairo_image_surface_get_width(m_pImages[indexImage]);
+   int iHeight = cairo_image_surface_get_height(m_pImages[indexImage]);
+   int iImageStride = cairo_image_surface_get_stride((cairo_surface_t*)m_pImages[indexImage]);
+   u8* pImageData = cairo_image_surface_get_data((cairo_surface_t*)m_pImages[indexImage]);
+
+   for( int y=0; y<iHeight; y++ )
+   {
+      u8* pDestLine = (u8*)(pImageData + y * iImageStride);
+      for( int x=0; x<iWidth; x++ )
+      {
+         if ( *pDestLine > 200 )
+         if ( *(pDestLine+1) > 200 )
+         if ( *(pDestLine+2) > 200 )
+         {
+            *pDestLine = ((unsigned int)(*pDestLine) * (unsigned int)r) >> 8;
+            *(pDestLine+1) = ((unsigned int)(*(pDestLine+1)) * (unsigned int)g) >> 8;
+            *(pDestLine+2) = ((unsigned int)(*(pDestLine+2)) * (unsigned int)b) >> 8;
+         }
+         pDestLine += 4;
+      }
+   }
 }
 
 void RenderEngineCairo::rotate180()
@@ -323,6 +412,91 @@ void RenderEngineCairo::drawImage(float xPos, float yPos, float fWidth, float fH
    cairo_pattern_set_filter(cairo_get_source(m_pCairoCtx), CAIRO_FILTER_NEAREST);
    cairo_paint(m_pCairoCtx);
    cairo_scale(m_pCairoCtx, scaleX, scaleY);
+}
+
+void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+  
+   int xDest = xPosDest*m_iRenderWidth;
+   int yDest = yPosDest*m_iRenderHeight;
+   int wDest = fWidthDest*m_iRenderWidth;
+   int hDest = fHeightDest*m_iRenderHeight;
+
+   if ( (xDest < 0) || (yDest < 0) || (xDest+wDest >= m_iRenderWidth) || (yDest+hDest >= m_iRenderHeight) )
+      return;
+
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pSrcImageData = cairo_image_surface_get_data(m_pImages[indexImage]);
+   int iSrcImageStride = cairo_image_surface_get_stride(m_pImages[indexImage]);
+
+   // Input, output surface format order is: BGRA
+   u8 r = 255, g = 255, b = 255, a = 255;
+
+   //float fImgWidth = cairo_image_surface_get_width(m_pImages[indexImage]);
+   //float fImgHeight = cairo_image_surface_get_height(m_pImages[indexImage]);
+
+   float dxIcon = (float)iSrcWidth/(float)wDest;
+   float dyIcon = (float)iSrcHeight/(float)hDest;
+   u8* pDestPixel = (u8*)&(pOutputBufferInfo->pData[yDest*pOutputBufferInfo->uStride + xDest*4]);
+
+   for( int sy=0; sy<hDest; sy++ )
+   {
+      int yIconOffset = iSrcY * iSrcImageStride;
+      u8* pIconData = pSrcImageData + yIconOffset + ((int)iSrcX) * 4;
+      for( int sx=0; sx<wDest; sx++ )
+      {
+         // Output surface format order is: BGRA
+         for( int k=0; k<4; k++ )
+         {
+         *pDestPixel = *pIconData;
+         *pDestPixel = 0xA0;
+         pDestPixel++;
+         pIconData++;
+         }
+       /*
+         b = *pIconData++;
+         g = *pIconData++;
+         r = *pIconData++;
+         a = *pIconData++;
+
+
+         if ( a > 2 )
+         {
+            b = (b*m_ColorFill[2])>>8;
+            *pDestPixel++ = b;
+
+            g = (g*m_ColorFill[1])>>8;
+            *pDestPixel++ = g;
+
+            r = (r*m_ColorFill[0])>>8;
+            *pDestPixel++ = r;
+
+            a = (a*m_ColorFill[3])>>8;
+            *pDestPixel++ = a;
+         }
+         else
+            pDestPixel+=4;
+            */
+      }
+      pDestPixel += pOutputBufferInfo->uStride - wDest * 4;
+      yIconOffset += dyIcon;
+   }
 }
 
 void RenderEngineCairo::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 uIconId)
@@ -459,13 +633,13 @@ void RenderEngineCairo::bltIcon(float xPosDest, float yPosDest, int iSrcX, int i
       for( int x=0; x<iSrcWidth; x++ )
       {
           u8 uAlpha = *(pSrcLine+3);
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
           pDestLine++;
@@ -835,6 +1009,87 @@ void RenderEngineCairo::drawPolyLine(float* x, float* y, int count)
 
 void RenderEngineCairo::fillPolygon(float* x, float* y, int count)
 {
+if ( count < 3 || count > 120 )
+      return;
+   float xIntersections[256];
+   int countIntersections = 0;
+   float yMin, yMax;
+   float xMin, xMax;
+
+   xMin = xMax = x[0];
+   yMin = yMax = y[0];
+
+   for( int i=1; i<count; i++ )
+   {
+      if ( x[i] < xMin ) xMin = x[i];
+      if ( y[i] < yMin ) yMin = y[i];
+      if ( x[i] > xMax ) xMax = x[i];
+      if ( y[i] > yMax ) yMax = y[i];
+   }
+
+   for( float yLine = yMin; yLine <= yMax; yLine += m_fPixelHeight )
+   {
+      countIntersections = 0;
+      for( int i=0; i<count; i++ )
+      {
+         int j = (i+1)%count;
+
+         // Horizontal line
+         if ( fabs(y[i]-yLine) < 0.3*m_fPixelHeight && fabs(y[j]-yLine) < 0.3*m_fPixelHeight )
+            drawLine(x[i], y[i], x[j], y[j]);
+         else if ( y[i] <= yLine && y[j] >= yLine )
+         {
+            float xInt = x[i] + (x[j]-x[i])*(yLine-y[i])/(y[j]-y[i]);
+            xIntersections[countIntersections] = xInt;
+            countIntersections++;
+         }
+         else if ( y[i] >= yLine && y[j] <= yLine )
+         {
+            float xInt = x[j] + (x[i]-x[j])*(yLine-y[j])/(y[i]-y[j]);
+            xIntersections[countIntersections] = xInt;
+            countIntersections++;
+         }
+      }
+
+      // Sort intersections;
+      for( int i=0; i<countIntersections-1; i++ )
+      for( int j=i+1; j<countIntersections; j++ )
+      {
+         if ( xIntersections[i] > xIntersections[j] )
+         {
+            float tmp = xIntersections[i];
+            xIntersections[i] = xIntersections[j];
+            xIntersections[j] = tmp;
+         }
+      }
+
+      // Remove duplicates if odd count
+      if ( countIntersections > 2 )
+      if ( countIntersections%2 )
+      for( int i=0; i<countIntersections-1; i++ )
+      {
+         if ( fabs(xIntersections[i]-xIntersections[i+1]) < 0.0001 )
+         {
+            while ( i<countIntersections-1 )
+            {
+               xIntersections[i] = xIntersections[i+1];
+               i++;
+            }
+            countIntersections--;
+            break;
+         }
+      }
+
+      // Draw lines
+      for( int i=0; i<countIntersections; i+= 2 )
+         if ( xIntersections[i] >= xMin && xIntersections[i] <= xMax )
+         if ( xIntersections[i+1] >= xMin && xIntersections[i+1] <= xMax )
+            drawLine(xIntersections[i], yLine, xIntersections[i+1], yLine);
+   }
+
+   for( int i=0; i<count-1; i++ )
+      drawLine(x[i], y[i], x[i+1], y[i+1]);
+   drawLine(x[count-1], y[count-1], x[0], y[0]);
 }
 
 
@@ -983,13 +1238,13 @@ void RenderEngineCairo::_bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrc
       for( int x=0; x<iSrcWidth; x++ )
       {
           u8 uAlpha = *(pSrcLine+3);
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
-          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/255;
+          *pDestLine = ((*(pSrcLine)) * uAlpha + (*(pDestLine)) * (255-uAlpha))/256;
           pDestLine++;
           pSrcLine++;
           pDestLine++;

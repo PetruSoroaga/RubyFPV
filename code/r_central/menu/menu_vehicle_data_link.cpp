@@ -79,7 +79,7 @@ void MenuVehicleDataLink::valuesToUI()
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
        
-       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
        if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           iCurrentSerialPortIndex = i;
@@ -144,7 +144,7 @@ void MenuVehicleDataLink::onSelectItem()
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
        
-       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
        if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           iCurrentSerialPortIndex = i;
@@ -190,7 +190,7 @@ void MenuVehicleDataLink::onSelectItem()
          u8 uCurrentUsage = new_info.serial_bus_supported_and_usage[iSerialPort-1] & 0xFF;
          if ( uCurrentUsage != SERIAL_PORT_USAGE_DATA_LINK )
          {
-            if ( uCurrentUsage == SERIAL_PORT_USAGE_TELEMETRY )
+            if ( (uCurrentUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) || (uCurrentUsage == SERIAL_PORT_USAGE_MSP_OSD) )
             {
                MenuConfirmation* pMC = new MenuConfirmation("Telemetry Link Disabled", "The serial port was used by your telemetry link. It was reasigned to the auxiliary data link.",1, true);
                pMC->m_yPos = 0.3;

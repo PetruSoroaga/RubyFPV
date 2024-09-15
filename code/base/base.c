@@ -209,6 +209,19 @@ u32 get_sw_version_build(u32 uSWVersion)
    return (uSWVersion >> 16);
 }
 
+int is_sw_version_atleast(u32 uSWVersion, int iMajor, int iMinor)
+{
+   if ( get_sw_version_major(uSWVersion) > iMajor )
+      return 1;
+   int iM = get_sw_version_minor(uSWVersion);
+   if ( iM > 10 )
+      iM /= 10;
+   if ( get_sw_version_major(uSWVersion) == iMajor )
+   if ( iM >= iMinor )
+      return 1;
+
+   return 0;
+}
 
 void _init_timestamp_for_process()
 {
@@ -527,6 +540,12 @@ void log_only_errors()
    }
    log_line_forced_to_file("Setting the log level to errors only.");
    s_logOnlyErrors = 1;
+}
+
+void log_enable_full()
+{
+   log_line_forced_to_file("Setting the log level to full.");
+   s_logOnlyErrors = 0;
 }
 
 void log_format_time(u32 miliseconds, char* szOutTime)

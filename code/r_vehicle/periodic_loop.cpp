@@ -904,55 +904,6 @@ int periodicLoop()
    
    //_periodic_loop_check_ping();
 
-#ifdef FEATURE_ENABLE_RC_FREQ_SWITCH
-   if ( (s_iPendingFrequencyChangeLinkId >= 0) && (s_uPendingFrequencyChangeTo > 100) &&
-        (s_uTimeFrequencyChangeRequest != 0) && (g_TimeNow > s_uTimeFrequencyChangeRequest + VEHICLE_SWITCH_FREQUENCY_AFTER_MS) )
-   {
-      log_line("Processing pending RC trigger to change frequency to: %s on link: %d", str_format_frequency(s_uPendingFrequencyChangeTo), s_iPendingFrequencyChangeLinkId+1 );
-      g_pCurrentModel->compute_active_radio_frequencies(true);
-
-      for( int i=0; i<g_pCurrentModel->nic_count; i++ )
-      {
-         if ( g_pCurrentModel->nic_flags[i] & NIC_FLAG_DISABLED )
-            continue;
-         if ( i == s_iPendingFrequencyChangeLinkId )
-         {
-            radio_utils_set_interface_frequency(g_pCurrentModel, i, g_pCurrentModel->radioInterfacesParams.interface_link_id[i], s_uPendingFrequencyChangeTo, g_pProcessStats, 0); 
-            g_pCurrentModel->nic_frequency[i] = s_uPendingFrequencyChangeTo;
-         }
-      }
-      hardware_save_radio_info();
-      g_pCurrentModel->compute_active_radio_frequencies(true);
-      saveCurrentModel();
-      log_line("Notifying all other components of the new link frequency.");
-
-      t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED, STREAM_ID_DATA);
-      PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-      PH.vehicle_id_dest = 0;
-      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
-   
-      u8 buffer[MAX_PACKET_TOTAL_SIZE];
-      memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-      u32* pI = (u32*)((&buffer[0])+sizeof(t_packet_header));
-      *pI = (u32)s_iPendingFrequencyChangeLinkId;
-      pI++;
-      *pI = s_uPendingFrequencyChangeTo;
-      
-      radio_packet_compute_crc(buffer, PH.total_length);
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;  
-
-      write(s_fPipeTelemetryUplink, buffer, PH.total_length);
-      write(s_fPipeToCommands, buffer, PH.total_length);
-      log_line("Done notifying all other components about the frequency change.");
-      s_iPendingFrequencyChangeLinkId = -1;
-      s_uPendingFrequencyChangeTo = 0;
-      s_uTimeFrequencyChangeRequest = 0;
-   }
-#endif
-
    int iMaxRxQuality = 0;
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       if ( g_SM_RadioStats.radio_interfaces[i].rxQuality > iMaxRxQuality )

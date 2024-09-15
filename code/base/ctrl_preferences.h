@@ -80,9 +80,9 @@ typedef struct
    int iAHIShowAirSpeed;
    int iAHIStrokeSize; // -2..0..2
    int iUnits;
-   int iColorOSD[4];
-   int iColorOSDOutline[4];
-   int iColorAHI[4];
+   int iColorOSD[4]; // 0...255
+   int iColorOSDOutline[4]; // 0...255
+   int iColorAHI[4]; // 0...255
    int iOSDOutlineThickness; //-3..0..3 (-3 is none)
    int iOSDFont;
    int iRecordingLedAction; // 0 - none, 1 - turn on/off, 2 - blink

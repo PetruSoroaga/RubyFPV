@@ -190,6 +190,68 @@ void RenderEngineRaw::freeIcon(u32 idIcon)
    m_iCountIcons--;
 }
 
+int RenderEngineRaw::getImageWidth(u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return 0;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return 0;
+
+   
+   return m_pImages[indexImage]->width;
+}
+
+int RenderEngineRaw::getImageHeight(u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return 0;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return 0;
+
+   
+   return m_pImages[indexImage]->height;
+}
+
+void RenderEngineRaw::changeImageHue(u32 uImageId, u8 r, u8 g, u8 b)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+
+   fbg_imageChangeHue(m_pFBG, m_pImages[indexImage], r, g, b);
+}
+
 void RenderEngineRaw::_buildMipImage(struct _fbg_img* pSrc, struct _fbg_img* pDest)
 {
    pDest->width = pSrc->width/2;
@@ -324,6 +386,42 @@ void RenderEngineRaw::drawImage(float xPos, float yPos, float fWidth, float fHei
    fbg_imageDraw(m_pFBG, m_pImages[indexImage], x,y,w,h, 0, 0, m_pImages[indexImage]->width, m_pImages[indexImage]->height);
 }
 
+void RenderEngineRaw::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+  
+   int xDest = xPosDest*m_iRenderWidth;
+   int yDest = yPosDest*m_iRenderHeight;
+   int wDest = fWidthDest*m_iRenderWidth;
+   int hDest = fHeightDest*m_iRenderHeight;
+
+   if ( (xDest < 0) || (yDest < 0) || (xDest+wDest >= m_iRenderWidth) || (yDest+hDest >= m_iRenderHeight) )
+      return;
+
+   m_pFBG->mix_color.r = 255;
+   m_pFBG->mix_color.g = 255;
+   m_pFBG->mix_color.b = 255;
+   m_pFBG->mix_color.a = 255;
+
+   fbg_imageDraw(m_pFBG, m_pImages[indexImage], xDest,yDest,wDest,hDest, iSrcX, iSrcY, iSrcWidth, iSrcHeight);
+  
+}
+     
 void RenderEngineRaw::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId)
 {
    if ( iconId < 1 )

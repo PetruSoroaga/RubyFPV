@@ -26,4 +26,5 @@ class MenuPreferencesUI: public Menu
       int m_IndexUnits;
       int m_IndexPersistentMessages;
       int m_IndexLogWindow;
+      int m_IndexMSPOSDFont;
 };

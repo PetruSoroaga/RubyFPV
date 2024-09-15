@@ -2,10 +2,10 @@
 
 bool g_bQuit = false;
 bool g_bDebug = false;
+bool g_bRouterReady = false;
 Model* g_pCurrentModel = NULL;
 
 shared_mem_process_stats* g_pProcessStats = NULL;
-u32 g_uBoardType = 0;
 
 t_packet_queue s_QueueControlPackets;
 
@@ -51,9 +51,6 @@ bool g_bHadEverLinkToController = false;
 bool g_bHasSentVehicleSettingsAtLeastOnce = false;
 
 u32  g_uControllerId = 0;
-int s_iPendingFrequencyChangeLinkId = -1;
-u32 s_uPendingFrequencyChangeTo = 0;
-u32 s_uTimeFrequencyChangeRequest = 0;
 
 t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 t_packet_header_vehicle_tx_history g_PHVehicleTxStats;

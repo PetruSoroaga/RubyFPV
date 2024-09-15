@@ -148,11 +148,6 @@ void process_datalink_packet_download(u8* pBuffer, int length)
       return;
 
    int len = pPH->total_length - sizeof(t_packet_header)-sizeof(u32);
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8 size = *(((u8*)pPH) + pPH->total_length-1);
-      len -= size;
-   }
 
    u8* pDataLinkData = pBuffer + sizeof(t_packet_header)+sizeof(u32);
    if ( len != write(g_iSerialPortDataLink, pDataLinkData, len) )
@@ -188,11 +183,6 @@ void process_data_telemetry_raw_download(u8* pBuffer, int length)
    s_uRawTelemetryLastReceivedDownloadedSegmentIndex = pPHTR->telem_segment_index;
       
    int len = pPH->total_length - sizeof(t_packet_header)-sizeof(t_packet_header_telemetry_raw);
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_EXTRA_DATA )
-   {
-      u8 size = *(((u8*)pPH) + pPH->total_length-1);
-      len -= size;
-   }
    u8* pTelemetryData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw);
 
    //log_line("Received downloaded raw telemetry: segment index (last/now): %u/%u, total serial: %u, total size: %u, len: %d", s_uRawTelemetryLastReceivedDownloadedSegmentIndex, pPHTR->telem_segment_index, pPHTR->telem_total_serial, pPHTR->telem_total_data, len);
@@ -383,7 +373,7 @@ void try_read_serial_telemetry()
    u8 bufferIn[RAW_TELEMETRY_MAX_BUFFER];
    struct timeval to;
    to.tv_sec = 0;
-   to.tv_usec = 1000; // 1 ms
+   to.tv_usec = 2000; // 2 ms
    fd_set readset;   
    FD_ZERO(&readset);
    FD_SET(g_iSerialPortTelemetry, &readset);
@@ -658,8 +648,7 @@ void init_serial_ports()
       return;
    }
    
-   if ( (pPortInfo->iPortUsage != SERIAL_PORT_USAGE_TELEMETRY) &&
-        (pPortInfo->iPortUsage != SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) &&
+   if ( (pPortInfo->iPortUsage != SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) &&
         (pPortInfo->iPortUsage != SERIAL_PORT_USAGE_TELEMETRY_LTM) )
    {
       g_iSerialPortIndexTelemetryOutput = -1;
@@ -716,8 +705,7 @@ void checkTelemetrySettingsOnControllerChanged()
    {
       hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(i);
       if ( (NULL != pPortInfo) && 
-           ((pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY)||
-            (pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK)||
+           ((pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK)||
             (pPortInfo->iPortUsage == SERIAL_PORT_USAGE_TELEMETRY_LTM)) )
       {
           telemetryLinkPort = i;

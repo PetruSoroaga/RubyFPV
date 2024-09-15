@@ -29,7 +29,7 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "shared_vars_state.h"
-
+#include "parse_msp.h"
 t_structure_file_upload g_CurrentUploadingFile;
 bool g_bHasFileUploadInProgress = false;
 
@@ -120,7 +120,7 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
    memset( &(pInfo->headerRubyTelemetryExtended), 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
    memset( &(pInfo->headerRubyTelemetryExtraInfo), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
    memset( &(pInfo->headerRubyTelemetryExtraInfoRetransmissions), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
-
+   memset( &(pInfo->headerRubyTelemetryShort), 0, sizeof(t_packet_header_ruby_telemetry_short));
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       memset( &(pInfo->SMVehicleRxStats[i]), 0, sizeof(shared_mem_radio_stats_radio_interface));
    // Reset FC telemetry info
@@ -146,6 +146,8 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
 
    pInfo->uTimeLastMessageFromFC = 0;
    pInfo->szLastMessageFromFC[0] = 0;
+   
+   parse_msp_reset_state(&pInfo->mspState);
    
    // Reset other settings
 

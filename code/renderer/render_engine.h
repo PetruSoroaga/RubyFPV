@@ -91,12 +91,17 @@ class RenderEngine
      virtual u32 loadIcon(const char* szFile);
      virtual void freeIcon(u32 idIcon);
 
+     virtual int getImageWidth(u32 uImageId);
+     virtual int getImageHeight(u32 uImageId);
+     virtual void changeImageHue(u32 uImageId, u8 r, u8 g, u8 b);
+
      virtual void startFrame();
      virtual void endFrame();
 
      virtual void rotate180();
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId);
+     virtual void bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId);
      virtual void bltIcon(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 iconId);
 

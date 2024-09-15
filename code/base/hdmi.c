@@ -258,7 +258,7 @@ int hdmi_load_current_mode()
    strcat(szFile, "hdmi_mode.cfg");
    if ( access(szFile, R_OK) == -1 )
    {
-      log_line("[HDMI] No user set HDMI mode.");
+      log_line("[HDMI] No HDMI mode set by the user. Use default.");
       return -1;
    }
    FILE* fd = fopen(szFile, "r");
@@ -461,7 +461,10 @@ int hdmi_set_current_resolution(int width, int height, int refresh)
 int hdmi_get_best_resolution_index_for(int iWidth, int iHeight, int iRefresh)
 {
    log_line("[HDMI] Finding best supported display resolution for %dx%d@%d...", iWidth, iHeight, iRefresh);
-
+   log_line("[HDMI] Supported resolutions (%d):", s_nHDMI_ResolutionCount);
+   for( int i=0; i<s_nHDMI_ResolutionCount; i++ )
+      log_line("[HDMI] Resolution index %d: %d x %d", i, s_nHDMI_ResolutionWidth[i], s_nHDMI_ResolutionHeight[i]);
+   
    int indexResolution = -1;
    for( int i=0; i<s_nHDMI_ResolutionCount; i++ )
    {
@@ -488,7 +491,7 @@ int hdmi_get_best_resolution_index_for(int iWidth, int iHeight, int iRefresh)
 
    if ( s_nHDMI_ResolutionRefreshCount[indexResolution] <= 0 )
    {
-      log_softerror_and_alarm("[HDMI] Failed to change HDMI mode. Mode does not support any refresh rates: %d x %d", iWidth, iHeight);
+      log_softerror_and_alarm("[HDMI] Failed to find HDMI mode. This mode does not support any refresh rates: %d x %d", iWidth, iHeight);
       if ( iWidth > 1280 )
       {
          log_line("[HDMI] Trying a lower resolution...");
@@ -518,7 +521,7 @@ int hdmi_get_best_resolution_index_for(int iWidth, int iHeight, int iRefresh)
 
    if ( indexRefresh == -1 )
    {
-      log_softerror_and_alarm("[HDMI] Failed to change HDMI mode. Mode does not support any refresh rates: %d x %d, refresh: %d Hz", iWidth, iHeight, iRefresh);
+      log_softerror_and_alarm("[HDMI] Failed to change HDMI mode. This mode does not support any refresh rates: %d x %d, refresh: %d Hz", iWidth, iHeight, iRefresh);
       if ( iWidth > 1280 )
       {
          log_line("[HDMI] Trying a lower resolution...");

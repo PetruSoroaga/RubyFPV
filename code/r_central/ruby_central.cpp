@@ -2337,8 +2337,8 @@ int main(int argc, char *argv[])
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
-      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
-   log_line("HDMI mode to use: %d", iHDMIIndex);
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(0, DRM_FORMAT_ARGB8888, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
    ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
    #endif
@@ -2503,8 +2503,8 @@ void ruby_reinit_hdmi_display()
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
-      iHDMIIndex = hdmi_get_best_resolution_index_for(1920, 1080, 60);
-   log_line("HDMI mode to use: %d", iHDMIIndex);
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(0, DRM_FORMAT_ARGB8888, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
    ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
    #endif

@@ -1704,6 +1704,28 @@ void fbg_imageFlip(struct _fbg_img *img) {
     }
 }
 
+void fbg_imageChangeHue(struct _fbg *fbg, struct _fbg_img *img, unsigned char r, unsigned char g, unsigned char b)
+{
+   unsigned char *img_data_pointer_row = (unsigned char *)(img->data);
+   for( int y=0; y<img->height; y++ )
+   {
+      unsigned char *img_data_pointer = img_data_pointer_row;
+      for( int x=0; x<img->width; x++ )
+      {
+         if ( *img_data_pointer > 200 )
+         if ( *(img_data_pointer+1) > 200 )
+         if ( *(img_data_pointer+2) > 200 )
+         {
+            *img_data_pointer = ((unsigned int)(*img_data_pointer) * (unsigned int)r) >> 8;
+            *(img_data_pointer+1) = ((unsigned int)(*(img_data_pointer+1)) * (unsigned int)g) >> 8;
+            *(img_data_pointer+2) = ((unsigned int)(*(img_data_pointer+2)) * (unsigned int)b) >> 8;
+         }
+         img_data_pointer += fbg->components;
+      }
+      img_data_pointer_row += fbg->components * img->width;
+   }
+}
+
 void fbg_imageDraw(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int w, int h, int cx, int cy, int cw, int ch)
 {
     unsigned char *scr_pointer = (unsigned char *)(fbg->back_buffer + (y * fbg->line_length + x * fbg->components));

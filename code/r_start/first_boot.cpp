@@ -94,6 +94,7 @@ void do_first_boot_pre_initialization()
 
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
 
+   hw_execute_bash_command("fw_setenv sensor", NULL); 
    hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
    hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
    hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
@@ -149,7 +150,7 @@ void do_first_boot_initialization_openipc(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for OpenIPC platform...");
    hw_execute_bash_command("ln -s /lib/firmware/ath9k_htc/htc_9271.fw.3 /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw", NULL);
-
+   hw_execute_bash_command("sed -i 's/console:/#console:/' /etc/inittab", NULL);
 }
 
 void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
@@ -229,7 +230,7 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
       #ifdef HW_PLATFORM_RASPBERRY
       if ( NULL != pcs )
       {
-         pcs->iFreqARM = 900;
+         pcs->iFreqARM = DEFAULT_ARM_FREQ;
          if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
             pcs->iFreqARM = 1000;
          else if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
@@ -290,7 +291,7 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
       hardware_sleep_ms(50);
       hw_execute_bash_command("cp /boot/config.txt config.txt", NULL);
 
-      s_ModelFirstBoot.processesPriorities.iFreqARM = 900;
+      s_ModelFirstBoot.processesPriorities.iFreqARM = DEFAULT_ARM_FREQ;
       if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO2 )
          s_ModelFirstBoot.processesPriorities.iFreqARM = 1000;
       else if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B )
@@ -301,10 +302,6 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
                && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2B) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV11) && ((uBoardType & BOARD_TYPE_MASK) != BOARD_TYPE_PI2BV12) )
          s_ModelFirstBoot.processesPriorities.iFreqARM = 1200;
 
-      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
-      s_ModelFirstBoot.processesPriorities.iFreqARM = hardware_get_cpu_speed();
-      #endif
-
       config_file_set_value("config.txt", "arm_freq", s_ModelFirstBoot.processesPriorities.iFreqARM);
       config_file_set_value("config.txt", "arm_freq_min", s_ModelFirstBoot.processesPriorities.iFreqARM);
       // Enable hdmi, we might need it for debug
@@ -313,6 +310,13 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
       //config_file_force_value("config.txt", "hdmi_safe", 1);
         
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
+      #endif
+
+      #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+      if ( hardware_board_is_sigmastar(s_ModelFirstBoot.hwCapabilities.uBoardType) )
+         s_ModelFirstBoot.processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+      else
+         s_ModelFirstBoot.processesPriorities.iFreqARM = hardware_get_cpu_speed();
       #endif
 
       bool bHasAtheros = false;

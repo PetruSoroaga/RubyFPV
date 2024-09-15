@@ -230,7 +230,10 @@ float MenuItemEdit::getValueWidth(float maxWidth)
    if ( m_RenderValueWidth > 0.01 )
       return m_RenderValueWidth;
 
-   m_RenderValueWidth = g_pRenderEngine->textWidth(g_idFontMenu, m_szValue);
+   if ( (0 == m_szValue[0]) || ((' ' == m_szValue[0]) && (0 == m_szValue[1])) )
+      m_RenderValueWidth = g_pRenderEngine->textWidth(g_idFontMenu, "[Not set]");
+   else
+      m_RenderValueWidth = g_pRenderEngine->textWidth(g_idFontMenu, m_szValue);
    return m_RenderValueWidth;
 }
 
@@ -244,7 +247,10 @@ void MenuItemEdit::Render(float xPos, float yPos, bool bSelected, float fWidthSe
    if ( ! m_bIsEditing )
    {
       g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->drawText(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth, yPos, g_idFontMenu, m_szValue);
+      if ( (0 == m_szValue[0]) || ((' ' == m_szValue[0]) && (0 == m_szValue[1])) )
+         g_pRenderEngine->drawText(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth, yPos, g_idFontMenu, "[Not set]");
+      else
+         g_pRenderEngine->drawText(xPos+m_pMenu->getUsableWidth()-m_RenderValueWidth, yPos, g_idFontMenu, m_szValue);
       return;
    }
 

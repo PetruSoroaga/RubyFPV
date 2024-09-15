@@ -1810,7 +1810,6 @@ int hardware_get_cpu_speed()
    #endif
 
    return 1000;
-
 }
 
 int hardware_get_gpu_speed()

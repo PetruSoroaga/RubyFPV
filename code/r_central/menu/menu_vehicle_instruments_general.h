@@ -30,4 +30,5 @@ class MenuVehicleInstrumentsGeneral: public Menu
       int m_IndexUnits;
       int m_IndexBatteryCells;
       int m_iIndexFlashOSDOnTelemLost;
+      int m_IndexFlightEndStats;
 };

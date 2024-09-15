@@ -55,11 +55,12 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexSettings = addMenuItem(new MenuItem("General OSD Settings", "Sets global settings for all OSD/instruments/gauges"));
    m_pMenuItems[m_IndexSettings]->showArrow();
 
-   m_IndexOSDController = addMenuItem( new MenuItem("Controller OSD Settings", "Sets global OSD settings for this controller."));
+   m_IndexOSDController = addMenuItem( new MenuItem("OSD Size, Color, Fonts", "Sets colors, size and fonts for OSD."));
    m_pMenuItems[m_IndexOSDController]->showArrow();
 
    m_IndexAlarms = -1;
    m_IndexPlugins = -1;
+   m_IndexOSDShowMSPOSD = -1;
 
    addMenuItem(new MenuItemSection("OSD Layouts and Settings")); 
 
@@ -121,6 +122,14 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[6]->setIsEditable();
    m_IndexDontShowFCMessages = addMenuItem(m_pItemsSelect[6]);
   
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   {
+      m_pItemsSelect[11] = new MenuItemSelect("Show MSP OSD Elements", "Render the MSP OSD Elements");
+      m_pItemsSelect[11]->addSelection("No");
+      m_pItemsSelect[11]->addSelection("Yes");
+      m_pItemsSelect[11]->setIsEditable();
+      m_IndexOSDShowMSPOSD = addMenuItem(m_pItemsSelect[11]);
+   }
 
    m_IndexOSDElements = addMenuItem(new MenuItem("Layout OSD Elements", "Configure which OSD elements show up on current screen"));
    m_pMenuItems[m_IndexOSDElements]->showArrow();
@@ -156,6 +165,15 @@ void MenuVehicleOSD::valuesToUI()
    m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ? 1:0);
    m_pItemsSelect[6]->setSelectedIndex((g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES) ? 1:0);
    
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   if ( -1 != m_IndexOSDShowMSPOSD )
+   {
+      if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_RENDER_MSP_OSD )
+         m_pItemsSelect[11]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[11]->setSelectedIndex(0);
+   }
+
    if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_LAYOUT_ENABLED )
    {
       m_pItemsSelect[1]->setSelectedIndex(1);
@@ -170,6 +188,10 @@ void MenuVehicleOSD::valuesToUI()
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
       m_pMenuItems[m_IndexOSDPlugins]->setEnabled(true);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(true);
+
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+      if ( -1 != m_IndexOSDShowMSPOSD )
+         m_pItemsSelect[11]->setEnabled(true);
    }
    else if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_LAYOUT_ENABLED_PLUGINS_ONLY )
    {
@@ -185,6 +207,9 @@ void MenuVehicleOSD::valuesToUI()
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(true);
       m_pMenuItems[m_IndexOSDPlugins]->setEnabled(true);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(false);
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+      if ( -1 != m_IndexOSDShowMSPOSD )
+         m_pItemsSelect[11]->setEnabled(false);
    }
    else
    {
@@ -197,6 +222,9 @@ void MenuVehicleOSD::valuesToUI()
       m_pMenuItems[m_IndexOSDWidgets]->setEnabled(false);
       m_pMenuItems[m_IndexOSDPlugins]->setEnabled(false);
       m_pMenuItems[m_IndexOSDStats]->setEnabled(false);
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+      if ( -1 != m_IndexOSDShowMSPOSD )
+         m_pItemsSelect[11]->setEnabled(false);
    }
 }
 
@@ -352,6 +380,16 @@ void MenuVehicleOSD::onSelectItem()
          params.osd_preferences[layoutIndex] &= ~OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES;
       else
          params.osd_preferences[layoutIndex] |= OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES;
+      sendToVehicle = true;
+   }
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   if ( (-1 != m_IndexOSDShowMSPOSD) && (m_IndexOSDShowMSPOSD == m_SelectedIndex) )
+   {
+      if ( 0 == m_pItemsSelect[11]->getSelectedIndex() )
+         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_RENDER_MSP_OSD;
+      else
+         params.osd_flags3[layoutIndex] |= OSD_FLAG3_RENDER_MSP_OSD;
       sendToVehicle = true;
    }
 

@@ -27,10 +27,10 @@ type_uplink_rx_info_stats;
 
 extern bool g_bQuit;
 extern bool g_bDebug;
+extern bool g_bRouterReady;
 
 extern Model* g_pCurrentModel;
 extern shared_mem_process_stats* g_pProcessStats;
-extern u32 g_uBoardType;
 
 extern t_packet_queue s_QueueControlPackets;
  
@@ -77,9 +77,6 @@ extern bool g_bHadEverLinkToController;
 extern bool g_bHasSentVehicleSettingsAtLeastOnce;
 
 extern u32 g_uControllerId;
-extern int s_iPendingFrequencyChangeLinkId;
-extern u32 s_uPendingFrequencyChangeTo;
-extern u32 s_uTimeFrequencyChangeRequest;
 
 extern t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 extern t_packet_header_vehicle_tx_history g_PHVehicleTxStats;

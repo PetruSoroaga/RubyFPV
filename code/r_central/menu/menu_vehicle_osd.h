@@ -22,12 +22,13 @@ class MenuVehicleOSD: public Menu
       int m_IndexOSDFontSize, m_IndexOSDTransparency, m_IndexBgOnTexts;
       int m_IndexHighlightChangeElements;
       int m_IndexDontShowFCMessages;
+      int m_IndexOSDShowMSPOSD;
       int m_IndexOSDElements;
       int m_IndexOSDWidgets;
       int m_IndexOSDPlugins;
       int m_IndexOSDStats;
       int m_IndexOSDController;
       MenuItemSlider* m_pItemsSlider[3];
-      MenuItemSelect* m_pItemsSelect[10];
+      MenuItemSelect* m_pItemsSelect[20];
       MenuItemRange* m_pItemsRange[10];
 };

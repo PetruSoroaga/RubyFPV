@@ -353,6 +353,23 @@ bool _check_for_update_from_boot()
    #endif
 }
 
+void _log_openipc_info()
+{
+   hw_execute_bash_command("rm -rf /root/ruby/hw_info.txt", NULL);
+   hardware_sleep_ms(50);
+   FILE* fd = fopen("/root/ruby/hw_info.txt", "wb");
+   if ( NULL == fd )
+      return;
+   fprintf(fd, "Hardware detected info:\nCamera:\n");
+   fclose(fd);
+   hw_execute_bash_command("ipcinfo -s >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("fw_printenv sensor >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("echo 'Env:' >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("fw_printenv >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("echo 'OS:' >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("cat /etc/os-release >> /root/ruby/hw_info.txt", NULL);
+}
+
 bool _init_timestamp_and_boot_count()
 {
    bool bFirstBoot = false;
@@ -825,6 +842,10 @@ int main(int argc, char *argv[])
    _check_files();
    #endif
 
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   _log_openipc_info();
+   #endif
+
    log_line("Ruby Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    printf("Ruby Start on verison %d.%d (b %d)\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    fflush(stdout);
@@ -1140,12 +1161,6 @@ int main(int argc, char *argv[])
    log_line("Feature local audio recording is: On.");
 #else
    log_line("Feature local audio recording is: Off.");
-#endif
-
-#ifdef FEATURE_MSP_OSD
-   log_line("Feature MSP OSD is: On.");
-#else
-   log_line("Feature MSP OSD is: Off.");
 #endif
 
 #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO

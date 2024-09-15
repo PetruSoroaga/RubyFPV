@@ -449,6 +449,8 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       {
          if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
             return;
+         if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
+            return;
 
          u32 uAdaptiveLevel = 0;
          u8 uVideoStreamIndex = 0;
@@ -492,6 +494,8 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
       {
          if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
+            return;
+         if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
             return;
 
          // Discard requests if we are on fixed keyframe

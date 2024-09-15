@@ -216,7 +216,7 @@ float MenuSystemHardware::renderVehicleInfo(float xPos, float yPos, float width)
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
       sprintf( szBuff, "%d. %s, Usage: %s, %d bps", i+1, g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], str_get_serial_port_usage((int)(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF)), g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i]);
-      if ( ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) ) == 0 )
+      if ( ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED ) == 0 )
          sprintf( szBuff, "%d. %s, Unsupported!", i+1, g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i]);
       yPos += g_pRenderEngine->drawMessageLines(xPos+xPad, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenu);
       yPos += MENU_TEXTLINE_SPACING * height_text;

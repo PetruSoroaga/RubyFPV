@@ -38,7 +38,7 @@
 MenuVehicleInstrumentsGeneral::MenuVehicleInstrumentsGeneral(void)
 :Menu(MENU_ID_VEHICLE_INSTRUMENTS_GENERAL, "Intruments/Gauges General Settings", NULL)
 {
-   m_Width = 0.28;
+   m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
 
    for( int i=0; i<20; i++ )
@@ -123,6 +123,12 @@ MenuVehicleInstrumentsGeneral::MenuVehicleInstrumentsGeneral(void)
    m_pItemsSelect[8]->addSelection("12 cells");
    m_pItemsSelect[8]->setIsEditable();
    m_IndexBatteryCells = addMenuItem(m_pItemsSelect[8]);
+
+   m_pItemsSelect[11] = new MenuItemSelect("Show Flight End Stats", "When a flight ends, show a summary stats window about the flight.");
+   m_pItemsSelect[11]->addSelection("No");
+   m_pItemsSelect[11]->addSelection("Yes");
+   m_pItemsSelect[11]->setUseMultiViewLayout();
+   m_IndexFlightEndStats = addMenuItem(m_pItemsSelect[11]);
 }
 
 MenuVehicleInstrumentsGeneral::~MenuVehicleInstrumentsGeneral()
@@ -159,6 +165,8 @@ void MenuVehicleInstrumentsGeneral::valuesToUI()
    m_pItemsSelect[7]->setSelection(((g_pCurrentModel->osd_params.osd_flags[m_nOSDIndex]) & OSD_FLAG_AIR_SPEED_MAIN)?1:0);
 
    m_pItemsSelect[8]->setSelection(g_pCurrentModel->osd_params.battery_cell_count);
+
+   m_pItemsSelect[11]->setSelection((g_pCurrentModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS)?1:0);
 }
 
 
@@ -310,6 +318,15 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexBatteryCells == m_SelectedIndex )
    {
       params.battery_cell_count = m_pItemsSelect[8]->getSelectedIndex();
+      sendToVehicle = true;
+   }
+
+   if ( m_IndexFlightEndStats == m_SelectedIndex )
+   {
+      if ( 1 == m_pItemsSelect[11]->getSelectedIndex() )
+         params.uFlags |= OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
+      else
+         params.uFlags &= ~OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
       sendToVehicle = true;
    }
 

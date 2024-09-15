@@ -75,9 +75,49 @@ u32 s_uTimeLastMajesticImageRealTimeUpdate = 0;
 u32 s_uTimeLastCheckMajestic = 0;
 int s_iCountMajestigProcessNotRunning = 0;
 
+void video_source_majestic_start_capture_program();
 
 void video_source_majestic_init_all_params()
 {
+   log_line("[VideoSourceUDP] Majestic file size: %d bytes", get_filesize("/usr/bin/majestic") );
+
+   // Start majestic if not running
+
+   int iRepeatCount = 2;
+   bool bMajesticIsRunning = false;
+   char szOutput[1024];
+
+   while ( iRepeatCount > 0 )
+   {
+      iRepeatCount--;
+      u32 uTimeStart = get_current_timestamp_ms();
+      while ( get_current_timestamp_ms() < uTimeStart+1000 )
+      {
+         hardware_sleep_ms(10);
+         hw_execute_bash_command_silent("pidof majestic", szOutput);
+         if ( (strlen(szOutput) < 3) || (strlen(szOutput) > 5) )
+         {
+            hardware_sleep_ms(50);
+            continue;
+         }
+         bMajesticIsRunning = true;
+         break;
+      }
+      if ( ! bMajesticIsRunning )
+      {
+         log_line("[VideoSourceUDP] Majestic is not running on first start. Start majestic...");
+         video_source_majestic_start_capture_program();
+         hardware_sleep_ms(200);
+         continue;
+      }
+      else
+      {
+         log_line("[VideoSourceUDP] Majestic is running on first start.Majestic pid: (%s)", szOutput);
+         break;
+      }
+      log_line("[VideoSourceUDP] Majestic is still not running, try to start it again...");
+   }
+
    hardware_camera_apply_all_majestic_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
           g_pCurrentModel->video_params.user_selected_video_link_profile,
           &(g_pCurrentModel->video_params));
@@ -408,6 +448,7 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 
    if ( (uNALTypeH264 != 28) && (uNALTypeH265 != 49) )
    {
+      //log_line("DEBUG regular NAL %d, header byte: %d", uNALTypeH264, uNALHeaderByte);
       // Regular NAL unit
       uNALOutputHeader[4] = uNALHeaderByte;
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
@@ -426,6 +467,7 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
       {
          // H264 fragment
          uNALOutputHeader[4] = (uNALHeaderByte & 0xE0) | (uFUHeaderByte & 0x1F);
+         //log_line("DEBUG fragment NAL %d, %d", uNALTypeH264, uNALOutputHeader[4]);
       }
       else 
       {
@@ -442,6 +484,7 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 
       if (uFUStartBit) 
       {
+         //log_line("DEBUG start bit");
          memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
          memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
          iOutputBytes = iInputBytes + iNALOutputHeaderSize;
@@ -473,7 +516,15 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
    s_uDebugUDPInputReads++;
 
    int iOutputBytes = _video_source_majestic_parse_rtp_data(s_uInputVideoUDPBuffer, iRecvBytes);
-  
+   static int siMinP = 10000;
+   static int siMaxP = 0;
+   if ( iOutputBytes > siMaxP )
+      siMaxP = iOutputBytes;
+   if ( iOutputBytes > 0 )
+   if ( iOutputBytes < siMinP )
+      siMinP = iOutputBytes;
+   //log_line("DEBUG read %d bytes, %d H264 bytes, %d min, %d max", iRecvBytes, iOutputBytes, siMinP, siMaxP);
+
    *piReadSize = iOutputBytes;
    return s_uOutputUDPNALFrameSegment;
 }

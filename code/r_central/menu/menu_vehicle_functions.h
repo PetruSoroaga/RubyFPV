@@ -22,14 +22,4 @@ class MenuVehicleFunctions: public Menu
       MenuItemSlider* m_pItemsSlider[4];
       MenuItemSelect* m_pItemsSelect[14];
       MenuItemRange* m_pItemsRange[14];
-
-      int m_IndexEnableFreqSwitch1;
-      int m_IndexFreqRCChannel1;
-      int m_IndexFreqRCSwitchType1;
-      int m_IndexFreqSelectChannels1;
-
-      int m_IndexEnableFreqSwitch2;
-      int m_IndexFreqRCChannel2;
-      int m_IndexFreqRCSwitchType2;
-      int m_IndexFreqSelectChannels2;
 };

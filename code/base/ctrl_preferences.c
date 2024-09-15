@@ -90,7 +90,7 @@ void reset_Preferences()
    s_Preferences.iOSDOutlineThickness = 0;
    s_Preferences.iRecordingLedAction = 2; // blink
 
-   s_Preferences.iDebugMaxPacketSize = MAX_PACKET_PAYLOAD;
+   s_Preferences.iDebugMaxPacketSize = MAX_VIDEO_PACKET_DATA_SIZE;
    s_Preferences.iDebugSBWS = 2;
    s_Preferences.iDebugRestartOnRadioSilence = 0;
    s_Preferences.iOSDFont = 1;
@@ -371,8 +371,8 @@ int load_Preferences()
    }
 
    if ( s_Preferences.iDebugMaxPacketSize < 100 ||
-        s_Preferences.iDebugMaxPacketSize > MAX_PACKET_PAYLOAD )
-      s_Preferences.iDebugMaxPacketSize = MAX_PACKET_PAYLOAD;
+        s_Preferences.iDebugMaxPacketSize > MAX_VIDEO_PACKET_DATA_SIZE )
+      s_Preferences.iDebugMaxPacketSize = MAX_VIDEO_PACKET_DATA_SIZE;
 
    if ( s_Preferences.iDebugSBWS < 2 || s_Preferences.iDebugSBWS > 16 )
       s_Preferences.iDebugSBWS = 2;

@@ -155,7 +155,8 @@ void MenuRoot::RenderVehicleInfo()
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
          sprintf(szLine1, "Connected to %s", g_pCurrentModel->getLongName() );
-         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->hwCapabilities.uBoardType));
+         sprintf(szBuff, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF));
+         height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }
       else
@@ -260,7 +261,10 @@ void MenuRoot::RenderVehicleInfo()
 
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
-         sprintf(szBuff, "Running ver %d.%d on: %s", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF), str_get_hardware_board_name_short(g_pCurrentModel->hwCapabilities.uBoardType));
+         sprintf(szBuff, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF));
+         g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
+         yPos += g_pRenderEngine->textHeight(g_idFontMenuSmall);
+         sprintf(szBuff, "Running on %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
          g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
          yPos += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }

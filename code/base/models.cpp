@@ -931,6 +931,13 @@ bool Model::loadVersion8(FILE* fd)
       radioInterfacesParams.txPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
    }
 
+   if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
+   {
+      log_softerror_and_alarm("Failed to read OSD uFlags from model config file.");
+      osd_params.uFlags = 0;
+      bOk = false;
+   }
+
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
@@ -1494,6 +1501,13 @@ bool Model::loadVersion9(FILE* fd)
       alarms_params.uAlarmMotorCurrentThreshold = (1<<7) & 30;
    else
       alarms_params.uAlarmMotorCurrentThreshold = tmp1;
+
+   if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
+   {
+      log_softerror_and_alarm("Failed to read OSD uFlags from model config file.");
+      osd_params.uFlags = 0;
+      bOk = false;
+   }
 
    //--------------------------------------------------
    // End reading file;
@@ -2100,6 +2114,12 @@ bool Model::loadVersion10(FILE* fd)
       processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
    }
 
+   if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
+   {
+      log_softerror_and_alarm("Failed to read OSD uFlags from model config file.");
+      osd_params.uFlags = 0;
+      bOk = false;
+   }
 
    //--------------------------------------------------
    // End reading file;
@@ -2588,6 +2608,9 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    sprintf(szSetting, "%d %d %d\n", processesPriorities.iThreadPriorityRadioRx, processesPriorities.iThreadPriorityRadioTx, processesPriorities.iThreadPriorityRouter);
    strcat(szModel, szSetting);
 
+   sprintf(szSetting, "%u\n", osd_params.uFlags);
+   strcat(szModel, szSetting);
+
    // End writing values to file
    // ---------------------------------------------------
 
@@ -2884,15 +2907,14 @@ bool Model::populateVehicleSerialPorts()
       hardwareInterfacesInfo.serial_bus_speed[i] = pInfo->lPortSpeed;
       
       int iIndex = atoi(&(pInfo->szName[strlen(pInfo->szName)-1]));
-      u32 uPortFlags = 0;
-      uPortFlags |= ((u32)iIndex) & 0x0F;
+      u32 uPortFlags = (((u32)iIndex) & 0x0F) << 8;
       if ( pInfo->iSupported )
-         uPortFlags |= (1<<5);
+         uPortFlags |= MODEL_SERIAL_PORT_BIT_SUPPORTED;
       
       if ( (NULL != strstr(pInfo->szName, "USB")) ||
            (NULL != strstr(pInfo->szPortDeviceName, "USB")) )
-         uPortFlags |= (1<<4);
-      hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = (((u32)(pInfo->iPortUsage)) & 0xFF) | (uPortFlags<<8);
+         uPortFlags |= MODEL_SERIAL_PORT_BIT_EXTRNAL_USB;
+      hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = (((u32)(pInfo->iPortUsage)) & 0xFF) | uPortFlags;
    }
 
    log_line("Model: Populated %d serial ports:", hardwareInterfacesInfo.serial_bus_count);
@@ -2900,8 +2922,8 @@ bool Model::populateVehicleSerialPorts()
    {
       log_line("Model: Serial Port: %s, type: %s, supported: %s, usage: %d (%s); speed: %d bps;",
           hardwareInterfacesInfo.serial_bus_names[i],
-         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & (1<<4<<8))?"USB":"HW",
-         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & (1<<5<<8))?"yes":"no",
+         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_EXTRNAL_USB)?"USB":"HW",
+         (hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED)?"yes":"no",
           hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF,
           str_get_serial_port_usage(hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF),
           hardwareInterfacesInfo.serial_bus_speed[i] );
@@ -3840,8 +3862,8 @@ bool Model::validate_settings()
       audio_params.flags = 0x04 | (0x02<<8);
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      if ( video_link_profiles[i].video_data_length > (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77) )
-         video_link_profiles[i].video_data_length = (int)MAX_PACKET_PAYLOAD - (int)sizeof(t_packet_header)-(int)sizeof(t_packet_header_video_full_77);
+      if ( video_link_profiles[i].video_data_length > MAX_VIDEO_PACKET_DATA_SIZE )
+         video_link_profiles[i].video_data_length = MAX_VIDEO_PACKET_DATA_SIZE;
 
    if ( video_params.videoAdjustmentStrength < 1 || video_params.videoAdjustmentStrength > 10 )
       video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
@@ -4047,6 +4069,9 @@ void Model::resetToDefaults(bool generateId)
    processesPriorities.iFreqARM = DEFAULT_ARM_FREQ;
    processesPriorities.iFreqGPU = DEFAULT_GPU_FREQ;
 
+   if ( hardware_board_is_sigmastar(hwCapabilities.uBoardType) )
+      processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+
    processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
    processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
    processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
@@ -4158,6 +4183,8 @@ void Model::resetOSDFlags()
    osd_params.ahi_warning_angle = 45;
    osd_params.show_gps_position = false;
    
+   osd_params.uFlags = OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
+   
    osd_params.osd_flags[0] = 0; // horizontal layout for stats panels;
    osd_params.osd_flags[1] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
    osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_CPU_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
@@ -4193,6 +4220,7 @@ void Model::resetOSDFlags()
       //osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
       osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
       osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
+      osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
       osd_params.osd_preferences[i] = ((u32)3) | (((u32)2)<<8) | (((u32)2)<<16) | (((u32)1)<<20) | OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM;
       osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
    }
@@ -4244,7 +4272,7 @@ void Model::resetTelemetryParams()
    if ( 0 < hardwareInterfacesInfo.serial_bus_count )
    {
       hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-      hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
+      hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
       hardwareInterfacesInfo.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
 
       if ( hardware_is_vehicle() )
@@ -4254,7 +4282,7 @@ void Model::resetTelemetryParams()
          if ( NULL != pPortInfo )
          {
             pPortInfo->lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
-            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY;
+            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
             hardware_serial_save_configuration();
          }
       }

@@ -1,11 +1,3 @@
-// Guidelines:
-//
-// * packet_length usually refers to a total radio packet length
-// * video_data_length usually refers only to actual video data length inside a radio packet (if it's a video radio packet)
-// * some minor/edge case bugs are left in the code unfixed to detect clones of Ruby code that do not respect the licence terms;
-//
-
-
 #pragma once
 
 #include <stdio.h>
@@ -81,6 +73,7 @@ int base_check_crc32(u8* pBuffer, int iLength);
 u32 get_sw_version_major(u32 uSWVersion);
 u32 get_sw_version_minor(u32 uSWVersion);
 u32 get_sw_version_build(u32 uSWVersion);
+int is_sw_version_atleast(u32 uSWVersion, int iMajor, int iMinor);
 
 u32 get_current_timestamp_micros();
 u32 get_current_timestamp_ms();
@@ -97,6 +90,7 @@ void log_disable();
 void log_disable_stdout();
 void log_enable_stdout();
 void log_only_errors();
+void log_enable_full();
 void log_format_time(u32 miliseconds, char* szOutTime);
 void log_line(const char* format, ...);
 void log_line_forced_to_file(const char* format, ...);

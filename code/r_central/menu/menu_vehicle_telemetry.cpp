@@ -50,6 +50,7 @@ MenuVehicleTelemetry::MenuVehicleTelemetry(void)
    m_pItemsSelect[0]->addSelection("None");
    m_pItemsSelect[0]->addSelection("MAVLink");
    m_pItemsSelect[0]->addSelection("LTM");
+   m_pItemsSelect[0]->addSelection("MSP OSD");
    m_pItemsSelect[0]->setIsEditable();
    m_IndexVTelemetryType = addMenuItem(m_pItemsSelect[0]);
 
@@ -148,6 +149,68 @@ void MenuVehicleTelemetry::valuesToUI()
 {
    char szBuff[128];
 
+   log_line("MenuVehicleTelemetry: valuesToUI: telemetry type: %d", g_pCurrentModel->telemetry_params.fc_telemetry_type);
+
+   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
+   {
+      m_pMenuItems[m_IndexVBaudRate]->setEnabled(false);
+      m_pMenuItems[m_IndexGPS]->setEnabled(false);
+      m_pMenuItems[m_IndexVSerialPort]->setEnabled(false);
+      m_pMenuItems[m_IndexVBaudRate]->setEnabled(false);
+      m_pMenuItems[m_IndexRUpdateRate]->setEnabled(false);
+      m_pMenuItems[m_IndexSpectator]->setEnabled(false);
+      m_pMenuItems[m_IndexInfoSysId]->setEnabled(false);
+
+      m_pMenuItems[m_IndexTelemetryFlags]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryRequestStreams]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryAnySystem]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryNoFCMessages]->setEnabled(false);
+      m_pMenuItems[m_IndexRemoveDuplicateMsg]->setEnabled(false);
+      m_pMenuItems[m_IndexAlwaysArmed]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryControllerSysId]->setEnabled(false);
+      m_pMenuItems[m_IndexInfoSysId]->setEnabled(false);
+
+      if ( -1 != m_IndexDataRate )
+         m_pMenuItems[m_IndexDataRate]->setEnabled(false);
+   }
+   else if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MAVLINK )
+   {
+      m_pMenuItems[m_IndexGPS]->setEnabled(false);
+      m_pMenuItems[m_IndexVBaudRate]->setEnabled(true);
+      m_pMenuItems[m_IndexVSerialPort]->setEnabled(true);
+      m_pMenuItems[m_IndexRUpdateRate]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryFlags]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryRequestStreams]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryAnySystem]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryNoFCMessages]->setEnabled(false);
+      m_pMenuItems[m_IndexRemoveDuplicateMsg]->setEnabled(false);
+      m_pMenuItems[m_IndexAlwaysArmed]->setEnabled(false);
+      m_pMenuItems[m_IndexTelemetryControllerSysId]->setEnabled(false);
+      m_pMenuItems[m_IndexInfoSysId]->setEnabled(false);
+      m_pMenuItems[m_IndexSpectator]->setEnabled(true);
+      if ( -1 != m_IndexDataRate )
+         m_pMenuItems[m_IndexDataRate]->setEnabled(false);
+   }
+   else
+   {
+      m_pMenuItems[m_IndexGPS]->setEnabled(true);
+      m_pMenuItems[m_IndexTelemetryFlags]->setEnabled(true);
+      m_pMenuItems[m_IndexTelemetryRequestStreams]->setEnabled(true);
+      m_pMenuItems[m_IndexTelemetryAnySystem]->setEnabled(true);
+      m_pMenuItems[m_IndexTelemetryNoFCMessages]->setEnabled(true);
+      m_pMenuItems[m_IndexRemoveDuplicateMsg]->setEnabled(true);
+      m_pMenuItems[m_IndexAlwaysArmed]->setEnabled(true);
+      m_pMenuItems[m_IndexTelemetryControllerSysId]->setEnabled(true);
+      m_pMenuItems[m_IndexInfoSysId]->setEnabled(true);
+      if ( -1 != m_IndexDataRate )
+         m_pMenuItems[m_IndexDataRate]->setEnabled(true);
+
+      m_pMenuItems[m_IndexVSerialPort]->setEnabled(true);
+      m_pMenuItems[m_IndexVBaudRate]->setEnabled(true);
+      m_pMenuItems[m_IndexRUpdateRate]->setEnabled(true);
+      m_pMenuItems[m_IndexSpectator]->setEnabled(true);
+   }
+
    m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->telemetry_params.update_rate);
 
    m_pItemsSelect[0]->setSelection(0);
@@ -157,76 +220,49 @@ void MenuVehicleTelemetry::valuesToUI()
       m_pItemsSelect[0]->setSelection(1);
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM )
       m_pItemsSelect[0]->setSelection(2);
+   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+      m_pItemsSelect[0]->setSelection(3);
    
    m_pItemsSelect[5]->setSelection((g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE)?1:0);
    m_pItemsSelect[8]->setSelection(g_pCurrentModel->iGPSCount);
-
    m_pItemsSelect[11]->setSelection((g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_FORCE_ARMED)?1:0);
-
    m_pItemsRange[0]->setCurrentValue(g_pCurrentModel->telemetry_params.controller_mavlink_id);
-   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
-   {
-      m_pItemsRange[0]->setEnabled(false);
-      m_pItemsSelect[2]->setEnabled(false);
-      m_pItemsSelect[8]->setEnabled(false);
-      m_pMenuItems[m_IndexVSerialPort]->setEnabled(false);
-      m_pMenuItems[m_IndexVBaudRate]->setEnabled(false);
-      m_pMenuItems[m_IndexRUpdateRate]->setEnabled(false);
-      m_pMenuItems[m_IndexSpectator]->setEnabled(false);
-      m_pMenuItems[m_IndexTelemetryFlags]->setEnabled(false);
-      m_pMenuItems[m_IndexTelemetryRequestStreams]->setEnabled(false);
-      m_pMenuItems[m_IndexInfoSysId]->setEnabled(false);
-      if ( -1 != m_IndexDataRate )
-         m_pMenuItems[m_IndexDataRate]->setEnabled(false);
-   }
-   else
-   {
-      m_pItemsRange[0]->setEnabled(true);
-      m_pItemsSelect[8]->setEnabled(true);
-      m_pMenuItems[m_IndexVSerialPort]->setEnabled(true);
-      m_pMenuItems[m_IndexVBaudRate]->setEnabled(true);
-      m_pMenuItems[m_IndexRUpdateRate]->setEnabled(true);
-      m_pMenuItems[m_IndexSpectator]->setEnabled(true);
-      m_pMenuItems[m_IndexTelemetryFlags]->setEnabled(true);
-      m_pMenuItems[m_IndexTelemetryRequestStreams]->setEnabled(true);
-      m_pMenuItems[m_IndexInfoSysId]->setEnabled(true);
-      if ( -1 != m_IndexDataRate )
-         m_pMenuItems[m_IndexDataRate]->setEnabled(true);
-   }
-
-
-   int iCurrentSerialPortIndex = -1;
+   
+   int iCurrentSerialPortIndexForTelemetry = -1;
    u32 uCurrentSerialPortSpeed = 0;
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
-       
-       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_TELEMETRY )
+       u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+       if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
+            (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
+            (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
        {
-          iCurrentSerialPortIndex = i;
+          iCurrentSerialPortIndexForTelemetry = i;
           uCurrentSerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
           break;
        }
    }
 
-   if ( -1 == iCurrentSerialPortIndex || 0 == uCurrentSerialPortSpeed )
+   if ( (-1 == iCurrentSerialPortIndexForTelemetry) || (0 == uCurrentSerialPortSpeed) )
    {
       m_pItemsSelect[1]->setSelectedIndex(0);
       m_pItemsSelect[2]->setEnabled(false);
    }
    else if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
    {
-      m_pItemsSelect[1]->setSelectedIndex( 1 + iCurrentSerialPortIndex );
+      m_pItemsSelect[1]->setSelectedIndex( 1 + iCurrentSerialPortIndexForTelemetry );
       m_pItemsSelect[2]->setEnabled(true);
       bool bSpeedFound = false;
       for(int i=0; i<m_pItemsSelect[2]->getSelectionsCount(); i++ )
+      {
          if ( hardware_get_serial_baud_rates()[i] == (int)uCurrentSerialPortSpeed )
          {
             m_pItemsSelect[2]->setSelection(i);
             bSpeedFound = true;
             break;
          }
-
+      }
       if ( ! bSpeedFound )
       {
          sprintf(szBuff, "Info: You are using a custom telemetry baud rate (%d) on this %s.", uCurrentSerialPortSpeed, g_pCurrentModel->getVehicleTypeString());
@@ -254,7 +290,6 @@ void MenuVehicleTelemetry::valuesToUI()
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_ALLOW_ANY_VEHICLE_SYSID )
       m_pItemsSelect[7]->setSelection(1);
 
-   m_pItemsSelect[9]->setEnabled(true);
    m_pItemsSelect[9]->setSelection(0);
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_REMOVE_DUPLICATE_FC_MESSAGES )
       m_pItemsSelect[9]->setSelection(1);
@@ -263,7 +298,8 @@ void MenuVehicleTelemetry::valuesToUI()
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_DONT_SHOW_FC_MESSAGES )
    {
       m_pItemsSelect[10]->setSelection(1);
-      m_pItemsSelect[9]->setEnabled(false);
+      if ( m_pItemsSelect[10]->isEnabled() )
+         m_pItemsSelect[9]->setEnabled(false);
    }
 }
 
@@ -289,18 +325,95 @@ void MenuVehicleTelemetry::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   int iCurrentSerialPortIndex = -1;
+   int iCurrentSerialPortIndexForTelemetry = -1;
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
    {
+       u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
        
-       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & ((1<<5)<<8) )
-       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_TELEMETRY )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+       if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
+            (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
+            (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
        {
-          iCurrentSerialPortIndex = i;
+          iCurrentSerialPortIndexForTelemetry = i;
           break;
        }
    }
 
+   if ( m_IndexVTelemetryType == m_SelectedIndex )
+   {
+      telemetry_parameters_t params;
+      memcpy(&params, &g_pCurrentModel->telemetry_params, sizeof(telemetry_parameters_t));
+      
+      params.fc_telemetry_type = TELEMETRY_TYPE_NONE;
+      if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
+         params.fc_telemetry_type = TELEMETRY_TYPE_MAVLINK;
+      if ( 2 == m_pItemsSelect[0]->getSelectedIndex() )
+         params.fc_telemetry_type = TELEMETRY_TYPE_LTM;
+      if ( 3 == m_pItemsSelect[0]->getSelectedIndex() )
+         params.fc_telemetry_type = TELEMETRY_TYPE_MSP;
+
+      if ( params.fc_telemetry_type == g_pCurrentModel->telemetry_params.fc_telemetry_type )
+         return;
+  
+      // Remove serial port used, if telemetry is set to None.
+      // Same thing will be done by vehicle when it gets the telemetry change command.
+      if ( (params.fc_telemetry_type == TELEMETRY_TYPE_NONE) && (-1 != iCurrentSerialPortIndexForTelemetry) )
+      {
+         // Remove serial port usage (set it to none)
+         g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+      }
+
+      // Assign a default serial port if none is set
+      if ( (params.fc_telemetry_type != TELEMETRY_TYPE_NONE) && (-1 == iCurrentSerialPortIndexForTelemetry) )
+      {
+         log_line("MenuVehicleTelemetry: Try to find a default serial port for telemetry...");
+         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+         {
+            u32 uPortUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+            
+            if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+            if ( uPortUsage == SERIAL_PORT_USAGE_NONE )
+            {
+               iCurrentSerialPortIndexForTelemetry = i;
+               break;
+            }
+         }
+         if ( -1 == iCurrentSerialPortIndexForTelemetry )
+           log_line("MenuVehicleTelemetry: Could not find a default serial port for telemetry.");
+         else
+           log_line("MenuVehicleTelemetry: Found a default serial port for telemetry. Serial port index %d", iCurrentSerialPortIndexForTelemetry);
+
+         if ( -1 != iCurrentSerialPortIndexForTelemetry )
+         {
+            type_vehicle_hardware_interfaces_info new_info;
+            memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
+
+            if ( new_info.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] <= 0 )
+               new_info.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+
+            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+            if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
+               new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+            if ( 2 == m_pItemsSelect[0]->getSelectedIndex() )
+               new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_LTM;
+            if ( 3 == m_pItemsSelect[0]->getSelectedIndex() )
+               new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_MSP_OSD;
+
+            // We don't need to send the serial ports configuration to vehicle as the vehicle
+            // does the same assignment if no serial port is set when telemetry changes with
+            // the command below to update telemetry info.
+
+            memcpy((u8*)&(g_pCurrentModel->hardwareInterfacesInfo), (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info));
+
+            //log_line("Sending new serial port to be used for telemetry to vehicle.");
+            //if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
+            //   valuesToUI();
+         }
+      }
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TELEMETRY_PARAMETERS, 0, (u8*)&params, sizeof(telemetry_parameters_t)) )
+         valuesToUI();
+   }
 
    if ( m_IndexGPS == m_SelectedIndex )
    {
@@ -428,23 +541,6 @@ void MenuVehicleTelemetry::onSelectItem()
          valuesToUI();
    } 
 
-   if ( m_IndexVTelemetryType == m_SelectedIndex )
-   {
-      telemetry_parameters_t params;
-      memcpy(&params, &g_pCurrentModel->telemetry_params, sizeof(telemetry_parameters_t));
-      
-      params.fc_telemetry_type = TELEMETRY_TYPE_NONE;
-      if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
-         params.fc_telemetry_type = TELEMETRY_TYPE_MAVLINK;
-      if ( 2 == m_pItemsSelect[0]->getSelectedIndex() )
-         params.fc_telemetry_type = TELEMETRY_TYPE_LTM;
-
-      if ( params.fc_telemetry_type == g_pCurrentModel->telemetry_params.fc_telemetry_type )
-         return;
-  
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TELEMETRY_PARAMETERS, 0, (u8*)&params, sizeof(telemetry_parameters_t)) )
-         valuesToUI();
-   }
 
    if ( m_IndexVSerialPort == m_SelectedIndex )
    {
@@ -461,12 +557,12 @@ void MenuVehicleTelemetry::onSelectItem()
 
       if ( 0 == iSerialPort )
       {
-         if ( iCurrentSerialPortIndex != -1 )
+         if ( iCurrentSerialPortIndexForTelemetry != -1 )
          {
             type_vehicle_hardware_interfaces_info new_info;
             memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
-            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] &= 0xFFFFFF00;
-            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] |= SERIAL_PORT_USAGE_NONE;
+            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_NONE;
             
             log_line("Sending disabling telemetry serial port selection to vehicle.");
             if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
@@ -481,24 +577,27 @@ void MenuVehicleTelemetry::onSelectItem()
          memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
 
          u8 uCurrentUsage = new_info.serial_bus_supported_and_usage[iSerialPort-1] & 0xFF;
-         if ( uCurrentUsage != SERIAL_PORT_USAGE_TELEMETRY )
+         if ( uCurrentUsage == SERIAL_PORT_USAGE_DATA_LINK )
          {
-            if ( uCurrentUsage == SERIAL_PORT_USAGE_DATA_LINK )
-            {
-               MenuConfirmation* pMC = new MenuConfirmation("User Data Link Disabled", "The serial port was used by your custom data link. It was reasigned to the telemetry link.",1, true);
-               pMC->m_yPos = 0.3;
-               add_menu_to_stack(pMC);      
-            }
+            MenuConfirmation* pMC = new MenuConfirmation("User Data Link Disabled", "The serial port was used by your custom data link. It was reasigned to the telemetry link.",1, true);
+            pMC->m_yPos = 0.3;
+            add_menu_to_stack(pMC);      
          }
 
-         if ( iCurrentSerialPortIndex != -1 )
+         if ( iCurrentSerialPortIndexForTelemetry != -1 )
          {
-            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] &= 0xFFFFFF00;
-            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndex] |= SERIAL_PORT_USAGE_NONE;
+            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+            new_info.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_NONE;
          }
+
          new_info.serial_bus_supported_and_usage[iSerialPort-1] &= 0xFFFFFF00;
-         new_info.serial_bus_supported_and_usage[iSerialPort-1] |= SERIAL_PORT_USAGE_TELEMETRY;
-         
+         if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
+            new_info.serial_bus_supported_and_usage[iSerialPort-1] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+         if ( 2 == m_pItemsSelect[0]->getSelectedIndex() )
+            new_info.serial_bus_supported_and_usage[iSerialPort-1] |= SERIAL_PORT_USAGE_TELEMETRY_LTM;
+         if ( 3 == m_pItemsSelect[0]->getSelectedIndex() )
+            new_info.serial_bus_supported_and_usage[iSerialPort-1] |= SERIAL_PORT_USAGE_MSP_OSD;
+
          log_line("Sending new serial port to be used for telemetry to vehicle.");
          if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();
@@ -508,16 +607,16 @@ void MenuVehicleTelemetry::onSelectItem()
 
    if ( m_IndexVBaudRate == m_SelectedIndex )
    {
-      if ( -1 == iCurrentSerialPortIndex )
+      if ( -1 == iCurrentSerialPortIndexForTelemetry )
          return;
 
       long val = hardware_get_serial_baud_rates()[m_pItemsSelect[2]->getSelectedIndex()];
-      if ( val == g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndex] )
+      if ( val == g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] )
          return;
 
       type_vehicle_hardware_interfaces_info new_info;
       memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
-      new_info.serial_bus_speed[iCurrentSerialPortIndex] = (u32)val;
+      new_info.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] = (u32)val;
       log_line("Sending new serial port speed for telemetry to vehicle: %u", val);
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
          valuesToUI();
@@ -539,7 +638,7 @@ void MenuVehicleTelemetry::onSelectItem()
          valuesToUI();
    }
 
-   if (  m_IndexDataRate == m_SelectedIndex )
+   if ( m_IndexDataRate == m_SelectedIndex )
    {
       telemetry_parameters_t params;
       memcpy(&params, &g_pCurrentModel->telemetry_params, sizeof(telemetry_parameters_t));

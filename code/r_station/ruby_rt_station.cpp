@@ -1046,8 +1046,8 @@ void _process_and_send_packets_individually()
 {
    Preferences* pP = get_Preferences();
    int maxLengthAllowedInRadioPacket = pP->iDebugMaxPacketSize;
-   if ( maxLengthAllowedInRadioPacket > MAX_PACKET_PAYLOAD )
-      maxLengthAllowedInRadioPacket = MAX_PACKET_PAYLOAD;
+   if ( maxLengthAllowedInRadioPacket > MAX_VIDEO_PACKET_DATA_SIZE )
+      maxLengthAllowedInRadioPacket = MAX_VIDEO_PACKET_DATA_SIZE;
 
    while ( packets_queue_has_packets(&s_QueueRadioPackets) )
    {
@@ -1136,8 +1136,8 @@ void _process_and_send_packets()
    Preferences* pP = get_Preferences();
    
    int maxLengthAllowedInRadioPacket = pP->iDebugMaxPacketSize;
-   if ( maxLengthAllowedInRadioPacket > MAX_PACKET_PAYLOAD )
-      maxLengthAllowedInRadioPacket = MAX_PACKET_PAYLOAD;
+   if ( maxLengthAllowedInRadioPacket > MAX_VIDEO_PACKET_DATA_SIZE )
+      maxLengthAllowedInRadioPacket = MAX_VIDEO_PACKET_DATA_SIZE;
 
    u8 composed_packet[MAX_PACKET_TOTAL_SIZE];
    int composed_packet_length = 0;
@@ -1567,7 +1567,7 @@ void _check_rx_loop_consistency()
          radio_links_flag_reinit_sik_interface(iAnyBrokeInterface-1);
       else
       {
-          send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_DOWN, iAnyBrokeInterface-1, 0); 
+         send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_DOWN, iAnyBrokeInterface-1, 0); 
          radio_links_reinit_radio_interfaces();
          return;
       }

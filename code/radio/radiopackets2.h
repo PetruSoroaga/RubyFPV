@@ -58,7 +58,8 @@ Code written by: Petru Soroaga, 2021-2023
 #define PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX (28)
 #define PACKET_FLAGS_BIT_HEADERS_ONLY_CRC ((u8)(1<<3))
 #define PACKET_FLAGS_BIT_RETRANSMITED     ((u8)(1<<4))
-#define PACKET_FLAGS_BIT_EXTRA_DATA       ((u8)(1<<5))
+// Deprecated in 9.7 (inclusive)
+// #define _FLAGS_BIT_EXTRA_DATA       ((u8)(1<<5))
 #define PACKET_FLAGS_BIT_HAS_ENCRYPTION   ((u8)(1<<6))
 #define PACKET_FLAGS_BIT_CAN_START_TX     ((u8)(1<<7))
 
@@ -111,21 +112,6 @@ typedef struct
 } __attribute__((packed)) t_packet_header;
 
 
-//------------------------------
-// Packet extra info:
-//
-// bytes data
-// u8 type;
-// u8 size; (of all this)
-
-// id < 128 - extra data from vehicle -> controller
-// id > 128 - extra data from controller -> vehicle
-
-// 6 bytes: u32 - new frequency, data[4] = message below; data[5] = 6;
-#define EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK1  0x01
-#define EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK2  0x02
-#define EXTRA_PACKET_INFO_TYPE_FREQ_CHANGE_LINK3  0x03
-
 #define PACKET_TYPE_VIDEO_DATA_FULL 2
 
 //----------------------------------------------
@@ -158,8 +144,8 @@ typedef struct
       //    bit 7  - try to keep constant video bitrate when it fluctuates
 
    u32 uVideoStatusFlags2;
-      // Byte 0: current h264 quantization value
-      // Byte 1:
+      // byte 0: current h264 quantization value
+      // byte 1:
       //    bit 0  - 0/1: has debug timings info after the video data:
       //                  u32 - delta ms between video packets
       //                  u32 - local timestamp camera capture,
@@ -183,11 +169,73 @@ typedef struct
    u8  video_block_packet_index;
    u32 fec_time; // how long FEC took, in microseconds/second
    u32 uLastRecvVideoRetransmissionId; // unique id of the last retransmission request received by vehicle
-   u16 uLastAckKeyframeInterval;
+   u16 uLastAckKeyframeInterval; // in milisec
    u8  uLastAckLevelShift;
    u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
    u32 uExtraData; // not used, for future
 } __attribute__((packed)) t_packet_header_video_full_77;
+
+
+typedef struct
+{
+   u8 uVideoStreamIndexAndType; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
+   u32 uProfileEncodingFlags; // same as video link profile's uProfileEncodingFlags;
+      // byte 0:
+      //    bit 0..2  - scramble blocks count
+      //    bit 3     - enables restransmission of missing packets
+      //    bit 4     - enable adaptive video keyframe interval
+      //    bit 5     - enable adaptive video link params
+      //    bit 6     - use controller info too when adjusting video link params
+      //    bit 7     - go lower adaptive video profile when controller link lost
+
+      // byte 1:   - max time to wait for retransmissions (in ms*5)// affects rx buffers size
+      // byte 2:   - retransmission duplication percent (0-100%), 0xFF = auto, bit 0..3 - regular packets duplication, bit 4..7 - retransmitted packets duplication
+      // byte 3:
+      //    bit 0  - use medium adaptive video
+      //    bit 1  - enable video auto quantization
+      //    bit 2  - video auto quantization strength
+      //    bit 3  - one way video link
+      //    bit 4  - video profile should use EC scheme as auto;
+      //    bit 5,6 - EC scheme spreading factor (0...3)
+      //    bit 7  - try to keep constant video bitrate when it fluctuates
+
+   u32 uVideoStatusFlags2;
+      // byte 0: current h264 quantization value
+      // byte 1:
+      //    bit 0  - 0/1: has debug timings info after the video data:
+      //                  u32 - delta ms between video packets
+      //                  u32 - local timestamp camera capture,
+      //                  u32 - local timestamp sent to radio processing;
+      //                  u32 - local timestamp sent to radio output;
+      //                  u32 - local timestamp received on radio;
+      //                  u32 - local timestamp sent to video processing;
+      //                  u32 - local timestamp sent to video output;
+      //    bit 1  - 0/1: is this video packet part of a I-frame
+      //    bit 2  - 1: is on lower video bitrate
+
+   u8 uCurrentVideoLinkProfile;
+   u8 uStreamInfoFlags;
+   //  0: none;
+   //  1: video width (low 16 bits) and video height (high 16 bits)
+   //  2: video fps
+   //  3: fec time: how long FEC took, in microseconds/second
+   u32 uStreamInfo; // value dependent on uStreamInfoFlags;
+
+   u16 video_keyframe_interval_ms;
+   u8  uCurrentBlockDataPackets;
+   u8  uCurrentBlockECPackets;
+   u32 uCurrentBlockIndex;
+   u8  uCurrentBlockPacketIndex;
+
+   u16 video_data_length;
+
+   u32 uLastRecvVideoRetransmissionId; // unique id of the last retransmission request received by vehicle
+   u16 uLastAckKeyframeInterval; // in milisec
+   u8  uLastAckLevelShift;
+   u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
+   u32 uExtraData; // not used, for future
+} __attribute__((packed)) t_packet_header_video_full_97;
+
 
 // PING packets do not increase stream packet index as they are sent on each radio link separatelly
 #define PACKET_TYPE_RUBY_PING_CLOCK 3
@@ -363,11 +411,12 @@ typedef struct
 #define FLAG_RUBY_TELEMETRY_IS_RELAYING ((u32)(((u32)0x01)<<10))  // true if the vehicle is currently relaying another vehicle
 #define FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO ((u32)(((u32)0x01)<<11)) // if true, has the extended telemetry info after this telemetry header
 #define FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA ((u32)(((u32)0x01)<<12)) // if true, vehicle has at least one camera
-
+#define FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA ((u32)(((u32)0x01)<<13)) // if the FC sends any data to Ruby serial port
 
 
 typedef struct
 {
+   u16 uFlags;    // see above
    u8  version;  // version x.y 4bits each        
    u8  radio_links_count;
    u32 uRadioFrequenciesKhz[3]; // lowest 31 bits: frequency. highest bit: 0 - regular link, 1 - relay link
@@ -385,6 +434,7 @@ typedef struct
    u32 aspeed; // airspeed (1/100 meters - 1000 m)
    u32 hspeed; // 1/100 meters -1000 m
 } __attribute__((packed)) t_packet_header_ruby_telemetry_short;
+
 
 typedef struct
 {
@@ -614,6 +664,23 @@ typedef struct
    u32 telem_total_data;
    u32 telem_total_serial;
 } __attribute__((packed)) t_packet_header_telemetry_raw;
+
+
+#define PACKET_TYPE_TELEMETRY_MSP 43
+
+#define MSP_FLAGS_FC_TYPE_MASK ((u32)0x07)
+#define MSP_FLAGS_FC_TYPE_BETAFLIGHT 1
+#define MSP_FLAGS_FC_TYPE_INAV 2
+#define MSP_FLAGS_FC_TYPE_ARDUPILOT 3
+
+typedef struct
+{
+   u32 uFlags;
+   // bit 0,1,2: FC type: 0 BF, 1 INAV
+   u8 uRows;
+   u8 uCols;
+   u32 uDummy;
+} __attribute__((packed)) t_packet_header_telemetry_msp;
 
 
 #define PACKET_TYPE_AUX_DATA_LINK_UPLOAD 45  // upload data link packet from controller to vehicle

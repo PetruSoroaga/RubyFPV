@@ -166,6 +166,10 @@ typedef struct
      //    bit 4: arrange osd stats windows right
      //    bit 5: do not show messages (texts) from FC in OSD
      //
+
+   u32 uFlags;
+     // bit 0,1,2: MSO OSD font: 0 - auto, 1 - BF, 2 - INAV
+     // bit 3: show flight end stats
 } osd_parameters_t;
 
 
@@ -226,11 +230,12 @@ typedef struct
 #define TELEMETRY_TYPE_NONE 0
 #define TELEMETRY_TYPE_MAVLINK 1
 #define TELEMETRY_TYPE_LTM 2
+#define TELEMETRY_TYPE_MSP 3
 #define TELEMETRY_TYPE_TRANSPARENT 10
 
 typedef struct
 {
-   int fc_telemetry_type; // 0 = None, 1 = MAVLink, 2 == LTM
+   int fc_telemetry_type; // 0 = None, 1 = MAVLink, 2 == LTM, 3 == MSP
 
    int iVideoBitrateHistoryGraphSampleInterval;
    u32 dummy2;
@@ -271,6 +276,8 @@ typedef struct
 #define MAX_MODEL_SERIAL_BUSSES 6
 #define MAX_MODEL_SERIAL_BUS_NAME 16
 
+#define MODEL_SERIAL_PORT_BIT_EXTRNAL_USB ((u32)(((u32)0x01)<<11))
+#define MODEL_SERIAL_PORT_BIT_SUPPORTED ((u32)(((u32)0x01)<<12))
 typedef struct
 {
    int i2c_bus_count;
@@ -283,10 +290,11 @@ typedef struct
    int serial_bus_count;
    char serial_bus_names[MAX_MODEL_SERIAL_BUSSES][MAX_MODEL_SERIAL_BUS_NAME];
    u32 serial_bus_supported_and_usage[MAX_MODEL_SERIAL_BUSSES];
-     // byte 0: usage type
+     // byte 0: usage type; same as hardware_serial enum: SERIAL_PORT_USAGE_xxxx
      // byte 1: bits 0...3 usb or hardware port index
      //         bits 4 : 0 - hardware builtin, 1 - on usb
      //         bits 5 : supported 0/1
+
    int serial_bus_speed[MAX_MODEL_SERIAL_BUSSES];
 } type_vehicle_hardware_interfaces_info;
 
@@ -452,7 +460,7 @@ typedef struct
 // This is all readonly:
 typedef struct 
 {
-   u32 uBoardType; //board_type;
+   u32 uBoardType; //byte 0: board_type;  byte 1: variant
    int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
    int iMaxTxVideoBlockPackets; // max packets in a video block
    u32 uFlags;

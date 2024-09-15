@@ -40,6 +40,10 @@ extern u32 g_idIconController;
 extern u32 g_idIconX;
 extern u32 g_idIconFavorite;
 
+extern u32 g_idImgMSPOSDBetaflight;
+extern u32 g_idImgMSPOSDINAV;
+extern u32 g_idImgMSPOSDArdupilot;
+
 extern float g_fOSDStatsForcePanelWidth;
 extern float g_fOSDStatsBgTransparency;
 
@@ -89,6 +93,7 @@ void osd_rotatePoints(float *x, float *y, float angle, int points, float center_
 void osd_rotate_point(float x, float y, float xCenter, float yCenter, float angle, float* px, float* py);
 
 bool osd_load_resources();
+void osd_reload_msp_resources();
 void osd_apply_preferences();
 
 float osd_getScaleOSD();

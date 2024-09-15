@@ -89,6 +89,10 @@ u32 g_idIconController = 0;
 u32 g_idIconX = 0;
 u32 g_idIconFavorite = 0;
 
+u32 g_idImgMSPOSDBetaflight = 0;
+u32 g_idImgMSPOSDINAV = 0;
+u32 g_idImgMSPOSDArdupilot = 0;
+
 float sfScreenXMargin = 0.02;
 float sfScreenYMargin = 0.02;
 float sfSpacingH = 0.02;
@@ -245,8 +249,30 @@ bool osd_load_resources()
    g_idIconX = g_pRenderEngine->loadIcon("res/icon_x.png");
    g_idIconFavorite = g_pRenderEngine->loadIcon("res/favorite.png");
 
+   osd_reload_msp_resources();
    osd_stats_init();
    return true;
+}
+
+void osd_reload_msp_resources()
+{
+   if ( g_idImgMSPOSDBetaflight > 0 )
+      g_pRenderEngine->freeImage(g_idImgMSPOSDBetaflight);
+   if ( g_idImgMSPOSDINAV > 0 )
+      g_pRenderEngine->freeImage(g_idImgMSPOSDINAV);
+   if ( g_idImgMSPOSDArdupilot > 0 )
+      g_pRenderEngine->freeImage(g_idImgMSPOSDArdupilot);
+
+   g_idImgMSPOSDBetaflight = g_pRenderEngine->loadImage("res/msp_osd_betaflight.png");
+   g_idImgMSPOSDINAV = g_pRenderEngine->loadImage("res/msp_osd_inav.png");
+   g_idImgMSPOSDArdupilot = g_pRenderEngine->loadImage("res/msp_osd_ardu.png");
+   Preferences* p = get_Preferences();
+   if ( NULL != p )
+   {
+      g_pRenderEngine->changeImageHue(g_idImgMSPOSDBetaflight, p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2]);
+      g_pRenderEngine->changeImageHue(g_idImgMSPOSDINAV, p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2]);
+      g_pRenderEngine->changeImageHue(g_idImgMSPOSDArdupilot, p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2]);
+   }
 }
 
 void osd_apply_preferences()

@@ -77,8 +77,9 @@ void osd_warnings_render()
    if ( (NULL == pVDS) || (NULL == pActiveModel) )
       return; 
 
-   if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
-      return;
+   //if ( pActiveModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+   //if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
+   //   return;
 
    if ( g_bHasVideoDataOverloadAlarm )
    if ( !(pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
@@ -195,11 +196,25 @@ void osd_warnings_render()
          }
       }
 
+      bool bNoTelemetryFromFC = false;
+
+      if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
+      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
+         bNoTelemetryFromFC = true;
+
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
+      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+         bNoTelemetryFromFC = true;
+
+      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfoShort )
+      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryShort.uFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+         bNoTelemetryFromFC = true;
+
+
       bool bShowFCTelemetryAlarm = false;
       if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
-      if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
+      if ( bNoTelemetryFromFC )
       if ( ! g_VehiclesRuntimeInfo[i].bLinkLost )
-      if ( ! g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
          bShowFCTelemetryAlarm = true;
 
       if ( s_bDebugOSDShowAll )
@@ -211,7 +226,7 @@ void osd_warnings_render()
          g_pRenderEngine->setColors(get_Color_IconWarning());
          g_pRenderEngine->drawIcon(xAlarmIcon, yAlarmIcon, 1.2*height_text/g_pRenderEngine->getAspectRatio(), 1.2*height_text, g_idIconCPU);
          osd_set_colors();
-         g_pRenderEngine->drawText(xAlarm, yAlarm, g_idFontOSDWarnings, "No telemetry from flight controller");
+         g_pRenderEngine->drawText(xAlarm, yAlarm, g_idFontOSDWarnings, "No telemetry from flight controller. Check your serial ports settings.");
          yAlarm -= dyAlarm;
          yAlarmIcon -= dyAlarm;
       }
@@ -226,6 +241,12 @@ void osd_warnings_render()
          yAlarm -= dyAlarm;
          yAlarmIcon -= dyAlarm;
       }
+
+      if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
+      if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MAVLINK )
+         continue;
+      if ( ! g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
+         continue;
      
       // Battery voltage alarm is on the middle of the screen
       

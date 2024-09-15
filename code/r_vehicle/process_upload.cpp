@@ -283,10 +283,15 @@ void _process_upload_apply()
    if ( access( szFile, R_OK ) != -1 )
       hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", "-pre", NULL, 1);
 
+   // Copy log file to last update
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command("cp -rf /tmp/logs/log_system.txt /root/ruby/last_update_log.txt", NULL);
+   #endif
+   #if defined(HW_PLATFORM_RASPBERRY)
+   hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_system.txt /home/pi/ruby/logs/last_update_log.txt", NULL);
+   #endif
    log_line("Done updating. Cleaning up and reboot");
    _sw_update_close_remove_temp_files();
-
-
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastActiveTime = g_TimeNow;
@@ -493,6 +498,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    fclose(s_pFileSoftware);
    s_pFileSoftware = NULL;
 
+   log_enable_full();
    log_line("Write successfully to SW archive file [%s], total segments: %u, total size: %u bytes", s_szUpdateArchiveFile, s_uSWPacketsCount, fileSize);
    if ( fileSize != params->total_size )
       log_softerror_and_alarm("Missmatch between expected file size (%u) and created file size (%u)!", params->total_size, fileSize);

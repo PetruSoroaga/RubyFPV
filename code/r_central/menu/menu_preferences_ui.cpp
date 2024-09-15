@@ -43,7 +43,7 @@
 MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
 :Menu(MENU_ID_PREFERENCES_UI, "User Interface Fonts, Colors and Sizes", NULL)
 {
-   m_Width = 0.28;
+   m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    m_bShowOnlyOSD = bShowOnlyOSD;
@@ -54,6 +54,8 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_IndexUnits = -1;
    m_IndexPersistentMessages = -1;
    m_IndexLogWindow = -1;
+   m_IndexMonitor = -1;
+   m_IndexMSPOSDFont = -1;
 
    if ( ! m_bShowOnlyOSD )
    {
@@ -116,7 +118,10 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
 
    m_IndexColorPickerAHI = addMenuItem(new MenuItem("Instruments Color","Change color of the instruments/gauges.")); 
 
-   m_pItemsSelect[10] = new MenuItemSelect("OSD Font", "Changes the OSD font.");  
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+      m_pItemsSelect[10] = new MenuItemSelect("Ruby OSD Font", "Changes the OSD font used for Ruby OSD elements.");  
+   else
+      m_pItemsSelect[10] = new MenuItemSelect("OSD Font", "Changes the OSD font.");  
    m_pItemsSelect[10]->addSelection("Font 1 Bold");
    m_pItemsSelect[10]->addSelection("Font 1 Outlined");
    m_pItemsSelect[10]->addSelection("Font 2");
@@ -124,12 +129,27 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_pItemsSelect[10]->setIsEditable();
    m_IndexOSDFont = addMenuItem(m_pItemsSelect[10]);
 
-   m_pItemsSelect[12] = new MenuItemSelect("Show loop monitor", "Shows a graphical spinner (bottom left of the screen) for monitoring the controller processes.");  
-   m_pItemsSelect[12]->addSelection("No");
-   m_pItemsSelect[12]->addSelection("Yes");
-   m_pItemsSelect[12]->setIsEditable();
-   m_IndexMonitor = addMenuItem(m_pItemsSelect[12]);
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   {
+      m_pItemsSelect[14] = new MenuItemSelect("MSP OSD Font", "Changes the OSD font used for MSP OSD.");  
+      m_pItemsSelect[14]->addSelection("Auto");
+      m_pItemsSelect[14]->addSelection("Betaflight");
+      m_pItemsSelect[14]->addSelection("INAV");
+      m_pItemsSelect[14]->addSelection("Ardupilot");
+      m_pItemsSelect[14]->setIsEditable();
+      m_IndexMSPOSDFont = addMenuItem(m_pItemsSelect[14]);
+   }
 
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( pCS->iDeveloperMode )
+   {
+      m_pItemsSelect[12] = new MenuItemSelect("Show loop monitor", "Shows a graphical spinner (bottom left of the screen) for monitoring the controller processes.");  
+      m_pItemsSelect[12]->addSelection("No");
+      m_pItemsSelect[12]->addSelection("Yes");
+      m_pItemsSelect[12]->setIsEditable();
+      m_pItemsSelect[12]->setTextColor(get_Color_Dev());
+      m_IndexMonitor = addMenuItem(m_pItemsSelect[12]);
+   }
    if ( ! m_bShowOnlyOSD )
    {
       addMenuItem(new MenuItemSection("General"));
@@ -185,7 +205,8 @@ void MenuPreferencesUI::valuesToUI()
 
    m_pItemsSelect[10]->setSelectedIndex(p->iOSDFont);
 
-   m_pItemsSelect[12]->setSelection(p->iShowProcessesMonitor);
+   if ( -1 != m_IndexMonitor )
+      m_pItemsSelect[12]->setSelection(p->iShowProcessesMonitor);
 
    if ( ! m_bShowOnlyOSD )
    {
@@ -200,6 +221,13 @@ void MenuPreferencesUI::valuesToUI()
 
       m_pItemsSelect[16]->setSelection(p->iPersistentMessages);
       m_pItemsSelect[17]->setSelection(p->iShowLogWindow);
+   }
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   if ( -1 != m_IndexMSPOSDFont )
+   {
+      int iFont = g_pCurrentModel->osd_params.uFlags & OSD_BIT_FLAGS_MASK_MSPOSD_FONT;
+      m_pItemsSelect[14]->setSelectedIndex(iFont);
    }
 }
 
@@ -389,7 +417,7 @@ void MenuPreferencesUI::onSelectItem()
    if ( m_IndexOSDFlip == m_SelectedIndex )
       p->iOSDFlipVertical = m_pItemsSelect[7]->getSelectedIndex();
 
-   if ( m_IndexMonitor == m_SelectedIndex )
+   if ( (-1 != m_IndexMonitor) && (m_IndexMonitor == m_SelectedIndex) )
    {
       p->iShowProcessesMonitor = m_pItemsSelect[12]->getSelectedIndex();
       save_Preferences();
@@ -421,6 +449,14 @@ void MenuPreferencesUI::onSelectItem()
       valuesToUI();
       save_Preferences();
       return;
+   }
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+   if ( (-1 != m_IndexMSPOSDFont) && (m_IndexMSPOSDFont == m_SelectedIndex) )
+   {
+      u32 uFont = m_pItemsSelect[14]->getSelectedIndex();
+      g_pCurrentModel->osd_params.uFlags &= ~OSD_BIT_FLAGS_MASK_MSPOSD_FONT;
+      g_pCurrentModel->osd_params.uFlags |= (uFont & OSD_BIT_FLAGS_MASK_MSPOSD_FONT);
    }
 
    save_Preferences();

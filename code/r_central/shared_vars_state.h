@@ -2,6 +2,7 @@
 #include "../base/base.h"
 #include "../base/models.h"
 #include "../base/commands.h"
+#include "../base/msp.h"
 
 #define MAX_SEGMENTS_FILE_UPLOAD 10000 // About 10 Mbytes of data maximum
 
@@ -22,6 +23,26 @@ typedef struct
 
 extern t_structure_file_upload g_CurrentUploadingFile;
 extern bool g_bHasFileUploadInProgress;
+
+typedef struct
+{
+   t_packet_header_telemetry_msp headerTelemetryMSP;
+
+   u8  uMSPRawCommand[256]; // Max size is one byte long
+   int iMSPRawCommandFilledBytes;
+   int iMSPState;
+   int iMSPDirection;
+   u8  uMSPCommandData[256]; // Max size is one byte long
+   int iMSPCommandDataSize;
+   int iMSPParsedCommandDataSize;
+   u8  uMSPChecksum;
+   u8  uMSPCommand;
+   u32 uLastMSPCommandReceivedTime;
+
+   u16 uScreenChars[MAX_MSP_CHARS_BUFFER]; // Max 64x24
+   u16 uScreenCharsTmp[MAX_MSP_CHARS_BUFFER]; // Max 64x24
+   bool bEmptyBuffer;
+} __attribute__((packed)) type_msp_parse_state;
 
 typedef struct 
 {
@@ -51,7 +72,8 @@ typedef struct
    t_packet_header_ruby_telemetry_extended_v3 headerRubyTelemetryExtended;
    t_packet_header_ruby_telemetry_extended_extra_info headerRubyTelemetryExtraInfo;
    t_packet_header_ruby_telemetry_extended_extra_info_retransmissions headerRubyTelemetryExtraInfoRetransmissions;
-
+   t_packet_header_ruby_telemetry_short headerRubyTelemetryShort;
+   type_msp_parse_state mspState;
    shared_mem_radio_stats_radio_interface SMVehicleRxStats[MAX_RADIO_INTERFACES];
 
    // FC telemetry

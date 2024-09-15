@@ -1129,7 +1129,7 @@ u32 radio_get_next_radio_link_packet_index(int iLocalRadioLinkId)
    return uRadioLinkPacketIndex;
 }
 
-int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacketData, int nInputLength, int portNb, int bEncrypt, int iExtraData, u8* pExtraData)
+int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacketData, int nInputLength, int portNb, int bEncrypt)
 {
    int totalRadioLength = 0;
 
@@ -1190,12 +1190,6 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    if ( s_bRadioDebugFlag )
       memcpy(s_uLastPacketBuilt, pPacketData, nInputLength);
 
-   if ( (0 < iExtraData) && (NULL != pExtraData) )
-   {
-      memcpy(pRawPacket+nInputLength, pExtraData, iExtraData);
-      totalRadioLength += iExtraData;
-   }
-
    #ifdef DEBUG_PACKET_SENT
    log_line("Building a composed packet of total size: %d, extra data: %d", nInputLength + iExtraData, iExtraData);
    #endif
@@ -1215,19 +1209,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
       nPCount++;
       t_packet_header* pPH = (t_packet_header*)pData;
       int nPacketLength = pPH->total_length;
-
-      // Last packet in the chain? Add the extra data if present
-      if ( nLength == nPacketLength )
-      {
-         if ( 0 < iExtraData && NULL != pExtraData )
-         {
-            #ifdef DEBUG_PACKET_SENT
-            log_line("Adding extra data at the end: %d len", iExtraData);
-            #endif
-            pPH->total_length += iExtraData;
-            pPH->packet_flags |= PACKET_FLAGS_BIT_EXTRA_DATA;
-         }
-      }
+    
       pPH->radio_link_packet_index = uRadioLinkPacketIndex;
       if ( bEncrypt )
          pPH->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;

@@ -91,6 +91,88 @@ void validate_camera(Model* pModel)
    }
 }
 
+
+void update_openipc_cpu(Model* pModel)
+{
+   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
+   hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
+   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+   if ( NULL != pModel )
+      pModel->processesPriorities.iFreqARM = 1100;
+}
+
+void do_update_to_97()
+{
+   log_line("Doing update to 9.7");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
+      pCS->iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
+      save_ControllerSettings(); 
+
+      for( int i=0; i<hardware_get_serial_ports_count(); i++ )
+      {
+         hw_serial_port_info_t* pInfo = hardware_get_serial_port_info(i);
+         if ( NULL == pInfo )
+            continue;
+         if ( pInfo->iPortUsage > 0 )
+         if ( pInfo->iPortUsage < SERIAL_PORT_USAGE_DATA_LINK )
+         {
+            pInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+            if ( pInfo->lPortSpeed <= 0 )
+               pInfo->lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+            hardware_serial_save_configuration();
+         }
+      }
+
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->iDebugMaxPacketSize = MAX_VIDEO_PACKET_DATA_SIZE;
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   if ( DEFAULT_USE_PPCAP_FOR_TX )
+      pModel->uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+   else
+      pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   update_openipc_cpu(pModel);
+   #endif
+     
+   for( int i=0; i<pModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+   {
+      u32 uUsage = pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+      if ( uUsage > 0 )
+      if ( uUsage < SERIAL_PORT_USAGE_MSP_OSD )
+      {
+         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFFFFFF00;
+         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+      }
+   }
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+   }
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
+   }
+   pModel->osd_params.uFlags = OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
+   
+   log_line("Updated model VID %u (%s) to v9.7", pModel->uVehicleId, pModel->getLongName());
+}
+
+
 void do_update_to_96()
 {
    log_line("Doing update to 9.6");
@@ -107,6 +189,10 @@ void do_update_to_96()
    Model* pModel = getCurrentModel();
    if ( NULL == pModel )
       return;
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   update_openipc_cpu(pModel);
+   #endif
 
    if ( DEFAULT_USE_PPCAP_FOR_TX )
       pModel->uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
@@ -157,10 +243,7 @@ void do_update_to_95()
       return;
 
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
-   hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
-   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
-   pModel->processesPriorities.iFreqARM = 1100;
+   update_openipc_cpu(pModel);
    #endif
 
    pModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
@@ -858,7 +941,7 @@ void do_update_to_72()
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(iPort);
          if ( NULL != pPortInfo )
          {
-            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY;
+            pPortInfo->iPortUsage = SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
             hardware_serial_save_configuration();
          }
       }
@@ -940,7 +1023,7 @@ void do_update_to_70()
       if ( 0 < pModel->hardwareInterfacesInfo.serial_bus_count )
       {
          pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY;
+         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
          pModel->hardwareInterfacesInfo.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
       }
    }
@@ -1437,7 +1520,11 @@ int main(int argc, char *argv[])
 
    if ( NULL != strstr(szUpdateCommand, "pre" ) )
    {
-      log_line("Pre-update step. Do nothing. Exit");
+      log_line("Pre-update step...");
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_execute_bash_command("fw_setenv sensor", NULL); 
+      #endif
+      log_line("Done executing pre-update step. Exit.");
       return 0;
    }
 
@@ -1597,6 +1684,8 @@ int main(int argc, char *argv[])
       do_update_to_95();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 6) )
       do_update_to_96();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 7) )
+      do_update_to_97();
 
    saveCurrentModel();
    

@@ -33,6 +33,7 @@
 #include "menu_vehicle_general.h"
 #include "menu_item_select.h"
 #include "menu_confirmation.h"
+#include "menu_confirmation_vehicle_board.h"
 #include "menu_item_text.h"
 
 #include "../link_watch.h"
@@ -44,6 +45,7 @@ MenuVehicleGeneral::MenuVehicleGeneral(void)
 {
    m_Width = 0.26;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
+   m_IndexBoardType = -1;
    valuesToUI();
 }
 
@@ -120,6 +122,14 @@ void MenuVehicleGeneral::populate()
    m_pItemsSelect[0]->addSelection("Robot");
    m_pItemsSelect[0]->setIsEditable();
    m_IndexVehicleType = addMenuItem(m_pItemsSelect[0]);
+
+   m_IndexBoardType = -1;
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+   {
+      MenuItem* pMenuItem = new MenuItem("Board Type", "Sets the board type variant.");
+      pMenuItem->showArrow();
+      m_IndexBoardType = addMenuItem(pMenuItem);
+   }
 }
 
 void MenuVehicleGeneral::valuesToUI()
@@ -160,11 +170,13 @@ int MenuVehicleGeneral::onBack()
    if ( 0 == m_SelectedIndex )
    if ( m_pMenuItems[0]->isEditing() )
    {
+      log_line("MenuVehicleGeneral: onBack: end editing name, current edit value: (%s)", m_pItemEditName->getCurrentValue());
       m_pMenuItems[0]->endEdit(false);
-      char szBuff[MAX_VEHICLE_NAME_LENGTH];
-      strcpy(szBuff, m_pItemEditName->getCurrentValue());
+      char szBuff[MAX_VEHICLE_NAME_LENGTH+1];
+      strncpy(szBuff, m_pItemEditName->getCurrentValue(), MAX_VEHICLE_NAME_LENGTH);
+      log_line("MenuVehicleGeneral: onBack: sanitizing vehicle name: (%s)", szBuff);
       str_sanitize_modelname(szBuff);
-
+      log_line("MenuVehicleGeneral: onBack: end sanitizing vehicle name.");
       if ( g_pCurrentModel->is_spectator )
       {
          strcpy(g_pCurrentModel->vehicle_name, (const char*)szBuff );
@@ -175,6 +187,7 @@ int MenuVehicleGeneral::onBack()
       else if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VEHICLE_NAME, 0, (u8*)szBuff, MAX_VEHICLE_NAME_LENGTH) )
          m_pItemEditName->setCurrentValue(g_pCurrentModel->vehicle_name);
     
+      log_line("MenuVehicleGeneral: onBack: done end editing name.");
       return 1;
    }
 
@@ -212,5 +225,11 @@ void MenuVehicleGeneral::onSelectItem()
       }
       else if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VEHICLE_TYPE, uVehicleType, NULL, 0) )
          m_pItemsSelect[0]->setSelection(g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK);
+   }
+
+   if ( (-1 != m_IndexBoardType) && (m_IndexBoardType == m_SelectedIndex) )
+   {
+       add_menu_to_stack( new MenuConfirmationVehicleBoard() );
+       return;
    }
 }

@@ -39,7 +39,9 @@
 //#include "../../base/radio_utils.h"
 
 const char* s_textTitle[] = { "My Vehicles",  NULL };
-const char* s_szVehicleNone = "No vehicles defined. To add a vehicle:\n Search for a vehicle and then connect to it as controller.";
+const char* s_szVehicleNone1 = "No vehicles defined. To add a vehicle:";
+const char* s_szVehicleNone2 = "* Search for a vehicle and then connect to it as controller;";
+const char* s_szVehicleNone3 = "* Or import a previously saved vehicle from a USB memory stick.";
 
 MenuVehicles::MenuVehicles(void)
 :Menu(MENU_ID_VEHICLES, "My Vehicles", NULL)
@@ -128,7 +130,9 @@ void MenuVehicles::onShow()
    if ( 0 == getControllerModelsCount() )
    {
       removeAllTopLines();
-      addTopLine(s_szVehicleNone);
+      addTopLine(s_szVehicleNone1);
+      addTopLine(s_szVehicleNone2);
+      addTopLine(s_szVehicleNone3);
    }
 
    addSeparator();
