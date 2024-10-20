@@ -67,45 +67,45 @@ int getChannels25Count() { return sizeof(channels25)/sizeof(channels25[0]); }
 u32* getChannels58() { return channels58; }
 int getChannels58Count() { return sizeof(channels58)/sizeof(channels58[0]); }
 
-int _getChannelAndCount(u32 nBand, u32** channel)
+int _getChannelsAndCount(u32 nBand, u32** channels)
 {
-   if( channel == NULL )
+   if( channels == NULL )
       return -1;
 
    switch ( nBand ) {
    case RADIO_HW_SUPPORTED_BAND_433:
-      *channel = getChannels433();
+      *channels = getChannels433();
       return getChannels433Count();
 
    case RADIO_HW_SUPPORTED_BAND_868:
-      *channel = getChannels868();
+      *channels = getChannels868();
       return getChannels868Count();
 
    case RADIO_HW_SUPPORTED_BAND_915:
-      *channel = getChannels915();
+      *channels = getChannels915();
       return getChannels915Count();
 
    case RADIO_HW_SUPPORTED_BAND_23:
-      *channel = getChannels23();
+      *channels = getChannels23();
       return getChannels23Count();
 
    case RADIO_HW_SUPPORTED_BAND_24:
-      *channel = getChannels24();
+      *channels = getChannels24();
       return getChannels24Count();
 
    case RADIO_HW_SUPPORTED_BAND_25:
-      *channel = getChannels25();
+      *channels = getChannels25();
       return getChannels25Count();
 
    case RADIO_HW_SUPPORTED_BAND_58:
-      *channel = getChannels58();
+      *channels = getChannels58();
       return getChannels58Count();
 
    default:
       break;
   }
 
-  *channel = NULL;
+  *channels = NULL;
   return -1;
 }
 
@@ -151,7 +151,7 @@ int getBand(u32 freqKhz)
 int getChannelIndexForFrequency(u32 nBand, u32 freqKhz)
 {
    u32* channels = NULL;
-   int channelcount = _getChannelAndCount(nBand, &channels);
+   int channelcount = _getChannelsAndCount(nBand, &channels);
    if( channels != NULL ) {
       for( int i=0; i<channelcount; i++ )
          if ( freqKhz == channels[i] )
@@ -226,7 +226,7 @@ int getSupportedChannels(u32 supportedBands, int includeSeparator, u32* pOutChan
    for( int r=0; r < sizeof(radio_hw_supported_bands)/sizeof(radio_hw_supported_bands[0]); r++ )
    {
       u32* channels;
-      int channelcount = _getChannelAndCount(supportedBands & radio_hw_supported_bands[r], &channels);
+      int channelcount = _getChannelsAndCount(supportedBands & radio_hw_supported_bands[r], &channels);
       if( channels != NULL ) {
          for( int i=0; i<channelcount; i++ )
          {
