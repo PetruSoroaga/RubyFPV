@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -189,17 +189,38 @@ void shared_mem_controller_radio_stats_interfaces_rx_graphs_close(shared_mem_rad
 }
 
 
-shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open(int readOnly)
+shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_read()
 {
-   void *retVal =  open_shared_mem(SHARED_MEM_VIDEO_STREAM_STATS, sizeof(shared_mem_video_stream_stats_rx_processors), readOnly);
+   void *retVal =  open_shared_mem(SHARED_MEM_VIDEO_STREAM_STATS, sizeof(shared_mem_video_stream_stats_rx_processors), 1);
    shared_mem_video_stream_stats_rx_processors *tretval = (shared_mem_video_stream_stats_rx_processors*)retVal;
    return tretval;
 }
+
+shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_write()
+{
+   void *retVal =  open_shared_mem(SHARED_MEM_VIDEO_STREAM_STATS, sizeof(shared_mem_video_stream_stats_rx_processors), 0);
+   shared_mem_video_stream_stats_rx_processors *tretval = (shared_mem_video_stream_stats_rx_processors*)retVal;
+   return tretval;
+}
+
 void shared_mem_video_stream_stats_rx_processors_close(shared_mem_video_stream_stats_rx_processors* pAddress)
 {
    if ( NULL != pAddress )
       munmap(pAddress, sizeof(shared_mem_video_stream_stats_rx_processors));
    //shm_unlink(SHARED_MEM_VIDEO_STREAM_STATS);
+}
+
+shared_mem_video_stream_stats* get_shared_mem_video_stream_stats_for_vehicle(shared_mem_video_stream_stats_rx_processors* pSM, u32 uVehicleId)
+{
+   if ( (NULL == pSM) || (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
+      return NULL;
+
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( pSM->video_streams[i].uVehicleId == uVehicleId )
+         return &(pSM->video_streams[i]);
+   }
+   return NULL;
 }
 
 shared_mem_video_stream_stats_history_rx_processors* shared_mem_video_stream_stats_history_rx_processors_open(int readOnly)
@@ -214,24 +235,6 @@ void shared_mem_video_stream_stats_history_rx_processors_close(shared_mem_video_
    if ( NULL != pAddress )
       munmap(pAddress, sizeof(shared_mem_video_stream_stats_history_rx_processors));
    //shm_unlink(SHARED_MEM_VIDEO_STREAM_STATS_HISTORY);
-}
-
-shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_read()
-{
-   void *retVal = open_shared_mem(SHARED_MEM_VIDEO_RETRANSMISSIONS_STATS, sizeof(shared_mem_controller_retransmissions_stats_rx_processors), 1);
-   return (shared_mem_controller_retransmissions_stats_rx_processors*)retVal;
-}
-
-shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_write()
-{
-   void *retVal = open_shared_mem(SHARED_MEM_VIDEO_RETRANSMISSIONS_STATS, sizeof(shared_mem_controller_retransmissions_stats_rx_processors), 0);
-   return (shared_mem_controller_retransmissions_stats_rx_processors*)retVal;
-}
-
-void shared_mem_controller_video_retransmissions_stats_close(shared_mem_controller_retransmissions_stats_rx_processors* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
 }
 
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read()

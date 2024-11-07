@@ -46,8 +46,7 @@ class MenuSystemVideoProfiles: public Menu
 
 
       int m_IndexSwitchUsingQAButton;
-      int m_IndexSwitchToHQVideo;
+      int m_IndexSwitchToUserVideo;
       int m_IndexSwitchToMQVideo;
       int m_IndexSwitchToLQVideo;
-      int m_IndexSwitchToCustomVideoLevel;
 };

@@ -6,11 +6,6 @@
 // u4 highBits;  // 4 extra most significant bits for each channel;
 // Making the channel final range from 0 to 4096; regular range is 1000 to 2000, mid is 1500, 700 is failsafe/missing
 
-//---------------------------------------
-// COMPONENT RC PACKETS
-
-#define PACKET_TYPE_RC_FULL_FRAME     21   // RC Info sent from ground to vehicle
-#define PACKET_TYPE_RC_DOWNLOAD_INFO  22   // RC Info sent back from vehicle to ground station
 
 //----------------------------------------------
 // packet_header_rc_full_frame_upstream
@@ -21,7 +16,7 @@ typedef struct
 {
    u8 rc_frame_index;
    u8 ch_lowBits[MAX_RC_CHANNELS]; // Channels lower part, values from 0 to 255.
-   u8 ch_highBits[MAX_RC_CHANNELS/2];  // 4 extra most significant bits for each channel, channel 0 are the lowest bits,  making the channel final range from 0 to 4096
+   u8 ch_highBits[MAX_RC_CHANNELS/2];  // 4 extra most significant bits for each channel, channel 0 are the lowest bits,  making the channel final range from 0 to 4096, 1000 to 2000 used
    u8 flags; // bit 0 - has input (on the controller side)
    u8 extra_info1; // not used, for future use
    u8 extra_info2; // not used, for future use
@@ -36,7 +31,7 @@ typedef struct
 //
 typedef struct
 {
-   u16 rc_channels[MAX_RC_CHANNELS]; // current value for all channels
+   u16 rc_channels[MAX_RC_CHANNELS]; // current value for all channels, 1000-2000 range
    u32 lost_packets;
    u32 recv_packets;
    u8 is_failsafe;

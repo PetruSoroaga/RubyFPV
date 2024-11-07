@@ -78,13 +78,24 @@ typedef struct
 {
    int nChannel;
    int nChannelFlags;
+   int nFreq;
    int nDataRateBPSMCS; // positive: bps, negative: mcs rate, 0: never
-   int nAntenna;
    int nRadiotapFlags;
-   int nDbm;
-   int nDbmNoise;
-} __attribute__((packed)) radiotap_rx_info_t;
+   int nAntennaCount;
+   int nDbmLast[MAX_RADIO_ANTENNAS];
+   int nDbmLastChange[MAX_RADIO_ANTENNAS];
+   int nDbmAvg[MAX_RADIO_ANTENNAS];
+   int nDbmMin[MAX_RADIO_ANTENNAS];
+   int nDbmMax[MAX_RADIO_ANTENNAS];
+   int nDbmNoiseLast[MAX_RADIO_ANTENNAS];
+   int nDbmNoiseAvg[MAX_RADIO_ANTENNAS];
+   int nDbmNoiseMin[MAX_RADIO_ANTENNAS];
+   int nDbmNoiseMax[MAX_RADIO_ANTENNAS];
+} __attribute__((packed)) type_runtime_radio_rx_info;
 
+
+void reset_runtime_radio_rx_info(type_runtime_radio_rx_info* pRuntimeRadioRxInfo);
+void reset_runtime_radio_rx_info_dbminfo(type_runtime_radio_rx_info* pRuntimeRadioRxInfo);
 
 typedef struct
 {
@@ -94,8 +105,8 @@ typedef struct
    int nRadioType;
    int nPort;
    int iErrorCount;
-   radiotap_rx_info_t radioInfo;
-} monitor_interface_t;
+   type_runtime_radio_rx_info radioHwRxInfo;
+} type_runtime_radio_interface_info;
 
 
 typedef struct
@@ -125,8 +136,8 @@ typedef struct
    u32 uHardwareParamsList[MAX_RADIO_HW_PARAMS];
    int openedForRead;
    int openedForWrite;
-   monitor_interface_t monitor_interface_read;
-   monitor_interface_t monitor_interface_write;
+   type_runtime_radio_interface_info runtimeInterfaceInfoRx;
+   type_runtime_radio_interface_info runtimeInterfaceInfoTx;
 } radio_hw_info_t;
 
 
@@ -161,7 +172,7 @@ void hardware_reset_radio_enumerated_flag();
 int hardware_enumerate_radio_interfaces();
 int hardware_enumerate_radio_interfaces_step(int iStep);
 
-int hardware_radio_load_radio_modules();
+int hardware_radio_load_radio_modules(int iEchoToConsole);
 
 int hardware_get_radio_interfaces_count();
 int hardware_get_supported_radio_interfaces_count();

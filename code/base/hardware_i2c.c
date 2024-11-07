@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -242,9 +242,12 @@ void hardware_enumerate_i2c_busses()
             if ( l >= addrStart && l <= addrEnd && l >= 0 && l < 128 )
             {
                s_HardwareI2CBusInfo[i].devices[l] = 1;
-               log_line("[Hardware]: Found I2C Device on bus i2c-%d at address 0x%02X", s_HardwareI2CBusInfo[i].nBusNumber, l);
+               char szDeviceName2[256];
+               hardware_get_i2c_device_name(l, szDeviceName2);
+               log_line("[Hardware]: Found I2C Device on bus i2c-%d at address 0x%02X, device type: %s", s_HardwareI2CBusInfo[i].nBusNumber, l, szDeviceName2);
                if ( hardware_is_known_i2c_device((u8)l) )
                   s_iKnownDevicesFound++;
+
                if ( (l == I2C_DEVICE_ADDRESS_PICO_EXTENDER) ||
                     (l == I2C_DEVICE_ADDRESS_INA219_1) ||
                     (l == I2C_DEVICE_ADDRESS_INA219_2) ||

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -30,21 +30,18 @@
 */
 
 #include <stdarg.h>
-#include <math.h>
 #include <unistd.h>
 #include <sys/file.h>
 #include <time.h>
 #include "base.h"
-#include "hardware.h"
-#include "hw_procs.h"
-#include "config.h"
+//#include "hardware.h"
+//#include "hw_procs.h"
+//#include "config.h"
+#include "config_file_names.h"
 
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-
-const double PIx = 3.141592653589793;
-const double RADIUS_EARTH = 6371.0; // Mean radius of Earth in Km
 
 static int s_bootCount = -1;
 static long long sStartTimeStamp_ms;
@@ -192,37 +189,6 @@ int base_check_crc32(u8* pBuffer, int iLength)
    return 1;
 }
 
-
-u32 get_sw_version_major(u32 uSWVersion)
-{
-   return (uSWVersion >> 8) & 0xFF;
-}
-u32 get_sw_version_minor(u32 uSWVersion)
-{
-   u32 uRes = (uSWVersion & 0xFF);
-   if ( uRes < 10 )
-      uRes *= 10;
-   return uRes;
-}
-u32 get_sw_version_build(u32 uSWVersion)
-{
-   return (uSWVersion >> 16);
-}
-
-int is_sw_version_atleast(u32 uSWVersion, int iMajor, int iMinor)
-{
-   if ( get_sw_version_major(uSWVersion) > iMajor )
-      return 1;
-   int iM = get_sw_version_minor(uSWVersion);
-   if ( iM > 10 )
-      iM /= 10;
-   if ( get_sw_version_major(uSWVersion) == iMajor )
-   if ( iM >= iMinor )
-      return 1;
-
-   return 0;
-}
-
 void _init_timestamp_for_process()
 {
    char szFile[MAX_FILE_PATH_SIZE];
@@ -259,7 +225,8 @@ void _init_timestamp_for_process()
          }
          #ifdef HW_PLATFORM_RASPBERRY
          system("sudo mount -o remount,rw /");
-         hardware_sleep_ms(50);
+         struct timespec to_sleep = { 0, (long int)(50*1000*1000) };
+         nanosleep(&to_sleep, NULL);
          #endif
          count++;
       }
@@ -1107,7 +1074,7 @@ void log_dword_bits(const char* szText, u32 value)
 
 void log_error_and_alarm(const char* format, ...)
 {
-   hardware_setCriticalErrorFlag();
+   //hardware_setCriticalErrorFlag();
 
    if ( s_logDisabled )
       return;
@@ -1205,7 +1172,7 @@ void log_error_and_alarm(const char* format, ...)
 
 void log_softerror_and_alarm(const char* format, ...)
 {
-   hardware_setRecoverableErrorFlag();
+   //hardware_setRecoverableErrorFlag();
 
    if ( s_logDisabled )
       return;
@@ -1301,47 +1268,6 @@ void log_softerror_and_alarm(const char* format, ...)
       fclose(fd2);
 }
 
-
-double convertToRadians(double val)
-{
-   return val * PIx / 180.0;
-}
-
-long metersBetweenPlaces(double lat1, double lon1, double lat2, double lon2)
-{
-   double dlon = convertToRadians(lon2 - lon1);
-   double dlat = convertToRadians(lat2 - lat1);
-
-   double a = ( pow(sin(dlat / 2), 2) + cos(convertToRadians(lat1))) * cos(convertToRadians(lat2)) * pow(sin(dlon / 2), 2);
-   double angle = 2 * asin(sqrt(a));
-   //double angle = 2 * atan2(sqrt(a), sqrt(1.0-a));
-   return (angle * RADIUS_EARTH * 1000.0);
-}
-
-long distance_meters_between(double lat1, double lon1, double lat2, double lon2)
-{
-    double delta = (lon1 - lon2) * 0.017453292519;
-    double sdlong = sin(delta);
-    double cdlong = cos(delta);
-
-    lat1 = (lat1) * 0.017453292519;
-    lat2 = (lat2) * 0.017453292519;
-
-    double slat1 = sin(lat1);
-    double clat1 = cos(lat1);
-    double slat2 = sin(lat2);
-    double clat2 = cos(lat2);
-
-    delta = (clat1 * slat2) - (slat1 * clat2 * cdlong);
-    delta = delta * delta;
-    delta += (clat2 * sdlong) * (clat2 * sdlong);
-    delta = sqrt(delta);
-
-    float denom = (slat1 * slat2) + (clat1 * clat2 * cdlong);
-    delta = atan2(delta, denom);
-
-    return (delta * 6372795.0);
-}
 
 int check_licences()
 {

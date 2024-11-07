@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -385,7 +385,7 @@ void link_watch_loop_unexpected_vehicles()
    popups_add(g_pPopupWrongModel);
 }
 
-void link_watch_link_lost()
+void link_watch_check_link_lost()
 {
    // If we just paired, wait till router ready
    if ( g_bSearching || (!g_bIsRouterReady) || (NULL == g_pCurrentModel) )
@@ -398,7 +398,22 @@ void link_watch_link_lost()
    if ( ! link_has_received_main_vehicle_ruby_telemetry() )
       return;
 
+   bool bHasLink = false;
+
    if ( g_TimeNow < g_VehiclesRuntimeInfo[0].uTimeLastRecvAnyRubyTelemetry + TIMEOUT_TELEMETRY_LOST )
+      bHasLink = true;
+
+   if ( ! bHasLink )
+   if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_DATA].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
+      bHasLink = true;
+   if ( ! bHasLink )
+   if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_TELEMETRY].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
+      bHasLink = true;
+   if ( ! bHasLink )
+   if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_VIDEO_1].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
+      bHasLink = true;
+
+   if ( bHasLink )
    {
       if ( NULL != g_pPopupLinkLost )
       {
@@ -605,21 +620,9 @@ void link_watch_loop_telemetry()
       }
 
       // FC source telemetry data present or lost ?
-      bool bNoTelemetryFromFC = false;
+      bool bHasTelemetryFromFC = vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[i].uVehicleId);
 
-      if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
-      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
-         bNoTelemetryFromFC = true;
-
-      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-         bNoTelemetryFromFC = true;
-
-      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfoShort )
-      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryShort.uFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-         bNoTelemetryFromFC = true;
-
-      if ( bNoTelemetryFromFC )
+      if ( ! bHasTelemetryFromFC )
       {
          static bool s_bFirstTimeFCTelemetryWarning = true;
          if ( g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent || s_bFirstTimeFCTelemetryWarning )
@@ -928,7 +931,7 @@ void link_watch_loop()
    link_watch_loop_telemetry();
    link_watch_loop_popup_looking();
    link_watch_loop_unexpected_vehicles();
-   link_watch_link_lost();
+   link_watch_check_link_lost();
    link_watch_loop_throttled();
    link_watch_loop_video();
    link_watch_loop_processes();

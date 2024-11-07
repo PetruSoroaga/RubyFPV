@@ -17,12 +17,12 @@ Code written by: Petru Soroaga, 2021-2023
 #include "radiopackets_short.h"
 
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
-#define MAX_RXTX_BLOCKS_BUFFER 100
+#define MAX_RXTX_BLOCKS_BUFFER 200
 #define MAX_TOTAL_PACKETS_IN_BLOCK 64
 #define MAX_DATA_PACKETS_IN_BLOCK 32
 #define MAX_FECS_PACKETS_IN_BLOCK 32
 #else
-#define MAX_RXTX_BLOCKS_BUFFER 50
+#define MAX_RXTX_BLOCKS_BUFFER 80
 #define MAX_TOTAL_PACKETS_IN_BLOCK 32
 #define MAX_DATA_PACKETS_IN_BLOCK 16
 #define MAX_FECS_PACKETS_IN_BLOCK 16
@@ -67,7 +67,7 @@ Code written by: Petru Soroaga, 2021-2023
 #define PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY  (((u16)1)<<9)
 #define PACKET_FLAGS_EXTENDED_BIT_REQUIRE_ACK  (((u16)1)<<10)
 
-
+// Max 8 components, for the first 3 bits of packet_flags field
 #define PACKET_COMPONENT_LOCAL_CONTROL 0 // Used only internally, to exchange data between processes
 #define PACKET_COMPONENT_VIDEO 1
 #define PACKET_COMPONENT_TELEMETRY 2
@@ -97,6 +97,7 @@ typedef struct
    u8 packet_flags;
    u8 packet_type; // 1...150: components packets types, 150-200: local control controller packets, 200-250: local control vehicle packets
    u32 stream_packet_idx; // high 4 bits: stream id (0..15), lower 28 bits: stream packet index
+                          // monotonically increassing, to detect missing/lost packets on each stream
 
    u16 packet_flags_extended;  // Added in 7.4: it replaced (length of all headers)
              // byte 0: version: higher 4 bits: major version, lower 4 bits: minor version
@@ -112,6 +113,8 @@ typedef struct
 } __attribute__((packed)) t_packet_header;
 
 
+// Deprecated in 9.8
+/*
 #define PACKET_TYPE_VIDEO_DATA_FULL 2
 
 //----------------------------------------------
@@ -174,31 +177,20 @@ typedef struct
    u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
    u32 uExtraData; // not used, for future
 } __attribute__((packed)) t_packet_header_video_full_77;
+*/
 
+#define PACKET_TYPE_VIDEO_DATA_98 22
+
+#define VIDEO_STREAM_INFO_FLAG_NONE 0
+#define VIDEO_STREAM_INFO_FLAG_SIZE 1
+#define VIDEO_STREAM_INFO_FLAG_FPS 2
+#define VIDEO_STREAM_INFO_FLAG_FEC_TIME 3
+#define VIDEO_STREAM_INFO_FLAG_VIDEO_PROFILE_FLAGS 4
+#define VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID 5
 
 typedef struct
 {
    u8 uVideoStreamIndexAndType; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
-   u32 uProfileEncodingFlags; // same as video link profile's uProfileEncodingFlags;
-      // byte 0:
-      //    bit 0..2  - scramble blocks count
-      //    bit 3     - enables restransmission of missing packets
-      //    bit 4     - enable adaptive video keyframe interval
-      //    bit 5     - enable adaptive video link params
-      //    bit 6     - use controller info too when adjusting video link params
-      //    bit 7     - go lower adaptive video profile when controller link lost
-
-      // byte 1:   - max time to wait for retransmissions (in ms*5)// affects rx buffers size
-      // byte 2:   - retransmission duplication percent (0-100%), 0xFF = auto, bit 0..3 - regular packets duplication, bit 4..7 - retransmitted packets duplication
-      // byte 3:
-      //    bit 0  - use medium adaptive video
-      //    bit 1  - enable video auto quantization
-      //    bit 2  - video auto quantization strength
-      //    bit 3  - one way video link
-      //    bit 4  - video profile should use EC scheme as auto;
-      //    bit 5,6 - EC scheme spreading factor (0...3)
-      //    bit 7  - try to keep constant video bitrate when it fluctuates
-
    u32 uVideoStatusFlags2;
       // byte 0: current h264 quantization value
       // byte 1:
@@ -212,30 +204,47 @@ typedef struct
       //                  u32 - local timestamp sent to video output;
       //    bit 1  - 0/1: is this video packet part of a I-frame
       //    bit 2  - 1: is on lower video bitrate
+      //    bit 3  - 0/1: is end of current frame
 
    u8 uCurrentVideoLinkProfile;
+  
    u8 uStreamInfoFlags;
+   // See enum above
    //  0: none;
    //  1: video width (low 16 bits) and video height (high 16 bits)
    //  2: video fps
    //  3: fec time: how long FEC took, in microseconds/second
+   //  4: contains uProfileEncodingFlags; same as video link profile's uProfileEncodingFlags;
+   //  5: retransmission id
+   
    u32 uStreamInfo; // value dependent on uStreamInfoFlags;
 
-   u16 video_keyframe_interval_ms;
-   u8  uCurrentBlockDataPackets;
-   u8  uCurrentBlockECPackets;
+   u16 uCurrentVideoKeyframeIntervalMs;
+
    u32 uCurrentBlockIndex;
    u8  uCurrentBlockPacketIndex;
-
-   u16 video_data_length;
+   u16 uCurrentBlockPacketSize;
+   u8  uCurrentBlockDataPackets;
+   u8  uCurrentBlockECPackets;
 
    u32 uLastRecvVideoRetransmissionId; // unique id of the last retransmission request received by vehicle
    u16 uLastAckKeyframeInterval; // in milisec
    u8  uLastAckLevelShift;
    u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
    u32 uExtraData; // not used, for future
-} __attribute__((packed)) t_packet_header_video_full_97;
+   // After video header, first two bites are the size of actual video data, part of error reconstruction as video data
+} __attribute__((packed)) t_packet_header_video_full_98;
 
+typedef struct
+{
+   u32 uTime1;
+   u32 uTime2;
+   u32 uTime3;
+   u32 uTime4;
+   u32 uTime5;
+   u32 uTime6;
+   u32 uVideoCRC;
+} __attribute__((packed)) t_packet_header_video_full_98_debug_info;
 
 // PING packets do not increase stream packet index as they are sent on each radio link separatelly
 #define PACKET_TYPE_RUBY_PING_CLOCK 3
@@ -340,18 +349,16 @@ typedef struct
 
 #define PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS 20
 // params after header:
-//   u8: video link id
-//   u8: number of packets requested
-//   (u32+u8+u8)*n = each video block index and video packet index requested + repeat count
-//   optional: serialized minimized t_packet_data_controller_link_stats - link stats (video and radio)
+//   u32: retransmission request id
+//   u8: video stream index
+//   u8: number of video packets requested
+//   (u32+u8)*n = each (video block index + video packet index) requested 
 
-#define PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2 21
-// params after header:
-//   u32: retransmission request unique id
-//   u8: video link id
-//   u8: number of packets requested
-//   (u32+u8+u8)*n = each video block index and video packet index requested + repeat count
-//   optional: serialized minimized t_packet_data_controller_link_stats - link stats (video and radio)
+//---------------------------------------
+// COMPONENT RC PACKETS
+
+#define PACKET_TYPE_RC_FULL_FRAME     25   // RC Info sent from ground to vehicle
+#define PACKET_TYPE_RC_DOWNLOAD_INFO  26   // RC Info sent back from vehicle to ground station
 
 #define PACKET_TYPE_EVENT 27
 // params: u32 event type
@@ -380,6 +387,7 @@ typedef struct
 #define PACKET_TYPE_FC_TELEMETRY_EXTENDED 32 // FC telemetry + FC message
 #define PACKET_TYPE_FC_RC_CHANNELS 34
 #define PACKET_TYPE_RC_TELEMETRY 33
+// To fix
 #define PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_STATS 35 // has a shared_mem_video_link_stats_and_overwrites structure as data
 #define PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_GRAPHS 36 // has a shared_mem_video_link_graphs structure as data
 
@@ -791,13 +799,21 @@ byte 4: command type:
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END    4
 #define PACKET_TYPE_TEST_RADIO_LINK_COMMAND_ENDED  5
 
-#define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL 60 // From controller to vehicle. Contains an u32 - adaptive video level to switch to (0..N - HQ, M...P - MQ, R...T - LQ) and then u8 video stream index
-#define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK 61 // From vehicle to controller. Contains an u32 - adaptive video level to switch to (0..N - HQ, M...P - MQ, R...T - LQ)
+#define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL 60
+// From controller to vehicle. Contains:
+// u32 - request id, monotonically increasing
+// u8 - adaptive video level to switch to (video profile): HQ,MQ,LQ etc
+// u8 - video stream index
+
+#define PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK 61
+// From vehicle to controller. Contains:
+// u32 - request id
+// u8 - adaptive video level switched to (video profile): HQ,MQ,LQ etc, or 0xFF if not changed
 
 #define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE 64 // From controller to vehicle. Contains the deisred keyframe milisec value as an u32 and then u8 video stream index
 #define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK 65 // From vehicle to controller. Contains the acknowledge keyframe milisec value as an u32
 
-#define PACKET_TYPE_SIK_CONFIG 66
+#define PACKET_TYPE_SIK_CONFIG 70
 // Can be send locally or to vehicle
 // u8: vehicle radio link id
 // u8: command id:
@@ -805,6 +821,20 @@ byte 4: command type:
 //        1 - pause SiK interface
 //        2 - resume SiK interface
 // u8+: data response
+
+#define PACKET_TYPE_OTA_UPDATE_STATUS 75
+// From vehicle to controller, during OTA update
+// u8 status
+// u32 counter
+#define OTA_UPDATE_STATUS_START_PROCESSING 1
+#define OTA_UPDATE_STATUS_UNPACK 2
+#define OTA_UPDATE_STATUS_UPDATING 3
+#define OTA_UPDATE_STATUS_POST_UPDATING 4
+#define OTA_UPDATE_STATUS_COMPLETED 5
+
+
+#define PACKET_TYPE_DEBUG_VEHICLE_RT_INFO 110
+// contains a vehicle_runtime_info structure
 
 #ifdef __cplusplus
 extern "C" {

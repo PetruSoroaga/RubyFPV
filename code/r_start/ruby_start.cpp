@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -42,6 +42,7 @@
 #include "../base/models.h"
 #include "../base/models_list.h"
 #include "../base/hardware.h"
+#include "../base/hardware_files.h"
 #include "../base/hardware_camera.h"
 #include "../base/hw_procs.h"
 #include "../base/hardware_radio_serial.h"
@@ -638,7 +639,7 @@ int main(int argc, char *argv[])
    sprintf(szComm, "echo 'Ruby processes are starting...' >> /tmp/ruby_boot.log");
    hw_execute_bash_command_silent(szComm, NULL);
 
-   printf("\nRuby is starting...\n");
+   printf("\nRuby: Is starting...\n");
    fflush(stdout);
 
    #ifdef HW_PLATFORM_RASPBERRY
@@ -656,7 +657,11 @@ int main(int argc, char *argv[])
    #endif
 
    sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
-   hw_execute_bash_command_silent(szComm, NULL);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
 
    bool bIsFirstBoot = false;
    strcpy(szFile, FOLDER_CONFIG);
@@ -684,7 +689,7 @@ int main(int argc, char *argv[])
 
    log_line("Found good console, starting Ruby...");
 
-   printf("\nRuby Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
+   printf("\nRuby: Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
    fflush(stdout);
    bool readWriteOk = false;
    int readWriteRetryCount = 0;
@@ -720,6 +725,11 @@ int main(int argc, char *argv[])
       system("cd /home/radxa/ruby");
       hardware_sleep_ms(100);
       #endif
+
+      sprintf(szComm, "chmod 777 %s", FOLDER_BINARIES);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
+      hw_execute_bash_command(szComm, NULL);
 
       // For temporary fifo-s, same tmp root folder on all platforms
       hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
@@ -838,20 +848,35 @@ int main(int argc, char *argv[])
 
    log_line("Files are ok, checking processes and init log files...");
 
+   sprintf(szComm, "chmod 777 %s", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
+   hw_execute_bash_command(szComm, NULL);
+
    #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
    _check_files();
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_bash_command("sed -i '/98:03:cf/d' /etc/udev/rules.d/98-custom-wifi.rules", NULL);
    #endif
 
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    _log_openipc_info();
    #endif
 
-   log_line("Ruby Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
-   printf("Ruby Start on verison %d.%d (b %d)\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+   log_line("Ruby: Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+   printf("Ruby: Start on verison %d.%d (b %d)\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    fflush(stdout);
    u32 uBaseVersion = hardware_get_base_ruby_version();
-   log_line("Ruby base version is %d.%d", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
-   printf("Ruby base version is %d.%d\n", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
+   log_line("Ruby: Base version is %d.%d", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
+   printf("Ruby: Base version is %d.%d\n", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
    fflush(stdout);
    char szOutput[4096];
    szOutput[0] = 0;
@@ -867,7 +892,7 @@ int main(int argc, char *argv[])
    hw_execute_bash_command("modprobe i2c-dev", NULL);
    #endif
 
-   hardware_radio_load_radio_modules();
+   hardware_radio_load_radio_modules(1);
      
    hardware_sleep_ms(50);
 
@@ -893,7 +918,7 @@ int main(int argc, char *argv[])
    int iMaxWifiCardsToDetect = 4;
    int iWifiIndexToTry = 0;
 
-   while ( iCount < 10 )
+   while ( iCount < 5 )
    {
       iCount++;
       szOutput[0] = 0;
@@ -913,6 +938,8 @@ int main(int argc, char *argv[])
 
       if ( bWiFiDetected )
          break;
+
+      hardware_radio_load_radio_modules(1);
 
       for( int i=0; i<iMaxWifiCardsToDetect; i++ )
       {
@@ -1012,6 +1039,7 @@ int main(int argc, char *argv[])
    fflush(stdout);
    hardware_i2c_reset_enumerated_flag();
    hardware_enumerate_i2c_busses();
+   hardware_i2c_save_device_settings();
    int iKnown = hardware_get_i2c_found_count_known_devices();
    int iConfigurable = hardware_get_i2c_found_count_configurable_devices();
    if ( 0 == iKnown && 0 == iConfigurable )
@@ -1032,9 +1060,9 @@ int main(int argc, char *argv[])
    hardware_getCameraType();
    hardware_getBoardType();
 
-   //#ifdef HW_PLATFORM_RASPBERRY
+   #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
-   //#endif
+   #endif
 
    detectSystemType();
 
@@ -1208,7 +1236,21 @@ int main(int argc, char *argv[])
          return 0;
       }
    }
-   
+   else
+   {
+       hw_execute_bash_command("chmod 777 res/*", NULL);
+       #if defined (HW_PLATFORM_RADXA_ZERO3)
+       hw_execute_bash_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", szOutput);
+       if ( NULL == strstr(szOutput, "performance") )
+          hardware_set_default_radxa_cpu_freq();
+
+       hw_execute_bash_command("systemctl disable systemd-journald.service", NULL);
+       hw_execute_bash_command("systemctl mask systemd-journald.service", NULL);
+       hw_execute_bash_command("systemctl disable rknpu2.service", NULL);
+       hw_execute_bash_command("systemctl mask rknpu2.service", NULL);
+       #endif
+   }
+
    hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
    log_line("ruby_start: [%s]", szOutput);
 
@@ -1217,17 +1259,17 @@ int main(int argc, char *argv[])
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
 
-   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
-   hw_execute_ruby_process_wait(NULL, "ruby_rt_station", "-ver", szOutput, 1);
-   log_line("ruby_rt_station: [%s]", szOutput);
-   hw_execute_ruby_process_wait(NULL, "ruby_rx_telemetry", "-ver", szOutput, 1);
-   log_line("ruby_rx_telemetry: [%s]", szOutput);
-   hw_execute_ruby_process_wait(NULL, "ruby_tx_rc", "-ver", szOutput, 1);
-   log_line("ruby_tx_rc: [%s]", szOutput);
-   hw_execute_ruby_process_wait(NULL, "ruby_central", "-ver", szOutput, 1);
-   log_line("ruby_central: [%s]", szOutput);
-   #endif
-
+   if ( !s_isVehicle )
+   {
+      hw_execute_ruby_process_wait(NULL, "ruby_rt_station", "-ver", szOutput, 1);
+      log_line("ruby_rt_station: [%s]", szOutput);
+      hw_execute_ruby_process_wait(NULL, "ruby_rx_telemetry", "-ver", szOutput, 1);
+      log_line("ruby_rx_telemetry: [%s]", szOutput);
+      hw_execute_ruby_process_wait(NULL, "ruby_tx_rc", "-ver", szOutput, 1);
+      log_line("ruby_tx_rc: [%s]", szOutput);
+      hw_execute_ruby_process_wait(NULL, "ruby_central", "-ver", szOutput, 1);
+      log_line("ruby_central: [%s]", szOutput);
+   }
 
    _check_for_update_from_boot();
 
@@ -1282,8 +1324,8 @@ int main(int argc, char *argv[])
          hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", NULL, NULL, 1);
          sprintf(szComm, "rm -rf %sruby_update_vehicle", FOLDER_BINARIES);
          hw_execute_bash_command(szComm, NULL);
-         printf("Ruby: Executing post update changes. Done.\n");
-         log_line("Executing post update changes. Done.");
+         printf("Ruby: Executing post update changes on vehicle. Done.\n");
+         log_line("Executing post update changes on vehicle. Done.");
 
          strcpy(szFile, FOLDER_CONFIG);
          strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
@@ -1309,8 +1351,8 @@ int main(int argc, char *argv[])
          fflush(stdout);
          hw_execute_ruby_process_wait(NULL, "ruby_update_controller", NULL, NULL, 1);
          hw_execute_bash_command("rm -f ruby_update_controller", NULL);
-         printf("Ruby: Executing post update changes. Done.\n");
-         log_line("Executing post update changes. Done.");
+         printf("Ruby: Executing post update changes on controller. Done.\n");
+         log_line("Executing post update changes on controller. Done.");
       }
    }
 
@@ -1606,9 +1648,19 @@ int main(int argc, char *argv[])
       log_line("Copy boot log to /config partition. Done.");
       #endif
 
+      char szFileUpdate[128];
+      strcpy(szFileUpdate, FOLDER_RUBY_TEMP);
+      strcat(szFileUpdate, FILE_TEMP_UPDATE_IN_PROGRESS);
+
       int iCheckCount = 0;
       while ( true )
       {
+         if ( access(szFileUpdate, R_OK) != -1 )
+         {
+            log_line("Detected update in progress. Stop main look check.");
+            break;
+         }
+
          bool bError = false;
 
          if ( hw_process_exists("ruby_start") )

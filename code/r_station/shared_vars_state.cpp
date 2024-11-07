@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -68,6 +68,7 @@ void resetVehicleRuntimeInfo(int iIndex)
       g_State.vehiclesRuntimeInfo[iIndex].uRadioLinkRoundtripMsMax[i] = MAX_U32;
    }
 
+   g_State.vehiclesRuntimeInfo[iIndex].uLastTimeReceivedAckFromVehicle = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uRadioLinksMinimumRoundtripMs = MAX_U32;
    g_State.vehiclesRuntimeInfo[iIndex].iVehicleClockIsBehindThisMilisec = MAX_U32;
 
@@ -82,6 +83,11 @@ void resetVehicleRuntimeInfo(int iIndex)
    g_State.vehiclesRuntimeInfo[iIndex].uMinCommandRoundtripMiliseconds = MAX_U32;
    g_State.vehiclesRuntimeInfo[iIndex].bReceivedKeyframeInfoInVideoStream = false;
    
+   g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSet = 0xFF;
+   g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSetRequestedBy = 0;
+   g_State.vehiclesRuntimeInfo[iIndex].uLastTimeSentVideoProfileRequest = 0;
+   g_State.vehiclesRuntimeInfo[iIndex].uLastTimeRecvVideoProfileAck = 0;
+
    // Reset shared mem adaptive info
 
    memset(&(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex]), 0, sizeof(shared_mem_controller_adaptive_video_info_vehicle));
@@ -148,6 +154,25 @@ void removeVehicleRuntimeInfo(int iIndex)
    }
    resetVehicleRuntimeInfo(MAX_CONCURENT_VEHICLES-1);
 }
+
+bool isPairingDoneWithVehicle(u32 uVehicleId)
+{
+   if ( (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
+      return false;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == 0 )
+         continue;
+      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId != uVehicleId )
+         continue;
+
+      if ( g_State.vehiclesRuntimeInfo[i].bIsPairingDone )
+         return true;
+      return false;
+   }
+   return false;
+}
+
 
 int getVehicleRuntimeIndex(u32 uVehicleId)
 {

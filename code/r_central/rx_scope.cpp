@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -392,9 +392,9 @@ void rx_scope_read_data()
    
    radio_hw_info_t* pNICInfo = hardware_get_radio_info(s_RXScopeInterfaceRx);
 
-   FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &readset);
-   if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
-      maxfd = pNICInfo->monitor_interface_read.selectable_fd;
+   FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &readset);
+   if ( pNICInfo->runtimeInterfaceInfoRx.selectable_fd > maxfd )
+      maxfd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
 
    int n = select(maxfd+1, &readset, NULL, NULL, &to);
    if ( n == 0 )
@@ -402,7 +402,7 @@ void rx_scope_read_data()
    if ( n < 0 )
       return;
 
-   if (! FD_ISSET(pNICInfo->monitor_interface_read.selectable_fd, &readset))
+   if (! FD_ISSET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &readset))
       return;
 
    u8* rxBuffer = NULL;

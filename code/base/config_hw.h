@@ -3,15 +3,11 @@
 //-------------------------------------------------------------
 // The platform to build for can be forced by the makefile using the define below:
 
-#ifdef RUBY_BUILD_HW_PLATFORM_OPENIPC
+#if defined(RUBY_BUILD_HW_PLATFORM_OPENIPC)
 #define HW_PLATFORM_OPENIPC_CAMERA
-#endif
-
-#ifdef RUBY_BUILD_HW_PLATFORM_RADXA_ZERO3
+#elif defined(RUBY_BUILD_HW_PLATFORM_RADXA_ZERO3)
 #define HW_PLATFORM_RADXA_ZERO3
-#endif
-
-#ifdef RUBY_BUILD_HW_PLATFORM_PI
+#else
 #define HW_PLATFORM_RASPBERRY
 #endif
 

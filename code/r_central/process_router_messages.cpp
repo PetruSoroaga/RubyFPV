@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -36,6 +36,8 @@
 #include "../base/ctrl_preferences.h"
 #include "../common/string_utils.h"
 #include "menu/menu.h"
+#include "menu/menu_objects.h"
+#include "menu/menu_search.h"
 #include "menu/menu_diagnose_radio_link.h"
 #include "process_router_messages.h"
 #include <pthread.h>
@@ -600,7 +602,8 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( g_bSearching )
    if ( (pPH->packet_type != PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) &&
         (pPH->packet_type != PACKET_TYPE_RUBY_TELEMETRY_SHORT) &&
-        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY) ) 
+        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY) &&
+        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH) ) 
       return 0;
 
 
@@ -666,6 +669,23 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       return 0;
    }
 
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH )
+   {
+      MenuSearch::onVideoReceived(pPH->vehicle_id_src);
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_OTA_UPDATE_STATUS )
+   {
+      u8 uStatus = 0;
+      u32 uCounter = 0;
+
+      memcpy(&uStatus, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
+      memcpy(&uCounter, pPacketBuffer + sizeof(t_packet_header)+sizeof(u8), sizeof(u32));
+      log_line("Received OTA status: %d, counter %u", uStatus, uCounter);
+      Menu::updateOTAStatus(uStatus, uCounter);
+      return 0;
+   }
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE )
    {
@@ -687,8 +707,8 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
    {
       
-      if ( (get_sw_version_major(g_pCurrentModel->sw_version) < 9) ||
-           ((get_sw_version_major(g_pCurrentModel->sw_version) == 9) && (get_sw_version_minor(g_pCurrentModel->sw_version) <= 20)) )
+      if ( (get_sw_version_major(g_pCurrentModel) < 9) ||
+           ((get_sw_version_major(g_pCurrentModel) == 9) && (get_sw_version_minor(g_pCurrentModel) <= 20)) )
          return 0;
       if ( pPH->total_length < (int)sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE )
       {
@@ -815,6 +835,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          log_current_runtime_vehicles_info();
          onEventPairingStartReceivingData();
       }
+
       pRuntimeInfo->bGotFCTelemetryShort = true;
       pRuntimeInfo->bGotRubyTelemetryInfo = true;
       pRuntimeInfo->bGotRubyTelemetryInfoShort = true;
@@ -1050,9 +1071,11 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          shared_mem_radio_stats_radio_interface_compact statsCompact;
          memcpy((u8*)&statsCompact, (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(u8)), sizeof(shared_mem_radio_stats_radio_interface_compact));
          
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDbm = statsCompact.lastDbm;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmVideo = statsCompact.lastDbmVideo;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmData = statsCompact.lastDbmData;
+         //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbm = statsCompact.lastDbm;
+         //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmVideo = statsCompact.lastDbmVideo;
+         //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmData = statsCompact.lastDbmData;
+          memcpy( &(pRuntimeInfo->SMVehicleRxStats[countCards].signalInfo), &statsCompact.signalInfo, sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
+
          pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRate = statsCompact.lastRecvDataRate;
          pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateVideo = statsCompact.lastRecvDataRateVideo;
          pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateData = statsCompact.lastRecvDataRateData;
@@ -1390,7 +1413,7 @@ void * _router_ipc_thread_func(void *ignored_argument)
          pResult = ruby_ipc_try_read_message(s_fIPCFromRouter, s_BufferTmpOutputRouterMessage, &s_BufferTmpOutputRouterMessagePos, s_BufferPipeFromRouter);
       if ( NULL == pResult )
       {
-         if ( uWaitTimeMs < 50 )
+         if ( uWaitTimeMs < 30 )
             uWaitTimeMs += 5;
          hardware_sleep_ms(uWaitTimeMs);
          if ( ruby_ipc_get_read_continous_error_count() > 100 )

@@ -64,7 +64,7 @@ void _send_data()
    g_uTotalPacketsSentLastSecond++;
    g_TimeNow = get_current_timestamp_ms();
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_DATA_FULL, STREAM_ID_VIDEO_1);
+   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_DATA_98, STREAM_ID_VIDEO_1);
    PH.vehicle_id_src = g_uComponentID;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + g_iPacketSize*sizeof(u8);
@@ -199,7 +199,7 @@ void _process_rx_packet(u8* pPacketBuffer, int nLength, int iCount)
       return ;
    }
 
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
    {
       u32 uRemoteLocalTimeMs = 0;
       memcpy(&uRemoteLocalTimeMs, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
@@ -258,9 +258,9 @@ void _try_receive_packets()
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( pNICInfo->openedForRead )
       {
-         FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &g_Readset);
-         if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pNICInfo->monitor_interface_read.selectable_fd;
+         FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &g_Readset);
+         if ( pNICInfo->runtimeInterfaceInfoRx.selectable_fd > maxfd )
+            maxfd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
       } 
    }
 
@@ -270,7 +270,7 @@ void _try_receive_packets()
     struct pollfd fds[5];
     memset(fds, '\0', sizeof(fds)); 
     radio_hw_info_t* pNICInfo = hardware_get_radio_info(0);
-    fds[0].fd = pNICInfo->monitor_interface_read.selectable_fd;
+    fds[0].fd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
     fds[0].events = POLLIN; 
     
    int nResult = poll(fds, 1, 1); 
@@ -320,7 +320,7 @@ void _try_receive_packets()
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(0);
       
-   int retval = pcap_next_ex(pRadioHWInfo->monitor_interface_read.ppcap, &ppcapPacketHeader, (const u_char**)&pRadioPayload);
+   int retval = pcap_next_ex(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, &ppcapPacketHeader, (const u_char**)&pRadioPayload);
    log_line("DEBUG retval: %d", retval);
    */
 }

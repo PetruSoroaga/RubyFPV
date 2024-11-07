@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -111,11 +111,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_DOWNLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Download_File_Segment"); break;
       case COMMAND_ID_CLEAR_LOGS: strcpy(szCommandDesc, "Clear_Logs"); break;
       case COMMAND_ID_SET_VEHICLE_BOARD_TYPE: strcpy(szCommandDesc, "Set_Vehicle_Board_Type"); break;
-      case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW: strcpy(szCommandDesc, "Manual switch to video link low quality"); break;
-      case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED: strcpy(szCommandDesc, "Manual switch to video link med quality"); break;
-      case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_NORMAL: strcpy(szCommandDesc, "Manual switch to video link normal quality"); break;
-      case COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO: strcpy(szCommandDesc, "Manual switch to auto video link quality"); break;
-
+      
       default:
          sprintf(szCommandDesc, "%d", command_type);
          break;

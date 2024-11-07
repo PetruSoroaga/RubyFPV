@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -562,7 +562,7 @@ void _read_RCIn_OldMethod()
       g_pSMRCIn->uChannelsCount = (u8)nCh;
       for( int i=0; i<nCh; i++ )
       {
-         if ( s_lastRCReadVals[i] < 2500 )
+         if ( s_lastRCReadVals[i] < 4000 )
             g_pSMRCIn->uChannels[i] = s_lastRCReadVals[i];
          //else
          //   log_line("%d: %u", i, (u32) s_lastRCReadVals[i]);
@@ -669,9 +669,29 @@ void checkReadRCIn()
                val += (bufferIn[18+i/2] & 0x0F)*256;
             else
                val += (bufferIn[18+i/2]>>4)*256;
-            if ( val > 500 && val < 2500 )
+            if ( (val > 0) && (val <= 4000) )
                g_pSMRCIn->uChannels[i] = val;
          }
+         /*
+         char szBuffD[256];
+         szBuffD[0] = 0;
+         for( int i=0; i<nCh; i++ )
+         {
+            u16 val = bufferIn[2+i];
+            if ( (i%2) == 0 )
+               val += (bufferIn[18+i/2] & 0x0F)*256;
+            else
+               val += (bufferIn[18+i/2]>>4)*256;
+            if ( val > 500 && val < 2500 )
+               g_pSMRCIn->uChannels[i] = val;
+
+            char szTmp[32];
+            sprintf(szTmp, "%d ", val);
+            if ( i < 8 )
+               strcat(szBuffD, szTmp);
+         }
+         log_line("%s", szBuffD);
+         */
       }
    }
 #endif
@@ -932,7 +952,7 @@ int main(int argc, char *argv[])
    }
    
    log_init("RubyI2C");
-   log_enable_stdout();
+   //log_enable_stdout();
 
    hardware_enumerate_i2c_busses();
 
@@ -958,7 +978,10 @@ int main(int argc, char *argv[])
       g_pSMRCIn->uChannelsCount = 0;
       for( int i=0; i<MAX_RC_CHANNELS; i++ )
          g_pSMRCIn->uChannels[i] = 0;
+      log_line("Openened shared mem [%s] for writing.", SHARED_MEM_NAME_I2C_CONTROLLER_RC_IN);
    }
+   else
+      log_softerror_and_alarm("Failed to open shared mem [%s] for writing.", SHARED_MEM_NAME_I2C_CONTROLLER_RC_IN);
 
    if ( NULL != g_pSMRotaryEncoderButtonsEvents )
    {
@@ -978,6 +1001,9 @@ int main(int argc, char *argv[])
    char szFile[128];
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_I2C_UPDATED);
+
+   log_line("----------------------------------------------");
+   log_line("Initialization complete. Starting main loop...");
 
    g_TimeLastReloadCheck = g_TimeNow = get_current_timestamp_ms();
 

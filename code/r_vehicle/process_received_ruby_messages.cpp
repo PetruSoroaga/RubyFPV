@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -34,16 +34,17 @@
 #include "../base/models_list.h"
 #include "../base/ruby_ipc.h"
 #include "../base/hardware_radio_sik.h"
+#include "../common/radio_stats.h"
 #include "../common/string_utils.h"
 #include "../common/relay_utils.h"
 #include "../radio/radiolink.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
+#include "../radio/radio_duplicate_det.h"
+
 #include "timers.h"
 #include "packets_utils.h"
 #include "processor_tx_video.h"
-#include "video_link_stats_overwrites.h"
-#include "video_link_auto_keyframe.h"
 #include "events.h"
 #include "test_link_params.h"
 
@@ -119,10 +120,40 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) )
          memcpy(&uResendCount, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
 
-      log_line("Received pairing request from controller (received resend count: %u). CID: %u, VID: %u. Sending confirmation back.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
+      log_line("Received pairing request from controller (received resend count: %u). CID: %u, VID: %u.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
       
-      process_data_tx_video_reset_retransmissions_history_info();
-      
+      if (g_uControllerId != pPH->vehicle_id_src )
+      {
+         g_uControllerId = pPH->vehicle_id_src;
+         g_pCurrentModel->uControllerId = g_uControllerId;
+         saveCurrentModel();
+         char szFile[128];
+         strcpy(szFile, FOLDER_CONFIG);
+         strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+         FILE* fd = fopen(szFile, "w");
+         if ( NULL != fd )
+         {
+            fprintf(fd, "%u\n", g_uControllerId);
+            fclose(fd);
+         }
+
+         radio_duplicate_detection_init();
+         u32 uRefreshIntervalMs = 100;
+         switch ( g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )
+         {
+            case 0: uRefreshIntervalMs = 10; break;
+            case 1: uRefreshIntervalMs = 20; break;
+            case 2: uRefreshIntervalMs = 50; break;
+            case 3: uRefreshIntervalMs = 100; break;
+            case 4: uRefreshIntervalMs = 200; break;
+            case 5: uRefreshIntervalMs = 500; break;
+         } 
+         radio_stats_reset_received_info(&g_SM_RadioStats);
+         process_data_tx_video_reset_retransmissions_history_info();
+      }
+
+      g_bReceivedPairingRequest = true;
+
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
       if ( g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_REMOTE )
@@ -146,27 +177,11 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet+sizeof(t_packet_header), &s_uResendPairingConfirmationCounter, sizeof(u32));
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
-      g_bReceivedPairingRequest = true;
-      g_uControllerId = pPH->vehicle_id_src;
-      if ( g_pCurrentModel->uControllerId != g_uControllerId )
-      {
-         g_pCurrentModel->uControllerId = g_uControllerId;
-         saveCurrentModel();
-         char szFile[128];
-         strcpy(szFile, FOLDER_CONFIG);
-         strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
-         FILE* fd = fopen(szFile, "w");
-         if ( NULL != fd )
-         {
-            fprintf(fd, "%u\n", g_uControllerId);
-            fclose(fd);
-         }
-      }
-
       // Forward to other components
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, pPacketBuffer, pPH->total_length);
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, pPacketBuffer, pPH->total_length);
-      ruby_ipc_channel_send_message(s_fIPCRouterToRC, pPacketBuffer, pPH->total_length);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, pPacketBuffer, pPH->total_length);
       return 0;
    }
 

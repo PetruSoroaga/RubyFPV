@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -43,6 +43,7 @@
 #include "../base/models_list.h"
 #include "../base/radio_utils.h"
 #include "../base/hardware.h"
+#include "../base/hardware_files.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
 #include "../base/parse_fc_telemetry.h"
@@ -55,6 +56,8 @@
 #include "../radio/radio_tx.h"
 #include "../radio/radio_duplicate_det.h"
 #include "../base/controller_utils.h"
+#include "../base/controller_rt_info.h"
+#include "../base/vehicle_rt_info.h"
 #include "../base/core_plugins_settings.h"
 #include "../common/models_connect_frequencies.h"
 
@@ -67,13 +70,12 @@
 #include "process_radio_in_packets.h"
 #include "process_local_packets.h"
 #include "packets_utils.h"
-#include "video_link_adaptive.h"
-#include "video_link_keyframe.h"
 #include "test_link_params.h"
 
 #include "timers.h"
 #include "radio_links.h"
 #include "radio_links_sik.h"
+#include "adaptive_video.h"
 
 u8 s_BufferCommands[MAX_PACKET_TOTAL_SIZE];
 u8 s_PipeBufferCommands[MAX_PACKET_TOTAL_SIZE];
@@ -102,7 +104,7 @@ int s_iSearchSikMCSTR = -1;
 
 u32 s_uTimeLastTryReadIPCMessages = 0;
 
-#define MAX_RADIO_PACKETS_TO_CACHE_LOCALLY 20
+#define MAX_RADIO_PACKETS_TO_CACHE_LOCALLY 100
 type_received_radio_packet s_ReceivedRadioPacketsBuffer[MAX_RADIO_PACKETS_TO_CACHE_LOCALLY];
 
 void _broadcast_radio_interface_init_failed(int iInterfaceIndex)
@@ -115,6 +117,7 @@ void _broadcast_radio_interface_init_failed(int iInterfaceIndex)
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   radio_packet_compute_crc(buffer, PH.total_length);
    
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -830,6 +833,7 @@ void broadcast_router_ready()
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   radio_packet_compute_crc(buffer, PH.total_length);
    
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -943,6 +947,17 @@ bool _check_send_or_queue_ping()
          s_uPingToSendLocalRadioLinkId = 0;
    }
    
+   u32 uDestinationVehicleId = 0;
+   if ( 0 == s_uPingToSendVehicleIndex )
+      uDestinationVehicleId = g_pCurrentModel->uVehicleId;
+
+   if ( 1 == s_uPingToSendVehicleIndex )
+      uDestinationVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
+
+   // If vehicle is not paired yet, do not send pings
+   if ( ! isPairingDoneWithVehicle(uDestinationVehicleId) )
+      return false;
+
    int iVehicleRadioLinkId = g_SM_RadioStats.radio_links[s_uPingToSendLocalRadioLinkId].matchingVehicleRadioLinkId;
    if ( (iVehicleRadioLinkId < 0) || (iVehicleRadioLinkId >= MAX_RADIO_INTERFACES) ||
       ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY ) )
@@ -952,15 +967,8 @@ bool _check_send_or_queue_ping()
    if ( test_link_get_test_link_index() == iVehicleRadioLinkId )
       return false;
      
-   u32 uDestinationVehicleId = 0;
    u8 uDestinationRelayCapabilities = 0;
    u8 uDestinationRelayMode = 0;
-
-   if ( 0 == s_uPingToSendVehicleIndex )
-      uDestinationVehicleId = g_pCurrentModel->uVehicleId;
-
-   if ( 1 == s_uPingToSendVehicleIndex )
-      uDestinationVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
 
    if ( 0 == s_uPingToSendVehicleIndex )
    if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
@@ -1108,7 +1116,7 @@ void _process_and_send_packets_individually()
       
       for( int i=0; i<send_count; i++ )
       {
-         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
+         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1, send_count);
          if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
             add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, 0, 0, 0, 0, 0);
       }
@@ -1209,7 +1217,7 @@ void _process_and_send_packets()
             if ( i != 0 )
                hardware_sleep_ms(2);
 
-            send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
+            send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1, 100 + send_count);
             if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
                add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
          }
@@ -1281,7 +1289,7 @@ void _process_and_send_packets()
          if ( i != 0 )
             hardware_sleep_ms(2);
 
-         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
+         send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1, 200 + send_count);
          if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
             add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
       }
@@ -1298,7 +1306,7 @@ void _process_and_send_packets()
          if ( i != 0 )
             hardware_sleep_ms(2);
 
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
+         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1, 300 + send_count);
 
          if ( g_bDebugIsPacketsHistoryGraphOn && (!g_bDebugIsPacketsHistoryGraphPaused) )
             add_detailed_history_tx_packets(g_pDebug_SM_RouterPacketsStatsHistory, g_TimeNow % 1000, 0, countComm, 0, countRC, 0, 0);
@@ -1353,6 +1361,8 @@ void _read_ipc_pipes(u32 uTimeNow)
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferMessageFromTelemetry); 
       else
       {
+         if ( ! isPairingDoneWithVehicle(pPH->vehicle_id_dest) )
+            continue;
          _preprocess_radio_out_packet(s_BufferMessageFromTelemetry);
          packets_queue_add_packet(&s_QueueRadioPackets, s_BufferMessageFromTelemetry);
       }
@@ -1369,6 +1379,8 @@ void _read_ipc_pipes(u32 uTimeNow)
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferRCUplink); 
       else
       {
+         if ( ! isPairingDoneWithVehicle(pPH->vehicle_id_dest) )
+            continue;
          _preprocess_radio_out_packet(s_BufferRCUplink);
          packets_queue_add_packet(&s_QueueRadioPackets, s_BufferRCUplink);
       }
@@ -1381,6 +1393,24 @@ void init_shared_memory_objects()
 {
    g_TimeNow = get_current_timestamp_ms();
    radio_stats_interfaces_rx_graph_reset(&g_SM_RadioStatsInterfacesRxGraph, 10);
+
+   g_pSMControllerRTInfo = controller_rt_info_open_for_write();
+   if ( NULL == g_pSMControllerRTInfo )
+      log_softerror_and_alarm("Failed to open shared mem to controller runtime info for writing: %s", SHARED_MEM_CONTROLLER_RUNTIME_INFO);
+   else
+      log_line("Opened shared mem to controller runtime info for writing.");
+
+   if ( NULL != g_pSMControllerRTInfo )
+      memcpy((u8*)g_pSMControllerRTInfo, (u8*)&g_SMControllerRTInfo, sizeof(controller_runtime_info));
+
+   g_pSMVehicleRTInfo = vehicle_rt_info_open_for_write();
+   if ( NULL == g_pSMVehicleRTInfo )
+      log_softerror_and_alarm("Failed to open shared mem to vehicle runtime info for writing: %s", SHARED_MEM_VEHICLE_RUNTIME_INFO);
+   else
+      log_line("Opened shared mem to vehicle runtime info for writing.");
+
+   if ( NULL != g_pSMVehicleRTInfo )
+      memcpy((u8*)g_pSMVehicleRTInfo, (u8*)&g_SMVehicleRTInfo, sizeof(vehicle_runtime_info));
 
    g_pSM_RadioStatsInterfacesRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_write();
    if ( NULL == g_pSM_RadioStatsInterfacesRxGraph )
@@ -1425,34 +1455,27 @@ void init_shared_memory_objects()
       g_pSM_AudioDecodeStats = NULL;
    }
 
-   g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open(false);
+   g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open_for_write();
    if ( NULL == g_pSM_VideoDecodeStats )
-      log_softerror_and_alarm("Failed to open video decoder stats shared memory for read/write.");
+      log_softerror_and_alarm("Failed to open video decoder stats shared memory for write.");
    else
-      log_line("Opened video decoder stats shared memory for read/write: success.");
+      log_line("Opened video decoder stats shared memory for write: success.");
    memset((u8*)&g_SM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
 
 
    g_pSM_VideoDecodeStatsHistory = shared_mem_video_stream_stats_history_rx_processors_open(false);
    if ( NULL == g_pSM_VideoDecodeStatsHistory )
-      log_softerror_and_alarm("Failed to open video decoder stats history shared memory for read/write.");
+      log_softerror_and_alarm("Failed to open video decoder stats history shared memory for write.");
    else
-      log_line("Opened video decoder stats history shared memory for read/write: success.");
+      log_line("Opened video decoder stats history shared memory for write: success.");
    memset((u8*)&g_SM_VideoDecodeStatsHistory, 0, sizeof(shared_mem_video_stream_stats_history_rx_processors));
 
 
-   g_pSM_ControllerRetransmissionsStats = shared_mem_controller_video_retransmissions_stats_open_for_write();
-   if ( NULL == g_pSM_ControllerRetransmissionsStats )
-      log_softerror_and_alarm("Failed to open video retransmissions stats shared memory for read/write.");
-   else
-      log_line("Opened video retransmissions stats shared memory for read/write: success.");
-   memset((u8*)&g_SM_ControllerRetransmissionsStats, 0, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
-
    g_pSM_RadioRxQueueInfo = shared_mem_radio_rx_queue_info_open_for_write();
    if ( NULL == g_pSM_RadioRxQueueInfo )
-      log_softerror_and_alarm("Failed to open radio rx queue info shared memory for read/write.");
+      log_softerror_and_alarm("Failed to open radio rx queue info shared memory for write.");
    else
-      log_line("Opened radio rx queue info shared memory for read/write: success.");
+      log_line("Opened radio rx queue info shared memory for write: success.");
    memset((u8*)&g_SM_RadioRxQueueInfo, 0, sizeof(shared_mem_radio_rx_queue_info));
    g_SM_RadioRxQueueInfo.uMeasureIntervalMs = 100;
 
@@ -1492,12 +1515,14 @@ void init_shared_memory_objects()
    if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
       memcpy( (u8*)g_pSM_RouterVehiclesRuntimeInfo, (u8*)&g_SM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
 
+// To fix
+     /*
    g_pSM_VideoLinkStats = shared_mem_video_link_stats_open_for_write();
    if ( NULL == g_pSM_VideoLinkStats )
       log_softerror_and_alarm("Failed to open shared mem video link stats for writing: %s", SHARED_MEM_VIDEO_LINK_STATS);
    else
       log_line("Opened shared mem video link stats stats for writing.");
-
+*/
    g_pSM_VideoLinkGraphs = shared_mem_video_link_graphs_open_for_write();
    if ( NULL == g_pSM_VideoLinkGraphs )
       log_softerror_and_alarm("Failed to open shared mem video link graphs for writing: %s", SHARED_MEM_VIDEO_LINK_GRAPHS);
@@ -1668,6 +1693,13 @@ int _consume_radio_rx_packets()
      
    u32 uTimeStart = get_current_timestamp_ms();
 
+   // To fix remove
+   for( int i=0; i<MAX_RADIO_PACKETS_TO_CACHE_LOCALLY; i++ )
+   {
+      memset(s_ReceivedRadioPacketsBuffer[i].pPacketData, 0, MAX_PACKET_TOTAL_SIZE);
+   }
+
+
    int iCount = radio_rx_get_received_packets(iReceivedAnyPackets, s_ReceivedRadioPacketsBuffer);
 
    for( int i=0; i<iCount; i++ )
@@ -1681,22 +1713,24 @@ int _consume_radio_rx_packets()
       process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);
       shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
 
-      if ( i % 4 )
+      if ( i % 10 )
          continue;
-      u32 uTime = get_current_timestamp_ms();    
-      if ( uTime > uTimeStart + 500 )
+      g_TimeNow = get_current_timestamp_ms();    
+      if ( g_TimeNow > uTimeStart + 500 )
       {
-         log_softerror_and_alarm("Consuming radio rx packets takes too long (%u ms), read ipc messages.", uTime - uTimeStart);
-         uTimeStart = uTime;
-         _read_ipc_pipes(uTime);
+         log_softerror_and_alarm("Consuming radio rx packets takes too long (%u ms), read ipc messages.", g_TimeNow - uTimeStart);
+         uTimeStart = g_TimeNow;
+         _read_ipc_pipes(g_TimeNow);
       }
-      if ( (0 != s_uTimeLastTryReadIPCMessages) && (uTime > s_uTimeLastTryReadIPCMessages + 500) )
+      if ( (0 != s_uTimeLastTryReadIPCMessages) && (g_TimeNow > s_uTimeLastTryReadIPCMessages + 500) )
       {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
-         uTimeStart = uTime;
-         _read_ipc_pipes(uTime);
+         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", g_TimeNow - s_uTimeLastTryReadIPCMessages);
+         uTimeStart = g_TimeNow;
+         _read_ipc_pipes(g_TimeNow);
       }
    }
+
+   g_SMControllerRTInfo.uRxProcessedPackets[g_SMControllerRTInfo.iCurrentIndex] += iCount;
    return iCount;
 }
 
@@ -1754,7 +1788,7 @@ void _check_send_pairing_requests()
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet + sizeof(t_packet_header), &(g_State.vehiclesRuntimeInfo[i].uPairingRequestId), sizeof(u32));
-      if ( 0 == send_packet_to_radio_interfaces(packet, PH.total_length, -1) )
+      if ( 0 == send_packet_to_radio_interfaces(packet, PH.total_length, -1, 500) )
       {
          if ( g_State.vehiclesRuntimeInfo[i].uPairingRequestId < 2 )
             send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_SENT_PAIRING_REQUEST, PH.vehicle_id_dest);
@@ -1799,6 +1833,7 @@ void _router_periodic_loop()
    if ( bInterfcesWithNoData )
    if ( g_TimeNow > radio_linkgs_get_last_set_monitor_time() + 2000 )
    if ( g_TimeNow - g_TimeStart > 2000 )
+   if ( ! g_bUpdateInProgress )
    if ( ! test_link_is_in_progress() )
       radio_links_set_monitor_mode();
 
@@ -1902,6 +1937,7 @@ void _router_periodic_loop()
          memcpy(packet+sizeof(t_packet_header), &g_uGetSiKConfigAsyncVehicleLinkIndex, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
+         radio_packet_compute_crc(packet, PH.total_length);
          if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
             log_softerror_and_alarm("No pipe to central to send message to.");
 
@@ -1919,15 +1955,10 @@ void _router_periodic_loop()
       {
          if ( g_pVideoProcessorRxList[i] == NULL )
             break;
-         memcpy((u8*)&(g_SM_VideoDecodeStats.video_streams[i]), g_pVideoProcessorRxList[i]->getVideoDecodeStats(), sizeof(shared_mem_video_stream_stats));
          memcpy((u8*)&(g_SM_VideoDecodeStatsHistory.video_streams[i]), g_pVideoProcessorRxList[i]->getVideoDecodeStatsHistory(), sizeof(shared_mem_video_stream_stats_history));
-         memcpy((u8*)&(g_SM_ControllerRetransmissionsStats.video_streams[i]), g_pVideoProcessorRxList[i]->getControllerRetransmissionsStats(), sizeof(shared_mem_controller_retransmissions_stats));
       }
-
       memcpy(g_pSM_VideoDecodeStats, &g_SM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
       memcpy(g_pSM_VideoDecodeStatsHistory, &g_SM_VideoDecodeStatsHistory, sizeof(shared_mem_video_stream_stats_history_rx_processors));
-      memcpy(g_pSM_ControllerRetransmissionsStats, &g_SM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
-
    }
 
    if ( g_TimeNow >= g_SM_RadioRxQueueInfo.uLastMeasureTime + g_SM_RadioRxQueueInfo.uMeasureIntervalMs )
@@ -1960,6 +1991,7 @@ void _synchronize_shared_mems()
    if ( g_bQuit )
       return;
 
+   //------------------------------
    static u32 s_TimeLastVideoStatsUpdate = 0;
 
    if ( g_TimeNow >= s_TimeLastVideoStatsUpdate + 200 )
@@ -1970,7 +2002,21 @@ void _synchronize_shared_mems()
       if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
          memcpy((u8*)g_pSM_RouterVehiclesRuntimeInfo, (u8*)&g_SM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
    }
+   //------------------------------------------
 
+   //-------------------------------------------
+   static u32 s_TimeLastControllerRTInfoUpdate = 0;
+
+   if ( g_TimeNow >= s_TimeLastControllerRTInfoUpdate + 100 )
+   {
+      s_TimeLastControllerRTInfoUpdate = g_TimeNow;
+      if ( NULL != g_pSMControllerRTInfo )
+         memcpy((u8*)g_pSMControllerRTInfo, (u8*)&g_SMControllerRTInfo, sizeof(controller_runtime_info));
+      if ( NULL != g_pSMVehicleRTInfo )
+         memcpy((u8*)g_pSMVehicleRTInfo, (u8*)&g_SMVehicleRTInfo, sizeof(vehicle_runtime_info));
+   }
+   //---------------------------------------------
+   
    if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
    if ( g_TimeNow >= g_SM_VideoInfoStatsOutput.uTimeLastUpdate + 200 )
@@ -2130,6 +2176,9 @@ int main(int argc, char *argv[])
       radio_rx_set_custom_thread_priority(g_pControllerSettings->iRadioRxThreadPriority);
       radio_tx_set_custom_thread_priority(g_pControllerSettings->iRadioTxThreadPriority);
    }
+
+   controller_rt_info_init(&g_SMControllerRTInfo);
+   vehicle_rt_info_init(&g_SMVehicleRTInfo);
    init_shared_memory_objects();
 
    log_line("Init shared mem objects: done");
@@ -2222,6 +2271,7 @@ int main(int argc, char *argv[])
    else
       log_line("Router started with the default model (first model pairing was never completed)");
 
+   adaptive_video_init();
    video_processors_init();
 
    load_CorePlugins(0);
@@ -2245,7 +2295,10 @@ int main(int argc, char *argv[])
    }
 
    for( int i=0; i<MAX_RADIO_PACKETS_TO_CACHE_LOCALLY; i++ )
+   {
       s_ReceivedRadioPacketsBuffer[i].pPacketData = (u8*)malloc(MAX_PACKET_TOTAL_SIZE);
+      memset(s_ReceivedRadioPacketsBuffer[i].pPacketData, 0, MAX_PACKET_TOTAL_SIZE);
+   }
 
    hw_increase_current_thread_priority("Main thread", DEFAULT_PRIORITY_THREAD_ROUTER);
 
@@ -2286,16 +2339,18 @@ int main(int argc, char *argv[])
    video_processors_cleanup();
    uninit_processing_audio();
 
+   controller_rt_info_close(g_pSMControllerRTInfo);
+   vehicle_rt_info_close(g_pSMVehicleRTInfo);
+   
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
    shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfacesRxGraph);
    shared_mem_controller_audio_decode_stats_close(g_pSM_AudioDecodeStats);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_RX, g_pProcessStats);
    shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
    shared_mem_video_stream_stats_history_rx_processors_close(g_pSM_VideoDecodeStatsHistory);
-   shared_mem_controller_video_retransmissions_stats_close(g_pSM_ControllerRetransmissionsStats);
    shared_mem_radio_rx_queue_info_close(g_pSM_RadioRxQueueInfo);
    g_pSM_RadioRxQueueInfo = NULL;
-   shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
+   // To fix shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
    shared_mem_video_link_graphs_close(g_pSM_VideoLinkGraphs);
    shared_mem_radio_stats_close(g_pSM_RadioStats);
    shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsOutput);
@@ -2351,8 +2406,8 @@ void video_processors_init()
 
    if ( ! g_bSearching )
    {
-      video_link_adaptive_init(g_pCurrentModel->uVehicleId);
-      video_link_keyframe_init(g_pCurrentModel->uVehicleId);
+      // To fix video_link_adaptive_init(g_pCurrentModel->uVehicleId);
+      // To fix video_link_keyframe_init(g_pCurrentModel->uVehicleId);
    }
 }
 
@@ -2393,7 +2448,7 @@ void _main_loop()
 
    u32 tTime1 = get_current_timestamp_ms();
 
-   if ( (g_pProcessStats->uLoopCounter % 5) == 0 )
+   if ( (g_pProcessStats->uLoopCounter % 10) == 0 )
    {
       _read_ipc_pipes(tTime1);
       _consume_ipc_messages();
@@ -2439,18 +2494,38 @@ void _main_loop()
       return;
    }
 
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   if ( controller_rt_info_will_advance_index(&g_SMControllerRTInfo, g_TimeNow) )
    {
-      if ( g_pVideoProcessorRxList[i] == NULL )
-         break;
-      g_pVideoProcessorRxList[i]->periodicLoop(g_TimeNow);
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iCountAntennas = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount;
+         for( int k=0; k<pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount; k++ )
+         {
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmLast[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmLast[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMin[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmAvg[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmAvg[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMin[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMax[k];
+         }
+         radio_stats_reset_signal_info_for_card(&g_SM_RadioStats, i);
+      }
+
+      for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+      {
+         if ( g_pVideoProcessorRxList[i] == NULL )
+            break;
+         g_pVideoProcessorRxList[i]->periodicLoop(g_TimeNow);
+      }
+      adaptive_video_periodic_loop();
    }
-   
+
    if ( (!g_bSearching) && (NULL != g_pCurrentModel) && g_pCurrentModel->hasCamera() )
    {
       rx_video_output_periodic_loop();
-      video_link_adaptive_periodic_loop();
-      video_link_keyframe_periodic_loop();
+      // To fix video_link_adaptive_periodic_loop();
+      // To fix video_link_keyframe_periodic_loop();
    }
 
    u32 tTime5 = get_current_timestamp_ms();
@@ -2467,6 +2542,8 @@ void _main_loop()
       if ( radio_packet_type_is_high_priority(pPH->packet_type) )
          iCountHighPriorityPackets++;
 
+      // To fix, record to new structures
+      /*
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
       if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL )
       {
@@ -2476,7 +2553,8 @@ void _main_loop()
          int iIndex = getVehicleRuntimeIndex(pPH->vehicle_id_dest);
          if ( -1 != iIndex )
             g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift = (int) uLevel;
-      }   
+      }
+      */ 
    }
 
    bool bSendNow = false;
@@ -2514,6 +2592,9 @@ void _main_loop()
       s_iCountCPULoopOverflows = 0;
    }
 
+   if ( controller_rt_info_check_advance_index(&g_SMControllerRTInfo, g_TimeNow) )
+      radio_rx_set_packet_counter_output(&(g_SMControllerRTInfo.uRxVideoPackets[g_SMControllerRTInfo.iCurrentIndex][0]), &(g_SMControllerRTInfo.uRxDataPackets[g_SMControllerRTInfo.iCurrentIndex][0]), &(g_SMControllerRTInfo.uRxMissingPackets[g_SMControllerRTInfo.iCurrentIndex][0]), &(g_SMControllerRTInfo.uRxMissingPacketsMaxGap[g_SMControllerRTInfo.iCurrentIndex][0]));
+
    if ( NULL != g_pProcessStats )
    {
       if ( g_pProcessStats->uMaxLoopTimeMs < tTime6 - tTime0 )
@@ -2522,4 +2603,5 @@ void _main_loop()
       if ( 0 != g_pProcessStats->uLoopCounter )
          g_pProcessStats->uAverageLoopTimeMs = g_pProcessStats->uTotalLoopTime / g_pProcessStats->uLoopCounter;
    }
+
 }

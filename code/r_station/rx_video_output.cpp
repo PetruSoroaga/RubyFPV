@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -421,7 +421,7 @@ void rx_video_output_init()
    s_uLastVideoFrameTime= MAX_U32;
    s_bDidSentAnyDataToVideoPlayerPipe = false;
    
-   s_ParserH264Output.init(camera_get_active_camera_h264_slices(g_pCurrentModel));
+   s_ParserH264Output.init();
    
    s_VideoUSBOutputInfo.bVideoUSBTethering = false;
    s_VideoUSBOutputInfo.TimeLastVideoUSBTetheringCheck = 0;
@@ -832,24 +832,25 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
    if ( g_bSearching )
       return;
 
-   if ( g_pCurrentModel->bDeveloperMode )
-   if ( packet_length > video_data_length )
-   {
-      u8* pExtraData = pBuffer + video_data_length;
-      u32* pExtraDataU32 = (u32*)pExtraData;
-      pExtraDataU32[6] = get_current_timestamp_ms();
+   // To fix
+   //if ( g_pCurrentModel->bDeveloperMode )
+   //if ( packet_length > video_data_length + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98) + sizeof(u16) )
+   //{
+   //   u8* pExtraData = pBuffer + video_data_length;
+   //   u32* pExtraDataU32 = (u32*)pExtraData;
+   //   pExtraDataU32[6] = get_current_timestamp_ms();
       
-      /*
-      u32 uVehicleTimestampOrg = pExtraDataU32[3];
-               int iVehicleTimestampNow = (int)uVehicleTimestampOrg + radio_get_link_clock_delta();
-               if ( (int)uTimeNow - (int)iVehicleTimestampNow > 3 )
-                  log_line("DEBUG (%s)[%u/%d]%d rx v-org: %u, now-loc: %u, tr-time: %u, dclks: %d",
-                    (pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME)?"I":"P",
-                    pPHVF->video_block_index, (int)pPHVF->video_block_packet_index, iCountReads,
-                    uVehicleTimestampOrg, uTimeNow,
-                    (int)uTimeNow - (int)iVehicleTimestampNow, radio_get_link_clock_delta());
-     */
-   }
+   //   /*
+   //   u32 uVehicleTimestampOrg = pExtraDataU32[3];
+   //            int iVehicleTimestampNow = (int)uVehicleTimestampOrg + radio_get_link_clock_delta();
+    //           if ( (int)uTimeNow - (int)iVehicleTimestampNow > 3 )
+   //               log_line("DEBUG (%s)[%u/%d]%d rx v-org: %u, now-loc: %u, tr-time: %u, dclks: %d",
+   //                 (pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME)?"I":"P",
+   //                 pPHVF->video_block_index, (int)pPHVF->video_block_packet_index, iCountReads,
+   //                 uVehicleTimestampOrg, uTimeNow,
+    //                (int)uTimeNow - (int)iVehicleTimestampNow, radio_get_link_clock_delta());
+   //  */
+   //}
 
    if ( NULL != g_pCurrentModel )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )

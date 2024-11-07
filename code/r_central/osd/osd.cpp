@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -34,6 +34,7 @@
 #include "osd_ahi.h"
 #include "osd_warnings.h"
 #include "osd_stats.h"
+#include "osd_debug_stats.h"
 #include "osd_gauges.h"
 #include "osd_lean.h"
 #include "osd_plugins.h"
@@ -54,6 +55,7 @@
 #include "../../base/ctrl_settings.h"
 #include "../../base/hardware.h"
 #include "../../base/hw_procs.h"
+#include "../../base/utils.h"
 
 #include "../link_watch.h"
 #include "../pairing.h"
@@ -1523,15 +1525,8 @@ void _render_osd_left_right()
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &g_SM_VideoDecodeStats.video_streams[i];
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
+
    if ( NULL == pActiveModel )
       return;
 
@@ -1827,24 +1822,17 @@ void _render_osd_left_right()
       u32 uVehicleIdVideo = 0;
       if ( (osd_get_current_data_source_vehicle_index() >= 0) && (osd_get_current_data_source_vehicle_index() < MAX_CONCURENT_VEHICLES) )
          uVehicleIdVideo = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId;
-      if ( NULL == pVDS )
-         strcpy(szBuff, "N/A");
-      else if ( link_has_received_videostream(uVehicleIdVideo) )
-         strcpy(szBuff, getOptionVideoResolutionName(pVDS->width, pVDS->height));
+      if ( link_has_received_videostream(uVehicleIdVideo) && (NULL != pVDS) )
+         strcpy(szBuff, getOptionVideoResolutionName(pVDS->iCurrentVideoWidth, pVDS->iCurrentVideoHeight));
       else
          sprintf(szBuff, "[waiting]");
       osd_show_value_left(x,y, szBuff, g_idFontOSD);
       y += height_text;
 
-      uVehicleIdVideo = 0;
-      if ( (osd_get_current_data_source_vehicle_index() >= 0) && (osd_get_current_data_source_vehicle_index() < MAX_CONCURENT_VEHICLES) )
-         uVehicleIdVideo = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId;
-      if ( NULL == pVDS )
-         strcpy(szBuff, "N/A");
-      else if ( link_has_received_videostream(uVehicleIdVideo) )
+      if ( link_has_received_videostream(uVehicleIdVideo) && (NULL != pVDS) )
       {
          if ( pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MODE )
-            sprintf(szBuff, "%d fps", pVDS->fps); 
+            sprintf(szBuff, "%d fps", pVDS->iCurrentVideoFPS); 
       }
       else
          sprintf(szBuff, "[waiting]");
@@ -1955,15 +1943,7 @@ void osd_render_elements()
 {
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &g_SM_VideoDecodeStats.video_streams[i];
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
    if ( NULL == pActiveModel )
       return;
 
@@ -2205,8 +2185,7 @@ void osd_render_elements()
          strcpy(szBuff, "N/A");
       else if ( link_has_received_videostream(uVehicleIdVideo) )
       {
-         //sprintf(szBuff, "%d x %d  %d fps", g_SM_VideoDecodeStats.width, g_SM_VideoDecodeStats.height, g_SM_VideoDecodeStats.fps);
-         sprintf(szBuff, "%s %d fps", getOptionVideoResolutionName(pVDS->width, pVDS->height), pVDS->fps);
+         sprintf(szBuff, "%s %d fps", getOptionVideoResolutionName(pVDS->iCurrentVideoWidth, pVDS->iCurrentVideoHeight), pVDS->iCurrentVideoFPS);
       }
       else
          sprintf(szBuff, "[waiting]");
@@ -2671,7 +2650,7 @@ void _osd_render_msp(Model* pModel)
    int iImgCharHeight = 54;
 
    float fScreenCharWidth = (1.0 - 2.0*osd_getMarginX()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uCols;
-   float fSrceenCharHeight = (1.0 - 2.0*osd_getMarginY()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uRows;
+   float fScreenCharHeight = (1.0 - 2.0*osd_getMarginY()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uRows;
 
    for( int y=0; y<pRuntimeInfo->mspState.headerTelemetryMSP.uRows; y++ )
    for( int x=0; x<pRuntimeInfo->mspState.headerTelemetryMSP.uCols; x++ )
@@ -2682,10 +2661,11 @@ void _osd_render_msp(Model* pModel)
       u8 uPage = uChar >> 8;
 
       int iImgSrcX = ((int)(uPage & 0x03)) * iImgCharWidth;
-      int iImgSrcY = ((int)(uChar & 0xFF))*iImgCharHeight;
+      int iImgSrcY = ((int)(uChar & 0xFF)) * iImgCharHeight;
+
       g_pRenderEngine->bltImage(osd_getMarginX() + x * fScreenCharWidth,
-                                osd_getMarginY() + y * fSrceenCharHeight,
-         fScreenCharWidth, fSrceenCharHeight,
+                                osd_getMarginY() + y * fScreenCharHeight,
+         fScreenCharWidth, fScreenCharHeight,
          iImgSrcX, iImgSrcY, iImgCharWidth, iImgCharHeight, uImgId);
    }
 }
@@ -2785,16 +2765,7 @@ void osd_render_all()
    }
 
    if ( g_bIsRouterReady )
-   for ( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-      if ( NULL == pNICInfo )
-         continue;
-      if ( fabs(g_fOSDDbm[i] - (float)g_SM_RadioStats.radio_interfaces[i].lastDbm) > 10.0 )
-         g_fOSDDbm[i] = 0.7 * g_fOSDDbm[i] + 0.3 * (float)g_SM_RadioStats.radio_interfaces[i].lastDbm;
-      else
-         g_fOSDDbm[i] = 0.9 * g_fOSDDbm[i] + 0.1 * (float)g_SM_RadioStats.radio_interfaces[i].lastDbm;
-   }
+      shared_vars_osd_update();
 
    if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
    {
@@ -2807,7 +2778,7 @@ void osd_render_all()
       {
          case 0: color2[3] = 0.05; break;
          case 1: color2[3] = 0.26; break;
-         case 2: color2[3] = 0.4; break;
+         case 2: color2[3] = 0.5; break;
          case 3: color2[3] = 0.8; break;
       }
       g_pRenderEngine->setFontBackgroundBoundingBoxFillColor(color2);
@@ -2822,6 +2793,7 @@ void osd_render_all()
    {
       if ( pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_RENDER_MSP_OSD )
+      if ( ! g_bDebugStats )
          _osd_render_msp(pModel);
       osd_render_elements();
    }
@@ -2831,19 +2803,27 @@ void osd_render_all()
    set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
    osd_set_colors();
 
-   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
-      osd_render_instruments();
+   if ( ! g_bDebugStats )
+   {
+      if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
+         osd_render_instruments();
 
-
-   osd_widgets_render(pModel->uVehicleId, osd_get_current_layout_index());
-   osd_plugins_render();
+      osd_widgets_render(pModel->uVehicleId, osd_get_current_layout_index());
+      osd_plugins_render();
+   }
    g_pRenderEngine->drawBackgroundBoundingBoxes(false);
 
-   if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
-      osd_render_stats();
-     
-   osd_render_warnings();
-   
+   if ( ! g_bDebugStats )
+   {
+      if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
+         osd_render_stats();
+
+      osd_render_warnings();
+   }
+
+   if ( g_bDebugStats )
+      osd_render_debug_stats();
+
    if ( pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED )
    if ( (NULL != p) && (p->iShowProcessesMonitor) )
       osd_show_monitor();

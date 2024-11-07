@@ -32,6 +32,7 @@ type_u32_couters g_CoutersMainLoop;
 u32 s_debugVideoBlocksInCount = 0;
 
 t_packet_queue g_QueueRadioPacketsOut;
+VideoTxPacketsBuffer* g_pVideoTxBuffers = NULL;
 ProcessorTxVideo* g_pProcessorTxVideo = NULL;
 ProcessorTxAudio* g_pProcessorTxAudio = NULL;
 bool g_bRadioReinitialized = false;
@@ -39,6 +40,7 @@ bool g_bRadioReinitialized = false;
 shared_mem_radio_stats g_SM_RadioStats;
 shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
+vehicle_runtime_info g_VehicleRuntimeInfo;
 type_uplink_rx_info_stats g_UplinkInfoRxStats[MAX_RADIO_INTERFACES];
 int g_iDefaultRouterThreadPriority = -1;
 
@@ -55,7 +57,8 @@ u32  g_uControllerId = 0;
 t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 t_packet_header_vehicle_tx_history g_PHVehicleTxStats;
 t_packet_data_controller_link_stats g_PD_LastRecvControllerLinksStats;
-shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
+// To fix
+//shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 shared_mem_video_link_graphs g_SM_VideoLinkGraphs;
 shared_mem_dev_video_bitrate_history g_SM_DevVideoBitrateHistory;
 
@@ -64,7 +67,6 @@ shared_mem_video_info_stats g_VideoInfoStatsRadioOut;
 shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioOut = NULL;
 shared_mem_video_info_stats* g_pSM_VideoInfoStatsCameraOutput = NULL;
 
-int g_iForcedVideoProfile = -1;
 int g_iDebugShowKeyFramesAfterRelaySwitch = 0;
 
 int g_iGetSiKConfigAsyncResult = 0;

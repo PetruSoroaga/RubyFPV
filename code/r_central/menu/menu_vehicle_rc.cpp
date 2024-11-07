@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -60,6 +60,8 @@ MenuVehicleRC::MenuVehicleRC(void)
 
    m_uLastSBUSFrameTime = 0;
    m_uLastSBUSFrameIndex = 0;
+   m_bSBUSInverted = false;
+   m_iI2CRCINAddress = -1;
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
    if ( 0 == pCI->inputInterfacesCount )
@@ -144,6 +146,13 @@ MenuVehicleRC::MenuVehicleRC(void)
    m_pItemsSelect[1]->setIsEditable();
    m_IndexChannelsCount = addMenuItem(m_pItemsSelect[1]);
 
+   m_pItemsSelect[17] = new MenuItemSelect("RC Input-Output Translation", "Some RC protocols or receivers generate channels values from 0 to 2000 or from 0 to 4000. Translate them to standard 1000-2000 pulses.");
+   m_pItemsSelect[17]->addSelection("None");
+   m_pItemsSelect[17]->addSelection("0-2000 to 1000-2000");
+   m_pItemsSelect[17]->addSelection("0-4000 to 1000-2000");
+   m_pItemsSelect[17]->setIsEditable();
+   m_IndexRCTranslation = addMenuItem(m_pItemsSelect[17]);
+
    m_pItemsSelect[2] = new MenuItemSelect("RC Rate", "Frequency of the RC frames sent to vehicle");
    m_pItemsSelect[2]->addSelection("200 ms");
    m_pItemsSelect[2]->addSelection("100 ms");
@@ -212,6 +221,17 @@ void MenuVehicleRC::onShow()
    Menu::onShow();
    m_TimeLastRCCompute = g_TimeNow;
    controllerInterfacesEnumJoysticks();
+
+   m_bSBUSInverted = false;
+   m_iI2CRCINAddress = hardware_i2c_has_external_extenders_rcin();
+   if ( m_iI2CRCINAddress > 0 )
+   {
+      t_i2c_device_settings* pInfo = hardware_i2c_get_device_settings((u8)m_iI2CRCINAddress);
+      if ( pInfo->uParams[1] )
+         m_bSBUSInverted = true;
+      else
+         m_bSBUSInverted = false;
+   }
 }
 
 int MenuVehicleRC::onBack()
@@ -265,6 +285,8 @@ void MenuVehicleRC::updateUIState(bool bEnable)
 
    if ( -1 != m_IndexThrotleReverse )
       m_pItemsSelect[5]->setEnabled(bEnable);
+
+   m_pItemsSelect[17]->setEnabled(bEnable);
 }
 
 void MenuVehicleRC::valuesToUI()
@@ -275,6 +297,17 @@ void MenuVehicleRC::valuesToUI()
    int nOSDIndex = g_pCurrentModel->osd_params.layout;
    if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
       nOSDIndex = 0;
+
+   m_bSBUSInverted = false;
+   m_iI2CRCINAddress = hardware_i2c_has_external_extenders_rcin();
+   if ( m_iI2CRCINAddress > 0 )
+   {
+      t_i2c_device_settings* pInfo = hardware_i2c_get_device_settings((u8)m_iI2CRCINAddress);
+      if ( pInfo->uParams[1] )
+         m_bSBUSInverted = true;
+      else
+         m_bSBUSInverted = false;
+   }
 
    m_pItemsSelect[0]->setSelection((int)(g_pCurrentModel->rc_params.rc_enabled));
 
@@ -354,7 +387,7 @@ void MenuVehicleRC::valuesToUI()
 
    updateUIState( g_pCurrentModel->rc_params.rc_enabled );
 
-   if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE || g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS)
+   if ( (g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE) || (g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS) )
    {
       if ( -1 != m_IndexThrotleReverse )
          m_pMenuItems[5]->setEnabled(false);
@@ -364,6 +397,10 @@ void MenuVehicleRC::valuesToUI()
 
    if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE )
       m_pMenuItems[m_IndexRCCamera]->setEnabled(false);
+
+   m_pItemsSelect[17]->setSelectedIndex(g_pCurrentModel->rc_params.iRCTranslationType);
+   if ( (g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_NONE) || (g_pCurrentModel->rc_params.inputType != RC_INPUT_TYPE_RC_IN_SBUS_IBUS) )
+      m_pMenuItems[m_IndexRCTranslation]->setEnabled(false);
 }
 
 
@@ -700,12 +737,9 @@ void MenuVehicleRC::renderLiveValues()
    {
       bHasInputSource = true;
       strcpy(szBuff, "SBUS/IBUS");
-
-      int i2cAddress = hardware_i2c_has_external_extenders_rcin();
-      if ( i2cAddress > 0 )
+      if ( m_iI2CRCINAddress > 0 )
       {
-         t_i2c_device_settings* pInfo = hardware_i2c_get_device_settings((u8)i2cAddress);
-         if ( pInfo->uParams[1] )
+         if ( m_bSBUSInverted )
             strcpy(szBuff, "SBUS/IBUS Inverted");
          else
             strcpy(szBuff, "SBUS/IBUS Non-Inverted");
@@ -788,7 +822,7 @@ void MenuVehicleRC::renderLiveValues()
    {
       g_pCurrentModel->get_rc_channel_name(ch, szBuff);
       char szTmp[32];
-      strcpy(szTmp, szBuff);
+      strncpy(szTmp, szBuff, 31);
       int iPos = -1;
       for( int i=0; i<(int)strlen(szBuff); i++ )
       {
@@ -1158,8 +1192,19 @@ void MenuVehicleRC::onSelectItem()
       params.channelsCount = index*2+2;
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RC_PARAMS, 0, (u8*)&params, sizeof(rc_parameters_t)) )
          valuesToUI();
+      return;
    }
 
+   if ( m_IndexRCTranslation == m_SelectedIndex )
+   {
+      rc_parameters_t params;
+      memcpy(&params, &g_pCurrentModel->rc_params, sizeof(rc_parameters_t));
+      params.iRCTranslationType = m_pItemsSelect[17]->getSelectedIndex();
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RC_PARAMS, 0, (u8*)&params, sizeof(rc_parameters_t)) )
+         valuesToUI();
+      return;
+   }
+   
    if ( m_IndexChannels == m_SelectedIndex )
    {
       if ( NULL != m_pJoystick )

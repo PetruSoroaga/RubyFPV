@@ -16,6 +16,8 @@ class MenuSearch: public Menu
       virtual void onSelectItem();
       void setSpectatorOnly();
 
+      static void onVideoReceived(u32 uFreqKhz);
+
    private:
       int _populate_search_frequencies();
       void _add_menu_items();

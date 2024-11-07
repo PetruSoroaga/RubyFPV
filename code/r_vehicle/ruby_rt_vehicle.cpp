@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -63,6 +63,7 @@
 #include "../base/ruby_ipc.h"
 #include "../base/camera_utils.h"
 #include "../base/vehicle_settings.h"
+#include "../base/vehicle_rt_info.h"
 #include "../base/hardware_radio_serial.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
@@ -91,13 +92,12 @@
 #include "radio_links.h"
 #include "events.h"
 #include "process_local_packets.h"
-#include "video_link_auto_keyframe.h"
-#include "video_link_stats_overwrites.h"
-#include "video_link_check_bitrate.h"
 #include "processor_relay.h"
 #include "test_link_params.h"
+#include "adaptive_video.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
+#include "video_tx_buffers.h"
 
 #define MAX_RECV_UPLINK_HISTORY 12
 #define SEND_ALARM_MAX_COUNT 5
@@ -131,7 +131,7 @@ extern u32 s_uLastAlarmsCount;
 
 u32 s_uTimeLastTryReadIPCMessages = 0;
 
-#define MAX_RADIO_PACKETS_TO_CACHE_LOCALLY 20
+#define MAX_RADIO_PACKETS_TO_CACHE_LOCALLY 100
 type_received_radio_packet s_ReceivedRadioPacketsBuffer[MAX_RADIO_PACKETS_TO_CACHE_LOCALLY];
 
 bool links_set_cards_frequencies_and_params(int iLinkId)
@@ -344,12 +344,14 @@ void video_source_capture_mark_needs_update_or_restart(u32 uChangeType)
       return;
    }
 
-   if ( NULL != g_pProcessorTxVideo )
-      g_pProcessorTxVideo->updateVideoStreamType();
+   if ( NULL != g_pVideoTxBuffers )
+      g_pVideoTxBuffers->updateVideoHeader(g_pCurrentModel);
+
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       video_source_majestic_request_update_program(uChangeType);
    else if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_request_restart_program();
+   log_line("Requested video capture restart from video capture module.");
 }
 
 void flag_update_sik_interface(int iInterfaceIndex)
@@ -635,6 +637,8 @@ void send_model_settings_to_controller()
 
 void _inject_video_link_dev_stats_packet()
 {
+ // To fix
+ /*
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_STATS, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
@@ -646,6 +650,7 @@ void _inject_video_link_dev_stats_packet()
 
    // Add it to the start of the queue, so it's extracted (poped) next
    packets_queue_inject_packet_first(&g_QueueRadioPacketsOut, packet);
+*/
 }
 
 void _inject_video_link_dev_graphs_packet()
@@ -671,7 +676,6 @@ void _read_ipc_pipes(u32 uTimeNow)
 
    while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromCommands, s_PipeTmpBufferCommandsReply, &s_PipeTmpBufferCommandsReplyPos, s_BufferCommandsReply)) )
    {
-      //log_line("DBG read cmd msg");
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferCommandsReply;      
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
@@ -679,7 +683,6 @@ void _read_ipc_pipes(u32 uTimeNow)
       else
       {
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferCommandsReply);
-         //log_line("DBG queue cmd msg");
       }
    } 
    if ( maxToRead - maxPacketsToRead > 6 )
@@ -688,14 +691,12 @@ void _read_ipc_pipes(u32 uTimeNow)
    maxPacketsToRead = maxToRead;
    while ( (maxPacketsToRead > 0) && (NULL != ruby_ipc_try_read_message(s_fIPCRouterFromTelemetry, s_PipeTmpBufferTelemetryDownlink, &s_PipeTmpBufferTelemetryDownlinkPos, s_BufferTelemetryDownlink)) )
    {
-      //log_line("DBG read telem msg");
       maxPacketsToRead--;
       t_packet_header* pPH = (t_packet_header*)s_BufferTelemetryDownlink;      
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferTelemetryDownlink); 
       else
       {
-         //log_line("DBG queued telem sg");
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferTelemetryDownlink); 
          /*
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
@@ -753,126 +754,11 @@ void _consume_ipc_messages()
       log_softerror_and_alarm("Consuming %d IPC messages took too long: %d ms", 20 - iMaxToConsume, uTime - uTimeStart);
 }
 
-void _process_and_send_packets_individually()
-{
-   bool bMustInjectVideoDevStats = false;
-   bool bMustInjectVideoDevGraphs = false;
-   
-   while ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
-   {
-      u32 uTime = get_current_timestamp_ms();
-      if ( (0 != s_uTimeLastTryReadIPCMessages) && (uTime > s_uTimeLastTryReadIPCMessages + 500) )
-      {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while sending radio packets, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
-         _read_ipc_pipes(uTime);
-      }
-
-      int iPacketLength = -1;
-      u8* pPacketBuffer = packets_queue_pop_packet(&g_QueueRadioPacketsOut, &iPacketLength);
-      if ( NULL == pPacketBuffer || -1 == iPacketLength )
-         break;
-
-      if ( NULL != g_pProcessStats )
-         g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
-
-      bMustInjectVideoDevStats = false;
-      bMustInjectVideoDevGraphs = false;
-
-      t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-      pPH->packet_flags &= (~PACKET_FLAGS_BIT_CAN_START_TX);
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
-      {
-         //log_line("DBG send telem to radio");
-         // Update Ruby telemetry info if we are sending Ruby telemetry to controller
-         // Update also the telemetry extended extra info: retransmissions info
-
-         if ( pPH->packet_type == PACKET_TYPE_DEBUG_INFO )
-         {
-            type_u32_couters* pCounters = (type_u32_couters*) (pPacketBuffer + sizeof(t_packet_header));
-            memcpy(pCounters, &g_CoutersMainLoop, sizeof(type_u32_couters));
-
-            type_radio_tx_timers* pRadioTxInfo = (type_radio_tx_timers*) (pPacketBuffer + sizeof(t_packet_header) + sizeof(type_u32_couters));
-            memcpy(pRadioTxInfo, &g_RadioTxTimers, sizeof(type_radio_tx_timers));
-         }
-
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
-         {
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS) )
-               bMustInjectVideoDevStats = true;
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH) )
-               bMustInjectVideoDevStats = true;
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS) )
-               bMustInjectVideoDevGraphs = true;
-
-            t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*) (pPacketBuffer + sizeof(t_packet_header));
-            pPHRTE->downlink_tx_video_bitrate_bps = g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(500);
-            pPHRTE->downlink_tx_video_all_bitrate_bps = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(500);
-            if ( NULL != g_pProcessorTxAudio )
-            {
-               pPHRTE->downlink_tx_data_bitrate_bps += g_pProcessorTxAudio->getAverageAudioInputBps();
-               pPHRTE->downlink_tx_video_all_bitrate_bps += g_pProcessorTxAudio->getAverageAudioInputBps();
-            }
-            pPHRTE->downlink_tx_data_bitrate_bps = 0;
-
-            pPHRTE->downlink_tx_video_packets_per_sec = s_countTXVideoPacketsOutPerSec[0] + s_countTXVideoPacketsOutPerSec[1];
-            pPHRTE->downlink_tx_data_packets_per_sec = s_countTXDataPacketsOutPerSec[0] + s_countTXDataPacketsOutPerSec[1];
-            pPHRTE->downlink_tx_compacted_packets_per_sec = s_countTXCompactedPacketsOutPerSec[0] + s_countTXCompactedPacketsOutPerSec[1];
-
-            for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-            {
-               // positive: regular datarates, negative: mcs rates;
-               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate_bps_video(i);
-               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate_bps_data(i);
-               //log_line("DBG set last sent data rates for %d: %d / %d", i, pPHRTE->last_sent_datarate_bps[i][0], pPHRTE->last_sent_datarate_bps[i][1]);
-
-               pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
-               //log_line("DBG set last recv data rate for %d: %d", i, pPHRTE->last_recv_datarate_bps[i]);
-                 
-               pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
-               pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
-            }
-
-            pPHRTE->txTimePerSec = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage;
-
-            // Update extra info: retransmissions
-            
-            if ( pPHRTE->extraSize > 0 )
-            if ( pPHRTE->extraSize == sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) )
-            if ( pPH->total_length == (sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3) + sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-            {
-                memcpy( pPacketBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3), (u8*)&g_PHTE_Retransmissions, sizeof(g_PHTE_Retransmissions));
-            }
-         }
-      }
-      send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
-      
-      if ( bMustInjectVideoDevStats )
-         _inject_video_link_dev_stats_packet();
-      if ( bMustInjectVideoDevGraphs )
-         _inject_video_link_dev_graphs_packet();
-   }
-}
-
 void process_and_send_packets()
 {
-   #ifndef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
-   _process_and_send_packets_individually();
-   return;
-   #endif
-
-   /*
-   u8 composed_packet[MAX_PACKET_TOTAL_SIZE];
-   int composed_packet_length = 0;
    bool bMustInjectVideoDevStats = false;
    bool bMustInjectVideoDevGraphs = false;
    
-   #ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
-   bool bLastHasHighCapacityFlag = false;
-   bool bLastHasLowCapacityFlag = false;
-   u32 uLastPacketType = 0;
-   #endif
-
    while ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
    {
       u32 uTime = get_current_timestamp_ms();
@@ -896,37 +782,8 @@ void process_and_send_packets()
       t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
       pPH->packet_flags &= (~PACKET_FLAGS_BIT_CAN_START_TX);
 
-      #ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
-
-      bool bHasHighCapacityFlag = false;
-      bool bHasLowCapacityFlag = false;
-      if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_HIGH_CAPACITY_LINK_ONLY )
-         bHasHighCapacityFlag = true;
-      if ( pPH->packet_flags_extended & PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY )
-         bHasLowCapacityFlag = true;
-
-      if ( ( bLastHasLowCapacityFlag != bHasLowCapacityFlag ) ||
-           ( bLastHasHighCapacityFlag != bHasHighCapacityFlag ) ||
-           (composed_packet_length + iPacketLength > MAX_PACKET_PAYLOAD) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
-           (uLastPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_MODEL_SETTINGS) ||
-           (uLastPacketType == PACKET_TYPE_RUBY_MODEL_SETTINGS) ||
-           (pPH->packet_type == PACKET_TYPE_COMMAND_RESPONSE) ||
-           (uLastPacketType == PACKET_TYPE_COMMAND_RESPONSE) )
-      if ( composed_packet_length > 0 )
-      {
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
-         composed_packet_length = 0;
-      }
-
-      bLastHasHighCapacityFlag = bHasHighCapacityFlag;
-      bLastHasLowCapacityFlag = bHasLowCapacityFlag;
-      #endif
-
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
       {
-         //log_line("DBG send telem to radio");
          // Update Ruby telemetry info if we are sending Ruby telemetry to controller
          // Update also the telemetry extended extra info: retransmissions info
 
@@ -988,39 +845,16 @@ void process_and_send_packets()
             }
          }
       }
- 
-      #ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
-
-      uLastPacketType = pPH->packet_type;
-
-      memcpy(&composed_packet[composed_packet_length], pPacketBuffer, iPacketLength);
-      composed_packet_length += iPacketLength;
-      
-      if ( bHasLowCapacityFlag )
-      {
-         send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
-         composed_packet_length = 0;
-         continue;
-      }
-
-      #else
+      if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
+         log_line("Sending pairing request confirmation to controller (from VID %u to CID %u)", pPH->vehicle_id_src, pPH->vehicle_id_dest);
 
       send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
-      composed_packet_length = 0;
       
-      #endif
-
       if ( bMustInjectVideoDevStats )
          _inject_video_link_dev_stats_packet();
       if ( bMustInjectVideoDevGraphs )
          _inject_video_link_dev_graphs_packet();
    }
-
-   if ( composed_packet_length > 0 )
-   {
-      send_packet_to_radio_interfaces(composed_packet, composed_packet_length, -1);
-   }
-   */
 }
 
 void _synchronize_shared_mems()
@@ -1384,7 +1218,28 @@ void _broadcast_router_ready()
       log_softerror_and_alarm("No pipe to telemetry to broadcast router ready to.");
 
    log_line("Broadcasted that router is ready.");
-} 
+}
+
+void _check_compute_send_rt_debug_info()
+{
+   vehicle_rt_info_check_advance_index(&g_VehicleRuntimeInfo, g_TimeNow);
+   if ( g_TimeNow > g_VehicleRuntimeInfo.uLastTimeSentToController + 50 )
+   {
+      g_VehicleRuntimeInfo.uLastTimeSentToController = g_TimeNow;
+
+      t_packet_header PH;
+      radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_DEBUG_VEHICLE_RT_INFO, STREAM_ID_DATA);
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      PH.vehicle_id_dest = PH.vehicle_id_src;
+      PH.total_length = sizeof(t_packet_header) + sizeof(vehicle_runtime_info);
+
+      u8 packet[MAX_PACKET_TOTAL_SIZE];
+      memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+      memcpy(packet + sizeof(t_packet_header), (u8*)&(g_VehicleRuntimeInfo), sizeof(vehicle_runtime_info));
+      send_packet_to_radio_interfaces(packet, PH.total_length, -1);
+   }
+}
+
 
 void handle_sigint(int sig) 
 { 
@@ -1515,7 +1370,8 @@ int main(int argc, char *argv[])
       case 5: uRefreshIntervalMs = 500; break;
    }
    radio_stats_reset(&g_SM_RadioStats, uRefreshIntervalMs);
-   
+   vehicle_rt_info_init(&g_VehicleRuntimeInfo);
+
    g_SM_RadioStats.countLocalRadioInterfaces = hardware_get_radio_interfaces_count();
    if ( NULL != g_pCurrentModel )
       g_SM_RadioStats.countVehicleRadioLinks = g_pCurrentModel->radioLinksParams.links_count;
@@ -1537,8 +1393,8 @@ int main(int argc, char *argv[])
       g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
    }
 
-   video_stats_overwrites_init();
-   video_link_auto_keyframe_init();
+   //To fix video_stats_overwrites_init();
+   //To fix video_link_auto_keyframe_init();
   
    hardware_sleep_ms(50);
    radio_init_link_structures();
@@ -1562,7 +1418,6 @@ int main(int argc, char *argv[])
       radio_rx_set_dev_mode();
       radio_set_debug_flag();
    }
-   fec_init();
    packet_utils_init();
 
    if ( NULL != g_pProcessStats )
@@ -1661,9 +1516,13 @@ int main(int argc, char *argv[])
 
    log_line("Start sequence: Done starting camera.");
    
+   adaptive_video_init();
+   g_pVideoTxBuffers = new VideoTxPacketsBuffer(0,0);
+   g_pVideoTxBuffers->init(g_pCurrentModel);
+   
    g_pProcessorTxVideo = new ProcessorTxVideo(0,0);
    g_pProcessorTxVideo->init();
-         
+
    log_line("Start sequence: Done creating video processor.");
    
    g_pSM_VideoInfoStatsCameraOutput = shared_mem_video_info_stats_open_for_write();
@@ -1782,6 +1641,7 @@ int main(int argc, char *argv[])
       video_source_csi_stop_program();
  
    delete g_pProcessorTxVideo;
+   delete g_pVideoTxBuffers;
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
    shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsCameraOutput);
    shared_mem_video_info_stats_radio_out_close(g_pSM_VideoInfoStatsRadioOut);
@@ -1868,7 +1728,7 @@ void _main_loop()
    int iCountRadioRxPacketsToProcess = 0;
 
    //---------------------------------------------
-   // Check and process retransmissions and pings and other high priority radio messages
+   // Check and process retransmissions received and pings received and other high priority radio messages
 
    iCountRadioRxPacketsToConsume = radio_rx_has_packets_to_consume();
    if ( iCountRadioRxPacketsToConsume > 0 )
@@ -1901,38 +1761,83 @@ void _main_loop()
 
    if ( g_pCurrentModel->hasCamera() )
    {
-      int iReadSize = 0;
-      u8* pVideoData = NULL;
+      // Read multiple times for large I-frames
+      int iMaxRepeatCount = 3;
 
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         pVideoData = video_source_csi_read(&iReadSize);
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         pVideoData = video_source_majestic_read(&iReadSize, true);
-
-      /*
-      static int s_iDebugCountConsecutiveVReadTimeouts = 0;
-      if ( s_iDebugCountConsecutiveVReadTimeouts < 4 )
-         log_line("DBG video read %d bytes", iReadSize);
-      if ( (NULL == pVideoData) || (iReadSize <= 0) )
-         s_iDebugCountConsecutiveVReadTimeouts++;
-      else
-         s_iDebugCountConsecutiveVReadTimeouts = 0;
-      */
-
-      if ( (NULL != pVideoData) && (iReadSize > 0) )
-      if ( ! bDebugNoVideoOutput )
+      while ( iMaxRepeatCount > 0 )
       {
-         if ( process_data_tx_video_on_new_data(pVideoData, iReadSize) )
-            s_debugVideoBlocksInCount++;
-         int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
-         if ( videoPacketsReadyToSend > 0 )
+         iMaxRepeatCount--;
+         int iReadSize = 0;
+         u8* pVideoData = NULL;
+         bool bIsInsideIFrame = false;
+         bool bEndOfFrame = false;
+
+         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         {
+            pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
+            if ( iReadSize > 0 )
+            {
+               int iBuffSize = video_source_csi_get_buffer_size();
+               bEndOfFrame = (iReadSize < iBuffSize)?true:false;
+               if ( ! bDebugNoVideoOutput )
+                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+               if ( iReadSize < iBuffSize )
+                  iMaxRepeatCount = 0;
+            }
+            else
+               iMaxRepeatCount = 0;
+         }
+         
+         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+         {
+            pVideoData = video_source_majestic_read(&iReadSize, true);
+            if ( iReadSize > 0 )
+            {
+               bool bSingle = video_source_majestic_last_read_is_single_nal();
+               bool bEnd = video_source_majestic_last_read_is_end_nal();
+               bIsInsideIFrame = video_source_majestic_is_inside_iframe();
+               bEndOfFrame = (bSingle || bEnd);
+               if ( ! bDebugNoVideoOutput )
+               {
+                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+               }
+            }
+            else
+               iMaxRepeatCount = 0;
+         }
+
+         adaptive_video_on_new_camera_read(bEndOfFrame, bIsInsideIFrame);
+
+         // Send telemetry/commands/etc before video data
+         if ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
+         if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
+            process_and_send_packets();
+
+         g_pVideoTxBuffers->sendAvailablePackets();
+
+         if ( g_pCurrentModel->bDeveloperMode )
+            _check_compute_send_rt_debug_info();
+
+         g_TimeNow = get_current_timestamp_ms();
+
+         // To fix
+         /*
+         if ( (NULL != pVideoData) && (iReadSize > 0) )
          if ( ! bDebugNoVideoOutput )
          {
-            //log_line("DEBUG sent %d video packs", videoPacketsReadyToSend);
-            //if ( videoPacketsReadyToSend > 10 )
-            //   log_line("DEBUG video stall %d", videoPacketsReadyToSend );
-            process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
+            if ( process_data_tx_video_on_new_data(pVideoData, iReadSize) )
+               s_debugVideoBlocksInCount++;
+            int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
+            if ( videoPacketsReadyToSend > 0 )
+            if ( ! bDebugNoVideoOutput )
+            {
+               //log_line("DEBUG sent %d video packs", videoPacketsReadyToSend);
+               //if ( videoPacketsReadyToSend > 10 )
+               //   log_line("DEBUG video stall %d", videoPacketsReadyToSend );
+               process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
+            }
          }
+         */
       }
    }
 
@@ -2018,12 +1923,20 @@ void _main_loop()
    _read_ipc_pipes(g_TimeNow);
    _consume_ipc_messages();
 
+   // Send radio packets rightaway if there is no camera (video feed)
+   bool bNoVideoData = false;
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+   if ( ! video_source_csi_read_any_data() )
+       bNoVideoData = true;
+   if ( (! g_pCurrentModel->hasCamera()) || bNoVideoData )
+   if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
+      process_and_send_packets();
 
    //------------------------------------------
    // Periodic loops
 
-   if ( g_CoutersMainLoop.uCounter % 20 ) // execute only 1/20th times
-      return;
+   if ( g_pCurrentModel->bDeveloperMode )
+      _check_compute_send_rt_debug_info();
 
    static u32 s_uMainLoopPeriodicCheckLastTime = 0;
    if ( g_TimeNow < s_uMainLoopPeriodicCheckLastTime + 20 )
@@ -2049,8 +1962,8 @@ void _main_loop()
       return;
    }
 
-   video_stats_overwrites_periodic_loop();
-   video_link_auto_keyframe_periodic_loop();
+   //To fix video_stats_overwrites_periodic_loop();
+   //To fix video_link_auto_keyframe_periodic_loop();
 
    _synchronize_shared_mems();
    send_pending_alarms_to_controller();
@@ -2061,7 +1974,7 @@ void _main_loop()
    //----------------------------------------------
    // Other stuff
 
-   if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
-      process_and_send_packets();
+   //if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
+   //   process_and_send_packets();
 
 }

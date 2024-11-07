@@ -79,10 +79,17 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    }
 
    log_line("\nTotal lost pckts: %d/sec", g_uTotalLostPackets);
+   int iFirst = 1;
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
       if ( g_uStreamsTotalLostPackets[i] > 0 )
-         log_line(", %u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
+      {
+         if ( iFirst )
+            log_line("%u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
+         else
+            log_line(", %u/sec lost on stream %d", g_uStreamsTotalLostPackets[i], i);
+         iFirst = 0;
+      }
       g_uStreamsTotalLostPackets[i] = 0;
    }
    if ( g_uTotalRecvPackets + g_uTotalLostPackets > 0 )
@@ -126,9 +133,9 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
    int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, iBufferLength, &bCRCOk);
    radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, (int)bVideoData, 1);
 
-   t_packet_header_video_full_77* pPHVF = NULL;
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-      pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));
+   t_packet_header_video_full_98* pPHVF = NULL;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+      pPHVF = (t_packet_header_video_full_98*) (pBuffer+sizeof(t_packet_header));
    
    u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
    u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
@@ -146,19 +153,19 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
    }
 
    u32 videogap = 0;
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-   if ( pPHVF->video_block_index > g_uLastVideoBlock )
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+   if ( pPHVF->uCurrentBlockIndex > g_uLastVideoBlock )
    {
-      videogap = pPHVF->video_block_index - g_uLastVideoBlock;
+      videogap = pPHVF->uCurrentBlockIndex - g_uLastVideoBlock;
       if ( videogap > 1 )
       {
-         log_line("Missing video packets: %u [%u to %u], video gap: %d [%u jump to %u]", gap-1, g_uStreamsLastPacketIndex[uStreamId], packetIndex, videogap-1, g_uLastVideoBlock, pPHVF->video_block_index );
+         log_line("Missing video packets: %u [%u to %u], video gap: %d [%u jump to %u]", gap-1, g_uStreamsLastPacketIndex[uStreamId], packetIndex, videogap-1, g_uLastVideoBlock, pPHVF->uCurrentBlockIndex );
       }
    }
 
    g_uStreamsLastPacketIndex[uStreamId] = packetIndex;
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL )
-      g_uLastVideoBlock = pPHVF->video_block_index;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+      g_uLastVideoBlock = pPHVF->uCurrentBlockIndex;
 
    return iResult;
 }
@@ -184,7 +191,6 @@ void process_packet(int iInterfaceIndex )
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
       u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-
       g_uTotalRecvPackets++;
       g_uTotalRecvPacketsTypes[pPH->packet_type]++;
       g_uTotalRecvPacketsOnStreams[uStreamId]++;
@@ -228,9 +234,9 @@ int try_read_packets(int iInterfaceIndex)
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( pNICInfo->openedForRead )
       {
-         FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &g_Readset);
-         if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pNICInfo->monitor_interface_read.selectable_fd;
+         FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &g_Readset);
+         if ( pNICInfo->runtimeInterfaceInfoRx.selectable_fd > maxfd )
+            maxfd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
       } 
    }
 

@@ -151,16 +151,17 @@ void hardware_recording_led_set_off();
 void hardware_recording_led_set_on();
 void hardware_recording_led_set_blinking();
 
-void hardware_mount_root();
-void hardware_mount_boot();
-int hardware_get_free_space_kb();
-
 int hardware_has_eth();
 
+void hardware_set_default_sigmastar_cpu_freq();
+void hardware_set_default_radxa_cpu_freq();
 int hardware_get_cpu_speed(); // in Mhz
 int hardware_get_gpu_speed(); // in Mhz
 
 int hardware_set_audio_output(int iAudioDevice, int iAudioVolume);
+
+void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost);
+void hardware_set_oipc_gpu_boost(int iGPUBoost);
 
 #ifdef __cplusplus
 }  

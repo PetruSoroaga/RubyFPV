@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -194,7 +194,7 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
       m_pItemsSlider[k*20+17]->setStep(10);
       m_IndexVideoProfile_KeyFrame[k] = addMenuItem(m_pItemsSlider[k*20+17]);
 
-      int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_full_77);
+      int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_full_98);
       iMaxSize = (iMaxSize/10)*10;
       m_pItemsSlider[k*20+11] = new MenuItemSlider("Video Packet size", "How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC packets increase the chance of error correction but also increase the CPU usage.", 100,iMaxSize,iMaxSize/2, fSliderWidth);
       m_pItemsSlider[k*20+11]->setStep(10);
@@ -241,7 +241,7 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
 
    addMenuItem(new MenuItemSection("Manual Test Video Link Profiles"));
 
-   m_pItemsSelect[3] = new MenuItemSelect("Switch video profile", "Use a QA button to switch video profiles.");
+   m_pItemsSelect[3] = new MenuItemSelect("Switch video profile button", "Use a QA button to switch video profiles.");
    m_pItemsSelect[3]->addSelection("None");
    m_pItemsSelect[3]->addSelection("QA Button 1");
    m_pItemsSelect[3]->addSelection("QA Button 2");
@@ -249,49 +249,9 @@ MenuSystemVideoProfiles::MenuSystemVideoProfiles(void)
    m_pItemsSelect[3]->setIsEditable();
    m_IndexSwitchUsingQAButton = addMenuItem(m_pItemsSelect[3]);
 
-   m_IndexSwitchToHQVideo = addMenuItem( new MenuItem("Switch to regular video link profile") );
+   m_IndexSwitchToUserVideo = addMenuItem( new MenuItem("Switch to regular video link profile") );
    m_IndexSwitchToMQVideo = addMenuItem( new MenuItem("Switch to MQ video link profile") );
    m_IndexSwitchToLQVideo = addMenuItem( new MenuItem("Switch to LQ video link profile") );
-
-   m_pItemsSelect[2] = new MenuItemSelect("Switch to custom level", "Selects a custom adaptive video level.");
-   if ( NULL == g_pCurrentModel )
-      m_pItemsSelect[2]->addSelection("None. No vehicle.");
-   else
-   {
-      int iLevelsUser = g_pCurrentModel->get_video_profile_total_levels(g_pCurrentModel->video_params.user_selected_video_link_profile);
-      m_pItemsSelect[2]->addSelection(str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
-      for( int i=1; i<iLevelsUser; i++ )
-      {
-         sprintf(szBuff, "%s-%d",str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), i);
-         m_pItemsSelect[2]->addSelection(szBuff);
-      }
-
-      int iLevelsMQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_MQ);
-      m_pItemsSelect[2]->addSelection("MQ");
-      for( int i=1; i<iLevelsMQ; i++ )
-      {
-         sprintf(szBuff, "MQ-%d",i);
-         m_pItemsSelect[2]->addSelection(szBuff);
-      }
-      int iLevelsLQ = g_pCurrentModel->get_video_profile_total_levels(VIDEO_PROFILE_LQ);
-      m_pItemsSelect[2]->addSelection("LQ");
-      for( int i=1; i<iLevelsLQ; i++ )
-      {
-         sprintf(szBuff, "LQ-%d",i);
-         m_pItemsSelect[2]->addSelection(szBuff);
-      }
-
-      for( int i=0; i<(iLevelsUser + iLevelsMQ + iLevelsLQ); i++ )
-      {
-         int iData = 0;
-         int iEC = 0;
-         int iProfile = g_pCurrentModel->get_level_shift_ec_scheme(i, &iData, &iEC);
-         sprintf(szBuff, "Video Level %d: %s %d/%d", i, str_get_video_profile_name(iProfile), iData, iEC);
-         log_line(szBuff);
-      }
-   }
-   m_pItemsSelect[2]->setIsEditable();
-   m_IndexSwitchToCustomVideoLevel = addMenuItem(m_pItemsSelect[2]);
 
    for( int i=0; i<m_ItemsCount; i++ )
       m_pMenuItems[i]->setTextColor(get_Color_Dev());
@@ -338,7 +298,7 @@ void MenuSystemVideoProfiles::valuesToUI()
 
    m_pItemsSelect[3]->setSelectedIndex(pCS->iDevSwitchVideoProfileUsingQAButton+1);
 
-   m_pMenuItems[m_IndexSwitchToHQVideo]->setEnabled(true);
+   m_pMenuItems[m_IndexSwitchToUserVideo]->setEnabled(true);
    m_pMenuItems[m_IndexSwitchToMQVideo]->setEnabled(true);
    m_pMenuItems[m_IndexSwitchToLQVideo]->setEnabled(true);
 
@@ -355,7 +315,7 @@ void MenuSystemVideoProfiles::valuesToUI()
             m_pItemsSlider[i]->setEnabled(false);
       }
 
-      m_pMenuItems[m_IndexSwitchToHQVideo]->setEnabled(false);
+      m_pMenuItems[m_IndexSwitchToUserVideo]->setEnabled(false);
       m_pMenuItems[m_IndexSwitchToMQVideo]->setEnabled(false);
       m_pMenuItems[m_IndexSwitchToLQVideo]->setEnabled(false);
       return;
@@ -548,7 +508,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 
    // Propagate changes to lower video profile
 
-   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
+   propagate_video_profile_changes(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
 
    for( int k=VIDEO_PROFILE_MQ; k<=VIDEO_PROFILE_LQ; k++ )
    {
@@ -711,51 +671,38 @@ void MenuSystemVideoProfiles::onSelectItem()
       return;
    }
    
-   if ( m_IndexSwitchToHQVideo == m_SelectedIndex )
+   if ( (m_IndexSwitchToUserVideo == m_SelectedIndex) || (m_IndexSwitchToMQVideo == m_SelectedIndex) || (m_IndexSwitchToLQVideo == m_SelectedIndex) )
    {
       if ( NULL == g_pCurrentModel )
          return;
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO, 0, NULL, 0) )
-         valuesToUI();  
+
+      t_packet_header PH;
+      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE, STREAM_ID_DATA);
+      PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+
+      if ( m_IndexSwitchToUserVideo == m_SelectedIndex )
+      {
+         PH.vehicle_id_dest = 0xFF;
+         warnings_add(0, "Dev: Switch to Auto Video Link Quality.");
+      }
+      if ( m_IndexSwitchToMQVideo == m_SelectedIndex )
+      {
+         PH.vehicle_id_dest = VIDEO_PROFILE_MQ;
+         warnings_add(0, "Dev: Switch to Med Video Link Quality.");
+      }
+      if ( m_IndexSwitchToLQVideo == m_SelectedIndex )
+      {
+         PH.vehicle_id_dest = VIDEO_PROFILE_LQ;
+         warnings_add(0, "Dev: Switch to Low Video Link Quality.");
+      }
+      PH.total_length = sizeof(t_packet_header);
+
+      u8 buffer[1024];
+      memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+      send_packet_to_router(buffer, PH.total_length);
+      return;
    }
 
-   if ( m_IndexSwitchToMQVideo == m_SelectedIndex )
-   {
-      if ( NULL == g_pCurrentModel )
-         return;
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED, 0, NULL, 0) )
-         valuesToUI();  
-   }
-
-   if ( m_IndexSwitchToLQVideo == m_SelectedIndex )
-   {
-      if ( NULL == g_pCurrentModel )
-         return;
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW, 0, NULL, 0) )
-         valuesToUI();  
-   }
-
-   if ( m_IndexSwitchToCustomVideoLevel == m_SelectedIndex )
-   {
-       if ( NULL == g_pCurrentModel )
-          return;
-
-       u32 uLevel = (u32) m_pItemsSelect[2]->getSelectedIndex();
-
-       t_packet_header PH;
-       u8 buffer[MAX_PACKET_TOTAL_SIZE];
-
-       radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL, STREAM_ID_DATA);
-       PH.vehicle_id_src = g_uControllerId;
-       PH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
-       PH.total_length = sizeof(t_packet_header)+sizeof(u32);
-
-       memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-       memcpy(buffer+sizeof(t_packet_header), (u8*)&uLevel, sizeof(u32));
-       for( int i=0; i<3; i++ )
-          send_packet_to_router(buffer, PH.total_length);
-       return;
-   }
 
    for( int k=VIDEO_PROFILE_MQ; k<=VIDEO_PROFILE_LQ; k++ )
    {

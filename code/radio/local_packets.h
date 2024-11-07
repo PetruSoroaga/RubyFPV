@@ -36,19 +36,22 @@
 #define PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT 180 // Same as a PACKET_TYPE_RUBY_LOG_FILE_SEGMENT
 #define PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED 183
 #define PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED 184
+#define PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH 185 // vehicle id src is search freq in Khz
+
 #define PACKET_TYPE_LOCAL_CONTROL_I2C_DEVICE_CHANGED 190
 #define PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY 191
 #define PACKET_TYPE_LOCAL_CONTROLLER_RADIO_INTERFACE_FAILED_TO_INITIALIZE 192 // vehicle_id_dest: radio interface index
 #define PACKET_TYPE_LOCAL_CONTROLLER_RELOAD_CORE_PLUGINS 193 // sent to controller router
+#define PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE 194 // vehicle_id_dest contains the new video profile to force and keep, or 0xFF to reset it
 
-#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM 201 // packet_index u32: first byte: param to change, second byte: value to change to
+
+#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM 201 // packet_index u32: first byte: param to change, second-third byte: value to change to
 #define PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS 205 // contains a type_vehicle_stats_info structure
 
 #define PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED 206 // used when changed the search frequency on the controller // vehicle_dest_src is the new frequency to search on
 #define PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED 207 // u32: link id, u32: new freq
 
 
-#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE 215 // vehicle_id_dest contains the new video profile to force and keep, or 0xFF to reset it
 #define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED 216 // vehicle_id_dest contains the new video profile used right now
 #define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY 220
 #define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_SIK_RADIO_SERIAL_SPEED 221 // vehicle_id_src is the index of the radio interface, vehicle_id_dest is the baudrate to use to connect to radio (old baud rate)

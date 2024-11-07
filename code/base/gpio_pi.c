@@ -16,6 +16,8 @@ static int s_iGPIOButtonsPullDirection = 1;
 
 int GPIOExport(int pin)
 {
+   if ( pin <= 0 )
+      return 0;
    char buffer[6];
    ssize_t bytes_written;
    int fd;
@@ -35,6 +37,8 @@ int GPIOExport(int pin)
 
 int GPIOUnexport(int pin)
 {
+   if ( pin <= 0 )
+      return 0;
    char buffer[6];
    ssize_t bytes_written;
    int fd;
@@ -53,6 +57,8 @@ int GPIOUnexport(int pin)
 
 int GPIODirection(int pin, int dir)
 {
+   if ( pin <= 0 )
+      return 0;
    static const char s_directions_str[]  = "in\0out";
    char path[64];
    int fd;
@@ -75,6 +81,9 @@ int GPIODirection(int pin, int dir)
 
 int GPIORead(int pin)
 {
+   if ( pin <= 0 )
+      return -1;
+
    char path[64];
    char value_str[5];
    int fd;
@@ -98,6 +107,9 @@ int GPIORead(int pin)
 
 int GPIOWrite(int pin, int value)
 {
+   if ( pin <= 0 )
+      return 0;
+
    static const char s_values_str[] = "01";
 
    char path[64];
@@ -126,6 +138,9 @@ int GPIOGetButtonsPullDirection()
 
 int _GPIOTryPullUpDown(int iPin, int iPullDirection)
 {
+   if ( iPin <= 0 )
+      return 0;
+
    int failed = 0;
    if (-1 == GPIODirection(iPin, OUT))
    {
@@ -166,119 +181,174 @@ int _GPIOTryPullUpDown(int iPin, int iPullDirection)
 void _GPIO_PullAllDown()
 {
    char szBuff[64];
-   _GPIOTryPullUpDown(GPIO_PIN_BACK, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_PLUS, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_MINUS, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION1, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION2, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION2_2, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION3, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTIONPLUS, 0);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTIONMINUS, 0);
+   _GPIOTryPullUpDown(GPIOGetPinMenu(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinBack(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinPlus(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinMinus(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQA1(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQA2(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQA22(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQA3(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQAPlus(), 0);
+   _GPIOTryPullUpDown(GPIOGetPinQAMinus(), 0);
 
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MENU);
+   if ( GPIOGetPinMenu() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinMenu());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MENU);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinMenu());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_BACK);
+   }
+   if ( GPIOGetPinBack() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinBack());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_BACK);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinBack());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_PLUS);
+   }
+   if ( GPIOGetPinPlus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_PLUS);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MINUS);
+   }
+   if ( GPIOGetPinMinus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_MINUS);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION1);
+   }
+   if ( GPIOGetPinQA1() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA1());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION1);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQA1());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2);
+   }
+   if ( GPIOGetPinQA2() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA2());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQA2());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2_2);
+   }
+   if ( GPIOGetPinQA22() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA22());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION2_2);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQA22());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION3);
+   }
+   if ( GPIOGetPinQA3() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA3());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTION3);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQA3());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONPLUS);
+   }
+   if ( GPIOGetPinQAPlus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQAPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONPLUS);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQAPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONMINUS);
+   }
+   if ( GPIOGetPinQAMinus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQAMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d down", GPIO_PIN_QACTIONMINUS);
+   sprintf(szBuff, "gpio -g mode %d down", GPIOGetPinQAMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-
+   }
    log_line("[GPIO] Pulled all buttons down");
 }
 
 void _GPIO_PullAllUp()
 {
    char szBuff[64];
-   _GPIOTryPullUpDown(GPIO_PIN_BACK, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_PLUS, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_MINUS, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION1, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION2, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION2_2, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTION3, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTIONPLUS, 1);
-   _GPIOTryPullUpDown(GPIO_PIN_QACTIONMINUS, 1);
+   _GPIOTryPullUpDown(GPIOGetPinMenu(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinBack(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinPlus(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinMinus(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQA1(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQA2(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQA22(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQA3(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQAPlus(), 1);
+   _GPIOTryPullUpDown(GPIOGetPinQAMinus(), 1);
 
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MENU);
+   if ( GPIOGetPinMenu() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinMenu());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_MENU);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinMenu());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_BACK);
+   }
+   if ( GPIOGetPinBack() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinBack());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_BACK);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinBack());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_PLUS);
+   }
+   if ( GPIOGetPinPlus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_PLUS);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_MINUS);
+   }
+   if ( GPIOGetPinMinus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_MINUS);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION1);
+   }
+   if ( GPIOGetPinQA1() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA1());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTION1);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinQA1());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2);
+   }
+   if ( GPIOGetPinQA2() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA2());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTION2);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinQA2());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION2_2);
+   }
+   if ( GPIOGetPinQA22() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA22());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTION2_2);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinQA22());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTION3);
+   }
+   if ( GPIOGetPinQA3() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQA3());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTION3);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinQA3());
    hw_execute_bash_command_silent(szBuff, NULL);
-
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONPLUS);
+   }
+   if ( GPIOGetPinQAPlus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQAPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTIONPLUS);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinQAPlus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d in", GPIO_PIN_QACTIONMINUS);
+   }
+   if ( GPIOGetPinQAMinus() > 0 )
+   {
+   sprintf(szBuff, "gpio -g mode %d in", GPIOGetPinQAMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
-   sprintf(szBuff, "gpio -g mode %d up", GPIO_PIN_QACTIONMINUS);
+   sprintf(szBuff, "gpio -g mode %d up", GPIOGetPinMinus());
    hw_execute_bash_command_silent(szBuff, NULL);
+   }
    log_line("[GPIO] Pulled all buttons up");
 }
 
@@ -286,93 +356,94 @@ void _GPIO_PullAllUp()
 
 int GPIOInitButtons()
 {
+   _gpio_load_custom_mapping();
    log_line("[GPIO] Export and initialize buttons...");
 
    s_iGPIOButtonsDirectionDetected = 1;
    s_iGPIOButtonsPullDirection = 0;
 
    int failed = 0;
-   if (-1 == GPIOExport(GPIO_PIN_MENU) || -1 == GPIOExport(GPIO_PIN_BACK))
+   if (-1 == GPIOExport(GPIOGetPinMenu()) || -1 == GPIOExport(GPIOGetPinBack()))
    {
       log_line("Failed to get GPIO access to pin Menu/Back.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_PLUS) || -1 == GPIOExport(GPIO_PIN_MINUS))
+   if (-1 == GPIOExport(GPIOGetPinPlus()) || -1 == GPIOExport(GPIOGetPinMinus()))
    {
       log_line("Failed to get GPIO access to pin Plus/Minus.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION1))
+   if (-1 == GPIOExport(GPIOGetPinQA1()))
    {
       log_line("Failed to get GPIO access to pin QA1.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION2))
+   if (-1 == GPIOExport(GPIOGetPinQA2()))
    {
       log_line("Failed to get GPIO access to pin QA2.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION2_2))
+   if (-1 == GPIOExport(GPIOGetPinQA22()))
    {
       log_line("Failed to get GPIO access to pin QA2_2.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION3))
+   if (-1 == GPIOExport(GPIOGetPinQA3()))
    {
       log_line("Failed to get GPIO access to pin QA3.");
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONPLUS))
+   if (-1 == GPIOExport(GPIOGetPinQAPlus()))
    {
       log_line("Failed to get GPIO access to pin QAPLUS.");
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONMINUS))
+   if (-1 == GPIOExport(GPIOGetPinQAMinus()))
    {
       log_line("Failed to get GPIO access to pin QAMINUS.");
       failed = 1;
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_MENU, IN) || -1 == GPIODirection(GPIO_PIN_BACK, IN))
+   if (-1 == GPIODirection(GPIOGetPinMenu(), IN) || -1 == GPIODirection(GPIOGetPinBack(), IN))
    {
       log_line("Failed set GPIO configuration for pin Menu/Back.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_PLUS, IN) || -1 == GPIODirection(GPIO_PIN_MINUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinPlus(), IN) || -1 == GPIODirection(GPIOGetPinMinus(), IN))
    {
       log_line("Failed set GPIO configuration for pin Plus/Minus.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION1, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA1(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA1.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION2, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA2(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA2.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION2_2, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA22(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA2_2.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION3, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA3(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA3.");
       failed = 1;
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONPLUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinQAPlus(), IN))
    {
       log_line("Failed set GPIO configuration for pin QAACTIONPLUS.");
       failed = 1;
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONMINUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinQAMinus(), IN))
    {
       log_line("Failed set GPIO configuration for pin QAACTIONMINUS.");
       failed = 1;
@@ -380,22 +451,46 @@ int GPIOInitButtons()
 
    char szComm[64];
    
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_MENU);
+   if ( GPIOGetPinMenu() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinMenu());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_BACK);
+   }
+   if ( GPIOGetPinBack() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinBack());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_PLUS);
+   }
+   if ( GPIOGetPinPlus() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinPlus());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_MINUS);
+   }
+   if ( GPIOGetPinMinus() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinMinus());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_QACTION1);
+   }
+   if ( GPIOGetPinQA1() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinQA1());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_QACTION2);
+   }
+   if ( GPIOGetPinQA2() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinQA2());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_QACTION2_2);
+   }
+   if ( GPIOGetPinQA22() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinQA22());
    hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIO_PIN_QACTION3);
+   }
+   if ( GPIOGetPinQA3() > 0 )
+   {
+   sprintf(szComm, "raspi-gpio set %d ip 2>&1", GPIOGetPinQA3());
    hw_execute_bash_command(szComm, NULL);
+   }
 
    _GPIO_PullAllDown();
 

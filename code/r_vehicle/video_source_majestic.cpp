@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -54,7 +54,7 @@
 #include "launchers_vehicle.h"
 #include "packets_utils.h"
 
-extern ParserH264 s_ParserH264CameraOutput;
+//To fix extern ParserH264 s_ParserH264CameraOutput;
 
 int s_fInputVideoStreamUDPSocket = -1;
 int s_iInputVideoStreamUDPPort = 5600;
@@ -72,6 +72,11 @@ u32 s_uRequestedVideoMajesticCaptureUpdateReason = 0;
 bool s_bHasPendingMajesticRealTimeChanges = false;
 u32 s_uTimeLastMajesticImageRealTimeUpdate = 0;
 
+bool s_bLastReadIsSingleNAL = false;
+bool s_bLastReadIsEndNAL = false;
+bool s_bIsInsideIFrameNAL = false;
+bool s_bIsInsidePictureFrameNAL = false;
+
 u32 s_uTimeLastCheckMajestic = 0;
 int s_iCountMajestigProcessNotRunning = 0;
 
@@ -81,6 +86,8 @@ void video_source_majestic_init_all_params()
 {
    log_line("[VideoSourceUDP] Majestic file size: %d bytes", get_filesize("/usr/bin/majestic") );
 
+   hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
+   
    // Start majestic if not running
 
    int iRepeatCount = 2;
@@ -121,9 +128,10 @@ void video_source_majestic_init_all_params()
    hardware_camera_apply_all_majestic_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
           g_pCurrentModel->video_params.user_selected_video_link_profile,
           &(g_pCurrentModel->video_params));
-   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
-   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
-   log_line("Completed setting initial majestic params. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
+// To fix 
+//   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+//   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+//   log_line("Completed setting initial majestic params. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
 
    if ( g_pCurrentModel->processesPriorities.iNiceVideo < 0 )
    {
@@ -208,6 +216,7 @@ u32 video_source_majestic_get_program_start_time()
 
 void video_source_majestic_start_capture_program()
 {
+   hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
    hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
    s_uTimeLastCheckMajestic = g_TimeNow;
    hardware_sleep_ms(50);
@@ -229,6 +238,7 @@ void video_source_majestic_start_capture_program()
 void video_source_majestic_stop_capture_program()
 {
    hw_execute_bash_command_raw("pidof majestic | xargs kill -9 2>/dev/null ", NULL);
+   hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
 }
 
 void video_source_majestic_request_update_program(u32 uChangeReason)
@@ -270,7 +280,9 @@ void video_source_majestic_set_videobitrate_value(u32 uBitrate)
    char szComm[128];
    char szOutput[256];
    sprintf(szComm, "curl localhost/api/v1/set?video0.bitrate=%u", uBitrate/1000);
-   hw_execute_bash_command_raw(szComm, szOutput);
+   hw_execute_bash_command_raw(szComm, NULL);
+   sprintf(szComm, "cli -s .video0.bitrate %u", uBitrate/1000);
+   hw_execute_bash_command(szComm, NULL);
    //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput); 
 }
 
@@ -400,6 +412,9 @@ int _video_source_majestic_try_read_input_udp_data(bool bAsync)
 
 int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 {
+   s_bLastReadIsSingleNAL = false;
+   s_bLastReadIsEndNAL = false;
+
    if ( iInputBytes <= 12 )
    {
       log_softerror_and_alarm("[VideoSourceUDP] Process RTP packet too small, only %d bytes", iInputBytes);
@@ -446,55 +461,99 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 
    int iOutputBytes = 0;
 
+   // Single compact (non-fragmented, non I/P frame (slice)) NAL unit (ie. SPS, PPS, etc)
    if ( (uNALTypeH264 != 28) && (uNALTypeH265 != 49) )
    {
-      //log_line("DEBUG regular NAL %d, header byte: %d", uNALTypeH264, uNALHeaderByte);
+      //log_line("DEBUG single NAL-264 %d, NAL-265 %d, header byte: %d", uNALTypeH264, uNALTypeH265, uNALHeaderByte);
       // Regular NAL unit
+      s_bLastReadIsSingleNAL = true;
+      s_bLastReadIsEndNAL = true;
+      s_bIsInsidePictureFrameNAL = false;
+      s_bIsInsideIFrameNAL = false;
       uNALOutputHeader[4] = uNALHeaderByte;
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
       memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
       iOutputBytes = iInputBytes + iNALOutputHeaderSize;
+      //log_line("DEBUG parsed regular NAL %d, header byte %d, returned %d bytes as a NAL", uNALTypeH264, uNALHeaderByte, iOutputBytes );
+      return iOutputBytes;
    }
-   else
+   
+   // Fragmentation unit (fragmented NAL over multiple packets)
+
+   s_bLastReadIsSingleNAL = false;
+   s_bLastReadIsEndNAL = false;
+   s_bIsInsidePictureFrameNAL = true;
+
+   u8 uFUHeaderByte = 0;
+   u8 uFUStartBit = 0;
+   u8 uFUEndBit = 0;
+
+   if ( uNALTypeH264 == 28 ) 
    {
-      // Fragmentation unit (fragmented NAL over multiple packets)
-      u8 uFUHeaderByte = *pInputRawData;
-      u8 uFUStartBit = uFUHeaderByte & 0x80;
+      // H264 fragment
+      uFUHeaderByte = *pInputRawData;
+      uFUStartBit = uFUHeaderByte & 0x80;
+      uFUEndBit = uFUHeaderByte & 0x40;
+      pInputRawData++;
+      iInputBytes--;
+      uNALOutputHeader[4] = (uNALHeaderByte & 0xE0) | (uFUHeaderByte & 0x1F);
+      // H264 frame type: lower 5 bits (&0x1F) of uNALOutputHeader[4]: 5 - Iframe, 1 - Pframe
+      //log_line("DEBUG fragment NAL264 %d, type: %d (%d)", uNALTypeH264, uNALOutputHeader[4], uNALOutputHeader[4] & 0x1F);
+   
+      if ( (uNALOutputHeader[4] & 0x1F) == 5 )
+         s_bIsInsideIFrameNAL = true;
+      else
+         s_bIsInsideIFrameNAL = false;
+   }
+   else 
+   {
+      // H265 fragment
+
+      pInputRawData++;
+      iInputBytes--;
+      uFUHeaderByte = *pInputRawData;
+      uFUStartBit = uFUHeaderByte & 0x80;
+      uFUEndBit = uFUHeaderByte & 0x40;
       pInputRawData++;
       iInputBytes--;
 
-      if ( uNALTypeH264 == 28 ) 
-      {
-         // H264 fragment
-         uNALOutputHeader[4] = (uNALHeaderByte & 0xE0) | (uFUHeaderByte & 0x1F);
-         //log_line("DEBUG fragment NAL %d, %d", uNALTypeH264, uNALOutputHeader[4]);
-      }
-      else 
-      {
-         // H265 fragment
-         uFUHeaderByte = *pInputRawData;
-         uFUStartBit = uFUHeaderByte & 0x80;
-         pInputRawData++;
-         iInputBytes--;
+      uNALOutputHeader[4] = (uNALHeaderByte & 0x81) | (uFUHeaderByte & 0x3F) << 1;
+      uNALOutputHeader[5] = 1;
+      iNALOutputHeaderSize++;
 
-         uNALOutputHeader[4] = (uNALHeaderByte & 0x81) | (uFUHeaderByte & 0x3F) << 1;
-         uNALOutputHeader[5] = 1;
-         iNALOutputHeaderSize++;
-      }
+      //log_line("DEBUG fragment NAL265 %d, type: %d (%d) (%d) (%d)", uNALTypeH265, uNALOutputHeader[4], (uNALOutputHeader[4] >>1) & 0x3F, uNALOutputHeader[4] & 0x3F, (uNALOutputHeader[4] & 0x3F) >> 1);
+   
+      // (uNALOutputHeader[4] >> 1) & 0x3F   ->  19: Iframe;  1: Pframe
 
-      if (uFUStartBit) 
-      {
-         //log_line("DEBUG start bit");
-         memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
-         memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
-         iOutputBytes = iInputBytes + iNALOutputHeaderSize;
-      }
-      else 
-      {
-         memcpy(s_uOutputUDPNALFrameSegment, pInputRawData, iInputBytes);
-         iOutputBytes = iInputBytes;
-      }
-   } 
+      if ( ((uNALOutputHeader[4] >> 1) & 0x3F) == 19 )
+         s_bIsInsideIFrameNAL = true;
+      else
+         s_bIsInsideIFrameNAL = false;
+
+   }
+
+      //log_line("DEBUG fragment NAL-264 %d, NAL-265 %d, header byte: %d, start: %d, end: %d",
+      //   uNALTypeH264, uNALTypeH265, uNALHeaderByte, uFUStartBit? 1:0, uFUEndBit?1:0);
+
+   if ( uFUEndBit )
+      s_bLastReadIsEndNAL = true;
+
+   if (uFUStartBit) 
+   {
+      //log_line("DEBUG start bit");
+      memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
+      memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
+      iOutputBytes = iInputBytes + iNALOutputHeaderSize;
+      //log_line("DEBUG parsed start of NAL, type %d, end bit: %d, output %d bytes as start of NAL",
+      //   uNALTypeH264, uFUEndBit?1:0, iOutputBytes);
+   }
+   else 
+   {
+      memcpy(s_uOutputUDPNALFrameSegment, pInputRawData, iInputBytes);
+      iOutputBytes = iInputBytes;
+      //log_line("DEBUG parsed middle of NAL, type %d, end bit: %d, output %d bytes as middle of NAL",
+      //   uNALTypeH264, uFUEndBit?1:0, iOutputBytes);
+   }
 
    return iOutputBytes;
 }
@@ -515,6 +574,7 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
    s_uDebugUDPInputBytes += iRecvBytes;
    s_uDebugUDPInputReads++;
 
+   //log_line("DEBUG recv %d bytes from camera", iRecvBytes);
    int iOutputBytes = _video_source_majestic_parse_rtp_data(s_uInputVideoUDPBuffer, iRecvBytes);
    static int siMinP = 10000;
    static int siMaxP = 0;
@@ -529,14 +589,37 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
    return s_uOutputUDPNALFrameSegment;
 }
 
+bool video_source_majestic_last_read_is_single_nal()
+{
+   return s_bLastReadIsSingleNAL;
+}
+
+bool video_source_majestic_last_read_is_end_nal()
+{
+   return s_bLastReadIsEndNAL;
+}
+
+bool video_source_majestic_is_inside_iframe()
+{
+   return s_bIsInsideIFrameNAL;
+}
+
+bool video_source_majestic_las_read_is_picture_frame()
+{
+   return s_bIsInsidePictureFrameNAL;
+}
+
 void video_source_majestic_periodic_checks()
 {
    if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+10000 )
    {
-      log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-         s_uDebugUDPInputBytes/10, s_uDebugUDPInputBytes/10*8, s_uDebugUDPInputReads/10);
+      char szBitrate[64];
+      str_format_bitrate(s_uDebugUDPInputBytes/10*8, szBitrate);
+
+      log_line("[VideoSourceUDP] Input video data: %u bytes/sec, %s, %u reads/sec",
+         s_uDebugUDPInputBytes/10, szBitrate, s_uDebugUDPInputReads/10);
       s_uDebugTimeLastUDPVideoInputCheck = g_TimeNow;
-      log_line("[VideoSourceUDP] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
+      // To fix log_line("[VideoSourceUDP] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
       s_uDebugUDPInputBytes = 0;
       s_uDebugUDPInputReads = 0;
    }
@@ -617,8 +700,9 @@ void video_source_majestic_periodic_checks()
       else
       {
          hardware_camera_apply_all_majestic_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams);
-         g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
-         g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+// To fix 
+//         g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+//         g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
       }
 
       if ( bUpdatedImageParams )

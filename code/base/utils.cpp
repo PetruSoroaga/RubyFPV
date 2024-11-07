@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -36,6 +36,9 @@
 #include "../base/hw_procs.h"
 #include "../common/string_utils.h"
 #include "../radio/radioflags.h"
+
+const double PIx = 3.141592653589793;
+const double RADIUS_EARTH = 6371.0; // Mean radius of Earth in Km
 
 bool ruby_is_first_pairing_done()
 {
@@ -443,26 +446,32 @@ float compute_controller_rc_value(Model* pModel, int nChannel, float prevRCValue
 
       if ( nChannel >= (int) pRCIn->uChannelsCount )
          return 0;
-      return (float)(pRCIn->uChannels[nChannel]);               
+      if ( pModel->rc_params.iRCTranslationType == RC_TRANSLATION_TYPE_2000 )
+         return 1000 + (float)(pRCIn->uChannels[nChannel])/2.0;
+      if ( pModel->rc_params.iRCTranslationType == RC_TRANSLATION_TYPE_4000 )
+         return 1000 + (float)(pRCIn->uChannels[nChannel])/4.0;
+      else
+         return (float)(pRCIn->uChannels[nChannel]);
    }
 
-   if ( pModel->rc_params.inputType != RC_INPUT_TYPE_USB )
-      return 0;
-
-   if ( NULL == pJoystick || NULL == pCtrlInterface )
-      return get_rc_channel_failsafe_value(pModel, nChannel, prevRCValue);
-
-   if ( (pModel->rc_params.rcChAssignment[nChannel] & RC_CH_ASSIGNMENT_FLAG_ASSIGNED) == 0 )
+   if ( pModel->rc_params.inputType == RC_INPUT_TYPE_USB )
    {
-       if ( pModel->rc_params.rcChFlags[nChannel] & RC_CH_FLAGS_INVERTED )
-          return pModel->rc_params.rcChMax[nChannel];
-       return pModel->rc_params.rcChMin[nChannel];
-   }
+      if ( NULL == pJoystick || NULL == pCtrlInterface )
+         return get_rc_channel_failsafe_value(pModel, nChannel, prevRCValue);
 
-   if ( (pModel->rc_params.rcChAssignment[nChannel] & RC_CH_ASSIGNMENT_FLAG_BUTTON) == 0 )
-      return _compute_controller_rc_value_axe(pModel, nChannel, prevRCValue, pJoystick, pCtrlInterface, miliSec);
-   
-   return _compute_controller_rc_value_button(pModel, nChannel, prevRCValue, pJoystick, pCtrlInterface);
+      if ( (pModel->rc_params.rcChAssignment[nChannel] & RC_CH_ASSIGNMENT_FLAG_ASSIGNED) == 0 )
+      {
+          if ( pModel->rc_params.rcChFlags[nChannel] & RC_CH_FLAGS_INVERTED )
+             return pModel->rc_params.rcChMax[nChannel];
+          return pModel->rc_params.rcChMin[nChannel];
+      }
+
+      if ( (pModel->rc_params.rcChAssignment[nChannel] & RC_CH_ASSIGNMENT_FLAG_BUTTON) == 0 )
+         return _compute_controller_rc_value_axe(pModel, nChannel, prevRCValue, pJoystick, pCtrlInterface, miliSec);
+      else
+         return _compute_controller_rc_value_button(pModel, nChannel, prevRCValue, pJoystick, pCtrlInterface);
+   }
+   return 0;
 }
 
 u32 get_rc_channel_failsafe_type(Model* pModel, int nChannel)
@@ -546,7 +555,7 @@ u32 utils_get_max_radio_datarate_for_profile(Model* pModel, int iProfile)
          bUsesHT40OnAnyLink = true;
       }
 
-      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 2000000)
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 5000000)
          continue;
 
       if ( 0 == uMinRadioDataRateBPS )
@@ -665,8 +674,8 @@ u32 utils_get_max_allowed_video_bitrate_for_profile_and_level(Model* pModel, int
    if ( iProfile == VIDEO_PROFILE_MQ )
    if ( pModel->video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps == 0 )
    if ( getRealDataRateFromRadioDataRate(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps, 0) >= 12000000 )
-   if ( uBottomVideoBitrate < 2000000 )
-      uBottomVideoBitrate = 2000000;
+   if ( uBottomVideoBitrate < 6000000 )
+      uBottomVideoBitrate = 6000000;
 
    if ( uBottomVideoBitrate < 250000 )
       uBottomVideoBitrate = 250000;
@@ -698,7 +707,7 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
          bUsesHT40OnAnyLink = true;
       }
       if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
-      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 2000000)
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 5000000)
          continue;
       if ( 0 == uMaxRadioDataRateBPS )
          uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40);
@@ -761,7 +770,7 @@ int utils_get_video_profile_lq_radio_datarate(Model* pModel)
          bUsesHT40OnAnyLink = true;
       }
       if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
-      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 2000000)
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40) < 5000000)
          continue;
       if ( 0 == uMaxRadioDataRateBPS )
          uMaxRadioDataRateBPS = getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], bUsesHT40);
@@ -1195,3 +1204,44 @@ int check_write_filesystem()
    return 0;
 }
 
+
+double convertToRadians(double val)
+{
+   return val * PIx / 180.0;
+}
+
+long metersBetweenPlaces(double lat1, double lon1, double lat2, double lon2)
+{
+   double dlon = convertToRadians(lon2 - lon1);
+   double dlat = convertToRadians(lat2 - lat1);
+
+   double a = ( pow(sin(dlat / 2), 2) + cos(convertToRadians(lat1))) * cos(convertToRadians(lat2)) * pow(sin(dlon / 2), 2);
+   double angle = 2 * asin(sqrt(a));
+   //double angle = 2 * atan2(sqrt(a), sqrt(1.0-a));
+   return (angle * RADIUS_EARTH * 1000.0);
+}
+
+long distance_meters_between(double lat1, double lon1, double lat2, double lon2)
+{
+    double delta = (lon1 - lon2) * 0.017453292519;
+    double sdlong = sin(delta);
+    double cdlong = cos(delta);
+
+    lat1 = (lat1) * 0.017453292519;
+    lat2 = (lat2) * 0.017453292519;
+
+    double slat1 = sin(lat1);
+    double clat1 = cos(lat1);
+    double slat2 = sin(lat2);
+    double clat2 = cos(lat2);
+
+    delta = (clat1 * slat2) - (slat1 * clat2 * cdlong);
+    delta = delta * delta;
+    delta += (clat2 * sdlong) * (clat2 * sdlong);
+    delta = sqrt(delta);
+
+    float denom = (slat1 * slat2) + (clat1 * clat2 * cdlong);
+    delta = atan2(delta, denom);
+
+    return (delta * 6372795.0);
+}

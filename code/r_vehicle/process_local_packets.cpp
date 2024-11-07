@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -61,11 +61,9 @@
 #include "launchers_vehicle.h"
 #include "radio_links.h"
 #include "processor_tx_video.h"
-#include "video_link_stats_overwrites.h"
-#include "video_link_check_bitrate.h"
-#include "video_link_auto_keyframe.h"
 #include "processor_relay.h"
 #include "events.h"
+#include "adaptive_video.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
 
@@ -461,22 +459,25 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       if ( g_pCurrentModel->isVideoLinkFixedOneWay() )
       {
          int iKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
-         video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "switched to one way video");
+         // To fix video_link_auto_keyframe_set_local_requested_value(0, iKeyframeMs, "switched to one way video");
       }
 
-      u32 uPendingKF = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
-      u32 uActiveKF = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;
+// To fix
+//      u32 uPendingKF = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+//      u32 uActiveKF = g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs;
 
-      video_stats_overwrites_init();
-      video_stats_overwrites_reset_to_highest_level();
+//To fix       video_stats_overwrites_init();
+   //To fix    video_stats_overwrites_reset_to_highest_level();
 
-      g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = uPendingKF;
-      g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = uActiveKF;
+//      g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = uPendingKF;
+//      g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = uActiveKF;
 
+//To fix
+/*
       if ( g_pCurrentModel->isVideoLinkFixedOneWay() ||
            (! ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION)) ) 
          video_link_set_fixed_quantization_values(0);
-
+*/
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
       if ( g_pCurrentModel->rc_params.rc_enabled )
          ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
@@ -734,16 +735,22 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?true:false;
       if ( ! bUseAdaptiveVideo )
       {
+       // To fix
+       /*
          if ( iQuant > 0 )
             video_link_set_fixed_quantization_values((u8)iQuant);
          else
          {
-            g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
+// To fix
+//            g_SM_VideoLinkStats.overwrites.currentH264QUantization = 0;
             video_source_capture_mark_needs_update_or_restart(MODEL_CHANGED_VIDEO_H264_QUANTIZATION);
          }
+         */
       }
       else
       {
+// To fix
+/*
          if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_SM_VideoLinkStats.overwrites.userVideoLinkProfile )
          {
             if ( iQuant > 0 )
@@ -755,6 +762,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
                   video_source_csi_send_control_message( RASPIVID_COMMAND_ID_QUANTIZATION_MIN, g_SM_VideoLinkStats.overwrites.currentH264QUantization );
             }
          } 
+*/
       }
       return;
    }
@@ -767,7 +775,12 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 
    if ( changeType == MODEL_CHANGED_VIDEO_KEYFRAME )
    {
-      int iKeyFrameProfile = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+     int iKeyFrameProfile = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+     log_line("Received local notification that video keyframe interval changed. New value for user selected video profile: %d ms (%s)", iKeyFrameProfile, str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+     adaptive_video_set_kf_for_current_video_profile((u16)iKeyFrameProfile);
+    // To fix
+
+/*      int iKeyFrameProfile = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
       int keyframe_ms = g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms;
       if ( keyframe_ms < 0 )
          keyframe_ms = -keyframe_ms;
@@ -781,14 +794,16 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       {
          log_line("User video profile %s is on auto keyframe. Set the default auto max keyframe value.", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile) ); 
       }
+ */
       return;
    }
 
    if ( changeType == MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE )
    {
       log_line("Received local notification that the user selected video profile has changed.");
-      g_SM_VideoLinkStats.overwrites.userVideoLinkProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-      video_stats_overwrites_reset_to_highest_level();
+// To fix
+//      g_SM_VideoLinkStats.overwrites.userVideoLinkProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+//To fix      video_stats_overwrites_reset_to_highest_level();
    }
 
    if ( changeType == MODEL_CHANGED_RADIO_LINK_CAPABILITIES )
@@ -896,9 +911,9 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       //bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?true:false;
 
       //if ( (! bOldUseAdaptiveVideo) && bUseAdaptiveVideo )
-         video_stats_overwrites_init();
+      //To fix   video_stats_overwrites_init();
       //if ( bOldUseAdaptiveVideo && (! bUseAdaptiveVideo ) )
-         video_stats_overwrites_reset_to_highest_level();
+      //To fix   video_stats_overwrites_reset_to_highest_level();
       return;
    }
 
@@ -907,18 +922,41 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       log_line("Received local notification that EC scheme was changed by user.");
       bMustSignalOtherComponents = false;
       bMustReinitVideo = false;
-      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_pCurrentModel->video_params.user_selected_video_link_profile )
-         video_stats_overwrites_reset_to_highest_level();
+      if ( NULL != g_pVideoTxBuffers )
+         g_pVideoTxBuffers->updateVideoHeader(g_pCurrentModel);
+// To fix
+//      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_pCurrentModel->video_params.user_selected_video_link_profile )
+//         video_stats_overwrites_reset_to_highest_level();
       return;
    }
 
    if ( changeType == MODEL_CHANGED_VIDEO_BITRATE )
    {
-      log_line("Received local notification that video bitrate changed by user.");
+      u32 uBitrateBPS = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps;
+      char szProfile[64];
+      strcpy(szProfile, str_get_video_profile_name(adaptive_video_get_current_active_video_profile()));
+      log_line("Received local notification that video bitrate was changed by user (from %u bps to %u bps) (current video profile: %s, user selected video profile: %s",
+         oldVideoLinkProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps,
+         uBitrateBPS,
+         szProfile,
+         str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+
       bMustSignalOtherComponents = false;
       bMustReinitVideo = false;
-      if ( g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile == g_pCurrentModel->video_params.user_selected_video_link_profile )
-         video_stats_overwrites_reset_to_highest_level();
+
+      if ( adaptive_video_get_current_active_video_profile() == g_pCurrentModel->video_params.user_selected_video_link_profile )
+      {
+         if ( g_pCurrentModel->hasCamera() )
+         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+            video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
+      
+         if ( g_pCurrentModel->hasCamera() )
+         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+            video_source_majestic_set_videobitrate_value(uBitrateBPS);
+
+         if ( NULL != g_pProcessorTxVideo )
+            g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(uBitrateBPS, false, 11);
+      }
       return;
    }
 
@@ -1178,34 +1216,6 @@ void process_local_control_packet(t_packet_header* pPH)
       return;
    }
 
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE )
-   {
-      int iVideoProfile = -1;
-      if ( NULL != g_pCurrentModel )
-         iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-      if ( pPH->vehicle_id_dest < 0xFF )
-         iVideoProfile = (int) pPH->vehicle_id_dest;
-      if ( iVideoProfile < 0 || iVideoProfile >= MAX_VIDEO_LINK_PROFILES )
-      {
-         iVideoProfile = 0;
-         if ( NULL != g_pCurrentModel )
-            iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-      }
-      log_line("Received local message to force video profile to %s", str_get_video_profile_name(iVideoProfile));
-      if ( iVideoProfile < 0 || iVideoProfile == g_pCurrentModel->video_params.user_selected_video_link_profile )
-      {
-         g_iForcedVideoProfile = iVideoProfile;
-         video_stats_overwrites_reset_to_forced_profile();
-         g_iForcedVideoProfile = -1;
-         log_line("Cleared forced video profile flag.");
-      }
-      else
-      {
-         g_iForcedVideoProfile = iVideoProfile;
-         video_stats_overwrites_reset_to_forced_profile();
-      }
-   }
-
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED )
    {
       u8 fromComponentId = (pPH->vehicle_id_src & 0xFF);
@@ -1218,7 +1228,7 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED )
    {
       log_line("Router received message that user selected video link profile was changed.");
-      video_stats_overwrites_init();
+      //To fix video_stats_overwrites_init();
       process_data_tx_video_signal_encoding_changed();
       return;
    }
@@ -1268,6 +1278,24 @@ void process_local_control_packet(t_packet_header* pPH)
       {
          log_line("Received reboot request from RX Commands. Sending it to telemetry.");
          ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+
+         // Watchdog: do reboot here if txtelemetry does not do it
+         u32 uTimeStart = get_current_timestamp_ms();
+
+         while ( true )
+         {
+            hardware_sleep_ms(500);
+            if ( get_current_timestamp_ms() > uTimeStart + 10000 )
+            {
+               log_line("Reboot watchdog triggered. Do reboot here.");
+               vehicle_stop_tx_router();
+               vehicle_stop_rx_commands();
+               vehicle_stop_rx_rc();
+               hardware_sleep_ms(100);
+               log_line("Will reboot now.");
+               hardware_reboot();
+            }
+         }
       }
       else
          log_line("Received reboot request.");
@@ -1293,7 +1321,7 @@ void process_local_control_packet(t_packet_header* pPH)
       log_line("Router received message to change camera params.");
       if ( g_pCurrentModel->hasCamera() )
       if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         video_source_csi_send_control_message( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFF) );
+         video_source_csi_send_control_message( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFFFF), 0 );
       return;
    }
 

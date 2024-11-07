@@ -12,6 +12,8 @@ void shared_mem_radio_stats_rx_hist_update(shared_mem_radio_stats_rx_hist* pStat
 void radio_stats_interfaces_rx_graph_reset(shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, int iGraphSliceDuration);
 
 void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval);
+void radio_stats_reset_received_info(shared_mem_radio_stats* pSMRS);
+void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int iInterfaceIndex);
 void radio_stats_set_graph_refresh_interval(shared_mem_radio_stats* pSMRS, int graphRefreshInterval);
 
 void radio_stats_enable_history_monitor(int iEnable);
@@ -30,7 +32,6 @@ void radio_stats_update_on_packet_sent_on_radio_link(shared_mem_radio_stats* pSM
 void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* pSMRS, u32 timeNow, u32 uVehicleId, int iStreamIndex, int iPacketLength);
 
 void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS, int iInterfaceIndex, int iLocalRadioLinkIndex, int iDataRate, int iIsVideoPacket);
-void radio_stats_set_received_response_from_vehicle_now(shared_mem_radio_stats* pSMRS, u32 uTimeNow);
 
 void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats);
 void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_stats* pControllerStats, u32 timeNow);

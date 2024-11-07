@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -39,6 +39,7 @@
 #include "../base/base.h"
 #include "../base/encr.h"
 #include "../base/hardware.h"
+#include "../base/hardware_radio.h"
 #include "../base/hardware_radio_serial.h"
 #include "../base/hw_procs.h"
 #include "../common/string_utils.h"
@@ -551,42 +552,42 @@ int _radio_open_interface_for_read_with_filter(int interfaceIndex, char* szFilte
    }
 
    pRadioHWInfo->openedForRead = 0;
-   pRadioHWInfo->monitor_interface_read.selectable_fd = -1;
-   pRadioHWInfo->monitor_interface_read.iErrorCount = 0;
+   pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd = -1;
+   pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount = 0;
 
    szErrbuf[0] = '\0';
-   //pRadioHWInfo->monitor_interface_read.ppcap = pcap_open_live(pRadioHWInfo->szName, 4096, 1, 1, szErrbuf);
-   pRadioHWInfo->monitor_interface_read.ppcap = pcap_create(pRadioHWInfo->szName, szErrbuf);
+   //pRadioHWInfo->runtimeInterfaceInfoRx.ppcap = pcap_open_live(pRadioHWInfo->szName, 4096, 1, 1, szErrbuf);
+   pRadioHWInfo->runtimeInterfaceInfoRx.ppcap = pcap_create(pRadioHWInfo->szName, szErrbuf);
 
-   if (pRadioHWInfo->monitor_interface_read.ppcap == NULL)
+   if (pRadioHWInfo->runtimeInterfaceInfoRx.ppcap == NULL)
    {
       log_softerror_and_alarm("Unable to open [%s]: %s", pRadioHWInfo->szName, szErrbuf);
       return -1;
    }
    int iLen = 4096;
-   if ( pcap_set_snaplen(pRadioHWInfo->monitor_interface_read.ppcap, iLen) !=0 )
-      log_softerror_and_alarm("Error setting [%s] snap buffer length: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+   if ( pcap_set_snaplen(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, iLen) !=0 )
+      log_softerror_and_alarm("Error setting [%s] snap buffer length: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
    else
       log_line("Set pcap len to %d", iLen);
-   if ( pcap_set_promisc(pRadioHWInfo->monitor_interface_read.ppcap, 1) != 0 )
-      log_softerror_and_alarm("Error setting [%s] to promiscous mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+   if ( pcap_set_promisc(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, 1) != 0 )
+      log_softerror_and_alarm("Error setting [%s] to promiscous mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
 
-   if ( pcap_set_timeout(pRadioHWInfo->monitor_interface_read.ppcap, -1) !=0) 
-      log_softerror_and_alarm("Error setting [%s] timeout: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+   if ( pcap_set_timeout(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, -1) !=0) 
+      log_softerror_and_alarm("Error setting [%s] timeout: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
    
-   if ( pcap_set_immediate_mode(pRadioHWInfo->monitor_interface_read.ppcap, 1) != 0 )
-      log_softerror_and_alarm("Error setting [%s] to immediate mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+   if ( pcap_set_immediate_mode(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, 1) != 0 )
+      log_softerror_and_alarm("Error setting [%s] to immediate mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
    
-   if ( pcap_activate(pRadioHWInfo->monitor_interface_read.ppcap) !=0) 
-      log_softerror_and_alarm("Error setting [%s] to immediate mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+   if ( pcap_activate(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap) !=0) 
+      log_softerror_and_alarm("Error setting [%s] to immediate mode: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
     
-   if ( pcap_setnonblock(pRadioHWInfo->monitor_interface_read.ppcap, 1, szErrbuf) < 0 )
+   if ( pcap_setnonblock(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, 1, szErrbuf) < 0 )
       log_softerror_and_alarm("Error setting [%s] to nonblocking mode: %s", pRadioHWInfo->szName, szErrbuf);
         
-   //if ( pcap_setdirection(pRadioHWInfo->monitor_interface_read.ppcap, PCAP_D_IN) < 0 )
+   //if ( pcap_setdirection(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, PCAP_D_IN) < 0 )
    //   log_softerror_and_alarm("Error setting [%s] direction", pRadioHWInfo->szName);
 
-   int nLinkEncap = pcap_datalink(pRadioHWInfo->monitor_interface_read.ppcap);
+   int nLinkEncap = pcap_datalink(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
 
    if (nLinkEncap == DLT_IEEE802_11_RADIO)
       sprintf(szProgram, "%s", szFilter);
@@ -598,30 +599,30 @@ int _radio_open_interface_for_read_with_filter(int interfaceIndex, char* szFilte
       return -1;
    }
 
-   if (pcap_compile(pRadioHWInfo->monitor_interface_read.ppcap, &bpfprogram, szProgram, 1, 0) == -1)
+   if (pcap_compile(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, &bpfprogram, szProgram, 1, 0) == -1)
    {
       puts(szProgram);
-      puts(pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+      puts(pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
       log_softerror_and_alarm("ERROR: compiling program for interface [%s]", pRadioHWInfo->szName);
       return -1;
    }
    else
    {
-      if (pcap_setfilter(pRadioHWInfo->monitor_interface_read.ppcap, &bpfprogram) == -1)
+      if (pcap_setfilter(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, &bpfprogram) == -1)
       {
          log_softerror_and_alarm("Failed to set pcap filter: %s", szProgram);
-         log_softerror_and_alarm("Failed to set pacp filter: %s", pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap));
+         log_softerror_and_alarm("Failed to set pacp filter: %s", pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
       }
       pcap_freecode(&bpfprogram);
    }
-   pRadioHWInfo->monitor_interface_read.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->monitor_interface_read.ppcap);
-   pRadioHWInfo->monitor_interface_read.radioInfo.nDbm = -127;
-   pRadioHWInfo->monitor_interface_read.radioInfo.nDbmNoise = -127;
+   pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
+   reset_runtime_radio_rx_info(&(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo));
+
    pRadioHWInfo->openedForRead = 1;
 
-   log_line("Opened radio interface %d (%s) for reading on %s, filter: [%s]. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFilter, pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
+   log_line("Opened radio interface %d (%s) for reading on %s, filter: [%s]. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), szFilter, pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
 
-   return pRadioHWInfo->monitor_interface_read.selectable_fd;
+   return pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd;
 }
 
 int radio_open_interface_for_read(int interfaceIndex, int portNumber)
@@ -642,16 +643,16 @@ int radio_open_interface_for_read(int interfaceIndex, int portNumber)
    if ( iResult < 0 )
       return iResult;
 
-   pRadioHWInfo->monitor_interface_read.nPort = portNumber;
+   pRadioHWInfo->runtimeInterfaceInfoRx.nPort = portNumber;
 
    if ( portNumber == RADIO_PORT_ROUTER_UPLINK )
-      log_line("Opened radio interface %d (%s) for reading on uplink on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
+      log_line("Opened radio interface %d (%s) for reading on uplink on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
    else if ( portNumber == RADIO_PORT_ROUTER_DOWNLINK )
-      log_line("Opened radio interface %d (%s) for reading on downlink on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
+      log_line("Opened radio interface %d (%s) for reading on downlink on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
    else
-      log_line("Opened radio interface %d (%s) for reading on custom port %d on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, portNumber, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
+      log_line("Opened radio interface %d (%s) for reading on custom port %d on %s. Returned fd=%d, ppcap: %d", interfaceIndex+1, pRadioHWInfo->szName, portNumber, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
 
-   return pRadioHWInfo->monitor_interface_read.selectable_fd;
+   return pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd;
 }
 
 
@@ -662,6 +663,7 @@ int radio_open_interface_for_write(int interfaceIndex)
       return -1;
 
    if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
+   // Bad karma
    {
       log_softerror_and_alarm("Tried to open a non 2.4/5.8 radio in high capacity 2.4/5.8 mode.");
       return -1;
@@ -670,33 +672,33 @@ int radio_open_interface_for_write(int interfaceIndex)
    log_line("Opened radio interface %d (%s) for writing...", interfaceIndex+1, pRadioHWInfo->szName);
 
    pRadioHWInfo->openedForWrite = 0;
-   pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
-   pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+   pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = -1;
+   pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount = 0;
 
    if ( s_iUsePCAPForTx )
    {
       log_line("Using ppcap for tx packets.");
       char errbuf[PCAP_ERRBUF_SIZE];
 
-      pRadioHWInfo->monitor_interface_write.ppcap = pcap_create(pRadioHWInfo->szName, errbuf);
-      if (pRadioHWInfo->monitor_interface_write.ppcap == NULL)
+      pRadioHWInfo->runtimeInterfaceInfoTx.ppcap = pcap_create(pRadioHWInfo->szName, errbuf);
+      if (pRadioHWInfo->runtimeInterfaceInfoTx.ppcap == NULL)
       {
          log_error_and_alarm("Failed to get ppcap for write");
          return -1;
       }
       log_line("Created ppcap interface. Setting params...");
 
-      if (pcap_set_snaplen(pRadioHWInfo->monitor_interface_write.ppcap, 4096) !=0) log_line("set_snaplen failed");
-      if (pcap_set_promisc(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("set_promisc failed");
-      if (pcap_set_timeout(pRadioHWInfo->monitor_interface_write.ppcap, -1) !=0) log_line("set_timeout failed");
-      if (pcap_set_immediate_mode(pRadioHWInfo->monitor_interface_write.ppcap, 1) != 0) log_line("pcap_set_immediate_mode failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
-      if (pcap_activate(pRadioHWInfo->monitor_interface_write.ppcap) !=0) log_line("pcap_activate failed: %s", pcap_geterr(pRadioHWInfo->monitor_interface_write.ppcap));
+      if (pcap_set_snaplen(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, 4096) !=0) log_line("set_snaplen failed");
+      if (pcap_set_promisc(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, 1) != 0) log_line("set_promisc failed");
+      if (pcap_set_timeout(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, -1) !=0) log_line("set_timeout failed");
+      if (pcap_set_immediate_mode(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, 1) != 0) log_line("pcap_set_immediate_mode failed: %s", pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap));
+      if (pcap_activate(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap) !=0) log_line("pcap_activate failed: %s", pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap));
 
-      pRadioHWInfo->monitor_interface_write.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->monitor_interface_write.ppcap);
-      log_line("ppcap returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->monitor_interface_write.ppcap, pRadioHWInfo->monitor_interface_write.selectable_fd);
+      pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = pcap_get_selectable_fd(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap);
+      log_line("ppcap returned a selectable fd for write for interface %d: ppcap: %d, fd=%d", interfaceIndex + 1, pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
       
       //if ( pRadioHWInfo->openedForRead )
-      //   pRadioHWInfo->monitor_interface_write.selectable_fd = pRadioHWInfo->monitor_interface_read.selectable_fd;
+      //   pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd;
       //else
       //   log_line("Failed to reuse read interface for write.");
    }
@@ -705,8 +707,8 @@ int radio_open_interface_for_write(int interfaceIndex)
       log_line("Using socket for tx packets.");
       struct sockaddr_ll ll_addr;
       struct ifreq ifr;
-      pRadioHWInfo->monitor_interface_write.selectable_fd = socket(PF_PACKET, SOCK_RAW, 0);
-      if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1)
+      pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = socket(PF_PACKET, SOCK_RAW, 0);
+      if (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd == -1)
       {
          log_error_and_alarm("Error:\tSocket failed");
          return -1;
@@ -715,15 +717,13 @@ int radio_open_interface_for_write(int interfaceIndex)
       if ( s_iBypassSocketBuffers )
       {
           const int iVal = 1;
-          if ( 0 != setsockopt(pRadioHWInfo->monitor_interface_write.selectable_fd, SOL_PACKET, PACKET_QDISC_BYPASS, (const void *)&iVal, sizeof(iVal)) )
-             log_softerror_and_alarm("Failed to set PACKET_QDISC_BYPASS option on socket fd %d, error code: %d, error: (%s)", pRadioHWInfo->monitor_interface_write.selectable_fd, errno, strerror(errno));
+          if ( 0 != setsockopt(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, SOL_PACKET, PACKET_QDISC_BYPASS, (const void *)&iVal, sizeof(iVal)) )
+             log_softerror_and_alarm("Failed to set PACKET_QDISC_BYPASS option on socket fd %d, error code: %d, error: (%s)", pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, errno, strerror(errno));
           else
-             log_line("Did set PACKET_QDISC_BYPASS option on socket fd %d", pRadioHWInfo->monitor_interface_write.selectable_fd);
+             log_line("Did set PACKET_QDISC_BYPASS option on socket fd %d", pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
       }
       ll_addr.sll_family = AF_PACKET;
       ll_addr.sll_protocol = 0;
-      // "DEBUG" Test if still works with it commented (test if for few updates)
-      //ll_addr.sll_halen = ETH_ALEN;
 
       if ( strlen(pRadioHWInfo->szName) < IFNAMSIZ-1 )
          strcpy(ifr.ifr_name, pRadioHWInfo->szName);
@@ -734,36 +734,36 @@ int radio_open_interface_for_write(int interfaceIndex)
          szBuff[IFNAMSIZ-1] = 0;
          strcpy(ifr.ifr_name, szBuff);
       }
-      if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFINDEX, &ifr) < 0)
+      if (ioctl(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, SIOCGIFINDEX, &ifr) < 0)
       {
         	log_error_and_alarm("Error:\tioctl(SIOCGIFINDEX) failed");
         	return -1;
       }
       ll_addr.sll_ifindex = ifr.ifr_ifindex;
-      if (ioctl(pRadioHWInfo->monitor_interface_write.selectable_fd, SIOCGIFHWADDR, &ifr) < 0)
+      if (ioctl(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, SIOCGIFHWADDR, &ifr) < 0)
       {
          	log_error_and_alarm("Error:\tioctl(SIOCGIFHWADDR) failed");
          	return -1;
       }
       memcpy(ll_addr.sll_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
-      if (bind (pRadioHWInfo->monitor_interface_write.selectable_fd, (struct sockaddr *)&ll_addr, sizeof(ll_addr)) == -1)
+      if (bind (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, (struct sockaddr *)&ll_addr, sizeof(ll_addr)) == -1)
       {
         	log_error_and_alarm("Error:\tbind failed");
-        	close(pRadioHWInfo->monitor_interface_write.selectable_fd);
-         pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
+        	close(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
+         pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = -1;
    	     return -1;
       }
-      if (pRadioHWInfo->monitor_interface_write.selectable_fd == -1 ) 
+      if (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd == -1 ) 
       {
           log_error_and_alarm("Error:\tCannot open socket.\tInfo: Must be root with an 802.11 card with RFMON enabled");
           return -1;
       }
-      log_line("Opened socket for write fd=%d.", pRadioHWInfo->monitor_interface_write.selectable_fd);
+      log_line("Opened socket for write fd=%d.", pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
    }
 
    pRadioHWInfo->openedForWrite = 1;
-   log_line("Opened radio interface %d (%s) for writing on %s. Returned fd=%d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->monitor_interface_write.selectable_fd);
-   return pRadioHWInfo->monitor_interface_write.selectable_fd;
+   log_line("Opened radio interface %d (%s) for writing on %s. Returned fd=%d", interfaceIndex+1, pRadioHWInfo->szName, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz), pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
+   return pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd;
 }
 
 void radio_close_interface_for_read(int interfaceIndex)
@@ -777,17 +777,17 @@ void radio_close_interface_for_read(int interfaceIndex)
 
    radio_rx_pause_interface(interfaceIndex, "Close radio interface");
    
-   if ( NULL != pRadioHWInfo->monitor_interface_read.ppcap )
+   if ( NULL != pRadioHWInfo->runtimeInterfaceInfoRx.ppcap )
    {
-      log_line("Closed radio interface %d [%s] that was used for read, selectable read fd was: %d, ppcap was: %d", interfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->monitor_interface_read.selectable_fd, pRadioHWInfo->monitor_interface_read.ppcap);
-      pcap_close(pRadioHWInfo->monitor_interface_read.ppcap);
+      log_line("Closed radio interface %d [%s] that was used for read, selectable read fd was: %d, ppcap was: %d", interfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
+      pcap_close(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
    }
    else
       log_line("Radio interface %d was not opened for read.", interfaceIndex+1);
 
-   pRadioHWInfo->monitor_interface_read.ppcap = NULL;
-   pRadioHWInfo->monitor_interface_read.selectable_fd = -1;
-   pRadioHWInfo->monitor_interface_read.iErrorCount = 0;
+   pRadioHWInfo->runtimeInterfaceInfoRx.ppcap = NULL;
+   pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd = -1;
+   pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount = 0;
    pRadioHWInfo->openedForRead = 0;
 
    radio_rx_resume_interface(interfaceIndex);
@@ -813,26 +813,26 @@ void radio_close_interface_for_write(int interfaceIndex)
       return;
    }
 
-   log_line("Closed radio interface %d (%s) that was used for write. Selectable write fd was: %d, ppcap was: %d", interfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->monitor_interface_write.selectable_fd, pRadioHWInfo->monitor_interface_write.ppcap);
+   log_line("Closed radio interface %d (%s) that was used for write. Selectable write fd was: %d, ppcap was: %d", interfaceIndex+1, pRadioHWInfo->szName, pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, pRadioHWInfo->runtimeInterfaceInfoTx.ppcap);
 
    if ( s_iUsePCAPForTx )
    {
-      if ( NULL != pRadioHWInfo->monitor_interface_write.ppcap )
-         pcap_close(pRadioHWInfo->monitor_interface_write.ppcap);
+      if ( NULL != pRadioHWInfo->runtimeInterfaceInfoTx.ppcap )
+         pcap_close(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap);
       else
          log_line("Radio interface %d was not opened for read.", interfaceIndex+1);
    }
    else
    {
-      if ( -1 != pRadioHWInfo->monitor_interface_write.selectable_fd )
-         close(pRadioHWInfo->monitor_interface_write.selectable_fd);
+      if ( -1 != pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd )
+         close(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd);
       else
          log_line("Radio interface %d was not opened for write.", interfaceIndex+1);
    }
 
-   pRadioHWInfo->monitor_interface_write.ppcap = NULL;
-   pRadioHWInfo->monitor_interface_write.selectable_fd = -1;
-   pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+   pRadioHWInfo->runtimeInterfaceInfoTx.ppcap = NULL;
+   pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd = -1;
+   pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount = 0;
    pRadioHWInfo->openedForWrite = 0;
 }
 
@@ -859,20 +859,20 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    int n = 0;
 
    /*   
-   int retval = pcap_next_ex(pRadioHWInfo->monitor_interface_read.ppcap, &ppcapPacketHeader, (const u_char**)&pRadioPayload);
+   int retval = pcap_next_ex(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, &ppcapPacketHeader, (const u_char**)&pRadioPayload);
    if (retval < 0)
    {
       s_iRadioLastReadErrorCode = RADIO_READ_ERROR_INTERFACE_BROKEN;
-      if (strcmp("The interface went down",pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap)) == 0)
+      if (strcmp("The interface went down",pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap)) == 0)
       {
-         pRadioHWInfo->monitor_interface_read.iErrorCount++;
+         pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount++;
 
          log_softerror_and_alarm("rx pcap ERROR: Radio interface %d (%s) went down. Error count: %d, ppcap = %x, fd = %d", 
             interfaceNumber+1,
             pRadioHWInfo->szName,
-            pRadioHWInfo->monitor_interface_read.iErrorCount,
-            pRadioHWInfo->monitor_interface_read.ppcap,
-            pRadioHWInfo->monitor_interface_read.selectable_fd );
+            pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount,
+            pRadioHWInfo->runtimeInterfaceInfoRx.ppcap,
+            pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd );
 
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
@@ -882,8 +882,8 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
       }
       else
       {
-         pRadioHWInfo->monitor_interface_read.iErrorCount++;
-         log_softerror_and_alarm("rx pcap ERROR: %s, error count: %d", pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap), pRadioHWInfo->monitor_interface_read.iErrorCount);
+         pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount++;
+         log_softerror_and_alarm("rx pcap ERROR: %s, error count: %d", pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap), pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount);
          s_iRadioInterfacesBroken++;
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
@@ -913,8 +913,8 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
          return NULL;
       }
       s_iRadioLastReadErrorCode = RADIO_READ_ERROR_READ_ERROR;
-      log_softerror_and_alarm("rx pcap ERROR getting received data on ppcap: %x; retval != 1; retval is: %d", pRadioHWInfo->monitor_interface_read.ppcap, retval);
-      log_softerror_and_alarm("pcap error: %s", pcap_geterr(pRadioHWInfo->monitor_interface_read.ppcap)); 
+      log_softerror_and_alarm("rx pcap ERROR getting received data on ppcap: %x; retval != 1; retval is: %d", pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, retval);
+      log_softerror_and_alarm("pcap error: %s", pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap)); 
       log_line("rx pcap received: %d - %d", ppcapPacketHeader->caplen, ppcapPacketHeader->len);
       #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
       if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
@@ -925,7 +925,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    */
    struct pcap_pkthdr pcapHeader;
    ppcapPacketHeader = &pcapHeader;
-   pRadioPayload = (u8*) pcap_next(pRadioHWInfo->monitor_interface_read.ppcap, ppcapPacketHeader); 
+   pRadioPayload = (u8*) pcap_next(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, ppcapPacketHeader); 
    if ( NULL == pRadioPayload )
       return NULL;
    //memcpy(sPayloadBufferRead, pRadioPayload, ppcapPacketHeader->caplen);
@@ -943,15 +943,24 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
       return NULL;
    }
 
-   pRadioHWInfo->monitor_interface_read.iErrorCount = 0;
-   pRadioHWInfo->monitor_interface_read.radioInfo.nRadiotapFlags = 0;
+   pRadioHWInfo->runtimeInterfaceInfoRx.iErrorCount = 0;
+   pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nRadiotapFlags = 0;
+   int iAntennaCount = 0;
    int idBm = 0;
+   int iAntennaDBM[MAX_RADIO_ANTENNAS];
+   int iAntennaDBMNoise[MAX_RADIO_ANTENNAS];
+   for( int i=0; i<MAX_RADIO_ANTENNAS; i++ )
+   {
+      iAntennaDBM[i] = 1000;
+      iAntennaDBMNoise[i] = 1000;
+   }
+
    while ((n = ieee80211_radiotap_iterator_next(&rti)) == 0)
    {
       switch (rti.this_arg_index)
       {
          case IEEE80211_RADIOTAP_RATE:
-	           pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = getRealDataRateFromRadioDataRate((int)(*((u8*)(rti.this_arg)))/2, 0);
+	           pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS = getRealDataRateFromRadioDataRate((int)(*((u8*)(rti.this_arg)))/2, 0);
             //log_line("recv datarate: %d", (int)(*((u8*)(rti.this_arg))));
             break;
 
@@ -961,39 +970,113 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
             //u8 flags = rti.this_arg[1];
             u8 mcs = rti.this_arg[2];
             //log_line("recv MCS, %d, %d, %d", (int)known, (int)flags, (int)mcs);
-            pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS = -mcs-1;
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS = -mcs-1;
             break;
             }
 
          case IEEE80211_RADIOTAP_CHANNEL:
-            pRadioHWInfo->monitor_interface_read.radioInfo.nChannel = le16_to_cpu(*((u16 *)rti.this_arg));
-            pRadioHWInfo->monitor_interface_read.radioInfo.nChannelFlags = le16_to_cpu(*((u16 *)(rti.this_arg + 2)));
-            //log_line("Channel: %d, flags: %d", pRadioHWInfo->monitor_interface_read.radioInfo.nChannel, pRadioHWInfo->monitor_interface_read.radioInfo.nChannelFlags);
+            //pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nChannel = le16_to_cpu(*((u16 *)rti.this_arg));
+            //pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nChannelFlags = le16_to_cpu(*((u16 *)(rti.this_arg + 2)));
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nFreq = le32toh(*(uint32_t*)(rti.this_arg)) & 0xffff;
             break;
 	
          case IEEE80211_RADIOTAP_ANTENNA:
-            pRadioHWInfo->monitor_interface_read.radioInfo.nAntenna = (*rti.this_arg) + 1;
+            //pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntenna = (*rti.this_arg) + 1;
+            iAntennaCount++;
             break;
 		
          case IEEE80211_RADIOTAP_FLAGS:
-             pRadioHWInfo->monitor_interface_read.radioInfo.nRadiotapFlags = (int)(*(uint8_t*)(rti.this_arg));
-             //log_line("radio tap flags: %d", pRadioHWInfo->monitor_interface_read.radioInfo.nRadiotapFlags);
+             pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nRadiotapFlags = (int)(*(uint8_t*)(rti.this_arg));
+             //log_line("radio tap flags: %d", pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nRadiotapFlags);
              break;
 
          case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
              {
-             idBm = (int8_t)(*rti.this_arg);
-             if ( idBm < -2 )
-             pRadioHWInfo->monitor_interface_read.radioInfo.nDbm = idBm;
-             //log_line("dbm: %d", pRadioHWInfo->monitor_interface_read.radioInfo.nDbm);
-             break;
+                idBm = *((int8_t*)(rti.this_arg));
+                if ( idBm < 10 )
+                {
+                   if ( iAntennaDBM[iAntennaCount] > 500 )
+                      iAntennaDBM[iAntennaCount] = idBm;
+                   else if ( idBm > iAntennaDBM[iAntennaCount] )
+                      iAntennaDBM[iAntennaCount] = idBm;
+                }
+                break;
              }
+
          case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-             pRadioHWInfo->monitor_interface_read.radioInfo.nDbmNoise = (int8_t)(*rti.this_arg);
-             //log_line("dbmnoise: %d", pRadioHWInfo->monitor_interface_read.radioInfo.nDbmNoise);
-             break;
+             {
+                idBm = *((int8_t*)(rti.this_arg));
+                if ( idBm < 0 )
+                {
+                   if ( iAntennaDBMNoise[iAntennaCount] > 500 )
+                      iAntennaDBMNoise[iAntennaCount] = idBm;
+                   if ( idBm < iAntennaDBMNoise[iAntennaCount] )
+                      iAntennaDBMNoise[iAntennaCount] = idBm;
+                }
+                break;
+             }
       }
    }
+
+   for( int i=0; i<iAntennaCount; i++ )
+   {
+      if ( iAntennaDBM[i] < 500 )
+      {
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] < 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[i] = iAntennaDBM[i] - pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i];
+         pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] = iAntennaDBM[i];
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] = iAntennaDBM[i];
+         else
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] = (pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] * 80 + 20 * iAntennaDBM[i])/100;
+
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMin[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMin[i] = iAntennaDBM[i];
+         else if ( iAntennaDBM[i] < pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMin[i] )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMin[i] = iAntennaDBM[i];
+
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMax[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMax[i] = iAntennaDBM[i];
+         else if ( iAntennaDBM[i] > pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMax[i] )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMax[i] = iAntennaDBM[i];
+      }
+
+      if ( iAntennaDBMNoise[i] < 500 )
+      {
+         pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[i] = iAntennaDBMNoise[i];
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseAvg[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseAvg[i] = iAntennaDBMNoise[i];
+         else
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseAvg[i] = (pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseAvg[i] * 80 + 20 * iAntennaDBMNoise[i])/100;
+         
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMin[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMin[i] = iAntennaDBMNoise[i];
+         else if ( iAntennaDBMNoise[i] < pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMin[i] )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMin[i] = iAntennaDBMNoise[i];
+
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMax[i] > 500 )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMax[i] = iAntennaDBMNoise[i];
+         else if ( iAntennaDBMNoise[i] > pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMax[i] )
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMax[i] = iAntennaDBMNoise[i];
+      }
+   }
+
+   /*
+   char szBuff[256];
+   sprintf(szBuff, "Ant%d: f: %d ", iAntennaCount, pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nFreq);
+   for( int i=0; i<iAntennaCount; i++ )
+   {
+      char szTmp[64];
+      sprintf(szTmp, "dbm[%d]=%d (%d %d), dbnoise[%d]=%d (%d %d) ",
+         i, pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbm[i], pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i], pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmMin[i],
+         i, pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoise[i], pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseAvg[i], pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseMax[i]);
+      strcat(szBuff, szTmp);
+   }
+   log_line(szBuff);
+   */
+
+   if ( iAntennaCount > pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount )
+      pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount = iAntennaCount;
 
    #ifdef DEBUG_PACKET_RECEIVED
    log_line("ieee iterator length: %d, iee header: %d", rti.max_length,sizeof(s_uIEEEHeaderData) );
@@ -1008,7 +1091,7 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    pRadioPayload += sRadioLastReceivedHeadersLength;
    payloadLength = ppcapPacketHeader->len - sRadioLastReceivedHeadersLength;
    // Ralink and Atheros both always supply the FCS to userspace at the end, so remove it from size
-   if (pRadioHWInfo->monitor_interface_read.radioInfo.nRadiotapFlags & IEEE80211_RADIOTAP_F_FCS)
+   if (pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nRadiotapFlags & IEEE80211_RADIOTAP_F_FCS)
       payloadLength -= 4;
    //log_line("pRadioPayload size adjusted: %d: ", payloadLength);
 
@@ -1187,7 +1270,10 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    memcpy(pRawPacket, pPacketData, nInputLength);
    totalRadioLength += nInputLength;
 
-   if ( s_bRadioDebugFlag )
+   memset(s_uLastPacketBuilt, 0, MAX_PACKET_TOTAL_SIZE);
+   // To fix, only on debug
+   if ( 1 )
+   //if ( s_bRadioDebugFlag )
       memcpy(s_uLastPacketBuilt, pPacketData, nInputLength);
 
    #ifdef DEBUG_PACKET_SENT
@@ -1242,7 +1328,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
 int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 {
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceIndex);
-   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->monitor_interface_write.selectable_fd < 0 ) )
+   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd < 0 ) )
    {
       log_softerror_and_alarm("RadioError: Tried to write a radio message to an invalid interface (%d).", interfaceIndex+1);
       return 0;
@@ -1254,6 +1340,16 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
       return 0;
    }
 
+   // To fix to remove
+   t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+   {
+      t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*)&s_uLastPacketBuilt[sizeof(t_packet_header)];
+      t_packet_header_video_full_98_debug_info* pPHVFDebugInfo = (t_packet_header_video_full_98_debug_info*) &s_uLastPacketBuilt[sizeof(t_packet_header)+sizeof(t_packet_header_video_full_98)];
+      u8* pVideoData = &s_uLastPacketBuilt[sizeof(t_packet_header)+sizeof(t_packet_header_video_full_98) + sizeof(t_packet_header_video_full_98_debug_info)];
+      u32 crc = base_compute_crc32(pVideoData, pPHVF->uCurrentBlockPacketSize);
+   }
+
    if ( s_bRadioDebugFlag )
    {
       t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
@@ -1261,16 +1357,6 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
       {
          s_uLastRadioPingSentTime = get_current_timestamp_ms();
          s_uLastRadioPingId = s_uLastPacketBuilt[sizeof(t_packet_header)];
-         //log_line("DEBUG sent PING, id: %d", s_uLastRadioPingId);
-      }
-
-      if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
-      {
-         u8 uPingId = s_uLastPacketBuilt[sizeof(t_packet_header)];
-         //if ( uPingId == s_uLastRadioPingId )
-         //   log_line("DEBUG send matching ping reply id %d, delta time: %u ms", uPingId, get_current_timestamp_ms() - s_uLastRadioPingSentTime);
-         //else
-         //   log_line("DEBUG send ping reply %d", uPingId);
       }
    }
 
@@ -1286,11 +1372,11 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
 
    if ( s_iUsePCAPForTx )
    {
-      len = pcap_inject(pRadioHWInfo->monitor_interface_write.ppcap, pData, dataLength);
+      len = pcap_inject(pRadioHWInfo->runtimeInterfaceInfoTx.ppcap, pData, dataLength);
       if ( len < dataLength )
       {
          log_softerror_and_alarm("RadioError: tx ppcap failed to send radio message (%d bytes sent of %d bytes).", len, dataLength);
-         pRadioHWInfo->monitor_interface_write.iErrorCount++;
+         pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount++;
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
             pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
@@ -1298,16 +1384,16 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
          return 0;
       }
       else
-         pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+         pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount = 0;
    }
    else
    {
-      len = write(pRadioHWInfo->monitor_interface_write.selectable_fd, pData, dataLength);
+      len = write(pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, pData, dataLength);
       if ( len < dataLength )
       {
          log_softerror_and_alarm("RadioError: Failed to send radio message on radio interface %d, fd=%d (%d bytes sent of %d bytes).",
-           interfaceIndex+1, pRadioHWInfo->monitor_interface_write.selectable_fd, len, dataLength);
-         pRadioHWInfo->monitor_interface_write.iErrorCount++;
+           interfaceIndex+1, pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd, len, dataLength);
+         pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount++;
          #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
          if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
             pthread_mutex_unlock(&s_pMutexRadioSyncRxTxThreads);
@@ -1315,7 +1401,7 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
          return 0;
       }
       else
-         pRadioHWInfo->monitor_interface_write.iErrorCount = 0;
+         pRadioHWInfo->runtimeInterfaceInfoTx.iErrorCount = 0;
    }
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
@@ -1346,7 +1432,7 @@ int radio_write_serial_packet(int interfaceIndex, u8* pData, int dataLength, u32
    }
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceIndex);
-   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->monitor_interface_write.selectable_fd < 0 ) )
+   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd < 0 ) )
    {
       log_softerror_and_alarm("RadioError: Tried to write a serial radio message to an invalid interface (%d).", interfaceIndex+1);
       return -1;
@@ -1403,7 +1489,7 @@ int radio_write_sik_packet(int interfaceIndex, u8* pData, int dataLength, u32 uT
    }
 
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceIndex);
-   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->monitor_interface_write.selectable_fd < 0 ) )
+   if ( NULL == pRadioHWInfo || ( 0 == pRadioHWInfo->openedForWrite) || (pRadioHWInfo->runtimeInterfaceInfoTx.selectable_fd < 0 ) )
    {
       log_softerror_and_alarm("RadioError: Tried to write a SiK radio message to an invalid interface (%d).", interfaceIndex+1);
       return -1;

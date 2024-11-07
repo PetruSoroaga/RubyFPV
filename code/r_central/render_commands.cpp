@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -51,6 +51,13 @@ static u32 s_lastTimeRenderAnimCommands = 0;
 static float s_fBarHighPosX = 0.0;
 static int s_ProgressPercent = -1;
 static bool s_bUploadNewMethod = true;
+static char s_szRenderCommandsCustomStatus[256];
+
+void render_commands_init()
+{
+   s_szRenderCommandsCustomStatus[0] = 0;
+}
+
 
 void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight, bool bCentered )
 {
@@ -58,7 +65,7 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
    float fBarWidth = 0.64*fWidth/numBars;
    float fBarSpacing = 0.36*fWidth/numBars;
    float height_text = g_pRenderEngine->textHeight(g_idFontOSD);
-   char* szMsg = warnings_get_last_message_configure_radio_link();
+   char* szMsgWarnings = warnings_get_last_message_configure_radio_link();
 
    if ( bCentered )
    {
@@ -72,9 +79,18 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
 
    g_pRenderEngine->setStrokeSize(0);
 
-   if ( (NULL != szMsg) && (0 != szMsg[0]) )
+   char szMsgToDisplay[256];
+   szMsgToDisplay[0] = 0;
+
+   if ( (NULL != szMsgWarnings) && (0 != szMsgWarnings[0]) )
+      strcpy(szMsgToDisplay, szMsgWarnings);
+   if ( 0 != s_szRenderCommandsCustomStatus[0] )
+      strcpy(szMsgToDisplay, s_szRenderCommandsCustomStatus);
+
+   if ( 0 != szMsgToDisplay[0] )
    {
-      float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szMsg);
+      float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szMsgToDisplay);
+      fTextWidth += g_pRenderEngine->textWidth(g_idFontOSD, "**");
       if ( fWidth > fTextWidth )
          fTextWidth = fWidth;
 
@@ -114,19 +130,18 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
 
    if ( s_ProgressPercent > 0 )
    {
-      //if ( (NULL == szMsg) || (0 == szMsg[0]) )
+      if ( 0 != szMsgToDisplay[0] )
       {
-         char szText[128];
-         strcpy(szText, "Uploading software. Please wait.");
-           
-         float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szText);
-         
+         float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szMsgToDisplay);
+         fTextWidth += g_pRenderEngine->textWidth(g_idFontOSD, "**");
+         char szTmp[256];
+         strcpy(szTmp, szMsgToDisplay);
          for( int i=0; i<((sl_iCountUploadTextDotsCount/10) % 3); i++ )
-            strcat(szText, ".");
+            strcat(szTmp, ".");
          if ( bCentered )
-            g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szText);
+            g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szTmp);
          else
-            g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szText);
+            g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szTmp);
       }
 
       char szBuff[32];
@@ -136,22 +151,19 @@ void render_animation_bars( float xPos, float yPos, float fWidth, float fHeight,
       float height_text = osd_getFontHeightBig();
       g_pRenderEngine->drawText(xPos+fWidth+0.01, yPos+height_text*0.1, g_idFontOSDBig, szBuff);
    }
-
-   if ( (s_ProgressPercent == 0) || ((NULL != szMsg) && (0 != szMsg[0])) )
-   {
-      char szText[128];
-      strcpy(szText, "Generating update archive to upload. Please wait.");
-      if ( (NULL != szMsg) && (0 != szMsg[0]) )
-         strcpy(szText, szMsg);
-        
-      float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szText);
-      
+   else if ( 0 != szMsgToDisplay[0] )
+   { 
+      float fTextWidth = g_pRenderEngine->textWidth(g_idFontOSD, szMsgToDisplay);
+      fTextWidth += g_pRenderEngine->textWidth(g_idFontOSD, "**");
+       
+      char szTmp[256];
+      strcpy(szTmp, szMsgToDisplay);
       for( int i=0; i<((sl_iCountUploadTextDotsCount/10) % 3); i++ )
-         strcat(szText, ".");
+         strcat(szTmp, ".");
       if ( bCentered )
-         g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szText);
+         g_pRenderEngine->drawText((1.0 - fTextWidth)*0.5, yPos-height_text*1.5, g_idFontOSD, szTmp);
       else
-         g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szText);
+         g_pRenderEngine->drawText(xPos, yPos-height_text, g_idFontOSD, szTmp);
    }
 }
 
@@ -166,4 +178,16 @@ void render_commands_set_progress_percent(int percent, bool bNewMethod)
 {
    s_ProgressPercent = percent;
    s_bUploadNewMethod = bNewMethod;
+}
+
+void render_commands_set_custom_status(const char* szStatus)
+{
+   if ( (NULL == szStatus) || (0 == szStatus[0]) )
+   {
+      s_szRenderCommandsCustomStatus[0] = 0;
+      log_line("Cleared custom upload status message.");
+      return;
+   }
+   strcpy(s_szRenderCommandsCustomStatus, szStatus);
+   log_line("Set custom upload status message: (%s)", s_szRenderCommandsCustomStatus);
 }

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -349,6 +349,32 @@ bool read_config_file()
    return true;
 }
   
+void _launch_vehicle_processes()
+{
+   hardware_sleep_ms(100);
+   vehicle_launch_tx_telemetry(&modelVehicle);
+   
+   hardware_sleep_ms(100);
+   vehicle_launch_rx_commands(&modelVehicle);
+
+   if ( modelVehicle.rc_params.rc_enabled )
+   {
+      hardware_sleep_ms(100);
+      vehicle_launch_rx_rc(&modelVehicle);
+   }
+
+   hardware_sleep_ms(100);
+
+   vehicle_launch_tx_router(&modelVehicle);
+
+   log_line("Launch sequence: done launching router.");
+
+   // Wait for all the processes to start (takes time for I2C detection)
+   for( int i=0; i<10; i++ )
+      hardware_sleep_ms(500);
+}
+
+
 int r_start_vehicle(int argc, char *argv[])
 {
    log_init("Vehicle");
@@ -616,33 +642,13 @@ int r_start_vehicle(int argc, char *argv[])
    hw_launch_process("./ruby_alive");
    #endif
    
-   hardware_sleep_ms(100);
-   vehicle_launch_tx_telemetry(&modelVehicle);
-   
-   hardware_sleep_ms(100);
-   vehicle_launch_rx_commands(&modelVehicle);
-
-   if ( modelVehicle.rc_params.rc_enabled )
-   {
-      hardware_sleep_ms(100);
-      vehicle_launch_rx_rc(&modelVehicle);
-   }
-
-   hardware_sleep_ms(100);
-
-   vehicle_launch_tx_router(&modelVehicle);
-
-   log_line("Start sequence: Done launching router.");
+   _launch_vehicle_processes();
 
    log_line("");
    log_line("----------------------------------------------------------");
    log_line("Finished launching processes. Switching to watchdog state.");
    log_line("----------------------------------------------------------");
    log_line("");
-
-   // Wait for all the processes to start (takes time for I2C detection)
-   for( int i=0; i<10; i++ )
-      hardware_sleep_ms(500);
 
    log_line("Switch to watchdog state after a delay from start.");
    
@@ -666,15 +672,15 @@ int r_start_vehicle(int argc, char *argv[])
    u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
    u32 uTimeLoopLog = g_TimeStart;
 
-   char szFileUpdate[128];
+   char szFileUpdate[MAX_FILE_PATH_SIZE];
    strcpy(szFileUpdate, FOLDER_RUBY_TEMP);
    strcat(szFileUpdate, FILE_TEMP_UPDATE_IN_PROGRESS);
 
-   char szFileReinitRadio[128];
+   char szFileReinitRadio[MAX_FILE_PATH_SIZE];
    strcpy(szFileReinitRadio, FOLDER_RUBY_TEMP);
    strcat(szFileReinitRadio, FILE_TEMP_REINIT_RADIO_IN_PROGRESS);
 
-   char szFileArmed[128];
+   char szFileArmed[MAX_FILE_PATH_SIZE];
    strcpy(szFileArmed, FOLDER_RUBY_TEMP);
    strcat(szFileArmed, FILE_TEMP_ARMED);
 
@@ -782,9 +788,15 @@ int r_start_vehicle(int argc, char *argv[])
             log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3);
             char* szPIDs = hw_process_get_pid("ruby_rt_vehicle");
             if ( strlen(szPIDs) > 3 )
+            {
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
+               log_softerror_and_alarm("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
+            }
             else
+            {
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
+               log_softerror_and_alarm("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
+            }
             bMustRestart = true;
          }
       }
@@ -801,9 +813,15 @@ int r_start_vehicle(int argc, char *argv[])
             log_format_time(s_pProcessStatsTelemetry->lastIPCOutgoingTime, szTime2);
             char* szPIDs = hw_process_get_pid("ruby_tx_telemetry");
             if ( strlen(szPIDs) > 3 )
+            {
                log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has blocked! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
+               log_softerror_and_alarm("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has blocked! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
+            }
             else
+            {
                log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has crashed! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
+               log_softerror_and_alarm("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has crashed! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
+            }
             bMustRestart = true;
          }
       }
@@ -820,9 +838,15 @@ int r_start_vehicle(int argc, char *argv[])
             log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2);
             char* szPIDs = hw_process_get_pid("ruby_start");
             if ( strlen(szPIDs) > 3 )
+            {
                log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
+               log_softerror_and_alarm("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
+            }
             else
+            {
                log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has crashed! Last active time: %s", szPIDs, szTime);
+               log_softerror_and_alarm("Commands RX process watchdog check failed: commands rx process (PID [%s]) has crashed! Last active time: %s", szPIDs, szTime);
+            }
             bMustRestart = true;
          }
       }
@@ -841,39 +865,46 @@ int r_start_vehicle(int argc, char *argv[])
             log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2);
             char* szPIDs = hw_process_get_pid("ruby_start");
             if ( strlen(szPIDs) > 3 )
+            {
                log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
+               log_softerror_and_alarm("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
+            }
             else
+            {
                log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
+               log_softerror_and_alarm("RC RX process watchdog check failed: RC rx process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
+            }
             bMustRestart = true;
          }
       }
 
       if ( bMustRestart )
       {
-         log_line("Restarting processes...");
+         log_softerror_and_alarm("Restarting processes...");
          iRestartCount++;
          vehicle_stop_tx_router();
          
          if ( modelVehicle.hasCamera() )
          if ( modelVehicle.isActiveCameraCSICompatible() || modelVehicle.isActiveCameraVeye() ) 
             vehicle_stop_video_capture_csi(&modelVehicle);
-         hw_stop_process("ruby_start");
+         
+         vehicle_stop_rx_commands();
          vehicle_stop_tx_telemetry();
          vehicle_stop_rx_rc();
 
+         shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, s_pProcessStatsRouter);
+         s_pProcessStatsRouter = NULL;
+         shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_TELEMETRY_TX, s_pProcessStatsTelemetry);
+         s_pProcessStatsTelemetry = NULL;
+         shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_COMMANDS_RX, s_pProcessStatsCommands);
+         s_pProcessStatsCommands = NULL;
+         shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_RC_RX, s_pProcessStatsRC);
+         s_pProcessStatsRC = NULL;
+           
+
          hardware_sleep_ms(200);
-
-         vehicle_launch_tx_telemetry(&modelVehicle);
-         hardware_sleep_ms(20);
-         vehicle_launch_rx_commands(&modelVehicle);
-         if ( modelVehicle.rc_params.rc_enabled )
-         {
-            hardware_sleep_ms(20);
-            vehicle_launch_rx_rc(&modelVehicle);
-         }
-         hardware_sleep_ms(20);
-
-         vehicle_launch_tx_router(&modelVehicle);
+         log_line("Launching processes...");
+         _launch_vehicle_processes();
 
          log_line("Restarting processes. Done.");
 

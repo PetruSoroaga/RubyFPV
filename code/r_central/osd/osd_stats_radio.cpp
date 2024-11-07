@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -170,7 +170,8 @@ void osd_render_stats_full_rx_port()
       y += lineHeight + 0.01;
 
       g_pRenderEngine->drawText(xPos, y, fontId, "Rx Quality:");
-      sprintf(szBuff, "%d%%  %d dbm", g_SM_RadioStats.radio_interfaces[i].rxQuality, g_SM_RadioStats.radio_interfaces[i].lastDbm);
+      // To fix use proper dbm values
+      sprintf(szBuff, "%d%%  %d dbm", g_SM_RadioStats.radio_interfaces[i].rxQuality, g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmLast[0]);
       g_pRenderEngine->drawTextLeft(xPos + widthCol - 2.0*padding, y, fontId, szBuff);
       y += lineHeight;
 
@@ -1105,15 +1106,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 {
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &g_SM_VideoDecodeStats.video_streams[i];
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
    if ( (NULL == pRadioStats) || (NULL == pVDS) || (NULL == pActiveModel) || (NULL == g_pCurrentModel) )
       return 0.0;
 
@@ -1287,7 +1280,8 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
    if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
    {
-
+      // To fix or remove
+      /*
       shared_mem_controller_retransmissions_stats* pCRS = NULL;
       for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
       {
@@ -1297,7 +1291,8 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
             break;
          }
       }
-
+      */
+    
       /*
       int iIndexVehicleRuntimeInfo = -1;
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -1311,6 +1306,8 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       */
       g_pRenderEngine->setColors(get_Color_Dev());
 
+      // To fix
+      /*
       if ( NULL != pCRS )
       {
          sprintf(szBuff, "%d ms", (int)pCRS->uMinPacketRetransmissionTime);
@@ -1326,7 +1323,8 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       sprintf(szBuff, "%u ms ago", g_TimeNow - pRadioStats->uTimeLastReceivedAResponseFromVehicle);
       _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Last recv response:", szBuff);
       y += height_text_small*s_OSDStatsLineSpacing;
-
+      */
+      
       /*
       if ( -1 == iIndexVehicleRuntimeInfo )
          strcpy(szBuff, "N/A");
@@ -1378,7 +1376,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
    }
 
    {
-      sprintf(szBuff, "%d ms/sec", pVDS->fec_time/1000);
+      sprintf(szBuff, "%d ms/sec", pVDS->uCurrentFECTimeMicros/1000);
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
          sprintf(szBuff2, "(%s) Video Encoding:", pActiveModel->getShortName());
       else
@@ -1427,7 +1425,8 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
       szBuff[0] = 0;
       int cst = 0;
-      cst = pVDS->iCurrentRxTxSyncType;
+      // To fix or remove
+      //cst = pVDS->iCurrentRxTxSyncType;
       
       if ( cst == RXTX_SYNC_TYPE_NONE )
          strcat(szBuff, "None");
@@ -1445,7 +1444,7 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
 
       if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       {
-         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uProfileEncodingFlags);
+         u32 ping_interval_ms = compute_ping_interval_ms(pActiveModel->uModelFlags, pActiveModel->rxtx_sync_type, pVDS->uCurrentVideoProfileEncodingFlags);
          sprintf(szBuff, "%d ms", ping_interval_ms);
          g_pRenderEngine->setColors(get_Color_Dev());
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, "Clock Sync Freq:", szBuff);

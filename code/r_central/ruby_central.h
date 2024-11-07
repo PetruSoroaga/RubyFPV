@@ -33,6 +33,7 @@ Popup* ruby_get_startup_popup();
 void ruby_processing_loop(bool bNoKeys);
 
 void render_all(u32 timeNow, bool bForceBackground = false, bool bDoInputLoop = false);
+void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground = false, bool bDoInputLoop = false);
 int ruby_start_recording();
 int ruby_stop_recording();
 

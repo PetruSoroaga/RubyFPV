@@ -182,6 +182,10 @@ typedef struct
    u8  uCurrentRelayMode;
 } type_relay_parameters;
 
+#define RC_TRANSLATION_TYPE_NONE 0
+#define RC_TRANSLATION_TYPE_2000 1
+#define RC_TRANSLATION_TYPE_4000 2
+
 typedef struct
 {
    bool rc_enabled;
@@ -223,7 +227,8 @@ typedef struct
    u32 flags;
           // bit 0: output to FC enabled
    u32 rcChAssignmentThrotleReverse;
-   u32 dummy[9];
+   int iRCTranslationType;
+   u32 rcDummy[8];
 } rc_parameters_t;
 
 
@@ -449,8 +454,9 @@ typedef struct
    int iNiceOthers;
    int iOverVoltage; // 0 or negative - disabled, negative - default value
    int iFreqARM; // 0 or negative - disabled; in Mhz
-   int iFreqGPU; // 0 or negative - disabled; in Mhz
-
+   int iFreqGPU;
+      // Pi: 0 or negative - disabled; in Mhz
+      // OIPC: 0 or negative - default; positive: boosted
    int iThreadPriorityRouter; // 0 - disabled, 1...99, higher number - higher priority
    int iThreadPriorityRadioRx; // 0 - disabled, 1...99, higher number - higher priority
    int iThreadPriorityRadioTx; // 0 - disabled, 1...99, higher number - higher priority
@@ -619,7 +625,8 @@ class Model
       
       void setAWBMode();
       void getCameraFlags(char* szCameraFlags);
-      void getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_video_link_overwrites* pVideoOverwrites);
+      // To fix
+      void getVideoFlags(char* szVideoFlags, int iVideoProfile);//, shared_mem_video_link_overwrites* pVideoOverwrites);
       void populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
       void populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_extended_v1* pPHRTE);
       void populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_extended_v2* pPHRTE);
@@ -665,3 +672,8 @@ const char* model_getLongFlightMode(u8 mode);
 const char* model_getCameraProfileName(int profileIndex);
 
 bool IsModelRadioConfigChanged(type_radio_links_parameters* pRadioLinks1, type_radio_interfaces_parameters* pRadioInterfaces1, type_radio_links_parameters* pRadioLinks2, type_radio_interfaces_parameters* pRadioInterfaces2);
+
+u32 get_sw_version_major(Model* pModel);
+u32 get_sw_version_minor(Model* pModel);
+u32 get_sw_version_build(Model* pModel);
+int is_sw_version_atleast(Model* pModel, int iMajor, int iMinor);

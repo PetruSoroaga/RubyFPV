@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -94,12 +94,88 @@ void validate_camera(Model* pModel)
 
 void update_openipc_cpu(Model* pModel)
 {
-   hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
-   hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
-   hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+   hardware_set_default_sigmastar_cpu_freq();
    if ( NULL != pModel )
-      pModel->processesPriorities.iFreqARM = 1100;
+      pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
 }
+
+void do_update_to_98()
+{
+   log_line("Doing update to 9.8");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      save_ControllerSettings(); 
+      
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      save_Preferences();
+
+      #if defined (HW_PLATFORM_RADXA_ZERO3)
+      hardware_set_default_radxa_cpu_freq();
+      hw_execute_bash_command("sed -i '/98:03:cf/d' /etc/udev/rules.d/98-custom-wifi.rules", NULL);
+      #endif
+   }
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command("sed -i 's/console:/#console:/' /etc/inittab", NULL);
+   #endif
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   pModel->rc_params.iRCTranslationType = RC_TRANSLATION_TYPE_2000;
+
+   pModel->setDefaultVideoBitrate();
+   
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+   {
+      pModel->processesPriorities.iFreqGPU = 1;
+      hardware_set_oipc_freq_boost(pModel->processesPriorities.iFreqARM, pModel->processesPriorities.iFreqGPU);
+   
+      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+      {
+         pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+      }
+   }
+   #endif
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
+
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+   }
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+
+   log_line("Updated model VID %u (%s) to v9.8", pModel->uVehicleId, pModel->getLongName());
+}
+
 
 void do_update_to_97()
 {
@@ -322,8 +398,8 @@ void do_update_to_93()
    if ( NULL == pModel )
       return;
 
-   if ( pModel->telemetry_params.update_rate > DEFAULT_FC_TELEMETRY_UPDATE_RATE )
-      pModel->telemetry_params.update_rate = DEFAULT_FC_TELEMETRY_UPDATE_RATE;
+   if ( pModel->telemetry_params.update_rate > DEFAULT_TELEMETRY_SEND_RATE )
+      pModel->telemetry_params.update_rate = DEFAULT_TELEMETRY_SEND_RATE;
 
 
    // To fix: Remove this when fast FPS decoding works fine on Radxa, for now set fps to 30
@@ -351,8 +427,8 @@ void do_update_to_92()
    if ( NULL == pModel )
       return;
 
-   if ( pModel->telemetry_params.update_rate > DEFAULT_FC_TELEMETRY_UPDATE_RATE )
-      pModel->telemetry_params.update_rate = DEFAULT_FC_TELEMETRY_UPDATE_RATE;
+   if ( pModel->telemetry_params.update_rate > DEFAULT_TELEMETRY_SEND_RATE )
+      pModel->telemetry_params.update_rate = DEFAULT_TELEMETRY_SEND_RATE;
 
    log_line("Updated model VID %u (%s) to v9.2", pModel->uVehicleId, pModel->getLongName());
 }
@@ -1466,7 +1542,16 @@ void do_generic_update()
 
    hw_execute_bash_command("chmod 777 ruby*", NULL);
    hw_execute_bash_command("chown root:root ruby_*", NULL);
+   
+   #if defined (HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command("cp -rf ruby_update.log /boot/", NULL);
+   #endif
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_bash_command("cp -rf ruby_update.log /config/", NULL);
+   #endif
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command("cp -rf ruby_update.log /root/ruby/", NULL);
+   #endif
 
    // Remove old unsuported plugins formats
 
@@ -1686,6 +1771,8 @@ int main(int argc, char *argv[])
       do_update_to_96();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 7) )
       do_update_to_97();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 8) )
+      do_update_to_98();
 
    saveCurrentModel();
    

@@ -3,6 +3,8 @@
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
+#include "../base/controller_rt_info.h"
+#include "../base/vehicle_rt_info.h"
 #include "../base/models.h"
 #include "../base/shared_mem.h"
 #include "../base/shared_mem_controller_only.h"
@@ -37,6 +39,12 @@ extern bool g_bDebugIsPacketsHistoryGraphPaused;
 
 extern ProcessorRxVideo* g_pVideoProcessorRxList[MAX_VIDEO_PROCESSORS];
 
+extern controller_runtime_info g_SMControllerRTInfo;
+extern controller_runtime_info* g_pSMControllerRTInfo;
+extern vehicle_runtime_info g_SMVehicleRTInfo;
+extern vehicle_runtime_info* g_pSMVehicleRTInfo;
+
+
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 extern shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats;
@@ -55,9 +63,6 @@ extern shared_mem_video_stream_stats_rx_processors* g_pSM_VideoDecodeStats;
 extern shared_mem_video_stream_stats_history_rx_processors g_SM_VideoDecodeStatsHistory;
 extern shared_mem_video_stream_stats_history_rx_processors* g_pSM_VideoDecodeStatsHistory;
 
-extern shared_mem_controller_retransmissions_stats_rx_processors g_SM_ControllerRetransmissionsStats;
-extern shared_mem_controller_retransmissions_stats_rx_processors* g_pSM_ControllerRetransmissionsStats;
-
 extern shared_mem_radio_rx_queue_info* g_pSM_RadioRxQueueInfo;
 extern shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
 
@@ -66,7 +71,8 @@ extern shared_mem_radio_stats* g_pSM_RadioStats;
 extern shared_mem_radio_stats_interfaces_rx_graph g_SM_RadioStatsInterfacesRxGraph;
 extern shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfacesRxGraph;
 
-extern shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats;
+// To fix
+//extern shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats;
 extern shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs;
 extern shared_mem_router_packets_stats_history* g_pDebug_SM_RouterPacketsStatsHistory;
 extern shared_mem_process_stats* g_pProcessStats;

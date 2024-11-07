@@ -105,6 +105,7 @@
 #define MENU_ID_VEHICLE_DEV 118
 #define MENU_ID_CONTROLLER_DEV 119
 #define MENU_ID_VEHICLE_BOARD 120
+#define MENU_ID_CONTROLLER_DEV_STATS 121
 
 
 #define MAX_MENU_ITEMS 150
@@ -214,6 +215,8 @@ class Menu
      void addMessage(const char* szMessage);
      void addMessage(int iId, const char* szMessage);
      void addMessage2(int iId, const char* szMessage, const char* szLine2);
+
+     static void updateOTAStatus(u8 uOTAStatus, u32 uOTACounter);
 
    protected:
      void computeRenderSizes();

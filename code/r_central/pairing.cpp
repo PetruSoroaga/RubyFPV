@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -32,6 +32,8 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/ctrl_interfaces.h"
+#include "../base/controller_rt_info.h"
+#include "../base/vehicle_rt_info.h"
 //#include "../base/radio_utils.h"
 #include "../base/hardware.h"
 #include "../base/commands.h"
@@ -272,6 +274,30 @@ void _pairing_open_shared_mem()
    int iAnyNewOpen = 0;
    int iAnyFailed = 0;
 
+   for(int i=0; i<10; i++ )
+   {
+      if ( NULL != g_pSMControllerRTInfo )
+         break;
+      g_pSMControllerRTInfo = controller_rt_info_open_for_read();
+      
+      hardware_sleep_ms(5);
+      iAnyNewOpen++;
+   }
+   if ( NULL == g_pSMControllerRTInfo )
+      iAnyFailed++;
+
+   for(int i=0; i<10; i++ )
+   {
+      if ( NULL != g_pSMVehicleRTInfo )
+         break;
+      g_pSMVehicleRTInfo = vehicle_rt_info_open_for_read();
+      
+      hardware_sleep_ms(5);
+      iAnyNewOpen++;
+   }
+   if ( NULL == g_pSMVehicleRTInfo )
+      iAnyFailed++;
+
    for( int i=0; i<10; i++ )
    {
       if ( NULL != g_pSM_RCIn )
@@ -307,6 +333,8 @@ void _pairing_open_shared_mem()
    if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
       iAnyFailed++;
 
+// To fix
+     /*
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
@@ -318,7 +346,7 @@ void _pairing_open_shared_mem()
    }
    if ( NULL == g_pSM_VideoLinkStats )
       iAnyFailed++;
-
+*/
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
@@ -360,23 +388,11 @@ void _pairing_open_shared_mem()
    {
       if ( NULL != g_pSM_VideoDecodeStats )
          break;
-      g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open(true);
+      g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open_for_read();
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
    if ( NULL == g_pSM_VideoDecodeStats )
-      iAnyFailed++;
-
-   ruby_signal_alive();
-   for( int i=0; i<20; i++ )
-   {
-      if ( NULL != g_pSM_ControllerRetransmissionsStats )
-         break;
-      g_pSM_ControllerRetransmissionsStats = shared_mem_controller_video_retransmissions_stats_open_for_read();
-      hardware_sleep_ms(5);
-      iAnyNewOpen++;
-   }
-   if ( NULL == g_pSM_ControllerRetransmissionsStats )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -445,6 +461,12 @@ void _pairing_open_shared_mem()
 
 void _pairing_close_shared_mem()
 {
+   controller_rt_info_close(g_pSMControllerRTInfo);
+   g_pSMControllerRTInfo = NULL;
+
+   vehicle_rt_info_close(g_pSMVehicleRTInfo);
+   g_pSMVehicleRTInfo = NULL;
+
    shared_mem_router_vehicles_runtime_info_close(g_pSM_RouterVehiclesRuntimeInfo);
    g_pSM_RouterVehiclesRuntimeInfo = NULL;
 
@@ -461,8 +483,9 @@ void _pairing_close_shared_mem()
    shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfaceRxGraph);
    g_pSM_RadioStatsInterfaceRxGraph = NULL;
 
-   shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
-   g_pSM_VideoLinkStats = NULL;
+// To fix
+   //shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
+   //g_pSM_VideoLinkStats = NULL;
 
    shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsOutput);
    g_pSM_VideoInfoStatsOutput = NULL;
@@ -478,9 +501,6 @@ void _pairing_close_shared_mem()
 
    shared_mem_video_stream_stats_history_rx_processors_close(g_pSM_VDS_history);
    g_pSM_VDS_history = NULL;
-
-   shared_mem_controller_video_retransmissions_stats_close(g_pSM_ControllerRetransmissionsStats);
-   g_pSM_ControllerRetransmissionsStats = NULL;
 
    shared_mem_radio_rx_queue_info_close(g_pSM_RadioRxQueueInfo);
    g_pSM_RadioRxQueueInfo = NULL;

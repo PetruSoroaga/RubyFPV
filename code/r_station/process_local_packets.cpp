@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -62,9 +62,8 @@
 #include "rx_video_output.h"
 #include "process_radio_in_packets.h"
 #include "packets_utils.h"
-#include "video_link_adaptive.h"
-#include "video_link_keyframe.h"
 #include "timers.h"
+#include "adaptive_video.h"
 #include "radio_links_sik.h"
 #include "test_link_params.h"
 
@@ -512,6 +511,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+      radio_packet_compute_crc(packet, PH.total_length);
       if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
          log_softerror_and_alarm("No pipe to central to send message to.");
       return;
@@ -562,6 +562,7 @@ void process_local_control_packet(t_packet_header* pPH)
          memcpy(packet+sizeof(t_packet_header), &uVehicleLinkId, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
          memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
+         radio_packet_compute_crc(packet, PH.total_length);
          if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
             log_softerror_and_alarm("No pipe to central to send message to.");
          return;
@@ -603,6 +604,7 @@ void process_local_control_packet(t_packet_header* pPH)
       memcpy(packet+sizeof(t_packet_header), &uVehicleLinkId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
+      radio_packet_compute_crc(packet, PH.total_length);
       if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
          log_softerror_and_alarm("No pipe to central to send message to.");
 
@@ -651,7 +653,8 @@ void process_local_control_packet(t_packet_header* pPH)
                break;
             if ( g_pVideoProcessorRxList[i]->m_uVehicleId == pPH->vehicle_id_src )
             {
-               g_pVideoProcessorRxList[i]->resetRetransmissionsStats();
+               // To fix?
+               //g_pVideoProcessorRxList[i]->resetRetransmissionsStats();
                break;
             }
          }
@@ -665,6 +668,21 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED )
    {
       lpp(NULL,0);
+      return;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE )
+   {
+      int iVideoProfile = pPH->vehicle_id_dest;
+      if ( pPH->vehicle_id_dest == 0xFF )
+      if ( NULL != g_pCurrentModel )
+         iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+
+      if ( (iVideoProfile < 0) || (iVideoProfile > VIDEO_PROFILE_PIP) )
+         iVideoProfile = VIDEO_PROFILE_HIGH_QUALITY;
+
+      adaptive_video_switch_to_video_profile(iVideoProfile, g_pCurrentModel->uVehicleId);
+
       return;
    }
 
@@ -702,7 +720,7 @@ void process_local_control_packet(t_packet_header* pPH)
       if ( ! relay_controller_must_display_main_video(g_pCurrentModel) )
          iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
       log_line("Set current keyframe to %d ms for FPS %d for current vehicle (VID: %u)", iDefaultKeyframeIntervalMs, iCurrentFPS, g_pCurrentModel->uVehicleId);
-      video_link_keyframe_set_current_level_to_request(g_pCurrentModel->uVehicleId, iDefaultKeyframeIntervalMs);
+      // To fix video_link_keyframe_set_current_level_to_request(g_pCurrentModel->uVehicleId, iDefaultKeyframeIntervalMs);
       
       pModel = findModelWithId(g_pCurrentModel->relay_params.uRelayedVehicleId, 102);
       if ( NULL != pModel )
@@ -711,7 +729,7 @@ void process_local_control_packet(t_packet_header* pPH)
          if ( ! relay_controller_must_display_remote_video(g_pCurrentModel) )
             iDefaultKeyframeIntervalMs = DEFAULT_VIDEO_KEYFRAME_INTERVAL_WHEN_RELAYING;
          log_line("Set current keyframe to %d ms for remote vehicle (VID: %u)", iDefaultKeyframeIntervalMs, pModel->uVehicleId);
-         video_link_keyframe_set_current_level_to_request(pModel->uVehicleId, iDefaultKeyframeIntervalMs);
+         // To fix video_link_keyframe_set_current_level_to_request(pModel->uVehicleId, iDefaultKeyframeIntervalMs);
       }
 
       g_iDebugShowKeyFramesAfterRelaySwitch = 5;

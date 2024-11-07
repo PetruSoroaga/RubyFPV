@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -643,7 +643,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
    if ( !bMustUpdate )
-   if ( is_sw_version_atleast(g_pCurrentModel->sw_version, 9, 7) )
+   if ( is_sw_version_atleast(g_pCurrentModel, 9, 7) )
    if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType) )
    if ( (pModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
@@ -774,6 +774,15 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
    }
 
+   #if defined(HW_PLATFORM_RASPBERRY)
+   if ( pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+   {
+       warnings_add(pModel->uVehicleId, "Your vehicle generates H265 video but your controller supports only H264. Change vehicle video encoder to H264 encoder", g_idIconCamera, get_Color_IconWarning() );
+       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec","Your vehicle generates H265 video but your controller supports only H264. Change vehicle video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", 0, true);
+       pMC->m_yPos = 0.3;
+       add_menu_to_stack(pMC);
+   }
+   #endif
    log_line("[Event] Handled of event OnReceivedModelSettings complete.");
    return true;
 }

@@ -37,6 +37,8 @@ class MenuVehicleRC: public Menu
       u32 m_uLastSBUSFrameTime;
       u8  m_uLastSBUSFrameIndex;
       bool m_bPendingEnable;
+      int m_iI2CRCINAddress;
+      bool m_bSBUSInverted;
 
       int m_iQA1Org;
       int m_iQA2Org;
@@ -60,4 +62,5 @@ class MenuVehicleRC: public Menu
       int m_IndexFailsafeTime;
       int m_IndexFailsafeType;
       int m_IndexFailsafeValues;
+      int m_IndexRCTranslation;
 };

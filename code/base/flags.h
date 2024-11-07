@@ -61,6 +61,7 @@
 #define RASPIVID_COMMAND_ID_QUANTIZATION_MAX  53
 #define RASPIVID_COMMAND_ID_VIDEO_BITRATE 55
 // bitrate param is in 100kb increments
+#define RASPIVID_COMMAND_ID_QUIT 200
 
 
 // Local control message model changed type

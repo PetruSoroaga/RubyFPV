@@ -55,3 +55,7 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int datarate_bps
 void log_camera_profiles_differences(camera_profile_parameters_t* pProfile1, camera_profile_parameters_t* pProfile2);
 
 int check_write_filesystem();
+
+long metersBetweenPlaces(double lat1, double lon1, double lat2, double lon2);
+long distance_meters_between(double lat1, double lon1, double lat2, double lon2);
+

@@ -6,6 +6,19 @@
 extern "C" {
 #endif 
 
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS  ((u32)(((u32)0x01)<<2))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES      ((u32)(((u32)0x01)<<3))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM                 ((u32)(((u32)0x01)<<4))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS     ((u32)(((u32)0x01)<<5))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP ((u32)(((u32)0x01)<<6))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_CONSUMED_PACKETS    ((u32)(((u32)0x01)<<7))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME       ((u32)(((u32)0x01)<<8))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED   ((u32)(((u32)0x01)<<9))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_UNRECOVERABLE_BLOCKS ((u32)(((u32)0x01)<<10))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES  ((u32)(((u32)0x01)<<11))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_RETRANSMISSIONS  ((u32)(((u32)0x01)<<12))
+
+
 typedef enum
 {
    osdLayout1 = 0,
@@ -108,6 +121,9 @@ typedef struct
    int iShowOnlyPresentTxPowerCards;
    int iShowTxBoosters;
    int iMenuStyle; // 0: clasic, 1: sticky left
+
+   int iDebugStatsQAButton;
+   u32 uDebugStatsFlags;
 } Preferences;
 
 int save_Preferences();

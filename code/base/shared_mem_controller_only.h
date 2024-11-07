@@ -8,7 +8,6 @@
 #define SHARED_MEM_AUDIO_DECODE_STATS "/SYSTEM_SHARED_MEM_AUDIO_DECODE_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS_HISTORY "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS_HISTORY"
-#define SHARED_MEM_VIDEO_RETRANSMISSIONS_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_RETRANMISSIONS_STATS"
 #define SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS "/SYSTEM_SHARED_MEM_RADIO_RX_QUEUE_STATS"
 
 #define MAX_HISTORY_VIDEO_INTERVALS 50
@@ -66,33 +65,14 @@ typedef struct
 {
    u32 uVehicleId;
    u8 uVideoStreamIndex;
-   int isRecording;
-   int iCurrentRxTxSyncType;
-   u32 frames_type;
-   u32 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: h264, IP, etc
-   int video_link_profile; // 0xF0 - user selected one, 0x0F - current active one
-   u32 uProfileEncodingFlags; // same as video link profile's uProfileEncodingFlags from model and video radio packet uProfileEncodingFlags
-   u32 uVideoStatusFlags2; // same as uVideoStatusFlags2 from video radio packet
-   int width;
-   int height;
-   int fps;
-   int keyframe_ms;
-   u32 fec_time; // in micro seconds per second
-   int data_packets_per_block;
-   int fec_packets_per_block;
-   int video_data_length;
-   u8 totalEncodingSwitches;
-   int iLastAckKeyframeInterval;
-   int iLastAckVideoLevelShift;
-   u32 uLastSetVideoBitrate;
-   u32 total_DiscardedLostPackets;
-   u32 total_DiscardedBuffers;
-   u32 total_DiscardedSegments;
-
-   int currentPacketsInBuffers;
-   int maxPacketsInBuffers;
-   int maxBlocksAllowedInBuffers;
-
+   t_packet_header_video_full_98 PHVF;
+   u32 uCurrentVideoProfileEncodingFlags;
+   int iCurrentVideoWidth;
+   int iCurrentVideoHeight;
+   int iCurrentVideoFPS;
+   u32 uCurrentFECTimeMicros; // in micro seconds per second   
+   int iCurrentPacketsInBuffers;
+   int iMaxPacketsInBuffers;
 } __attribute__((packed)) shared_mem_video_stream_stats;
 
 typedef struct
@@ -126,74 +106,6 @@ typedef struct
 {
    shared_mem_video_stream_stats_history video_streams[MAX_VIDEO_PROCESSORS];
 } __attribute__((packed)) shared_mem_video_stream_stats_history_rx_processors;
-
-typedef struct 
-{
-   u8 uCountRequestedRetransmissions;
-   u8 uCountAcknowledgedRetransmissions; // retransmissions for which we received at least a response packet
-   u8 uCountCompletedRetransmissions; // retransmissions for which we received all packets.
-   u8 uCountDroppedRetransmissions;
-
-   u8 uMinRetransmissionRoundtripTime;
-   u8 uMaxRetransmissionRoundtripTime;
-   u16 uAverageRetransmissionRoundtripTime;
-
-   u8 uMinRetransmissionRoundtripTimeSinglePacket;
-   u8 uMaxRetransmissionRoundtripTimeSinglePacket;
-   u16 uAvgRetransmissionRoundtripTimeSinglePacket;
-   u16 uCountReceivedSingleUniqueRetransmittedPackets;
-
-   u16 uCountRequestedPacketsForRetransmission;
-   u16 uCountReRequestedPacketsForRetransmission;
-   u16 uCountReceivedRetransmissionPackets;
-   u16 uCountReceivedRetransmissionPacketsDuplicate;
-   u16 uCountReceivedRetransmissionPacketsDropped;
-} __attribute__((packed)) controller_retransmissions_stats_element;
-
-typedef struct 
-{
-   u32 uRetransmissionId;
-   u32 uRequestTime;
-   u8  uRequestedPackets;
-   u8  uReceivedPackets;
-
-   u32 uRequestedVideoBlockIndex[MAX_RETRANSMISSION_PACKETS_IN_REQUEST];
-   u8  uRequestedVideoBlockPacketIndex[MAX_RETRANSMISSION_PACKETS_IN_REQUEST];
-   u8  uRequestedVideoPacketRetryCount[MAX_RETRANSMISSION_PACKETS_IN_REQUEST];
-   u32 uReceivedPacketTime[MAX_RETRANSMISSION_PACKETS_IN_REQUEST];
-   u8  uReceivedPacketCount[MAX_RETRANSMISSION_PACKETS_IN_REQUEST];
-   
-   u8  uMinResponseTime;
-   u8  uMaxResponseTime;
-} __attribute__((packed)) controller_single_retransmission_state;
-
-typedef struct
-{  
-   u32 uVehicleId;
-   u8 uVideoStreamIndex;
-   u16 totalRequestedRetransmissions;
-   u16 totalReceivedRetransmissions;
-   u16 totalRequestedRetransmissionsLast500Ms;
-   u16 totalReceivedRetransmissionsLast500Ms;
-   u16 totalRequestedVideoPackets;
-   u16 totalReceivedVideoPackets;
-   u8 uMinPacketRetransmissionTime;
-   u8 uMaxPacketRetransmissionTime;
-   u8 uAvgPacketRetransmissionTime;
-   controller_retransmissions_stats_element history[MAX_HISTORY_VIDEO_INTERVALS];
-
-   u32 uGraphRefreshIntervalMs;
-
-   controller_single_retransmission_state listActiveRetransmissions[MAX_HISTORY_STACK_RETRANSMISSION_INFO];
-   int iCountActiveRetransmissions;
-
-
-} __attribute__((packed)) shared_mem_controller_retransmissions_stats;
-
-typedef struct
-{
-   shared_mem_controller_retransmissions_stats video_streams[MAX_VIDEO_PROCESSORS];
-} __attribute__((packed)) shared_mem_controller_retransmissions_stats_rx_processors;
 
 
 #define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 80 // sampled every 40 ms
@@ -292,8 +204,10 @@ shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_in
 shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_write();
 void shared_mem_controller_radio_stats_interfaces_rx_graphs_close(shared_mem_radio_stats_interfaces_rx_graph* pAddress);
 
-shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open(int readOnly);
+shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_read();
+shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_write();
 void shared_mem_video_stream_stats_rx_processors_close(shared_mem_video_stream_stats_rx_processors* pAddress);
+shared_mem_video_stream_stats* get_shared_mem_video_stream_stats_for_vehicle(shared_mem_video_stream_stats_rx_processors* pSM, u32 uVehicleId);
 
 shared_mem_video_stream_stats_history_rx_processors* shared_mem_video_stream_stats_history_rx_processors_open(int readOnly);
 void shared_mem_video_stream_stats_history_rx_processors_close(shared_mem_video_stream_stats_history_rx_processors* pAddress);
@@ -305,10 +219,6 @@ void shared_mem_controller_audio_decode_stats_close(shared_mem_audio_decode_stat
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_read();
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_write();
 void shared_mem_router_vehicles_runtime_info_close(shared_mem_router_vehicles_runtime_info* pAddress);
-
-shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_read();
-shared_mem_controller_retransmissions_stats_rx_processors* shared_mem_controller_video_retransmissions_stats_open_for_write();
-void shared_mem_controller_video_retransmissions_stats_close(shared_mem_controller_retransmissions_stats_rx_processors* pAddress);
 
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read();
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_write();

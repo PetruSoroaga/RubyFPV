@@ -135,9 +135,9 @@ int try_read_packets(int iInterfaceIndex)
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
       if ( pNICInfo->openedForRead )
       {
-         FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &g_Readset);
-         if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
-            maxfd = pNICInfo->monitor_interface_read.selectable_fd;
+         FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &g_Readset);
+         if ( pNICInfo->runtimeInterfaceInfoRx.selectable_fd > maxfd )
+            maxfd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
       } 
    }
 

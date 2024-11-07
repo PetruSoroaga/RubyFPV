@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -510,20 +510,12 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
    
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &g_SM_VideoDecodeStats.video_streams[i];
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
    if ( (NULL == pVDS) || (NULL == pActiveModel) )
       return 0.0;
 
-   strcpy(szBuff, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-   int diffEC = pVDS->fec_packets_per_block - pActiveModel->video_link_profiles[pVDS->video_link_profile & 0x0F].block_fecs;
+   strcpy(szBuff, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
+   int diffEC = pVDS->PHVF.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].block_fecs;
 
    if ( diffEC > 0 )
    {
@@ -532,12 +524,12 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
       strcat(szBuff, szTmp);
    }
 
-   if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+   if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
      
-   if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
+   if ( pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
       strcat(szBuff, "-1Way");
-   if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+   if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
       strcat(szBuff, " H265");
      
    fWidth = g_pRenderEngine->textWidth(uFontId, szBuff);

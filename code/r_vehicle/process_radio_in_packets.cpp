@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -47,8 +47,6 @@
 #include "packets_utils.h"
 #include "processor_tx_video.h"
 #include "process_received_ruby_messages.h"
-#include "video_link_auto_keyframe.h"
-#include "video_link_stats_overwrites.h"
 #include "launchers_vehicle.h"
 #include "processor_relay.h"
 #include "shared_vars.h"
@@ -102,6 +100,8 @@ void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetL
          pData = pPacketData + sizeof(t_packet_header) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8));
       }
    }
+   // To fix
+   /*
    if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
    {
       pData = pPacketData + sizeof(t_packet_header);
@@ -113,10 +113,11 @@ void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetL
          pData = pPacketData + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8));
       }
    }
+   */
    if ( (! bHasControllerData ) || NULL == pData )
       return;
 
-   g_SM_VideoLinkStats.timeLastReceivedControllerLinkInfo = g_TimeNow;
+// To fix   g_SM_VideoLinkStats.timeLastReceivedControllerLinkInfo = g_TimeNow;
 
    //u8 flagsAndVersion = *pData;
    pData++;
@@ -311,8 +312,14 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    int iRadioLinkId = g_pCurrentModel->radioInterfacesParams.interface_link_id[iRadioInterface];
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterface);
 
-   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = pRadioHWInfo->monitor_interface_read.radioInfo.nDbm;
-   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
+   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = -200;
+   for( int i=0; i<pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount; i++ )
+   {
+      if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] < 500 )
+      if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] > g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM )
+         g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i];
+   }
+   g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
 
    if ( dataLength <= 0 )
    {
@@ -439,58 +446,13 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
    {
-      ruby_ipc_channel_send_message(s_fIPCRouterToRC, pData, dataLength);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, pData, dataLength);
       return;
    }
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-   {
-      if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL )
-      {
-         if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
-            return;
-         if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
-            return;
-
-         u32 uAdaptiveLevel = 0;
-         u8 uVideoStreamIndex = 0;
-         memcpy( &uAdaptiveLevel, pData + sizeof(t_packet_header), sizeof(u32));
-         if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
-            memcpy( &uVideoStreamIndex, pData + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
-      
-         u32 uAdaptiveLevelResponse = MAX_U32;
-
-         // If video from this vehicle is not active, then we must reply back with acknowledgment
-         if ( relay_current_vehicle_must_send_own_video_feeds() )
-            uAdaptiveLevelResponse = uAdaptiveLevel;
-
-         t_packet_header PH;
-         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-         PH.vehicle_id_dest = pPH->vehicle_id_src;
-         PH.total_length = sizeof(t_packet_header) + sizeof(u32);
-         u8 packet[MAX_PACKET_TOTAL_SIZE];
-         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-         memcpy(packet+sizeof(t_packet_header), &uAdaptiveLevelResponse, sizeof(u32));
-         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
-
-         int iAdaptiveLevel = uAdaptiveLevel;
-
-         if ( NULL != g_pProcessorTxVideo )
-            g_pProcessorTxVideo->setLastRequestedAdaptiveVideoLevelFromController(iAdaptiveLevel);
-         
-         int iTargetProfile = g_pCurrentModel->get_video_profile_from_total_levels_shift(iAdaptiveLevel);
-         int iTargetProfileShiftLevel = g_pCurrentModel->get_video_profile_level_shift_from_total_levels_shift(iAdaptiveLevel);
-         
-         if ( iTargetProfile == g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile )
-         if ( iTargetProfileShiftLevel == g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel )
-         {
-            return;
-         }
-         video_stats_overwrites_switch_to_profile_and_level(iAdaptiveLevel, iTargetProfile, iTargetProfileShiftLevel);
-         return;
-      }
-      
+   {      
       if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
       {
          if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
@@ -508,11 +470,12 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
          if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
             memcpy( &uVideoStreamIndex, pData + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
 
-         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
+// To fix 
+/*         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
             log_line("[KeyFrame] Recv request from controller for keyframe: %u ms (previous requested was: %u ms)", uNewKeyframeValueMs, g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs);
          else
             log_line("[KeyFrame] Recv again request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
-         
+  */       
          // If video is not sent from this vehicle to controller, then we must reply back with acknowledgment
          if ( ! relay_current_vehicle_must_send_own_video_feeds() )
          {
@@ -529,7 +492,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
          }
 
-         video_link_auto_keyframe_set_controller_requested_value((int) uVideoStreamIndex, (int)uNewKeyframeValueMs);
+         // To fix video_link_auto_keyframe_set_controller_requested_value((int) uVideoStreamIndex, (int)uNewKeyframeValueMs);
          return;
       }
 

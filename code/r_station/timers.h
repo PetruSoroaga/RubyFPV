@@ -15,8 +15,6 @@ extern u32 g_TimeLastJoystickCheck;
 
 // Router
 
-extern u32 g_uTimeLastReceivedResponseToAMessage;
-
 extern u32 g_TimeLastControllerLinkStatsSent;
 extern u32 g_TimeLastSetRadioFlagsCommandSent;
 

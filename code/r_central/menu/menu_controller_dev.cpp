@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -32,6 +32,7 @@
 #include "menu_objects.h"
 #include "menu_text.h"
 #include "menu_controller_dev.h"
+#include "menu_controller_dev_stats.h"
 #include "menu_item_section.h"
 #include "menu_confirmation.h"
 #include "../../radio/radiolink.h"
@@ -110,6 +111,12 @@ void MenuControllerDev::addItems()
    m_pItemsSlider[9]->setCurrentValue(pCS->iDevRxLoopTimeout);
    m_IndexRxLoopTimeout = addMenuItem(m_pItemsSlider[9]);
 
+   m_IndexDebugRTStatsGraphs = addMenuItem(new MenuItem("Real time debug stats graphs", "Show live monitor of Rx links and video stats"));
+   m_pMenuItems[m_IndexDebugRTStatsGraphs]->showArrow();
+
+   m_IndexDebugRTStatsConfig = addMenuItem(new MenuItem("Real time debug stats config", "Configure live monitor of Rx links and video stats"));
+   m_pMenuItems[m_IndexDebugRTStatsConfig]->showArrow();
+   
    addMenuItem(new MenuItemSection("OSD"));
 
    m_pItemsSelect[3] = new MenuItemSelect("OSD Render FPS", "How often should the OSD be drawn.");
@@ -413,6 +420,19 @@ void MenuControllerDev::onSelectItem()
       save_Preferences();
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+   }
+
+   if ( m_IndexDebugRTStatsGraphs == m_SelectedIndex )
+   {
+      g_bDebugStats = true;
+      menu_discard_all();
+      return;
+   }
+
+   if ( m_IndexDebugRTStatsConfig == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuControllerDevStatsConfig());
+      return;
    }
 }
 

@@ -135,9 +135,9 @@ int main(int argc, char *argv[])
                
       FD_ZERO(&readset);
       radio_hw_info_t* pNICInfo = hardware_get_radio_info(0);
-      FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &readset);
+      FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &readset);
     
-      int nResult = select(pNICInfo->monitor_interface_read.selectable_fd+1, &readset, NULL, NULL, &to);
+      int nResult = select(pNICInfo->runtimeInterfaceInfoRx.selectable_fd+1, &readset, NULL, NULL, &to);
 
       if ( nResult < 0 )
          break;

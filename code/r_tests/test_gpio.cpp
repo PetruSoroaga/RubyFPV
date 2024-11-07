@@ -29,7 +29,7 @@ int main (void)
    while ( ! bQuit )
    {
       hardware_loop();
-      int iValue = GPIORead(GPIO_PIN_MENU);
+      int iValue = GPIORead(GPIOGetPinMenu());
       log_line("Menu: %d", iValue);
       iCounter++;
       u32 uTime = get_current_timestamp_ms();

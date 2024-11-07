@@ -115,9 +115,9 @@ int main(int argc, char *argv[])
          radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
          if ( pNICInfo->openedForRead )
          {
-            FD_SET(pNICInfo->monitor_interface_read.selectable_fd, &readset);
-            if ( pNICInfo->monitor_interface_read.selectable_fd > maxfd )
-               maxfd = pNICInfo->monitor_interface_read.selectable_fd;
+            FD_SET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &readset);
+            if ( pNICInfo->runtimeInterfaceInfoRx.selectable_fd > maxfd )
+               maxfd = pNICInfo->runtimeInterfaceInfoRx.selectable_fd;
          } 
       }
       int n = select(maxfd+1, &readset, NULL, NULL, &to);
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
       for(int i=0; i<hardware_get_radio_interfaces_count(); ++i)
       {
          radio_hw_info_t* pNICInfo = hardware_get_radio_info(i);
-         if(FD_ISSET(pNICInfo->monitor_interface_read.selectable_fd, &readset))
+         if(FD_ISSET(pNICInfo->runtimeInterfaceInfoRx.selectable_fd, &readset))
          {
             //fflush(stdout);
             int length = 0;
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
                printf("NULL receive buffer. Ignoring...");
                continue;
             }
-            int lastDBM = pNICInfo->monitor_interface_read.radioInfo.nDbm;
-            int lastDataRate = pNICInfo->monitor_interface_read.radioInfo.nDataRateBPSMCS;
+            int lastDBM = pNICInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbm;
+            int lastDataRate = pNICInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
 
             t_packet_header* pPH = (t_packet_header*)pBuffer; 
             

@@ -2,6 +2,7 @@
 #include "../base/base.h"
 #include "../base/models.h"
 #include "../base/shared_mem_controller_only.h"
+#include "video_rx_buffers.h"
 
 #define MAX_RETRANSMISSION_BUFFER_HISTORY_LENGTH 20
 
@@ -64,16 +65,16 @@ typedef struct
 class ProcessorRxVideo
 {
    public:
-      ProcessorRxVideo(u32 uVehicleId, u32 uVideoStreamIndex);
+      ProcessorRxVideo(u32 uVehicleId, u8 uVideoStreamIndex);
       virtual ~ProcessorRxVideo();
 
       static void oneTimeInit();
+      static ProcessorRxVideo* getVideoProcessorForVehicleId(u32 uVehicleId, u32 uVideoStreamIndex);
       //static void log(const char* format, ...);
 
       virtual bool init();
       virtual bool uninit();
       virtual void resetState();
-      void resetRetransmissionsStats();
       void onControllerSettingsChanged();
 
       void pauseProcessing();
@@ -89,10 +90,8 @@ class ProcessorRxVideo
       int getVideoHeight();
       int getVideoFPS();
       int getVideoType();
-      shared_mem_video_stream_stats* getVideoDecodeStats();
       shared_mem_video_stream_stats_history* getVideoDecodeStatsHistory();
-      shared_mem_controller_retransmissions_stats* getControllerRetransmissionsStats();
-
+      
       void updateHistoryStats(u32 uTimeNow);
       virtual void periodicLoop(u32 uTimeNow);
       virtual int handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
@@ -101,7 +100,8 @@ class ProcessorRxVideo
       static FILE* m_fdLogFile;
 
       u32 m_uVehicleId;
-      u32 m_uVideoStreamIndex;
+      u8 m_uVideoStreamIndex;
+      int m_iIndexVideoDecodeStats;
       u32 m_uTimeLastReceivedVideoPacket;
 
    protected:
@@ -110,22 +110,15 @@ class ProcessorRxVideo
       void resetReceiveBuffers(int iToMaxIndex);
       void resetReceiveBuffersBlock(int iBlockIndex);
 
-      void logCurrentRxBuffers(bool bIncludeRetransmissions);
-      void updateRetransmissionsHistoryStats(u32 uTimeNow);
-      void updateHistoryStatsDiscaredAllStack();
-      void updateHistoryStatsDiscaredStackSegment(int countDiscardedBlocks);
-      void updateHistoryStatsBlockOutputed(int rx_buffer_block_index, bool hasRetransmittedPackets);
-
+      void updateVideoDecodingStats(u8* pRadioPacket, int iPacketLength);
+      
       void reconstructBlock(int rx_buffer_block_index);
 
-      void discardRetransmissionsRequestsTooOld();
       void checkAndRequestMissingPackets();
       void checkAndDiscardBlocksTooOld();
       void sendPacketToOutput(int rx_buffer_block_index, int block_packet_index);
       void pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool bTooOld);
       void pushFirstBlockOut();
-
-      void addPacketToReceivedBlocksBuffers(u8* pBuffer, int length, int rx_buffer_block_index, bool bWasRetransmitted);
 
       int preProcessRetransmittedVideoPacket(int interfaceNb, u8* pBuffer, int length);
       int preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
@@ -135,11 +128,11 @@ class ProcessorRxVideo
       
       int onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, int length, int iAddedToStackIndex);
 
-      static bool m_sbFECInitialized;
       bool m_bInitialized;
       int m_iInstanceIndex;
       bool m_bPaused;
-
+      VideoRxPacketsBuffer* m_pVideoRxBuffer;
+      
       // Configuration
 
       u32 m_uRetryRetransmissionAfterTimeoutMiliseconds;
@@ -155,16 +148,8 @@ class ProcessorRxVideo
 
       // Rx state 
 
-      shared_mem_video_stream_stats m_SM_VideoDecodeStats;
       shared_mem_video_stream_stats_history m_SM_VideoDecodeStatsHistory;
-      shared_mem_controller_retransmissions_stats m_SM_RetransmissionsStats;
-
-      // Video blocks are stored in right expected order in the stack (based on video block index)
-
-      type_received_block_info* m_pRXBlocksStack[MAX_RXTX_BLOCKS_BUFFER];
-      int m_iRXBlocksStackTopIndex;
-      int m_iRXMaxBlocksToBuffer;
-
+      
       type_last_rx_packet_info m_InfoLastReceivedVideoPacket;
       u8 m_uLastReceivedVideoLinkProfile;
       u32 m_uLastHardEncodingsChangeVideoBlockIndex;
@@ -176,7 +161,6 @@ class ProcessorRxVideo
       u32 m_uEncodingsChangeCount;
       u32 m_uTimeLastVideoStreamChanged;
 
-      u32 m_TimeLastVideoStatsUpdate;
       u32 m_TimeLastHistoryStatsUpdate;
       u32 m_TimeLastRetransmissionsStatsUpdate;
 

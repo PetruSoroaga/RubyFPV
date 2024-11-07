@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -38,6 +38,7 @@
 #ifdef HW_PLATFORM_RASPBERRY
 #include "../base/hardware_i2c.h"
 #endif
+#include "../base/hardware_files.h"
 #include "../base/ruby_ipc.h"
 #include "../common/radio_stats.h"
 
@@ -53,7 +54,6 @@
 #include "processor_relay.h"
 #include "utils_vehicle.h"
 #include "launchers_vehicle.h"
-#include "video_link_check_bitrate.h"
 #include "video_source_csi.h"
 
 u32 s_LoopCounter = 0;
@@ -246,6 +246,7 @@ int _check_reinit_sik_interfaces()
 
 void _check_for_debug_raspi_messages()
 {
+   /*
    if ( g_TimeNow < s_uTimeLastCheckForRaspiDebugMessages + 2000 )
       return;
    s_uTimeLastCheckForRaspiDebugMessages = g_TimeNow;
@@ -274,6 +275,7 @@ void _check_for_debug_raspi_messages()
    if ( g_pCurrentModel->hasCamera() )
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_send_control_message((u8)iCommand, (u8)iParam);
+   */
 }
 
 
@@ -445,9 +447,10 @@ void _send_radio_stats_to_controller()
 
       shared_mem_radio_stats_radio_interface_compact statsCompact;
       
-      statsCompact.lastDbm = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbm;
-      statsCompact.lastDbmVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmVideo;
-      statsCompact.lastDbmData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmData;
+      //statsCompact.lastDbm = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbm;
+      //statsCompact.lastDbmVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmVideo;
+      //statsCompact.lastDbmData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmData;
+      memcpy( &statsCompact.signalInfo, &(g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].signalInfo), sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
       statsCompact.lastRecvDataRate = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRate;
       statsCompact.lastRecvDataRateVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateVideo;
       statsCompact.lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateData;
@@ -576,8 +579,9 @@ void _update_videobitrate_history_data()
       g_SM_DevVideoBitrateHistory.uCurrentDataPoint = 0;
    int iIndex = (int)g_SM_DevVideoBitrateHistory.uCurrentDataPoint;
 
-   g_SM_DevVideoBitrateHistory.uQuantizationOverflowValue = video_link_get_oveflow_quantization_value();
-   g_SM_DevVideoBitrateHistory.uCurrentTargetVideoBitrate = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate;
+   // To fix g_SM_DevVideoBitrateHistory.uQuantizationOverflowValue = video_link_get_oveflow_quantization_value();
+// To fix 
+/*   g_SM_DevVideoBitrateHistory.uCurrentTargetVideoBitrate = g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate;
   
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoQuantization = g_SM_VideoLinkStats.overwrites.currentH264QUantization;
    if ( (0 == get_video_capture_start_program_time()) || (g_TimeNow < get_video_capture_start_program_time() + 3000) )
@@ -590,7 +594,7 @@ void _update_videobitrate_history_data()
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentVideoBitrateAverage()/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uTotalVideoBitrateAvgKb = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverage()/1000;
    g_SM_DevVideoBitrateHistory.history[iIndex].uVideoProfileSwitches = g_SM_VideoLinkStats.overwrites.currentProfileShiftLevel | (g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile<<4);
-
+*/
    u32 uMinSendTime = 100;
    if ( g_SM_DevVideoBitrateHistory.uGraphSliceInterval > uMinSendTime )
       uMinSendTime = g_SM_DevVideoBitrateHistory.uGraphSliceInterval;

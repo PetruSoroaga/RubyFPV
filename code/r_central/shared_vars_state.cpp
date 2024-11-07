@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -123,31 +123,9 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
    memset( &(pInfo->headerRubyTelemetryShort), 0, sizeof(t_packet_header_ruby_telemetry_short));
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       memset( &(pInfo->SMVehicleRxStats[i]), 0, sizeof(shared_mem_radio_stats_radio_interface));
+   
    // Reset FC telemetry info
-
-   pInfo->bGotFCTelemetry = false;
-   pInfo->bGotFCTelemetryShort = false;
-   pInfo->bGotFCTelemetryExtra = false;
-   pInfo->bFCTelemetrySourcePresent = false;
-   pInfo->iFrequencyFCTelemetryFull = 0;
-   pInfo->iFrequencyFCTelemetryShort = 0;
-   pInfo->uTimeLastRecvFCTelemetry = 0;
-   pInfo->uTimeLastRecvFCTelemetryFull = 0;
-   pInfo->uTimeLastRecvFCTelemetryShort = 0;
-   
-   pInfo->uLastFCFlightMode = 0;
-   pInfo->uLastFCFlags = 0;
-
-   memset( &(pInfo->headerFCTelemetry), 0, sizeof(t_packet_header_fc_telemetry));
-   memset( &(pInfo->headerFCTelemetryExtra), 0, sizeof(t_packet_header_fc_extra));
-   memset( &(pInfo->headerFCTelemetryRCChannels), 0, sizeof(t_packet_header_fc_rc_channels));
-
-   pInfo->headerFCTelemetry.flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
-
-   pInfo->uTimeLastMessageFromFC = 0;
-   pInfo->szLastMessageFromFC[0] = 0;
-   
-   parse_msp_reset_state(&pInfo->mspState);
+   reset_vehicle_telemetry_runtime_info(pInfo);
    
    // Reset other settings
 
@@ -180,9 +158,43 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
 
    pInfo->tmp_iCountRubyTelemetryPacketsFull = 0;
    pInfo->tmp_iCountRubyTelemetryPacketsShort = 0;
+   pInfo->tmp_uTimeLastTelemetryFrequencyComputeTime = 0;
+}
+
+void reset_vehicle_telemetry_runtime_info(t_structure_vehicle_info* pInfo)
+{
+   if ( NULL == pInfo )
+      return;
+
+   pInfo->bGotRubyTelemetryInfo = false;
+   pInfo->bGotRubyTelemetryInfoShort = false;
+
+   pInfo->bGotFCTelemetry = false;
+   pInfo->bGotFCTelemetryShort = false;
+   pInfo->bGotFCTelemetryExtra = false;
+   pInfo->bFCTelemetrySourcePresent = false;
+   pInfo->iFrequencyFCTelemetryFull = 0;
+   pInfo->iFrequencyFCTelemetryShort = 0;
+   pInfo->uTimeLastRecvFCTelemetry = 0;
+   pInfo->uTimeLastRecvFCTelemetryFull = 0;
+   pInfo->uTimeLastRecvFCTelemetryShort = 0;
+   
+   pInfo->uLastFCFlightMode = 0;
+   pInfo->uLastFCFlags = 0;
+
+   memset( &(pInfo->headerFCTelemetry), 0, sizeof(t_packet_header_fc_telemetry));
+   memset( &(pInfo->headerFCTelemetryExtra), 0, sizeof(t_packet_header_fc_extra));
+   memset( &(pInfo->headerFCTelemetryRCChannels), 0, sizeof(t_packet_header_fc_rc_channels));
+
+   pInfo->headerFCTelemetry.flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
+
+   pInfo->uTimeLastMessageFromFC = 0;
+   pInfo->szLastMessageFromFC[0] = 0;
+   
+   parse_msp_reset_state(&pInfo->mspState);
+
    pInfo->tmp_iCountFCTelemetryPacketsFull = 0;
    pInfo->tmp_iCountFCTelemetryPacketsShort = 0;
-   pInfo->tmp_uTimeLastTelemetryFrequencyComputeTime = 0;
 }
 
 void shared_vars_state_reset_all_vehicles_runtime_info()
@@ -271,4 +283,32 @@ void log_current_runtime_vehicles_info()
    log_line("Current runtime info for vehicles: count vehicles found in list: %d", iCount);
    log_line("Current runtime info for vehicles: [%s]", szBuff);
    log_line("Current runtime info for vehicles: active vehicle runtime index: %d", g_iCurrentActiveVehicleRuntimeInfoIndex);
+}
+
+bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId)
+{
+   if ( (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
+      return false;
+
+   t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleId);
+   if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
+      return false;
+
+   bool bNoTelemetryFromFC = false;
+
+   if ( (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
+       (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
+   if ( pRuntimeInfo->bGotFCTelemetry )
+   if ( pRuntimeInfo->headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
+      bNoTelemetryFromFC = true;
+
+   if ( pRuntimeInfo->bGotRubyTelemetryInfo )
+   if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+      bNoTelemetryFromFC = true;
+
+   if ( pRuntimeInfo->bGotRubyTelemetryInfoShort )
+   if ( ! (pRuntimeInfo->headerRubyTelemetryShort.uFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+      bNoTelemetryFromFC = true;
+
+   return ! bNoTelemetryFromFC;
 }

@@ -24,6 +24,8 @@ class MenuControllerDev: public Menu
       int m_IndexPingClockSpeed;
       int m_IndexWiFiChangeDelay;
       int m_IndexRxLoopTimeout;
+      int m_IndexDebugRTStatsGraphs;
+      int m_IndexDebugRTStatsConfig;
       int m_IndexRenderOSDFSP;
       int m_IndexCPULoad;
       int m_IndexFreezeOSD;

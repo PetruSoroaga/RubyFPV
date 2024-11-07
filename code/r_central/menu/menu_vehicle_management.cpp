@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -124,6 +124,8 @@ bool MenuVehicleManagement::periodicLoop()
      
 void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
 {
+   log_line("MenuVehicleManagement: on return from child id %d, result: %d", iChildMenuId, returnValue);
+
    Menu::onReturnFromChild(iChildMenuId, returnValue);
 
    // Delete model
@@ -148,7 +150,7 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
          char szComm[256];
          char szOutput[4096];
          memset(szOutput, 0, 4096);
-         sprintf(szComm, "./ruby_update %d %d", get_sw_version_major(g_pCurrentModel->sw_version), get_sw_version_minor(g_pCurrentModel->sw_version));
+         sprintf(szComm, "./ruby_update %d %d", get_sw_version_major(g_pCurrentModel), get_sw_version_minor(g_pCurrentModel));
          hw_execute_bash_command_raw(szComm, szOutput);
 
          g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
@@ -156,7 +158,7 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
 
          //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Upload Succeeded",NULL);
          //pm->addTopLine("Your vehicle was updated. It will reboot now.");
-         Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", MENU_ID_SIMPLE_MESSAGE+3*1000, true);
+         Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", 3, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -65,15 +65,7 @@ void osd_warnings_render()
          iCountVehicles++;
    }
 
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &(g_SM_VideoDecodeStats.video_streams[i]);
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
    if ( (NULL == pVDS) || (NULL == pActiveModel) )
       return; 
 
@@ -82,7 +74,7 @@ void osd_warnings_render()
    //   return;
 
    if ( g_bHasVideoDataOverloadAlarm )
-   if ( !(pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
+   if ( !(pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
    {
       g_bHasVideoDataOverloadAlarm = false;
       if ( NULL != g_pPopupVideoOverloadAlarm )
@@ -103,13 +95,13 @@ void osd_warnings_render()
    {
       s_uLastTimeCheckAlarmFEC = g_TimeNow;
 
-      if ( (pVDS->fec_time/1000) >= 300 )
+      if ( (pVDS->uCurrentFECTimeMicros/1000) >= 300 )
       {
          if ( 0 == s_uTimeTriggeredAlarmFECOverload )
             s_uTimeTriggeredAlarmFECOverload = g_TimeNow;
          else if ( g_TimeNow > s_uTimeTriggeredAlarmFECOverload + 500 )
          {
-            //log_line("FEC time too big: %d ms/s", g_SM_VideoDecodeStats.fec_time/1000);
+            //log_line("FEC time too big: %d ms/s", g_SM_VideoDecodeStats.uCurrentFECTimeMicros/1000);
             if ( pActiveModel->osd_params.show_overload_alarm )
                warnings_add_vehicle_overloaded(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId);
             s_uTimeTriggeredAlarmFECOverload = 0;
@@ -196,24 +188,11 @@ void osd_warnings_render()
          }
       }
 
-      bool bNoTelemetryFromFC = false;
-
-      if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
-      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
-         bNoTelemetryFromFC = true;
-
-      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
-      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-         bNoTelemetryFromFC = true;
-
-      if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfoShort )
-      if ( ! (g_VehiclesRuntimeInfo[i].headerRubyTelemetryShort.uFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-         bNoTelemetryFromFC = true;
-
+      bool bHasTelemetryFromFC = vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[i].uVehicleId);
 
       bool bShowFCTelemetryAlarm = false;
       if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
-      if ( bNoTelemetryFromFC )
+      if ( ! bHasTelemetryFromFC )
       if ( ! g_VehiclesRuntimeInfo[i].bLinkLost )
          bShowFCTelemetryAlarm = true;
 

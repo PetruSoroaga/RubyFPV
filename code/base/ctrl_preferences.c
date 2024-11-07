@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -113,6 +113,16 @@ void reset_Preferences()
    s_Preferences.iShowOnlyPresentTxPowerCards = 1;
    s_Preferences.iShowTxBoosters = 0;
    s_Preferences.iMenuStyle = 0;
+
+   s_Preferences.iDebugStatsQAButton = 0;
+   s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_UNRECOVERABLE_BLOCKS |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES;
 }
 
 int save_Preferences()
@@ -174,6 +184,7 @@ int save_Preferences()
 
    fprintf(fd, "%d \n", s_Preferences.iShowCPULoad);
    fprintf(fd, "%d %d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters, s_Preferences.iMenuStyle);
+   fprintf(fd, "%d %d\n", s_Preferences.iDebugStatsQAButton, s_Preferences.uDebugStatsFlags);
 
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
@@ -343,6 +354,16 @@ int load_Preferences()
    if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iMenuStyle) )
       s_Preferences.iMenuStyle = 0;
 
+   if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iDebugStatsQAButton, &s_Preferences.uDebugStatsFlags) )
+   {
+      s_Preferences.iDebugStatsQAButton = 0;
+      s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS |
+         CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
+         CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+         CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED;
+   }
+
+   // ----------------------------------------------------
    // End reading file;
    // Validate settings
 

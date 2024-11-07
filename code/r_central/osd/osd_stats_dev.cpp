@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -85,13 +85,9 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
    
-   shared_mem_video_stream_stats* pVDS = NULL;
    int iIndexVehicleRuntimeInfo = -1;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-         pVDS = &(g_SM_VideoDecodeStats.video_streams[i]);
-   }
+
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] == uActiveVehicleId )
@@ -489,9 +485,9 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
 
    static u32 s_uTimeOSDStatsDevLastVideoLevelChange = 0;
    static u32 s_uLastOSDStatsDevVideoProfileReceived = 0;
-   if ( s_uLastOSDStatsDevVideoProfileReceived != (pVDS->video_link_profile & 0x0F) )
+   if ( s_uLastOSDStatsDevVideoProfileReceived != pVDS->PHVF.uCurrentVideoLinkProfile )
    {
-      s_uLastOSDStatsDevVideoProfileReceived = (pVDS->video_link_profile & 0x0F);
+      s_uLastOSDStatsDevVideoProfileReceived = pVDS->PHVF.uCurrentVideoLinkProfile;
       s_uTimeOSDStatsDevLastVideoLevelChange = g_TimeNow;
    }
 
@@ -500,20 +496,19 @@ void osd_render_stats_adaptive_video(float xPos, float yPos)
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Current level:");
    
-   strcpy(szBuff, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-   int diffEC = pVDS->fec_packets_per_block - pActiveModel->video_link_profiles[pVDS->video_link_profile & 0x0F].block_fecs;
+   strcpy(szBuff, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
+   int diffEC = pVDS->PHVF.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].block_fecs;
    if ( diffEC > 0 )
    {
       char szTmp[16];
       sprintf(szTmp, "-%d", diffEC);
       strcat(szBuff, szTmp);
    }
-   else if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+   else if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
 
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
-
 }
 
 
@@ -653,7 +648,8 @@ void osd_render_stats_adaptive_video_graph(float xPos, float yPos)
       g_pRenderEngine->drawText(xPos + fWTemp, y + hLevel*k - height_text_small*0.5, s_idFontStats, szBuff);
       iLevel++;
    }
-   
+   // To fix
+   /*
    int nProfile = g_SM_VideoLinkStats.historySwitches[0]>>4;
    int nLevelShift = g_SM_VideoLinkStats.historySwitches[0] & 0x0F;
    int nLevel = 0;
@@ -686,7 +682,7 @@ void osd_render_stats_adaptive_video_graph(float xPos, float yPos)
       xBarSt -= widthBar;
       hPointPrev = hPoint;
    }
-
+*/
    g_pRenderEngine->setStrokeSize(0);
    osd_set_colors();
 }
@@ -697,8 +693,7 @@ float osd_render_stats_video_stats_get_height()
    float height_text = g_pRenderEngine->textHeight(s_idFontStats);
    
    float height = 2.0 *s_fOSDStatsMargin*1.1 + 0.9*height_text*s_OSDStatsLineSpacing;
-
-   if ( NULL == g_pCurrentModel || NULL == g_pSM_VideoLinkStats || 0 == g_SM_VideoLinkStats.timeLastStatsCheck )
+   // To fix if ( NULL == g_pCurrentModel || NULL == g_pSM_VideoLinkStats || 0 == g_SM_VideoLinkStats.timeLastStatsCheck )
    {
       height += height_text*s_OSDStatsLineSpacing;
       return height;
@@ -750,7 +745,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    osd_set_colors();
    g_pRenderEngine->setColors(get_Color_Dev());
 
-   if ( NULL == g_pCurrentModel || NULL == g_pSM_VideoLinkStats || 0 == g_SM_VideoLinkStats.timeLastStatsCheck )
+   // To fix if ( NULL == g_pCurrentModel || NULL == g_pSM_VideoLinkStats || 0 == g_SM_VideoLinkStats.timeLastStatsCheck )
    {
       bool bAdaptiveVideoOn = false;
       if ( NULL != g_pCurrentModel )
@@ -761,7 +756,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
          g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Adaptive Video is Off.");
       return;
    }
-
+/*
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "User / Current Profile :");
    strcpy(szBuff1, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.userVideoLinkProfile) );
    strcpy(szBuff2, str_get_video_profile_name(g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile) );
@@ -809,28 +804,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   /*
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Uses Controller Feedback:");
-   if ( (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
-      strcpy(szBuff, "Yes");
-   else
-      strcpy(szBuff, "No");
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Used Controller Feedback:");
-   if ( g_SM_VideoLinkStats.usedControllerInfo )
-      strcpy(szBuff, "Yes");
-   else
-      strcpy(szBuff, "No");
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-   
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Video Adjustment Strength:");
-   sprintf(szBuff, "%d%%", g_pCurrentModel->video_params.videoAdjustmentStrength * 10 );
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-   */
+  
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Intervals Used for Down-Comp:");
    sprintf(szBuff, "%d", g_SM_VideoLinkStats.backIntervalsToLookForDownStep );
@@ -852,17 +826,6 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   /*
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Comp. RX Vehicle Quality:");
-   sprintf(szBuff, "%d%%", g_SM_VideoLinkStats.computed_rx_quality_vehicle);
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Com. RX Controller Quality:");
-   sprintf(szBuff, "%d%%", g_SM_VideoLinkStats.computed_rx_quality_controller);
-   g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
-   y += height_text*s_OSDStatsLineSpacing;
-   */
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Last params changed down:");
 
@@ -896,7 +859,7 @@ void osd_render_stats_video_stats(float xPos, float yPos)
    // ---------------------------------------------------------------
    // Graphs
    y += height_text_small*0.7;
-
+*/
    osd_render_stats_adaptive_video_graph(xPos, y);
    y += osd_render_stats_adaptive_video_graph_get_height();
    osd_set_colors();
@@ -1555,12 +1518,14 @@ void osd_render_stats_video_graphs(float xPos, float yPos)
    g_pRenderEngine->setColors(get_Color_Dev());
    g_pRenderEngine->setStrokeSize(1.0);
 
+   // To fix
+   /*
    float x1 = xPos+dxGraph+widthGraph - widthBar*g_SM_VideoLinkStats.backIntervalsToLookForDownStep;
    g_pRenderEngine->drawLine(x1, yTop+height_text, x1, y);
 
    float x2 = xPos+dxGraph+widthGraph - widthBar*g_SM_VideoLinkStats.backIntervalsToLookForUpStep;
    g_pRenderEngine->drawLine(x2, yTop+height_text, x2, y);
-
+*/
 
    //-----------------------
    g_pRenderEngine->setGlobalAlfa(fAlphaOrg);

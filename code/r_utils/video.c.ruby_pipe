@@ -2,7 +2,7 @@
 Copyright (c) 2012, Broadcom Europe Ltd
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
+Redistribution and use in source and/or binary forms, with or without
 modification, are permitted provided that the following conditions are met:
     * Redistributions of source code must retain the above copyright
       notice, this list of conditions and the following disclaimer.
@@ -32,9 +32,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <fcntl.h>
+#include <pthread.h>
 
 #include "bcm_host.h"
 #include "ilclient.h"
+
+void _log(const char* szText )
+{
+   if ( NULL == szText )
+      return;
+
+   FILE* fd = fopen("/tmp/ruby_videoplayer.log", "ab");
+   if ( NULL != fd )
+   {
+      fprintf(fd, "%s\n", szText);
+      fclose(fd);
+   } 
+}
 
 static int video_decode()
 {
@@ -61,6 +76,22 @@ static int video_decode()
       return -4;
    }
 
+
+    char szFIFOName[100];
+    strcpy(szFIFOName, "/tmp/ruby/fifovidstream");
+    int readfd = -1;
+    readfd = open(szFIFOName, O_RDONLY | O_NONBLOCK);
+    if( -1 == readfd )
+    {
+        perror("failed readfd: open()");
+        return EXIT_FAILURE;
+    }
+
+    char szLog[256];
+    sprintf(szLog, "Opened fifo: [%s], fd=%d", szFIFOName, readfd);
+    _log(szLog);
+
+   
    // create video_decode
    if(ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
       status = -14;
@@ -103,13 +134,25 @@ static int video_decode()
          data_len = 0;
          while (data_len == 0)
          {
-            int read_count = read(STDIN_FILENO, dest, buf->nAllocLen-data_len);
-            if ( read_count < 0 )
+
+            int read_count = read(readfd, dest, buf->nAllocLen-data_len);
+            //if ( read_count > 0 )
+            //{
+            //   sprintf(szLog, "read %d of %d", read_count, buf->nAllocLen-data_len);
+            //    _log(szLog);
+            //}
+            //if ( read_count < 0 )
+            //{
+            //   iExit = 1;
+            //   break;
+            //}
+            if ( read_count <= 0 )
             {
-               iExit = 1;
-               break;
+               struct timespec to_sleep = { 0, (long int)(2*1000*1000) };
+               nanosleep(&to_sleep, NULL);
             }
-            data_len += read_count;
+            else
+               data_len += read_count;
          }
          if ( iExit )
             break;
@@ -164,7 +207,9 @@ static int video_decode()
 
    }
 
-
+   if ( readfd != -1 )
+      close(readfd);
+ 
    ilclient_disable_tunnel(tunnel);
    ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
    ilclient_teardown_tunnels(tunnel);
@@ -182,8 +227,36 @@ static int video_decode()
 
 int main (int argc, char **argv)
 {
-  bcm_host_init();
-  return video_decode();
+   bcm_host_init();
+
+   char szLog[128];
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
+   int policy = 0;
+   int ret = 0;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     sprintf(szLog, "Failed to get schedule param");
+   else
+      sprintf(szLog, "Current thread policy/priority: %d/%d", policy, params.sched_priority);
+   _log(szLog);
+
+   params.sched_priority = 50;
+   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+   if ( ret != 0 )
+   {
+      sprintf(szLog, "Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
+      _log(szLog);
+   }
+
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     sprintf(szLog, "Failed to get schedule param");
+   else
+     sprintf(szLog, "Current new thread policy/priority: %d/%d", policy, params.sched_priority);
+   _log(szLog);
+
+   return video_decode();
 }
 
 

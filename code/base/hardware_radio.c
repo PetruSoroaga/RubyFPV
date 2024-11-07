@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -64,6 +64,40 @@ static int s_iHwRadiosCount = 0;
 static int s_iHwRadiosSupportedCount = 0;
 static int s_HardwareRadiosEnumeratedOnce = 0;
 
+
+void reset_runtime_radio_rx_info(type_runtime_radio_rx_info* pRuntimeRadioRxInfo)
+{
+   if ( NULL == pRuntimeRadioRxInfo )
+      return;
+
+   memset(pRuntimeRadioRxInfo, 0, sizeof(type_runtime_radio_rx_info));
+   pRuntimeRadioRxInfo->nChannel = 0;
+   pRuntimeRadioRxInfo->nChannelFlags = 0;
+   pRuntimeRadioRxInfo->nFreq = 0;
+   pRuntimeRadioRxInfo->nDataRateBPSMCS = 0; // positive: bps, negative: mcs rate, 0: never
+   pRuntimeRadioRxInfo->nRadiotapFlags = 0;
+   pRuntimeRadioRxInfo->nAntennaCount = 1;
+   reset_runtime_radio_rx_info_dbminfo(pRuntimeRadioRxInfo);
+}
+
+void reset_runtime_radio_rx_info_dbminfo(type_runtime_radio_rx_info* pRuntimeRadioRxInfo)
+{
+   if ( NULL == pRuntimeRadioRxInfo )
+      return;
+
+   for( int i=0; i<MAX_RADIO_ANTENNAS; i++ )
+   {
+      pRuntimeRadioRxInfo->nDbmLast[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmLastChange[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmAvg[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmMin[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmMax[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmNoiseLast[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmNoiseAvg[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmNoiseMin[i] = 1000;
+      pRuntimeRadioRxInfo->nDbmNoiseMax[i] = 1000;
+   }
+}
 
 radio_hw_info_t* hardware_get_radio_info_array()
 {
@@ -188,11 +222,15 @@ int hardware_load_radio_info()
       {
          sRadioInfo[i].openedForRead = 0;
          sRadioInfo[i].openedForWrite = 0;
-         sRadioInfo[i].monitor_interface_read.ppcap = NULL;
-         sRadioInfo[i].monitor_interface_read.selectable_fd = -1;
-         sRadioInfo[i].monitor_interface_read.nPort = 0;
-         sRadioInfo[i].monitor_interface_write.ppcap = NULL;
-         sRadioInfo[i].monitor_interface_write.selectable_fd = -1;
+         memset(&sRadioInfo[i].runtimeInterfaceInfoRx, 0, sizeof(type_runtime_radio_interface_info));
+         memset(&sRadioInfo[i].runtimeInterfaceInfoTx, 0, sizeof(type_runtime_radio_interface_info));
+         sRadioInfo[i].runtimeInterfaceInfoRx.ppcap = NULL;
+         sRadioInfo[i].runtimeInterfaceInfoRx.selectable_fd = -1;
+         sRadioInfo[i].runtimeInterfaceInfoRx.nPort = 0;
+         reset_runtime_radio_rx_info(&sRadioInfo[i].runtimeInterfaceInfoRx.radioHwRxInfo);
+         sRadioInfo[i].runtimeInterfaceInfoTx.ppcap = NULL;
+         sRadioInfo[i].runtimeInterfaceInfoTx.selectable_fd = -1;
+         reset_runtime_radio_rx_info(&sRadioInfo[i].runtimeInterfaceInfoTx.radioHwRxInfo);
 
          if ( (sRadioInfo[i].supportedBands & RADIO_HW_SUPPORTED_BAND_433) ||
               (sRadioInfo[i].supportedBands & RADIO_HW_SUPPORTED_BAND_868) ||
@@ -742,11 +780,17 @@ int _hardware_enumerate_wifi_radios()
       memset(&(sRadioInfo[s_iHwRadiosCount].uHardwareParamsList[0]), 0, sizeof(u32)*MAX_RADIO_HW_PARAMS);
       sRadioInfo[s_iHwRadiosCount].openedForRead = 0;
       sRadioInfo[s_iHwRadiosCount].openedForWrite = 0;
-      sRadioInfo[s_iHwRadiosCount].monitor_interface_read.ppcap = NULL;
-      sRadioInfo[s_iHwRadiosCount].monitor_interface_read.selectable_fd = -1;
-      sRadioInfo[s_iHwRadiosCount].monitor_interface_read.nPort = 0;
-      sRadioInfo[s_iHwRadiosCount].monitor_interface_write.ppcap = NULL;
-      sRadioInfo[s_iHwRadiosCount].monitor_interface_write.selectable_fd = -1;
+
+      memset(&sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoRx, 0, sizeof(type_runtime_radio_interface_info));
+      memset(&sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoTx, 0, sizeof(type_runtime_radio_interface_info));
+      reset_runtime_radio_rx_info(&sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoRx.radioHwRxInfo);
+      sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoRx.ppcap = NULL;
+      sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoRx.selectable_fd = -1;
+      sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoRx.nPort = 0;
+      reset_runtime_radio_rx_info(&sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoTx.radioHwRxInfo);
+      sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoTx.ppcap = NULL;
+      sRadioInfo[s_iHwRadiosCount].runtimeInterfaceInfoTx.selectable_fd = -1;
+
       s_iHwRadiosCount++;
       if ( s_iHwRadiosCount >= MAX_RADIO_INTERFACES )
          break;
@@ -948,6 +992,9 @@ int _hardware_enumerate_wifi_radios()
       if ( 5 < strlen(szBuff) )
         sRadioInfo[i].supportedBands |= RADIO_HW_SUPPORTED_BAND_58;
 
+      if ( sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_8812EU )
+         sRadioInfo[i].supportedBands &= ~RADIO_HW_SUPPORTED_BAND_24;
+
       char szBands[128];
       str_get_supported_bands_string(sRadioInfo[i].supportedBands, szBands);
       log_line("[HardwareRadio] Interface %s supported bands: [%s]", sRadioInfo[i].szName, szBands);
@@ -1027,13 +1074,18 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
 }
 
 // Called only once, from ruby_start process
-int hardware_radio_load_radio_modules()
+int hardware_radio_load_radio_modules(int iEchoToConsole)
 {
    _hardware_find_usb_radio_interfaces_info();
 
    if ( 0 == s_iFoundUSBRadioInterfaces )
    {
       log_softerror_and_alarm("[HardwareRadio] No USB radio devices found!");
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: ERROR: No USB radio cards found!\n\n");
+         fflush(stdout);
+      }
       return 0;
    }
 
@@ -1047,6 +1099,11 @@ int hardware_radio_load_radio_modules()
    log_line("[HardwareRadio] Adding radio modules on Radxa for detected radio cards...");
    #endif
 
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Adding radio modules for detected radio cards...\n");
+      fflush(stdout);
+   }
 
    char szOutput[1024];
    log_line("[HardwareRadio] Loading radio modules...");
@@ -1058,6 +1115,11 @@ int hardware_radio_load_radio_modules()
 
    if ( hardware_radio_has_rtl8812au_cards() )
    {
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: Adding radio modules for RTL8812AU radio cards...\n");
+         fflush(stdout);
+      }
       #if defined(HW_PLATFORM_RASPBERRY)
       hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1", szOutput);
       #endif
@@ -1071,7 +1133,14 @@ int hardware_radio_load_radio_modules()
       #endif
 
       if ( (0 != szOutput[0]) && (strlen(szOutput) > 10) )
-         log_softerror_and_alarm("[HardwareRadio] Error on loading driver: [%s]", szOutput);
+      {
+         log_softerror_and_alarm("[HardwareRadio] Error on loading driver RTL8812AU: [%s]", szOutput);
+         if ( iEchoToConsole )
+         {
+            printf("Ruby: ERROR on loading driver RTL8812AU: [%s]\n", szOutput);
+            fflush(stdout);
+         }
+      }
       else
       {
          iRTL8812AULoaded = 1;
@@ -1081,6 +1150,11 @@ int hardware_radio_load_radio_modules()
 
    if ( hardware_radio_has_rtl8812eu_cards() )
    {
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: Adding radio modules for RTL8812EU radio cards...\n");
+         fflush(stdout);
+      }
       log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
       #if defined(HW_PLATFORM_RASPBERRY)
       hw_execute_bash_command("sudo modprobe cfg80211", NULL);
@@ -1098,7 +1172,14 @@ int hardware_radio_load_radio_modules()
       #endif
 
       if ( (0 != szOutput[0]) && (strlen(szOutput) > 10) )
-         log_softerror_and_alarm("[HardwareRadio] Error on loading driver: [%s]", szOutput);
+      {
+         log_softerror_and_alarm("[HardwareRadio] Error on loading driver RTL8812EU: [%s]", szOutput);
+         if ( iEchoToConsole )
+         {
+            printf("Ruby: ERROR on loading driver RTL8812EU: [%s]\n", szOutput);
+            fflush(stdout);
+         }
+      }
       else
       {
          iRTL8812EULoaded = 1;
@@ -1108,6 +1189,11 @@ int hardware_radio_load_radio_modules()
 
    if ( hardware_radio_has_atheros_cards() )
    {
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: Adding radio modules for Atheros radio cards...\n");
+         fflush(stdout);
+      }
       hw_execute_bash_command("modprobe ath9k_hw txpower=10", szOutput);
       hw_execute_bash_command("modprobe ath9k_htc", szOutput);
       iAtherosLoaded = 1;
@@ -1116,6 +1202,12 @@ int hardware_radio_load_radio_modules()
 
    log_line("[HardwareRadio] Added %d modules. Added RTL8812AU? %s. Added RTL8812EU? %s. Added Atheros? %s",
       iCountLoaded, (iRTL8812AULoaded?"yes":"no"), (iRTL8812EULoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"));
+   if ( iEchoToConsole )
+   {
+      printf( "Ruby: Added %d modules. Added RTL8812AU? %s. Added RTL8812EU? %s. Added Atheros? %s\n",
+         iCountLoaded, (iRTL8812AULoaded?"yes":"no"), (iRTL8812EULoaded?"yes":"no"), (iAtherosLoaded?"yes":"no"));
+      fflush(stdout);
+   }
    return iCountLoaded;
 }
 

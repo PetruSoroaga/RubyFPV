@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -122,25 +122,35 @@ void executeQuickActionSwitchVideoProfile()
       warnings_add(0, "Can't execute video profile switch while in spectator mode.");
       return;
    }
+
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE, STREAM_ID_DATA);
+   PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+
    s_uLastQuickActionSwitchVideoProfile++;
    if ( s_uLastQuickActionSwitchVideoProfile > 2 )
       s_uLastQuickActionSwitchVideoProfile = 0;
 
    if ( 0 == s_uLastQuickActionSwitchVideoProfile )
    {
-      handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO, 0, NULL, 0);
+      PH.vehicle_id_dest = 0xFF;
       warnings_add(0, "Dev: Switch to Auto Video Link Quality.");
    }
    if ( 1 == s_uLastQuickActionSwitchVideoProfile )
    {
-      handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED, 0, NULL, 0);
+      PH.vehicle_id_dest = VIDEO_PROFILE_MQ;
       warnings_add(0, "Dev: Switch to Med Video Link Quality.");
    }
    if ( 2 == s_uLastQuickActionSwitchVideoProfile )
    {
-      handle_commands_send_to_vehicle(COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW, 0, NULL, 0);
+      PH.vehicle_id_dest = VIDEO_PROFILE_LQ;
       warnings_add(0, "Dev: Switch to Low Video Link Quality.");
    }
+   PH.total_length = sizeof(t_packet_header);
+
+   u8 buffer[1024];
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   send_packet_to_router(buffer, PH.total_length);
 }
 
 void executeQuickActionCycleOSD()

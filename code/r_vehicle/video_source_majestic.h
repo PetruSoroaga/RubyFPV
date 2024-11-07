@@ -15,5 +15,8 @@ void video_source_majestic_set_videobitrate_value(u32 uBitrate);
 
 // Returns the buffer and number of bytes read
 u8* video_source_majestic_read(int* piReadSize, bool bAsync);
-
+bool video_source_majestic_last_read_is_single_nal();
+bool video_source_majestic_last_read_is_end_nal();
+bool video_source_majestic_is_inside_iframe();
+bool video_source_majestic_las_read_is_picture_frame();
 void video_source_majestic_periodic_checks();

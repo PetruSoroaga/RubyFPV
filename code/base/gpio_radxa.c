@@ -82,7 +82,7 @@ int GPIODirection(int pin, int dir)
 int GPIORead(int pin)
 {
    if ( pin <= 0 )
-      return 0;
+      return -1;
    char path[64];
    char value_str[5];
    int fd;
@@ -140,90 +140,91 @@ void _GPIO_PullAllUp()
 
 int GPIOInitButtons()
 {
+   _gpio_load_custom_mapping();
    log_line("[GPIO] Export and initialize buttons (for Radxa)...");
 
    s_iGPIOButtonsDirectionDetected = 1;
    s_iGPIOButtonsPullDirection = 0;
 
    int failed = 0;
-   if (-1 == GPIOExport(GPIO_PIN_MENU) || -1 == GPIOExport(GPIO_PIN_BACK))
+   if (-1 == GPIOExport(GPIOGetPinMenu()) || -1 == GPIOExport(GPIOGetPinBack()))
    {
       log_line("Failed to get GPIO access to pin Menu/Back.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_PLUS) || -1 == GPIOExport(GPIO_PIN_MINUS))
+   if (-1 == GPIOExport(GPIOGetPinPlus()) || -1 == GPIOExport(GPIOGetPinMinus()))
    {
       log_line("Failed to get GPIO access to pin Plus/Minus.");
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIO_PIN_QACTION1))
+   if (-1 == GPIOExport(GPIOGetPinQA1()))
    {
       log_line("Failed to get GPIO access to pin QA1.");
       failed = 1;
    }
-   if (-1 == GPIOExport(GPIO_PIN_QACTION2))
+   if (-1 == GPIOExport(GPIOGetPinQA2()))
    {
       log_line("Failed to get GPIO access to pin QA2.");
       failed = 1;
    }
    
-   if (-1 == GPIOExport(GPIO_PIN_QACTION3))
+   if (-1 == GPIOExport(GPIOGetPinQA3()))
    {
       log_line("Failed to get GPIO access to pin QA3.");
       failed = 1;
    }
 
    /*
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONPLUS))
+   if (-1 == GPIOExport(GPIOGetPinQAPlus()))
    {
       log_line("Failed to get GPIO access to pin QAPLUS.");
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIO_PIN_QACTIONMINUS))
+   if (-1 == GPIOExport(GPIOGetPinQAMinus()))
    {
       log_line("Failed to get GPIO access to pin QAMINUS.");
       failed = 1;
    }
    */
 
-   if (-1 == GPIODirection(GPIO_PIN_MENU, IN) || -1 == GPIODirection(GPIO_PIN_BACK, IN))
+   if (-1 == GPIODirection(GPIOGetPinMenu(), IN) || -1 == GPIODirection(GPIOGetPinBack(), IN))
    {
       log_line("Failed set GPIO configuration for pin Menu/Back.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_PLUS, IN) || -1 == GPIODirection(GPIO_PIN_MINUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinPlus(), IN) || -1 == GPIODirection(GPIOGetPinMinus(), IN))
    {
       log_line("Failed set GPIO configuration for pin Plus/Minus.");
       failed = 1;
    }
    
-   if (-1 == GPIODirection(GPIO_PIN_QACTION1, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA1(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA1.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIO_PIN_QACTION2, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA2(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA2.");
       failed = 1;
    }
    
-   if (-1 == GPIODirection(GPIO_PIN_QACTION3, IN))
+   if (-1 == GPIODirection(GPIOGetPinQA3(), IN))
    {
       log_line("Failed set GPIO configuration for pin QA3.");
       failed = 1;
    }
 
    /*
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONPLUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinQAPlus(), IN))
    {
       log_line("Failed set GPIO configuration for pin QAACTIONPLUS.");
       failed = 1;
    }
 
-   if (-1 == GPIODirection(GPIO_PIN_QACTIONMINUS, IN))
+   if (-1 == GPIODirection(GPIOGetPinQAMinus(), IN))
    {
       log_line("Failed set GPIO configuration for pin QAACTIONMINUS.");
       failed = 1;

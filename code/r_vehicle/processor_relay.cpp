@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -43,7 +43,6 @@
 #include "radio_links.h"
 #include "shared_vars.h"
 #include "timers.h"
-#include "video_link_auto_keyframe.h"
 #include "utils_vehicle.h"
 
 bool s_bHasEverReceivedDataFromRelayedVehicle = false;
@@ -129,7 +128,7 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
 
    if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO) ||
         ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_AUDIO) )
-   if ( (pPH->packet_type == PACKET_TYPE_VIDEO_DATA_FULL) ||
+   if ( (pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98) ||
         (pPH->packet_type == PACKET_TYPE_AUDIO_SEGMENT) )
    if ( ! relay_vehicle_must_forward_video_from_relayed_vehicle(g_pCurrentModel, pPH->vehicle_id_src) )
       return;
@@ -309,8 +308,9 @@ void relay_on_relay_params_changed()
    PH.total_length = sizeof(t_packet_header);
 
    ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)&PH, PH.total_length);
-   ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)&PH, PH.total_length);
    ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)&PH, PH.total_length);
+   if ( g_pCurrentModel->rc_params.rc_enabled )
+      ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)&PH, PH.total_length);
          
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -325,7 +325,7 @@ void relay_on_relay_mode_changed(u8 uOldMode, u8 uNewMode)
    if ( uOldMode & RELAY_MODE_REMOTE )
    if ( ! (uNewMode & RELAY_MODE_REMOTE) )
    {
-      video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL, "relay mode changed");
+      // To fix video_link_auto_keyframe_set_local_requested_value(0, DEFAULT_VIDEO_MIN_AUTO_KEYFRAME_INTERVAL, "relay mode changed");
    }
 
    g_iDebugShowKeyFramesAfterRelaySwitch = 6;

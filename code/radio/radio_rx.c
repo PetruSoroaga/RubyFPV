@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -73,6 +73,12 @@ u8 s_tmpLastProcessedRadioRxPacket[MAX_PACKET_TOTAL_SIZE];
 
 u32 s_uLastRxShortPacketsVehicleIds[MAX_RADIO_INTERFACES];
 
+// Pointers to array of int-s (max radio cards, for each card)
+u8* s_pPacketsCounterOutputVideo = NULL;
+u8* s_pPacketsCounterOutputData = NULL;
+u8* s_pPacketsCounterOutputMissing = NULL;
+u8* s_pPacketsCounterOutputMissingMaxGap = NULL;
+
 extern pthread_mutex_t s_pMutexRadioSyncRxTxThreads;
 extern int s_iMutexRadioSyncRxTxThreadsInitialized;
 
@@ -82,10 +88,14 @@ volatile int s_bCanDoOperations = 0;
 extern u32 s_uLastRadioPingSentTime;
 extern u8 s_uLastRadioPingId;
 
-void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
+// returns the number of missing packets detected on the radio link
+
+int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
 {
    if ( (NULL == pPacket) || ( iLength <= 2 ) )
-      return;
+      return 0;
+
+   int nReturnLost = 0;
 
    //----------------------------------------------
    // Begin: Compute index of stats to use
@@ -153,6 +163,7 @@ void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsSho
             lost = pPHS->packet_id + 255 - uNext;
          s_RadioRxState.vehicles[iStatsIndex].uTotalRxPacketsLost += lost;
          s_RadioRxState.vehicles[iStatsIndex].uTmpRxPacketsLost += lost;
+         nReturnLost = lost;
       }
 
       s_RadioRxState.vehicles[iStatsIndex].uLastRxRadioLinkPacketIndex[iInterface] = pPHS->packet_id;
@@ -166,6 +177,7 @@ void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsSho
          u32 lost = pPH->radio_link_packet_index - (s_RadioRxState.vehicles[iStatsIndex].uLastRxRadioLinkPacketIndex[iInterface] + 1);
          s_RadioRxState.vehicles[iStatsIndex].uTotalRxPacketsLost += lost;
          s_RadioRxState.vehicles[iStatsIndex].uTmpRxPacketsLost += lost;
+         nReturnLost = lost;
       }
 
       if ( s_RadioRxState.vehicles[iStatsIndex].uLastRxRadioLinkPacketIndex[iInterface] > 0 )
@@ -176,6 +188,7 @@ void _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsSho
 
       s_RadioRxState.vehicles[iStatsIndex].uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
    }
+   return nReturnLost;
 }
 
 void _radio_rx_update_fd_sets()
@@ -198,12 +211,12 @@ void _radio_rx_update_fd_sets()
       if ( s_iRadioRxPausedInterfaces[i] )
          continue;
 
-      FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet);
-      FD_SET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxExceptionSet);
+      FD_SET(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &s_RadioRxReadSet);
+      FD_SET(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &s_RadioRxExceptionSet);
 
       s_iRadioRxCountFDs++;
-      if ( pRadioHWInfo->monitor_interface_read.selectable_fd > s_iRadioRxMaxFD )
-         s_iRadioRxMaxFD = pRadioHWInfo->monitor_interface_read.selectable_fd;
+      if ( pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd > s_iRadioRxMaxFD )
+         s_iRadioRxMaxFD = pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd;
    }
    s_iRadioRxMaxFD++;
 }
@@ -390,7 +403,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
       pthread_mutex_lock(&s_pMutexRadioSyncRxTxThreads);
    #endif
 
-   int iRead = read(pRadioHWInfo->monitor_interface_read.selectable_fd, &(s_uBuffersSerialMessages[iInterfaceIndex][s_uBuffersSerialMessagesReadPos[iInterfaceIndex]]), iMaxRead);
+   int iRead = read(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &(s_uBuffersSerialMessages[iInterfaceIndex][s_uBuffersSerialMessagesReadPos[iInterfaceIndex]]), iMaxRead);
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )
@@ -463,7 +476,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
    return 0;
 }
 
-// return 0 on success, -1 if the interface is now invalid or broken
+// return number of packets parsed, -1 if the interface is now invalid or broken
 
 int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
 {
@@ -474,18 +487,14 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    int iDataIsOk = 1;
    int iBufferLength = 0;
    u8* pBuffer = NULL;
-   int iCountReads = 0;
-   do
+   int iCountParsed = 0;
+
+   for( int iCountReads=0; iCountReads<3; iCountReads++ )
    {
       iBufferLength = 0;
       pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength);
       if ( NULL == pBuffer )
-      {
-         iReturn = 1;
          break;
-      }
-
-      iCountReads++;
 
       u8* pData = pBuffer;
       int iLength = iBufferLength;
@@ -499,6 +508,8 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          break;
       }
 
+      iCountParsed++;
+
       int iCountPackets = 0;
       int iIsVideoData = 0;
 
@@ -511,22 +522,21 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          {
             s_uLastRadioPingSentTime = get_current_timestamp_ms();
             s_uLastRadioPingId = *(pData +sizeof(t_packet_header));
-            //log_line("DEBUG recv PING, id: %d", s_uLastRadioPingId);
-         }
-
-         if ( s_iRadioRxDevMode )
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
-         {
-            u8 uPingId = *(pData + sizeof(t_packet_header));
-            //if ( uPingId == s_uLastRadioPingId )
-            //   log_line("DEBUG recv matching ping reply id %d, delta time: %u ms", uPingId, get_current_timestamp_ms() - s_uLastRadioPingSentTime);
-            //else
-            //   log_line("DEBUG recv ping reply %d", uPingId);
          }
 
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
             iIsVideoData = 1;
 
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+         if ( NULL != s_pPacketsCounterOutputVideo )
+            s_pPacketsCounterOutputVideo[iInterfaceIndex] = s_pPacketsCounterOutputVideo[iInterfaceIndex]+1;
+
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
+         if ( NULL != s_pPacketsCounterOutputData )
+            s_pPacketsCounterOutputData[iInterfaceIndex] = s_pPacketsCounterOutputData[iInterfaceIndex]+1;
+
+         // To fix
+         /*
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
          {
             t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pData+sizeof(t_packet_header));    
@@ -539,7 +549,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
                pExtraDataU32[4] = get_current_timestamp_ms();
             }
          }
-
+         */
          iCountPackets++;
          int bCRCOk = 0;
          int iPacketLength = packet_process_and_check(iInterfaceIndex, pData, iLength, &bCRCOk);
@@ -574,18 +584,35 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          pData += pPH->total_length;
          iLength -= pPH->total_length;
       }
+    
+      // To fix, remove
+      //t_packet_header* pPH2 = (t_packet_header*)pBuffer;
+      //if ( (pPH2->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+      //if ( NULL != s_pVideoPacketsCounterOutput )
+      //   continue;
 
       s_uRadioRxTimeNow = get_current_timestamp_ms();
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
       u32 uVehicleId = pPH->vehicle_id_src;
 
-      _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
+      int nLost = _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
+      if ( nLost > 0 )
+      {
+         if ( NULL != s_pPacketsCounterOutputMissing)
+            s_pPacketsCounterOutputMissing[iInterfaceIndex] = s_pPacketsCounterOutputMissing[iInterfaceIndex]+1;
+         if ( NULL != s_pPacketsCounterOutputMissingMaxGap )
+         if ( nLost > s_pPacketsCounterOutputMissingMaxGap[iInterfaceIndex] )
+            s_pPacketsCounterOutputMissingMaxGap[iInterfaceIndex] = (u8)nLost;
+      }
       if ( NULL != s_pSMRadioStats )
          radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pBuffer, iBufferLength, 0, iIsVideoData, iDataIsOk);
-   } while ( 1 );
+   }
 
-   return iReturn;
+   if ( iReturn < 0 )
+      return iReturn;
+
+   return iCountParsed;
 }
 
 void _radio_rx_update_stats(u32 uTimeNow)
@@ -701,10 +728,7 @@ static void * _thread_radio_rx(void *argument)
       
       uTime = get_current_timestamp_ms();
       if ( uTime - uTimeLastLoopCheck > 3 )
-      {
-         //log_line("DEBUG loop too long %u ms, loops ok before: %d", uTime - uTimeLastLoopCheck, iLoopOkCounter);
          iLoopOkCounter = 0;
-      }
       else
          iLoopOkCounter++;
 
@@ -763,33 +787,43 @@ static void * _thread_radio_rx(void *argument)
          continue;
 
       // Received data, process it
+      int iMaxedInterface = -1;
+      int iParsedPackets[MAX_RADIO_INTERFACES];
+      memset(iParsedPackets, 0, sizeof(int)*MAX_RADIO_INTERFACES);
 
-      for(int iInterfaceIndex=0; iInterfaceIndex<hardware_get_radio_interfaces_count(); iInterfaceIndex++)
+      // Repeat reading while we have max reads on at leas one interface
+      do
       {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
-         if( (NULL == pRadioHWInfo) || (s_iRadioRxPausedInterfaces[iInterfaceIndex]) || (0 == FD_ISSET(pRadioHWInfo->monitor_interface_read.selectable_fd, &s_RadioRxReadSet)) )
-            continue;
+         iMaxedInterface = -1;
+         for(int iInterfaceIndex=0; iInterfaceIndex<hardware_get_radio_interfaces_count(); iInterfaceIndex++)
+         {
+            radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
+            if( (NULL == pRadioHWInfo) || (s_iRadioRxPausedInterfaces[iInterfaceIndex]) || (0 == FD_ISSET(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &s_RadioRxReadSet)) )
+               continue;
 
-         if ( hardware_radio_index_is_serial_radio(iInterfaceIndex) )
-         {
-            int iResult = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
-            if ( iResult < 0 )
+            if ( hardware_radio_index_is_serial_radio(iInterfaceIndex) )
             {
-               s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
-               continue;
+               int iResult = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
+               if ( iResult < 0 )
+               {
+                  s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
+                  continue;
+               }
+            }
+            else
+            {
+               iParsedPackets[iInterfaceIndex] = _radio_rx_parse_received_wifi_radio_data(iInterfaceIndex);
+               if ( (iParsedPackets[iInterfaceIndex] < 0) || ( radio_get_last_read_error_code() == RADIO_READ_ERROR_INTERFACE_BROKEN ) )
+               {
+                  log_line("[RadioRx] Mark interface %d as broken", iInterfaceIndex+1);
+                  s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
+                  continue;
+               }
+               if ( iParsedPackets[iInterfaceIndex] > 2 )
+                  iMaxedInterface = iInterfaceIndex;
             }
          }
-         else
-         {
-            int iResult = _radio_rx_parse_received_wifi_radio_data(iInterfaceIndex);
-            if ( (iResult < 0) || ( radio_get_last_read_error_code() == RADIO_READ_ERROR_INTERFACE_BROKEN ) )
-            {
-               log_line("[RadioRx] Mark interface %d as broken", iInterfaceIndex+1);
-               s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
-               continue;
-            }
-         }
-      }
+      } while (iMaxedInterface != -1);
    }
 
    log_line("[RadioRxThread] Stopped.");
@@ -1003,6 +1037,15 @@ void radio_rx_set_dev_mode()
    log_line("[RadioRx] Set dev mode");
 }
 
+// Pointers to array of int-s (max radio cards, for each card)
+void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap)
+{
+   s_pPacketsCounterOutputVideo = pCounterOutputVideo;
+   s_pPacketsCounterOutputData = pCounterOutputData;
+   s_pPacketsCounterOutputMissing = pCounterMissingPackets;
+   s_pPacketsCounterOutputMissingMaxGap = pCounterMissingPacketsMaxGap;
+}
+
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength)
 {
    if ( (NULL == pPacketBuffer) || (nPacketLength < 4) )
@@ -1114,7 +1157,7 @@ int radio_rx_has_retransmissions_requests_to_consume()
    {
       t_packet_header* pPH = (t_packet_header*) s_RadioRxState.pPacketsBuffers[iBottom];
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-      if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) || (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
+      if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) )
          iCount++;
       iBottom++;
       if ( iBottom >= MAX_RX_PACKETS_QUEUE )

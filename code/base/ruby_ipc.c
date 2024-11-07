@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -74,11 +74,11 @@ static int s_iRubyIPCCountReadErrors = 0;
 typedef struct
 {
     long type;
-    char data[ICP_CHANNEL_MAX_MSG_SIZE];
+    char data[IPC_CHANNEL_MAX_MSG_SIZE];
     // byte 0...3: CRC
     // byte 4: message type
     // byte 5..6: message data length
-    // data
+    // byte 7...: data
 } type_ipc_message_buffer;
 
 
@@ -531,7 +531,7 @@ int ruby_ipc_channel_send_message(int iChannelUniqueId, u8* pMessage, int iLengt
       return 0;
    }
 
-   if ( iLength >= ICP_CHANNEL_MAX_MSG_SIZE-6 )
+   if ( iLength >= IPC_CHANNEL_MAX_MSG_SIZE-6 )
    {
       log_softerror_and_alarm("[IPC] Tried to write a message too big (%d bytes) on channel %s, channel unique id %d", iLength, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iFoundIndex]), iChannelUniqueId );
       return 0;
@@ -781,11 +781,11 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, u8* pTempBuffer, int* pTempB
 
    pReturn = NULL;
    
-   lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, ICP_CHANNEL_MAX_MSG_SIZE, 0, MSG_NOERROR | IPC_NOWAIT);
+   lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, IPC_CHANNEL_MAX_MSG_SIZE, 0, MSG_NOERROR | IPC_NOWAIT);
    if ( lenReadIPCMsgQueue > 6 )
    {
       int iMsgLen = ipcMessage.data[5] + 256*(int)ipcMessage.data[6];
-      if ( iMsgLen <= 0 || iMsgLen >= ICP_CHANNEL_MAX_MSG_SIZE - 6 )
+      if ( iMsgLen <= 0 || iMsgLen >= IPC_CHANNEL_MAX_MSG_SIZE - 6 )
          log_softerror_and_alarm("[IPC] Received invalid message on channel %s, id: %d, length: %d", _ruby_ipc_get_channel_name(iChannelType), ipcMessage.data[4], iMsgLen );
       else
       {

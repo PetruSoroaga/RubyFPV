@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -39,6 +39,7 @@
 #include "../base/models_list.h"
 #include "../base/radio_utils.h"
 #include "../base/hardware.h"
+#include "../base/hardware_files.h"
 #include "../base/hardware_camera.h"
 #include "../base/hardware_radio.h"
 #include "../base/hardware_radio_sik.h"
@@ -57,7 +58,6 @@
 #include "shared_vars.h"
 #include "timers.h"
 #include "utils_vehicle.h"
-#include "video_link_stats_overwrites.h"
 #include "process_upload.h"
 
 #include <time.h>
@@ -98,7 +98,8 @@ static u32 s_ZIPPAarams_uLastRecvCommandTime = 0;
 static u8  s_ZIPParams_Model_Buffer[3048];
 static int s_ZIPParams_Model_BufferLength = 0;
 
-static shared_mem_video_link_overwrites s_CurrentVideoLinkOverwrites;
+// To fix
+//static shared_mem_video_link_overwrites s_CurrentVideoLinkOverwrites;
 
 
 #define MAX_SEGMENTS_FILE_UPLOAD 10000 // About 10 Mbytes of data maximum
@@ -371,22 +372,6 @@ void signalReloadModel(u32 uChangeType, u8 uExtraParam)
       g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 }
 
-void signalForceVideoProfile(int iVideoProfile )
-{
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS;
-   PH.vehicle_id_dest = (u32)iVideoProfile;
-   PH.total_length = sizeof(t_packet_header);
-
-   ruby_ipc_channel_send_message(s_fIPCToRouter, (u8*)&PH, PH.total_length);
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-}
-
 void signalTXVideoEncodingChanged()
 {
    log_line("Signaling router that video encodings changed");
@@ -436,7 +421,7 @@ void signalReboot()
 }
 
 
-void signalCameraParameterChange(u8 param, u8 value)
+void _signalCameraParameterChange(u8 param, u16 value)
 {
    //log_line("Sending camera param %d, value: %d", param, value);
 
@@ -1020,11 +1005,9 @@ bool process_command(u8* pBuffer, int length)
       save_config_file();
 
       #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
-      char szComm[256];
-      sprintf(szComm, "echo %d | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", g_pCurrentModel->processesPriorities.iFreqARM*1000);
-      hw_execute_bash_command_raw(szComm, NULL);
-      hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+      hw_execute_bash_command_raw("pidof majestic | xargs kill -9 2>/dev/null ", NULL);
+      hardware_set_oipc_freq_boost(g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU);
+      hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
       #endif
 
       return true;
@@ -1049,9 +1032,7 @@ bool process_command(u8* pBuffer, int length)
 
       #if defined(HW_PLATFORM_OPENIPC_CAMERA)
       g_pCurrentModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
-      hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
-      hw_execute_bash_command_raw("echo 1100000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", NULL);
-      hw_execute_bash_command_raw("echo 700000 | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq", NULL);
+      hardware_set_default_sigmastar_cpu_freq();
       #endif
       
       g_pCurrentModel->processesPriorities.iFreqGPU = 400;
@@ -1779,22 +1760,22 @@ bool process_command(u8* pBuffer, int length)
          if ( oldParams.brightness != pCamParams->brightness )
          {
             bSentUsingPipe = true;
-            signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
+            _signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
          }
          if ( oldParams.contrast != pCamParams->contrast )
          {
             bSentUsingPipe = true;
-            signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
+            _signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
          }
          if ( oldParams.saturation != pCamParams->saturation )
          {
             bSentUsingPipe = true;
-            signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
+            _signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
          }
          if ( oldParams.sharpness != pCamParams->sharpness )
          {
             bSentUsingPipe = true;
-            signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
+            _signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
          }
       }
       //log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
@@ -1905,22 +1886,22 @@ bool process_command(u8* pBuffer, int length)
             if ( oldCamParams.brightness != pCamParams->brightness )
             {
                bSentUsingPipe = true;
-               signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
+               _signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
             }
             if ( oldCamParams.contrast != pCamParams->contrast )
             {
                bSentUsingPipe = true;
-               signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
+               _signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
             }
             if ( oldCamParams.saturation != pCamParams->saturation )
             {
                bSentUsingPipe = true;
-               signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
+               _signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
             }
             if ( oldCamParams.sharpness != pCamParams->sharpness )
             {
                bSentUsingPipe = true;
-               signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
+               _signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
             }
          }
       }
@@ -2529,8 +2510,9 @@ bool process_command(u8* pBuffer, int length)
       memcpy(&(g_pCurrentModel->video_link_profiles[0]), pData, MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile));
       log_line("Received Video link profiles: %d bytes, Video profile selected by user: %s", 1 + MAX_VIDEO_LINK_PROFILES * sizeof(type_video_link_profile), str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile) );
 
-      log_line("Received video flags for video profile %s: %s, %s, %s",
+      log_line("Received video flags for video profile %s: %s %s, %s, %s",
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
+      (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO)?"OneWayVideo=Yes":"OneWayVideo=No",
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)?"Retransmissions=On":"Retransmissions=Off",
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
@@ -2540,6 +2522,20 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps,
          oldVideoProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps
       );
+
+      log_line("Old KF values: HQ: %d, HP: %d, USR: %d, MQ: %d, LQ: %d",
+         oldVideoProfiles[VIDEO_PROFILE_HIGH_QUALITY].keyframe_ms,
+         oldVideoProfiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms,
+         oldVideoProfiles[VIDEO_PROFILE_USER].keyframe_ms,
+         oldVideoProfiles[VIDEO_PROFILE_MQ].keyframe_ms,
+         oldVideoProfiles[VIDEO_PROFILE_LQ].keyframe_ms);
+      log_line("New KF values: HQ: %d, HP: %d, USR: %d, MQ: %d, LQ: %d",
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].keyframe_ms,
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms,
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_USER].keyframe_ms,
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms,
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms);
+
       int iProfileToCheck = g_pCurrentModel->video_params.user_selected_video_link_profile;
    
       camera_profile_parameters_t* pCameraParams = &g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile];
@@ -2551,13 +2547,25 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].width = g_pCurrentModel->video_link_profiles[iProfileToCheck].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].height = g_pCurrentModel->video_link_profiles[iProfileToCheck].height;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = g_pCurrentModel->video_link_profiles[iProfileToCheck].fps;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms;
       
+      if ( oldVideoProfiles[iProfileToCheck].keyframe_ms != g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms )
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms;
+      if ( (oldVideoProfiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) != (g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
+      {
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+      }
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].width = g_pCurrentModel->video_link_profiles[iProfileToCheck].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].height = g_pCurrentModel->video_link_profiles[iProfileToCheck].height;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = g_pCurrentModel->video_link_profiles[iProfileToCheck].fps;
-      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms;
-      
+      if ( oldVideoProfiles[iProfileToCheck].keyframe_ms != g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms )
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[iProfileToCheck].keyframe_ms;
+      if ( (oldVideoProfiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) != (g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
+      {
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+         g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= g_pCurrentModel->video_link_profiles[iProfileToCheck].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+      }
+
       u32 retransmissionWindow = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & 0xFF00) >> 8);
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= 0xFFFF00FF;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (retransmissionWindow<<8);
@@ -2978,7 +2986,8 @@ bool process_command(u8* pBuffer, int length)
 
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
-      video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
+      // To fix
+      //video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
 
       vehicle_stop_tx_router();
       vehicle_stop_audio_capture(g_pCurrentModel);
@@ -3016,6 +3025,7 @@ bool process_command(u8* pBuffer, int length)
       {
          log_line("Developer Mode value changed to: %s. Updated model.", devMode?"Enabled":"Disabled");
          g_pCurrentModel->bDeveloperMode = devMode;
+         log_line("Needs restart of video.");
          restartVideo = true;
          bSave = true;
          bNotifyChanged = true;
@@ -3102,6 +3112,7 @@ bool process_command(u8* pBuffer, int length)
       {
          log_line("Controller ID changed. Updating it.");
          bTelemetryChanged = true;
+         log_line("Needs restart of video.");
          restartVideo = true;
          bSave = true;
          bNotifyChanged = true;
@@ -3623,34 +3634,6 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
-   if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      signalForceVideoProfile(VIDEO_PROFILE_LQ);
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      signalForceVideoProfile(VIDEO_PROFILE_MQ);
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_NORMAL )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      signalForceVideoProfile(0xFF);
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      signalForceVideoProfile(0xFF);
-      return true;
-   }
-
    return false;
 }
 
@@ -3807,7 +3790,8 @@ int r_start_commands_rx(int argc, char* argv[])
    else
       log_line("Opened shared mem for commands Rx process watchdog for writing.");
 
-   video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
+   // To fix
+   //video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
 
    process_sw_upload_init();
 
@@ -3816,6 +3800,10 @@ int r_start_commands_rx(int argc, char* argv[])
    s_InfoLastFileUploaded.uFileSize = 0;
    s_InfoLastFileUploaded.uTotalSegments = 0;
    s_InfoLastFileUploaded.uLastCommandIdForThisFile = 0;
+
+   char szFileStop[MAX_FILE_PATH_SIZE];
+   strcpy(szFileStop, FOLDER_RUBY_TEMP);
+   strcat(szFileStop, "cmdstop.txt");
 
    g_TimeNow = get_current_timestamp_ms();
    g_TimeStart = get_current_timestamp_ms();
@@ -3853,6 +3841,15 @@ int r_start_commands_rx(int argc, char* argv[])
       {
          g_TimeLastPeriodicCheck = g_TimeNow;
          _periodic_loop();
+         if ( access(szFileStop, R_OK) != -1 )
+         {
+            log_line("File to stop is present. Stopping...");
+            char szComm[256];
+            sprintf(szComm, "rm -rf %s", szFileStop);
+            hw_execute_bash_command(szComm, NULL);
+            g_bQuit = true;
+            break;
+         }
       }
 
       if ( iSleepIntervalMS < 50 )
@@ -3942,7 +3939,8 @@ int r_start_commands_rx(int argc, char* argv[])
             
             if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_UPDATED_VIDEO_LINK_OVERWRITES )
             {
-               memcpy(&s_CurrentVideoLinkOverwrites, (&s_BufferCommands[0]) + sizeof(t_packet_header), sizeof(shared_mem_video_link_overwrites));
+               // To fix
+               //memcpy(&s_CurrentVideoLinkOverwrites, (&s_BufferCommands[0]) + sizeof(t_packet_header), sizeof(shared_mem_video_link_overwrites));
             }
             continue;
          }

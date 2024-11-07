@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -100,7 +100,27 @@ void vehicle_launch_rx_commands(Model* pModel)
 
 void vehicle_stop_rx_commands()
 {
-   //hw_stop_process("ruby_rx_commands");
+   char szFile[MAX_FILE_PATH_SIZE];
+   sprintf(szFile, "touch %scmdstop.txt", FOLDER_RUBY_TEMP);
+   hw_execute_bash_command(szFile, NULL);
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, "cmdstop.txt");
+   int iCounter = 0;
+   while ( true )
+   {
+      iCounter++;
+      hardware_sleep_ms(200);
+      if ( access(szFile, R_OK) == -1 )
+      {
+         log_line("Stopped rx_commands process.");
+         break;
+      }
+      if ( iCounter > 20 )
+      {
+         log_line("Failed to stop rx_commands process.");
+         break;
+      }
+   }
 }
 
 void vehicle_launch_tx_router(Model* pModel)

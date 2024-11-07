@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -258,10 +258,9 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_RUBY_RADIO_CONFIG_UPDATED: strcpy(s_szPacketType, "PACKET_TYPE_RUBY_RADIO_CONFIG_UPDATED"); break;
       case PACKET_TYPE_RUBY_LOG_FILE_SEGMENT:    strcpy(s_szPacketType, "PACKET_TYPE_RUBY_LOG_FILE_SEGMENT"); break;
       case PACKET_TYPE_RUBY_ALARM:               strcpy(s_szPacketType, "PACKET_TYPE_RUBY_ALARM"); break;
-      case PACKET_TYPE_VIDEO_DATA_FULL:          strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_DATA_FULL"); break;
+      case PACKET_TYPE_VIDEO_DATA_98  :          strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_DATA_98"); break;
       case PACKET_TYPE_AUDIO_SEGMENT:            strcpy(s_szPacketType, "PACKET_TYPE_AUDIO_SEGMENT"); break;
       case PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS:   strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS"); break;
-      case PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2:  strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2"); break;
       case PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL:     strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL"); break;
       case PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK: strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK"); break;
       case PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE:     strcpy(s_szPacketType, "PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE"); break;
@@ -270,6 +269,8 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_COMMAND_RESPONSE:         strcpy(s_szPacketType, "PACKET_TYPE_COMMAND_RESPONSE"); break;
       case PACKET_TYPE_SIK_CONFIG:               strcpy(s_szPacketType, "PACKET_TYPE_SIK_CONFIG"); break;
       case PACKET_TYPE_DEBUG_INFO:               strcpy(s_szPacketType, "PACKET_TYPE_DEBUG_INFO"); break;
+      case PACKET_TYPE_RC_FULL_FRAME:            strcpy(s_szPacketType, "PACKET_TYPE_RC_FULL_FRAME"); break;
+      case PACKET_TYPE_RC_DOWNLOAD_INFO:         strcpy(s_szPacketType, "PACKET_TYPE_RC_DOWNLOAD_INFO"); break;
       // Telemetry
 
       case PACKET_TYPE_RUBY_TELEMETRY_SHORT:      strcpy(s_szPacketType, "PACKET_TYPE_RUBY_TELEMETRY_SHORT"); break;
@@ -317,6 +318,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT"); break;
       case PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED:      strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED"); break;
+      case PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH"); break;
       case PACKET_TYPE_LOCAL_CONTROL_I2C_DEVICE_CHANGED:      strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_I2C_DEVICE_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY:         strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY"); break;
       case PACKET_TYPE_LOCAL_CONTROLLER_RADIO_INTERFACE_FAILED_TO_INITIALIZE:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLLER_RADIO_INTERFACE_FAILED_TO_INITIALIZE"); break;
@@ -325,12 +327,14 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS"); break;
       case PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED:          strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED"); break;
-      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_FORCE_AUTO_VIDEO_PROFILE"); break;
+      case PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE:     strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY:             strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_SIK_RADIO_SERIAL_SPEED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_SIK_RADIO_SERIAL_SPEED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SEND_MODEL_SETTINGS:      strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SEND_MODEL_SETTINGS"); break;
 
+      case PACKET_TYPE_DEBUG_VEHICLE_RT_INFO:      strcpy(s_szPacketType, "PACKET_TYPE_DEBUG_VEHICLE_RT_INFO"); break;
+      case PACKET_TYPE_OTA_UPDATE_STATUS:          strcpy(s_szPacketType, "PACKET_TYPE_OTA_UPDATE_STATUS"); break;
       default: sprintf(s_szPacketType, "Unknown %d", iPacketType); break;
    }
    return s_szPacketType;
@@ -369,10 +373,9 @@ char* str_get_packet_history_symbol(int iPacketType, int iRepeatCount)
    if ( iPacketType == PACKET_TYPE_AUDIO_SEGMENT )
       s_szOSDRenderRxHistoryPacketSymbol[0] = 'A';
 
-   if ( iPacketType == PACKET_TYPE_VIDEO_DATA_FULL ||
-        iPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS ||
-        iPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2 )
-      s_szOSDRenderRxHistoryPacketSymbol[0] = 'V';
+   if ( iPacketType == PACKET_TYPE_VIDEO_DATA_98 ||
+        iPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS )
+     s_szOSDRenderRxHistoryPacketSymbol[0] = 'V';
 
    if ( iPacketType == PACKET_TYPE_AUX_DATA_LINK_UPLOAD ||
         iPacketType == PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD )
@@ -515,6 +518,7 @@ void str_format_bitrate(int bitrate_bps, char* szBuffer)
 {
    if ( NULL == szBuffer )
       return;
+   szBuffer[0] = 0;
    if ( bitrate_bps < 0 )
       sprintf(szBuffer, "MCS-%d", -bitrate_bps-1); // starts from MCS-0 (which is -1)
    else if ( bitrate_bps <= 56 )

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -40,7 +40,7 @@
  * Robert Morelos-Zaragoza (robert@spectra.eng.hawaii.edu) and Hari
  * Thirumoorthy (harit@spectra.eng.hawaii.edu), Aug 1995
  *
- * Redistribution and use in source and binary forms, with or without
+ * Redistribution and use in source and/or binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  *
@@ -691,7 +691,7 @@ invert_mat(gf *src, int k)
 }
 
 
-static int fec_initialized = 0 ;
+static int fec_initialized = 0;
 
 void fec_init(void)
 {
@@ -703,7 +703,7 @@ void fec_init(void)
     init_mul_table();
     TOCK(ticks[0]);
     DDB(fprintf(stderr, "init_mul_table took %ldus\n", ticks[0]);)
-	fec_initialized = 1 ;
+   	fec_initialized = 1 ;
 }
 
 
@@ -807,11 +807,12 @@ void fec_encode(unsigned int blockSize,
 		unsigned int nrDataBlocks,
 		unsigned char **fec_blocks,
 		unsigned int nrFecBlocks)
-
 {
     unsigned int blockNo; /* loop for block counter */
     unsigned int row, col;
 
+    if ( 0 == fec_initialized )
+       fec_init();
     assert(fec_initialized);    
     assert(nrDataBlocks <= 128);    
     assert(nrFecBlocks <= 128);
@@ -946,7 +947,6 @@ static inline void resolve(int blockSize,
 }
 
 void fec_decode(unsigned int blockSize,
-
 		unsigned char **data_blocks,
 		unsigned int nr_data_blocks,
 		unsigned char **fec_blocks,
@@ -954,6 +954,9 @@ void fec_decode(unsigned int blockSize,
 		unsigned int *erased_blocks,
 		unsigned short nr_fec_blocks)
 {
+   if ( 0 == fec_initialized )
+      fec_init();
+
 #ifdef PROFILE
     long long begin;
     long long end;

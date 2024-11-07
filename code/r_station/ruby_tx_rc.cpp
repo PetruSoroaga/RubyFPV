@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -18,7 +18,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -105,7 +105,6 @@ void populate_rc_data( t_packet_header_rc_full_frame_upstream* pPHRCF )
    {
       packet_header_rc_full_set_rc_channel_value(pPHRCF, i, s_ComputedRCValues[i]);
    }
-   //log_line("RC5: %d", s_ComputedRCValues[5]);
 }
 
 
@@ -347,6 +346,10 @@ int main (int argc, char *argv[])
    g_TimeStart = get_current_timestamp_ms(); 
 
    int iSleepTime = 50;
+   #ifdef FEATURE_ENABLE_RC
+   iSleepTime = 10;
+   #endif
+
    while ( !g_bQuit )
    { 
       g_iFPSFramesCount++;
@@ -372,8 +375,6 @@ int main (int argc, char *argv[])
       if ( (g_pCurrentModel->rc_params.rc_enabled && (!g_pCurrentModel->is_spectator)) || ((g_iFPSFramesCount % 3) == 0) )
          try_read_pipes();
 
-      iSleepTime = 50;
-
       if ( g_bSearching || g_bUpdateInProgress )
       {
          _update_loop_info(tTime0);
@@ -392,7 +393,30 @@ int main (int argc, char *argv[])
    
       #ifdef FEATURE_ENABLE_RC
 
-      iSleepTime = 5;
+      if ( g_TimeNow < s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput )
+      {
+         _update_loop_info(tTime0);
+
+         u32 uDelta = s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput - g_TimeNow;
+         if ( uDelta > 40 )
+            uDelta = 40;
+         hardware_sleep_ms(uDelta/2);
+         continue;
+      }
+
+      u32 miliSec = g_TimeNow - s_uTimeLastRCFrameSent;
+
+      if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
+      {
+         if ( handle_joysticks() )
+            g_PHRCFUpstream.flags |= RC_FULL_FRAME_FLAGS_HAS_INPUT;
+         else
+            g_PHRCFUpstream.flags &= (~RC_FULL_FRAME_FLAGS_HAS_INPUT);
+
+         for( int i=0; i<(int)(g_pCurrentModel->rc_params.channelsCount); i++ )
+            s_ComputedRCValues[i] = (u16) compute_controller_rc_value(g_pCurrentModel, i, (float)(s_ComputedRCValues[i]), NULL, &s_JoystickLocalInfo, s_pCII, miliSec);
+      }
+
       if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_RC_IN_SBUS_IBUS )
       {
          g_PHRCFUpstream.flags &= (~RC_FULL_FRAME_FLAGS_HAS_INPUT);
@@ -411,8 +435,10 @@ int main (int argc, char *argv[])
                if ( nCh > (int)(s_pSM_RCIn->uChannelsCount) )
                   nCh = (int)(s_pSM_RCIn->uChannelsCount);
                for( int i=0; i<nCh; i++ )
-                  s_ComputedRCValues[i] = s_pSM_RCIn->uChannels[i];
-
+               {
+                  //s_ComputedRCValues[i] = s_pSM_RCIn->uChannels[i];
+                  s_ComputedRCValues[i] = compute_controller_rc_value(g_pCurrentModel, i, (float)(s_ComputedRCValues[i]), NULL, NULL, NULL, miliSec);
+               }
                //log_line("%d %d %d", s_pSM_RCIn->uChannels[0], s_pSM_RCIn->uChannels[1], s_pSM_RCIn->uChannels[2] );
             }
          }
@@ -421,33 +447,7 @@ int main (int argc, char *argv[])
             g_PHRCFUpstream.flags &= ~RC_FULL_FRAME_FLAGS_HAS_INPUT;
       }
 
-      if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
-      {
-         if ( handle_joysticks() )
-            g_PHRCFUpstream.flags |= RC_FULL_FRAME_FLAGS_HAS_INPUT;
-         else
-            g_PHRCFUpstream.flags &= (~RC_FULL_FRAME_FLAGS_HAS_INPUT);
-      }
-
-      if ( g_TimeNow < s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput )
-      {
-         _update_loop_info(tTime0);
-
-         u32 uDelta = s_uTimeLastRCFrameSent + s_uTimeBetweenRCFramesOutput - g_TimeNow;
-         if ( uDelta > 40 )
-            uDelta = 40;
-         hardware_sleep_ms(uDelta/2);
-         continue;
-      }
-
-      u32 miliSec = g_TimeNow - s_uTimeLastRCFrameSent;
       s_uTimeLastRCFrameSent = g_TimeNow;
-
-      if ( g_pCurrentModel->rc_params.inputType == RC_INPUT_TYPE_USB )
-      {
-         for( int i=0; i<(int)(g_pCurrentModel->rc_params.channelsCount); i++ )
-            s_ComputedRCValues[i] = (u16) compute_controller_rc_value(g_pCurrentModel, i, (float)(s_ComputedRCValues[i]), NULL, &s_JoystickLocalInfo, s_pCII, miliSec);
-      }
 
       populate_rc_data(&g_PHRCFUpstream);
 
@@ -462,6 +462,7 @@ int main (int argc, char *argv[])
       u8 buffer[MAX_PACKET_TOTAL_SIZE];
       memcpy(buffer, &gPH, sizeof(t_packet_header));
       memcpy(buffer+sizeof(t_packet_header), (u8*)&g_PHRCFUpstream, sizeof(t_packet_header_rc_full_frame_upstream));
+      radio_packet_compute_crc(buffer, gPH.total_length);
       ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, gPH.total_length);
       //log_line("sending rc frame index: %d", g_PHRCFUpstream.rc_frame_index);
 

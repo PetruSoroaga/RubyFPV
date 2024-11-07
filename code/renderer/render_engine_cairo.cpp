@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -149,14 +149,20 @@ void RenderEngineCairo::endFrame()
 void RenderEngineCairo::setStroke(double* color, float fStrokeSize)
 {
    RenderEngine::setStroke(color, fStrokeSize);
-   cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+   if ( m_fStrokeSize > 0.5 )
+      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize*(m_fPixelWidth+m_fPixelHeight)*0.6);
+   else
+      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
 }
 
 
 void RenderEngineCairo::setStrokeSize(float fStrokeSize)
 {
    RenderEngine::setStrokeSize(fStrokeSize);
-   cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+   if ( m_fStrokeSize > 0.5 )
+      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize*(m_fPixelWidth+m_fPixelHeight)*0.6);
+   else
+      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
 }
 
 void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
@@ -369,13 +375,13 @@ void RenderEngineCairo::changeImageHue(u32 uImageId, u8 r, u8 g, u8 b)
       u8* pDestLine = (u8*)(pImageData + y * iImageStride);
       for( int x=0; x<iWidth; x++ )
       {
-         if ( *pDestLine > 200 )
-         if ( *(pDestLine+1) > 200 )
-         if ( *(pDestLine+2) > 200 )
+         if ( *pDestLine > 220 )
+         if ( *(pDestLine+1) > 220 )
+         if ( *(pDestLine+2) > 220 )
          {
-            *pDestLine = ((unsigned int)(*pDestLine) * (unsigned int)r) >> 8;
+            *pDestLine = ((unsigned int)(*pDestLine) * (unsigned int)b) >> 8;
             *(pDestLine+1) = ((unsigned int)(*(pDestLine+1)) * (unsigned int)g) >> 8;
-            *(pDestLine+2) = ((unsigned int)(*(pDestLine+2)) * (unsigned int)b) >> 8;
+            *(pDestLine+2) = ((unsigned int)(*(pDestLine+2)) * (unsigned int)r) >> 8;
          }
          pDestLine += 4;
       }
@@ -453,28 +459,23 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
 
    float dxIcon = (float)iSrcWidth/(float)wDest;
    float dyIcon = (float)iSrcHeight/(float)hDest;
+   float fIconY = iSrcY;
+
    u8* pDestPixel = (u8*)&(pOutputBufferInfo->pData[yDest*pOutputBufferInfo->uStride + xDest*4]);
 
    for( int sy=0; sy<hDest; sy++ )
    {
-      int yIconOffset = iSrcY * iSrcImageStride;
-      u8* pIconData = pSrcImageData + yIconOffset + ((int)iSrcX) * 4;
+      float fIconX = iSrcX;
       for( int sx=0; sx<wDest; sx++ )
       {
+         u8* pIconData = pSrcImageData + ((int)(fIconY)) * iSrcImageStride + ((int)fIconX) * 4;
+   
          // Output surface format order is: BGRA
-         for( int k=0; k<4; k++ )
-         {
-         *pDestPixel = *pIconData;
-         *pDestPixel = 0xA0;
-         pDestPixel++;
-         pIconData++;
-         }
-       /*
-         b = *pIconData++;
-         g = *pIconData++;
-         r = *pIconData++;
-         a = *pIconData++;
-
+         
+         b = *pIconData;
+         g = *(pIconData+1);
+         r = *(pIconData+2);
+         a = *(pIconData+3);
 
          if ( a > 2 )
          {
@@ -492,10 +493,11 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
          }
          else
             pDestPixel+=4;
-            */
+
+         fIconX += dxIcon;
       }
       pDestPixel += pOutputBufferInfo->uStride - wDest * 4;
-      yIconOffset += dyIcon;
+      fIconY += dyIcon;
    }
 }
 
@@ -717,18 +719,50 @@ void RenderEngineCairo::drawLine(float x1, float y1, float x2, float y2)
 {
    if ( fabs(y1-y2) < 0.0001 )
    {
+      if ( x1 < 0 )
+         x1 = 0.0;
+      if ( x2 < 0 )
+         x2 = 0.0;
+      if ( x1 > 1.0 - m_fPixelWidth )
+         x1 = 1.0 - m_fPixelWidth;
+      if ( x2 > 1.0 - m_fPixelWidth )
+         x2 = 1.0 - m_fPixelWidth;
+      if ( fabs(x2-x1) < 0.0001 )
+         return;
+
       if ( x1 < x2 )
          _draw_hline(x1*m_iRenderWidth, y1*m_iRenderHeight, (x2-x1)*m_iRenderWidth, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       else if ( x1 > x2 )
          _draw_hline(x2*m_iRenderWidth, y1*m_iRenderHeight, (x1-x2)*m_iRenderWidth, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       return;
    }
-   else if ( fabs(x1-x2) < 0.0001 )
+   if ( fabs(x1-x2) < 0.0001 )
    {
-      if ( y1 < y2 )
-         _draw_vline(x1*m_iRenderWidth, y1*m_iRenderHeight, (y2-y1)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
-      else if ( y1 > y2 )
-         _draw_vline(x1*m_iRenderWidth, y2*m_iRenderHeight, (y1-y2)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
+      if ( y1 < 0 )
+         y1 = 0.0;
+      if ( y2 < 0 )
+         y2 = 0.0;
+      if ( y1 > 1.0 - m_fPixelHeight )
+         y1 = 1.0 - m_fPixelHeight;
+      if ( y2 > 1.0 - m_fPixelHeight )
+         y2 = 1.0 - m_fPixelHeight;
+      if ( fabs(y2-y1) < 0.0001 )
+         return;
+        
+      float yPos = y1;
+      float h = (y2-y1);
+      if ( y1 > y2 )
+      {
+         yPos = y2;
+         h = y1 - y2;
+      }
+      if ( m_fStrokeSize < 1.5 )
+         _draw_vline(x1*m_iRenderWidth, yPos*m_iRenderHeight, h*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
+      else
+      {
+         _draw_vline(x1*m_iRenderWidth-m_fPixelWidth*0.5, yPos*m_iRenderHeight, h*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);       
+         _draw_vline(x1*m_iRenderWidth+m_fPixelWidth*0.5, yPos*m_iRenderHeight, h*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);       
+      }
       return;
    }
 

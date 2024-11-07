@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -92,15 +92,7 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
-   shared_mem_video_stream_stats* pVDS = NULL;
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( g_SM_VideoDecodeStats.video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pVDS = &g_SM_VideoDecodeStats.video_streams[i];
-         break;
-      }
-   }
+   shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
 
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
    g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
@@ -276,6 +268,9 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
    y += height_text*s_OSDStatsLineSpacing;
 
    char szTmp[64];
+   szTmp[0] = 0;
+   // To fix or remove
+   /*
    str_format_bitrate(pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FIELD_MASK, szTmp);
    if ( pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FLAG_ADJUSTED )
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Auto %s", szTmp);
@@ -283,7 +278,8 @@ void osd_render_stats_video_bitrate_history(float xPos, float yPos)
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Initial: %s", szTmp);
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
-
+   */
+   
    strcpy(szBuff, "Current target video bitrate/profile: 0 bps / NA");
    
    char szProfile[64];

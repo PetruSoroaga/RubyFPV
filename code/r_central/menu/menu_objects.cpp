@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -1883,6 +1883,7 @@ bool Menu::checkCancelUpload()
       return false;
 
    g_bUpdateInProgress = false;
+   render_commands_set_custom_status(NULL);
    log_line("The software update was canceled by user.");
    hardware_sleep_ms(50);
    addMessage("Update was canceled.");
@@ -2093,11 +2094,23 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
    return true;
 }
 
+u8 s_uOTAStatus = 0;
+u32 s_uOTACounter = 0;
+u32 s_uTimeLastOTACounterChanged = 0;
+
+void Menu::updateOTAStatus(u8 uOTAStatus, u32 uOTACounter)
+{
+   s_uOTAStatus = uOTAStatus;
+   s_uOTACounter = uOTACounter;
+   s_uTimeLastOTACounterChanged = g_TimeNow;
+}
+
 bool Menu::uploadSoftware()
 {
    log_line("Menu: Start upload procedure for vehicle software version %d.%d...", ((g_pCurrentModel->sw_version)>>8) & 0xFF, ((g_pCurrentModel->sw_version) & 0xFF));
 
    ruby_pause_watchdog();
+   render_commands_init();
    g_bUpdateInProgress = true;
    render_commands_set_progress_percent(0, true);
    g_pRenderEngine->startFrame();
@@ -2110,6 +2123,7 @@ bool Menu::uploadSoftware()
    char szArchiveToUpload[MAX_FILE_PATH_SIZE];
    strcpy(szArchiveToUpload, "last_uploaded_archive.tar");
 
+   render_commands_set_custom_status("Generating update archive to upload. Please wait.");
    if ( ! _generate_upload_archive(szArchiveToUpload) )
    {
       render_commands_set_progress_percent(-1, true);
@@ -2121,9 +2135,15 @@ bool Menu::uploadSoftware()
          addMessage("There was an error generating upload software archive.");
       return false;
    }
+   render_commands_set_custom_status(NULL);
 
    log_line("Generated update archive to upload to vehicle (%s).", szArchiveToUpload);
 
+   s_uOTAStatus = 0;
+   s_uOTACounter = 0;
+   s_uTimeLastOTACounterChanged = 0;
+
+   render_commands_set_custom_status("Uploading software. Please wait.");
    if ( ! _uploadVehicleUpdate(szArchiveToUpload) )
    {
       render_commands_set_progress_percent(-1, true);
@@ -2132,10 +2152,92 @@ bool Menu::uploadSoftware()
       addMessage("There was an error updating your vehicle.");
       return false;
    }
+   render_commands_set_custom_status(NULL);
+
+  
+   log_line("Successfully sent software package to vehicle.");
+   bool bProcessingFailed = false;
+
+   if ( get_sw_version_build(g_pCurrentModel) < 242 )
+   {
+      // version 9.7 or older
+   }
+   else
+   {
+      // version 9.8 or newer
+      render_commands_set_progress_percent(-1, true);
+      render_commands_set_custom_status("Processing update on vehicle");
+
+      u32 uTimeLastRender = 0;
+      u32 uTimeStartProcessing = g_TimeNow;
+
+      while ( true )
+      {
+         hardware_sleep_ms(100);
+         g_TimeNow = get_current_timestamp_ms();
+         g_TimeNowMicros = get_current_timestamp_micros();
+         ruby_signal_alive();
+         if ( checkCancelUpload() )
+         {
+            log_line("Update was canceled by user.");
+            bProcessingFailed = true;
+            break;
+         }
+
+         try_read_messages_from_router(50);
+         
+         bool bTimedOut = false;
+         if ( g_TimeNow > uTimeStartProcessing + 1000*300 )
+            bTimedOut = true;
+         if ( 0 != s_uTimeLastOTACounterChanged )
+         if ( g_TimeNow > s_uTimeLastOTACounterChanged + 1000*20 )
+            bTimedOut = true;
+
+         if ( bTimedOut )
+         {
+            log_line("Update has timedout.");
+            bProcessingFailed = true;
+            break;          
+         }
+
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_START_PROCESSING )
+            render_commands_set_custom_status("Start processing the update on the vehicle");
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_UNPACK )
+            render_commands_set_custom_status("Unpacking update");
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_UPDATING )
+            render_commands_set_custom_status("Updating vehicle");
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_POST_UPDATING )
+            render_commands_set_custom_status("Post update");
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_COMPLETED )
+            render_commands_set_custom_status("Finishing up");
+
+         if ( g_TimeNow > (uTimeLastRender+100) )
+         {
+            uTimeLastRender = g_TimeNow;
+            g_pRenderEngine->startFrame();
+            popups_render();
+            render_commands();
+            popups_render_topmost();
+            g_pRenderEngine->endFrame();
+         }
+
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_COMPLETED )
+            break;
+      }
+   }
+
+   render_commands_set_progress_percent(-1, true);
+   render_commands_set_custom_status(NULL);
+
+   if ( bProcessingFailed )
+   {
+      ruby_resume_watchdog();
+      g_bUpdateInProgress = false;
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
+      return false;
+   }
 
    g_nSucceededOTAUpdates++;
-   render_commands_set_progress_percent(-1, true);
-   log_line("Successfully sent software package to vehicle.");
 
    if ( NULL != g_pCurrentModel )
    {
@@ -2149,9 +2251,9 @@ bool Menu::uploadSoftware()
       saveControllerModel(g_pCurrentModel);
    }
 
+   g_bUpdateInProgress = false;
    send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
    ruby_resume_watchdog();
-   g_bUpdateInProgress = false;
 
    return true;
 }
@@ -2480,7 +2582,6 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
    //   free((u8*)pPackets[i]);
    //free((u8*)pPackets);
 
-   g_bUpdateInProgress = false;
    return true;
 }
 
@@ -2550,7 +2651,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
    {
       if ( ! (pModel->radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY) )
-      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], 0) < 2000000)
+      if ( getRealDataRateFromRadioDataRate(pModel->radioLinksParams.link_datarate_video_bps[i], 0) < 5000000)
          continue;
 
       if ( 0 == uMaxRadioDataRateBPS )

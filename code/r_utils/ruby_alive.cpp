@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -80,9 +80,9 @@ void power_leds(int onoff)
    }
 
    if ( onoff )
-      GPIOWrite(GPIO_PIN_LED_ERROR, HIGH);
+      GPIOWrite(GPIOGetPinLedError(), HIGH);
    else
-      GPIOWrite(GPIO_PIN_LED_ERROR, LOW);
+      GPIOWrite(GPIOGetPinLedError(), LOW);
    #endif
 }
 
@@ -121,9 +121,13 @@ int main(int argc, char *argv[])
    int counter = 0;
    int nLeds = 0;
 
-   char szFile[128];
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_UPDATE_IN_PROGRESS);
+   char szFileUpdate[128];
+   strcpy(szFileUpdate, FOLDER_RUBY_TEMP);
+   strcat(szFileUpdate, FILE_TEMP_UPDATE_IN_PROGRESS);
+
+   char szFileUpdateApply[128];
+   strcpy(szFileUpdateApply, FOLDER_RUBY_TEMP);
+   strcat(szFileUpdateApply, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
 
    char szFileAlarm[128];
    strcpy(szFileAlarm, FOLDER_RUBY_TEMP);
@@ -131,6 +135,7 @@ int main(int argc, char *argv[])
 
    bool bHasAlarm = false;
    bool bHasUpdateInProgress = false;
+   bool bHasUpdateApplyInProgress = false;
 
    int nSleepMs = 100;
 
@@ -151,10 +156,18 @@ int main(int argc, char *argv[])
          else
             bHasAlarm = false;
 
-         if ( access(szFile, R_OK) != -1 )
+         if ( access(szFileUpdate, R_OK) != -1 )
             bHasUpdateInProgress = true;
          else
             bHasUpdateInProgress = false;
+
+         if ( access(szFileUpdateApply, R_OK) != -1 )
+         {
+            bHasUpdateApplyInProgress = true;
+            nSleepMs = 40;
+         }
+         else
+            bHasUpdateApplyInProgress = false;
       }
 
       if ( (counter % 100) == 0 )
@@ -174,6 +187,14 @@ int main(int argc, char *argv[])
          }
       }
       else if ( bHasUpdateInProgress )
+      {
+         if ( (counter % 2) == 0 )
+         {
+            nLeds = 1 - nLeds;
+            power_leds(nLeds);
+         }
+      }
+      else if ( bHasUpdateApplyInProgress )
       {
          if ( (counter % 2) == 0 )
          {

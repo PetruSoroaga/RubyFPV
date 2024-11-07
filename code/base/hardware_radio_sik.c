@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -1659,8 +1659,8 @@ int hardware_radio_sik_open_for_read_write(int iHWRadioInterfaceIndex)
    }
    pRadioInfo->openedForWrite = 1;
    pRadioInfo->openedForRead = 1;
-   pRadioInfo->monitor_interface_read.selectable_fd = iSerialPortFD;
-   pRadioInfo->monitor_interface_write.selectable_fd = iSerialPortFD;
+   pRadioInfo->runtimeInterfaceInfoRx.selectable_fd = iSerialPortFD;
+   pRadioInfo->runtimeInterfaceInfoTx.selectable_fd = iSerialPortFD;
 
    log_line("[HardwareRadio] Opened SiK radio interface %d for read/write. fd=%d", iHWRadioInterfaceIndex+1, iSerialPortFD);
    return 1;
@@ -1682,16 +1682,12 @@ int hardware_radio_sik_close(int iHWRadioInterfaceIndex)
 
    if ( pRadioInfo->openedForWrite || pRadioInfo->openedForRead )
    {
-      if ( pRadioInfo->monitor_interface_read.selectable_fd > 0 )
-      {
-         close(pRadioInfo->monitor_interface_read.selectable_fd);
-      }
-      else if ( pRadioInfo->monitor_interface_write.selectable_fd > 0 )
-      {
-         close(pRadioInfo->monitor_interface_write.selectable_fd);
-      }
-      pRadioInfo->monitor_interface_read.selectable_fd = -1;
-      pRadioInfo->monitor_interface_write.selectable_fd = -1;
+      if ( pRadioInfo->runtimeInterfaceInfoRx.selectable_fd > 0 )
+         close(pRadioInfo->runtimeInterfaceInfoRx.selectable_fd);
+      else if ( pRadioInfo->runtimeInterfaceInfoTx.selectable_fd > 0 )
+         close(pRadioInfo->runtimeInterfaceInfoTx.selectable_fd);
+      pRadioInfo->runtimeInterfaceInfoRx.selectable_fd = -1;
+      pRadioInfo->runtimeInterfaceInfoTx.selectable_fd = -1;
       pRadioInfo->openedForWrite = 0;
       pRadioInfo->openedForRead = 0;
    }
@@ -1718,13 +1714,13 @@ int hardware_radio_sik_write_packet(int iHWRadioInterfaceIndex, u8* pData, int i
       return 0;
    }
 
-   if ( (! pRadioInfo->openedForWrite) || (pRadioInfo->monitor_interface_write.selectable_fd <= 0) )
+   if ( (! pRadioInfo->openedForWrite) || (pRadioInfo->runtimeInterfaceInfoTx.selectable_fd <= 0) )
    {
       log_softerror_and_alarm("[HardwareRadio] Write: Interface is not opened for write.");
       return 0;
    }
 
-   int iRes = write(pRadioInfo->monitor_interface_write.selectable_fd, pData, iLength);
+   int iRes = write(pRadioInfo->runtimeInterfaceInfoTx.selectable_fd, pData, iLength);
    if ( iRes != iLength )
    {
       log_softerror_and_alarm("[HardwareRadio] Write: Failed to write. Written %d bytes of %d bytes.", iRes, iLength);

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -178,10 +178,17 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
    {
       m_bWaitingForUserFinishUpdateConfirmation = false;
       log_line("Closed message update. Will reboot now.");
+      menu_discard_all();
+      popups_remove_all();
+      ruby_processing_loop(true);
+      render_all(g_TimeNow);
+      ruby_signal_alive();
+
       onEventReboot();
       hardware_reboot();
       return;
    }
+
    if ( 5 == iChildMenuId/1000 ) // Update failed.
    {
       m_bWaitingForUserFinishUpdateConfirmation = false;
@@ -427,7 +434,7 @@ void MenuController::updateSoftware()
             strcat(szTitle, "...");
          p->setTitle(szTitle);
          ruby_processing_loop(true);
-         render_all(g_TimeNow);
+         render_all_with_menus(g_TimeNow, false);
          ruby_signal_alive();
          hardware_sleep_ms(100);
          if ( bFoundProcess )

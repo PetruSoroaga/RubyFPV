@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -137,6 +137,9 @@ void MenuVehicles::onShow()
 
    addSeparator();
    m_IndexImport = addMenuItem(new MenuItem("Import Vehicle", "Imports a new vehicle from a model file on a USB stick."));
+   m_IndexDeleteAll = -1;
+   if ( getControllerModelsCount() > 0 )
+      m_IndexDeleteAll = addMenuItem(new MenuItem("Delete All Vehicles", "Deletes all models stored in memory."));
 
    Menu::onShow();
 
@@ -148,6 +151,35 @@ void MenuVehicles::onShow()
 void MenuVehicles::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
+   if ( (1 == returnValue) && (1 == iChildMenuId/1000) )
+   {
+      render_all(get_current_timestamp_ms(), true, false);
+      pairing_stop();
+
+      ruby_set_active_model_id(0);
+      g_pCurrentModel = NULL;
+
+      int iModelsCount = getControllerModelsCount();
+      Model* pModels[MAX_MODELS];
+
+      for( int i=0; i<getControllerModelsCount(); i++ )
+      {
+         Model *p = getModelAtIndex(i);
+         pModels[i] = p;
+         deletePluginModelSettings(p->uVehicleId);
+      }
+      save_PluginsSettings();
+
+      for( int i=0; i<iModelsCount; i++ )
+      {
+         deleteModel(pModels[i]);
+         log_line("[Menu] Deleted model %d of %d", i+1, iModelsCount);
+      }
+      menu_invalidate_all();
+      menu_refresh_all_menus();
+      menu_update_ui_all_menus();
+      log_line("[Menu] Vehicle deeted all models");
+   }
    invalidate();
 }
 
@@ -222,6 +254,19 @@ void MenuVehicles::onSelectItem()
       return;
    }
 
+   if ( (-1 != m_IndexDeleteAll) && (m_IndexDeleteAll == m_SelectedIndex) )
+   {
+      if ( (NULL != g_pCurrentModel) )
+      if ( checkIsArmed() )
+      {
+         //addMessage("Can't delete all models as current vehicle is armed.");
+         return;
+      }
+      char szBuff[64];
+      sprintf(szBuff, "Are you sure you want to delete all models?");
+      add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
+      return;
+   }
    if ( 0 == getControllerModelsCount() )
    {
       menu_stack_pop(0);

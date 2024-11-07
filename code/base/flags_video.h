@@ -45,6 +45,7 @@
 #define VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS ((u32)(((u32)0x01)<<8))
 #define VIDEO_STATUS_FLAGS2_IS_IFRAME ((u32)(((u32)0x01)<<9))
 #define VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE ((u32)(((u32)0x01)<<10))
+#define VIDEO_STATUS_FLAGS2_END_FRAME ((u32)(((u32)0x01)<<11))
 
 
 // Highest bit in video bitrate field tells if vehicle adjusted the videobitrate

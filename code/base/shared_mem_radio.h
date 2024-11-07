@@ -71,6 +71,30 @@ typedef struct
 // Vehicle radio interfaces assignment to radio links is auto/user defined.
 // Vehicle radio interfaces parameters are checked/re-computed when the vehicle starts.
 
+typedef struct 
+{
+   int iDbmLast[MAX_RADIO_ANTENNAS];
+   int iDbmMin[MAX_RADIO_ANTENNAS];
+   int iDbmMax[MAX_RADIO_ANTENNAS];
+   int iDbmAvg[MAX_RADIO_ANTENNAS];
+   int iDbmChangeSpeedMax[MAX_RADIO_ANTENNAS];
+   int iDbmChangeSpeedMin[MAX_RADIO_ANTENNAS];
+   int iDbmNoiseLast[MAX_RADIO_ANTENNAS];
+   int iDbmNoiseMin[MAX_RADIO_ANTENNAS];
+   int iDbmNoiseMax[MAX_RADIO_ANTENNAS];
+   int iDbmNoiseAvg[MAX_RADIO_ANTENNAS];
+} __attribute__((packed)) shared_mem_radio_stats_radio_interface_rx_signal;
+
+typedef struct 
+{
+   int iAntennaCount;
+   shared_mem_radio_stats_radio_interface_rx_signal dbmValuesAll;
+   shared_mem_radio_stats_radio_interface_rx_signal dbmValuesVideo;
+   shared_mem_radio_stats_radio_interface_rx_signal dbmValuesData;
+   int iDbmBest;
+   int iDbmNoiseLowest;
+} __attribute__((packed)) shared_mem_radio_stats_radio_interface_rx_signal_all;
+
 typedef struct
 {
    int assignedLocalRadioLinkId; // id of the radio link assigned to this radio interface
@@ -78,9 +102,7 @@ typedef struct
    u32 uCurrentFrequencyKhz;
    u8 openedForRead;
    u8 openedForWrite;
-   int lastDbm;
-   int lastDbmVideo;
-   int lastDbmData;
+   shared_mem_radio_stats_radio_interface_rx_signal_all signalInfo;
    int lastRecvDataRate; // positive: bps, negative: MCS, 0 - never
    int lastRecvDataRateVideo; 
    int lastRecvDataRateData;
@@ -123,9 +145,7 @@ typedef struct
 
 typedef struct
 {
-   int lastDbm;
-   int lastDbmVideo;
-   int lastDbmData;
+   shared_mem_radio_stats_radio_interface_rx_signal_all signalInfo;
    int lastRecvDataRate; // positive: bps, negative: MCS, 0 - never
    int lastRecvDataRateVideo;
    int lastRecvDataRateData;
@@ -204,7 +224,6 @@ typedef struct
    u32 all_downlinks_tx_time_per_sec;
    u32 tmp_all_downlinks_tx_time_per_sec;
 
-   u32 uTimeLastReceivedAResponseFromVehicle;
    u32 timeLastRxPacket;
    
    int iMaxRxQuality;

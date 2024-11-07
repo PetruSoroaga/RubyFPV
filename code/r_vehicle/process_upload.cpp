@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -33,15 +33,21 @@
 #include "../base/config.h"
 #include "../base/commands.h"
 #include "../base/hardware.h"
+#include "../base/hardware_files.h"
 #include "../base/hardware_radio.h"
 #include "../base/hw_procs.h"
+#include "../base/ruby_ipc.h"
 
+#include <pthread.h>
 #include "launchers_vehicle.h"
 #include "process_upload.h"
 #include "ruby_rx_commands.h"
 #include "video_source_csi.h"
 #include "shared_vars.h"
 #include "timers.h"
+
+
+extern int s_fIPCToRouter;
 
 
 FILE* s_pFileSoftware = NULL;
@@ -51,6 +57,8 @@ u32 s_uLastReceivedSoftwareBlockIndex = 0xFFFFFFFF;
 u32 s_uLastReceivedSoftwareTotalSize = 0;
 u32 s_uCurrentReceivedSoftwareSize = 0;
 bool s_bSoftwareUpdateStoppedVideoPipeline = false;
+bool s_bUpdateAppliedRebooting = false;
+
 char s_szUpdateArchiveFile[MAX_FILE_PATH_SIZE];
 
 u8** s_pSWPackets = NULL;
@@ -58,6 +66,12 @@ u8*  s_pSWPacketsReceived = NULL;
 u32* s_pSWPacketsSize = NULL;
 u32 s_uSWPacketsCount = 0;
 u32 s_uSWPacketsMaxSize = 0;
+
+pthread_t s_pThreadProcessUpload;
+bool s_bUpdateInProgress = false;
+pthread_t s_pThreadProcessArchive;
+bool s_bThreadProcessArchiveFinished = true;
+char s_szProcessUploadArchiveCommand[256];
 
 void _sw_update_close_remove_temp_files()
 {
@@ -98,9 +112,13 @@ void _sw_update_close_remove_temp_files()
 
    char szComm[256];
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
    hw_execute_bash_command_silent(szComm, NULL);
 
    if ( s_bSoftwareUpdateStoppedVideoPipeline )
+   if ( ! s_bUpdateAppliedRebooting )
    {
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO, 0);
       s_bSoftwareUpdateStoppedVideoPipeline = false;
@@ -120,19 +138,69 @@ void process_sw_upload_init()
    s_uSWPacketsMaxSize = 0;
 }
 
-void _process_upload_apply()
+void _process_upload_send_status_to_controller(u8 uStatus, int iRepeatCount)
 {
-   if ( NULL != s_pFileSoftware )
-       fclose(s_pFileSoftware);
-   s_pFileSoftware = NULL;
+   static u32 uStatusCounterProcessUpload = 0;
+   uStatusCounterProcessUpload++;
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      vehicle_stop_video_capture_csi(g_pCurrentModel);
+   t_packet_header PH;
+   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_OTA_UPDATE_STATUS, STREAM_ID_DATA);
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = g_pCurrentModel->uControllerId;
+   PH.total_length = sizeof(t_packet_header)+sizeof(u8)+sizeof(u32);
+   
+   u8 buffer[MAX_PACKET_TOTAL_SIZE];
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   memcpy(buffer+sizeof(t_packet_header), (u8*)&uStatus, sizeof(u8));
+   memcpy(buffer+sizeof(t_packet_header) + sizeof(u8), (u8*)&uStatusCounterProcessUpload, sizeof(u32));
+   radio_packet_compute_crc(buffer, PH.total_length);
+
+   for( int i=0; i<iRepeatCount; i++ )
+   {
+      ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastActiveTime = g_TimeNow;
+      hardware_sleep_ms(50);
+   }
+   log_line("ProcessUpload: Send OTA status %d (counter %u) to controller CID: %u", uStatus, uStatusCounterProcessUpload, g_pCurrentModel->uControllerId);
+}
+
+static void * _thread_process_archive(void *argument)
+{
+   s_bThreadProcessArchiveFinished = false;
+   log_line("[ProcessUploadThArch] Started archive thread...");
+   hw_execute_bash_command_raw(s_szProcessUploadArchiveCommand, NULL);
+   log_line("[ProcessUploadThArch] Finished archive thread.");
+   s_bThreadProcessArchiveFinished = true;
+   return NULL;
+}
+
+static void * _thread_process_upload(void *argument)
+{
+   log_line("[ProcessUploadTh] Started update thread...");
 
    char szFile[MAX_FILE_PATH_SIZE];
    char szComm[512];
 
+   sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
+   hw_execute_bash_command(szComm, NULL);
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+   u32 uControllerId = 0;
+   FILE* fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%u", &uControllerId);
+      fclose(fd);
+   }
+
+   log_line("[ProcessUpload] Controller ID: from file: %u, from model: %u", uControllerId, g_pCurrentModel->uControllerId);
+   if ( 0 == g_pCurrentModel->uControllerId )
+      g_pCurrentModel->uControllerId = uControllerId;
+
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_START_PROCESSING, 5);
+   
    log_line("Save received update archive for backup...");
    sprintf(szComm, "rm -rf %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
@@ -141,8 +209,8 @@ void _process_upload_apply()
    sprintf(szComm, "chmod 777 %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
-   log_line("Apply update using binaries files received from controller...");
-   
+   vehicle_stop_rx_rc();
+
    log_line("Binaries versions before update:");
    char szOutput[2048];
    hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
@@ -152,19 +220,47 @@ void _process_upload_apply()
    hw_execute_ruby_process_wait(NULL, "ruby_tx_telemetry", "-ver", szOutput, 1);
    log_line("ruby_tx_telemetry: [%s]", szOutput);
    
+   sprintf(szComm, "chmod 777 %s", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+
    #ifdef HW_PLATFORM_RASPBERRY
    log_line("Running on Raspberry hardware");
-   sprintf(szComm, "tar -C %s -zxf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);
+   sprintf(szComm, "nice -n 19 ionice -c 3 tar -C %s -zxf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    log_line("Running on OpenIPC hardware");
    sprintf(szComm, "tar -C %s -xf %s 2>&1 1>/dev/null", FOLDER_BINARIES, s_szUpdateArchiveFile);
    #endif
    
-   hw_execute_bash_command_raw(szComm, NULL);
+   hardware_sleep_ms(500);
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_UNPACK, 10);
 
-   log_line("Done extracting archive.");
-   hardware_sleep_ms(800);
+   s_bThreadProcessArchiveFinished = false;
+   strcpy(s_szProcessUploadArchiveCommand, szComm);
+   if ( 0 != pthread_create(&s_pThreadProcessArchive, NULL, &_thread_process_archive, NULL) )
+   {
+      s_bThreadProcessArchiveFinished = true;
+      log_softerror_and_alarm("[ProcessUploadTh] Failed to create thread archive processing.");
+      log_line("Extracting binaries to location: %s", FOLDER_BINARIES);   
+      hw_execute_bash_command_raw(szComm, NULL);
+      //system(szComm);
+      log_line("Done extracting to location: %s", FOLDER_BINARIES);
+      log_line("Done extracting archive.");
+   }
+   else
+   {
+      while ( ! s_bThreadProcessArchiveFinished )
+      {
+         hardware_sleep_ms(200);
+         _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_UNPACK, 2);
+      }
+      log_line("[ProcessUploadTh] Thread to process archive finished.");
+   }
+
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_UPDATING, 40);
+
    sprintf(szComm, "chmod 777 %sruby*", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(50);
@@ -180,9 +276,6 @@ void _process_upload_apply()
    log_line("ruby_update: [%s]", szOutput);
    hw_execute_ruby_process_wait(NULL, "ruby_update_vehicle", "-ver", szOutput, 1);
    log_line("ruby_update_vehicle: [%s]", szOutput);
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = g_TimeNow;
 
    // Begin Check and update drivers
 
@@ -229,18 +322,11 @@ void _process_upload_apply()
    }
    #endif
 
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = g_TimeNow;
+   //sprintf(szComm, "ls -al %sruby_update*", FOLDER_BINARIES);
+   //hw_execute_bash_command_raw(szComm, szOutput);
+   //log_line("Update files: [%s]", szOutput);
 
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-
-   sprintf(szComm, "ls -al %sruby_update*", FOLDER_BINARIES);
-   hw_execute_bash_command_raw(szComm, szOutput);
-   log_line("Update files: [%s]", szOutput);
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_POST_UPDATING, 10);
 
    strcpy(szFile, FOLDER_BINARIES);
    strcat(szFile, "ruby_update_vehicle");
@@ -291,12 +377,24 @@ void _process_upload_apply()
    hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_system.txt /home/pi/ruby/logs/last_update_log.txt", NULL);
    #endif
    log_line("Done updating. Cleaning up and reboot");
+   s_bUpdateAppliedRebooting = true;
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
+   hw_execute_bash_command_silent(szComm, NULL);
+
+   log_line("Give time for power leds to signal end of update...");
+
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_COMPLETED, 50);
+   for( int i=0; i<10; i++ )
+      hardware_sleep_ms(100);
+
+   log_line("Cleanup and reboot");
+   
    _sw_update_close_remove_temp_files();
 
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = g_TimeNow;
-
+   _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_COMPLETED, 50);
    signalReboot();
+   return NULL;
 }
 
 
@@ -345,9 +443,18 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    if ( ! s_bSoftwareUpdateStoppedVideoPipeline )
    {
       sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS);
-      hw_execute_bash_command_silent(szComm, NULL);
+      hw_execute_bash_command(szComm, NULL);
       s_bSoftwareUpdateStoppedVideoPipeline = true;
       sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO, 0);
+
+      sprintf(szComm, "rm -rf %slog_system_*", FOLDER_LOGS);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "rm -rf %slog_errors_*", FOLDER_LOGS);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "rm -rf %slog_video_*", FOLDER_LOGS);
+      hw_execute_bash_command(szComm, NULL);
+      int iFreeSpaceKb = hardware_get_free_space_kb();
+      log_line("Free space on disk: %d Mb", iFreeSpaceKb/1000);
    }
 
    if ( NULL == s_pSWPackets )
@@ -462,24 +569,23 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
 
    // Received all the sw update packets;
 
-   if ( ! bAllPrevOk )
+   log_line("Received entire SW upload.");
+
+   if ( s_bUpdateInProgress )
    {
-      if ( params->is_last_block )
-         log_softerror_and_alarm("Received invalid SW package. Do nothing.");
+      log_line("Update is in progress, ignore sw package packets.");
       return;
    }
 
-   log_line("Received entire SW upload.");
+   s_bUpdateInProgress = true;
 
-   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   
    s_pFileSoftware = fopen(s_szUpdateArchiveFile, "wb");
    if ( NULL == s_pFileSoftware )
    {
       log_softerror_and_alarm("Failed to create file for the downloaded software package.");
       log_softerror_and_alarm("The download did not completed correctly. Expected size: %d, received size: %d", params->total_size, s_uCurrentReceivedSoftwareSize );
       _sw_update_close_remove_temp_files();
+      s_bUpdateInProgress = false;
       return;
    }
 
@@ -491,6 +597,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
       {
          log_softerror_and_alarm("Failed to write to file for the downloaded software package.");
          _sw_update_close_remove_temp_files();
+         s_bUpdateInProgress = false;
          return;
       }
       fileSize += s_pSWPacketsSize[i];
@@ -503,8 +610,18 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    if ( fileSize != params->total_size )
       log_softerror_and_alarm("Missmatch between expected file size (%u) and created file size (%u)!", params->total_size, fileSize);
 
+   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+   sync();
+
    log_line("Received software package correctly (6.3 method). Update file: [%s]. Applying it.", s_szUpdateArchiveFile);
-   _process_upload_apply();
+
+   if ( 0 != pthread_create(&s_pThreadProcessUpload, NULL, &_thread_process_upload, NULL) )
+   {
+      log_softerror_and_alarm("Failed to create worker thread to process upload.");
+      s_bUpdateInProgress = false;
+      return;
+   }
 }
 
 bool process_sw_upload_is_started()

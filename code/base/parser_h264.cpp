@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -35,25 +35,20 @@
 
 ParserH264::ParserH264()
 {
-   init(1);
+   init();
 }
 
 ParserH264::~ParserH264()
 {
 }
 
-void ParserH264::init(int iExpectedISlices)
+void ParserH264::init()
 {
-   m_iExpectedISlices = iExpectedISlices;
    m_iDetectedISlices = 1;
-   m_uStateCurrentToken = MAX_U32;
-   m_iStateCurrentParsedSlices = 0;
+   m_uStreamCurrentParseToken = MAX_U32;
    m_uCurrentNALUType = 0;
    m_uLastNALUType = 0;
-   m_uConsecutiveNALUs = 0;
-   m_bStateIsInsideIFrame = false;
-   m_uCurrentFrameType = 0;
-   m_uLastFrameType = 0;
+   m_iConsecutiveSlicesForCurrentNALU = 0;
    m_uTimeDurationOfLastFrame = 0;
    m_uTimeStartOfCurrentFrame = 0;
    m_uTimeLastStartOfIFrame = 0;
@@ -67,88 +62,88 @@ void ParserH264::init(int iExpectedISlices)
    m_uDebugDetectedFPS = 0;
 }
 
-// Returns true if an start of a new frame was found
-bool ParserH264::parseData(u8* pData, int iDataLength, u32 uTimeNowMs)
+// Returns the number of starts of a new frames if it was found
+int ParserH264::parseData(u8* pData, int iDataLength, u32 uTimeNowMs)
 {
    if ( (NULL == pData) || (iDataLength <= 0) )
-      return false;
+      return 0;
 
-   bool bFoundFrameStart = false;
+   int iFoundFrameStartCount = 0;
 
    while ( iDataLength > 0 )
    {
-       m_uStateCurrentToken = (m_uStateCurrentToken<<8) | (*pData);
-       pData++;
-       iDataLength--;
-       m_uSizeCurrentFrame++;
+      m_uStreamCurrentParseToken = (m_uStreamCurrentParseToken<<8) | (*pData);
+      pData++;
+      iDataLength--;
+      m_uSizeCurrentFrame++;
 
-       if ( (m_uStateCurrentToken & 0xFFFFFF00) != 0x0100 )
-          continue;
+      // If not start a new NAL unit (00 00 01), continue parsing data
+      if ( (m_uStreamCurrentParseToken & 0xFFFFFF00) != 0x0100 )
+         continue;
 
-       m_uCurrentNALUType = m_uStateCurrentToken & 0b11111;
+      if ( _onParseStartOfNALUnit() )
+      {
+         iFoundFrameStartCount++;
+         m_uDebugFramesCounter++;
+         m_uTimeDurationOfLastFrame = uTimeNowMs - m_uTimeStartOfCurrentFrame;
+         m_uTimeStartOfCurrentFrame = uTimeNowMs;
 
-       // P-frame is 1, I-frame is 5
-       if ( (m_uCurrentNALUType != 1) && (m_uCurrentNALUType != 5) )
-          continue;
+         if ( m_uCurrentNALUType == 5 )
+         {
+            m_uCurrentDetectedKeyframeIntervalMs = uTimeNowMs - m_uTimeLastStartOfIFrame;
+            m_uTimeLastStartOfIFrame = uTimeNowMs;
+            m_uFramesSinceLastKeyframe = 0;
+         }
 
-       // We started a P or I frame slice
-
-       if ( m_uCurrentNALUType != m_uLastNALUType )
-       {
-          if ( m_uLastNALUType == 5 )
-          {
-             m_iDetectedISlices = (int)m_uConsecutiveNALUs;
-          }
-          m_uConsecutiveNALUs = 0;
-          m_uLastNALUType = m_uCurrentNALUType;
-       }
-
-       m_uConsecutiveNALUs++;
-
-       if ( m_uCurrentNALUType == 5 )
-          m_bStateIsInsideIFrame = true;
-       else
-          m_bStateIsInsideIFrame = false;
-
-       // P or I frame just started. Compute info
-
-       if ( 0 == m_iStateCurrentParsedSlices )
-       {
-          bFoundFrameStart = true;
-          
-          m_uDebugFramesCounter++;
-          if ( uTimeNowMs >= m_uDebugTimeStartFramesCounter + 5000 )
-          {
-             m_uDebugTimeStartFramesCounter = uTimeNowMs;
-             m_uDebugDetectedFPS = m_uDebugFramesCounter/5;
-             m_uDebugFramesCounter = 0;
-          }
-          m_uLastFrameType = m_uCurrentFrameType;
-          m_uCurrentFrameType = m_uCurrentNALUType;
-          m_uTimeDurationOfLastFrame = uTimeNowMs - m_uTimeStartOfCurrentFrame;
-          m_uTimeStartOfCurrentFrame = uTimeNowMs;
-          m_uFramesSinceLastKeyframe++;
-          m_uSizeLastFrame = m_uSizeCurrentFrame;
-          m_uSizeCurrentFrame = 0;
-
-          if ( m_uCurrentNALUType == 5 )
-          {
-             m_uCurrentDetectedKeyframeIntervalMs = uTimeNowMs - m_uTimeLastStartOfIFrame;
-             m_uTimeLastStartOfIFrame = uTimeNowMs;
-             m_uFramesSinceLastKeyframe = 0;
-          }
-       }
-
-       m_iStateCurrentParsedSlices++;
-       if ( m_iStateCurrentParsedSlices >= m_iDetectedISlices )
-       {
-          m_iStateCurrentParsedSlices = 0;
-
-          // Last NALU slice ended for current frame. Compute info for it
-       }
+         if ( uTimeNowMs >= m_uDebugTimeStartFramesCounter + 1000 )
+         {
+            m_uDebugTimeStartFramesCounter = uTimeNowMs;
+            m_uDebugDetectedFPS = m_uDebugFramesCounter;
+            m_uDebugFramesCounter = 0;
+         }
+      }
    }
 
-   return bFoundFrameStart;
+   return iFoundFrameStartCount;
+}
+
+// returns true if start of a new frame is detected (not of a new slice in a frame)
+bool ParserH264::_onParseStartOfNALUnit()
+{
+   m_uCurrentNALUType = m_uStreamCurrentParseToken & 0b11111;
+
+   // We started a new frame P,I or SPP PSP frames ?
+   bool bStartedNewFrame = false;
+
+   if ( m_uCurrentNALUType != m_uLastNALUType )
+   {
+      bStartedNewFrame = true;
+      if ( m_uLastNALUType == 5 )
+         m_iDetectedISlices = m_iConsecutiveSlicesForCurrentNALU;
+         
+      m_iConsecutiveSlicesForCurrentNALU = 0;
+      m_uLastNALUType = m_uCurrentNALUType;
+   }
+   else if ( (m_iConsecutiveSlicesForCurrentNALU >= m_iDetectedISlices) && (m_uCurrentNALUType == 1) )
+   {
+      bStartedNewFrame = true;
+      m_iConsecutiveSlicesForCurrentNALU = 0;
+   }
+   m_iConsecutiveSlicesForCurrentNALU++;
+
+   // P-frame is 1, I-frame is 5
+   if ( (m_uCurrentNALUType != 1) && (m_uCurrentNALUType != 5) )
+      return bStartedNewFrame;
+
+   // P or I frame (slice) just started. Compute info
+
+   if ( bStartedNewFrame )
+   {
+      m_uFramesSinceLastKeyframe++;
+      m_uSizeLastFrame = m_uSizeCurrentFrame;
+      m_uSizeCurrentFrame = 0;
+   }
+   return bStartedNewFrame;
 }
 
 u32 ParserH264::getStartTimeOfCurrentFrame()
@@ -158,7 +153,7 @@ u32 ParserH264::getStartTimeOfCurrentFrame()
 
 u32 ParserH264::getCurrentFrameType()
 {
-   return m_uCurrentFrameType;
+   return m_uCurrentNALUType;
 }
 
 u32 ParserH264::getStartTimeOfLastIFrame()
@@ -188,7 +183,9 @@ u32 ParserH264::getCurrentlyDetectedKeyframeIntervalMs()
 
 bool ParserH264::IsInsideIFrame()
 {
-   return m_bStateIsInsideIFrame;
+   if ( m_uCurrentNALUType == 5 )
+      return true;
+   return false;
 }
 
 u32 ParserH264::getFramesSinceLastKeyframe()

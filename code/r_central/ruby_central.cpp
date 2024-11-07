@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -64,6 +64,7 @@
 #include "../base/ctrl_interfaces.h"
 #include "../base/controller_utils.h"
 #include "../base/plugins_settings.h"
+#include "../base/vehicle_rt_info.h"
 //#include "../base/radio_utils.h"
 #include "../base/commands.h"
 #include "../base/ruby_ipc.h"
@@ -86,6 +87,7 @@
 #include "osd_common.h"
 #include "osd_plugins.h"
 #include "osd_widgets.h"
+#include "osd_debug_stats.h"
 #include "menu.h"
 #include "fonts.h"
 #include "popup.h"
@@ -714,7 +716,7 @@ void _render_background_and_paddings(bool bForceBackground)
    }
 }
 
-void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
+void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground, bool bDoInputLoop)
 {
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
@@ -755,6 +757,7 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
    //if ( ! bForceBackground )
    if ( (! g_bToglleAllOSDOff) && (!g_bToglleStatsOff) )
    if ( ! p->iDebugShowFullRXStats )
+   if ( ! g_bDebugStats )
    //if ( g_bIsRouterReady )
    {
       char szBuff[64];
@@ -802,7 +805,8 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
 
    u32 t = get_current_timestamp_micros();
    popups_render();
-   menu_render();
+   if ( bRenderMenus )
+      menu_render();
    popups_render_topmost();
 
    t = get_current_timestamp_micros() - t;
@@ -829,6 +833,11 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
       g_pRenderEngine->rotate180();
 
    g_pRenderEngine->endFrame();
+}
+
+void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
+{
+   render_all_with_menus(timeNow, true, bForceBackground, bDoInputLoop);
 }
 
 
@@ -912,6 +921,9 @@ int ruby_start_recording()
    sprintf(szBuff, "chmod 777 %s",FOLDER_MEDIA);
    hw_execute_bash_command(szBuff, NULL );
 
+   sprintf(szBuff, "chmod 777 %s*", FOLDER_MEDIA);
+   hw_execute_bash_command(szBuff, NULL);
+   
    hw_execute_bash_command("mkdir -p tmp", NULL );
    hw_execute_bash_command("chmod 777 tmp", NULL );
 
@@ -1045,6 +1057,30 @@ void executeQuickActions()
       warnings_add(0, "Please connect to a vehicle first, to execute Quick Actions.");
       return;
    }
+
+   if ( g_bDebugStats )
+   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) )
+   {
+      osd_debug_stats_toggle_freeze();
+      return;
+   }
+   if ( g_bDebugStats )
+   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) )
+   {
+      osd_debug_stats_toggle_zoom();
+      return;
+   }
+
+   if ( p->iDebugStatsQAButton == 1 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1 )
+      g_bDebugStats = ! g_bDebugStats;
+   if ( p->iDebugStatsQAButton == 2 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2 )
+      g_bDebugStats = ! g_bDebugStats;
+   if ( p->iDebugStatsQAButton == 3 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3 )
+      g_bDebugStats = ! g_bDebugStats;
+
 
    if ( pCS->iDevSwitchVideoProfileUsingQAButton >= 0 && pCS->iDevSwitchVideoProfileUsingQAButton < 3 )
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && (pCS->iDevSwitchVideoProfileUsingQAButton==0)) ||
@@ -1906,6 +1942,31 @@ void packets_scope_input_loop()
    }
 }
 
+void clear_shared_mems()
+{
+   memset(&g_SM_VideoInfoStatsOutput, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_SM_VideoInfoStatsRadioIn, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_VideoInfoStatsFromVehicleCameraOut, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_SM_HistoryRxStats, 0, sizeof(shared_mem_radio_stats_rx_hist));
+   memset(&g_SM_HistoryRxStatsVehicle, 0, sizeof(shared_mem_radio_stats_rx_hist));
+   memset(&g_SM_AudioDecodeStats, 0, sizeof(shared_mem_audio_decode_stats));
+   memset(&g_SM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
+   memset(&g_SM_VDS_history, 0, sizeof(shared_mem_video_stream_stats_history_rx_processors));
+   
+   memset(&g_SMControllerRTInfo, 0, sizeof(controller_runtime_info));
+   memset(&g_SMVehicleRTInfo, 0, sizeof(vehicle_runtime_info));
+   memset(&g_SM_DownstreamInfoRC, 0, sizeof(t_packet_header_rc_info_downstream));
+   memset(&g_SM_RouterVehiclesRuntimeInfo, 0, sizeof(shared_mem_router_vehicles_runtime_info));
+   memset(&g_SM_RadioStats, 0, sizeof(shared_mem_radio_stats));
+   memset(&g_SM_RadioStatsInterfaceRxGraph, 0, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
+   memset(&g_SM_RadioRxQueueInfo, 0, sizeof(shared_mem_radio_rx_queue_info));
+   memset(&g_SM_VideoLinkGraphs, 0, sizeof(shared_mem_video_link_graphs));
+   memset(&g_SM_DevVideoBitrateHistory, 0, sizeof(shared_mem_dev_video_bitrate_history));
+   memset(&g_SM_RCIn, 0, sizeof(t_shared_mem_i2c_controller_rc_in));
+   memset(&g_SMVoltage, 0, sizeof(t_shared_mem_i2c_current));
+}
+
 void synchronize_shared_mems()
 {
    if ( ! pairing_isStarted() )
@@ -1964,6 +2025,29 @@ void synchronize_shared_mems()
       }
    }
 
+   if ( NULL == g_pSMControllerRTInfo )
+   {
+      g_pSMControllerRTInfo = controller_rt_info_open_for_read();
+      if ( NULL == g_pSMControllerRTInfo )
+         log_softerror_and_alarm("Failed to open shared mem to controller runtime info for reading: %s", SHARED_MEM_CONTROLLER_RUNTIME_INFO);
+      else
+         log_line("Opened shared mem to controller runtime info for reading.");
+   }
+   if ( NULL != g_pSMControllerRTInfo )
+      memcpy((u8*)&g_SMControllerRTInfo, g_pSMControllerRTInfo, sizeof(controller_runtime_info));
+
+   if ( NULL == g_pSMVehicleRTInfo )
+   {
+      g_pSMVehicleRTInfo = vehicle_rt_info_open_for_read();
+      if ( NULL == g_pSMVehicleRTInfo )
+         log_softerror_and_alarm("Failed to open shared mem to vehicle runtime info for reading: %s", SHARED_MEM_VEHICLE_RUNTIME_INFO);
+      else
+         log_line("Opened shared mem to vehicle runtime info for reading.");
+   }
+   if ( NULL != g_pSMVehicleRTInfo )
+      memcpy((u8*)&g_SMVehicleRTInfo, g_pSMVehicleRTInfo, sizeof(vehicle_runtime_info));
+
+
    if ( g_bFreezeOSD )
       return;
 
@@ -2005,12 +2089,11 @@ void synchronize_shared_mems()
       memcpy((u8*)&g_SM_VideoDecodeStats, g_pSM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
    if ( NULL != g_pSM_VDS_history )
       memcpy((u8*)&g_SM_VDS_history, g_pSM_VDS_history, sizeof(shared_mem_video_stream_stats_history_rx_processors));
-   if ( NULL != g_pSM_ControllerRetransmissionsStats )
-      memcpy((u8*)&g_SM_ControllerRetransmissionsStats, g_pSM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
    if ( NULL != g_pSM_RadioRxQueueInfo )
       memcpy((u8*)&g_SM_RadioRxQueueInfo, g_pSM_RadioRxQueueInfo, sizeof(shared_mem_radio_rx_queue_info));
-   if ( NULL != g_pSM_VideoLinkStats )
-      memcpy((u8*)&g_SM_VideoLinkStats, g_pSM_VideoLinkStats, sizeof(shared_mem_video_link_stats_and_overwrites));
+   // To fix
+   //if ( NULL != g_pSM_VideoLinkStats )
+   //   memcpy((u8*)&g_SM_VideoLinkStats, g_pSM_VideoLinkStats, sizeof(shared_mem_video_link_stats_and_overwrites));
    if ( NULL != g_pSM_VideoLinkGraphs )
       memcpy((u8*)&g_SM_VideoLinkGraphs, g_pSM_VideoLinkGraphs, sizeof(shared_mem_video_link_graphs));
    if ( NULL != g_pSM_RCIn )
@@ -2024,7 +2107,7 @@ void ruby_processing_loop(bool bNoKeys)
 {
    ControllerSettings* pCS = get_ControllerSettings();
 
-   hardware_sleep_ms(20);
+   hardware_sleep_ms(10);
    try_read_messages_from_router(7);
    keyboard_consume_input_events();
    u32 uSumEvent = keyboard_get_triggered_input_events();
@@ -2233,7 +2316,15 @@ int main(int argc, char *argv[])
    }
 
    g_bDebugState = false;
+   g_bDebugStats = false;
 
+   if ( argc >= 1 )
+   if ( strcmp(argv[argc-1], "-ds") == 0 )
+   {
+      g_bDebugStats = true;
+      log_line("Starting with debug stats...");
+   }
+   
    if ( argc >= 1 )
    if ( strcmp(argv[argc-1], "-debug") == 0 )
       g_bDebugState = true;
@@ -2298,6 +2389,7 @@ int main(int argc, char *argv[])
    init_hardware();
    hardware_init_serial_ports();
 
+   clear_shared_mems();   
    ruby_clear_all_ipc_channels();
 
    s_pProcessStatsCentral = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_CENTRAL);
@@ -2357,6 +2449,8 @@ int main(int argc, char *argv[])
    menu_init();
    hardware_swap_buttons(p->iSwapUpDownButtons);
 
+   warnings_remove_all();
+
    log_line("Started.");
 
    popupStartup.setFont(g_idFontMenu);
@@ -2396,10 +2490,8 @@ int main(int argc, char *argv[])
  
    keyboard_init();
 
-   memset(&g_SM_VideoInfoStatsOutput, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_SM_VideoInfoStatsRadioIn, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_VideoInfoStatsFromVehicleCameraOut, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_info_stats));
+   controller_rt_info_init(&g_SMControllerRTInfo);
+   vehicle_rt_info_init(&g_SMVehicleRTInfo);
 
    s_StartSequence = START_SEQ_PRE_LOAD_CONFIG;
    log_line("Started main loop.");

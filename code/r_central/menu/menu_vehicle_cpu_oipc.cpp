@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -47,6 +47,12 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
    m_pItemsSlider[5]->setStep(25);
    m_IndexCPUSpeed = addMenuItem(m_pItemsSlider[5]);
    
+   m_pItemsSelect[5] = new MenuItemSelect("GPU Boost", "Increases the video encoder clock speed.");
+   m_pItemsSelect[5]->addSelection("Off");
+   m_pItemsSelect[5]->addSelection("On");
+   m_pItemsSelect[5]->setIsEditable();
+   m_IndexGPUBoost = addMenuItem(m_pItemsSelect[5]);
+
    addMenuItem(new MenuItemSection("Priorities"));
 
    m_pItemsSelect[0] = new MenuItemSelect("Core Priority Adjustment", "Change the way the priority of Ruby processes is adjusted.");
@@ -93,6 +99,10 @@ void MenuVehicleCPU_OIPC::valuesToUI()
 {
    if ( g_pCurrentModel->processesPriorities.iFreqARM > 0 )
       m_pItemsSlider[5]->setCurrentValue(g_pCurrentModel->processesPriorities.iFreqARM);
+
+   m_pItemsSelect[5]->setSelectedIndex(0);
+   if ( g_pCurrentModel->processesPriorities.iFreqGPU == 1 )
+      m_pItemsSelect[5]->setSelectedIndex(1);
 
    if ( g_pCurrentModel->processesPriorities.iNiceRouter == 0 )
    {
@@ -269,7 +279,13 @@ void MenuVehicleCPU_OIPC::onSelectItem()
    {
       params.freq_arm = m_pItemsSlider[5]->getCurrentValue();
       sendUpdate = true;
-   }   
+   }
+   if ( m_IndexGPUBoost == m_SelectedIndex )
+   {
+      params.freq_gpu = m_pItemsSelect[5]->getSelectedIndex();
+      sendUpdate = true;
+   }
+
    if ( sendUpdate )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OVERCLOCKING_PARAMS, 0, (u8*)(&params), sizeof(command_packet_overclocking_params)) )

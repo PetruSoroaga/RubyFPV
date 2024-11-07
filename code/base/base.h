@@ -26,6 +26,13 @@ typedef u32 __le32;
 #define MAX_U32 0xFFFFFFFF
 #define MAX_VEHICLE_NAME_LENGTH 16
 #define MAX_SERVICE_LOG_ENTRY_LENGTH 300
+#define LOGGER_MESSAGE_QUEUE_ID 123
+
+#define SYSTEM_NAME "Ruby"
+// dword: BB.BB.MM.mm  (BB.BB: build number, MM: major ver, mm: minor ver) 
+#define SYSTEM_SW_VERSION_MAJOR 9
+#define SYSTEM_SW_VERSION_MINOR 80
+#define SYSTEM_SW_BUILD_NUMBER  243
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)
@@ -70,11 +77,6 @@ u32 base_compute_crc32(u8 *buf, int length);
 u8 base_compute_crc8(u8* pBuffer, int iLength);
 int base_check_crc32(u8* pBuffer, int iLength);
 
-u32 get_sw_version_major(u32 uSWVersion);
-u32 get_sw_version_minor(u32 uSWVersion);
-u32 get_sw_version_build(u32 uSWVersion);
-int is_sw_version_atleast(u32 uSWVersion, int iMajor, int iMinor);
-
 u32 get_current_timestamp_micros();
 u32 get_current_timestamp_ms();
 u32 get_boot_timestamp_ms();
@@ -107,9 +109,6 @@ void log_softerror_and_alarm(const char* format, ...);
 void log_error_and_alarm(const char* format, ...);
 void log_line_watchdog(const char* format, ...);
 void log_line_commands(const char* format, ...);
-
-long metersBetweenPlaces(double lat1, double lon1, double lat2, double lon2);
-long distance_meters_between(double lat1, double lon1, double lat2, double lon2);
 
 int check_licences();
 

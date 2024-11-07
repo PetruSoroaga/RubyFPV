@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -243,6 +243,7 @@ bool Model::reloadIfChanged(bool bLoadStats)
    if ( 1 == fscanf(fd, "%*s %d", &iS) )
    if ( iS != iSaveCount )
    {
+      log_line("Model: changed. Reload");
       fclose(fd);
       return loadFromFile(szFile, bLoadStats);
    }
@@ -316,9 +317,11 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       //log_line("Loaded vehicle successfully (%u ms) from file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s, is in developer mode: %s, %d radio links, 1st link: %s, 2nd link: %s, 3rd link: %s",
       // timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes", (bDeveloperMode?"yes":"no"), radioLinksParams.links_count, szFreq1, szFreq2, szFreq3);
 
-      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, software: %d.%d (b%d), on time: %02d:%02d",
+      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, dev mode: %s, software: %d.%d (b%d), on time: %02d:%02d",
          bLoadStats?"with stats":"without stats",
-         filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
+         filename, vehicle_name, uVehicleId, 
+         bDeveloperMode?"yes":"no",
+         (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       constructLongName();
       return true;
@@ -801,8 +804,11 @@ bool Model::loadVersion8(FILE* fd)
    if ( 1 != fscanf(fd, "%u", &rc_params.rcChAssignmentThrotleReverse ) )
       { log_softerror_and_alarm("Load model8: Error on line 37d"); return false; }
 
-   for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
-      if ( 1 != fscanf(fd, "%u", &(rc_params.dummy[i])) )
+   if ( 1 != fscanf(fd, "%d", &rc_params.iRCTranslationType ) )
+      { log_softerror_and_alarm("Load model8: Error on line 37e"); return false; }
+
+   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
+      if ( 1 != fscanf(fd, "%u", &(rc_params.rcDummy[i])) )
          { log_softerror_and_alarm("Load model8: Error on line 37"); return false; }
 
    if ( rc_params.rc_failsafe_timeout_ms < 50 || rc_params.rc_failsafe_timeout_ms > 5000 )
@@ -1401,9 +1407,12 @@ bool Model::loadVersion9(FILE* fd)
    if ( 1 != fscanf(fd, "%u", &rc_params.rcChAssignmentThrotleReverse ) )
       { log_softerror_and_alarm("Load model8: Error on line 37d"); return false; }
 
-   for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
-      if ( 1 != fscanf(fd, "%u", &(rc_params.dummy[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line 37"); return false; }
+   if ( 1 != fscanf(fd, "%d", &rc_params.iRCTranslationType ) )
+      { log_softerror_and_alarm("Load model9: Error on line 37e"); return false; }
+
+   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
+      if ( 1 != fscanf(fd, "%u", &(rc_params.rcDummy[i])) )
+         { log_softerror_and_alarm("Load model9: Error on line 37"); return false; }
 
    if ( rc_params.rc_failsafe_timeout_ms < 50 || rc_params.rc_failsafe_timeout_ms > 5000 )
       rc_params.rc_failsafe_timeout_ms = DEFAULT_RC_FAILSAFE_TIME;
@@ -1842,19 +1851,19 @@ bool Model::loadVersion10(FILE* fd)
             camera_params[k].profiles[i].wdr = (u8)tmp1;
 
          if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25c, night mode, cam profile %d", i); camera_params[k].profiles[i].dayNightMode = 0; }
+            { log_softerror_and_alarm("Load model10: Error on line 25c, night mode, cam profile %d", i); camera_params[k].profiles[i].dayNightMode = 0; }
          else
             camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
            
          if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
+            { log_softerror_and_alarm("Load model10: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
          else
             camera_params[k].profiles[i].hue = (u8)tmp1;
 
          for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
          {
             if ( 1 != fscanf(fd, "%d", &tmp1) )
-               { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
+               { log_softerror_and_alarm("Load model10: Error on line 27, cam profile %d", i); return false; }
             camera_params[k].profiles[i].dummyCamP[j] = tmp1;
          }
       }
@@ -1959,15 +1968,15 @@ bool Model::loadVersion10(FILE* fd)
       rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
 
    if ( 1 != fscanf(fd, "%d", &rc_params.inputType) )
-      { log_softerror_and_alarm("Load model8: Error on line 35"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 35"); return false; }
 
    if ( 4 != fscanf(fd, "%d %ld %d %ld", &rc_params.inputSerialPort, &rc_params.inputSerialPortSpeed, &rc_params.outputSerialPort, &rc_params.outputSerialPortSpeed ) )
-      { log_softerror_and_alarm("Load model8: Error on line 36"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 36"); return false; }
    
    for( int i=0; i<MAX_RC_CHANNELS; i++ )
    {
       if ( 7 != fscanf(fd, "%u %u %u %u %u %u %u", &u1, &u2, &u3, &u4, &u5, &u6, &u7) )
-         { log_softerror_and_alarm("Load model8: Error on line 38"); return false; }
+         { log_softerror_and_alarm("Load model10: Error on line 38"); return false; }
       rc_params.rcChAssignment[i] = u1;
       rc_params.rcChMid[i] = u2;
       rc_params.rcChMin[i] = u3;
@@ -1978,19 +1987,22 @@ bool Model::loadVersion10(FILE* fd)
    }
    
    if ( 3 != fscanf(fd, "%d %u %u", &rc_params.rc_failsafe_timeout_ms, &rc_params.failsafeFlags, &rc_params.channelsCount ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37a"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 37a"); return false; }
    if ( 1 != fscanf(fd, "%u", &rc_params.hid_id ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37b"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 37b"); return false; }
 
    if ( 1 != fscanf(fd, "%u", &rc_params.flags ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37c"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 37c"); return false; }
 
    if ( 1 != fscanf(fd, "%u", &rc_params.rcChAssignmentThrotleReverse ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37d"); return false; }
+      { log_softerror_and_alarm("Load model10: Error on line 37d"); return false; }
 
-   for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
-      if ( 1 != fscanf(fd, "%u", &(rc_params.dummy[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line 37"); return false; }
+   if ( 1 != fscanf(fd, "%d", &rc_params.iRCTranslationType ) )
+      { log_softerror_and_alarm("Load model10: Error on line 37e"); return false; }
+
+   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
+      if ( 1 != fscanf(fd, "%u", &(rc_params.rcDummy[i])) )
+         { log_softerror_and_alarm("Load model10: Error on line 37"); return false; }
 
    if ( rc_params.rc_failsafe_timeout_ms < 50 || rc_params.rc_failsafe_timeout_ms > 5000 )
       rc_params.rc_failsafe_timeout_ms = DEFAULT_RC_FAILSAFE_TIME;
@@ -2074,12 +2086,12 @@ bool Model::loadVersion10(FILE* fd)
    for( int i=0; i<3; i++ )
    {
       if ( bOk && (6 != fscanf(fd, "%u %u %u %u %u %u", &functions_params.uChannels433FreqSwitch[i], &functions_params.uChannels868FreqSwitch[i], &functions_params.uChannels23FreqSwitch[i], &functions_params.uChannels24FreqSwitch[i], &functions_params.uChannels25FreqSwitch[i], &functions_params.uChannels58FreqSwitch[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line func_ch"); bOk = false; }
+         { log_softerror_and_alarm("Load model10: Error on line func_ch"); bOk = false; }
    }
 
    for( unsigned int i=0; i<(sizeof(functions_params.dummy)/sizeof(functions_params.dummy[0])); i++ )
       if ( bOk && (1 != fscanf(fd, "%u", &(functions_params.dummy[i]))) )
-         { log_softerror_and_alarm("Load model8: Error on line funct_d"); bOk = false; }
+         { log_softerror_and_alarm("Load model10: Error on line funct_d"); bOk = false; }
 
    //----------------------------------------------------
    // Start of extra params, might be zero when loading older versions.
@@ -2199,9 +2211,10 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       fflush(fd);
       fclose(fd);
    }
-   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, on time: %02d:%02d",
+   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, dev mode: %s, on time: %02d:%02d",
          filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          isOnController?"yes":"no",
+         bDeveloperMode?"yes":"no",
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       
    strcpy(szBuff, filename);
@@ -2527,11 +2540,11 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    strcat(szModel, szSetting);
    sprintf(szSetting, "%u\n", rc_params.flags );
    strcat(szModel, szSetting);
-   sprintf(szSetting, "%u\n", rc_params.rcChAssignmentThrotleReverse );
+   sprintf(szSetting, "%u %d\n", rc_params.rcChAssignmentThrotleReverse, rc_params.iRCTranslationType );
    strcat(szModel, szSetting);
-   for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
+   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
    {
-      sprintf(szSetting, " %u",rc_params.dummy[i]);
+      sprintf(szSetting, " %u",rc_params.rcDummy[i]);
       strcat(szModel, szSetting);
    }
    sprintf(szSetting, "\n");
@@ -2665,6 +2678,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
          video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
 
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
+           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
 
       if ( hardware_isCameraVeye() || hardware_isCameraHDMI() )
       {
@@ -2689,6 +2706,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
+   if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
+        (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
+        hardware_board_is_goke(hardware_getOnlyBoardType()) )
+   video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
 
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
@@ -4069,8 +4090,12 @@ void Model::resetToDefaults(bool generateId)
    processesPriorities.iFreqARM = DEFAULT_ARM_FREQ;
    processesPriorities.iFreqGPU = DEFAULT_GPU_FREQ;
 
-   if ( hardware_board_is_sigmastar(hwCapabilities.uBoardType) )
+   if ( isRunningOnOpenIPCHardware() )
+   if ( hardware_board_is_sigmastar(hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+   {
       processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+      processesPriorities.iFreqGPU = 1;
+   }
 
    processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
    processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
@@ -4262,7 +4287,7 @@ void Model::resetTelemetryParams()
    telemetry_params.bControllerHasOutputTelemetry = false;
    telemetry_params.controller_telemetry_type = 0;
 
-   telemetry_params.update_rate = DEFAULT_FC_TELEMETRY_UPDATE_RATE;
+   telemetry_params.update_rate = DEFAULT_TELEMETRY_SEND_RATE;
    telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
    telemetry_params.controller_mavlink_id = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
 
@@ -4320,8 +4345,9 @@ void Model::resetRCParams()
       rc_params.rcChFlags[i] = (DEFAULT_RC_FAILSAFE_TYPE << 1);
    }
    rc_params.rcChAssignmentThrotleReverse = 0;
-   for( unsigned int i=0; i<(sizeof(rc_params.dummy)/sizeof(rc_params.dummy[0])); i++ )
-      rc_params.dummy[i] = 0;
+   rc_params.iRCTranslationType = RC_TRANSLATION_TYPE_2000;
+   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
+      rc_params.rcDummy[i] = 0;
 
    camera_rc_channels = (((u32)0x07)<<24) | (0x03 << 30); // set only relative speed to middle;
 }
@@ -5128,9 +5154,9 @@ int Model::getInitialKeyframeIntervalMs(int iVideoProfile)
 {
    int iKeyframeMs = video_link_profiles[iVideoProfile].keyframe_ms;
 
-   if ( ! isVideoLinkFixedOneWay() )
-   if ( video_link_profiles[iVideoProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
-      iKeyframeMs = DEFAULT_VIDEO_AUTO_INITIAL_KEYFRAME_INTERVAL;
+   //if ( ! isVideoLinkFixedOneWay() )
+   //if ( video_link_profiles[iVideoProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
+   //   iKeyframeMs = DEFAULT_VIDEO_AUTO_INITIAL_KEYFRAME_INTERVAL;
    
    if ( hardware_board_is_goke(hardware_getBoardType()) )
        iKeyframeMs = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
@@ -5148,13 +5174,22 @@ void Model::setDefaultVideoBitrate()
    video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
    video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
 
+   if ( ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) ||
+        ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) ||
+        hardware_board_is_goke(board_type) )
+   {
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+   }
+
    // Lower video bitrate on all video profiles if running on a single core CPU
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
       if ( ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210) ||
            ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) || ((board_type & BOARD_TYPE_MASK) == BOARD_TYPE_NONE) )
       {
-         if ( video_link_profiles[i].bitrate_fixed_bps > 4000000 )
+         if ( video_link_profiles[i].bitrate_fixed_bps > 4500000 )
             video_link_profiles[i].bitrate_fixed_bps -= 1000000;
          else if ( video_link_profiles[i].bitrate_fixed_bps > 3000000 )
             video_link_profiles[i].bitrate_fixed_bps -= 500000;
@@ -5267,7 +5302,8 @@ void Model::getCameraFlags(char* szCameraFlags)
    //   strcat(szCameraFlags, " -a \"DEV\"");
 }
 
-void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_video_link_overwrites* pVideoOverwrites)
+// To fix: overwrites checks
+void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile)
 {
    if ( NULL == szVideoFlags )
       return;
@@ -5284,22 +5320,16 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile, shared_mem_vide
 
    char szBuff[128];
    u32 uBitrate = DEFAULT_VIDEO_BITRATE;
-   if ( NULL == pVideoOverwrites )
+   // To fix
+   //if ( NULL == pVideoOverwrites )
       uBitrate = video_link_profiles[iVideoProfile].bitrate_fixed_bps;
-   else
-      uBitrate = video_link_profiles[pVideoOverwrites->currentVideoLinkProfile].bitrate_fixed_bps;
+   //else
+   //   uBitrate = video_link_profiles[pVideoOverwrites->currentVideoLinkProfile].bitrate_fixed_bps;
 
    if ( uBitrate > 6000000 )
       uBitrate = uBitrate*4/5;
 
    sprintf(szBuff, "-b %u", uBitrate);
-
-   //if ( isActiveCameraCSICompatible() )
-   //{
-   //   bool bUseAdaptiveVideo = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?true:false; 
-   //   if ( bUseAdaptiveVideo )
-   //      sprintf(szBuff, "-b %d", 1500000);
-   //}
 
    char szKeyFrame[64];
 
@@ -6059,4 +6089,43 @@ bool IsModelRadioConfigChanged(type_radio_links_parameters* pRadioLinks1, type_r
          return true;
    }
    return false;     
+}
+
+
+
+u32 get_sw_version_major(Model* pModel)
+{
+   if ( NULL != pModel )
+      return (pModel->sw_version >> 8) & 0xFF;
+   return SYSTEM_SW_VERSION_MAJOR;
+}
+
+u32 get_sw_version_minor(Model* pModel)
+{
+   u32 uRes = SYSTEM_SW_VERSION_MINOR;
+   if ( NULL != pModel )
+      uRes = (pModel->sw_version & 0xFF);
+   if ( uRes < 10 )
+      uRes *= 10;
+   return uRes;
+}
+u32 get_sw_version_build(Model* pModel)
+{
+   if ( NULL != pModel )
+      return (pModel->sw_version >> 16);
+   return SYSTEM_SW_BUILD_NUMBER;
+}
+
+int is_sw_version_atleast(Model* pModel, int iMajor, int iMinor)
+{
+   if ( (int)get_sw_version_major(pModel) > iMajor )
+      return 1;
+   int iM = (int)get_sw_version_minor(pModel);
+   if ( iM > 10 )
+      iM /= 10;
+   if ( (int)get_sw_version_major(pModel) == iMajor )
+   if ( iM >= iMinor )
+      return 1;
+
+   return 0;
 }

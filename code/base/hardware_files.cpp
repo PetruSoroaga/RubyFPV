@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -58,4 +58,49 @@ bool hardware_file_check_and_fix_access(char* szFullFileName)
    if ( access(szFullFileName, X_OK) != -1 )
       return true;
    return false;
+}
+
+void hardware_mount_root()
+{
+   #ifdef HW_PLATFORM_RASPBERRY
+   hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
+   #endif
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
+   #endif
+}
+
+void hardware_mount_boot()
+{
+   #ifdef HW_PLATFORM_RASPBERRY
+   hw_execute_bash_command("sudo mount -o remount,rw /boot", NULL);
+   #endif
+}
+
+int hardware_get_free_space_kb()
+{
+   char szOutput[2048];
+
+   #if defined(HW_PLATFORM_RASPBERRY)
+   if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
+      return -1;
+   #elif defined( HW_PLATFORM_RADXA_ZERO3)
+   if ( 1 != hw_execute_bash_command_raw("df / | grep dev/", szOutput) )
+      return -1;
+   #else
+   szOutput[0] = 0;
+   if ( 1 != hw_execute_bash_command_raw("df . | grep overlay 2>/dev/null", szOutput) )
+      return -1;
+   if ( strlen(szOutput) < 10 )
+   if ( 1 != hw_execute_bash_command_raw("df . | grep tmpfs 2>/dev/null", szOutput) )
+      return -1;
+   #endif
+
+   if ( strlen(szOutput) < 10 )
+      return -1;
+   char szTemp[1024];
+   long lb = 0, lu = 0, lf = 0;
+   sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
+   return (int)lf;
 }

@@ -19,16 +19,10 @@
 //#define FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
 //#define LOG_RAW_TELEMETRY
 
-#define SYSTEM_NAME "Ruby"
-// dword: BB.BB.MM.mm  (BB.BB: build number, MM: major ver, mm: minor ver) 
-#define SYSTEM_SW_VERSION_MAJOR 9
-#define SYSTEM_SW_VERSION_MINOR 70
-#define SYSTEM_SW_BUILD_NUMBER  239
-
-#define LOGGER_MESSAGE_QUEUE_ID 123
 #define RADIO_TX_MESSAGE_QUEUE_ID 117
 
 #define	MAX_RADIO_INTERFACES 6
+#define MAX_RADIO_ANTENNAS 4
 #define MAX_MAC_LENGTH 20
 
 #define MAX_RELAY_VEHICLES 5
@@ -54,6 +48,10 @@
 #endif
 #define MAX_TX_POWER 71
 #define MAX_MCS_INDEX 9
+
+
+#define SYSTEM_RT_INFO_UPDATE_INTERVAL_MS 10
+#define SYSTEM_RT_INFO_INTERVALS 200
 
 #define DEFAULT_TX_TIME_OVERLOAD 500 // milisec
 
@@ -86,8 +84,8 @@
 #define DEFAULT_RADIO_DATARATE_SIK_AIR 64000
 #define DEFAULT_RADIO_DATARATE_VIDEO 18000000
 #define DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS 12000000
+#define DEFAULT_RADIO_DATARATE_LOWEST 6000000
 #define DEFAULT_RADIO_DATARATE_DATA 6000000
-#define DEFAULT_RADIO_DATARATE_LOWEST 2000000
 
 #define DEFAULT_USE_PPCAP_FOR_TX 1
 #define DEFAULT_BYPASS_SOCKET_BUFFERS 1
@@ -100,6 +98,7 @@
 #define DEFAULT_ARM_FREQ 900
 #define DEFAULT_GPU_FREQ 400
 #define DEFAULT_FREQ_OPENIPC_SIGMASTAR 1100
+#define DEFAULT_FREQ_RADXA 1416
 
 #define DEFAULT_PRIORITY_PROCESS_ROUTER -12
 #define DEFAULT_IO_PRIORITY_ROUTER 3 //(negative for disabled)
@@ -131,8 +130,7 @@
 #define DEFAULT_FC_TELEMETRY_SERIAL_SPEED 115200
 #endif
 
-#define DEFAULT_FC_TELEMETRY_UPDATE_RATE 4 // Times per second, for FC telemetry from vehicle to controller
-#define DEFAULT_RUBY_TELEMETRY_UPDATE_RATE 4 // Times per second. How often the Ruby telemetry gets sent from vehicle to controller
+#define DEFAULT_TELEMETRY_SEND_RATE 4 // Times per second. How often the Ruby/FC telemetry gets sent from vehicle to controller
 
 #define RAW_TELEMETRY_MAX_BUFFER 512  // bytes
 #define RAW_TELEMETRY_SEND_TIMEOUT 200 // miliseconds. how much to wait until to send whatever is in a telemetry serial buffer to the radio

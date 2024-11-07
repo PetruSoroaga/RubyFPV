@@ -30,6 +30,7 @@ typedef struct
    u32 uRadioLinkRoundtripMsMin[MAX_RADIO_INTERFACES];
    u32 uRadioLinkRoundtripMsMax[MAX_RADIO_INTERFACES];
 
+   u32 uLastTimeReceivedAckFromVehicle;
    u32 uRadioLinksMinimumRoundtripMs;
    int iVehicleClockIsBehindThisMilisec;
 
@@ -47,7 +48,11 @@ typedef struct
    u32 uMinPingRoundtripTime;
 
    // Adaptive video info
-   
+   u8 uPendingVideoProfileToSet;
+   u32 uPendingVideoProfileToSetRequestedBy;
+   u32 uVideoProfileRequestId;
+   u32 uLastTimeSentVideoProfileRequest;
+   u32 uLastTimeRecvVideoProfileAck;
    bool bReceivedKeyframeInfoInVideoStream;
 
 } __attribute__((packed)) type_global_state_vehicle_runtime_info;
@@ -64,6 +69,7 @@ extern type_global_state_station g_State;
 void resetVehicleRuntimeInfo(int iIndex);
 void resetPairingStateForVehicleRuntimeInfo(int iIndex);
 void removeVehicleRuntimeInfo(int iIndex);
+bool isPairingDoneWithVehicle(u32 uVehicleId);
 int  getVehicleRuntimeIndex(u32 uVehicleId);
 type_global_state_vehicle_runtime_info* getVehicleRuntimeInfo(u32 uVehicleId);
 void logCurrentVehiclesRuntimeInfo();

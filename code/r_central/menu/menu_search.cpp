@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -39,6 +39,12 @@
 #include "../link_watch.h"
 
 static int s_LastSearchedFrequency = 0;
+static u32 s_uVideoReceivedOnFreqKhz = 0;
+
+void MenuSearch::onVideoReceived(u32 uFreqKhz)
+{
+   s_uVideoReceivedOnFreqKhz = uFreqKhz;
+}
 
 MenuSearch::MenuSearch(void)
 :Menu(MENU_ID_SEARCH, "Search for vehicles", "")
@@ -703,6 +709,8 @@ void MenuSearch::startSearch()
    g_RouterIsReadyTimestamp = 0;
    g_pCurrentModel = NULL;
 
+   s_uVideoReceivedOnFreqKhz = 0;
+
    link_watch_remove_popups();
    render_all(get_current_timestamp_ms(), true);
 
@@ -729,7 +737,9 @@ void MenuSearch::startSearch()
    handle_commands_abandon_command();
    reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
    
+   log_line("MenuSearch: Finished start search function");
    render_all(get_current_timestamp_ms(), true);
+   log_line("MenuSearch: Exit start search function");
 
    m_CurrentSearchFrequencyKhz = 0;
    m_bIsSearchingManual = false;
@@ -760,6 +770,7 @@ void MenuSearch::stopSearch()
    g_bSearching = false;
    g_bSearchFoundVehicle = false;
    g_iSearchFrequency = 0;
+   s_uVideoReceivedOnFreqKhz = 0;
    m_CurrentSearchFrequencyKhz = 0;
    m_bIsSearchingAuto = false;
    m_bIsSearchingManual = false;
@@ -889,17 +900,19 @@ void MenuSearch::onSearchStep()
       log_line("MenuSearch::onSearchStep() initialized first search step.");
       m_CurrentSearchFrequencyKhz = m_pSearchChannels[0];
       g_iSearchFrequency = m_pSearchChannels[0];
+      s_uVideoReceivedOnFreqKhz = 0;
       render_search_step = 0;
       return;
    }
 
-   u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
-   Preferences* pP = get_Preferences();
-   if ( NULL != pP )
-      delayMs = (u32) pP->iDebugWiFiChangeDelay;
-   if ( delayMs<1 || delayMs > 200 )
-      delayMs = DEFAULT_DELAY_WIFI_CHANGE;
-
+   //u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   //Preferences* pP = get_Preferences();
+   //if ( NULL != pP )
+   //   delayMs = (u32) pP->iDebugWiFiChangeDelay;
+   //if ( delayMs<1 || delayMs > 200 )
+   //   delayMs = DEFAULT_DELAY_WIFI_CHANGE;
+   u32 delayMs = 30;
+   
    int step = (render_search_step/3);
    int substep = (render_search_step%3);
    log_line("MenuSearch::onSearchStep(), step: %d, substep: %d", step, substep);
@@ -923,6 +936,7 @@ void MenuSearch::onSearchStep()
    {
       m_CurrentSearchFrequencyKhz = m_pSearchChannels[step];
       g_iSearchFrequency = m_pSearchChannels[step];
+      s_uVideoReceivedOnFreqKhz = 0;
       log_line("Searching - switch UI to frequency for step %d: %s", step, str_format_frequency(m_CurrentSearchFrequencyKhz));
       if ( NULL != m_pPopupSearch )
       {
@@ -940,6 +954,7 @@ void MenuSearch::onSearchStep()
       g_RouterIsReadyTimestamp = 0;
       s_LastSearchedFrequency = m_CurrentSearchFrequencyKhz;
       reset_vehicle_runtime_info(&g_SearchVehicleRuntimeInfo);
+      s_uVideoReceivedOnFreqKhz = 0;
       if ( step == 0 )
       {
          int iBand = getBand(m_CurrentSearchFrequencyKhz);
@@ -982,19 +997,25 @@ void MenuSearch::onSearchStep()
       str_get_supported_bands_string(getBand(m_CurrentSearchFrequencyKhz), szBands);
       log_line("MenuSearch::onSearchStep() Current search frequency: %s, band: %s, have SiK radios: %d", str_format_frequency(m_CurrentSearchFrequencyKhz), szBands, hardware_radio_has_sik_radios());
       
-      u32 uWaitTimeMs = 3*1100/DEFAULT_RUBY_TELEMETRY_UPDATE_RATE;
-      if ( hardware_radio_has_sik_radios() )
-      if ( (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_433) ||
-           (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_868) ||
-           (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_915) )
+
+      u32 uWaitTimeMs = 250;
+      if ( 0 != s_uVideoReceivedOnFreqKhz )
+      if ( s_uVideoReceivedOnFreqKhz == m_CurrentSearchFrequencyKhz )
       {
-         uWaitTimeMs = 1500;
-         log_line("MenuSearch::onSearchStep() Searching on 433/868/915 Mhz band and we have Sik radios. Increase search time to %u ms", uWaitTimeMs);
+         uWaitTimeMs = 4*1100/DEFAULT_TELEMETRY_SEND_RATE;
+         if ( hardware_radio_has_sik_radios() )
+         if ( (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_433) ||
+              (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_868) ||
+              (getBand(m_CurrentSearchFrequencyKhz) == RADIO_HW_SUPPORTED_BAND_915) )
+         {
+            uWaitTimeMs = 1500;
+            log_line("MenuSearch::onSearchStep() Searching on 433/868/915 Mhz band and we have Sik radios. Increase search time to %u ms", uWaitTimeMs);
+         }
       }
 
       if ( g_TimeNow > g_RouterIsReadyTimestamp + uWaitTimeMs )
       {
-         log_line("MenuSearch::onSearchStep(): Nothing found on %s after %d ms of waiting.", str_format_frequency(m_CurrentSearchFrequencyKhz), 3*1100/DEFAULT_RUBY_TELEMETRY_UPDATE_RATE);
+         log_line("MenuSearch::onSearchStep(): Nothing found on %s after %d ms of waiting.", str_format_frequency(m_CurrentSearchFrequencyKhz), 3*1100/DEFAULT_TELEMETRY_SEND_RATE);
          render_search_step++;
          return;
       }

@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -34,6 +34,7 @@
 #include "../base/shared_mem.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
+#include "../base/camera_utils.h"
 #include "../base/parser_h264.h"
 #include "../base/utils.h"
 #include "../common/string_utils.h"
@@ -41,6 +42,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
 #include "video_source_csi.h"
 #include "packets_utils.h"
@@ -52,9 +56,11 @@
 
 #ifdef HW_PLATFORM_RASPBERRY
 
-extern ParserH264 s_ParserH264CameraOutput;
+ParserH264 s_ParserH264_CSICameraOutput;
 
 pthread_t s_pThreadWatchDogVideoCapture;
+bool s_bStopThreadWatchDogVideoCapture = false;
+bool s_bHasThreadWatchDogVideoCapture = false;
 bool s_bIsFirstCameraParamsUpdate = true;
 
 static type_camera_parameters s_LastAppliedVeyeCameraParams;
@@ -63,15 +69,16 @@ static type_video_link_profile s_LastAppliedVeyeVideoParams;
 int s_fInputVideoStreamCSIPipe = -1;
 char s_szInputVideoStreamCSIPipeName[128];
 bool s_bInputVideoStreamCSIPipeOpenFailed = false;
-u8 s_uInputVideoCSIPipeBuffer[4096];
+u8 s_uInputVideoCSIPipeBuffer[64000];
 
 bool s_bRequestedVideoCSICaptureRestart = false;
 bool s_bVideoCSICaptureProgramStarted = false;
 u32  s_uTimeToRestartVideoCapture = 0;
 u32  s_uRaspiVidStartTimeMs = 0;
-u8*  s_pSharedMemRaspiVidCommands = NULL;
+int s_iMsgQueueCSICommands = -1;
 bool s_bDidSentRaspividBitrateRefresh = false;
 
+u32 s_uTotalCSICameraReadBytes = 0;
 u32 s_uDebugTimeLastCSIVideoInputCheck = 0;
 u32 s_uDebugCSIInputBytes = 0;
 u32 s_uDebugCSIInputReads = 0;
@@ -82,11 +89,15 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
    int iCount = 0;
    while ( ! g_bQuit )
    {
-      for( int i=0; i<10; i++)
+      for( int i=0; i<100; i++)
       {
-         hardware_sleep_ms(200);
-         if ( g_bQuit )
+         hardware_sleep_ms(20);
+         if ( g_bQuit || s_bStopThreadWatchDogVideoCapture )
+         {
+            s_bStopThreadWatchDogVideoCapture = false;
+            s_bHasThreadWatchDogVideoCapture = false;
             return NULL;
+         }
       }
 
       iCount++;
@@ -145,7 +156,7 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
               
             static int s_iCheckVideoOutputBitrateCounter = 0;
             if ( relay_current_vehicle_must_send_own_video_feeds() &&
-                (g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(1000) < 100000) )
+                (g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(2000) < 100000) )
             {
                log_softerror_and_alarm("[VideoCaptureCSITh] Current output video bitrate is less than 100 kbps!");
                s_iCheckVideoOutputBitrateCounter++;
@@ -166,6 +177,7 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
          }
       }
    }
+   s_bHasThreadWatchDogVideoCapture = false;
    return NULL;
 }
 
@@ -192,8 +204,10 @@ int video_source_csi_open(const char* szPipeName)
       log_error_and_alarm("[VideoSourceCSI] Tried to open a video input source pipe with an empty name.");
       return s_fInputVideoStreamCSIPipe;
    }
-   strcpy(s_szInputVideoStreamCSIPipeName, szPipeName);
 
+   s_ParserH264_CSICameraOutput.init();
+   
+   strcpy(s_szInputVideoStreamCSIPipeName, szPipeName);
    log_line("[VideoSourceCSI] Opening video input stream pipe: %s", s_szInputVideoStreamCSIPipeName);
 
    s_bInputVideoStreamCSIPipeOpenFailed = true;
@@ -242,16 +256,30 @@ void video_source_csi_flush_discard()
    for( int i=0; i<50; i++ )
    {
       int iReadSize = 0;
-      video_source_csi_read(&iReadSize);
+      video_source_csi_read(&iReadSize, NULL);
    }
+   log_line("[VideoSourceCSI] Flushed video stream input buffer (pipe)");
+}
+
+int video_source_csi_get_buffer_size()
+{
+   return sizeof(s_uInputVideoCSIPipeBuffer)/sizeof(s_uInputVideoCSIPipeBuffer[0]);
 }
 
 // Returns the buffer and number of bytes read
-u8* video_source_csi_read(int* piReadSize)
+u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame)
 {
    if ( (NULL == piReadSize) )
       return NULL;
+   if ( NULL != pbIsInsideIFrame )
+      *pbIsInsideIFrame = false;
 
+   if ( s_bRequestedVideoCSICaptureRestart )
+   {
+      if ( NULL != piReadSize )
+         *piReadSize = 0;
+      return NULL;
+   }
    struct timeval timePipeInput;
    fd_set readset;
    int iSelectResult = 0;
@@ -294,7 +322,7 @@ u8* video_source_csi_read(int* piReadSize)
    timePipeInput.tv_sec = 0;
 
    if ( s_bLastCameraReadTimedOut )
-      timePipeInput.tv_usec = 1000; // 1 miliseconds timeout
+      timePipeInput.tv_usec = 500; // 0.5 miliseconds timeout
    else
       timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
 
@@ -318,42 +346,107 @@ u8* video_source_csi_read(int* piReadSize)
       return NULL;
    }
 
+   s_uTotalCSICameraReadBytes += iRead;
    s_uDebugCSIInputBytes += iRead;
    s_uDebugCSIInputReads++;
-
    *piReadSize = iRead;
+
+   s_ParserH264_CSICameraOutput.parseData(s_uInputVideoCSIPipeBuffer, iRead, g_TimeNow);
+   if ( NULL != pbIsInsideIFrame )
+      *pbIsInsideIFrame = s_ParserH264_CSICameraOutput.IsInsideIFrame();
    return s_uInputVideoCSIPipeBuffer;
+}
+
+bool video_source_csi_read_any_data()
+{
+   return (s_uTotalCSICameraReadBytes > 0);
+}
+
+void _video_source_csi_open_commands_msg_queue()
+{
+   if ( s_iMsgQueueCSICommands > 0 )
+      return;
+
+   log_line("[VideoSourceCSI] Opening video capture commands msq queue...");
+   key_t key = generate_msgqueue_key(IPC_CHANNEL_CSI_VIDEO_COMMANDS);
+
+   if ( key < 0 )
+   {
+      log_softerror_and_alarm("[IPC] Failed to generate message queue key for channel %d. Error: %d, %s",
+         IPC_CHANNEL_CSI_VIDEO_COMMANDS,
+         errno, strerror(errno));
+      return;
+   }
+   s_iMsgQueueCSICommands = msgget(key, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+   if ( s_iMsgQueueCSICommands < 0 )
+   {
+      log_softerror_and_alarm("[IPC] Failed to create IPC message queue write endpoint for channel %d, error %d, %s",
+         IPC_CHANNEL_CSI_VIDEO_COMMANDS, errno, strerror(errno));
+      log_line("%d %d %d", ENOENT, EACCES, ENOTDIR);
+      return;
+   }
+
+   log_line("[IPC] Opened IPC channel %d write endpoint: success, fd: %d",
+      IPC_CHANNEL_CSI_VIDEO_COMMANDS, s_iMsgQueueCSICommands);
 }
 
 void video_source_csi_start_program()
 {
+   s_uTotalCSICameraReadBytes = 0;
+   _video_source_csi_open_commands_msg_queue();
+
+   if ( -1 == s_fInputVideoStreamCSIPipe )
+       video_source_csi_open(FIFO_RUBY_CAMERA1);
+
    s_bVideoCSICaptureProgramStarted = true;
 
-   vehicle_launch_video_capture_csi(g_pCurrentModel, &(g_SM_VideoLinkStats.overwrites));
+   vehicle_launch_video_capture_csi(g_pCurrentModel);
    vehicle_check_update_processes_affinities(true, g_pCurrentModel->isActiveCameraVeye());
 
+   s_bStopThreadWatchDogVideoCapture = false;
+   s_bHasThreadWatchDogVideoCapture = false;
    if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, NULL, &_thread_watchdog_video_capture, NULL) )
       log_softerror_and_alarm("[VideoSourceCSI] Failed to create thread for watchdog.");
    else
+   {
+      s_bHasThreadWatchDogVideoCapture = true;
       log_line("[VideoSourceCSI] Created thread for watchdog.");
-
+   }
    s_uRaspiVidStartTimeMs = g_TimeNow;
    s_bDidSentRaspividBitrateRefresh = false;
 }
 
 void video_source_csi_stop_program()
 {
+   log_line("[VideoSourceCSI] Video capture program stop procedure started...");
    s_bVideoCSICaptureProgramStarted = false;
    s_uRaspiVidStartTimeMs = 0;
 
-   pthread_cancel(s_pThreadWatchDogVideoCapture); 
+   if ( s_bHasThreadWatchDogVideoCapture )
+   {
+      s_bStopThreadWatchDogVideoCapture = true;
+      int iCount = 0;
+      while ( s_bHasThreadWatchDogVideoCapture && (iCount < 30) )
+      {
+         hardware_sleep_ms(10);
+         iCount++;
+      }
+      //pthread_cancel(s_pThreadWatchDogVideoCapture); 
+   }
+   log_line("[VideoSourceCSI] Stopped video watchdog thread.");
+
    vehicle_stop_video_capture_csi(g_pCurrentModel);
    
-   if ( NULL != s_pSharedMemRaspiVidCommands )
-      munmap(s_pSharedMemRaspiVidCommands, SIZE_OF_SHARED_MEM_RASPIVID_COMM);
-   s_pSharedMemRaspiVidCommands = NULL; 
-   log_line("[VideoSourceCSI] Closed shared mem to raspi video commands.");
+   if ( s_iMsgQueueCSICommands > 0 )
+   {
+      msgctl(s_iMsgQueueCSICommands,IPC_RMID,NULL);
+      s_iMsgQueueCSICommands = -1;
+   }
 
+   log_line("[VideoSourceCSI] Closed msgqueue to raspi video commands.");
+   log_line("[VideoSourceCSI] Video capture program stop procedure completed.");
+   video_source_csi_close();
    s_bDidSentRaspividBitrateRefresh = false;
 }
 
@@ -377,7 +470,7 @@ bool video_source_csi_is_restart_requested()
    return s_bRequestedVideoCSICaptureRestart;
 }
 
-void video_source_csi_send_control_message(u8 parameter, u8 value)
+void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2)
 {
    if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->hasCamera()) || (-1 == s_fInputVideoStreamCSIPipe) )
       return;
@@ -409,53 +502,68 @@ void video_source_csi_send_control_message(u8 parameter, u8 value)
 
    if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
    {
-      g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = ((u32)value) * 100000;
+      //To fix g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = ((u32)value) * 100000;
       s_bDidSentRaspividBitrateRefresh = true;
       //log_line("Setting video capture bitrate to: %u", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate );
    }
-   if ( NULL == s_pSharedMemRaspiVidCommands )
-   {
-      log_line("[VideoSourceCSI] Opening video capture program commands pipe write endpoint...");
-      s_pSharedMemRaspiVidCommands = (u8*)open_shared_mem_for_write(SHARED_MEM_RASPIVIDEO_COMMAND, SIZE_OF_SHARED_MEM_RASPIVID_COMM);
-      if ( NULL == s_pSharedMemRaspiVidCommands )
-         log_error_and_alarm("[VideoSourceCSI] Failed to open video capture program commands pipe write endpoint!");
-      else
-         log_line("[VideoSourceCSI] Opened video capture program commands pipe write endpoint.");
-   }
 
-   if ( NULL == s_pSharedMemRaspiVidCommands )
+   _video_source_csi_open_commands_msg_queue();
+
+   if ( s_iMsgQueueCSICommands <= 0 )
    {
-      log_softerror_and_alarm("[VideoSourceCSI] Can't send video/camera command to video capture programm, no pipe.");
+      log_softerror_and_alarm("[VideoSourceCSI] Can't send video/camera command to video capture programm, no msq queue.");
       return;
    }
 
-   static u32 s_lastCameraCommandModifyCounter = 0;
    static u8 s_CameraCommandNumber = 0;
-   static u32 s_uCameraCommandsBuffer[8];
-
-   if ( 0 == s_lastCameraCommandModifyCounter )
-      memset( (u8*)&s_uCameraCommandsBuffer[0], 0, 8*sizeof(u32));
-
-   s_lastCameraCommandModifyCounter++;
    s_CameraCommandNumber++;
    if ( 0 == s_CameraCommandNumber )
-    s_CameraCommandNumber++;
+      s_CameraCommandNumber++;
    
-   // u32 0: command modify stamp (must match u32 7)
-   // u32 1: byte 0: command counter;
-   //        byte 1: command type;
-   //        byte 2: command parameter 1;
-   //        byte 3: command parameter 2;
-   // u32 2-6: history of previous commands (after current one from u32-1)
-   // u32 7: command modify stamp (must match u32 0)
+   // 6 bytes each command
+   // byte 0: command counter;
+   // byte 1: command type;
+   // byte 2-3: command parameter 1;
+   // byte 4-5: command parameter 2;
+  
+   typedef struct
+   {
+       long type;
+       char data[IPC_CHANNEL_MAX_MSG_SIZE];
+       // byte 0...3: CRC
+       // byte 4: message type
+       // byte 5..6: message data length
+       // byte 7... : data
+   } type_ipc_message_buffer;
 
-   s_uCameraCommandsBuffer[0] = s_lastCameraCommandModifyCounter;
-   s_uCameraCommandsBuffer[7] = s_lastCameraCommandModifyCounter;
-   for( int i=6; i>1; i-- )
-      s_uCameraCommandsBuffer[i] = s_uCameraCommandsBuffer[i-1];
-   s_uCameraCommandsBuffer[1] = ((u32)s_CameraCommandNumber) | (((u32)parameter)<<8) | (((u32)value)<<16);
+   type_ipc_message_buffer msg;
 
-   memcpy(s_pSharedMemRaspiVidCommands, (u8*)&(s_uCameraCommandsBuffer[0]), 8*sizeof(u32));
+   msg.type = 1;
+   msg.data[4] = 0;
+   msg.data[5] = 6; //length of actual data 
+   msg.data[6] = 0;
+
+   msg.data[7] = s_CameraCommandNumber;
+   msg.data[8] = parameter;
+   msg.data[9] = (value1 >> 8) & 0xFF;
+   msg.data[10] = value1 & 0xFF;
+   msg.data[11] = (value2 >> 8) & 0xFF;
+   msg.data[12] = value2 & 0xFF;
+
+   u32 uCRC = base_compute_crc32((u8*)&(msg.data[4]), 9);
+   memcpy((u8*)&(msg.data[0]), (u8*)&uCRC, sizeof(u32));
+
+   if ( 0 != msgsnd(s_iMsgQueueCSICommands, &msg, 13, IPC_NOWAIT) )
+   {
+      if ( errno == EAGAIN )
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %d, error code: EAGAIN", IPC_CHANNEL_CSI_VIDEO_COMMANDS );
+      if ( errno == EACCES )
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %d, error code: EACCESS", IPC_CHANNEL_CSI_VIDEO_COMMANDS );
+      if ( errno == EIDRM )
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %d, error code: EIDRM", IPC_CHANNEL_CSI_VIDEO_COMMANDS );
+      if ( errno == EINVAL )
+         log_softerror_and_alarm("[IPC] Failed to write to IPC %d, error code: EINVAL", IPC_CHANNEL_CSI_VIDEO_COMMANDS );
+   }
    #endif
 }
 
@@ -466,10 +574,10 @@ void video_source_csi_periodic_checks()
    if ( ! s_bDidSentRaspividBitrateRefresh )
    if ( (0 != s_uRaspiVidStartTimeMs) && ( g_TimeNow > s_uRaspiVidStartTimeMs + 2000 ) )
    {
-      log_line("[VideoSourceCSI] Send initial bitrate (%u bps) to video capture program.", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate);
-      video_source_csi_send_control_message( RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000 );
-      if ( NULL != g_pProcessorTxVideo )
-         g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, true, 0);
+      //To fix log_line("[VideoSourceCSI] Send initial bitrate (%u bps) to video capture program.", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate);
+      //To fix video_source_csi_send_control_message( RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000 );
+      //To fix if ( NULL != g_pProcessorTxVideo )
+      //   g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, true, 0);
       s_bDidSentRaspividBitrateRefresh = true;
    }
 
@@ -490,31 +598,35 @@ void video_source_csi_periodic_checks()
       log_line("[VideoSourceCSI] Set start video capture %u miliseconds from now.", s_uTimeToRestartVideoCapture - g_TimeNow);
    }
 
-   if ( s_bRequestedVideoCSICaptureRestart )
    if ( 0 != s_uTimeToRestartVideoCapture )
+   if ( g_TimeNow > s_uTimeToRestartVideoCapture )
    {
       log_line("[VideoSourceCSI] It's time to restart raspi video capture...");
       video_source_csi_start_program();
       s_bRequestedVideoCSICaptureRestart = false;
       s_uTimeToRestartVideoCapture = 0;
       send_alarm_to_controller(ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED,1,0, 5);
+      log_line("[VideoSourceCSI] Finished video capture restart on demand procedure.");
    }
 
    #endif
 
    if ( g_TimeNow >= s_uDebugTimeLastCSIVideoInputCheck+10000 )
    {
-      log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %u bps, %u reads/sec",
-         s_uDebugCSIInputBytes/10, s_uDebugCSIInputBytes/10*8, s_uDebugCSIInputReads/10);
-      log_line("[VideoSourceCSI] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
+      char szBitrate[64];
+      str_format_bitrate(s_uDebugCSIInputBytes/10*8, szBitrate);
+      log_line("[VideoSourceCSI] Input video data: %u bytes/sec, %s, %u reads/sec",
+         s_uDebugCSIInputBytes/10, szBitrate, s_uDebugCSIInputReads/10);
+      //To fix log_line("[VideoSourceCSI] Detected video stream fps: %d, slices: %d", (int)s_ParserH264CameraOutput.getDetectedFPS(), s_ParserH264CameraOutput.getDetectedSlices());
       s_uDebugTimeLastCSIVideoInputCheck = g_TimeNow;
       s_uDebugCSIInputBytes = 0;
       s_uDebugCSIInputReads = 0;
    }
 }
 
-
-bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites)
+// To fix
+//bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites)
+bool vehicle_launch_video_capture_csi(Model* pModel)
 {
    if ( NULL == pModel )
    {
@@ -564,7 +676,8 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
    szVideoFlags[0] = 0;
    szPriority[0] = 0;
    pModel->getCameraFlags(szCameraFlags);
-   pModel->getVideoFlags(szVideoFlags, pModel->video_params.user_selected_video_link_profile, pVideoOverwrites);
+   // To fix: add overwrites in get flags?
+   pModel->getVideoFlags(szVideoFlags, pModel->video_params.user_selected_video_link_profile);
 
    #ifdef HW_CAPABILITY_IONICE
    if ( pModel->processesPriorities.ioNiceVideo > 0 )
@@ -584,24 +697,24 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
       if ( pModel->camera_params[pModel->iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
       {
          if ( pModel->bDeveloperMode )
-            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags );
          else
-            sprintf(szBuff, "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            sprintf(szBuff, "%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags );
       }
       else
       {
          if ( pModel->bDeveloperMode )
-            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            sprintf(szBuff, "%s %s -dbg %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags );
          else
-            sprintf(szBuff, "%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags, FIFO_RUBY_CAMERA1 );
+            sprintf(szBuff, "%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags );
       }
    }
    else
    {
       if ( pModel->bDeveloperMode )
-         sprintf(szBuff, "%s ./%s -dbg %s %s -log -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
+         sprintf(szBuff, "%s ./%s -dbg %s %s -log -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags );
       else
-         sprintf(szBuff, "%s ./%s %s %s -t 0 -o - >> %s &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags, FIFO_RUBY_CAMERA1 );
+         sprintf(szBuff, "%s ./%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags );
    }
 
    strcpy(szFile, FOLDER_RUBY_TEMP);
@@ -633,26 +746,31 @@ bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overw
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
    }
    
-   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = pModel->getInitialKeyframeIntervalMs(pModel->video_params.user_selected_video_link_profile);
-   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
-   log_line("Completed launching video capture. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
+   // To fix
+   //g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = pModel->getInitialKeyframeIntervalMs(pModel->video_params.user_selected_video_link_profile);
+   //g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+   //log_line("Completed launching video capture. Initial keyframe: %d", g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs );
    return bResult;
 }
 
 void vehicle_stop_video_capture_csi(Model* pModel)
 {
-   g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 0;
+   //To fix g_SM_VideoLinkStats.overwrites.hasEverSwitchedToLQMode = 0;
+
+   video_source_csi_send_control_message(RASPIVID_COMMAND_ID_QUIT, 0,0);
+   hardware_sleep_ms(20);
 
    if ( pModel->isActiveCameraVeye() )
    {
       hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE);
-      hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE307);
-      hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME);
+      //hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE307);
+      //hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME);
    }
    else
       hw_stop_process(VIDEO_RECORDER_COMMAND);
 
    log_line("Stopped video capture process.");
+   video_source_csi_flush_discard();
 }
 
 
@@ -903,17 +1021,19 @@ void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex)
 void video_source_csi_close() {}
 int video_source_csi_open(const char* szPipeName) {return 0;}
 void video_source_csi_flush_discard() {}
-u8* video_source_csi_read(int* piReadSize) {return NULL;}
+int video_source_csi_get_buffer_size() {return 0;}
+u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame) {return NULL;}
 void video_source_csi_start_program() {}
 void video_source_csi_stop_program() {}
 bool video_source_csi_is_program_started() {return false;}
 u32 video_source_cs_get_program_start_time() { return 0;}
 void video_source_csi_request_restart_program() {}
 bool video_source_csi_is_restart_requested() { return false;}
-void video_source_csi_send_control_message(u8 parameter, u8 value) {}
+void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2) {}
 void video_source_csi_periodic_checks() {}
+bool video_source_csi_read_any_data() { return false; }
 
-bool vehicle_launch_video_capture_csi(Model* pModel, shared_mem_video_link_overwrites* pVideoOverwrites) { return false; }
+bool vehicle_launch_video_capture_csi(Model* pModel) { return false; }
 void vehicle_stop_video_capture_csi(Model* pModel) {}
 void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex) {}
 

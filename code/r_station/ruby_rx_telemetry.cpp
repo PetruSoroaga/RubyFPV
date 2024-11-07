@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -241,9 +241,6 @@ void _process_data_rc_telemetry(u8* pBuffer, int length)
 
 void _process_data_video_link_stats(u8* pBuffer, int length)
 {
-   //if ( NULL != g_pSM_VideoLinkStats )
-   //   memcpy(g_pSM_VideoLinkStats, pBuffer+sizeof(t_packet_header), sizeof(shared_mem_video_link_stats_and_overwrites) );
-
    if ( NULL != g_pProcessStats )
       g_pProcessStats->timeLastReceivedPacket = g_TimeNow;
 }
@@ -318,6 +315,7 @@ void upload_telemetry_packet()
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer+sizeof(t_packet_header), (u8*)&PHTR, sizeof(t_packet_header_telemetry_raw));
    memcpy(buffer+sizeof(t_packet_header)+sizeof(t_packet_header_telemetry_raw), telemetryBufferToVehicle, telemetryBufferToVehicleCount);
+   radio_packet_compute_crc(buffer, PH.total_length);
    ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
  
    #ifdef LOG_RAW_TELEMETRY
@@ -357,6 +355,7 @@ void upload_datalink_packet()
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer+sizeof(t_packet_header), (u8*)&s_uDataLinkUploadSegmentIndex, sizeof(u32));
    memcpy(buffer+sizeof(t_packet_header)+sizeof(u32), dataLinkBufferToVehicle, dataLinkBufferToVehicleCount);
+   radio_packet_compute_crc(buffer, PH.total_length);
    ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
    dataLinkBufferToVehicleLastSendTime = g_TimeNow;
    dataLinkBufferToVehicleCount = 0;

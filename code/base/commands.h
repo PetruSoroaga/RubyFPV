@@ -197,7 +197,7 @@ typedef struct
 {
    int overvoltage; // 0 or negative - disabled, negative - default value
    int freq_arm; // 0 - disabled; in mhz
-   int freq_gpu; // 0 - disabled; in mhz
+   int freq_gpu; // 0 - disabled; in mhz; (0/1 for OIPC boost)
    
 } __attribute__((packed)) command_packet_overclocking_params;
 
@@ -260,12 +260,6 @@ typedef struct
 
 
 #define COMMAND_ID_CLEAR_LOGS 213
-
-
-#define COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_LOW 220
-#define COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_MED 221
-#define COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_NORMAL 222
-#define COMMAND_ID_MANUAL_SWITCH_TO_VIDEO_LINK_QUALITY_AUTO 225
 
 //------------------------------------------------------
 const char* commands_get_description(u8 command_type);

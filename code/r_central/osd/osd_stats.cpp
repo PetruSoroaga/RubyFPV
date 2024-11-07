@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -85,7 +85,6 @@ static u32 s_uOSDSnapshotHistoryDiscardedPackets[SNAPSHOT_HISTORY_SIZE];
 static shared_mem_radio_stats s_OSDSnapshot_RadioStats;
 static shared_mem_video_stream_stats_rx_processors s_OSDSnapshot_VideoDecodeStats;
 static shared_mem_video_stream_stats_history_rx_processors s_OSDSnapshot_VideoDecodeHist;
-static shared_mem_controller_retransmissions_stats_rx_processors s_OSDSnapshot_ControllerVideoRetransmissionsStats;
 
 #define MAX_OSD_COLUMNS 10
 
@@ -131,7 +130,7 @@ void osd_stats_init()
    s_uOSDMaxFrameDeviationPlayer = 0;
 }
 
-void osd_stats_video_decode_snapshot_update(int iDeveloperMode, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats* pVDS, shared_mem_video_stream_stats_history* pVDSH, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, shared_mem_controller_retransmissions_stats_rx_processors* pSM_ControllerRetransmissionsStats, shared_mem_controller_retransmissions_stats* pCRS)
+void osd_stats_video_decode_snapshot_update(int iDeveloperMode, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats* pVDS, shared_mem_video_stream_stats_history* pVDSH, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats)
 {
    ControllerSettings* pCS = get_ControllerSettings();
 
@@ -148,9 +147,10 @@ void osd_stats_video_decode_snapshot_update(int iDeveloperMode, shared_mem_radio
       s_uOSDSnapshotTakeTime = 1;
       s_uOSDSnapshotCount = 0;
 
-      s_uOSDSnapshotLastDiscardedBuffers = pVDS->total_DiscardedBuffers;
-      s_uOSDSnapshotLastDiscardedSegments = pVDS->total_DiscardedSegments;
-      s_uOSDSnapshotLastDiscardedPackets = pVDS->total_DiscardedLostPackets;
+      // To fix or remove
+      //s_uOSDSnapshotLastDiscardedBuffers = pVDS->total_DiscardedBuffers;
+      //s_uOSDSnapshotLastDiscardedSegments = pVDS->total_DiscardedSegments;
+      //s_uOSDSnapshotLastDiscardedPackets = pVDS->total_DiscardedLostPackets;
 
       for( int i=0; i<SNAPSHOT_HISTORY_SIZE; i++ )
       {
@@ -161,12 +161,14 @@ void osd_stats_video_decode_snapshot_update(int iDeveloperMode, shared_mem_radio
    }
 
    bool bMustTakeSnapshot = false;
+   // To fix or remove
+   /*
    if ( g_TimeNow > g_RouterIsReadyTimestamp + 5000 )
    if ( s_uOSDSnapshotLastDiscardedBuffers != pVDS->total_DiscardedBuffers ||
         s_uOSDSnapshotLastDiscardedSegments != pVDS->total_DiscardedSegments ||
         s_uOSDSnapshotLastDiscardedPackets != pVDS->total_DiscardedLostPackets )
       bMustTakeSnapshot = true;
-
+   
    bool bHasActivity = false;
    bool bHasSilenceAtStart = true;
    for ( int i=0; i<12; i++ )
@@ -213,24 +215,25 @@ void osd_stats_video_decode_snapshot_update(int iDeveloperMode, shared_mem_radio
             s_uOSDSnapshotHistoryDiscardedPackets[i] = s_uOSDSnapshotHistoryDiscardedPackets[i-1];
          }
 
-         s_uOSDSnapshotHistoryDiscardedBuffers[0] = pVDS->total_DiscardedBuffers - s_uOSDSnapshotLastDiscardedBuffers;
-         s_uOSDSnapshotHistoryDiscardedSegments[0] = pVDS->total_DiscardedSegments - s_uOSDSnapshotLastDiscardedSegments;
-         s_uOSDSnapshotHistoryDiscardedPackets[0] = pVDS->total_DiscardedLostPackets - s_uOSDSnapshotLastDiscardedPackets;
+         // To fix or remove
+         //s_uOSDSnapshotHistoryDiscardedBuffers[0] = pVDS->total_DiscardedBuffers - s_uOSDSnapshotLastDiscardedBuffers;
+         //s_uOSDSnapshotHistoryDiscardedSegments[0] = pVDS->total_DiscardedSegments - s_uOSDSnapshotLastDiscardedSegments;
+         //s_uOSDSnapshotHistoryDiscardedPackets[0] = pVDS->total_DiscardedLostPackets - s_uOSDSnapshotLastDiscardedPackets;
 
-         s_uOSDSnapshotLastDiscardedBuffers = pVDS->total_DiscardedBuffers;
-         s_uOSDSnapshotLastDiscardedSegments = pVDS->total_DiscardedSegments;
-         s_uOSDSnapshotLastDiscardedPackets = pVDS->total_DiscardedLostPackets;
+         //s_uOSDSnapshotLastDiscardedBuffers = pVDS->total_DiscardedBuffers;
+         //s_uOSDSnapshotLastDiscardedSegments = pVDS->total_DiscardedSegments;
+         //s_uOSDSnapshotLastDiscardedPackets = pVDS->total_DiscardedLostPackets;
 
          memcpy( &s_OSDSnapshot_RadioStats, pSM_RadioStats, sizeof(shared_mem_radio_stats));
          memcpy( &s_OSDSnapshot_VideoDecodeStats, pSM_VideoStats, sizeof(shared_mem_video_stream_stats_rx_processors));
          memcpy( &s_OSDSnapshot_VideoDecodeHist, pSM_VideoHistoryStats, sizeof(shared_mem_video_stream_stats_history_rx_processors));
-         memcpy( &s_OSDSnapshot_ControllerVideoRetransmissionsStats, pSM_ControllerRetransmissionsStats, sizeof(shared_mem_controller_retransmissions_stats_rx_processors));
          memcpy( &s_Snapshot_PHRTE_Retransmissions, &(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtraInfoRetransmissions), sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
       }
    }
+   */
 }
 
-float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, shared_mem_controller_retransmissions_stats_rx_processors* pSM_ControllerRetransmissionsStats, float scale)
+float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, float scale)
 {
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
 
@@ -333,7 +336,7 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
    return height;
 }
 
-float osd_render_stats_video_decode_get_width(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, shared_mem_controller_retransmissions_stats_rx_processors* pSM_ControllerRetransmissionsStats, float scale)
+float osd_render_stats_video_decode_get_width(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, float scale)
 {
    if ( g_fOSDStatsForcePanelWidth > 0.01 )
    {
@@ -349,9 +352,9 @@ float osd_render_stats_video_decode_get_width(int iDeveloperMode, bool bIsSnapsh
    return width;
 }
 
-float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, shared_mem_controller_retransmissions_stats_rx_processors* pSM_ControllerRetransmissionsStats, float scale)
+float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, shared_mem_video_stream_stats_history_rx_processors* pSM_VideoHistoryStats, float scale)
 {
-   if ( NULL == osd_get_current_data_source_vehicle_model() || NULL == pSM_RadioStats || NULL == pSM_VideoStats || NULL == pSM_VideoHistoryStats || NULL == pSM_ControllerRetransmissionsStats )
+   if ( NULL == osd_get_current_data_source_vehicle_model() || NULL == pSM_RadioStats || NULL == pSM_VideoStats || NULL == pSM_VideoHistoryStats )
       return 0.0;
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
@@ -362,7 +365,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    shared_mem_video_stream_stats* pVDS = NULL;
    shared_mem_video_stream_stats_history* pVDSH = NULL;
-   shared_mem_controller_retransmissions_stats* pCRS = NULL;
    
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
    {
@@ -377,17 +379,6 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( (NULL == pVDS) || (NULL == pActiveModel) )
       return 0.0;
 
-   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-   {
-      if ( pSM_ControllerRetransmissionsStats->video_streams[i].uVehicleId == uActiveVehicleId )
-      {
-         pCRS = &(pSM_ControllerRetransmissionsStats->video_streams[i]);
-         break;
-      }
-   }
-
-   if ( NULL == pCRS )
-      return 0.0;
 
    int iIndexRouterRuntimeInfo = -1;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -413,7 +404,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       bIsNormal = true;
 
    if ( ! bIsSnapshot )
-      osd_stats_video_decode_snapshot_update(iDeveloperMode, pSM_RadioStats, pVDS, pVDSH, pSM_VideoStats, pSM_VideoHistoryStats, pSM_ControllerRetransmissionsStats, pCRS);
+      osd_stats_video_decode_snapshot_update(iDeveloperMode, pSM_RadioStats, pVDS, pVDSH, pSM_VideoStats, pSM_VideoHistoryStats);
 
    float frecv_video_mbps = pSM_RadioStats->radio_streams[0][STREAM_ID_VIDEO_1].rxBytesPerSec*8/1000.0/1000.0;
 
@@ -432,8 +423,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    float hGraph = 0.04;
    float hGraphHistory = 2.2*height_text;
 
-   float width = osd_render_stats_video_decode_get_width(iDeveloperMode, bIsSnapshot, pSM_RadioStats, pSM_VideoStats, pSM_VideoHistoryStats, pSM_ControllerRetransmissionsStats, scale);
-   float height = osd_render_stats_video_decode_get_height(iDeveloperMode, bIsSnapshot, pSM_RadioStats, pSM_VideoStats, pSM_VideoHistoryStats, pSM_ControllerRetransmissionsStats, scale);
+   float width = osd_render_stats_video_decode_get_width(iDeveloperMode, bIsSnapshot, pSM_RadioStats, pSM_VideoStats, pSM_VideoHistoryStats, scale);
+   float height = osd_render_stats_video_decode_get_height(iDeveloperMode, bIsSnapshot, pSM_RadioStats, pSM_VideoStats, pSM_VideoHistoryStats, scale);
    float wPixel = g_pRenderEngine->getPixelWidth();
 
    char szBuff[64];
@@ -470,8 +461,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          //strcpy(szMode, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
          //if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_COMPACT_VIDEO_DECODE_STATS )
          //   szMode[0] = 0;
-         strcpy(szMode, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-         int diffEC = pVDS->fec_packets_per_block - pActiveModel->video_link_profiles[pVDS->video_link_profile & 0x0F].block_fecs;
+         strcpy(szMode, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
+         int diffEC = pVDS->PHVF.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].block_fecs;
 
          if ( diffEC > 0 )
          {
@@ -480,19 +471,19 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             strcat(szMode, szTmp);
          }
 
-         if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+         if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
             strcat(szMode, "-");
-         if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
+         if ( pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
             strcat(szMode, "-1Way");
 
          sprintf(szBuff, "%s %.1f Mbs", szMode, frecv_video_mbps);
-         if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+         if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f Mbs", szMode, frecv_video_mbps);
 
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
          {
             sprintf(szBuff, "%s %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
-            if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+            if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
                sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, frecv_video_mbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
          }
          u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
@@ -525,8 +516,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
    char szCurrentProfile[64];
    szCurrentProfile[0] = 0;
-   strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
-   if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+   strcpy(szCurrentProfile, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
+   if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szCurrentProfile, "-");
    //if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
    //   strcat(szCurrentProfile, "-1Way");
@@ -542,12 +533,12 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       {
          char szVideoType[64];
          strcpy(szVideoType, "N/A");
-         if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+         if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
             strcpy(szVideoType, "H265");
-         else if (((pVDS->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H264 )
+         else if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H264 )
             strcpy(szVideoType, "H264");
 
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %s %d fps %d ms KF", szCurrentProfile, szVideoType, getOptionVideoResolutionName(pVDS->width, pVDS->height), pVDS->fps, pVDS->keyframe_ms);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %s %s %d fps %d ms KF", szCurrentProfile, szVideoType, getOptionVideoResolutionName(pVDS->iCurrentVideoWidth, pVDS->iCurrentVideoHeight), pVDS->iCurrentVideoFPS, pVDS->PHVF.uCurrentVideoKeyframeIntervalMs);
       }
       else
          sprintf(szBuff, "Stream: N/A");
@@ -555,7 +546,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text_small*s_OSDStatsLineSpacing;
    }
 
-   u32 videoBitrate = pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps;
+   u32 videoBitrate = pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].bitrate_fixed_bps;
    //u32 msData = (1000*8*pVDS->data_packets_per_block*pVDS->video_data_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
    //u32 msFEC = (1000*8*pVDS->fec_packets_per_block*pVDS->video_data_length)/(pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].bitrate_fixed_bps+1);
 
@@ -565,11 +556,11 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       static int s_iLastECSchemeReceivedData = 0;
       static int s_iLastECSchemeReceivedEC = 0;
 
-      if ( (s_iLastECSchemeReceivedData != pVDS->data_packets_per_block) || (s_iLastECSchemeReceivedEC != pVDS->fec_packets_per_block) )
+      if ( (s_iLastECSchemeReceivedData != pVDS->PHVF.uCurrentBlockDataPackets) || (s_iLastECSchemeReceivedEC != pVDS->PHVF.uCurrentBlockECPackets) )
       {
          s_uTimeLastECSchemeChangedTime = g_TimeNow;
-         s_iLastECSchemeReceivedData = pVDS->data_packets_per_block;
-         s_iLastECSchemeReceivedEC = pVDS->fec_packets_per_block;
+         s_iLastECSchemeReceivedData = pVDS->PHVF.uCurrentBlockDataPackets;
+         s_iLastECSchemeReceivedEC = pVDS->PHVF.uCurrentBlockECPackets;
       }
 
       bool bECChanged = false;
@@ -578,21 +569,21 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
          bECChanged = true;
 
-      u32 uECSpreadHigh = (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
+      u32 uECSpreadHigh = (pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
+      u32 uECSpreadLow = (pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
       u32 uECSpread = uECSpreadLow | (uECSpreadHigh<<1);
       szBuff2[0] = 0;
       if ( ! (pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
-         sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->keyframe_ms);
+            (pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->PHVF.uCurrentBlockDataPackets, pVDS->PHVF.uCurrentBlockECPackets, uECSpread, pVDS->PHVF.uCurrentBlockPacketSize);
+         sprintf(szBuff2, ", %d ms KF (Fixed)", pVDS->PHVF.uCurrentVideoKeyframeIntervalMs);
       }
       else
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "EC: %s %s%d/%d/%u/%d", szCurrentProfile,
-            (pActiveModel->video_link_profiles[(pVDS->video_link_profile & 0x0F)].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->data_packets_per_block, pVDS->fec_packets_per_block, uECSpread, pVDS->video_data_length);
-         sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->keyframe_ms);
+            (pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME)?"(A)":"", pVDS->PHVF.uCurrentBlockDataPackets, pVDS->PHVF.uCurrentBlockECPackets, uECSpread, pVDS->PHVF.uCurrentBlockPacketSize);
+         sprintf(szBuff2, ", %d ms KF (Auto)", pVDS->PHVF.uCurrentVideoKeyframeIntervalMs);
       }
 
       if ( bECChanged && g_bOSDElementChangeNotification )
@@ -624,7 +615,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       float wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( ! (pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
+      if ( ! (pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
       {
          strcpy(szBuff, "Off");
          g_pRenderEngine->setColors(get_Color_IconWarning());
@@ -640,12 +631,15 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          ControllerSettings* pCS = get_ControllerSettings();
          if ( (NULL != g_pSM_RadioStats) && (NULL != pCS) && (0 != pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds) )
          {
+            // To fix
+            /*
             u32 uDelta = (u32)pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds;
             if ( g_TimeNow > g_pSM_RadioStats->uTimeLastReceivedAResponseFromVehicle + uDelta )
             {
                sprintf(szBuff3, "Off (Link Lost %u ms)", g_TimeNow - g_pSM_RadioStats->uTimeLastReceivedAResponseFromVehicle);
                g_pRenderEngine->setColors(get_Color_IconWarning());
             }
+            */
          }
 
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
@@ -653,9 +647,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          osd_set_colors();
 
          //sprintf(szBuff, "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
-         //       szBuff3, 5*(((pVDS->uProfileEncodingFlags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
+         //       szBuff3, 5*(((pVDS->uCurrentVideoProfileEncodingFlags) & 0xFF00) >> 8), pCS->nRetryRetransmissionAfterTimeoutMS, pCS->nRequestRetransmissionsOnVideoSilenceMs );
             
-         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->uProfileEncodingFlags) & 0xFF00) >> 8));
+         sprintf(szBuff3, " Max %d ms", 5*(((pVDS->uCurrentVideoProfileEncodingFlags) & 0xFF00) >> 8));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
          if ( bIsNormal || bIsExtended )
          {
@@ -672,7 +666,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+      if ( pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
       {
          char szBuff3[64];
          sprintf(szBuff3, "On");
@@ -694,12 +688,12 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing; // line 2
       
       char szVideoLevelRecv[64];
-      strcpy(szVideoLevelRecv, str_get_video_profile_name(pVDS->video_link_profile & 0x0F));
+      strcpy(szVideoLevelRecv, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Auto Quantisation (for %s): ", szVideoLevelRecv);
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
-      if ( pVDS->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
+      if ( pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION )
       {
          sprintf(szBuff, "On ");
          g_pRenderEngine->setColors(get_Color_IconSucces());
@@ -707,7 +701,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          osd_set_colors();
 
-         sprintf(szBuff, "(%d)", (int)(pVDS->uVideoStatusFlags2 & 0xFF));
+         sprintf(szBuff, "(%d)", (int)(pVDS->PHVF.uVideoStatusFlags2 & 0xFF));
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff);
          wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff);
          
@@ -748,9 +742,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
          static int sl_iLastKeyframeValue = 0;
          static u32 sl_uLastKeyframeValueChange = 0;
-         if ( pVDS->keyframe_ms != sl_iLastKeyframeValue )
+         if ( pVDS->PHVF.uCurrentVideoKeyframeIntervalMs != sl_iLastKeyframeValue )
          {
-            sl_iLastKeyframeValue = pVDS->keyframe_ms;
+            sl_iLastKeyframeValue = pVDS->PHVF.uCurrentVideoKeyframeIntervalMs;
             sl_uLastKeyframeValueChange = g_TimeNow;
          }
 
@@ -758,12 +752,14 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             g_pRenderEngine->setColors(get_Color_OSDChangedValue());
          else
             osd_set_colors();
-         sprintf(szBuff, " %d ms", pVDS->keyframe_ms );
+         sprintf(szBuff, " %d ms", pVDS->PHVF.uCurrentVideoKeyframeIntervalMs );
          g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff);
          osd_set_colors();
       }
       y += height_text*s_OSDStatsLineSpacing; // line 4
 
+      // To fix or remove
+      /*
       char szBuff2[64];
       str_format_bitrate((int)(pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FIELD_MASK), szBuff);
       if ( pVDS->uLastSetVideoBitrate & VIDEO_BITRATE_FLAG_ADJUSTED )
@@ -773,9 +769,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Set bitrate: %s", szBuff2);
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
-      //_osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Set bitrate:", szBuff2);
       y += height_text*s_OSDStatsLineSpacing;
-
+      */
       
       strcpy(szBuff, "Video Level (Req / Ack / Recv): ");
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
@@ -784,17 +779,20 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       char szVideoLevelRequested[64];
       char szVideoLevelAck[64];
-      strcpy(szVideoLevelRequested, osd_format_video_adaptive_level(pActiveModel, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iCurrentTargetLevelShift) );
-      strcpy(szVideoLevelAck, osd_format_video_adaptive_level(pActiveModel, pVDS->iLastAckVideoLevelShift) );
-      
-      int diffEC = pVDS->fec_packets_per_block - pActiveModel->video_link_profiles[pVDS->video_link_profile & 0x0F].block_fecs;
+      // To fix or remove
+      //strcpy(szVideoLevelRequested, osd_format_video_adaptive_level(pActiveModel, g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iCurrentTargetLevelShift) );
+      //strcpy(szVideoLevelAck, osd_format_video_adaptive_level(pActiveModel, pVDS->iLastAckVideoLevelShift) );
+      szVideoLevelRequested[0] = 0;
+      szVideoLevelAck[0] = 0;
+
+      int diffEC = pVDS->PHVF.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].block_fecs;
       if ( diffEC > 0 )
       {
          char szTmp[16];
          sprintf(szTmp, "-%d", diffEC);
          strcat(szVideoLevelRecv, szTmp);
       }
-      else if ( pVDS->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+      else if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
          strcat(szVideoLevelRecv, "-");
       
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s / %s", szVideoLevelRequested, szVideoLevelAck, szVideoLevelRecv);
@@ -822,8 +820,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // --------------------------------------
 
    int maxPacketsCount = 1;
-   if ( 0 < pVDS->maxPacketsInBuffers )
-      maxPacketsCount = pVDS->maxPacketsInBuffers;
+   // To fix or remove
+   //if ( 0 < pVDS->maxPacketsInBuffers )
+   //   maxPacketsCount = pVDS->maxPacketsInBuffers;
 
    float fWarningFullPercent = 0.5;
 
@@ -842,7 +841,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       osd_set_colors_background_fill();
       g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
       g_pRenderEngine->setStroke(255,255,255,1.0);
-      if ( pVDS->currentPacketsInBuffers > fWarningFullPercent*maxPacketsCount )
+      if ( pVDS->iCurrentPacketsInBuffers > fWarningFullPercent*maxPacketsCount )
          g_pRenderEngine->setStroke(250,0,0, s_fOSDStatsGraphLinesAlpha);
       g_pRenderEngine->drawRoundRect(xPos+wPrefix, y, width, hBar, 0.003*scale);
       wPrefix += 2.0/g_pRenderEngine->getScreenWidth();
@@ -851,6 +850,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       hBar -= 4.0/g_pRenderEngine->getScreenHeight();
 
       float fBarScale = width/100.0;
+      // To fix or remove
+      /*
       int packs = pVDS->maxPacketsInBuffers;
       if ( packs > 0 )
          fBarScale = width/(float)(packs+1); // max buffer length
@@ -858,7 +859,10 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->setFill(145,45,45, s_fOSDStatsGraphLinesAlpha);
       g_pRenderEngine->setStroke(0,0,0,0);
       g_pRenderEngine->setStrokeSize(0);
-   
+      */
+
+      // To fix or remove
+      /*
       g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
       double* pc = get_Color_OSDText();
       g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
@@ -869,22 +873,25 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          s_iPeakTotalPacketsInBuffer = packs+1;
       g_pRenderEngine->drawLine(xPos + wPrefix + fBarScale*s_iPeakTotalPacketsInBuffer, y, xPos + wPrefix + fBarScale*s_iPeakTotalPacketsInBuffer, y+hBar);
       g_pRenderEngine->drawLine(xPos + wPrefix + fBarScale*s_iPeakTotalPacketsInBuffer+wPixel, y, xPos + wPrefix + fBarScale*s_iPeakTotalPacketsInBuffer+wPixel, y+hBar);
+      */
 
       //if ( 0 == (s_iPeakCountRender % 3) )
       if ( s_iPeakTotalPacketsInBuffer > 0 )
          s_iPeakTotalPacketsInBuffer--;
 
-      g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
-      g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
-      
-      g_pRenderEngine->drawRect(xPos+wPrefix+1.0/g_pRenderEngine->getScreenWidth(), y, fBarScale*pVDS->currentPacketsInBuffers-2.0/g_pRenderEngine->getScreenWidth(), hBar);
+      // To fix or remove
+      //g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+      //g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+      //g_pRenderEngine->drawRect(xPos+wPrefix+1.0/g_pRenderEngine->getScreenWidth(), y, fBarScale*pVDS->currentPacketsInBuffers-2.0/g_pRenderEngine->getScreenWidth(), hBar);
       osd_set_colors();
       
+      // To fix or remove
+      /*
       hBar += 4.0/g_pRenderEngine->getScreenHeight();
       sprintf(szBuff, "%d", pVDS->maxPacketsInBuffers);
       g_pRenderEngine->drawText(xPos + wPrefix-2.0/g_pRenderEngine->getScreenWidth(), y+hBar, s_idFontStatsSmall, "0");
       g_pRenderEngine->drawTextLeft(xPos + wPrefix + width-2.0/g_pRenderEngine->getScreenWidth(), y+hBar, s_idFontStatsSmall, szBuff);
-
+      */
       y += hBar;
       y += height_text*0.9;
    }
@@ -899,6 +906,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    if ( ! bIsExtended )
       totalHistoryValues = MAX_HISTORY_VIDEO_INTERVALS*3/4;
 
+/*
    if ( bIsSnapshot )
    {
       while ( (totalHistoryValues > 10) && 
@@ -918,7 +926,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       if ( totalHistoryValues < 24 )
          totalHistoryValues = 24;
    }
-
+*/
 
    //------------------------------------
    // Begin - Output history video packets graph
@@ -948,7 +956,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    }
 
    y += height_text_small*0.2;
-   sprintf(szBuff,"%d ms/bar, buff: max %d blocks", pVDSH->outputHistoryIntervalMs, pVDS->maxBlocksAllowedInBuffers);
+   // To fix or remove
+   //sprintf(szBuff,"%d ms/bar, buff: max %d blocks", pVDSH->outputHistoryIntervalMs, pVDS->maxBlocksAllowedInBuffers);
+   szBuff[0] = 0;
    if ( bIsSnapshot )
    {
       sprintf(szBuff,"%d ms/bar, dx: %d", pVDSH->outputHistoryIntervalMs, iHistoryEndRetransmissionsIndex);
@@ -1126,6 +1136,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             fPercentageUsed = 1.0;
        
       }
+      /*
       if ( 0 < pCRS->history[i].uCountRequestedRetransmissions )
       {
          if ( pCRS->history[i].uCountReRequestedPacketsForRetransmission > 0 )
@@ -1136,6 +1147,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          float hPR = hGraphHistory*(0.1 + 0.25*(float)(pCRS->history[i].uCountRequestedRetransmissions)/(float)(maxGraphValue));
          g_pRenderEngine->drawRect(xBarSt, y, fWidthBarRect, hPR);
       }
+      */
    }
 
    for( int i=totalHistoryValues; i<MAX_HISTORY_VIDEO_INTERVALS; i++ )
@@ -1361,6 +1373,8 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       y += height_text*s_OSDStatsLineSpacing;
    }
 
+   // To fix or remove
+   /*
    if ( bIsNormal || bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Discarded buff/seg/pack:");
@@ -1368,7 +1382,9 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
       y += height_text*s_OSDStatsLineSpacing;
    }
+   */
 
+/*
    if ( bIsExtended )
    {
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Lost packets max gap:");
@@ -1378,7 +1394,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Lost packets max gap time:");
       if ( videoBitrate > 0 )
-         sprintf(szBuff, "%d ms", (maxHistoryPacketsGap*pVDS->video_data_length*1000*8)/videoBitrate);
+         sprintf(szBuff, "%d ms", (maxHistoryPacketsGap*pVDS->PHVF.uCurrentBlockPacketSize*1000*8)/videoBitrate);
       else
          sprintf(szBuff, "N/A ms");
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -1637,7 +1653,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       osd_set_colors();
    }
-
+*/
    osd_set_colors();
 
 //////////////////////////////////////////////////
@@ -2425,7 +2441,7 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
    float widthMax = width;
    float rightMargin = xPos + width;
 
-   sprintf(szBuff, "Video Keyframe (%u FPS / ", pVDS->fps);
+   sprintf(szBuff, "Video Keyframe (%u FPS / ", pVDS->iCurrentVideoFPS);
    if ( pActiveModel->isVideoLinkFixedOneWay() || ( ! (pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME)) )
       strcat(szBuff, "Fixed KF)");
    else
@@ -2452,8 +2468,9 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
 
    static u32 s_uLastTimeKeyFrameValueChangedInOSD = 0;
    static int s_iLastRequestedKeyFrameMsInOSD = 0;
-   if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs != pVDS->iLastAckKeyframeInterval )
-      s_uLastTimeKeyFrameValueChangedInOSD = g_TimeNow;
+   // To fix or remove
+   //if ( g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs != pVDS->iLastAckKeyframeInterval )
+   //   s_uLastTimeKeyFrameValueChangedInOSD = g_TimeNow;
    if ( s_iLastRequestedKeyFrameMsInOSD != g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs )
    {
       s_iLastRequestedKeyFrameMsInOSD = g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndexRouterRuntimeInfo].iLastRequestedKeyFrameMs;
@@ -2475,6 +2492,8 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
       osd_set_colors();
    y += height_text*s_OSDStatsLineSpacing;
 
+   // To fix or remove
+   /*
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Ack Keyframe:");
    if ( pVDS->iLastAckKeyframeInterval > 0 )
       sprintf(szBuff, "%d ms", pVDS->iLastAckKeyframeInterval);
@@ -2482,6 +2501,8 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
       strcpy(szBuff, "None, Fixed");
    else
       sprintf(szBuff, "%d ms", pVDS->iLastAckKeyframeInterval);
+   */
+
    if ( bShowChanging )
       g_pRenderEngine->setColors(get_Color_OSDChangedValue());
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
@@ -2505,7 +2526,7 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos)
       iKeyframeSizeBitsSum /= iKeyframeCount;
 
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Recv KF:");
-   sprintf(szBuff, "%d ms", pVDS->keyframe_ms);
+   sprintf(szBuff, "%d ms", (int)pVDS->PHVF.uCurrentVideoKeyframeIntervalMs);
    g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
@@ -4220,6 +4241,8 @@ void _osd_render_stats_panels_horizontal()
       xStats -= osd_render_stats_video_bitrate_history_get_width() + xSpacing;
    }
 
+   // To fix or remove
+   /*
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
       float hStat = osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, fStatsSize);
@@ -4233,7 +4256,7 @@ void _osd_render_stats_panels_horizontal()
          xStats -= osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, fStatsSize) + xSpacing;
       }
    }
-
+   */
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_RADIO_LINKS) )
    if ( g_bIsRouterReady )
    {
@@ -4475,6 +4498,8 @@ void _osd_render_stats_panels_vertical()
          fMaxColumnWidth = osd_render_stats_rc_get_width(fStatsSize);
    }
 
+   // To fix or remove (retransmissions stats)
+   /*
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
       if ( yStats + osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, fStatsSize) > yMax )
@@ -4489,6 +4514,7 @@ void _osd_render_stats_panels_vertical()
       if ( fMaxColumnWidth < osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, fStatsSize) )
          fMaxColumnWidth = osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, fStatsSize);
    }
+   */
 
    if ( p->iDebugShowFullRXStats )
       osd_render_stats_full_rx_port();
@@ -4946,6 +4972,8 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
+   // To fix or remove (retransmissions stats)
+   /*
    if ( s_bDebugStatsShowAll || (pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 6;
@@ -4953,13 +4981,14 @@ void osd_render_stats_panels()
       s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, 1.0);
       s_iCountOSDStatsBoundingBoxes++;
    }
-
+   */
+   
    if ( p->iDebugShowVideoSnapshotOnDiscard )
    if ( g_bHasVideoDecodeStatsSnapshot )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 11;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, 1.0);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, 1.0);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, 1.0);
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, 1.0);
       s_iCountOSDStatsBoundingBoxes++;
    }
 
@@ -5090,11 +5119,12 @@ void osd_render_stats_panels()
       if ( s_iOSDStatsBoundingBoxesIds[i] == 5 )
          osd_render_stats_video_bitrate_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i]);
       
-      if ( s_iOSDStatsBoundingBoxesIds[i] == 6 )
-         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, 1.0);
+      // To fix or remove
+      //if ( s_iOSDStatsBoundingBoxesIds[i] == 6 )
+      //   osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, &g_SM_VDS_history, &g_SM_ControllerRetransmissionsStats, 1.0);
       
-      if ( s_iOSDStatsBoundingBoxesIds[i] == 11 )
-         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, 1.0);
+      //if ( s_iOSDStatsBoundingBoxesIds[i] == 11 )
+      //   osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, &s_OSDSnapshot_VideoDecodeHist, &s_OSDSnapshot_ControllerVideoRetransmissionsStats, 1.0);
      
       if ( s_iOSDStatsBoundingBoxesIds[i] == 12 )
       {

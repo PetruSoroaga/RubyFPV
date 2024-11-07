@@ -15,7 +15,6 @@
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO"
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_IN "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_IN"
 #define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_OUT "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_OUT"
-#define SHARED_MEM_VIDEO_LINK_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_LINK_STATS"
 #define SHARED_MEM_VIDEO_LINK_GRAPHS "/SYSTEM_SHARED_MEM_STATION_VIDEO_LINK_GRAPHS"
 #define SHARED_MEM_RC_DOWNLOAD_INFO "R_SHARED_MEM_VEHICLE_RC_DOWNLOAD_INFO"
 #define SHARED_MEM_RC_UPSTREAM_FRAME "R_SHARED_MEM_RC_UPSTREAM_FRAME"
@@ -70,56 +69,6 @@ typedef struct
 #define VIDEO_LINK_STATS_REFRESH_INTERVAL_MS 80
 // one every 80 milisec, for 2 sec total
 // !!! Interval should be the same as the one send by controller in link stats: CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL
-
-
-typedef struct
-{
-   u8 userVideoLinkProfile;
-   u8 currentVideoLinkProfile;
-   u32 uTimeSetCurrentVideoLinkProfile;
-   u32 currentProfileMaxVideoBitrate;
-   u32 currentProfileAndLevelDefaultBitrate;
-   u32 currentSetVideoBitrate;
-   u8  hasEverSwitchedToLQMode;
-   u8  currentDataBlocks;
-   u8  currentECBlocks;
-   u8  currentProfileShiftLevel;
-   u8  currentH264QUantization;
-
-   u16 uCurrentActiveKeyframeMs;
-   u16 uCurrentPendingKeyframeMs;
-   u16 uCurrentLocalRequestedKeyframeMs;
-   u16 uCurrentControllerRequestedKeyframeMs;
-   u32 uLastTimeLocalRequestedAKeyframe;
-   u32 uLastTimeControllerRequestedAKeyframe;
-
-   u32 profilesTopVideoBitrateOverwritesDownward[MAX_VIDEO_LINK_PROFILES]; // How much to decrease the target top bitrate for each profile
-
-} __attribute__((packed)) shared_mem_video_link_overwrites;
-
-
-typedef struct
-{
-   shared_mem_video_link_overwrites overwrites;
-
-   u8  historySwitches[MAX_INTERVALS_VIDEO_LINK_SWITCHES]; // bit 0..3 - level, bit 4..7 - profile
-   u32 totalSwitches;
-   u32 timeLastAdaptiveParamsChangeDown;
-   u32 timeLastAdaptiveParamsChangeUp;
-   u32 timeLastProfileChangeDown;
-   u32 timeLastProfileChangeUp;
-
-   u32 timeLastStatsCheck;
-   u32 timeLastReceivedControllerLinkInfo;
-
-   u8 usedControllerInfo;
-   u8 backIntervalsToLookForDownStep;
-   u8 backIntervalsToLookForUpStep;
-   int computed_min_interval_for_change_down;
-   int computed_min_interval_for_change_up;
-   u8 computed_rx_quality_vehicle;
-   u8 computed_rx_quality_controller;
-} __attribute__((packed)) shared_mem_video_link_stats_and_overwrites;
 
 
 typedef struct
@@ -254,10 +203,6 @@ shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_read
 shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_write();
 void shared_mem_video_info_stats_radio_out_close(shared_mem_video_info_stats* pAddress);
 
-
-shared_mem_video_link_stats_and_overwrites* shared_mem_video_link_stats_open_for_read();
-shared_mem_video_link_stats_and_overwrites* shared_mem_video_link_stats_open_for_write();
-void shared_mem_video_link_stats_close(shared_mem_video_link_stats_and_overwrites* pAddress);
 
 shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_read();
 shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_write();

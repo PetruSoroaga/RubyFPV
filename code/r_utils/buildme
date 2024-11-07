@@ -1,0 +1,9 @@
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o base.o base.c
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o tga.o tga.c
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o RaspiCamControl.o RaspiCamControl.c
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o RaspiCLI.o RaspiCLI.c
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o RaspiPreview.o RaspiPreview.c
+
+rm veye_raspivid
+gcc -I/opt/vc/include -pipe -W -Wall -Wextra -g -O0 -MD -c -o VeyeRaspiVid.o VeyeRaspiVid.c
+gcc  -o veye_raspivid VeyeRaspiVid.o tga.o base.o RaspiCLI.o RaspiCamControl.o RaspiPreview.o libveyecam.a -L/opt/vc/lib -lrt -lbcm_host -lvcos -lmmal_core -lmmal_util -lmmal_vc_client -lvcsm -lpthread

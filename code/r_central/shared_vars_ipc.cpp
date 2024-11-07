@@ -3,7 +3,7 @@
     Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
+    Redistribution and use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
         * Redistributions of source code must retain the above copyright
         notice, this list of conditions and the following disclaimer.
@@ -20,7 +20,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -44,6 +44,11 @@ shared_mem_process_stats* g_pProcessStatsRC = NULL;
 shared_mem_process_stats g_ProcessStatsRouter;
 shared_mem_process_stats g_ProcessStatsTelemetry;
 shared_mem_process_stats g_ProcessStatsRC;
+
+controller_runtime_info g_SMControllerRTInfo;
+controller_runtime_info* g_pSMControllerRTInfo = NULL;
+vehicle_runtime_info g_SMVehicleRTInfo;
+vehicle_runtime_info* g_pSMVehicleRTInfo = NULL;
 
 t_packet_header_rc_info_downstream* g_pSM_DownstreamInfoRC = NULL; // RC Info received on ground 
 t_packet_header_rc_info_downstream g_SM_DownstreamInfoRC; // RC Info received on ground 
@@ -79,14 +84,12 @@ shared_mem_video_stream_stats_rx_processors g_SM_VideoDecodeStats;
 shared_mem_video_stream_stats_history_rx_processors* g_pSM_VDS_history = NULL;
 shared_mem_video_stream_stats_history_rx_processors g_SM_VDS_history;
 
-shared_mem_controller_retransmissions_stats_rx_processors* g_pSM_ControllerRetransmissionsStats = NULL;
-shared_mem_controller_retransmissions_stats_rx_processors g_SM_ControllerRetransmissionsStats;
-
 shared_mem_radio_rx_queue_info* g_pSM_RadioRxQueueInfo = NULL;
 shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
 
-shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats = NULL;
-shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
+//To fix
+//shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats = NULL;
+//shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 
 shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs = NULL;
 shared_mem_video_link_graphs g_SM_VideoLinkGraphs;

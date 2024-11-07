@@ -67,18 +67,21 @@ void hw_stop_process(const char* szProcName)
    hw_execute_bash_command(szComm, szPids);
    if ( strlen(szPids) > 2 )
    {
+      log_line("Found PID(s) for process %s: %s", szProcName, szPids);
       sprintf(szComm, "kill $(pidof %s) 2>/dev/null", szProcName);
       hw_execute_bash_command(szComm, NULL);
-      hardware_sleep_ms(20);
       int retryCount = 20;
       sprintf(szComm, "pidof %s", szProcName);
       while ( retryCount > 0 )
       {
-         hardware_sleep_ms(15);
+         hardware_sleep_ms(10);
          szPids[0] = 0;
          hw_execute_bash_command(szComm, szPids);
          if ( strlen(szPids) < 2 )
+         {
+            log_line("Did stopped process %s", szProcName);
             return;
+         }
          retryCount--;
       }
       sprintf(szComm, "kill -9 $(pidof %s) 2>/dev/null", szProcName);
@@ -586,7 +589,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    if ( -1 == pclose(fp) )
       log_softerror_and_alarm("Failed to launch and confirm Ruby process: [%s]", szCommand);
    else
-      log_line("Launched Ruby process result: [%s]", szCommand);
+      log_line("Launched Ruby process: [%s]", szCommand);
 }
 
 // Returns previous priority or -1 for error

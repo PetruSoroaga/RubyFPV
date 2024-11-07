@@ -7,10 +7,10 @@ class ParserH264
       ParserH264();
       virtual ~ParserH264();
       
-      void init(int iExpectedISlices);
+      void init();
 
-      // Returns true if an start of a new frame was found
-      bool parseData(u8* pData, int iDataLength, u32 uTimeNowMs);
+      // Returns number of start of a new frames that was found
+      int parseData(u8* pData, int iDataLength, u32 uTimeNowMs);
 
       u32 getStartTimeOfCurrentFrame();
       u32 getCurrentFrameType();
@@ -24,16 +24,12 @@ class ParserH264
       u32 getDetectedFPS();
 
    protected:
-      int m_iExpectedISlices;
       int m_iDetectedISlices;
-      int m_iStateCurrentParsedSlices;
-      u32 m_uStateCurrentToken;
-      bool m_bStateIsInsideIFrame;
+      u32 m_uStreamCurrentParseToken;
       u32 m_uCurrentNALUType;
       u32 m_uLastNALUType;
-      u32 m_uConsecutiveNALUs;
-      u32 m_uCurrentFrameType;
-      u32 m_uLastFrameType;
+      int m_iConsecutiveSlicesForCurrentNALU;
+      
       u32 m_uTimeStartOfCurrentFrame;
       u32 m_uTimeLastStartOfIFrame;
       u32 m_uTimeDurationOfLastFrame;
@@ -45,4 +41,7 @@ class ParserH264
       u32 m_uDebugFramesCounter;
       u32 m_uDebugTimeStartFramesCounter;
       u32 m_uDebugDetectedFPS;
+
+      // returns true if start of a new frame is detected (not of a new slice in a frame)
+      bool _onParseStartOfNALUnit();
 };
