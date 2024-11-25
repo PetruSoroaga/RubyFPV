@@ -94,9 +94,9 @@ void rx_video_recording_init()
       log_error_and_alarm("[VideoRecording] Failed to open semaphore for reading: %s", SEMAPHORE_STOP_VIDEO_RECORD);
 
    if ( (NULL != s_pSemaphoreStopRecord) && (NULL != s_pSemaphoreStartRecord) )
-      log_line("[VideoOutput] Opened semaphores for signaling video recording start/stop.");
+      log_line("[VideoRecording] Opened semaphores for signaling video recording start/stop.");
 
-   log_line("[VideoOutput] Init start complete.");
+   log_line("[VideoRecording] Init start complete.");
 }
 
 void rx_video_recording_uninit()
@@ -121,6 +121,12 @@ void rx_video_recording_start()
       return;
 
    log_line("[VideoRecording] Received request to start recording video.");
+
+   char szComm[MAX_FILE_PATH_SIZE];
+   sprintf(szComm, "chmod 777 %s 2>&1 1>/dev/null", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
 
    s_TimeStartRecording = get_current_timestamp_ms();
    strcpy(s_szFileRecordingOutput, FOLDER_RUBY_TEMP);
@@ -169,7 +175,7 @@ void rx_video_recording_start()
       log_softerror_and_alarm("[VideoRecording] Failed to set nonblock flag on video recording file");
 
    log_line("[VideoRecording] Video recording file flags: %s", str_get_pipe_flags(fcntl(s_iFileVideoRecordingOutput, F_GETFL)));
-   log_line("[VideoOutput] Recording started.");
+   log_line("[VideoRecording] Recording started.");
    s_bRecording = true;
 }
 
@@ -189,7 +195,7 @@ void rx_video_recording_stop()
 
    int width = 1280;
    int height = 720;
-   int fps = 30;
+   int fps = 0;
    int iVideoType = VIDEO_TYPE_H264;
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
    {
@@ -201,8 +207,11 @@ void rx_video_recording_stop()
       height = g_pVideoProcessorRxList[i]->getVideoHeight();
       fps = g_pVideoProcessorRxList[i]->getVideoFPS();
       iVideoType = g_pVideoProcessorRxList[i]->getVideoType();
+      log_line("Found info for VID %u: w/h/fps: %dx%d@%d, type: %d", g_pCurrentModel->uVehicleId, width, height, fps, iVideoType);
       break;
    }
+   if ( 0 == width )
+      log_softerror_and_alarm("Can't find processor rx video stream info for VID: %u", g_pCurrentModel->uVehicleId);
 
    char szFile[128];
    strcpy(szFile, FOLDER_RUBY_TEMP);

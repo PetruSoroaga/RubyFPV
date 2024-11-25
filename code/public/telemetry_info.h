@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define ALIGN_STRUCT_SPEC_INFO __attribute__((aligned(4)))
+
 #define MAX_U32 0xFFFFFFFF
 #define MAX_VEHICLE_NAME_LENGTH 16
 
@@ -136,7 +138,7 @@ typedef struct
 
    void* pExtraInfo; // Extended info, see the structure below: vehicle_and_telemetry_info2_t, valid starting with version 6.8
 
-} __attribute__((packed)) vehicle_and_telemetry_info_t;
+} ALIGN_STRUCT_SPEC_INFO vehicle_and_telemetry_info_t;
 
 
 typedef struct
@@ -161,7 +163,7 @@ typedef struct
    u16 uThrottleInput;
    u16 uThrottleOutput;
 
-} __attribute__((packed)) vehicle_and_telemetry_info2_t;
+} ALIGN_STRUCT_SPEC_INFO vehicle_and_telemetry_info2_t;
 
 #ifdef __cplusplus
 }  

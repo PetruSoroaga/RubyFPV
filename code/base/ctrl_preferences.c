@@ -64,9 +64,6 @@ void reset_Preferences()
    s_Preferences.iShowControllerCPUInfo = 1;
    s_Preferences.iShowBigRecordButton = 0;
    s_Preferences.iSwapUpDownButtons = 0;
-   #ifdef HW_PLATFORM_RASPBERRY
-   s_Preferences.iSwapUpDownButtons = 1;
-   #endif
    s_Preferences.iSwapUpDownButtonsValues = 0;
 
    s_Preferences.iAHIToSides = 0;
@@ -79,10 +76,10 @@ void reset_Preferences()
    s_Preferences.iColorOSD[1] = 250;
    s_Preferences.iColorOSD[2] = 220;
    s_Preferences.iColorOSD[3] = 100; // 100%
-   s_Preferences.iColorOSDOutline[0] = 185;
-   s_Preferences.iColorOSDOutline[1] = 185;
-   s_Preferences.iColorOSDOutline[2] = 155;
-   s_Preferences.iColorOSDOutline[3] = 70; // 70%
+   s_Preferences.iColorOSDOutline[0] = 10;
+   s_Preferences.iColorOSDOutline[1] = 10;
+   s_Preferences.iColorOSDOutline[2] = 10;
+   s_Preferences.iColorOSDOutline[3] = 90; // 90%
    s_Preferences.iColorAHI[0] = 208;
    s_Preferences.iColorAHI[1] = 238;
    s_Preferences.iColorAHI[2] = 214;
@@ -119,7 +116,8 @@ void reset_Preferences()
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
-      CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+      //CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+      CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_UNRECOVERABLE_BLOCKS |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES;
@@ -359,7 +357,8 @@ int load_Preferences()
       s_Preferences.iDebugStatsQAButton = 0;
       s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS |
          CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
-         CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+         //CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
+         CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY |
          CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED;
    }
 

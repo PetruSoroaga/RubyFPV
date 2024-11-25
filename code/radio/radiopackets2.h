@@ -190,7 +190,9 @@ typedef struct
 
 typedef struct
 {
-   u8 uVideoStreamIndexAndType; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
+   u8 uVideoStreamIndexAndType;
+      // bits 0...3: video stream index
+      // bits 4...7: video stream type: H264, H265, IP, etc
    u32 uVideoStatusFlags2;
       // byte 0: current h264 quantization value
       // byte 1:
@@ -814,6 +816,7 @@ byte 4: command type:
 #define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK 65 // From vehicle to controller. Contains the acknowledge keyframe milisec value as an u32
 
 #define PACKET_TYPE_SIK_CONFIG 70
+//
 // Can be send locally or to vehicle
 // u8: vehicle radio link id
 // u8: command id:
@@ -822,7 +825,25 @@ byte 4: command type:
 //        2 - resume SiK interface
 // u8+: data response
 
+#define PACKET_TYPE_NEGOCIATE_RADIO_LINKS 72
+//
+// u8: uType
+//       0: send to vehicle
+//       1: confirmation from vehicle
+//
+// u8: uCommand:
+//       1: change video datarate (uParam is an (int) datarate bps or negative mcs)
+//       254: end and update (uParam is an (int) datarate bps or negative mcs)
+//       255: end no change (revert to original)
+// u32: uParam
+#define NEGOCIATE_RADIO_STEP_DATA_RATE 1
+#define NEGOCIATE_RADIO_STEP_END 254
+#define NEGOCIATE_RADIO_STEP_CANCEL 255
+
+
+
 #define PACKET_TYPE_OTA_UPDATE_STATUS 75
+//
 // From vehicle to controller, during OTA update
 // u8 status
 // u32 counter
@@ -831,6 +852,8 @@ byte 4: command type:
 #define OTA_UPDATE_STATUS_UPDATING 3
 #define OTA_UPDATE_STATUS_POST_UPDATING 4
 #define OTA_UPDATE_STATUS_COMPLETED 5
+#define OTA_UPDATE_STATUS_FAILED_DISK_SPACE 250
+#define OTA_UPDATE_STATUS_FAILED 255
 
 
 #define PACKET_TYPE_DEBUG_VEHICLE_RT_INFO 110

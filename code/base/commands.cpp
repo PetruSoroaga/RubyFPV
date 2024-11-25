@@ -57,6 +57,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_CAMERA_PROFILE: strcpy(szCommandDesc, "Set_Camera_Profile"); break;
       case COMMAND_ID_SET_CAMERA_PARAMETERS: strcpy(szCommandDesc, "Set_Camera_Params"); break;
       case COMMAND_ID_SET_CURRENT_CAMERA: strcpy(szCommandDesc, "Set_Current_Camera"); break;
+      case COMMAND_ID_SET_OVERCLOCKING_PARAMS: strcpy(szCommandDesc, "SetOverclockingParams"); break;
       case COMMAND_ID_SET_VIDEO_H264_QUANTIZATION: strcpy(szCommandDesc, "Set_VideoH264_Quantization"); break;
       case COMMAND_ID_FORCE_CAMERA_TYPE: strcpy(szCommandDesc, "Set_Force_Camera_Type"); break;
       case COMMAND_ID_SET_OSD_CURRENT_LAYOUT: strcpy(szCommandDesc, "Set_Current_OSD_Layout"); break;

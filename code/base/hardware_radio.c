@@ -64,6 +64,8 @@ static int s_iHwRadiosCount = 0;
 static int s_iHwRadiosSupportedCount = 0;
 static int s_HardwareRadiosEnumeratedOnce = 0;
 
+int g_ArrayTestRadioRates[] = {18000000, 24000000, 36000000, 48000000, -1, -2, -3, -4, -5, -6, -7, -8};
+int g_ArrayTestRadioRatesCount = 12;
 
 void reset_runtime_radio_rx_info(type_runtime_radio_rx_info* pRuntimeRadioRxInfo)
 {
@@ -1399,6 +1401,13 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
       return 1;
 
    return 0;
+}
+
+int hardware_radio_is_index_wifi_radio(int iRadioIndex)
+{
+   if ( (iRadioIndex <0) || (iRadioIndex >= s_iHwRadiosCount) )
+      return 0;
+   return hardware_radio_is_wifi_radio(&sRadioInfo[iRadioIndex]);
 }
 
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo)

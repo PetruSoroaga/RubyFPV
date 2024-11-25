@@ -591,6 +591,7 @@ extern "C" {
     */
     extern void fbg_flip(struct _fbg *fbg);
 
+    extern int fbg_getcomponents(struct _fbg* fbg);
     //! create an empty image
     /*!
       \param fbg pointer to a FBG context / data structure

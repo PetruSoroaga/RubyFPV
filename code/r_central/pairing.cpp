@@ -154,7 +154,8 @@ bool pairing_start_normal()
    g_iSearchSiKECC = -1;
    g_iSearchSiKLBT = -1;
    g_iSearchSiKMCSTR = -1;
-
+   g_bDidAnUpdate = false;
+   
    onEventBeforePairing();
 
    if ( NULL == g_pCurrentModel )

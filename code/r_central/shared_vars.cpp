@@ -57,6 +57,7 @@ bool g_bToglleOSDOff = false;
 bool g_bToglleStatsOff = false;
 bool g_bToglleAllOSDOff = false;
 bool g_bFreezeOSD = false;
+bool g_bDidAnUpdate = false;
 
 bool g_bIsRouterPacketsHistoryGraphOn = false;
 bool g_bIsRouterPacketsHistoryGraphPaused = false;

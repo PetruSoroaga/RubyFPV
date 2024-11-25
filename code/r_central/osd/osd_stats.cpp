@@ -3521,8 +3521,8 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
    
    float y = yPos + height_text*1.3*s_OSDStatsLineSpacing;
 
-   u32 linkMin = 2000;
-   u32 linkMax = 0;
+   u8 uLinkMinAck = 2000;
+   u8 uLinkMaxAck = 0;
 
    Model* pActiveModel = osd_get_current_data_source_vehicle_model();
    u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
@@ -3536,31 +3536,32 @@ float osd_render_stats_dev(float xPos, float yPos, float scale)
          break;
       }
    }
-   
-   if ( (-1 != iIndexVehicleRuntimeInfo) && g_bIsRouterReady && (NULL != pActiveModel) )
+   controller_runtime_info_vehicle* pRTInfoVehicle = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, uActiveVehicleId);
+   int iCountInterfaces = hardware_get_radio_interfaces_count();
+   if ( (-1 != iIndexVehicleRuntimeInfo) && g_bIsRouterReady && (NULL != pActiveModel) && (NULL != pRTInfoVehicle) )
    {
-      for( int i=0; i<pActiveModel->radioLinksParams.links_count; i++ )
+      for( int i=0; i<SYSTEM_RT_INFO_INTERVALS; i++ )
+      for( int k=0; k<iCountInterfaces; k++ )
       {
-         if ( (0 == g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMs[iIndexVehicleRuntimeInfo][i]) || (0 == g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsLastTime[iIndexVehicleRuntimeInfo][i]) || (MAX_U32 == g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsLastTime[iIndexVehicleRuntimeInfo][i] ) || (g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsLastTime[iIndexVehicleRuntimeInfo][i]+1000 < g_TimeNow) )
-            continue;
-         if ( g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMs[iIndexVehicleRuntimeInfo][i] > linkMax )
-            linkMax = g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMs[iIndexVehicleRuntimeInfo][i];
-         if ( g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsMin[iIndexVehicleRuntimeInfo][i] < linkMin )
-            linkMin = g_SM_RouterVehiclesRuntimeInfo.uRadioLinksDelayRoundtripMsMin[iIndexVehicleRuntimeInfo][i];
+          if ( 0 != pRTInfoVehicle->uMinAckTime[i][k] )
+          if ( pRTInfoVehicle->uMinAckTime[i][k] < uLinkMinAck )
+             uLinkMinAck = pRTInfoVehicle->uMinAckTime[i][k];
+          if ( pRTInfoVehicle->uMaxAckTime[i][k] < uLinkMaxAck )
+             uLinkMaxAck = pRTInfoVehicle->uMaxAckTime[i][k];
       }
    }
 
    if ( p->iDebugShowDevRadioStats )
    {
-   if ( 0 != linkMax )
-      sprintf(szBuff, "%d ms", linkMax);
+   if ( uLinkMaxAck < 2000 )
+      sprintf(szBuff, "%d ms", uLinkMaxAck);
    else
       strcpy(szBuff, "N/A");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Link RT (max):", szBuff);
    y += height_text*s_OSDStatsLineSpacing;
 
-   if ( 0 != linkMin )
-      sprintf(szBuff, "%d ms", linkMin);
+   if ( 0 != uLinkMaxAck )
+      sprintf(szBuff, "%d ms", uLinkMaxAck);
    else
       strcpy(szBuff, "N/A");
    _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Link RT (minim):", szBuff);

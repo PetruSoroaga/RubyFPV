@@ -53,12 +53,14 @@
 #include "shared_vars.h"
 #include "launchers_vehicle.h"
 #include "packets_utils.h"
+#include "adaptive_video.h"
 
 //To fix extern ParserH264 s_ParserH264CameraOutput;
 
 int s_fInputVideoStreamUDPSocket = -1;
 int s_iInputVideoStreamUDPPort = 5600;
 u32 s_uTimeStartVideoInput = 0;
+bool s_bLogStartOfInputVideoData = true;
 
 u8 s_uInputVideoUDPBuffer[MAX_PACKET_TOTAL_SIZE];
 u8 s_uOutputUDPNALFrameSegment[MAX_PACKET_TOTAL_SIZE];
@@ -81,6 +83,7 @@ u32 s_uTimeLastCheckMajestic = 0;
 int s_iCountMajestigProcessNotRunning = 0;
 
 void video_source_majestic_start_capture_program();
+void video_source_majestic_stop_capture_program(int iSignal);
 
 void video_source_majestic_init_all_params()
 {
@@ -88,6 +91,31 @@ void video_source_majestic_init_all_params()
 
    hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
    
+   // Stop default majestic
+   char szPID[256];
+
+   video_source_majestic_stop_capture_program(-1);
+   hardware_sleep_ms(100);
+   video_source_majestic_stop_capture_program(-9);
+   hardware_sleep_ms(50);
+   hw_execute_bash_command_raw("pidof majestic", szPID);
+
+   log_line("[VideoSourceUDP] Init: stopping majestic: PID after: (%s)", szPID);
+   int iRetry = 5;
+   while ( (iRetry > 0) && (0 < strlen(szPID)) )
+   {
+      iRetry--;
+      hardware_sleep_ms(50);
+      hw_execute_bash_command_raw("killall -1 majestic", NULL);
+      hardware_sleep_ms(100);
+      hw_execute_bash_command_raw("pidof majestic", szPID);
+   }
+   log_line("[VideoSourceUDP] Init: stopping majestic (2): PID after: (%s)", szPID);
+
+   hardware_camera_apply_all_majestic_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
+          g_pCurrentModel->video_params.user_selected_video_link_profile,
+          &(g_pCurrentModel->video_params));
+
    // Start majestic if not running
 
    int iRepeatCount = 2;
@@ -125,9 +153,6 @@ void video_source_majestic_init_all_params()
       log_line("[VideoSourceUDP] Majestic is still not running, try to start it again...");
    }
 
-   hardware_camera_apply_all_majestic_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
-          g_pCurrentModel->video_params.user_selected_video_link_profile,
-          &(g_pCurrentModel->video_params));
 // To fix 
 //   g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
 //   g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
@@ -147,7 +172,6 @@ void video_source_majestic_init_all_params()
       else
          log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
    }
-
 }
 
 void video_source_majestic_close()
@@ -217,12 +241,15 @@ u32 video_source_majestic_get_program_start_time()
 void video_source_majestic_start_capture_program()
 {
    hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
+
+   if ( g_pCurrentModel->processesPriorities.uProcessesFlags & PROCESSES_FLAGS_BALANCE_INT_CORES )
+      hardware_balance_interupts();
    hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
-   s_uTimeLastCheckMajestic = g_TimeNow;
    hardware_sleep_ms(50);
+   int iPID = hw_process_exists("majestic");
+   log_line("[VideoSourceUDP] New majestic PID: (%d)", iPID);
    if ( g_pCurrentModel->processesPriorities.iNiceVideo < 0 )
    {
-      int iPID = hw_process_exists("majestic");
       if ( iPID > 1 )
       {
          log_line("[VideoSourceUDP] Adjust majestic nice priority to %d", g_pCurrentModel->processesPriorities.iNiceVideo);
@@ -233,12 +260,20 @@ void video_source_majestic_start_capture_program()
       else
          log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
    }
+   adaptive_video_on_capture_restarted();
+   s_uTimeLastCheckMajestic = g_TimeNow-3000;
+   s_iCountMajestigProcessNotRunning = 0;
+   s_uTimeStartVideoInput = g_TimeNow;
+   s_bLogStartOfInputVideoData = true;
 }
 
-void video_source_majestic_stop_capture_program()
+void video_source_majestic_stop_capture_program(int iSignal)
 {
-   hw_execute_bash_command_raw("pidof majestic | xargs kill -9 2>/dev/null ", NULL);
-   hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
+   hw_kill_process("majestic", iSignal);
+   char szOutput[256];
+   szOutput[0] = 0;
+   hw_execute_bash_command_raw("pidof majestic", szOutput);
+   log_line("[VideoSourceUDP] Majestic PID after stop command: (%s)", szOutput);
 }
 
 void video_source_majestic_request_update_program(u32 uChangeReason)
@@ -278,7 +313,7 @@ void video_source_majestic_set_keyframe_value(float fGOP)
 void video_source_majestic_set_videobitrate_value(u32 uBitrate)
 {
    char szComm[128];
-   char szOutput[256];
+   //char szOutput[256];
    sprintf(szComm, "curl localhost/api/v1/set?video0.bitrate=%u", uBitrate/1000);
    hw_execute_bash_command_raw(szComm, NULL);
    sprintf(szComm, "cli -s .video0.bitrate %u", uBitrate/1000);
@@ -571,6 +606,11 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
    if ( iRecvBytes <= 0 )
       return NULL;
 
+   if ( s_bLogStartOfInputVideoData )
+   {
+      log_line("[VideoSourceUDP] Start receiving data (H264/H265 stream) from camera");
+      s_bLogStartOfInputVideoData = false;
+   }
    s_uDebugUDPInputBytes += iRecvBytes;
    s_uDebugUDPInputReads++;
 
@@ -609,6 +649,113 @@ bool video_source_majestic_las_read_is_picture_frame()
    return s_bIsInsidePictureFrameNAL;
 }
 
+void _video_source_majestic_check_params_update()
+{
+   char szComm[128];
+   char szOutput[256];
+
+   camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
+   video_parameters_t* pVideoParams = &(g_pCurrentModel->video_params);
+   u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
+
+   bool bUpdatedImageParams = false;
+   if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_BRIGHTNESS )
+   {
+      sprintf(szComm, "curl localhost/api/v1/set?image.luminance=%u", uParam);
+      hw_execute_bash_command_raw(szComm, szOutput);
+      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      bUpdatedImageParams = true;
+   }
+   else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_CONTRAST )
+   {
+      sprintf(szComm, "curl localhost/api/v1/set?image.contrast=%u", uParam);
+      hw_execute_bash_command_raw(szComm, szOutput);
+      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      bUpdatedImageParams = true;
+   }
+   else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_SATURATION )
+   {
+      sprintf(szComm, "curl localhost/api/v1/set?image.saturation=%u", uParam/2);
+      hw_execute_bash_command_raw(szComm, szOutput);
+      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      bUpdatedImageParams = true;
+   }
+   else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_HUE )
+   {
+      sprintf(szComm, "curl localhost/api/v1/set?image.hue=%u", uParam);
+      hw_execute_bash_command_raw(szComm, szOutput);
+      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      bUpdatedImageParams = true;
+   }
+
+   if ( bUpdatedImageParams )
+   {
+      s_bRequestedVideoMajesticCaptureUpdate = false;
+      s_bHasPendingMajesticRealTimeChanges = true;
+      s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
+      s_uRequestedVideoMajesticCaptureUpdateReason = 0;
+      return;
+   }
+
+   // Stop majestic, apply settings, restart majestic
+   log_line("[VideoSourceUDP] Has pending changes and restart of majestic...");
+
+   char szPIDBefore[256];
+   char szPIDAfter[256];
+   szPIDBefore[0] = 0;
+   szPIDAfter[0] = 0;
+   hw_execute_bash_command_raw("pidof majestic", szPIDBefore);
+   hardware_sleep_ms(50);
+   video_source_majestic_stop_capture_program(-1);
+   hardware_sleep_ms(100);
+   video_source_majestic_stop_capture_program(-9);
+   hardware_sleep_ms(50);
+   hw_execute_bash_command_raw("pidof majestic", szPIDAfter);
+
+   log_line("[VideoSourceUDP] Stopping majestic: PID before: (%s), PID after: (%s)", szPIDBefore, szPIDAfter);
+   int iRetry = 5;
+   while ( (iRetry > 0) && (0 < strlen(szPIDAfter)) )
+   {
+      iRetry--;
+      hardware_sleep_ms(50);
+      hw_execute_bash_command_raw("killall -1 majestic", NULL);
+      hardware_sleep_ms(100);
+      hw_execute_bash_command_raw("pidof majestic", szPIDAfter);
+   }
+
+   if ( 0 < strlen(szPIDAfter) )
+   {
+      send_alarm_to_controller_now(ALARM_ID_VIDEO_CAPTURE_MALFUNCTION, 1,0, 20);
+      hardware_reboot();
+   }
+
+   if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_PARAMS )
+   {
+      log_line("[VideoSourceUDP] Periodic loop: apply all majestic camera only settings.");
+      hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
+   }
+   else
+   {
+      log_line("[VideoSourceUDP] Periodic loop: signaled to apply all majestic settings.");
+      hardware_camera_apply_all_majestic_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams);
+      // To fix 
+      // g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+      // g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
+   }
+
+   if ( ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_RESOLUTION) ||
+        ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_CODEC) )
+   {
+      log_line("[VideoSourceUDP] Periodic loop: signaled changed video resolution or codec.");
+   }
+
+   hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
+   video_source_majestic_start_capture_program();
+   vehicle_check_update_processes_affinities(false, false);
+   s_bRequestedVideoMajesticCaptureUpdate = false;
+   s_uRequestedVideoMajesticCaptureUpdateReason = 0;
+}
+
 void video_source_majestic_periodic_checks()
 {
    if ( g_TimeNow >= s_uDebugTimeLastUDPVideoInputCheck+10000 )
@@ -630,7 +777,7 @@ void video_source_majestic_periodic_checks()
       char szOutput[128];
       szOutput[0] = 0;
       hw_execute_bash_command_silent("pidof majestic", szOutput);
-      if ( (strlen(szOutput) < 3) || (strlen(szOutput) > 5) )
+      if ( (strlen(szOutput) < 3) || (strlen(szOutput) > 6) )
       {
          s_iCountMajestigProcessNotRunning++;
          if ( s_iCountMajestigProcessNotRunning >= 2 )
@@ -652,76 +799,11 @@ void video_source_majestic_periodic_checks()
       s_bHasPendingMajesticRealTimeChanges = false;
       s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
       camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      // Save image settings to yaml file, but do not restart majestic
-      hardware_camera_apply_all_majestic_camera_settings(pCameraParams, false);
+      // Save image settings to yaml file
+      hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
    }
 
    if ( s_bRequestedVideoMajesticCaptureUpdate )
-   {
-      char szComm[128];
-      char szOutput[256];
-      s_bRequestedVideoMajesticCaptureUpdate = false;
-      camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      video_parameters_t* pVideoParams = &(g_pCurrentModel->video_params);
-      u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
+      _video_source_majestic_check_params_update();
 
-      bool bUpdatedImageParams = false;
-
-      if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_BRIGHTNESS )
-      {
-         sprintf(szComm, "curl localhost/api/v1/set?image.luminance=%u", uParam);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
-         bUpdatedImageParams = true;
-      }
-      else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_CONTRAST )
-      {
-         sprintf(szComm, "curl localhost/api/v1/set?image.contrast=%u", uParam);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
-         bUpdatedImageParams = true;
-      }
-      else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_SATURATION )
-      {
-         sprintf(szComm, "curl localhost/api/v1/set?image.saturation=%u", uParam/2);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
-         bUpdatedImageParams = true;
-      }
-      else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_HUE )
-      {
-         sprintf(szComm, "curl localhost/api/v1/set?image.hue=%u", uParam);
-         hw_execute_bash_command_raw(szComm, szOutput);
-         //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
-         bUpdatedImageParams = true;
-      }
-      else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_PARAMS )
-         hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);
-      else
-      {
-         hardware_camera_apply_all_majestic_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams);
-// To fix 
-//         g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
-//         g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
-      }
-
-      if ( bUpdatedImageParams )
-      {
-         s_bHasPendingMajesticRealTimeChanges = true;
-         s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
-      }
-
-      if ( ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_RESOLUTION) ||
-           ((s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_VIDEO_CODEC) )
-      {
-         hardware_sleep_ms(50);
-         video_source_majestic_stop_capture_program();
-         hardware_sleep_ms(50);
-         video_source_majestic_stop_capture_program();
-         hardware_sleep_ms(50);
-         video_source_majestic_start_capture_program();
-         vehicle_check_update_processes_affinities(false, false);
-      }
-      s_uRequestedVideoMajesticCaptureUpdateReason = 0;
-   }
 }

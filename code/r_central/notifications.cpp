@@ -51,6 +51,13 @@ void notification_add_armed(u32 uVehicleId)
       if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
          iRuntimeInfoIndex = i;
 
+   if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
+      return;
+
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
+      return;
+
    char szBuff[64];
    strcpy(szBuff, "ARMED");
    if ( (iRuntimeInfoIndex != -1) && (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
@@ -68,6 +75,13 @@ void notification_add_disarmed(u32 uVehicleId)
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
          iRuntimeInfoIndex = i;
+
+   if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
+      return;
+
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
+      return;
 
    char szBuff[64];
    strcpy(szBuff, "DISARMED");
@@ -88,6 +102,13 @@ void notification_add_flight_mode(u32 uVehicleId, u32 flightMode)
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       if ( g_VehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
          iRuntimeInfoIndex = i;
+
+   if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
+      return;
+
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
+      return;
 
    sprintf(szBuff, "Flight mode changed to: %s", model_getShortFlightMode(flightMode));
    if ( (iRuntimeInfoIndex != -1) && (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )

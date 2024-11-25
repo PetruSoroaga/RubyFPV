@@ -83,6 +83,7 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_MenuId = id;
    m_MenuDepth = 0;
    m_iColumnsCount = 1;
+   m_bIsModal = false;
    m_bEnableColumnSelection = true;
    m_bIsSelectingInsideColumn = false;
    m_bFullWidthSelection = false;
@@ -196,6 +197,16 @@ void Menu::invalidate()
    m_bInvalidated = true;
    for( int i=0; i<m_ItemsCount; i++ )
       m_pMenuItems[i]->invalidate();
+}
+
+void Menu::setModal(bool bModal)
+{
+   m_bIsModal = bModal;
+}
+
+bool Menu::isModal()
+{
+   return m_bIsModal;
 }
 
 void Menu::disableScrolling()
@@ -1370,7 +1381,8 @@ int Menu::onBack()
       return 1;
    }
 
-   menu_stack_pop(0);
+   if ( ! m_bIsModal )
+      menu_stack_pop(0);
    return 0;
 }
 
@@ -1820,7 +1832,16 @@ bool Menu::checkIsArmed()
    if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
    if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
    {
-      Popup* p = new Popup("Your vehicle is armed, you can't perform this operation now. Please stop/disarm your vehicle first.", 0.3, 0.3, 0.5, 6 );
+      char szText[256];
+      if ( NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel )
+      {
+         char szModelType[64];
+         strcpy(szModelType, g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->getVehicleTypeString());
+         sprintf(szText, "Your %s is armed, you can't perform this operation now. Please stop/disarm your %s first.", szModelType, szModelType);
+      }
+      else
+         strcpy(szText, "Your vehicle is armed, you can't perform this operation now. Please stop/disarm your vehicle first.");
+      Popup* p = new Popup(szText, 0.3, 0.3, 0.5, 6 );
       p->setCentered();
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
@@ -2157,6 +2178,8 @@ bool Menu::uploadSoftware()
   
    log_line("Successfully sent software package to vehicle.");
    bool bProcessingFailed = false;
+   char szProcessingError[256];
+   szProcessingError[0] = 0;
 
    if ( get_sw_version_build(g_pCurrentModel) < 242 )
    {
@@ -2210,7 +2233,19 @@ bool Menu::uploadSoftware()
             render_commands_set_custom_status("Post update");
          if ( s_uOTAStatus == OTA_UPDATE_STATUS_COMPLETED )
             render_commands_set_custom_status("Finishing up");
-
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_FAILED )
+         {
+            strcpy(szProcessingError, "Vehicle failed to process the update. Disk error.");
+            render_commands_set_custom_status(szProcessingError);
+            bProcessingFailed = true;
+            break;
+         }
+         if ( s_uOTAStatus == OTA_UPDATE_STATUS_FAILED_DISK_SPACE )
+         {
+            strcpy(szProcessingError, "Vehicle failed to process the update. Not enough space on device.");
+            render_commands_set_custom_status(szProcessingError);
+            break;
+         }
          if ( g_TimeNow > (uTimeLastRender+100) )
          {
             uTimeLastRender = g_TimeNow;
@@ -2234,11 +2269,14 @@ bool Menu::uploadSoftware()
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
+      if ( 0 != szProcessingError[0] )
+         addMessage(szProcessingError);
       return false;
    }
 
    g_nSucceededOTAUpdates++;
-
+   g_bDidAnUpdate = true;
+   
    if ( NULL != g_pCurrentModel )
    {
       for( int i=0; i<4; i++ )

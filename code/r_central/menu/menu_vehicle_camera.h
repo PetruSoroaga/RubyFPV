@@ -43,6 +43,7 @@ class MenuVehicleCamera: public Menu
       int m_IndexDayNight;
       int m_IndexVideoStab, m_IndexFlip, m_IndexReset;
       int m_IndexIRCut, m_IndexOpenIPCDayNight;
+      int m_IndexOpenIPC3A;
       int m_IndexCalibrateHDMI;
 
       bool m_bDidAnyLiveUpdates;

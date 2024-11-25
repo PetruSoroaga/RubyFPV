@@ -15,7 +15,7 @@ typedef struct
    int m_IndexTitle;
    int m_IndexType;
    int m_IndexValue;
-} __attribute__((packed)) t_menu_group_rc_failsafe;
+} ALIGN_STRUCT_SPEC_INFO t_menu_group_rc_failsafe;
 
 
 class MenuVehicleRCFailsafe: public Menu

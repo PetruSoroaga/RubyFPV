@@ -443,7 +443,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       return;
    }
 
-   // Signal other components about the model change if it's not from central or if settings where synchronised form vehicle
+   // Signal other components about the model change if it's not from central or if settings where synchronised from vehicle
    // Signal other components too if the RC parameters where changed
    bool bNotify = false;
    if ( (pPH->vehicle_id_src == PACKET_COMPONENT_COMMANDS) ||
@@ -483,6 +483,17 @@ void process_local_control_packet(t_packet_header* pPH)
          return;
       return;
    }
+
+   if ( pPH->packet_type == PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE )
+   {
+      if ( 0 == pPH->vehicle_id_dest )
+         log_line("Received notification to resume adaptive video.");
+      else
+         log_line("Received notification to pause adaptive video for %u ms", pPH->vehicle_id_dest);
+      adaptive_video_pause(pPH->vehicle_id_dest);
+      return;
+   }
+
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLLER_RELOAD_CORE_PLUGINS )
    {
       log_line("Router received a local message to reload core plugins.");

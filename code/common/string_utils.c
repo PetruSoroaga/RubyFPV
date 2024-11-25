@@ -292,7 +292,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY: strcpy(s_szPacketType, "PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY"); break;
 
       case PACKET_TYPE_VEHICLE_RECORDING: strcpy(s_szPacketType, "PACKET_TYPE_VEHICLE_RECORDING"); break;
-       
+      case PACKET_TYPE_NEGOCIATE_RADIO_LINKS: strcpy(s_szPacketType, "PACKET_TYPE_NEGOCIATE_RADIO_LINKS"); break;       
       // Local packets
 
       case PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO:           strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO"); break;
@@ -643,6 +643,7 @@ const char* str_get_hardware_board_name(u32 board_type)
    #endif
    #ifdef HW_PLATFORM_RADXA_ZERO3
    static const char* s_szBoardTypeRadxaZero3 = "Radxa Zero 3";
+   static const char* s_szBoardTypeRadxa3C = "Radxa 3C";
    #endif
    static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
@@ -679,6 +680,8 @@ const char* str_get_hardware_board_name(u32 board_type)
    #if defined (HW_PLATFORM_RADXA_ZERO3)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
       return s_szBoardTypeRadxaZero3;
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
+      return s_szBoardTypeRadxa3C;
    #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
@@ -721,6 +724,7 @@ const char* str_get_hardware_board_name_short(u32 board_type)
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
    static const char* s_szBoardSTypeRadxaZero3 = "Radxa Zero3";
+   static const char* s_szBoardSTypeRadxa3C = "Radxa 3C";
    #endif
 
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
@@ -758,6 +762,8 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    #if defined(HW_PLATFORM_RADXA_ZERO3)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
       return s_szBoardSTypeRadxaZero3;
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
+      return s_szBoardSTypeRadxa3C;
    #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )

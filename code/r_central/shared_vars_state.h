@@ -1,5 +1,6 @@
 #pragma once
 #include "../base/base.h"
+#include "../base/config.h"
 #include "../base/models.h"
 #include "../base/commands.h"
 #include "../base/msp.h"
@@ -19,7 +20,7 @@ typedef struct
 
    u32 uTimeLastUploadSegment;
    u32 uLastSegmentIndexUploaded;
-} __attribute__((packed)) t_structure_file_upload;
+} ALIGN_STRUCT_SPEC_INFO t_structure_file_upload;
 
 extern t_structure_file_upload g_CurrentUploadingFile;
 extern bool g_bHasFileUploadInProgress;
@@ -42,7 +43,7 @@ typedef struct
    u16 uScreenChars[MAX_MSP_CHARS_BUFFER]; // Max 64x24
    u16 uScreenCharsTmp[MAX_MSP_CHARS_BUFFER]; // Max 64x24
    bool bEmptyBuffer;
-} __attribute__((packed)) type_msp_parse_state;
+} ALIGN_STRUCT_SPEC_INFO type_msp_parse_state;
 
 typedef struct 
 {
@@ -127,7 +128,7 @@ typedef struct
    int tmp_iCountFCTelemetryPacketsShort;
    u32 tmp_uTimeLastTelemetryFrequencyComputeTime;
 
-} t_structure_vehicle_info;
+} ALIGN_STRUCT_SPEC_INFO t_structure_vehicle_info;
 
 extern int s_StartSequence;
 extern Model* g_pCurrentModel;

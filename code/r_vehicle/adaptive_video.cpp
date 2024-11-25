@@ -44,14 +44,23 @@
 
 u8 s_uLastVideoProfileRequestedByController = 0xFF;
 u32 s_uTimeLastVideoProfileRequestedByController = 0;
+u32 s_uTimeLastTimeAdaptivePeriodicLoop = 0;
 
 u16 s_uCurrentKFValue = 0;
 u16 s_uPendingKFValue = 0;
+
+int s_iPendingAdaptiveRadioDataRate = 0;
+u32 s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+
+u32 s_uLastAdaptiveAppliedVideoBitrate = 0;
 
 void adaptive_video_init()
 {
    log_line("[AdaptiveVideo] Init...");
    s_uCurrentKFValue = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
+   s_uTimeLastTimeAdaptivePeriodicLoop = get_current_timestamp_ms();
+   s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+   s_iPendingAdaptiveRadioDataRate = 0;
    log_line("[AdaptiveVideo] Current KF ms: %d, pending KF ms: %d", s_uCurrentKFValue, s_uPendingKFValue);
 }
 
@@ -74,18 +83,26 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
 
    // Update capture video bitrate
    u32 uBitrateBPS = g_pCurrentModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps;
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-   
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      video_source_majestic_set_videobitrate_value(uBitrateBPS); 
 
+   if ( uBitrateBPS != s_uLastAdaptiveAppliedVideoBitrate )
+   {
+      s_uLastAdaptiveAppliedVideoBitrate = uBitrateBPS;
+      if ( g_pCurrentModel->hasCamera() )
+      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
+      
+      if ( g_pCurrentModel->hasCamera() )
+      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+         video_source_majestic_set_videobitrate_value(uBitrateBPS); 
+   }
    // Update adaptive video rate for tx radio:
 
    if ( s_uLastVideoProfileRequestedByController == g_pCurrentModel->video_params.user_selected_video_link_profile )
+   {
       packet_utils_set_adaptive_video_datarate(0);
+      s_iPendingAdaptiveRadioDataRate = 0;
+      s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+   }
    else
    {
       int nRateTxVideo = DEFAULT_RADIO_DATARATE_VIDEO;
@@ -98,13 +115,17 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
       // If datarate is increasing, set it right away
       if ( (0 != packet_utils_get_last_set_adaptive_video_datarate()) &&
            (getRealDataRateFromRadioDataRate(nRateTxVideo, 0) >= getRealDataRateFromRadioDataRate(packet_utils_get_last_set_adaptive_video_datarate(), 0)) )
+      {
          packet_utils_set_adaptive_video_datarate(nRateTxVideo);
-      // To fix
+         s_iPendingAdaptiveRadioDataRate = 0;
+         s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+      }
       // If datarate is decreasing, set it after a short period
-      //else if ( g_TimeNow > s_uTimeLastVideoProfileRequestedByController + DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS )
-      //   packet_utils_set_adaptive_video_datarate(nRateTxVideo);
-        else 
-         packet_utils_set_adaptive_video_datarate(nRateTxVideo);
+      else
+      {
+         s_iPendingAdaptiveRadioDataRate = nRateTxVideo;
+         s_uTimeSetPendingAdaptiveRadioDataRate = g_TimeNow;
+      }
    } 
 
    s_uTimeLastVideoProfileRequestedByController = g_TimeNow;
@@ -149,6 +170,11 @@ bool _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
    return true;
 }
 
+void adaptive_video_on_capture_restarted()
+{
+   s_uLastAdaptiveAppliedVideoBitrate = 0;
+}
+
 void adaptive_video_on_new_camera_read(bool bEndOfFrame, bool bIsInsideIFrame)
 {
    if ( 0 != s_uPendingKFValue )
@@ -169,5 +195,30 @@ void adaptive_video_on_new_camera_read(bool bEndOfFrame, bool bIsInsideIFrame)
          s_uPendingKFValue = 0;
          g_pVideoTxBuffers->updateCurrentKFValue();
       }
+   }
+}
+
+void adaptive_video_periodic_loop()
+{
+   if ( g_TimeNow < s_uTimeLastTimeAdaptivePeriodicLoop + 10 )
+      return;
+   if ( g_bNegociatingRadioLinks )
+   {
+      if ( g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*1000 )
+      {
+         g_uTimeStartNegociatingRadioLinks = 0;
+         g_bNegociatingRadioLinks = false;
+      }
+      return;
+   }
+   
+   s_uTimeLastTimeAdaptivePeriodicLoop = g_TimeNow;
+
+   if ( (0 != s_iPendingAdaptiveRadioDataRate) && (0 != s_uTimeSetPendingAdaptiveRadioDataRate) )
+   if ( g_TimeNow >= s_uTimeSetPendingAdaptiveRadioDataRate + DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS )
+   {
+      packet_utils_set_adaptive_video_datarate(s_iPendingAdaptiveRadioDataRate);
+      s_iPendingAdaptiveRadioDataRate = 0;
+      s_uTimeSetPendingAdaptiveRadioDataRate = 0;
    }
 }

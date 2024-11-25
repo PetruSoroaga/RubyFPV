@@ -198,6 +198,7 @@ typedef struct
    int overvoltage; // 0 or negative - disabled, negative - default value
    int freq_arm; // 0 - disabled; in mhz
    int freq_gpu; // 0 - disabled; in mhz; (0/1 for OIPC boost)
+   u32 uProcessesFlags;
    
 } __attribute__((packed)) command_packet_overclocking_params;
 

@@ -43,6 +43,7 @@
 #include "osd/osd_common.h"
 #include "shared_vars.h"
 
+#include <ctype.h>
 #include "link_watch.h"
 #include "ruby_central.h"
 #include "popup_log.h"
@@ -206,6 +207,7 @@ void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, double* pColo
    if ( NULL != g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel )
       sprintf(szComposedTitle, "%s: %s", g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->getShortName(), szTitle);
 
+   szComposedTitle[0] = toupper(szComposedTitle[0]);
    if ( s_PopupsWarningsCount > 0 )
    if ( 0 == strcmp(szComposedTitle, s_PopupsWarnings[0]->getTitle()) )
    if ( s_TimeLastWarningAdded+2000 > g_TimeNow )

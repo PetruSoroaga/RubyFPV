@@ -2133,6 +2133,13 @@ bool Model::loadVersion10(FILE* fd)
       bOk = false;
    }
 
+   if ( bOk && (1 != fscanf(fd, "%u", &processesPriorities.uProcessesFlags)) )
+   {
+      log_softerror_and_alarm("Failed to read processes flags.");
+      processesPriorities.uProcessesFlags = PROCESSES_FLAGS_BALANCE_INT_CORES;
+      bOk = false;
+   }
+
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
@@ -2624,6 +2631,9 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    sprintf(szSetting, "%u\n", osd_params.uFlags);
    strcat(szModel, szSetting);
 
+   sprintf(szSetting, "%u\n", processesPriorities.uProcessesFlags);
+   strcat(szModel, szSetting);
+
    // End writing values to file
    // ---------------------------------------------------
 
@@ -2636,7 +2646,7 @@ void Model::resetVideoParamsToDefaults()
 {
    memset(&video_params, 0, sizeof(video_params));
 
-   video_params.user_selected_video_link_profile = VIDEO_PROFILE_BEST_PERF;
+   video_params.user_selected_video_link_profile = VIDEO_PROFILE_HIGH_QUALITY;
    video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
    video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
    video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
@@ -2670,18 +2680,24 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
 
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
          video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC_SIGMASTAR;
         
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
          video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
 
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
       if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
            (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
            hardware_board_is_goke(hardware_getOnlyBoardType()) )
-      video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+         video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
 
       if ( hardware_isCameraVeye() || hardware_isCameraHDMI() )
       {
@@ -2697,102 +2713,91 @@ void Model::resetVideoLinkProfiles(int iProfile)
 
 
    // Best Perf
-   if ( iProfile == -1 || iProfile == VIDEO_PROFILE_BEST_PERF )
+   if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_BEST_PERF) )
    {
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
-   if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
-        (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
-        hardware_board_is_goke(hardware_getOnlyBoardType()) )
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].flags = 0;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
+      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
+           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
 
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-   video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    }
 
    // High Quality 
-   if ( iProfile == -1 || iProfile == VIDEO_PROFILE_HIGH_QUALITY )
+   if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_HIGH_QUALITY) )
    {
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-   video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].flags = 0;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HQ;
    }
 
    // User
-   if ( iProfile == -1 || iProfile == VIDEO_PROFILE_USER )
+   if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_USER) )
    {
-   video_link_profiles[VIDEO_PROFILE_USER].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
-   video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-   video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-   video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-   video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   video_link_profiles[VIDEO_PROFILE_USER].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].flags = 0;
+      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].video_data_length = DEFAULT_VIDEO_DATA_LENGTH_HP;
    }
 
    // MQ
-   if ( iProfile == -1 || iProfile == VIDEO_PROFILE_MQ )
+   if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_MQ) )
    {
-   video_link_profiles[VIDEO_PROFILE_MQ].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-   video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
-   video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-   video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps = 0;
-   video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_data_bps = 0;
-   video_link_profiles[VIDEO_PROFILE_MQ].h264profile = 2; // high
-   video_link_profiles[VIDEO_PROFILE_MQ].h264level = 2;
-   video_link_profiles[VIDEO_PROFILE_MQ].h264refresh = 2; // both
-   video_link_profiles[VIDEO_PROFILE_MQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
-   video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-   video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-   video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
-   video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
-      video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-   video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
-   video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+      video_link_profiles[VIDEO_PROFILE_MQ].flags = 0;
+      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps = 0;
+      video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_data_bps = 0;
+      video_link_profiles[VIDEO_PROFILE_MQ].h264profile = 2; // high
+      video_link_profiles[VIDEO_PROFILE_MQ].h264level = 2;
+      video_link_profiles[VIDEO_PROFILE_MQ].h264refresh = 2; // both
+      video_link_profiles[VIDEO_PROFILE_MQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
+      video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
+      video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
    }
 
    // LQ
-   if ( iProfile == -1 || iProfile == VIDEO_PROFILE_LQ )
+   if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_LQ) )
    {
-   video_link_profiles[VIDEO_PROFILE_LQ].flags = 0;
-   video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-   video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
-   video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
-   video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
-   video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps = 0;
-   video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_data_bps = 0;
-   video_link_profiles[VIDEO_PROFILE_LQ].radio_flags = 0;
-   video_link_profiles[VIDEO_PROFILE_LQ].h264profile = 2; // high
-   video_link_profiles[VIDEO_PROFILE_LQ].h264level = 2;
-   video_link_profiles[VIDEO_PROFILE_LQ].h264refresh = 2; // both
-   video_link_profiles[VIDEO_PROFILE_LQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
-   video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-   video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
-   video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
-   video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-   if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
-      video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-   video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
-   video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+      video_link_profiles[VIDEO_PROFILE_LQ].flags = 0;
+      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps = 0;
+      video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_data_bps = 0;
+      video_link_profiles[VIDEO_PROFILE_LQ].radio_flags = 0;
+      video_link_profiles[VIDEO_PROFILE_LQ].h264profile = 2; // high
+      video_link_profiles[VIDEO_PROFILE_LQ].h264level = 2;
+      video_link_profiles[VIDEO_PROFILE_LQ].h264refresh = 2; // both
+      video_link_profiles[VIDEO_PROFILE_LQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
+      video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
+      video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    }
    
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
@@ -2841,6 +2846,33 @@ void Model::resetVideoLinkProfiles(int iProfile)
       setDefaultVideoBitrate();
 }
 
+void Model::resetVideoLinkProfilesToDataRates(int iUsableDataRateHQ, int iUsableDatarateHP)
+{
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+      video_link_profiles[i].radio_datarate_video_bps = 0;
+
+   if ( 0 == iUsableDataRateHQ )
+      iUsableDataRateHQ = DEFAULT_RADIO_DATARATE_VIDEO;
+   if ( 0 == iUsableDatarateHP )
+      iUsableDatarateHP = DEFAULT_RADIO_DATARATE_VIDEO;
+
+   for( int i=0; i<radioLinksParams.links_count; i++ )
+      radioLinksParams.link_datarate_video_bps[i] = iUsableDataRateHQ;
+
+   if ( iUsableDataRateHQ == DEFAULT_RADIO_DATARATE_VIDEO )
+   {
+      for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+      {
+         if ( (radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS )
+         if ( radioInterfacesParams.interface_link_id[i] >= 0 )
+         if ( radioInterfacesParams.interface_link_id[i] < radioLinksParams.links_count )
+         {
+            int iRadioLink = radioInterfacesParams.interface_link_id[i];
+            radioLinksParams.link_datarate_video_bps[iRadioLink] = DEFAULT_RADIO_DATARATE_VIDEO_ATHEROS;
+         }
+      }
+   }
+}
 
 void Model::copy_video_link_profile(int from, int to)
 {
@@ -3562,7 +3594,7 @@ int Model::logVehicleRadioLinkDifferences(type_radio_links_parameters* pData1, t
       iDifferences++;
    }
 
-   if ( pData1->uGlobalRadioLinksFlags != pData2->uGlobalRadioLinksFlags )
+   if ( (pData1->uGlobalRadioLinksFlags & (~MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)) != (pData2->uGlobalRadioLinksFlags & (~MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)) )
    {
       log_line("* Radio Links global radio links flags changed from %u to %u", pData1->uGlobalRadioLinksFlags, pData2->uGlobalRadioLinksFlags);
       iDifferences++;
@@ -3816,18 +3848,19 @@ bool Model::validate_settings()
       {
          if ( ! radioLinkIsSiKRadio(i) )
          {
+            log_softerror_and_alarm("Invalid radio video data rates (%d). Reseting to default (%d).", radioLinksParams.link_datarate_video_bps[i], DEFAULT_RADIO_DATARATE_VIDEO);
             radioLinksParams.link_datarate_video_bps[i] = DEFAULT_RADIO_DATARATE_VIDEO;
-            log_softerror_and_alarm("Invalid radio video data rates. Reseting to default (%d).", radioLinksParams.link_datarate_video_bps[i]);
          }
       }
       if ( getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_data_bps[i], 0) < 500 )
       if ( radioLinksParams.link_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
       {
+         int iTmp = radioLinksParams.link_datarate_data_bps[i];
          if ( radioLinkIsSiKRadio(i) )
             radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_SIK_AIR;
          else
             radioLinksParams.link_datarate_data_bps[i] = DEFAULT_RADIO_DATARATE_DATA;
-         log_softerror_and_alarm("Invalid radio data data rates. Reseting to default (%d).", radioLinksParams.link_datarate_data_bps[i]);
+         log_softerror_and_alarm("Invalid radio data data rates (%d). Reseting to default (%d).", iTmp, radioLinksParams.link_datarate_data_bps[i]);
       }
    }
 
@@ -3862,7 +3895,7 @@ bool Model::validate_settings()
       telemetry_params.flags = TELEMETRY_FLAGS_RXTX | TELEMETRY_FLAGS_REQUEST_DATA_STREAMS | TELEMETRY_FLAGS_SPECTATOR_ENABLE;
 
    if ( rxtx_sync_type < 0 || rxtx_sync_type >= RXTX_SYNC_TYPE_LAST )
-      rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
+      rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
 
    if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 0 )
       processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
@@ -4075,8 +4108,9 @@ void Model::resetToDefaults(bool generateId)
 
    resetRelayParamsToDefaults(&relay_params);
 
-   rxtx_sync_type = RXTX_SYNC_TYPE_NONE;
+   rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
 
+   processesPriorities.uProcessesFlags = PROCESSES_FLAGS_BALANCE_INT_CORES;
    processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
    processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
    processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
@@ -4094,7 +4128,7 @@ void Model::resetToDefaults(bool generateId)
    if ( hardware_board_is_sigmastar(hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
    {
       processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
-      processesPriorities.iFreqGPU = 1;
+      processesPriorities.iFreqGPU = 0;
    }
 
    processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
@@ -4212,7 +4246,7 @@ void Model::resetOSDFlags()
    
    osd_params.osd_flags[0] = 0; // horizontal layout for stats panels;
    osd_params.osd_flags[1] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
-   osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_CPU_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
+   osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_CPU_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
    osd_params.osd_flags[3] = 0;
    osd_params.osd_flags[4] = 0;
    osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES | OSD_FLAG2_SHOW_RC_RSSI;
@@ -4225,7 +4259,7 @@ void Model::resetOSDFlags()
    for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
    {
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_HOME;
-      osd_params.osd_flags[i] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_CPU_INFO;
+      osd_params.osd_flags[i] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER | OSD_FLAG_SHOW_CPU_INFO;
       //osd_params.osd_flags[i] |= OSD_FLAG_SHOW_THROTTLE;
       if ( i < 3 )
       {
@@ -4256,7 +4290,7 @@ void Model::resetOSDFlags()
 
    osd_params.osd_flags[1] = OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
    osd_params.osd_flags[1] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE;
-   osd_params.osd_flags[1] |= OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER;
+   osd_params.osd_flags[1] |= OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER;
    osd_params.osd_flags[1] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS | OSD_FLAG_SHOW_THROTTLE;
    osd_params.osd_flags2[1] = OSD_FLAG2_LAYOUT_ENABLED |OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_BATTERY_CELLS;
    osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_BATTERY_CELLS;
@@ -4264,7 +4298,7 @@ void Model::resetOSDFlags()
    //osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
 
    osd_params.osd_flags[2] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_HOME;
-   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER;
+   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_TIME | OSD_FLAG_SHOW_TIME_LOWER;
    osd_params.osd_flags[2] |= OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_VIDEO_MBPS;
    osd_params.osd_flags[2] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS | OSD_FLAG_SHOW_THROTTLE;
    osd_params.osd_flags2[2] = OSD_FLAG2_LAYOUT_ENABLED |OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_BATTERY_CELLS | OSD_FLAG2_SHOW_RC_RSSI;
@@ -4411,7 +4445,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
 
 void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams)
 {
-   pCamParams->uFlags = 0;
+   pCamParams->uFlags = CAMERA_FLAG_OPENIPC_3A_SIGMASTAR;
    pCamParams->flip_image = 0;
    pCamParams->brightness = 47;
    pCamParams->contrast = 50;
@@ -5181,6 +5215,11 @@ void Model::setDefaultVideoBitrate()
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
       video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+   }
+   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   {
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
+      video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
    }
 
    // Lower video bitrate on all video profiles if running on a single core CPU

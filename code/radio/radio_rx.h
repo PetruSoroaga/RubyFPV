@@ -3,11 +3,13 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include <pthread.h>
+#include <semaphore.h>
 
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
-#define MAX_RX_PACKETS_QUEUE 500
+#define MAX_RX_PACKETS_QUEUE 300
 #else
-#define MAX_RX_PACKETS_QUEUE 50
+#define MAX_RX_PACKETS_QUEUE 100
 #endif
 typedef struct
 {
@@ -23,30 +25,39 @@ typedef struct
    int iMinRxPacketsPerSec;
    u32 uLastRxRadioLinkPacketIndex[MAX_RADIO_INTERFACES]; // per radio interface
 
-} __attribute__((packed)) t_radio_rx_state_vehicle;
+} ALIGN_STRUCT_SPEC_INFO t_radio_rx_state_vehicle;
 
 typedef struct
 {
    u8* pPacketsBuffers[MAX_RX_PACKETS_QUEUE];
    int iPacketsLengths[MAX_RX_PACKETS_QUEUE];
-   int iPacketsAreShort[MAX_RX_PACKETS_QUEUE];
-   int iPacketsRxInterface[MAX_RX_PACKETS_QUEUE];
+   u8  uPacketsAreShort[MAX_RX_PACKETS_QUEUE];
+   u8  uPacketsRxInterface[MAX_RX_PACKETS_QUEUE];
    int iCurrentRxPacketIndex; // Where next packet will be added
    int iCurrentRxPacketToConsume; // Where the first packet to read/consume is
+   int iCurrentRxPacketsInQueue;
+   int iStatsMaxPacketsInQueue;
+   int iStatsMaxPacketsInQueueLastMinute;
 
+   pthread_mutex_t mutex;
+   sem_t* pSemaphore;
+} ALIGN_STRUCT_SPEC_INFO t_radio_rx_state_packets_queue;
+
+typedef struct
+{
    int iRadioInterfacesBroken[MAX_RADIO_INTERFACES];
    int iRadioInterfacesRxTimeouts[MAX_RADIO_INTERFACES];
    int iRadioInterfacesRxBadPackets[MAX_RADIO_INTERFACES];
 
-   u32 uTimeLastStatsUpdate;
    t_radio_rx_state_vehicle vehicles[MAX_CONCURENT_VEHICLES];
+   t_radio_rx_state_packets_queue queue_high_priority;
+   t_radio_rx_state_packets_queue queue_reg_priority;
 
    u32 uMaxLoopTime;
    u32 uAcceptedFirmwareType;
-   u32 uTimeLastMinute;
-   int iMaxPacketsInQueue;
-   int iMaxPacketsInQueueLastMinute;
-} __attribute__((packed)) t_radio_rx_state;
+   u32 uTimeLastMinuteStatsUpdate;
+   u32 uTimeLastStatsUpdate;
+} ALIGN_STRUCT_SPEC_INFO t_radio_rx_state;
 
 typedef struct
 {
@@ -54,7 +65,7 @@ typedef struct
    int iPacketLength;
    int iPacketIsShort;
    int iPacketRxInterface;
-} __attribute__((packed)) type_received_radio_packet;
+} ALIGN_STRUCT_SPEC_INFO type_received_radio_packet;
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,7 +81,7 @@ void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason);
 void radio_rx_resume_interface(int iInterfaceIndex);
 void radio_rx_mark_quit();
 void radio_rx_set_dev_mode();
-void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
+void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputRetrVideo, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength);
 
@@ -80,16 +91,13 @@ int radio_rx_get_interface_bad_packets_error_and_reset(int iInterfaceIndex);
 int radio_rx_any_rx_timeouts();
 int radio_rx_get_timeout_count_and_reset(int iInterfaceIndex);
 void radio_rx_reset_interfaces_broken_state();
-t_radio_rx_state* radio_rx_get_state();
-
-int radio_rx_has_retransmissions_requests_to_consume();
-int radio_rx_has_packets_to_consume();
-u8* radio_rx_get_next_received_packet(int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex);
-int radio_rx_get_received_packets(int iCount, type_received_radio_packet* pOutputArray);
 
 u32 radio_rx_get_and_reset_max_loop_time();
 u32 radio_rx_get_and_reset_max_loop_time_read();
 u32 radio_rx_get_and_reset_max_loop_time_queue();
+
+u8* radio_rx_wait_get_next_received_high_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex);
+u8* radio_rx_wait_get_next_received_reg_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex);
 
 #ifdef __cplusplus
 }  

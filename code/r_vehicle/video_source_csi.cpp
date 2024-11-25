@@ -53,6 +53,7 @@
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
+#include "adaptive_video.h"
 
 #ifdef HW_PLATFORM_RASPBERRY
 
@@ -322,7 +323,7 @@ u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame)
    timePipeInput.tv_sec = 0;
 
    if ( s_bLastCameraReadTimedOut )
-      timePipeInput.tv_usec = 500; // 0.5 miliseconds timeout
+      timePipeInput.tv_usec = 50; // 0.05 miliseconds timeout
    else
       timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
 
@@ -413,6 +414,7 @@ void video_source_csi_start_program()
       s_bHasThreadWatchDogVideoCapture = true;
       log_line("[VideoSourceCSI] Created thread for watchdog.");
    }
+   adaptive_video_on_capture_restarted();
    s_uRaspiVidStartTimeMs = g_TimeNow;
    s_bDidSentRaspividBitrateRefresh = false;
 }

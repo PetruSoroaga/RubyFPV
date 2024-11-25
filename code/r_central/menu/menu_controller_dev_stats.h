@@ -26,6 +26,7 @@ class MenuControllerDevStatsConfig: public Menu
       int m_IndexShowRxMissingPacketsMaxGap;
       int m_IndexShowRxConsumedPackets;
       int m_IndexShowMinMaxAckTime;
+      int m_IndexShowAckTimeHist;
       int m_IndexShowRxMaxECUsed;
       int m_IndexShowUnrecoverableVideoBlocks;
       int m_IndexShowVideoProfileChanges;

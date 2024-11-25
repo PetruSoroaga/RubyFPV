@@ -469,7 +469,7 @@ void VideoTxPacketsBuffer::_sendPacket(int iBufferIndex, int iPacketIndex, u32 u
    t_packet_header* pCurrentPacketHeader = m_VideoPackets[iBufferIndex][iPacketIndex].pPH;
    t_packet_header_video_full_98* pCurrentVideoPacketHeader = m_VideoPackets[iBufferIndex][iPacketIndex].pPHVF;
 
-   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (m_VideoPackets[iBufferIndex][iPacketIndex].pRawData+sizeof(t_packet_header));    
+   //t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (m_VideoPackets[iBufferIndex][iPacketIndex].pRawData+sizeof(t_packet_header));    
    
    // stream_packet_idx: high 4 bits: stream id (0..15), lower 28 bits: stream packet index
    pCurrentPacketHeader->stream_packet_idx = m_uRadioStreamPacketIndex;
@@ -504,10 +504,10 @@ void VideoTxPacketsBuffer::_sendPacket(int iBufferIndex, int iPacketIndex, u32 u
    if ( g_bVideoPaused || (! relay_current_vehicle_must_send_own_video_feeds()) )
       return;
 
-   t_packet_header_video_full_98_debug_info* pPHVFDebugInfo = (t_packet_header_video_full_98_debug_info*) m_VideoPackets[iBufferIndex][iPacketIndex].pVideoData;
-   u8* pVideoData = m_VideoPackets[iBufferIndex][iPacketIndex].pVideoData;
-   pVideoData += sizeof(t_packet_header_video_full_98_debug_info);
-   u32 crc = base_compute_crc32(pVideoData, pCurrentVideoPacketHeader->uCurrentBlockPacketSize);
+   //t_packet_header_video_full_98_debug_info* pPHVFDebugInfo = (t_packet_header_video_full_98_debug_info*) m_VideoPackets[iBufferIndex][iPacketIndex].pVideoData;
+   //u8* pVideoData = m_VideoPackets[iBufferIndex][iPacketIndex].pVideoData;
+   //pVideoData += sizeof(t_packet_header_video_full_98_debug_info);
+   //u32 crc = base_compute_crc32(pVideoData, pCurrentVideoPacketHeader->uCurrentBlockPacketSize);
 
    send_packet_to_radio_interfaces((u8*)pCurrentPacketHeader, pCurrentPacketHeader->total_length, -1);
 }
@@ -517,14 +517,17 @@ int VideoTxPacketsBuffer::hasPendingPacketsToSend()
    return m_iCountReadyToSend;
 }
 
-void VideoTxPacketsBuffer::sendAvailablePackets()
+int VideoTxPacketsBuffer::sendAvailablePackets(int iMaxCountToSend)
 {
    if ( m_iCountReadyToSend <= 0 )
-      return;
+      return 0;
 
    int iToSend = m_iCountReadyToSend;
    if ( iToSend > MAX_PACKETS_TO_SEND_IN_ONE_SLICE )
       iToSend = MAX_PACKETS_TO_SEND_IN_ONE_SLICE;
+   if ( iMaxCountToSend > 0 )
+   if ( iToSend > iMaxCountToSend )
+      iToSend = iMaxCountToSend;
 
    int iCountSent = 0;
    for( int i=0; i<iToSend; i++ )
@@ -553,6 +556,7 @@ void VideoTxPacketsBuffer::sendAvailablePackets()
       if ( m_iCurrentBufferPacketIndexToSend == m_iNextBufferPacketIndexToFill )
          break;
    }
+   return iCountSent;
 }
 
 

@@ -114,7 +114,7 @@ typedef struct
    u32 uSegmentsSize[MAX_SEGMENTS_FILE_UPLOAD];
    bool bSegmentsReceived[MAX_SEGMENTS_FILE_UPLOAD];
    u32 uLastCommandIdForThisFile;
-} __attribute__((packed)) t_structure_file_upload_info;
+} ALIGN_STRUCT_SPEC_INFO t_structure_file_upload_info;
 
 t_structure_file_upload_info s_InfoLastFileUploaded;
 
@@ -868,7 +868,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_FACTORY_RESET )
    {
-      for( int i=0; i<5; i++ )
+      for( int i=0; i<10; i++ )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
          hardware_sleep_ms(50);
@@ -879,7 +879,9 @@ bool process_command(u8* pBuffer, int length)
       hw_execute_bash_command("rm -rf /home/pi/ruby/config", NULL);
       hw_execute_bash_command("rm -rf /home/pi/ruby/tmp", NULL);
       hw_execute_bash_command("mkdir -p config", NULL);
+      #if defined(HW_PLATFORM_RASPBERRY)
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
+      #endif
       char szBuff[128];
       sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
       hw_execute_bash_command(szBuff, NULL);
@@ -995,19 +997,25 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_OVERCLOCKING_PARAMS )
    {
+      if ( iParamsLength != sizeof(command_packet_overclocking_params) )
+      {
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         return true;
+      }
       command_packet_overclocking_params* params = (command_packet_overclocking_params*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->processesPriorities.iFreqARM = params->freq_arm;
       g_pCurrentModel->processesPriorities.iFreqGPU = params->freq_gpu;
       g_pCurrentModel->processesPriorities.iOverVoltage = params->overvoltage;
+      g_pCurrentModel->processesPriorities.uProcessesFlags = params->uProcessesFlags;
       log_line("Received overclocking params: %d mhz arm freq, %d mhz gpu freq, %d overvoltage", g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU, g_pCurrentModel->processesPriorities.iOverVoltage);
+      log_line("Received processes flags: %u", g_pCurrentModel->processesPriorities.uProcessesFlags);
       saveCurrentModel();
       save_config_file();
-
+      signalReloadModel(MODEL_CHANGED_GENERIC, 0);
       #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      hw_execute_bash_command_raw("pidof majestic | xargs kill -9 2>/dev/null ", NULL);
-      hardware_set_oipc_freq_boost(g_pCurrentModel->processesPriorities.iFreqARM, g_pCurrentModel->processesPriorities.iFreqGPU);
-      hw_execute_bash_command("/usr/bin/majestic -s 2>&1 1>/dev/null &", NULL);
+      // Force restart of majestic and update priorities
+      sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_CODEC);
       #endif
 
       return true;
@@ -1060,11 +1068,44 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
          strcat(szBuffer, "#");
 
-         strcat(szBuffer, "Build: ");
          char szTmpBuild[256];
+         strcat(szBuffer, "OpenIPC firmware build: ");
          szTmpBuild[0] = 0;
          hw_execute_bash_command("cat /etc/os-release | grep VERSION_ID", szTmpBuild);
-         for( int i=0; i<strlen(szTmpBuild); i++ )
+         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
+         {
+            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
+               szTmpBuild[i] = ' ';
+         }
+         strcat(szBuffer, szTmpBuild);
+         strcat(szBuffer, "#");
+
+         strcat(szBuffer, "OpenIPC firmware version: ");
+         szTmpBuild[0] = 0;
+         hw_execute_bash_command("cat /etc/os-release | grep OPENIPC_VERSION", szTmpBuild);
+         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
+         {
+            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
+               szTmpBuild[i] = ' ';
+         }
+         strcat(szBuffer, szTmpBuild);
+         strcat(szBuffer, "#");
+
+         strcat(szBuffer, "OpenIPC name: ");
+         szTmpBuild[0] = 0;
+         hw_execute_bash_command("cat /etc/os-release | grep PRETTY_NAME", szTmpBuild);
+         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
+         {
+            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
+               szTmpBuild[i] = ' ';
+         }
+         strcat(szBuffer, szTmpBuild);
+         strcat(szBuffer, "#");
+
+         strcat(szBuffer, "Majestic version: ");
+         szTmpBuild[0] = 0;
+         hw_execute_bash_command("/usr/bin/majestic --version", szTmpBuild);
+         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
          {
             if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
                szTmpBuild[i] = ' ';
@@ -2056,13 +2097,19 @@ bool process_command(u8* pBuffer, int length)
    {
       int cardIndex = (pPHC->command_param) & 0xFF;
       int cardType = ((int)(((pPHC->command_param) >> 8) & 0xFF)) - 128;
-      if ( cardIndex < 0 || cardIndex >= g_pCurrentModel->radioInterfacesParams.interfaces_count )
+      if ( (cardIndex < 0) || (cardIndex >= g_pCurrentModel->radioInterfacesParams.interfaces_count) )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioInterfacesParams.interface_card_model[cardIndex] = cardType;
+      if ( 0 == cardType )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(cardIndex);
+         if ( NULL != pRadioHWInfo )
+             g_pCurrentModel->radioInterfacesParams.interface_card_model[cardIndex] = pRadioHWInfo->iCardModel;
+      }
       saveCurrentModel();
       signalReloadModel(0, 0);
       return true;
@@ -2371,6 +2418,7 @@ bool process_command(u8* pBuffer, int length)
 
       if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
          log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
+      
       bool bMustSignalTXVideo = false;
       bool bVideoResolutionChanged = false;
       bool bMustRestartCapture = false;
@@ -2453,14 +2501,15 @@ bool process_command(u8* pBuffer, int length)
       if ( g_pCurrentModel->video_params.uVideoExtraFlags != oldParams.uVideoExtraFlags )
          bMustRestartCapture = true;
 
+      if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+         bMustRestartCapture = true;
+
       if ( (! bVideoResolutionChanged) && (! bMustRestartCapture) )
       if ( g_pCurrentModel->video_params.uMaxAutoKeyframeIntervalMs != oldParams.uMaxAutoKeyframeIntervalMs )
       {
          signalReloadModel(MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME, 0);
          return true;
       }
-
-      signalReloadModel(0, 0);
 
       if ( (g_pCurrentModel->hasCamera()) && ( g_pCurrentModel->video_params.user_selected_video_link_profile != oldParams.user_selected_video_link_profile ) )
          signalReloadModel(MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE, 0);
@@ -2478,7 +2527,6 @@ bool process_command(u8* pBuffer, int length)
             else
                sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
          }
-         signalReloadModel(0, 0);
       }
       if ( bMustSignalTXVideo )
       {
@@ -3296,8 +3344,40 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_TX_POWERS )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
+      bool bUpdated = false;
+      bool bUpdatedWiFi = false;
+
+      if ( iParamsLength >= 11 )
+      {
+         pData += 8;
+         if ( ( *pData == 0x81 ) && ( *(pData+2) == 0x81 ) )
+         {
+            int iSiKPower = *(pData+1);
+            log_line("Received message with SiK radio power level: %d", iSiKPower);
+
+            if ( iSiKPower > 0 && iSiKPower < 30 )
+            if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
+            {
+               log_line("Updated SiK radio power level to %d", iSiKPower);
+               g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
+               bUpdated = true;
+            }
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+         }
+         else
+         {
+            log_softerror_and_alarm("Received invalid power levels message (for SiK radio interfaces). Ignoring it.");
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         }
+         if ( bUpdated )
+         {
+            saveCurrentModel();
+            signalReloadModel(MODEL_CHANGED_RADIO_POWERS, 0);
+         }
+         return true;
+      }
+
       u8 txPowerRTL8812AU = *pData;
       pData++;
       u8 txPowerRTL8812EU = *pData;
@@ -3315,31 +3395,15 @@ bool process_command(u8* pBuffer, int length)
       u8 cardPower = *pData;
       pData++;
 
-      bool bUpdated = false;
-      bool bUpdatedWiFi = false;
-
+      log_line("Received radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros, txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros);
+      log_line("Current radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
+         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
       
-      if ( iParamsLength >= 11 )
-      {
-         if ( ( *pData == 0x81 ) && ( *(pData+2) == 0x81 ) )
-         {
-            int iSiKPower = *(pData+1);
-            log_line("Received message with SiK radio power level: %d", iSiKPower);
+      log_line("Current radio interfaces count: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d",
+         hardware_radio_has_rtl8812au_cards(), hardware_radio_has_rtl8812eu_cards(), hardware_radio_has_atheros_cards());
 
-            if ( iSiKPower > 0 && iSiKPower < 30 )
-            if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
-            {
-               log_line("Updated SiK radio power level to %d", iSiKPower);
-               g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
-               bUpdated = true;
-            }
-         }
-         else
-            log_softerror_and_alarm("Received invalid power levels message (for SiK radio interfaces). Ignoring it.");
-      }
-      else
-         log_line("Received radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros, txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros);
-      
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+
       if ( (txMaxPowerRTL8812AU != 0xFF) && (txMaxPowerRTL8812AU > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU != txMaxPowerRTL8812AU) )
       {
          g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;

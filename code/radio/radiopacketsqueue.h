@@ -8,7 +8,7 @@ typedef struct
    u8  has_radio_header;
    u8  packet_buffer[MAX_PACKET_TOTAL_SIZE];
    u16 packet_length;
-} __attribute__((packed)) t_packet_queue_item;
+} ALIGN_STRUCT_SPEC_INFO t_packet_queue_item;
 
 typedef struct
 {
@@ -16,7 +16,7 @@ typedef struct
    int queue_start_pos; // position of first element in queue
    int queue_end_pos; // position of first free element in queue (after the last one)
    u32 timeFirstPacket;
-} __attribute__((packed)) t_packet_queue;
+} ALIGN_STRUCT_SPEC_INFO t_packet_queue;
 
 #ifdef __cplusplus
 extern "C" {

@@ -450,7 +450,10 @@ void MenuVehicleExpert::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the controller?", 10);
+         char szTextW[256];
+         if ( NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel )
+            sprintf(szTextW, "Your %s is armed. Are you sure you want to reboot the controller?", g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->getVehicleTypeString());
+         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation", szTextW, 10);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");
@@ -476,6 +479,7 @@ void MenuVehicleExpert::onSelectItem()
    params.freq_arm = g_pCurrentModel->processesPriorities.iFreqARM;
    params.freq_gpu = g_pCurrentModel->processesPriorities.iFreqGPU;
    params.overvoltage = g_pCurrentModel->processesPriorities.iOverVoltage;
+   params.uProcessesFlags = g_pCurrentModel->processesPriorities.uProcessesFlags;
 
    if ( m_IndexCPUEnabled == m_SelectedIndex )
    {

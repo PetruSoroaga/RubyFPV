@@ -177,6 +177,9 @@ void VideoRxPacketsBuffer::_empty_block_buffer_index(int iBufferIndex)
 void VideoRxPacketsBuffer::_empty_buffers(const char* szReason)
 {
    m_bEndOfFirstIFrameDetected = false;
+   m_bIsInsideIFrame = false;
+   m_bFrameEnded = true;
+   m_uFrameEndedTime = 0;
 
    if ( NULL == szReason )
       log_line("Empty buffers (no reason)");
@@ -463,6 +466,18 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
    {
       m_uMaxVideoBlockIndexReceived = pPHVF->uCurrentBlockIndex;
       m_uMaxVideoBlockPacketIndexReceived = pPHVF->uCurrentBlockPacketIndex;
+
+      if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
+         m_bIsInsideIFrame = true;
+      else
+         m_bIsInsideIFrame = false;
+
+      m_bFrameEnded = false;
+      if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME )
+      {
+         m_bFrameEnded = true;
+         m_uFrameEndedTime = g_TimeNow;
+      }
       return true;    
    }
    return false;
@@ -724,4 +739,19 @@ void VideoRxPacketsBuffer::advanceStartPositionToVideoBlock(u32 uVideoBlockIndex
       if ( 0 == m_VideoBlocks[m_iBufferIndexFirstReceivedBlock].uVideoBlockIndex )
          break;
    }
+}
+
+bool VideoRxPacketsBuffer::isFrameEnded()
+{
+   return m_bFrameEnded;
+}
+
+u32 VideoRxPacketsBuffer::getLastFrameEndTime()
+{
+   return m_uFrameEndedTime;
+}
+
+bool VideoRxPacketsBuffer::isInsideIFrame()
+{
+   return m_bIsInsideIFrame;
 }

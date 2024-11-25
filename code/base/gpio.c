@@ -77,6 +77,7 @@ int _gpio_reverse_find_pin_mapping(int iGPIOPin)
    log_line("[GPIO] Mapped PIN_%d to Radxa pin %d", iGPIOPin, iNewPin);
    return iNewPin;
    #endif
+   return -1;
 }
 
 void _gpio_load_custom_mapping()

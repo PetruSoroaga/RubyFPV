@@ -58,3 +58,4 @@ extern u32 g_uTimeLastCommandSowftwareUpload;
 extern u32 g_uTimeLastVideoTxOverload;
 
 extern u32 g_uTimeToSaveCameraParams;
+extern u32 g_uTimeStartNegociatingRadioLinks;

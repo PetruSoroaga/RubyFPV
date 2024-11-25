@@ -1,5 +1,6 @@
 #pragma once
 #include "../public/i2c_protocols.h"
+#include "config.h"
 
 #define MAX_I2C_BUS_COUNT 10
 #define MAX_I2C_BUS_NAME 32
@@ -60,7 +61,7 @@ typedef struct
    char szName[MAX_I2C_BUS_NAME];
    u8 devices[128]; // 0 - none, 1 - detected
    u8 picoExtenderVersion;
-} __attribute__((packed)) hw_i2c_bus_info_t;
+} ALIGN_STRUCT_SPEC_INFO hw_i2c_bus_info_t;
 
 
 typedef struct
@@ -73,7 +74,7 @@ typedef struct
    int  bEnabled;
    u32  uCapabilitiesFlags;
    u32  uParams[MAX_I2C_DEVICE_SETTINGS];
-} t_i2c_device_settings;
+} ALIGN_STRUCT_SPEC_INFO t_i2c_device_settings;
 
 
 void hardware_i2c_reset_enumerated_flag();

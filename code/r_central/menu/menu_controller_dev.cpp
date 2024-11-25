@@ -145,8 +145,8 @@ void MenuControllerDev::addItems()
    addMenuItem(new MenuItemSection("Other Settings"));
 
    m_IndexVersion = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
-
    m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
+   m_IndexExit = addMenuItem(new MenuItem("Exit to shell", "Closes Ruby and exits to linux shell."));
 
    for( int i=0; i<m_ItemsCount; i++ )
       m_pMenuItems[i]->setTextColor(get_Color_Dev());
@@ -433,6 +433,12 @@ void MenuControllerDev::onSelectItem()
    {
       add_menu_to_stack(new MenuControllerDevStatsConfig());
       return;
+   }
+
+   if ( m_IndexExit == m_SelectedIndex )
+   {
+      pairing_stop();
+      g_bQuit = true;
    }
 }
 

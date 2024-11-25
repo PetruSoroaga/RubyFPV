@@ -61,7 +61,7 @@ typedef struct
    u32 uTotalLoopTime;
    u32 uAverageLoopTimeMs;
    u32 uMaxLoopTimeMs;
-} __attribute__((packed)) shared_mem_process_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_process_stats;
 
 
 #define MAX_INTERVALS_VIDEO_LINK_SWITCHES 50
@@ -91,7 +91,7 @@ typedef struct
    u8 controller_received_video_streams_blocks_max_ec_packets_used[MAX_VIDEO_STREAMS][MAX_INTERVALS_VIDEO_LINK_STATS];
    u8 controller_received_video_streams_requested_retransmission_packets[MAX_VIDEO_STREAMS][MAX_INTERVALS_VIDEO_LINK_STATS];
 
-} __attribute__((packed)) shared_mem_video_link_graphs;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_link_graphs;
 
 
 #define MAX_INTERVALS_VIDEO_BITRATE_HISTORY 70
@@ -106,7 +106,7 @@ typedef struct
    u16 uVideoBitrateAvgKb; // only video data
    u16 uTotalVideoBitrateAvgKb; // video data + EC + radio headers
    u8  uVideoProfileSwitches; // bit 0..3 - level, bit 4..7 - profile 
-} __attribute__((packed)) shared_mem_dev_video_bitrate_history_datapoint;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_dev_video_bitrate_history_datapoint;
 
 typedef struct
 {
@@ -119,7 +119,7 @@ typedef struct
    u32 uCurrentTargetVideoBitrate;
 
    shared_mem_dev_video_bitrate_history_datapoint  history[MAX_INTERVALS_VIDEO_BITRATE_HISTORY];
-} __attribute__((packed)) shared_mem_dev_video_bitrate_history;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_dev_video_bitrate_history;
 
 
 #define MAX_FRAMES_SAMPLES 60
@@ -145,7 +145,7 @@ typedef struct
    u32 uExtraValue1;
    u32 uExtraValue2;
    
-} __attribute__((packed)) shared_mem_video_info_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_info_stats;
 
 #define MAX_RADIO_TX_TIMES_HISTORY_INTERVALS 50
 
@@ -169,7 +169,7 @@ typedef struct
    u32 aTmpInterfacesTxTotalTimeMicros[MAX_RADIO_INTERFACES];
    u32 aTmpInterfacesTxVideoTimeMicros[MAX_RADIO_INTERFACES];
 
-} type_radio_tx_timers;
+} ALIGN_STRUCT_SPEC_INFO type_radio_tx_timers;
 
 
 void* open_shared_mem(const char* name, int size, int readOnly);

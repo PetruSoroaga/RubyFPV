@@ -31,6 +31,7 @@ extern u32  g_uSearchFrequency;
 extern u32  g_uAcceptedFirmwareType;
 extern bool g_bUpdateInProgress;
 extern bool s_bReceivedInvalidRadioPackets;
+extern bool g_bNegociatingRadioLinks;
 
 extern bool g_bDebugIsPacketsHistoryGraphOn;
 extern bool g_bDebugIsPacketsHistoryGraphPaused;

@@ -669,7 +669,7 @@ int r_start_vehicle(int argc, char *argv[])
    int counter = 0;
    bool bMustRestart = false;
    int iRestartCount = 0;
-   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
+   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 1000;
    u32 uTimeLoopLog = g_TimeStart;
 
    char szFileUpdate[MAX_FILE_PATH_SIZE];

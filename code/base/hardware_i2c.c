@@ -69,6 +69,7 @@ void hardware_i2c_log_devices()
    if ( ! s_iI2CDeviceSettingsLoaded )
       hardware_i2c_load_device_settings();
 
+   log_line("[Hardware] -----------------------------------------");
    log_line("[Hardware] I2C Buses: %d", s_iHardwareI2CBusCount);
 
    char szBuff[256];
@@ -98,6 +99,7 @@ void hardware_i2c_log_devices()
          log_line("[Hardware] %d I2C devices on bus %d (%d %s): %s", iCount, i, s_HardwareI2CBusInfo[i].nBusNumber, s_HardwareI2CBusInfo[i].szName, szBuff);
    }
 
+   log_line("[Hardware] -----------------------------------------");
    log_line("[Hardware] Settings stored for %d I2C devices:", s_iCountI2CDevicesSettings);
    szBuff[0] = 0;
    for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
@@ -105,16 +107,18 @@ void hardware_i2c_log_devices()
       if ( s_listI2CDevicesSettings[i].nDeviceType > 0 )
       if ( s_listI2CDevicesSettings[i].nI2CAddress > 0 )
       {
+         szBuff[0] = 0;
          char szTmp[32];
          if ( 0 == szBuff[0] )
             sprintf(szTmp, "%d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
          else
             sprintf(szTmp, ", %d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
+         
          strcat(szBuff, szTmp);
+         log_line("[Hardware] Dev I2CAddress/Type: %s, Custom params: %d %d %d", szBuff, s_listI2CDevicesSettings[i].uParams[0], s_listI2CDevicesSettings[i].uParams[1], s_listI2CDevicesSettings[i].uParams[2]);
       }
    }
-   if ( 0 < s_iCountI2CDevicesSettings )
-      log_line("[Hardware] Dev I2CAddress/Type: %s", szBuff);
+   log_line("[Hardware] -----------------------------------------");
 }
 
 void hardware_enumerate_i2c_busses()

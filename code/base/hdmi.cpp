@@ -2,6 +2,7 @@
 #include "base.h"
 #include "config.h"
 #include "hardware.h"
+#include "hardware_files.h"
 #include "hw_procs.h"
 #include <errno.h>
 #include <unistd.h>
@@ -18,6 +19,7 @@
 #define HDMI_ASPECT_MODE_16_10 2
 #define HDMI_ASPECT_MODE_21_9 3
 
+void hardware_mount_root();
 
 int s_nHDMI_CurrentResolutionIndex = -1;
 int s_nHDMI_CurrentResolutionRefreshIndex = -1;

@@ -86,6 +86,7 @@ class RenderEngine
 
      virtual int loadRawFont(const char* szFontFile);
      virtual void freeRawFont(u32 idFont);
+     virtual void setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a);
      virtual u32 loadImage(const char* szFile);
      virtual void freeImage(u32 idImage);
      virtual u32 loadIcon(const char* szFile);

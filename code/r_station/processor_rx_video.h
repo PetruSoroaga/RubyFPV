@@ -81,7 +81,7 @@ class ProcessorRxVideo
       void resumeProcessing();
 
       u32 getLastTimeVideoStreamChanged();
-      u32 getLastTimeReceivedVideoPacket();
+      u32 getLastestVideoPacketReceiveTime();
       int getCurrentlyReceivedVideoProfile();
       int getCurrentlyReceivedVideoFPS();
       int getCurrentlyReceivedVideoKeyframe();
@@ -102,7 +102,8 @@ class ProcessorRxVideo
       u32 m_uVehicleId;
       u8 m_uVideoStreamIndex;
       int m_iIndexVideoDecodeStats;
-      u32 m_uTimeLastReceivedVideoPacket;
+      u32 m_uLatestVideoPacketReceiveTime;
+      VideoRxPacketsBuffer* m_pVideoRxBuffer;
 
    protected:
       void resetReceiveState();
@@ -131,7 +132,6 @@ class ProcessorRxVideo
       bool m_bInitialized;
       int m_iInstanceIndex;
       bool m_bPaused;
-      VideoRxPacketsBuffer* m_pVideoRxBuffer;
       
       // Configuration
 
@@ -170,4 +170,3 @@ class ProcessorRxVideo
       u32 m_uLastBlockReceivedSetVideoBitrate;
       u32 m_uLastBlockReceivedEncodingExtraFlags2;
 };
-

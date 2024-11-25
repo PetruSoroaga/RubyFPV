@@ -51,6 +51,7 @@
 #define PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED 206 // used when changed the search frequency on the controller // vehicle_dest_src is the new frequency to search on
 #define PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED 207 // u32: link id, u32: new freq
 
+#define PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE 208 // vehicle_id_dest: timeout to pause adaptive video (int milisec) or zero to resume
 
 #define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_VIDEO_PROFILE_SWITCHED 216 // vehicle_id_dest contains the new video profile used right now
 #define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_ROUTER_READY 220

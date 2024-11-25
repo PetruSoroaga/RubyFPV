@@ -30,6 +30,7 @@
 */
 
 #include "../base/base.h"
+#include "../base/config.h"
 #include <pthread.h>
 #include "../common/radio_stats.h"
 #include "../common/string_utils.h"
@@ -46,14 +47,14 @@ typedef struct
    u32 uLastReceivedPacketIndex;
    u32 uLastTimeReceivedPacket;
    u32 packetsHashIndexes[PACKETS_INDEX_HASH_SIZE];
-} __attribute__((packed)) t_stream_history_packets_indexes;
+} ALIGN_STRUCT_SPEC_INFO t_stream_history_packets_indexes;
 
 typedef struct
 {
    u32 uVehicleId;
    t_stream_history_packets_indexes streamsPacketsHistory[MAX_RADIO_STREAMS];
    int iRestartDetected;
-} __attribute__((packed)) t_vehicle_history_packets_indexes;
+} ALIGN_STRUCT_SPEC_INFO t_vehicle_history_packets_indexes;
 
 t_vehicle_history_packets_indexes s_ListHistoryRxPacketsVehicles[MAX_CONCURENT_VEHICLES];
 

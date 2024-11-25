@@ -57,6 +57,10 @@ class VideoRxPacketsBuffer
       void advanceStartPosition();
       void advanceStartPositionToVideoBlock(u32 uVideoBlockIndex);
 
+      bool isFrameEnded();
+      u32 getLastFrameEndTime();
+      bool isInsideIFrame();
+
    protected:
 
       bool _check_allocate_video_block_in_buffer(int iBufferIndex);
@@ -74,6 +78,9 @@ class VideoRxPacketsBuffer
       int m_iCameraIndex;
       u32 m_uMaxVideoBlockIndexInBuffer;
       bool m_bEndOfFirstIFrameDetected;
+      bool m_bIsInsideIFrame;
+      bool m_bFrameEnded;
+      u32  m_uFrameEndedTime;
 
       int m_iBufferIndexFirstReceivedBlock;
       int m_iBufferIndexFirstReceivedPacketIndex;

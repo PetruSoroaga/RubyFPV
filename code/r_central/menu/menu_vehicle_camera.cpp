@@ -93,6 +93,7 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexVideoStab = m_IndexFlip = m_IndexReset = -1;
    m_IndexIRCut = -1;
    m_IndexOpenIPCDayNight = -1;
+   m_IndexOpenIPC3A = -1;
 }
 
 void MenuVehicleCamera::addItems()
@@ -288,6 +289,13 @@ void MenuVehicleCamera::addItems()
    }
    else if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
+      m_pItemsSelect[22] = new MenuItemSelect("3A Algorithms", "Sets 3A algorithms (autoexposure, autowhitebalance, autofocus) used by the camera ISP processor.");
+      m_pItemsSelect[22]->addSelection("Default");
+      m_pItemsSelect[22]->addSelection("Sigmastar");
+      m_pItemsSelect[22]->setIsEditable();
+      m_pItemsSelect[22]->setMargin(fMargin);
+      m_IndexOpenIPC3A = addMenuItem(m_pItemsSelect[22]);
+
       m_pItemsSelect[7] = new MenuItemSelect("Shutter Speed", "Sets the shutter speed to be auto controllerd by camera or manula set by user.");  
       m_pItemsSelect[7]->addSelection("Auto");
       m_pItemsSelect[7]->addSelection("Manual");
@@ -500,6 +508,15 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
          m_pItemsSelect[15]->setEnabled(false);
    }
 
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+   if ( -1 != m_IndexOpenIPC3A )
+   if ( NULL != m_pItemsSelect[22] )
+   {
+      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].uFlags & CAMERA_FLAG_OPENIPC_3A_SIGMASTAR )
+         m_pItemsSelect[22]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[22]->setSelectedIndex(0);
+   }
    if ( (-1 != m_IndexWhiteBalance) && (NULL != m_pItemsSelect[3]) )
       m_pItemsSelect[3]->setSelection(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].whitebalance);
 
@@ -704,6 +721,14 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
       bSendToVehicle = true;
    }
 
+   if ( -1 != m_IndexOpenIPC3A )
+   if ( NULL != m_pItemsSelect[22] )
+   {
+      if ( 0 == m_pItemsSelect[22]->getSelectedIndex() )
+         cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_OPENIPC_3A_SIGMASTAR;
+      else
+         cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_OPENIPC_3A_SIGMASTAR; 
+   }
    if (-1 != m_IndexOpenIPCDayNight)
    if ((m_IndexOpenIPCDayNight == itemIndex) || (itemIndex == -1))
    {
@@ -1020,6 +1045,10 @@ void MenuVehicleCamera::onSelectItem()
 
    if ( m_IndexIRCut != -1 )
    if ( m_IndexIRCut == m_SelectedIndex )
+      sendCameraParams(-1, false);
+
+   if ( m_IndexOpenIPC3A != -1 )
+   if ( m_IndexOpenIPC3A == m_SelectedIndex )
       sendCameraParams(-1, false);
 
    if (m_IndexOpenIPCDayNight != -1)

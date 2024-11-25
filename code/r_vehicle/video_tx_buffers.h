@@ -29,7 +29,7 @@ class VideoTxPacketsBuffer
       void fillVideoPackets(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame);
       void addNewVideoPacket(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame);
       int hasPendingPacketsToSend();
-      void sendAvailablePackets();
+      int sendAvailablePackets(int iMaxCountToSend);
       void resendVideoPacket(u32 uRetransmissionId, u32 uVideoBlockIndex, u32 uVideoBlockPacketIndex);
 
    protected:

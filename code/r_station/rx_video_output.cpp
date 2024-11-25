@@ -149,10 +149,10 @@ void _rx_video_output_launch_video_player()
    strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_PIPE);
    
    log_line("[VideoOutput] Starting video player [%s]", s_szOutputVideoPlayerFilename);
-
-   if ( hw_process_exists(s_szOutputVideoPlayerFilename) )
+   int iPID = hw_process_exists(s_szOutputVideoPlayerFilename);
+   if ( iPID > 0 )
    {
-      log_line("[VideoOutput] Video player process already running. Do nothing.");
+      log_line("[VideoOutput] Video player process already running (PID %d). Do nothing.", iPID);
       return;
    }
 
@@ -206,9 +206,10 @@ void _rx_video_output_launch_video_player()
 
    strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_UDP);
    log_line("[VideoOutput] Starting video player [%s]", s_szOutputVideoPlayerFilename);
-   if ( hw_process_exists(s_szOutputVideoPlayerFilename) )
+   int iPID = hw_process_exists(s_szOutputVideoPlayerFilename);
+   if ( iPID > 0 )
    {
-      log_line("[VideoOutput] Video player process already running. Do nothing.");
+      log_line("[VideoOutput] Video player process already running (PID: %d). Do nothing.", iPID);
       return;
    }
 
@@ -540,6 +541,21 @@ void rx_video_output_uninit()
 
 void rx_video_output_enable_pipe_output()
 {
+   #if defined(HW_PLATFORM_RASPBERRY)
+   strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_PIPE);
+   #endif
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   strcpy(s_szOutputVideoPlayerFilename, VIDEO_PLAYER_UDP);
+   #endif
+
+   hardware_sleep_ms(100);
+   int iPID = hw_process_exists(s_szOutputVideoPlayerFilename);
+   if ( iPID < 10 )
+   {
+      log_line("[VideoOutput] Player is not running, start it...");
+      _rx_video_output_launch_video_player();
+   }
+
    log_line("[VideoOutput] Opening video output pipe write endpoint: %s", FIFO_RUBY_STATION_VIDEO_STREAM);
    if ( -1 != s_fPipeVideoOutToPlayer )
    {

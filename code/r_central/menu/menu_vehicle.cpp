@@ -88,7 +88,7 @@ void MenuVehicle::onShow()
    //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
    //   m_pMenuItems[m_IndexGeneral]->setEnabled(false);
 
-   m_IndexRadio = addMenuItem(new MenuItem("Radio Configuration", "Change the radio configuration of this vehicle."));
+   m_IndexRadio = addMenuItem(new MenuItem("Radio Links", "Change the radio links configuration of this vehicle."));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexRadio]->setEnabled(false);
 

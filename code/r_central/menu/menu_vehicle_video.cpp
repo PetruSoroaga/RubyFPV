@@ -42,6 +42,7 @@
 #include "menu_item_section.h"
 
 #include "../osd/osd_common.h"
+#include "../process_router_messages.h"
 
 MenuVehicleVideo::MenuVehicleVideo(void)
 :Menu(MENU_ID_VEHICLE_VIDEO, "Video Settings", NULL)
@@ -440,6 +441,8 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
    log_line("Sending new video link profiles to vehicle.");
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES, 0, buffer, MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile)) )
       valuesToUI();
+   else
+      send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 10000);
 }
 
 
@@ -598,7 +601,9 @@ void MenuVehicleVideo::onSelectItem()
          #endif
          if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
          {
-            addMessage("Your vehicle raspberry Pi hardware supports only H264 video encoder/decoder.");
+            char szTextW[256];
+            sprintf(szTextW, "Your %s's Raspberry Pi hardware supports only H264 video encoder/decoder.", g_pCurrentModel->getVehicleTypeString());
+            addMessage(szTextW);
             valuesToUI();
             return;
          }         
@@ -612,5 +617,7 @@ void MenuVehicleVideo::onSelectItem()
       if ( g_pCurrentModel->video_params.uVideoExtraFlags != paramsNew.uVideoExtraFlags )
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
          valuesToUI();
+      else
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 10000);
    }
 }

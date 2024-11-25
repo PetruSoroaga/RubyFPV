@@ -1072,7 +1072,7 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pRad
    // Retransmissions roundtrip
    if ( NULL != pActiveModel )
    if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
-      height += 3.0 * height_text * s_OSDStatsLineSpacing;
+      height += 4.0 * height_text * s_OSDStatsLineSpacing;
 
    if ( NULL != pActiveModel )
    if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
@@ -1232,19 +1232,15 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       int iLocalRadioLinkId = iLocalRadioLinkIdForVehicleRadioLinks[iVehicleRadioLink];
       if ( 1 == iCountVehicles )
       {
-         u32 uRTDelay = MAX_U32;
-         for( int k=0; k<MAX_CONCURENT_VEHICLES; k++ )
-         {
-            if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] != g_pCurrentModel->uVehicleId )
-               continue;
-            uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
-            break;
-         }
+         int iRTDelay = 0;
+         controller_runtime_info_vehicle* pRTInfoVehicle = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, g_pCurrentModel->uVehicleId);
+         if ( NULL != pRTInfoVehicle )
+            iRTDelay = pRTInfoVehicle->uAckTimes[pRTInfoVehicle->iAckTimeIndex[iLocalRadioLinkId]][iLocalRadioLinkId];
          sprintf(szBuff, "Link-%d RT delay:", iVehicleRadioLink+1);
-         if ( (uRTDelay == MAX_U32) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+         if ( (iRTDelay == 0) || (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
             strcpy(szBuff2, "N/A");
          else
-            sprintf(szBuff2, "%u ms", uRTDelay/1000);
+            sprintf(szBuff2, "%u ms", iRTDelay);
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, szBuff, szBuff2);
          y += height_text*s_OSDStatsLineSpacing;
          continue;
@@ -1259,17 +1255,22 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       {
          if ( g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k] == 0 )
             continue;
-         u32 uRTDelay = g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[k][iLocalRadioLinkId];
+
+         int iRTDelay = 0;
+         controller_runtime_info_vehicle* pRTInfoVehicle = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k]);
+         if ( NULL != pRTInfoVehicle )
+            iRTDelay = pRTInfoVehicle->uAckTimes[pRTInfoVehicle->iAckTimeIndex[iLocalRadioLinkId]][iLocalRadioLinkId];
+
          Model* pModel = findModelWithId(g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[k], 31);
          if ( NULL != pModel )
             sprintf(szBuff, "%s:",pModel->getLongName());
          else
             sprintf(szBuff, "Vehicle %d:", k+1);
          str_capitalize_first_letter(szBuff);
-         if ( uRTDelay == MAX_U32 )
+         if ( iRTDelay == 0 )
             strcpy(szBuff2, "N/A");
          else
-            sprintf(szBuff2, "%u ms", uRTDelay/1000);
+            sprintf(szBuff2, "%u ms", iRTDelay);
          _osd_stats_draw_line(xPos + height_text, rightMargin, y, s_idFontStats, szBuff, szBuff2);
          y += height_text*s_OSDStatsLineSpacing;
       }
@@ -1305,6 +1306,13 @@ float osd_render_stats_local_radio_links( float xPos, float yPos, const char* sz
       }
       */
       g_pRenderEngine->setColors(get_Color_Dev());
+      strcpy(szBuff, "None");
+      if ( pActiveModel->rxtx_sync_type == RXTX_SYNC_TYPE_BASIC )
+         strcpy(szBuff, "Basic");
+      if ( pActiveModel->rxtx_sync_type == RXTX_SYNC_TYPE_ADV )
+         strcpy(szBuff, "Adv");
+      _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, "Clock sync type:", szBuff);
+      y += height_text*s_OSDStatsLineSpacing;
 
       // To fix
       /*

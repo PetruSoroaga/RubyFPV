@@ -57,6 +57,7 @@
 #include "menu_update_vehicle.h"
 #include "menu_confirmation.h"
 #include "menu_confirmation_vehicle_board.h"
+#include "menu_negociate_radio.h"
 #include "process_router_messages.h"
 #include "fonts.h"
 
@@ -517,6 +518,23 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    
    bool bRadioChanged = false;
    bool bCameraChanged = false;
+   bool bMustNegociateRadioLinks = false;
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
+   if ( !(pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+      bMustNegociateRadioLinks = true;
+
+   if ( pModel->radioInterfacesParams.interfaces_count != modelTemp.radioInterfacesParams.interfaces_count )
+      bMustNegociateRadioLinks = true;
+   for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+       if ( pModel->radioInterfacesParams.interface_card_model[i] != modelTemp.radioInterfacesParams.interface_card_model[i] )
+           bMustNegociateRadioLinks = true;
+       if ( pModel->radioInterfacesParams.interface_radiotype_and_driver[i] != modelTemp.radioInterfacesParams.interface_radiotype_and_driver[i] )
+           bMustNegociateRadioLinks = true;
+       if ( 0 != strcmp(pModel->radioInterfacesParams.interface_szMAC[i], modelTemp.radioInterfacesParams.interface_szMAC[i]) )
+           bMustNegociateRadioLinks = true;
+   }
 
    if ( pModel->uVehicleId == modelTemp.uVehicleId )
    {
@@ -528,6 +546,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
             (modelTemp.camera_params[modelTemp.iCurrentCamera].iForcedCameraType != pModel->camera_params[pModel->iCurrentCamera].iForcedCameraType ) )
             bCameraChanged = true;
       }
+
       bRadioChanged = IsModelRadioConfigChanged(&(pModel->radioLinksParams), &(pModel->radioInterfacesParams),
         &(modelTemp.radioLinksParams), &(modelTemp.radioInterfacesParams));
       log_line("Received model has different radio config? %s", bRadioChanged?"yes":"no");
@@ -600,6 +619,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    log_line("The vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pModel->sw_version)>>8) & 0xFF, (pModel->sw_version) & 0xFF, ((pModel->sw_version)>>16), pModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
    
+
    bool bMustUpdate = false;  
    if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pModel->sw_version & 0xFFFF) )
       bMustUpdate = true;
@@ -624,9 +644,11 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       char szBuff[256];
       char szBuff2[32];
       char szBuff3[32];
+      char szBuff4[64];
       getSystemVersionString(szBuff2, pModel->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      sprintf(szBuff, "Vehicle has Ruby version %s (b%d) and your controller %s (b%d). You should update your vehicle.", szBuff2, pModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
+      strcpy(szBuff4, pModel->getVehicleTypeString());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%d) and your controller %s (b%d). You should update your %s.", szBuff4, szBuff2, pModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
       warnings_add(pModel->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
       if ( g_VehiclesRuntimeInfo[iRuntimeIndex].bGotFCTelemetry )
@@ -639,6 +661,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       {
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;
+          bMustNegociateRadioLinks = false;
       }
    }
 
@@ -649,6 +672,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
    {
       add_menu_to_stack( new MenuConfirmationVehicleBoard() );
+      bMustNegociateRadioLinks = false;
    }
 
    pModel->is_spectator = is_spectator;
@@ -671,6 +695,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    pModel->logVehicleRadioInfo();
 
+   char szTextW[256];
+
    // Check supported cards
 
    if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
@@ -682,21 +708,25 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    
       if ( countUnsuported == pModel->radioInterfacesParams.interfaces_count )
       {
-         Popup* p = new Popup("No radio interface on your vehicle is fully supported.", 0.3,0.4, 0.5, 6);
+         sprintf(szTextW, "No radio interface on your %s is fully supported.", pModel->getVehicleTypeString());
+         Popup* p = new Popup(szTextW, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconError, get_Color_IconError());
          popups_add_topmost(p);
       }
       else if ( countUnsuported > 0 )
       {
-         Popup* p = new Popup("Some radio interfaces on your vehicle are not fully supported.", 0.3,0.4, 0.5, 6);
+         sprintf(szTextW, "Some radio interfaces on your %s are not fully supported.", pModel->getVehicleTypeString());
+         Popup* p = new Popup(szTextW, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
       }
    }
 
    if ( pModel->alarms & ALARM_ID_UNSUPORTED_USB_SERIAL )
-      warnings_add(pModel->uVehicleId, "Your vehicle has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", g_idIconError);
-
+   {
+      sprintf(szTextW, "Your %s has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", pModel->getVehicleTypeString());
+      warnings_add(pModel->uVehicleId, szTextW, g_idIconError);
+   }
    if ( pModel->audio_params.enabled )
    {
       if ( ! pModel->audio_params.has_audio_device )
@@ -752,7 +782,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    if ( bMustPair )
    {
-      Popup* p = new Popup("Radio links configuration changed on the vehicle. Updating local radio configuration...", 0.15,0.5, 0.7, 5);
+      sprintf(szTextW, "Radio links configuration changed on your %s. Updating local radio configuration...", pModel->getVehicleTypeString());
+      Popup* p = new Popup(szTextW, 0.15,0.5, 0.7, 5);
       p->setIconId(g_idIconRadio, get_Color_IconWarning());
       popups_add_topmost(p);
 
@@ -761,6 +792,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       hardware_sleep_ms(100);
       pairing_start_normal();
       log_line("[Events] Handing of event OnReceivedModelSettings complete.");
+      bMustNegociateRadioLinks = false;
       return true;
    }
 
@@ -777,12 +809,26 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    #if defined(HW_PLATFORM_RASPBERRY)
    if ( pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
    {
-       warnings_add(pModel->uVehicleId, "Your vehicle generates H265 video but your controller supports only H264. Change vehicle video encoder to H264 encoder", g_idIconCamera, get_Color_IconWarning() );
-       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec","Your vehicle generates H265 video but your controller supports only H264. Change vehicle video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", 0, true);
+       char szVehicleType[64];
+       strcpy(szVehicleType, pModel->getVehicleTypeString());
+       sprintf(szTextW, "Your %s generates H265 video but your controller supports only H264. Change the %s video encoder to H264 encoder", szVehicleType, szVehicleType);
+       warnings_add(pModel->uVehicleId, szTextW, g_idIconCamera, get_Color_IconWarning() );
+       snprintf(szTextW, sizeof(szTextW)/sizeof(szTextW[0]), "Your %s generates H265 video but your controller supports only H264. Change teh %s video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", szVehicleType, szVehicleType);
+       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec", szTextW, 0, true);
        pMC->m_yPos = 0.3;
        add_menu_to_stack(pMC);
+       bMustNegociateRadioLinks = false;
    }
    #endif
+
+   if ( pModel->hasCamera() )
+   if ( bMustNegociateRadioLinks )
+   if ( ! g_bDidAnUpdate )
+   if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
+   {
+      add_menu_to_stack(new MenuNegociateRadio());
+   }
+
    log_line("[Event] Handled of event OnReceivedModelSettings complete.");
    return true;
 }

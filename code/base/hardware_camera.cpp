@@ -341,7 +341,7 @@ int hardware_isCameraHDMI()
 }
 
 
-void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameters_t* pCameraParams, bool bForceUpdate)
+void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameters_t* pCameraParams)
 {
    if ( NULL == pCameraParams )
    {
@@ -361,6 +361,14 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
 
    sprintf(szComm, "cli -s .image.hue %d", pCameraParams->hue);
    hw_execute_bash_command_raw(szComm, NULL);
+
+   if ( pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_3A_SIGMASTAR )
+      hw_execute_bash_command_raw("cli -s .fpv.enabled true", NULL);
+   else
+   {
+      hw_execute_bash_command_raw("cli -s .fpv.enabled false", NULL);
+      hw_execute_bash_command_raw("cli -d .fpv.enabled", NULL);
+   }
 
    if ( pCameraParams->flip_image )
    {
@@ -391,9 +399,6 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
 
    hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
    hardware_camera_set_daylight_off(pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
-
-   if ( bForceUpdate )
-      hw_execute_bash_command_raw("killall -1 majestic", NULL);
 }
 
 void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_parameters_t* pCameraParams, int iVideoProfile, video_parameters_t* pVideoParams)
@@ -437,7 +442,7 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   hardware_camera_apply_all_majestic_camera_settings(pCameraParams, true);
+   hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
 }
 
 void hardware_camera_set_irfilter_off(int iOff)

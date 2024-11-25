@@ -40,7 +40,7 @@ typedef struct
    // 3 bits: bit 13..15 - datarate // 1, 2, 6, 9, 11, 12, 18, 24
 
    u32 lastMilisecond;
-} __attribute__((packed)) shared_mem_router_packets_stats_history;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_router_packets_stats_history;
 
 
 #define MAX_AUDIO_HISTORY_BUFFERS 32
@@ -59,7 +59,7 @@ typedef struct
     u8 uHistoryReceivedIncompleteBlocks[MAX_HISTORY_VIDEO_INTERVALS];
     u8 uHistoryRepairedBlocks[MAX_HISTORY_VIDEO_INTERVALS];
     u8 uHistoryBadBlocks[MAX_HISTORY_VIDEO_INTERVALS];
-} __attribute__((packed)) shared_mem_audio_decode_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_audio_decode_stats;
 
 typedef struct
 {
@@ -73,12 +73,12 @@ typedef struct
    u32 uCurrentFECTimeMicros; // in micro seconds per second   
    int iCurrentPacketsInBuffers;
    int iMaxPacketsInBuffers;
-} __attribute__((packed)) shared_mem_video_stream_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats;
 
 typedef struct
 {
    shared_mem_video_stream_stats video_streams[MAX_VIDEO_PROCESSORS];
-} __attribute__((packed)) shared_mem_video_stream_stats_rx_processors;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_rx_processors;
 
 typedef struct
 {
@@ -100,12 +100,12 @@ typedef struct
    u8 outputHistoryBlocksDiscardedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
    u16 missingTotalPacketsAtPeriod[MAX_HISTORY_VIDEO_INTERVALS];
    u16 totalCurrentlyMissingPackets;
-} __attribute__((packed)) shared_mem_video_stream_stats_history;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_history;
 
 typedef struct
 {
    shared_mem_video_stream_stats_history video_streams[MAX_VIDEO_PROCESSORS];
-} __attribute__((packed)) shared_mem_video_stream_stats_history_rx_processors;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_history_rx_processors;
 
 
 #define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 80 // sampled every 40 ms
@@ -166,22 +166,17 @@ typedef struct
    u32 uTimeLastKFShiftUp;
 
    u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
-} __attribute__((packed)) shared_mem_controller_adaptive_video_info_vehicle;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_controller_adaptive_video_info_vehicle;
 
 typedef struct
 {
    u32 uVehiclesIds[MAX_CONCURENT_VEHICLES];
-   u32 uPingRoundtripTimeVehiclesOnLocalRadioLinks[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
    u32 uAverageCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
    u32 uMaxCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
    u32 uMinCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
 
-   u32 uRadioLinksDelayRoundtripMsLastTime[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
-   u32 uRadioLinksDelayRoundtripMs[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
-   u32 uRadioLinksDelayRoundtripMsMin[MAX_CONCURENT_VEHICLES][MAX_RADIO_INTERFACES];
-
    shared_mem_controller_adaptive_video_info_vehicle vehicles_adaptive_video[MAX_CONCURENT_VEHICLES];
-} __attribute__((packed)) shared_mem_router_vehicles_runtime_info;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_router_vehicles_runtime_info;
 
 
 typedef struct
@@ -190,7 +185,7 @@ typedef struct
    u32 uMeasureIntervalMs;
    u32 uLastMeasureTime;
    u8 uCurrentIndex;
-} __attribute__((packed)) shared_mem_radio_rx_queue_info;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_rx_queue_info;
 
 
 shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_read();

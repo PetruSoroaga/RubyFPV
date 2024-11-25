@@ -574,6 +574,8 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
    log_line("Sending new video link profiles to vehicle.");
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES, 0, buffer, MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile)) )
       valuesToUI();
+   else
+      send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 10000);
 }
 
 

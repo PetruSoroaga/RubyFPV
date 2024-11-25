@@ -158,7 +158,9 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
 
          //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Upload Succeeded",NULL);
          //pm->addTopLine("Your vehicle was updated. It will reboot now.");
-         Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", 3, true);
+         char szTextW[256];
+         sprintf(szTextW, "Your %s was updated. It will reboot now.", g_pCurrentModel->getVehicleTypeString());
+         Menu* pm = new MenuConfirmation("Upload Succeeded", szTextW, 3, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
@@ -366,7 +368,7 @@ void MenuVehicleManagement::onSelectItem()
    if ( m_IndexUpdate == m_SelectedIndex )
    {
       bool bSupportsOTA = false;
-
+      char szTextW[256];
       if ( hardware_board_is_raspberry(g_pCurrentModel->hwCapabilities.uBoardType) )
          bSupportsOTA = true;
       if ( g_pCurrentModel->hwCapabilities.uFlags & MODEL_HW_CAP_FLAG_OTA )
@@ -387,7 +389,8 @@ void MenuVehicleManagement::onSelectItem()
          return;
       if ( (! pairing_isStarted()) || (NULL == g_pCurrentModel) || (! link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
       {
-         addMessage("Please connect to your vehicle first, if you want to update the sowftware on the vehicle.");
+         sprintf(szTextW, "Please connect to your %s first, if you want to update the sowftware on the vehicle.", g_pCurrentModel->getVehicleTypeString());
+         addMessage(szTextW);
          return;
       }
 
@@ -398,8 +401,7 @@ void MenuVehicleManagement::onSelectItem()
       if ( (g_pCurrentModel->sw_version >> 16) >= SYSTEM_SW_BUILD_NUMBER )
       {
          char szBuff[256];
-
-         sprintf(szBuff, "Your vehicle already has the latest version of the software (version %s). Do you still want to upgrade vehicle?", szBuff2);
+         sprintf(szBuff, "Your %s already has the latest version of the software (version %s). Do you still want to upgrade?", g_pCurrentModel->getVehicleTypeString(), szBuff2);
          MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, 4);
          add_menu_to_stack(pMC);
          //pMC->addTopLine(" ");
@@ -409,7 +411,7 @@ void MenuVehicleManagement::onSelectItem()
       char szBuff[512];
       char szBuff3[64];
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      sprintf(szBuff, "Your vehicle has software version %s (b%d) and software version %s (b%d) is available on the controller. Do you want to upgrade vehicle?", szBuff2, (int)(g_pCurrentModel->sw_version >> 16), szBuff3, SYSTEM_SW_BUILD_NUMBER);
+      sprintf(szBuff, "Your %s has software version %s (b%d) and software version %s (b%d) is available on the controller. Do you want to upgrade?", g_pCurrentModel->getVehicleTypeString(), szBuff2, (int)(g_pCurrentModel->sw_version >> 16), szBuff3, SYSTEM_SW_BUILD_NUMBER);
       MenuConfirmation* pMC = new MenuConfirmation("Upgrade Confirmation",szBuff, 2);
       add_menu_to_stack(pMC);
    }
@@ -429,9 +431,12 @@ void MenuVehicleManagement::onSelectItem()
       if ( checkIsArmed() )
          return;
       char szBuff[256];
-      sprintf(szBuff, "Are you sure you want to factory reset %s?", g_pCurrentModel->getLongName());
+      sprintf(szBuff, "Factory reset %s", g_pCurrentModel->getLongName());
       MenuConfirmation* pMC = new MenuConfirmation("Confirmation",szBuff, 21);
       pMC->addTopLine("All parameters (including vehicle name, radio frequency, etc) and state will be reset to default values as after a fresh instalation.");
+      pMC->addTopLine("You will need to search and pair with the vehicle again after that.");
+      sprintf(szBuff, "Are you sure you want to factory reset %s?", g_pCurrentModel->getLongName());
+      pMC->addTopLine(szBuff);
       add_menu_to_stack(pMC);
    }
 
@@ -449,7 +454,9 @@ void MenuVehicleManagement::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the vehicle?", 10);
+         char szTextW[256];
+         sprintf(szTextW, "Your %s is armed. Are you sure you want to reboot it?", g_pCurrentModel->getVehicleTypeString());
+         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation", szTextW, 10);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");

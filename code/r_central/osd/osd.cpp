@@ -1198,7 +1198,9 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
       else
          pColorRed[3] = 1.0;
       g_pRenderEngine->setColors(pColorRed);
+      bool bBB = g_pRenderEngine->drawBackgroundBoundingBoxes(false);
       w = 1.1*osd_show_value(xPos,yPos+dy, "REC", g_idFontOSD);
+      g_pRenderEngine->drawBackgroundBoundingBoxes(bBB);
       float m = w*0.18+0.5*w*0.1;
 
       pColorRed[3] = 1.0;
@@ -1212,10 +1214,12 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
       else
          pColorRed[3] = 1.0;
       g_pRenderEngine->setColors(pColorRed);
+      bBB = g_pRenderEngine->drawBackgroundBoundingBoxes(false);
       w = osd_show_value(xPos,yPos+dy, "REC", g_idFontOSD);
 
       osd_set_colors();
       osd_show_value(xPos-height_text*0.1, yPos + dy + height_text*1.2, szTime, g_idFontOSD);
+      g_pRenderEngine->drawBackgroundBoundingBoxes(bBB);
       return;
    }
 
@@ -1230,7 +1234,9 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
    float m = w*0.18+0.5*w*0.1;
    xPos -= w + 2*m;
 
+   bool bBB = g_pRenderEngine->drawBackgroundBoundingBoxes(false);
    osd_show_value(xPos,yPos+dy, "REC", g_idFontOSDSmall);
+   g_pRenderEngine->drawBackgroundBoundingBoxes(bBB);
 
    if ( (g_TimeNow / 1000 ) % 2 )
       g_pRenderEngine->setColors(pColorRed);
@@ -1244,10 +1250,11 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
    else
       g_pRenderEngine->setColors(pColorYellow);
 
+   bBB = g_pRenderEngine->drawBackgroundBoundingBoxes(false);
    osd_show_value(xPos,yPos+dy, "REC", g_idFontOSDSmall);
-
    osd_set_colors();
    osd_show_value(xPos-m*0.3,yPos+dy+height_text_small*1.1, szTime, g_idFontOSDSmall);
+   g_pRenderEngine->drawBackgroundBoundingBoxes(bBB);
 }
 
 void render_bars()
@@ -1255,6 +1262,7 @@ void render_bars()
    if ( ! (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BACKGROUND_BARS) )
       return;
 
+   float fGlobalAlpha = g_pRenderEngine->setGlobalAlfa(1.0);
    osd_set_colors_background_fill();
 
    if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
@@ -1262,14 +1270,16 @@ void render_bars()
       float fWidth = osd_getVerticalBarWidth();
       g_pRenderEngine->drawRect(osd_getMarginX(), osd_getMarginY(), fWidth, 1.0-2*osd_getMarginY());
       g_pRenderEngine->drawRect(1.0-osd_getMarginX()-fWidth, osd_getMarginY(), fWidth, 1.0-2*osd_getMarginY());
+      g_pRenderEngine->setGlobalAlfa(fGlobalAlpha);
       osd_set_colors();
       return;
    }
    float hBar = osd_getBarHeight();
    hBar += osd_getSecondBarHeight();
+
    g_pRenderEngine->drawRect(osd_getMarginX(), osd_getMarginY(), 1.0-2*osd_getMarginX(),hBar);
    g_pRenderEngine->drawRect(osd_getMarginX(), 1.0-hBar-osd_getMarginY(), 1.0-2*osd_getMarginX(),hBar);	
-
+   g_pRenderEngine->setGlobalAlfa(fGlobalAlpha);
    /*
    {
       float widthRight = 0.0;
@@ -2741,8 +2751,8 @@ void osd_render_all()
    osd_setMarginX(0.0);
    osd_setMarginY(0.0);
 
-   u32 tr = ((pModel->osd_params.osd_preferences[osd_get_current_layout_index()])>>8) & 0xFF;
-   osd_set_transparency((int)tr);
+   u32 uTransparency = ((pModel->osd_params.osd_preferences[osd_get_current_layout_index()]) & OSD_PREFERENCES_OSD_TRANSPARENCY_BITMASK) >> OSD_PREFERENCES_OSD_TRANSPARENCY_SHIFT;
+   osd_set_transparency((int)uTransparency);
 
    u32 scale = pModel->osd_params.osd_preferences[osd_get_current_layout_index()] & 0xFF;
    osd_setScaleOSD((int)scale);
@@ -2774,12 +2784,13 @@ void osd_render_all()
       color2[0] = color2[1] = color2[2] = 0;
       color2[0] = 0;
       color2[3] = 1.0;
-      switch ( tr )
+      switch ( uTransparency )
       {
          case 0: color2[3] = 0.05; break;
          case 1: color2[3] = 0.26; break;
          case 2: color2[3] = 0.5; break;
          case 3: color2[3] = 0.8; break;
+         case 4: color2[3] = 1.0; break;
       }
       g_pRenderEngine->setFontBackgroundBoundingBoxFillColor(color2);
       g_pRenderEngine->setBackgroundBoundingBoxPadding(0.0);

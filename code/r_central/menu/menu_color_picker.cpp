@@ -34,6 +34,7 @@
 #include "../../base/config.h"
 #include "../../base/commands.h"
 #include "../colors.h"
+#include "../fonts.h"
 #include "../osd/osd_common.h"
 #include "../../renderer/render_engine.h"
 #include "menu.h"
@@ -168,6 +169,9 @@ void MenuColorPicker::onSelectItem()
    }
 
    if ( bChanged )
-   if ( m_ColorType == COLORPICKER_TYPE_OSD )
+   if ( (m_ColorType == COLORPICKER_TYPE_OSD) || (m_ColorType == COLORPICKER_TYPE_OSD_OUTLINE) )
+   {
       osd_reload_msp_resources();
+      loadAllFonts(true);
+   }
 }

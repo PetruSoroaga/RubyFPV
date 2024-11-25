@@ -26,7 +26,7 @@ typedef struct
    
    bool bInterfacesToReopen[MAX_RADIO_INTERFACES]; // SiK interfaces to reopen after the worker thread or helper tool finishes
 
-} __attribute__((packed)) t_sik_radio_state;
+} ALIGN_STRUCT_SPEC_INFO t_sik_radio_state;
 
 
 bool ruby_is_first_pairing_done();

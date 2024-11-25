@@ -43,15 +43,34 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
    float fSliderWidth = 0.10;
    setSubTitle("Change vehicle processes priorities, for expert users.");
 
+   m_IndexBalanceIntCores = -1;
+
    m_pItemsSlider[5] = new MenuItemSlider("CPU Speed (Mhz)", "Sets the main CPU frequency.", 700, 1200, 900, fSliderWidth);
    m_pItemsSlider[5]->setStep(25);
    m_IndexCPUSpeed = addMenuItem(m_pItemsSlider[5]);
    
    m_pItemsSelect[5] = new MenuItemSelect("GPU Boost", "Increases the video encoder clock speed.");
    m_pItemsSelect[5]->addSelection("Off");
-   m_pItemsSelect[5]->addSelection("On");
+   m_pItemsSelect[5]->addSelection("Medium");
+   m_pItemsSelect[5]->addSelection("High");
+   m_pItemsSelect[5]->addSelection("Custom");
    m_pItemsSelect[5]->setIsEditable();
    m_IndexGPUBoost = addMenuItem(m_pItemsSelect[5]);
+
+   m_pItemsSelect[7] = new MenuItemSelect("GPU Freq Core 1", "Set custom freq for GPU core 1");
+   m_pItemsSelect[7]->addSelection("384 Mhz");
+   m_pItemsSelect[7]->addSelection("432 Mhz");
+   m_pItemsSelect[7]->addSelection("480 Mhz");
+   m_pItemsSelect[7]->setIsEditable();
+   m_IndexGPUFreqCore1 = addMenuItem(m_pItemsSelect[7]);
+
+   m_pItemsSelect[8] = new MenuItemSelect("GPU Freq Core 2", "Set custom freq for GPU core 2");
+   m_pItemsSelect[8]->addSelection("320 Mhz");
+   m_pItemsSelect[8]->addSelection("336 Mhz");
+   m_pItemsSelect[8]->addSelection("348 Mhz");
+   m_pItemsSelect[8]->addSelection("384 Mhz");
+   m_pItemsSelect[8]->setIsEditable();
+   m_IndexGPUFreqCore2 = addMenuItem(m_pItemsSelect[8]);
 
    addMenuItem(new MenuItemSection("Priorities"));
 
@@ -93,6 +112,15 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
 
    m_pItemsSlider[4] = new MenuItemSlider("   Video Priority", "Sets the priority for the video processes. Higher values means higher priority.", 1,18,11, fSliderWidth);
    m_IndexNiceVideo = addMenuItem(m_pItemsSlider[4]);
+
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+   {
+      m_pItemsSelect[6] = new MenuItemSelect("Balance CPU Cores", "Tries to balance the load on the CPU cores.");
+      m_pItemsSelect[6]->addSelection("Off");
+      m_pItemsSelect[6]->addSelection("On");
+      m_pItemsSelect[6]->setIsEditable();
+      m_IndexBalanceIntCores = addMenuItem(m_pItemsSelect[6]);
+   }
 }
 
 void MenuVehicleCPU_OIPC::valuesToUI()
@@ -101,8 +129,39 @@ void MenuVehicleCPU_OIPC::valuesToUI()
       m_pItemsSlider[5]->setCurrentValue(g_pCurrentModel->processesPriorities.iFreqARM);
 
    m_pItemsSelect[5]->setSelectedIndex(0);
-   if ( g_pCurrentModel->processesPriorities.iFreqGPU == 1 )
-      m_pItemsSelect[5]->setSelectedIndex(1);
+   if ( g_pCurrentModel->processesPriorities.iFreqGPU < 3 )
+   {
+      m_pItemsSelect[5]->setSelectedIndex(g_pCurrentModel->processesPriorities.iFreqGPU);
+      m_pItemsSelect[7]->setEnabled(false);
+      m_pItemsSelect[8]->setEnabled(false);
+
+      if ( 0 == g_pCurrentModel->processesPriorities.iFreqGPU )
+      {
+         m_pItemsSelect[7]->setSelectedIndex(0);
+         m_pItemsSelect[8]->setSelectedIndex(0);
+      }
+      if ( 1 == g_pCurrentModel->processesPriorities.iFreqGPU )
+      {
+         m_pItemsSelect[7]->setSelectedIndex(1);
+         m_pItemsSelect[8]->setSelectedIndex(1);
+      }
+      if ( 2 == g_pCurrentModel->processesPriorities.iFreqGPU )
+      {
+         m_pItemsSelect[7]->setSelectedIndex(2);
+         m_pItemsSelect[8]->setSelectedIndex(2);
+      }
+   }
+   else
+   {
+      m_pItemsSelect[5]->setSelectedIndex(3);
+      m_pItemsSelect[7]->setEnabled(true);
+      m_pItemsSelect[8]->setEnabled(true);
+
+      int iCore1 = (g_pCurrentModel->processesPriorities.iFreqGPU/10)%10;
+      int iCore2 = (g_pCurrentModel->processesPriorities.iFreqGPU/100)%10;
+      m_pItemsSelect[7]->setSelectedIndex(iCore1);
+      m_pItemsSelect[8]->setSelectedIndex(iCore2);
+   }
 
    if ( g_pCurrentModel->processesPriorities.iNiceRouter == 0 )
    {
@@ -158,6 +217,15 @@ void MenuVehicleCPU_OIPC::valuesToUI()
       m_pItemsSelect[4]->setSelectedIndex(1);
       m_pItemsSlider[4]->setCurrentValue(-g_pCurrentModel->processesPriorities.iNiceVideo);
       m_pItemsSlider[4]->setEnabled(true);
+   }
+
+   if ( -1 != m_IndexBalanceIntCores )
+   if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+   {
+      if ( g_pCurrentModel->processesPriorities.uProcessesFlags & PROCESSES_FLAGS_BALANCE_INT_CORES )
+         m_pItemsSelect[6]->setSelectedIndex(1);
+      else
+         m_pItemsSelect[6]->setSelectedIndex(0);
    }
 }
 
@@ -274,7 +342,8 @@ void MenuVehicleCPU_OIPC::onSelectItem()
    params.freq_arm = g_pCurrentModel->processesPriorities.iFreqARM;
    params.freq_gpu = g_pCurrentModel->processesPriorities.iFreqGPU;
    params.overvoltage = g_pCurrentModel->processesPriorities.iOverVoltage;
-
+   params.uProcessesFlags = g_pCurrentModel->processesPriorities.uProcessesFlags;
+   
    if ( m_IndexCPUSpeed == m_SelectedIndex )
    {
       params.freq_arm = m_pItemsSlider[5]->getCurrentValue();
@@ -283,6 +352,25 @@ void MenuVehicleCPU_OIPC::onSelectItem()
    if ( m_IndexGPUBoost == m_SelectedIndex )
    {
       params.freq_gpu = m_pItemsSelect[5]->getSelectedIndex();
+      sendUpdate = true;
+   }
+
+   if ( (m_IndexGPUFreqCore1 == m_SelectedIndex) || (m_IndexGPUFreqCore2 == m_SelectedIndex) )
+   {
+      params.freq_gpu = 3;
+      params.freq_gpu += m_pItemsSelect[7]->getSelectedIndex()*10;
+      params.freq_gpu += m_pItemsSelect[8]->getSelectedIndex()*100;
+      sendUpdate = true;
+   }
+
+   if ( -1 != m_IndexBalanceIntCores )
+   if ( m_IndexBalanceIntCores == m_SelectedIndex )
+   {
+      if ( 1 == m_pItemsSelect[6]->getSelectedIndex() )
+         params.uProcessesFlags |= PROCESSES_FLAGS_BALANCE_INT_CORES;
+      else
+         params.uProcessesFlags &= ~PROCESSES_FLAGS_BALANCE_INT_CORES;
+
       sendUpdate = true;
    }
 

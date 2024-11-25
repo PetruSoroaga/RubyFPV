@@ -311,7 +311,8 @@ void osd_set_transparency(int value)
       case 0: g_pRenderEngine->setGlobalAlfa(0.85); break;
       case 1: g_pRenderEngine->setGlobalAlfa(0.9); break;
       case 2: g_pRenderEngine->setGlobalAlfa(0.95); break;
-      case 3: g_pRenderEngine->setGlobalAlfa(1.0); break;
+      case 3:
+      case 4: g_pRenderEngine->setGlobalAlfa(1.0); break;
    }
 }
 
@@ -356,6 +357,7 @@ void osd_set_colors_background_fill()
       case 1: alfa = 0.15; break;
       case 2: alfa = 0.3; break;
       case 3: alfa = 0.7; break;
+      case 4: alfa = 1.0; break;
    }
 
    if ( p->iInvertColorsOSD )
@@ -366,15 +368,24 @@ void osd_set_colors_background_fill()
       case 1: alfa = 0.62; break;
       case 2: alfa = 0.67; break;
       case 3: alfa = 0.75; break;
+      case 4: alfa = 1.0; break;
    }
    }
 
-   g_pRenderEngine->setColors(get_Color_OSDBackground(), alfa);
+   double pC[4];
+   memcpy(pC, get_Color_OSDBackground(), 4*sizeof(double));
+   if ( s_iOSDTransparency == 4 )
+      pC[3] = 1.0;
+   g_pRenderEngine->setColors(pC, alfa);
 }
 
 void osd_set_colors_background_fill(float fAlpha)
 {
-   g_pRenderEngine->setColors(get_Color_OSDBackground(), fAlpha);
+   double pC[4];
+   memcpy(pC, get_Color_OSDBackground(), 4*sizeof(double));
+   if ( s_iOSDTransparency == 4 )
+      pC[3] = 1.0;
+   g_pRenderEngine->setColors(pC, fAlpha);
 }
 
 float osd_course_to(double lat1, double long1, double lat2, double long2)

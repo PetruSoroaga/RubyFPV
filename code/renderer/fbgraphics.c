@@ -1076,6 +1076,13 @@ void fbg_flip(struct _fbg *fbg) {
     //fbg_computeFramerate(fbg, 1);
 }
 
+int fbg_getcomponents(struct _fbg* fbg)
+{
+   if ( NULL != fbg )
+      return fbg->components;
+   return 4;
+}
+
 void fbg_clear(struct _fbg *fbg, unsigned char color) {
     memset(fbg->back_buffer, color, fbg->size);
 }

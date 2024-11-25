@@ -1039,6 +1039,10 @@ int main(int argc, char *argv[])
    fflush(stdout);
    hardware_i2c_reset_enumerated_flag();
    hardware_enumerate_i2c_busses();
+   // Load existing settings first
+   hardware_i2c_load_device_settings();
+   hardware_i2c_log_devices();
+   // Save existing settings and any new devices
    hardware_i2c_save_device_settings();
    int iKnown = hardware_get_i2c_found_count_known_devices();
    int iConfigurable = hardware_get_i2c_found_count_configurable_devices();
@@ -1244,10 +1248,10 @@ int main(int argc, char *argv[])
        if ( NULL == strstr(szOutput, "performance") )
           hardware_set_default_radxa_cpu_freq();
 
-       hw_execute_bash_command("systemctl disable systemd-journald.service", NULL);
-       hw_execute_bash_command("systemctl mask systemd-journald.service", NULL);
-       hw_execute_bash_command("systemctl disable rknpu2.service", NULL);
-       hw_execute_bash_command("systemctl mask rknpu2.service", NULL);
+       hw_execute_bash_command("systemctl disable systemd-journald.service 2>&1 1>/dev/null", NULL);
+       hw_execute_bash_command("systemctl mask systemd-journald.service 2>&1 1>/dev/null", NULL);
+       hw_execute_bash_command("systemctl disable rknpu2.service 2>&1 1>/dev/null", NULL);
+       hw_execute_bash_command("systemctl mask rknpu2.service 2>&1 1>/dev/null", NULL);
        #endif
    }
 

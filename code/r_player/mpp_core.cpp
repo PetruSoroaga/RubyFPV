@@ -31,8 +31,8 @@
 
 #include "mpp_core.h"
 
-#define READ_VIDEO_BUF_SIZE (1024*1024) // SZ_1M https://github.com/rockchip-linux/mpp/blob/ed377c99a733e2cdbcc457a6aa3f0fcd438a9dff/osal/inc/mpp_common.h#L179
-#define MAX_VIDEO_FRAMES 24  // min 16 and 20+ recommended (mpp/readme.txt)
+#define READ_VIDEO_BUF_SIZE (2*1024*1024) // SZ_1M https://github.com/rockchip-linux/mpp/blob/ed377c99a733e2cdbcc457a6aa3f0fcd438a9dff/osal/inc/mpp_common.h#L179
+#define MAX_VIDEO_FRAMES 36  // min 16 and 20+ recommended (mpp/readme.txt)
 #define CODEC_ALIGN(x, a)   (((x)+(a)-1)&~((a)-1))
 
 typedef struct

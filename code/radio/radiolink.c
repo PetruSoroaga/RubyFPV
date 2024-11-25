@@ -1340,16 +1340,6 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
       return 0;
    }
 
-   // To fix to remove
-   t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
-   {
-      t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*)&s_uLastPacketBuilt[sizeof(t_packet_header)];
-      t_packet_header_video_full_98_debug_info* pPHVFDebugInfo = (t_packet_header_video_full_98_debug_info*) &s_uLastPacketBuilt[sizeof(t_packet_header)+sizeof(t_packet_header_video_full_98)];
-      u8* pVideoData = &s_uLastPacketBuilt[sizeof(t_packet_header)+sizeof(t_packet_header_video_full_98) + sizeof(t_packet_header_video_full_98_debug_info)];
-      u32 crc = base_compute_crc32(pVideoData, pPHVF->uCurrentBlockPacketSize);
-   }
-
    if ( s_bRadioDebugFlag )
    {
       t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];

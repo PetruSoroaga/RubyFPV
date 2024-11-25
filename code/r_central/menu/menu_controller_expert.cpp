@@ -630,7 +630,12 @@ void MenuControllerExpert::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation","Your vehicle is armed. Are you sure you want to reboot the controller?", 1);
+         char szText[256];
+         if ( NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel )
+            sprintf(szText, "Your %s is armed. Are you sure you want to reboot the controller?", g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->getVehicleTypeString());
+         else
+            strcpy(szText, "Your vehicle is armed. Are you sure you want to reboot the controller?");
+         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation", szText, 1);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");

@@ -21,7 +21,7 @@ typedef struct
    bool bShow;
    int  iParams[MAX_OSD_WIDGET_PARAMS];
    int iParamsCount;
-} type_osd_widget_display_info;
+} ALIGN_STRUCT_SPEC_INFO type_osd_widget_display_info;
 
 typedef struct
 {
@@ -29,13 +29,13 @@ typedef struct
    int iVersion;
    char szName[MAX_OSD_WIDGET_NAME];
 
-} __attribute__((packed)) type_osd_widget_info;
+} ALIGN_STRUCT_SPEC_INFO type_osd_widget_info;
 
 typedef struct
 {
    type_osd_widget_info info;
    type_osd_widget_display_info display_info[MAX_MODELS][MODEL_MAX_OSD_PROFILES];
-} type_osd_widget;
+} ALIGN_STRUCT_SPEC_INFO type_osd_widget;
 
 int osd_widgets_get_count();
 type_osd_widget* osd_widgets_get(int iIndex);

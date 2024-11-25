@@ -301,26 +301,16 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       int iIndex = getVehicleRuntimeIndex(pPH->vehicle_id_src);
       if ( iIndex >= 0 )
       {
-         for( int k=0; k<MAX_RUNTIME_INFO_PINGS_HISTORY; k++ )
+         if ( uPingId == g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] )
          {
-            if ( uPingId == g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId][k] )
+            u32 uRoundtripMilis = get_current_timestamp_ms() - g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId];
+            controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, pPH->vehicle_id_src, g_SM_RadioStats.radio_interfaces[iInterfaceIndex].assignedLocalRadioLinkId, uRoundtripMilis);
             if ( uPingId != g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] )
             {
-               u32 uRoundtripMicros = get_current_timestamp_micros() - g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingSentToVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId][k];
-               u32 uRoundtripMilis = uRoundtripMicros / 1000;
-               
-               controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, pPH->vehicle_id_src, uRoundtripMilis);
-
                g_State.vehiclesRuntimeInfo[iIndex].uLastPingIdReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uPingId;
                g_State.vehiclesRuntimeInfo[iIndex].uTimeLastPingReplyReceivedFromVehicleOnLocalRadioLinks[uOriginalLocalRadioLinkId] = g_TimeNow;
-
-               g_State.vehiclesRuntimeInfo[iIndex].uPingRoundtripTimeOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uRoundtripMicros;
-               g_SM_RouterVehiclesRuntimeInfo.uPingRoundtripTimeVehiclesOnLocalRadioLinks[iIndex][uOriginalLocalRadioLinkId] = uRoundtripMicros;
-               addLinkRTTimeToRuntimeInfoIndex(iIndex, (int)uOriginalLocalRadioLinkId, uRoundtripMilis, uVehicleLocalTimeMs);
-
-               if ( NULL != g_pProcessStats )
-                  g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-               break;
+               g_State.vehiclesRuntimeInfo[iIndex].uPingRoundtripTimeOnLocalRadioLinks[uOriginalLocalRadioLinkId] = uRoundtripMilis;
+               adjustLinkClockDeltasForVehicleRuntimeIndex(iIndex, uRoundtripMilis, uVehicleLocalTimeMs);
             }
          }
       }
@@ -369,6 +359,19 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
             g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
          return 0;
       }
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
+   {
+      u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
+      if ( NEGOCIATE_RADIO_STEP_DATA_RATE == uCommand )
+      {
+         radio_stats_reset_interfaces_rx_info(&g_SM_RadioStats);
+      }
+      ruby_ipc_channel_send_message(g_fIPCToCentral, pPacketBuffer, pPH->total_length);
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return 0;
    }
    return 0;

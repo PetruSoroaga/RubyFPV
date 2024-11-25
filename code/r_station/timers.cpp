@@ -4,7 +4,6 @@
 
 u32 g_TimeNow = 0;
 u32 g_TimeStart = 0;
-u32 g_TimeNowMicros = 0;
 u32 g_TimeLastPeriodicCheck = 0;
 
 // RC Tx

@@ -31,4 +31,5 @@ class MenuControllerDev: public Menu
       int m_IndexFreezeOSD;
       int m_IndexVersion;
       int m_IndexResetDev;
+      int m_IndexExit;
 };

@@ -91,7 +91,9 @@ void MenuStorage::onShow()
    removeAllTopLines();
    removeAllItems();
 
-   sprintf(szComm, "chmod 777 %s*", FOLDER_MEDIA);
+   sprintf(szComm, "chmod 777 %s 2>&1 1>/dev/null", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
    hw_execute_bash_command(szComm, NULL);
    
    media_scan_files();

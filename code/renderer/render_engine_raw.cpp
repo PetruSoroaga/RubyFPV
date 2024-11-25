@@ -80,6 +80,44 @@ void RenderEngineRaw::_freeRawFontImageObject(void* pImageObject)
 }
 
 
+void RenderEngineRaw::setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a)
+{
+   int indexFont = _getRawFontIndexFromId(idFont);
+   if ( -1 == indexFont )
+   {
+      log_softerror_and_alarm("Tried to update invalid raw font id %u, not in the list (%d raw fonts)", idFont, m_iCountRawFonts);
+      return;
+   }
+
+   if ( (r<30) && (g<30) && (b<30) )
+      return;
+   RenderEngineRawFont* pFont = m_pRawFonts[indexFont];
+   struct _fbg_img* pImg = (struct _fbg_img*) pFont->pImageObject;
+   unsigned char *img_data_pointer_row = (unsigned char *)(pImg->data);
+   u8 r0,g0,b0,a0;
+
+   for( int y=0; y<(int)pImg->height; y++ )
+   {
+      unsigned char *img_data_pointer = img_data_pointer_row;
+      for( int x=0; x<(int)pImg->width; x++ )
+      {
+         r0 = *img_data_pointer;
+         g0 = *(img_data_pointer+1);
+         b0 = *(img_data_pointer+2);
+         a0 = *(img_data_pointer+3);
+         if ( (r0 < 50) && (g0 < 50) && (b0 < 50) && (a0 > 0) )
+         {
+            *img_data_pointer = r;
+            *(img_data_pointer+1) = g;
+            *(img_data_pointer+2) = b;
+            *(img_data_pointer+3) = a0;
+         }
+         img_data_pointer += fbg_getcomponents(m_pFBG);
+      }
+      img_data_pointer_row += fbg_getcomponents(m_pFBG) * pImg->width;
+   }
+}
+
 u32 RenderEngineRaw::loadImage(const char* szFile)
 {
    if ( m_iCountImages > MAX_RAW_IMAGES )

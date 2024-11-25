@@ -127,7 +127,7 @@ controller_runtime_info_vehicle* controller_rt_info_get_vehicle_info(controller_
    return NULL;
 }
 
-void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32 uVehicleId, u32 uRoundTripTime)
+void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32 uVehicleId, int iRadioLink, u32 uRoundTripTime)
 {
    if ( (NULL == pRTInfo) || (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
       return;
@@ -136,14 +136,22 @@ void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32
    if ( NULL == pRTInfoVehicle )
       return;
 
-   if ( 0 == pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex] )
-      pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex] = (u8)uRoundTripTime;
-   else if ( (u8)uRoundTripTime < pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex] )
-      pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex] = (u8)uRoundTripTime;
-   if ( 0 == pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex] )
-      pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex] = (u8)uRoundTripTime;
-   else if ( (u8)uRoundTripTime > pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex] )
-      pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex] = (u8)uRoundTripTime;
+   if ( (iRadioLink >= 0) && (iRadioLink < MAX_RADIO_INTERFACES) )
+   {
+      pRTInfoVehicle->iAckTimeIndex[iRadioLink]++;
+      if ( pRTInfoVehicle->iAckTimeIndex[iRadioLink] >= SYSTEM_RT_INFO_INTERVALS/4 )
+         pRTInfoVehicle->iAckTimeIndex[iRadioLink] = 0;
+      pRTInfoVehicle->uAckTimes[pRTInfoVehicle->iAckTimeIndex[iRadioLink]][iRadioLink] = uRoundTripTime;
+   }
+
+   if ( 0 == pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] )
+      pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] = (u8)uRoundTripTime;
+   else if ( (u8)uRoundTripTime < pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] )
+      pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] = (u8)uRoundTripTime;
+   if ( 0 == pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex][iRadioLink] )
+      pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex][iRadioLink] = (u8)uRoundTripTime;
+   else if ( (u8)uRoundTripTime > pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex][iRadioLink] )
+      pRTInfoVehicle->uMaxAckTime[pRTInfo->iCurrentIndex][iRadioLink] = (u8)uRoundTripTime;
 }
 
 int controller_rt_info_will_advance_index(controller_runtime_info* pRTInfo, u32 uTimeNowMs)
@@ -193,6 +201,8 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       pRTInfo->uRxVideoPackets[iIndex][i] = 0;
+      pRTInfo->uRxVideoECPackets[iIndex][i] = 0;
+      pRTInfo->uRxVideoRetrPackets[iIndex][i] = 0;
       pRTInfo->uRxDataPackets[iIndex][i] = 0;
       pRTInfo->uRxMissingPackets[iIndex][i] = 0;
       pRTInfo->uRxMissingPacketsMaxGap[iIndex][i] = 0;
@@ -205,8 +215,11 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
  
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      pRTInfo->vehicles[i].uMinAckTime[iIndex] = 0;
-      pRTInfo->vehicles[i].uMaxAckTime[iIndex] = 0;
+      for( int k=0; k<MAX_RADIO_INTERFACES; k++ )
+      {
+         pRTInfo->vehicles[i].uMinAckTime[iIndex][k] = 0;
+         pRTInfo->vehicles[i].uMaxAckTime[iIndex][k] = 0;
+      }
       pRTInfo->vehicles[i].uCountReqRetransmissions[iIndex] = 0;
       pRTInfo->vehicles[i].uCountAckRetransmissions[iIndex] = 0;
    }

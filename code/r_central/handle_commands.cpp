@@ -826,8 +826,10 @@ bool handle_last_command_result()
       {
          log_line("[Commands] Received confirmation from vehicle that logs have been deleted. Parameter: %d", (int)s_CommandParam);
          if ( 1 == s_CommandParam )
-         {      
-            MenuConfirmation* pMC = new MenuConfirmation("Confirmation","Your vehicle logs have been deleted.", -1, true);
+         {
+            char szTextW[256];
+            sprintf(szTextW, "Your %s logs have been deleted.", g_pCurrentModel->getVehicleTypeString());
+            MenuConfirmation* pMC = new MenuConfirmation("Confirmation", szTextW, -1, true);
             pMC->m_yPos = 0.3;
             add_menu_to_stack(pMC);
          }
@@ -909,7 +911,7 @@ bool handle_last_command_result()
            pm->m_xPos = 0.4; pm->m_yPos = 0.4;
            pm->m_Width = 0.36;
            pm->addTopLine("Your vehicle was reset to default settings (including name, id, frequencies) and the full configuration is as on a fresh instalation. It will reboot now.");
-           pm->addTopLine("You need to search for and pair with the vehicle as with a new vehicle.");
+           pm->addTopLine("You need to search for it again and pair with the vehicle as with a new vehicle.");
            add_menu_to_stack(pm);
            log_line("[Commands] Command response factory reset: Deleted model 2/3.");
         }
@@ -936,6 +938,7 @@ bool handle_last_command_result()
             char szName[128];
             snprintf(szName, sizeof(szName)/sizeof(szName[0]), "Did set vehicle type to: %s", str_get_hardware_board_name(s_CommandParam));
             warnings_add(g_pCurrentModel->uVehicleId, szName, g_idIconCPU);
+            g_pCurrentModel->b_mustSyncFromVehicle = true;
          }
          break;
 
@@ -1310,7 +1313,9 @@ bool handle_last_command_result()
             g_pCurrentModel->processesPriorities.iFreqARM = params.freq_arm;
             g_pCurrentModel->processesPriorities.iFreqGPU = params.freq_gpu;
             g_pCurrentModel->processesPriorities.iOverVoltage = params.overvoltage;
+            g_pCurrentModel->processesPriorities.uProcessesFlags = params.uProcessesFlags;
             saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          }
          break;
 
@@ -1506,7 +1511,7 @@ bool handle_last_command_result()
          tmp1 = (s_CommandParam & 0xFF);
          tmp2 = ((int)((s_CommandParam >> 8) & 0xFF)) - 128;
 
-         if ( tmp1 >= 0 && tmp1 < g_pCurrentModel->radioInterfacesParams.interfaces_count )
+         if ( (tmp1 >= 0) && (tmp1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
          {
             g_pCurrentModel->radioInterfacesParams.interface_card_model[tmp1] = tmp2;
             saveControllerModel(g_pCurrentModel);
@@ -1785,6 +1790,29 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_TX_POWERS:
       {
          u8* pData = &s_CommandBuffer[0];
+
+         if ( s_CommandBufferLength >= 11 )
+         {
+            if ( ( s_CommandBuffer[8] == 0x81 ) && ( s_CommandBuffer[10] == 0x81 ) )
+            {
+               int iSiKPower = s_CommandBuffer[9];
+               log_line("[Commands] Received message confirmation for SiK radio power level: %d", iSiKPower);
+
+               if ( iSiKPower > 0 && iSiKPower < 30 )
+               if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
+               {
+                  log_line("[Commands] Updated current model's SiK radio power level to %d", iSiKPower);
+                  g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
+               }
+            }
+            else
+               log_softerror_and_alarm("[Commands] Received invalid power levels message response (for SiK radio interfaces). Ignoring it.");
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            menu_refresh_all_menus();
+            break;
+         }
+
          u8 txPowerRTL8812AU = *pData;
          pData++;
          u8 txPowerRTL8812EU = *pData;
@@ -1806,6 +1834,9 @@ bool handle_last_command_result()
             txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros,
             txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros, cardIndex, cardPower);
 
+         log_line("[Commands] Current model radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
+            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
+     
          if ( (txMaxPowerRTL8812AU > 0) && (txMaxPowerRTL8812AU != 0xFF) )
             g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;
          if ( (txMaxPowerRTL8812EU > 0) && (txMaxPowerRTL8812EU != 0xFF) )
@@ -1824,24 +1855,8 @@ bool handle_last_command_result()
          if ( cardIndex < g_pCurrentModel->radioInterfacesParams.interfaces_count )
             g_pCurrentModel->radioInterfacesParams.interface_power[cardIndex] = cardPower;
       
-         if ( s_CommandBufferLength >= 11 )
-         {
-            if ( ( s_CommandBuffer[8] == 0x81 ) && ( s_CommandBuffer[10] == 0x81 ) )
-            {
-               int iSiKPower = s_CommandBuffer[9];
-               log_line("[Commands] Received message confirmation for SiK radio power level: %d", iSiKPower);
-
-               if ( iSiKPower > 0 && iSiKPower < 30 )
-               if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
-               {
-                  log_line("[Commands] Updated current model's SiK radio power level to %d", iSiKPower);
-                  g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
-               }
-            }
-            else
-               log_softerror_and_alarm("[Commands] Received invalid power levels message response (for SiK radio interfaces). Ignoring it.");
-         }
-         saveControllerModel(g_pCurrentModel);    
+         saveControllerModel(g_pCurrentModel);
+         send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          menu_refresh_all_menus();
          break;
       }
@@ -2164,7 +2179,9 @@ void _handle_commands_on_command_timeout()
       warnings_remove_configuring_radio_link(false);
       link_reset_reconfiguring_radiolink();
             
-      MenuConfirmation* pMC = new MenuConfirmation("Unsupported Parameter","Your vehicle radio link does not support this combination of radio params.", -1, true);
+      char szTextW[256];
+      sprintf(szTextW, "Your %s radio link does not support this combination of radio params.", g_pCurrentModel->getVehicleTypeString());
+      MenuConfirmation* pMC = new MenuConfirmation("Unsupported Parameter", szTextW, -1, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       menu_invalidate_all();

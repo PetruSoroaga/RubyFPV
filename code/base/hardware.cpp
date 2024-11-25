@@ -422,11 +422,21 @@ void hardware_reboot()
 {
    hardware_sleep_ms(200);
    hw_execute_bash_command("sync", NULL);
-   hardware_sleep_sec(2);
-   hw_execute_bash_command("reboot -f", NULL);
+   hardware_sleep_sec(1);
+   hw_execute_bash_command("reboot", NULL);
+   int iCounter = 0;
+   // reboot -f --no-wall
+   // reboot --reboot --no-wall
    while (1)
    {
-      hardware_sleep_ms(100);
+      hardware_sleep_ms(500);
+      iCounter++;
+
+      if ( iCounter > 10 )
+      {
+         hw_execute_bash_command("reboot -f", NULL);
+         iCounter = 0;
+      }
    }
 }
 
@@ -511,6 +521,10 @@ u32 hardware_getOnlyBoardType()
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
    s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
+   char szOutput[1024];
+   hw_execute_bash_command_raw("uname -a", szOutput);
+   if ( NULL != strstr(szOutput, "radxa3c") )
+      s_uHardwareBoardType = BOARD_TYPE_RADXA_3C;
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
@@ -1695,6 +1709,7 @@ int hardware_has_eth()
    int nHasETH = 1;
    char szOutput[1024];
 
+   szOutput[0] = 0;
    #if defined(HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
    #endif
@@ -1705,7 +1720,7 @@ int hardware_has_eth()
       hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
    #endif
    
-   if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )
+   if ( (0 == szOutput[0]) || (NULL != strstr(szOutput, "not found")) )
    {
       nHasETH = 0;
       szOutput[1023] = 0;
@@ -1881,16 +1896,104 @@ void hardware_set_oipc_gpu_boost(int iGPUBoost)
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType() & BOARD_TYPE_MASK) )
    {
-      if ( 1 == iGPUBoost )
+      if ( 0 == iGPUBoost )
       {
          hw_execute_bash_command_raw("echo 384000000 > /sys/venc/ven_clock", NULL);
          hw_execute_bash_command_raw("echo 320000000 > /sys/venc/ven_clock_2nd", NULL);
       }
-      else
+      else if ( 1 == iGPUBoost )
+      {
+         hw_execute_bash_command_raw("echo 432000000 > /sys/venc/ven_clock", NULL);
+         hw_execute_bash_command_raw("echo 336000000 > /sys/venc/ven_clock_2nd", NULL);
+      }
+      else if ( 2 == iGPUBoost )
       {
          hw_execute_bash_command_raw("echo 480000000 > /sys/venc/ven_clock", NULL);
-         hw_execute_bash_command_raw("echo 384000000 > /sys/venc/ven_clock_2nd", NULL);
+         hw_execute_bash_command_raw("echo 348000000 > /sys/venc/ven_clock_2nd", NULL);
+      }
+      else
+      {
+         int iCore1 = (iGPUBoost/10)%10;
+         int iCore2 = (iGPUBoost/100)%10;
+         int iFreq1 = 0;
+         int iFreq2 = 0;
+         switch(iCore1)
+         {
+            case 0: iFreq1 = 384; break;
+            case 1: iFreq1 = 432; break;
+            case 2: iFreq1 = 480; break;
+            default: break;
+         }
+         switch(iCore2)
+         {
+            case 0: iFreq2 = 320; break;
+            case 1: iFreq2 = 336; break;
+            case 2: iFreq2 = 348; break;
+            case 3: iFreq2 = 384; break;
+            default: break;
+         }
+         if ( iFreq1 > 0 )
+         {
+            char szComm[256];
+            sprintf(szComm, "echo %d > /sys/venc/ven_clock", iFreq1*1000*1000);
+            hw_execute_bash_command_raw(szComm, NULL);
+         }
+         if ( iFreq2 > 0 )
+         {
+            char szComm[256];
+            sprintf(szComm, "echo %d > /sys/venc/ven_clock_2nd", iFreq2*1000*1000);
+            hw_execute_bash_command_raw(szComm, NULL);
+         }
       }
    }
+   #endif
+}
+
+void _hardware_set_int_affinity_core(char* szIntName, int iCoreIndex)
+{
+   if ( (NULL == szIntName) || (0 == szIntName[0]) || (iCoreIndex < 0) )
+      return;
+
+   char szComm[256];
+   char szOutput[256];
+   szOutput[0] = 0;
+   sprintf(szComm, "cat /proc/interrupts | grep %s", szIntName);
+   hw_execute_bash_command(szComm, szOutput);
+   for( int i=0; i<(int)strlen(szOutput); i++ )
+   {
+      if ( ! isdigit(szOutput[i]) )
+         szOutput[i] = ' ';
+   }
+   int iIntNumber = -1;
+   if ( 1 != sscanf(szOutput, "%d", &iIntNumber) )
+      iIntNumber = -1;
+
+   if ( -1 == iIntNumber )
+   {
+      log_softerror_and_alarm("Can't find interrupt number for interrupt: (%s)", szIntName);
+      return;
+   }
+
+   sprintf(szComm, "echo %d > /proc/irq/%d/smp_affinity", iCoreIndex+1, iIntNumber);
+   hw_execute_bash_command(szComm, NULL);
+}
+
+void hardware_balance_interupts()
+{
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   char szOutput[128];
+   hw_execute_bash_command_raw("nproc", szOutput);
+   int iCPUCoresCount = 1;
+   if ( 1 != sscanf(szOutput, "%d", &iCPUCoresCount) )
+      iCPUCoresCount = 1;
+   if ( iCPUCoresCount > 1 )
+   {
+      log_line("Balancing interrupts...");
+      _hardware_set_int_affinity_core(":usb", 1);
+      _hardware_set_int_affinity_core("ms_serial", 1);
+      _hardware_set_int_affinity_core("ms_serial_dma", 1);
+   }
+   else
+      log_line("Can't balance interrupts: single core CPU.");
    #endif
 }

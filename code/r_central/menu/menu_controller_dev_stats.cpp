@@ -121,6 +121,14 @@ void MenuControllerDevStatsConfig::addItems()
    m_pItemsSelect[7]->setSelectedIndex( (pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME)?1:0);
    m_IndexShowMinMaxAckTime = addMenuItem(m_pItemsSelect[7]);
 
+   m_pItemsSelect[12] = new MenuItemSelect("Show Ack time History", "");
+   m_pItemsSelect[12]->addSelection("No");
+   m_pItemsSelect[12]->addSelection("Yes");
+   m_pItemsSelect[12]->setUseMultiViewLayout();
+   m_pItemsSelect[12]->setSelectedIndex( (pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY)?1:0);
+   m_IndexShowAckTimeHist = addMenuItem(m_pItemsSelect[12]);
+
+
    m_pItemsSelect[8] = new MenuItemSelect("Show RX Max EC used", "");
    m_pItemsSelect[8]->addSelection("No");
    m_pItemsSelect[8]->addSelection("Yes");
@@ -250,6 +258,14 @@ void MenuControllerDevStatsConfig::onSelectItem()
          pP->uDebugStatsFlags |= CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME;
       else
          pP->uDebugStatsFlags &= ~CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME;
+   }
+
+   if ( m_IndexShowAckTimeHist == m_SelectedIndex )
+   {
+      if ( m_pItemsSelect[12]->getSelectedIndex() != 0 )
+         pP->uDebugStatsFlags |= CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY;
+      else
+         pP->uDebugStatsFlags &= ~CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY;
    }
 
    if ( m_IndexShowRxMaxECUsed == m_SelectedIndex )

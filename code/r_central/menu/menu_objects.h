@@ -106,6 +106,7 @@
 #define MENU_ID_CONTROLLER_DEV 119
 #define MENU_ID_VEHICLE_BOARD 120
 #define MENU_ID_CONTROLLER_DEV_STATS 121
+#define MENU_ID_NEGOCIATE_RADIO 122
 
 
 #define MAX_MENU_ITEMS 150
@@ -154,9 +155,12 @@ class Menu
      float m_fAlfaWhenInBackground;
      bool m_bDisableBackgroundAlpha;
      bool m_bDisableStacking;
+     bool m_bIsModal;
 
      void setParent(Menu* pParent);
      void invalidate();
+     void setModal(bool bModal);
+     bool isModal();
      void disableScrolling();
      void setTitle(const char* szTitle);
      void setSubTitle(const char* szSubTitle);

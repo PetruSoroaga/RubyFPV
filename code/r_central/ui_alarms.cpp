@@ -232,6 +232,12 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
       uIconId = g_idIconCamera;
       strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
       strcpy(szAlarmText2, "Reinstall your vehicle firmware.");
+
+      if ( uFlags1 == 1 )
+      {
+         strcpy(szAlarmText, "Video capture process on vehicle is not responding.");
+         strcpy(szAlarmText2, "Vehicle will restart now...");
+      }
    }
 
 

@@ -40,6 +40,7 @@
 #include "menu_radio_config.h"
 #include "menu_tx_power.h"
 #include "menu_tx_power_8812eu.h"
+#include "menu_negociate_radio.h"
 
 #include "../link_watch.h"
 #include "../launchers_controller.h"
@@ -263,21 +264,21 @@ void MenuVehicleRadioConfig::populate()
 
    if ( g_pCurrentModel->hasRadioCardsRTL8812AU() > 0 )
    {
-      m_IndexTxPowerRTL8812AU = addMenuItem(new MenuItem("Tx Power Level (RTL8812AU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812AU chipset."));
+      m_IndexTxPowerRTL8812AU = addMenuItem(new MenuItem("Power Level (RTL8812AU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812AU chipset."));
       m_pMenuItems[m_IndexTxPowerRTL8812AU]->showArrow();
    }
    if ( g_pCurrentModel->hasRadioCardsRTL8812EU() > 0 )
    {
-      m_IndexTxPowerRTL8812EU = addMenuItem(new MenuItem("Tx Power Level (RTL8812EU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812EU chipset."));
+      m_IndexTxPowerRTL8812EU = addMenuItem(new MenuItem("Power Level (RTL8812EU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812EU chipset."));
       m_pMenuItems[m_IndexTxPowerRTL8812EU]->showArrow();
    }
    if ( g_pCurrentModel->hasRadioCardsAtheros() > 0 )
    {
-      m_IndexTxPowerAtheros = addMenuItem(new MenuItem("Tx Power Level (Atheros)", "Change the transmit power levels for the vehicle's radio interfaces that use Atheros chipset."));
+      m_IndexTxPowerAtheros = addMenuItem(new MenuItem("Power Level (Atheros)", "Change the transmit power levels for the vehicle's radio interfaces that use Atheros chipset."));
       m_pMenuItems[m_IndexTxPowerAtheros]->showArrow();
    }
 
-   m_IndexRadioConfig = addMenuItem(new MenuItem("Full Radio Config", "Full radio configuration"));
+   m_IndexRadioConfig = addMenuItem(new MenuItem("Radio Parameters", "Full radio configuration"));
    m_pMenuItems[m_IndexRadioConfig]->showArrow();
 
    m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
@@ -300,6 +301,9 @@ void MenuVehicleRadioConfig::populate()
    m_pItemsSelect[2]->addSelection("All Streams and Data");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
+
+   m_IndexOptimizeLinks = addMenuItem(new MenuItem("Optmize Radio Links Wizard", "Runs a process to optimize radio links parameters."));
+   m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
 }
 
 void MenuVehicleRadioConfig::valuesToUI()
@@ -337,7 +341,7 @@ void MenuVehicleRadioConfig::valuesToUI()
    if ( ! m_bControllerHasKey )
    {
       m_pItemsSelect[2]->setSelectedIndex(0);
-      m_pItemsSelect[2]->setEnabled(false);
+      //m_pItemsSelect[2]->setEnabled(false);
    }
 
    if ( -1 != m_IndexTxPowerRTL8812AU )
@@ -459,9 +463,10 @@ void MenuVehicleRadioConfig::onSelectItem()
    {
       if ( ! m_bControllerHasKey )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("Missing Pass Code", "You have not set a pass code on the controller. You need first to set a pass code on the controller.", -1, true);
+         MenuConfirmation* pMC = new MenuConfirmation("Missing Pass Code", "You have not set a pass code on the controller. You need first to set a pass code on the controller from Menu->Controller->Encryption.", -1, true);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
+         m_pItemsSelect[2]->setSelectedIndex(0);
          return;
       }
       u8 params[128];
@@ -609,5 +614,16 @@ void MenuVehicleRadioConfig::onSelectItem()
    */
 
    if ( m_IndexRadioConfig == m_SelectedIndex )
-     add_menu_to_stack(new MenuRadioConfig());
+   {
+      MenuRadioConfig* pM = new MenuRadioConfig();
+      pM->m_bGoToFirstRadioLinkOnShow = true;
+      add_menu_to_stack(pM);
+      return;
+   }
+
+   if ( m_IndexOptimizeLinks == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuNegociateRadio());
+      return;
+   }
 }

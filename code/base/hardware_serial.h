@@ -1,4 +1,5 @@
 #pragma once
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +27,7 @@ typedef struct
    long lPortSpeed;
    int iPortUsage;
    int iSupported;
-} __attribute__((packed)) hw_serial_port_info_t;
+} ALIGN_STRUCT_SPEC_INFO hw_serial_port_info_t;
 
 
 int* hardware_get_serial_baud_rates();

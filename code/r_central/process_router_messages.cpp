@@ -39,6 +39,8 @@
 #include "menu/menu_objects.h"
 #include "menu/menu_search.h"
 #include "menu/menu_diagnose_radio_link.h"
+#include "menu/menu_vehicle_radio_link.h"
+#include "menu/menu_negociate_radio.h"
 #include "process_router_messages.h"
 #include <pthread.h>
 #include "shared_vars.h"
@@ -669,6 +671,16 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       return 0;
    }
 
+   if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
+   {
+      if ( menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
+      {
+         MenuNegociateRadio* pMenu = (MenuNegociateRadio*) menu_get_menu_by_id(MENU_ID_NEGOCIATE_RADIO);
+         if ( NULL != pMenu )
+            pMenu->onReceivedVehicleResponse(pPacketBuffer, pPH->total_length);
+      }
+      return 0;
+   }
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH )
    {
       MenuSearch::onVideoReceived(pPH->vehicle_id_src);
@@ -757,9 +769,21 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          }
          else
          {
-            Popup* p = new Popup("Failed to set the new parameters.",0.25,0.44, 0.5, 4);
-            p->setIconId(g_idIconError, get_Color_IconError());
-            popups_add_topmost(p);
+            //Popup* p = new Popup("Failed to set the new parameters.",0.25,0.44, 0.5, 4);
+            //p->setIconId(g_idIconError, get_Color_IconError());
+            //popups_add_topmost(p);
+            Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, "Change failed",NULL);
+            pm->m_xPos = 0.32; pm->m_yPos = 0.4;
+            pm->m_Width = 0.36;
+            pm->m_bDisableStacking = true;
+            pm->addTopLine("The selected parameters are not supported by the radio interfaces.");
+            add_menu_to_stack(pm);
+         }
+         if ( menu_has_menu(MENU_ID_VEHICLE_RADIO_LINK) )
+         {
+            MenuVehicleRadioLink* pMenuRadioLink = (MenuVehicleRadioLink*) menu_get_menu_by_id(MENU_ID_VEHICLE_RADIO_LINK);
+            if ( NULL != pMenuRadioLink )
+               pMenuRadioLink->onChangeRadioConfigFinished(bSucceeded);
          }
          menu_update_ui_all_menus();
       }

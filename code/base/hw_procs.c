@@ -14,13 +14,18 @@ int hw_process_exists(const char* szProcName)
    char szComm[128];
    char szPids[1024];
 
-   if ( NULL == szProcName || 0 == szProcName[0] )
+   if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return 0;
 
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command_silent(szComm, szPids);
-   if ( strlen(szPids) > 2 )
+   if ( (strlen(szPids) > 2) && isdigit(szPids[0]) )
    {
+      if ( (szPids[0] == 10) || (szPids[0] == 13) )
+         szPids[0] = ' ';
+      if ( (szPids[1] == 10) || (szPids[1] == 13) )
+         szPids[1] = ' ';
+
       // get only first pid
       for( int i=0; i<strlen(szPids); i++ )
       {
@@ -91,37 +96,37 @@ void hw_stop_process(const char* szProcName)
 }
 
 
-void hw_kill_process(const char* szProcName)
+int hw_kill_process(const char* szProcName, int iSignal)
 {
-   char szComm[1024];
-   char szPids[1024];
+   char szComm[256];
+   char szPids[256];
 
    if ( NULL == szProcName || 0 == szProcName[0] )
-      return;
+      return -1;
 
-   sprintf(szComm, "kill -9 $(pidof %s) 2>/dev/null", szProcName);
+   sprintf(szComm, "kill %d $(pidof %s) 2>/dev/null", iSignal, szProcName);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(20);
 
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command(szComm, szPids);
-   if ( strlen(szPids) > 2 )
-   {
-      log_line("Process %s pid is: %s", szProcName, szPids);
+   if ( strlen(szPids) < 3 )
+      return 1;
 
-      int retryCount = 10;
-      sprintf(szComm, "pidof %s", szProcName);
-      while ( retryCount > 0 )
-      {
-         hardware_sleep_ms(10);
-         szPids[0] = 0;
-         hw_execute_bash_command(szComm, szPids);
-         if ( strlen(szPids) < 2 )
-            return;
-         log_line("Process %s pid is: %s", szProcName, szPids);
-         retryCount--;
-      }
+   log_line("Process %s pid is: %s", szProcName, szPids);
+
+   int retryCount = 10;
+   while ( retryCount > 0 )
+   {
+      hardware_sleep_ms(10);
+      szPids[0] = 0;
+      hw_execute_bash_command(szComm, szPids);
+      if ( strlen(szPids) < 3 )
+         return 1;
+      log_line("Process %s pid is: %s", szProcName, szPids);
+      retryCount--;
    }
+   return 0;
 }
 
 

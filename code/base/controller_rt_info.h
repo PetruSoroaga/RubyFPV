@@ -29,17 +29,19 @@ typedef struct
    int iDbmNoiseMin[MAX_RADIO_ANTENNAS];
    int iDbmNoiseMax[MAX_RADIO_ANTENNAS];
    int iDbmNoiseAvg[MAX_RADIO_ANTENNAS];
-} __attribute__((packed)) controller_runtime_info_radio_interface_rx_signal;
+} ALIGN_STRUCT_SPEC_INFO controller_runtime_info_radio_interface_rx_signal;
 
 
 typedef struct
 {
    u32 uVehicleId;
-   u8 uMinAckTime[SYSTEM_RT_INFO_INTERVALS];
-   u8 uMaxAckTime[SYSTEM_RT_INFO_INTERVALS];
+   u8 uMinAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
+   u8 uMaxAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uCountReqRetransmissions[SYSTEM_RT_INFO_INTERVALS];
    u8 uCountAckRetransmissions[SYSTEM_RT_INFO_INTERVALS];
-} __attribute__((packed)) controller_runtime_info_vehicle;
+   u8 uAckTimes[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
+   int iAckTimeIndex[MAX_RADIO_INTERFACES];
+} ALIGN_STRUCT_SPEC_INFO controller_runtime_info_vehicle;
 
 typedef struct
 {
@@ -49,6 +51,8 @@ typedef struct
    int iDeltaIndexFromVehicle;
    u32 uSliceUpdateTime[SYSTEM_RT_INFO_INTERVALS];
    u8 uRxVideoPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
+   u8 uRxVideoECPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
+   u8 uRxVideoRetrPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uRxDataPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uRxMissingPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uRxMissingPacketsMaxGap[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
@@ -72,7 +76,7 @@ typedef struct
    u32 uFlagsAdaptiveVideo[SYSTEM_RT_INFO_INTERVALS];
 
    controller_runtime_info_vehicle vehicles[MAX_CONCURENT_VEHICLES];
-} __attribute__((packed)) controller_runtime_info;
+} ALIGN_STRUCT_SPEC_INFO controller_runtime_info;
 
 
 controller_runtime_info* controller_rt_info_open_for_read();
@@ -80,7 +84,7 @@ controller_runtime_info* controller_rt_info_open_for_write();
 void controller_rt_info_close(controller_runtime_info* pAddress);
 void controller_rt_info_init(controller_runtime_info* pRTInfo);
 controller_runtime_info_vehicle* controller_rt_info_get_vehicle_info(controller_runtime_info* pRTInfo, u32 uVehicleId);
-void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32 uVehicleId, u32 uRoundTripTime);
+void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32 uVehicleId, int iRadioLink, u32 uRoundTripTime);
 int controller_rt_info_will_advance_index(controller_runtime_info* pRTInfo, u32 uTimeNowMs);
 int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32 uTimeNowMs);
 #ifdef __cplusplus

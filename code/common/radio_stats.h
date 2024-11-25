@@ -14,6 +14,7 @@ void radio_stats_interfaces_rx_graph_reset(shared_mem_radio_stats_interfaces_rx_
 void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval);
 void radio_stats_reset_received_info(shared_mem_radio_stats* pSMRS);
 void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int iInterfaceIndex);
+void radio_stats_reset_interfaces_rx_info(shared_mem_radio_stats* pSMRS);
 void radio_stats_set_graph_refresh_interval(shared_mem_radio_stats* pSMRS, int graphRefreshInterval);
 
 void radio_stats_enable_history_monitor(int iEnable);

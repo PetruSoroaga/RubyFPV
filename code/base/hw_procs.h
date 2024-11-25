@@ -13,7 +13,7 @@ int hw_process_exists(const char* szProcName);
 char* hw_process_get_pid(const char* szProcName);
 
 void hw_stop_process(const char* szProcName);
-void hw_kill_process(const char* szProcName);
+int hw_kill_process(const char* szProcName, int iSignal);
 
 void hw_set_priority_current_proc(int nice);
 void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int waitForProcess);

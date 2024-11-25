@@ -21,7 +21,7 @@ typedef struct
    u8 extra_info1; // not used, for future use
    u8 extra_info2; // not used, for future use
    u8 extra_info3; // not used, for future use
-} __attribute__((packed)) t_packet_header_rc_full_frame_upstream;
+} ALIGN_STRUCT_SPEC_INFO t_packet_header_rc_full_frame_upstream;
 
 
 #define RC_INFO_HISTORY_SIZE 50 // every 50ms
@@ -40,7 +40,7 @@ typedef struct
    u8 last_history_slice;
    u8 rc_rssi;
    u32 extra_flags; // not used now. for future use
-} __attribute__((packed)) t_packet_header_rc_info_downstream;
+} ALIGN_STRUCT_SPEC_INFO t_packet_header_rc_info_downstream;
 
 
 

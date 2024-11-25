@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #define PLUGIN_VAR __attribute__ ((visibility("hidden")))
+#define ALIGN_STRUCT_SPEC_INFO __attribute__((aligned(4)))
 
 #define MAX_PLUGIN_SETTINGS 10
 
@@ -26,7 +27,7 @@ typedef struct
    float fOutlineThicknessPx;
    float fBackgroundAlpha;
    void* pExtraInfo; // pointer to extra info structure below
-} __attribute__((packed)) plugin_settings_info_t2;
+} ALIGN_STRUCT_SPEC_INFO plugin_settings_info_t2;
 
 
 typedef struct
@@ -36,7 +37,7 @@ typedef struct
    // 1 - imperial, mi
    // 2 - metric, meters
    // 3 - imperial, ft
-} __attribute__((packed)) plugin_settings_info_t2_extra;
+} ALIGN_STRUCT_SPEC_INFO plugin_settings_info_t2_extra;
 
 #ifdef __cplusplus
 }  

@@ -91,12 +91,63 @@ void validate_camera(Model* pModel)
    }
 }
 
-
 void update_openipc_cpu(Model* pModel)
 {
    hardware_set_default_sigmastar_cpu_freq();
    if ( NULL != pModel )
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+}
+
+
+void do_update_to_99()
+{
+   log_line("Doing update to 9.9");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->iColorOSDOutline[0] = 10;
+      pP->iColorOSDOutline[1] = 10;
+      pP->iColorOSDOutline[2] = 10;
+      pP->iColorOSDOutline[3] = 90; // 90%
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+ 
+   pModel->setDefaultVideoBitrate();
+   pModel->video_params.user_selected_video_link_profile = VIDEO_PROFILE_HIGH_QUALITY;
+
+   pModel->rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
+   pModel->processesPriorities.uProcessesFlags = PROCESSES_FLAGS_BALANCE_INT_CORES;
+
+   for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
+   {
+      for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
+      {
+         pModel->camera_params[k].profiles[i].uFlags |= CAMERA_FLAG_OPENIPC_3A_SIGMASTAR;
+      }
+   }
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_flags[i] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+   }
+
+   pModel->resetVideoLinkProfiles(-1);
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+   {
+      pModel->processesPriorities.iFreqGPU = 0;
+      hardware_set_oipc_freq_boost(pModel->processesPriorities.iFreqARM, pModel->processesPriorities.iFreqGPU);
+   }
+   #endif
+
+   log_line("Updated model VID %u (%s) to v9.9", pModel->uVehicleId, pModel->getLongName());
 }
 
 void do_update_to_98()
@@ -106,11 +157,11 @@ void do_update_to_98()
    if ( ! s_isVehicle )
    {
       load_ControllerSettings();
-      ControllerSettings* pCS = get_ControllerSettings();
+      //ControllerSettings* pCS = get_ControllerSettings();
       save_ControllerSettings(); 
       
       load_Preferences();
-      Preferences* pP = get_Preferences();
+      //Preferences* pP = get_Preferences();
       save_Preferences();
 
       #if defined (HW_PLATFORM_RADXA_ZERO3)
@@ -134,7 +185,7 @@ void do_update_to_98()
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
    {
-      pModel->processesPriorities.iFreqGPU = 1;
+      pModel->processesPriorities.iFreqGPU = 0;
       hardware_set_oipc_freq_boost(pModel->processesPriorities.iFreqARM, pModel->processesPriorities.iFreqGPU);
    
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
@@ -1142,13 +1193,13 @@ void do_update_to_69()
          pModel->video_link_profiles[i].h264refresh = 2;
       }
 
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_VIDEO_FPS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_VIDEO_FPS;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = DEFAULT_MQ_VIDEO_DATA_LENGTH;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
       pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
@@ -1239,7 +1290,7 @@ void do_update_to_68()
 
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
       
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_VIDEO_FPS;
       pModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = DEFAULT_LQ_VIDEO_DATA_LENGTH;
 
       pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
@@ -1289,9 +1340,9 @@ void do_update_to_67()
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
       }
       
-      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_MQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = DEFAULT_VIDEO_FPS;
 
-      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_LQ_VIDEO_FPS;
+      pModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = DEFAULT_VIDEO_FPS;
       pModel->video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
    }
    else
@@ -1773,6 +1824,8 @@ int main(int argc, char *argv[])
       do_update_to_97();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 8) )
       do_update_to_98();
+   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 9) )
+      do_update_to_99();
 
    saveCurrentModel();
    

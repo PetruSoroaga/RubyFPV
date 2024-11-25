@@ -87,7 +87,7 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_IndexInvertColors = addMenuItem(m_pItemsSelect[2]);
 
    m_IndexColorPickerOSD = addMenuItem(new MenuItem("OSD Text Color","Change color of the text in the OSD.")); 
-   m_IndexColorPickerOSDOutline = addMenuItem(new MenuItem("OSD Text Outline Color","Change color of the text outline in the OSD.")); 
+   m_IndexColorPickerOSDOutline = addMenuItem(new MenuItem("OSD Outline Color","Change color of the outline in the OSD.")); 
 
    m_pItemsSelect[3] = new MenuItemSelect("OSD Outline Thickness", "Increase/decrease OSD outline thickness.");
    m_pItemsSelect[3]->addSelection("None");
@@ -98,7 +98,7 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_pItemsSelect[3]->addSelection("Larger");
    m_pItemsSelect[3]->addSelection("Largest");
    //m_IndexOSDOutlineThickness = addMenuItem(m_pItemsSelect[3]);
-   m_IndexColorPickerOSDOutline = -1;
+   m_IndexOSDOutlineThickness = -1;
 
 
    m_pItemsSelect[6] = new MenuItemSelect("OSD Screen Size", "Change how big is the OSD relative to the screen.");  

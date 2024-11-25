@@ -85,6 +85,13 @@ void _test_link_end_and_notify()
    g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
 
    memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+   
+   log_line("Current radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
+       g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
+      
+   log_line("Current radio interfaces count: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d",
+      hardware_radio_has_rtl8812au_cards(), hardware_radio_has_rtl8812eu_cards(), hardware_radio_has_atheros_cards());
+
    saveCurrentModel();
 
    t_packet_header PH;

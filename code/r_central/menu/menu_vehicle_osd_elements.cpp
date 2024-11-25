@@ -162,8 +162,11 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_pItemsSelect[11] = new MenuItemSelect("Flight mode", "Shows flight mode on the OSD");  
    m_pItemsSelect[11]->addSelection("No");
    m_pItemsSelect[11]->addSelection("Yes");
-   if ( bUseMultiSelection )
-      m_pItemsSelect[11]->setUseMultiViewLayout();
+   m_pItemsSelect[11]->addSelection("Only when changing");
+   m_pItemsSelect[11]->addSelection("Both");
+   m_pItemsSelect[11]->setIsEditable();
+   //if ( bUseMultiSelection )
+   //   m_pItemsSelect[11]->setUseMultiViewLayout();
    m_IndexMode = addMenuItem(m_pItemsSelect[11]);
 
    m_pItemsSelect[12] = new MenuItemSelect("Time", "Shows the arm/flight time on the OSD");  
@@ -368,8 +371,15 @@ void MenuVehicleOSDElements::valuesToUI()
    if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SCRAMBLE_GPS )
       m_pItemsSelect[9]->setSelection(2);
 
-   m_pItemsSelect[11]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE)?1:0);
-   
+   m_pItemsSelect[11]->setSelection(0);
+   if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE) &&
+        (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
+      m_pItemsSelect[11]->setSelection(3);
+   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE )
+      m_pItemsSelect[11]->setSelection(1);
+   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE )
+      m_pItemsSelect[11]->setSelection(2);
+
    if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_TIME )
    {
       if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_TIME_LOWER )
@@ -738,9 +748,25 @@ void MenuVehicleOSDElements::onSelectItem()
    if ( m_IndexMode == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[11]->getSelectedIndex() )
+      {
          params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
-      else
+         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      }
+      else if ( 1 == m_pItemsSelect[11]->getSelectedIndex() )
+      {
          params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      }
+      else if ( 2 == m_pItemsSelect[11]->getSelectedIndex() )
+      {
+         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      }
+      else
+      {
+         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      }
       sendToVehicle = true;
    }
    

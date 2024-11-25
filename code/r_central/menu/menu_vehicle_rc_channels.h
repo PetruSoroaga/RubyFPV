@@ -29,7 +29,7 @@ typedef struct
    int m_IndexClear;
    int m_IndexAssign;
 
-} __attribute__((packed)) t_menu_group_rc_channel;
+} ALIGN_STRUCT_SPEC_INFO t_menu_group_rc_channel;
 
 
 class MenuVehicleRCChannels: public Menu

@@ -19,7 +19,7 @@ typedef struct
 
    u8 uSentVideoDataPackets[SYSTEM_RT_INFO_INTERVALS];
    u8 uSentVideoECPackets[SYSTEM_RT_INFO_INTERVALS];
-} __attribute__((packed)) vehicle_runtime_info;
+} ALIGN_STRUCT_SPEC_INFO vehicle_runtime_info;
 
 
 vehicle_runtime_info* vehicle_rt_info_open_for_read();

@@ -45,8 +45,13 @@ MenuConfirmationVehicleBoard::MenuConfirmationVehicleBoard()
 {
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.30;
-   addTopLine("The hardware detected on the vehicle has multiple variants.");
-   addTopLine("Select the type of your vehicle board:");
+   char szText[256];
+   sprintf(szText, "Select your %s board type", g_pCurrentModel->getVehicleTypeString());
+   setTitle(szText);
+   sprintf(szText, "The hardware detected on the %s has multiple variants.", g_pCurrentModel->getVehicleTypeString());
+   addTopLine(szText);
+   sprintf(szText, "Select the type of your %s board:", g_pCurrentModel->getVehicleTypeString());
+   addTopLine(szText);
    addTopLine("(You can later change it from vehicle menu)");
    addMenuItem(new MenuItem("Generic Sigmastar SSC338Q board"));
    addMenuItem(new MenuItem("Ultrasight AIO"));

@@ -78,7 +78,7 @@ ProcessorRxVideo* _find_create_rx_video_processor(u32 uVehicleId, u32 uVideoStre
 int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iPacketLength)
 {
    t_packet_header* pPH = (t_packet_header*)pPacket;
-   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
+   //t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
    u32 uVehicleId = pPH->vehicle_id_src;
    Model* pModel = findModelWithId(uVehicleId, 111);
    if ( NULL == pModel )
@@ -110,7 +110,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    */
 
      
-   bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
+   //bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
    u32 uVideoStreamIndex = 0;
    ProcessorRxVideo* pProcessorVideo = _find_create_rx_video_processor(uVehicleId, uVideoStreamIndex);
 
@@ -181,7 +181,7 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
    {
       if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
       {
-          t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
+          //t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
           //log_line("DEBUG recv retr video [%u/%u]", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex);
       }
 
@@ -194,7 +194,7 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
       u8 uVideoProfile = 0;
       memcpy((u8*)&uRequestId, pPacket + sizeof(t_packet_header), sizeof(u32));
       memcpy((u8*)&uVideoProfile, pPacket + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
-      adaptive_video_received_video_profile_switch_confirmation(uRequestId, uVideoProfile, pPH->vehicle_id_src);
+      adaptive_video_received_video_profile_switch_confirmation(uRequestId, uVideoProfile, pPH->vehicle_id_src, iInterfaceIndex);
    }
    return nRet;
 }

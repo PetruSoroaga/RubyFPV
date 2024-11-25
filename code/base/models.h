@@ -19,6 +19,7 @@
 #define CAMERA_FLAG_AWB_MODE_OLD ((u32)(((u32)0x01)<<1))
 #define CAMERA_FLAG_IR_FILTER_OFF ((u32)(((u32)0x01)<<2))
 #define CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF ((u32)(((u32)0x01) << 3))
+#define CAMERA_FLAG_OPENIPC_3A_SIGMASTAR ((u32)(((u32)0x01) << 4))
 
 typedef struct
 {
@@ -27,6 +28,7 @@ typedef struct
    // bit 1: AWB mode old
    // bit 2: 1: turn IR Cut off
    // bit 3: 1: turn off daylight mode for OpenIPC cameras, activate night mode
+   // bit 4: 1: use sigmastar 3a, 0: use default 3a
    u8 flip_image;
    u8 brightness; // 0...100
    u8 contrast;   // 0...100
@@ -155,7 +157,7 @@ typedef struct
    u32 instruments_flags[MODEL_MAX_OSD_PROFILES]; // each bit: what instrument to show
    u32 osd_preferences[MODEL_MAX_OSD_PROFILES];
      // byte 0: osd elements font size (0...6)
-     // byte 1: transparency (0...3)
+     // byte 1: transparency (0: max ... 4: none)
      // byte 2: bit 0...3  osd stats windows font size (0...6)
      //         bit 4...7  osd stats background transparency (0...3)
      // byte 3:
@@ -193,7 +195,7 @@ typedef struct
    int rc_failsafe_timeout_ms;
    bool dummy1;
    int receiver_type;
-   int inputType; // RC input type on the controller: 0 none, 1 usb, 2 ibus, 3 sbus
+   int inputType; // RC input type on the controller: 0 none, 1 usb, 2 ibus/sbus, see config_rc.h enum
    int inputSerialPort;
    long inputSerialPortSpeed;
    int outputSerialPort;
@@ -417,9 +419,10 @@ typedef struct
    u8  uUplinkDataDataRateType[MAX_RADIO_INTERFACES]; // DataRate Type
    u8  uDownlinkDataDataRateType[MAX_RADIO_INTERFACES];
    int iSiKPacketSize;
-   u32 uGlobalRadioLinksFlags; // See MODEL_RADIOLINKS_FLAGS_...
+   u32 uGlobalRadioLinksFlags; // See MODEL_RADIOLINKS_FLAGS_... in base/flags.h
    // bit 0 - none, 1 - disable uplinks
    // bit 1 - bypass sockets buffers
+   // bit 2 - has negotiated links;
    
    u32 uDummyRadio[7];
 } type_radio_links_parameters;
@@ -443,6 +446,8 @@ typedef struct
    u32 uDummy;
 } type_logging_parameters;
 
+#define PROCESSES_FLAGS_BALANCE_INT_CORES ((u32)(((u32)0x01)<<1))
+
 typedef struct 
 {
    int iNiceRC;
@@ -460,6 +465,7 @@ typedef struct
    int iThreadPriorityRouter; // 0 - disabled, 1...99, higher number - higher priority
    int iThreadPriorityRadioRx; // 0 - disabled, 1...99, higher number - higher priority
    int iThreadPriorityRadioTx; // 0 - disabled, 1...99, higher number - higher priority
+   u32 uProcessesFlags;
 } type_processes_priorities;
 
 
@@ -579,6 +585,7 @@ class Model
       void resetRCParams();
       void resetVideoParamsToDefaults();
       void resetVideoLinkProfiles(int iProfile = -1);
+      void resetVideoLinkProfilesToDataRates(int iUsableDataRateHQ, int iUsableDatarateHP);
       void resetCameraToDefaults(int iCameraIndex);
       void resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams);
       void resetFunctionsParamsToDefaults();

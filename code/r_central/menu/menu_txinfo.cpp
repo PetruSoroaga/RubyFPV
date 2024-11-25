@@ -662,7 +662,9 @@ int MenuTXInfo::onBack()
    if ( m_bValuesChangedVehicle )
    if ( (g_pCurrentModel != NULL) && (! g_pCurrentModel->isRunningOnOpenIPCHardware() ) )
    {
-      MenuConfirmation* pMC = new MenuConfirmation("Restart Required","You need to restart the vehicle for the power changes to take effect.", 3);
+      char szTextW[256];
+      sprintf(szTextW, "You need to restart the %s for the power changes to take effect.", g_pCurrentModel->getVehicleTypeString());
+      MenuConfirmation* pMC = new MenuConfirmation("Restart Required", szTextW, 3);
       pMC->m_yPos = 0.3;
       pMC->addTopLine("");
 
@@ -670,7 +672,8 @@ int MenuTXInfo::onBack()
       {
          pMC->addTopLine("Warning! You have RC link enabled. RC link will be lost while the vehicle restarts.");
       }
-      pMC->addTopLine("Do you want to restart your vehicle now?");
+      sprintf(szTextW, "Do you want to restart your %s now?", g_pCurrentModel->getVehicleTypeString());
+      pMC->addTopLine(szTextW);
       add_menu_to_stack(pMC);
       return 1;
    }

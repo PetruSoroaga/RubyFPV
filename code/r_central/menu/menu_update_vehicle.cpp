@@ -47,13 +47,14 @@ MenuUpdateVehiclePopup::MenuUpdateVehiclePopup(int vehicleIndex)
    char szBuff3[32];
    getSystemVersionString(szBuff2, g_pCurrentModel->sw_version);
    getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-   sprintf(szBuff, "Your vehicle %s has Ruby version %s (b.%d) and your controller has Ruby version %s (b.%d). You should update your vehicle.", g_pCurrentModel->getLongName(), szBuff2, g_pCurrentModel->sw_version >> 16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
+   sprintf(szBuff, "Your %s has Ruby version %s (b.%d) and your controller has Ruby version %s (b.%d). You should update your %s.", g_pCurrentModel->getLongName(), szBuff2, g_pCurrentModel->sw_version >> 16, szBuff3, SYSTEM_SW_BUILD_NUMBER, g_pCurrentModel->getVehicleTypeString());
 
    addTopLine(szBuff);
 
    if ( get_sw_version_build(g_pCurrentModel) < 242 )
       addTopLine("Video protocols have changed from the version running on vehicle. It is recommended to update vehicle otherways you will not get a video feed.");
-   addTopLine("Do you want to update the vehicle?");
+   sprintf(szBuff, "Do you want to update now?");
+   addTopLine(szBuff);
    addMenuItem(new MenuItem("Yes"));
    addMenuItem(new MenuItem("No"));
 }
@@ -86,7 +87,9 @@ void MenuUpdateVehiclePopup::onSelectItem()
    {
       if ( uploadSoftware() )
       {
-         Menu* pm = new MenuConfirmation("Upload Succeeded", "Your vehicle was updated. It will reboot now.", 3, true);
+         char szBuff[256];
+         sprintf(szBuff, "Your %s was updated. It will reboot now.", g_pCurrentModel->getVehicleTypeString());
+         Menu* pm = new MenuConfirmation("Upload Succeeded", szBuff, 3, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;

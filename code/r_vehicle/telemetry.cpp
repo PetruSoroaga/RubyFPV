@@ -265,6 +265,10 @@ int telemetry_open_serial_port()
       telemetry_ltm_on_open_port(s_iTelemetrySerialPortFile);
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       telemetry_msp_on_open_port(s_iTelemetrySerialPortFile);
+
+   if ( g_pCurrentModel->processesPriorities.uProcessesFlags & PROCESSES_FLAGS_BALANCE_INT_CORES )
+      hardware_balance_interupts();
+     
    return s_iTelemetrySerialPortFile;
 }
 

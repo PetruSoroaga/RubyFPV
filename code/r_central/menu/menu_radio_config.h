@@ -22,6 +22,8 @@ class MenuRadioConfig: public Menu
      
       virtual void onSelectItem();
 
+      bool m_bGoToFirstRadioLinkOnShow;
+      
    protected:
       void showProgressInfo();
       void hideProgressInfo();

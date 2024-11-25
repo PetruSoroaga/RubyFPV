@@ -183,10 +183,27 @@ void MenuControllerNetwork::onSelectItem()
 
    if ( m_IndexSSH == m_SelectedIndex )
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       hw_execute_bash_command("touch /boot/ssh", NULL);
+      #endif
+
+      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      hw_execute_bash_command("sudo systemctl enable ssh", NULL);
+      #endif
+
+      menu_discard_all();
+      popups_remove_all();
       addMessage("SSH enabled. Controller will reboot now.");
+
       for( int i=0; i<5; i++ )
-         hardware_sleep_ms(400);
+      {
+         ruby_processing_loop(true);
+         g_TimeNow = get_current_timestamp_ms();
+         render_all(g_TimeNow);
+         ruby_signal_alive();
+         hardware_sleep_ms(200);
+      }
+      onEventReboot();
       hardware_reboot();
    }
 }

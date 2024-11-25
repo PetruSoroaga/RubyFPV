@@ -56,9 +56,13 @@ MenuVehicleRadioInterface::MenuVehicleRadioInterface(int iRadioInterface)
 
    sprintf(szBuff, "Vehicle Radio Interface %d Parameters", m_iRadioInterface+1);
    setTitle(szBuff);
-   addTopLine("You have a single radio interface on the vehicle side for this radio link. You can't change the radio interface parameters. They are derived automatically from the radio link params.");
+   //addTopLine("You have a single radio interface on the vehicle side for this radio link. You can't change the radio interface parameters. They are derived automatically from the radio link params.");
+   //addMenuItem(new MenuItem("Ok"));
 
-   addMenuItem(new MenuItem("Ok"));
+   m_pItemsSelect[1] = createMenuItemCardModelSelector("Card Model");
+   m_pItemsSelect[1]->setIsEditable();
+   m_IndexCardModel = addMenuItem(m_pItemsSelect[1]);
+
 }
 
 MenuVehicleRadioInterface::~MenuVehicleRadioInterface()
@@ -75,6 +79,10 @@ void MenuVehicleRadioInterface::onShow()
 
 void MenuVehicleRadioInterface::valuesToUI()
 {
+   if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface] < 0 )
+      m_pItemsSelect[1]->setSelection(-g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
+   else
+      m_pItemsSelect[1]->setSelection(g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
 }
 
 void MenuVehicleRadioInterface::Render()
@@ -113,12 +121,6 @@ void MenuVehicleRadioInterface::onSelectItem()
       return;
    }
 
-   if ( 0 == m_SelectedIndex )
-   {
-      menu_stack_pop(0);
-      return;
-   }
-
    if ( link_is_reconfiguring_radiolink() )
    {
       handle_commands_show_popup_progress();
@@ -128,5 +130,17 @@ void MenuVehicleRadioInterface::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
-   
+   if ( m_IndexCardModel == m_SelectedIndex )
+   {
+      int iCardModel = m_pItemsSelect[1]->getSelectedIndex();
+      u32 uParam = m_iRadioInterface;
+      if ( 0 == iCardModel )
+         uParam = uParam | (128<<8);
+      else
+         uParam = uParam | ((128-iCardModel) << 8);
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_CARD_MODEL, uParam, NULL, 0) )
+         valuesToUI();
+
+      return;
+   }   
 }

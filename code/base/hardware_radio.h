@@ -70,6 +70,9 @@
 
 #define RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD ((u32)(((u32)0x01)))
 
+extern int g_ArrayTestRadioRates[];
+extern int g_ArrayTestRadioRatesCount;
+
 #ifdef __cplusplus
 extern "C" {
 #endif 
@@ -91,7 +94,7 @@ typedef struct
    int nDbmNoiseAvg[MAX_RADIO_ANTENNAS];
    int nDbmNoiseMin[MAX_RADIO_ANTENNAS];
    int nDbmNoiseMax[MAX_RADIO_ANTENNAS];
-} __attribute__((packed)) type_runtime_radio_rx_info;
+} ALIGN_STRUCT_SPEC_INFO type_runtime_radio_rx_info;
 
 
 void reset_runtime_radio_rx_info(type_runtime_radio_rx_info* pRuntimeRadioRxInfo);
@@ -106,7 +109,7 @@ typedef struct
    int nPort;
    int iErrorCount;
    type_runtime_radio_rx_info radioHwRxInfo;
-} type_runtime_radio_interface_info;
+} ALIGN_STRUCT_SPEC_INFO type_runtime_radio_interface_info;
 
 
 typedef struct
@@ -138,7 +141,7 @@ typedef struct
    int openedForWrite;
    type_runtime_radio_interface_info runtimeInterfaceInfoRx;
    type_runtime_radio_interface_info runtimeInterfaceInfoTx;
-} radio_hw_info_t;
+} ALIGN_STRUCT_SPEC_INFO radio_hw_info_t;
 
 
 typedef struct
@@ -150,7 +153,7 @@ typedef struct
    u8 slot_time;
    u8 thresh62;
    u32 extraInfo; // not used, for future use;
-} __attribute__((packed)) radio_info_wifi_t;
+} ALIGN_STRUCT_SPEC_INFO radio_info_wifi_t;
 
 
 typedef struct
@@ -161,7 +164,7 @@ typedef struct
    char szProductId[32];
    char szName[64];
    int iDriver;
-} usb_radio_interface_info_t;
+} ALIGN_STRUCT_SPEC_INFO usb_radio_interface_info_t;
 
 
 void hardware_save_radio_info();
@@ -189,6 +192,7 @@ const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_is_index_wifi_radio(int iRadioIndex);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);

@@ -31,6 +31,7 @@
 
 #include "packets_utils.h"
 #include "../base/base.h"
+#include "../base/config.h"
 #include "../base/flags.h"
 #include "../base/encr.h"
 #include "../base/commands.h"
@@ -66,7 +67,7 @@ typedef struct
    u32 uFlags2;
    u32 uRepeatCount;
    u32 uStartTime;
-} __attribute__((packed)) t_alarm_info;
+} ALIGN_STRUCT_SPEC_INFO t_alarm_info;
 
 #define MAX_ALARMS_QUEUE 20
 
@@ -399,6 +400,12 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
 
    radio_set_out_datarate(nRateTx);
 
+   if ( test_link_is_in_progress() )
+   {
+      t_packet_header* pPH = (t_packet_header*)pPacketData;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
+         log_line("Test link in progress. Sending radio packet using datarate: %d", nRateTx);
+   }
    u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
    radio_set_frames_flags(radioFlags);
 
@@ -962,6 +969,40 @@ void send_alarm_to_controller(u32 uAlarm, u32 uFlags1, u32 uFlags2, u32 uRepeatC
    s_AlarmsQueue[s_AlarmsPendingInQueue].uRepeatCount = uRepeatCount;
    s_AlarmsQueue[s_AlarmsPendingInQueue].uStartTime = g_TimeNow;
    s_AlarmsPendingInQueue++;
+}
+
+
+void send_alarm_to_controller_now(u32 uAlarm, u32 uFlags1, u32 uFlags2, u32 uRepeatCount)
+{
+   char szBuff[128];
+   alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
+
+   s_uAlarmsIndex++;
+   log_line("Sending alarm to controller: %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+
+   for( u32 u=0; u<uRepeatCount; u++ )
+   {
+      t_packet_header PH;
+      radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_ALARM, STREAM_ID_DATA);
+      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      PH.vehicle_id_dest = 0;
+      PH.total_length = sizeof(t_packet_header) + 4*sizeof(u32);
+
+      u8 packet[MAX_PACKET_TOTAL_SIZE];
+      memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+      memcpy(packet+sizeof(t_packet_header), &s_uAlarmsIndex, sizeof(u32));
+      memcpy(packet+sizeof(t_packet_header)+sizeof(u32), &uAlarm, sizeof(u32));
+      memcpy(packet+sizeof(t_packet_header)+2*sizeof(u32), &uFlags1, sizeof(u32));
+      memcpy(packet+sizeof(t_packet_header)+3*sizeof(u32), &uFlags2, sizeof(u32));
+      send_packet_to_radio_interfaces(packet, PH.total_length, -1);
+
+      char szBuff[128];
+      alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
+      log_line("Sent alarm packet to radio: %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+
+      s_uTimeLastAlarmSentToRouter = g_TimeNow;
+      hardware_sleep_ms(50);
+   }
 }
 
 void send_pending_alarms_to_controller()

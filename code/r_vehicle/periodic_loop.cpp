@@ -66,7 +66,7 @@ extern u16 s_countTXVideoPacketsOutPerSec[2];
 extern u16 s_countTXDataPacketsOutPerSec[2];
 extern u16 s_countTXCompactedPacketsOutPerSec[2];
 
-static u32 s_uTimeLastCheckForRaspiDebugMessages = 0;
+//static u32 s_uTimeLastCheckForRaspiDebugMessages = 0;
 
 static void * _reinit_sik_thread_func(void *ignored_argument)
 {
@@ -577,7 +577,7 @@ void _update_videobitrate_history_data()
    g_SM_DevVideoBitrateHistory.uCurrentDataPoint++;
    if ( g_SM_DevVideoBitrateHistory.uCurrentDataPoint >= MAX_INTERVALS_VIDEO_BITRATE_HISTORY )
       g_SM_DevVideoBitrateHistory.uCurrentDataPoint = 0;
-   int iIndex = (int)g_SM_DevVideoBitrateHistory.uCurrentDataPoint;
+   //int iIndex = (int)g_SM_DevVideoBitrateHistory.uCurrentDataPoint;
 
    // To fix g_SM_DevVideoBitrateHistory.uQuantizationOverflowValue = video_link_get_oveflow_quantization_value();
 // To fix 

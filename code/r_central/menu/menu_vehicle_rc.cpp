@@ -1013,11 +1013,16 @@ void MenuVehicleRC::onSelectItem()
       if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
       {
          m_bPendingEnable = enable;
+         char szVehicleType[256];
+         if ( NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel )
+            strcpy(szVehicleType, g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->getVehicleTypeString());
+         else
+            strcpy(szVehicleType, "vehicle");
          char szBuff[256];
          if ( ! enable )
-            sprintf(szBuff, "Your vehicle is armed. Are you sure you want to disable the RC link? You will lose RC controll of the vehicle.");
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Your %s is armed. Are you sure you want to disable the RC link? You will lose RC control of your %s.", szVehicleType, szVehicleType);
          else
-            sprintf(szBuff, "Your vehicle is armed. Are you sure you want to enable the RC link? It can have unintended consequences depending on how the flight controller is setup.");
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Your %s is armed. Are you sure you want to enable the RC link? It can have unintended consequences depending on how the flight controller is setup.", szVehicleType);
          MenuConfirmation* pMC = new MenuConfirmation("WARNING!",szBuff,2);
          add_menu_to_stack(pMC);         
          return;

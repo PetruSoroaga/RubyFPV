@@ -616,11 +616,15 @@ void menu_loop_parse_input_events()
          g_pPopupCameraParams->handleRotaryEvents(false, false, false, false, false, true);
          return;
       }
+      bool bHasModalMenu = false;
       for( int i=0; i<g_iMenuStackTopIndex; i++ )
+      {
+         bHasModalMenu |= g_pMenuStack[i]->isModal();
          if ( NULL != g_pMenuStack[i] )
             g_pMenuStack[i]->onBack();
-
-      menu_discard_all();
+      }
+      if ( ! bHasModalMenu )
+         menu_discard_all();
       return;
    }
 

@@ -62,7 +62,7 @@ void do_first_boot_pre_initialization()
    {
       hw_execute_bash_command("cp -rf /home/88XXau_wfb.ko /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", NULL);
       hw_execute_bash_command("rmmod 88XXau_wfb 2>&1 1>/dev/null", NULL);
-      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/88XXau_wfb.ko", NULL);
+      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/88XXau_wfb.ko 2>&1 1>/dev/null", NULL);
    }
    if ( access("/home/8812eu_radxa.ko", R_OK) != -1 )
    {
@@ -73,8 +73,8 @@ void do_first_boot_pre_initialization()
    }
    hw_execute_bash_command("depmod -a", NULL);
    hw_execute_bash_command("lsusb", NULL);
-   hw_execute_bash_command("sudo modprobe -f 88XXau_wfb", NULL);
-   hw_execute_bash_command("sudo modprobe -f 8812eu_radxa.ko", NULL);
+   hw_execute_bash_command("sudo modprobe -f 88XXau_wfb 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("sudo modprobe -f 8812eu_radxa.ko 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("sudo modprobe -r aic8800_fdrv 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("sudo modprobe -r aic8800_bsp 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("lsusb", NULL);
@@ -224,10 +224,10 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    }
    else
    {
-      load_ControllerSettings(); 
-      ControllerSettings* pcs = get_ControllerSettings();
+      load_ControllerSettings();
 
       #ifdef HW_PLATFORM_RASPBERRY
+      ControllerSettings* pcs = get_ControllerSettings();
       if ( NULL != pcs )
       {
          pcs->iFreqARM = DEFAULT_ARM_FREQ;
@@ -253,6 +253,7 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
       #endif
 
       #if defined (HW_PLATFORM_RADXA_ZERO3)
+      ControllerSettings* pcs = get_ControllerSettings();
       if ( NULL != pcs )
          pcs->iFreqARM = hardware_get_cpu_speed();
       #endif

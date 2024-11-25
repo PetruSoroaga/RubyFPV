@@ -43,7 +43,7 @@
 #include "radio_links.h"
 #include "packets_utils.h"
 
-extern t_packet_queue s_QueueRadioPackets;
+extern t_packet_queue s_QueueRadioPacketsRegPrio;
 
 int s_iTestLinkState = TEST_LINK_STATE_NONE;
 u32 s_uTestLinkVehicleId = 0;
@@ -595,7 +595,7 @@ void test_link_loop()
          uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_START;
          memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, (u8*)&s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
 
-         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         packets_queue_add_packet(&s_QueueRadioPacketsRegPrio, uBuffer);
          log_line("[TestLink-%d] Sent start message (count %u) to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
       }
       return;
@@ -654,7 +654,7 @@ void test_link_loop()
          u32 uTmp = (u32)s_iTestLinkCurrentStepSendCount;
          memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, &uTmp, sizeof(u32));
          memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), &s_uTestLinkCountPingsReceived, sizeof(u32));
-         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         packets_queue_add_packet(&s_QueueRadioPacketsRegPrio, uBuffer);
          log_line("[TestLink-%d] Sent ping uplink %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
       }
       return;
@@ -690,7 +690,7 @@ void test_link_loop()
          u32 uTmp = (u32)s_iTestLinkCurrentStepSendCount;
          memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE, &uTmp, sizeof(u32));
          memcpy(uBuffer + sizeof(t_packet_header) + PACKET_TYPE_TEST_RADIO_LINK_HEADER_SIZE + sizeof(u32), &s_uTestLinkCountPingsReceived, sizeof(u32));
-         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         packets_queue_add_packet(&s_QueueRadioPacketsRegPrio, uBuffer);
          log_line("[TestLink-%d] Sent ping downlink %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
       }
       return;
@@ -745,7 +745,7 @@ void test_link_loop()
          uBuffer[sizeof(t_packet_header)+3] = (u8)s_iTestLinkRunCount;
          uBuffer[sizeof(t_packet_header)+4] = PACKET_TYPE_TEST_RADIO_LINK_COMMAND_END;
          uBuffer[sizeof(t_packet_header)+5] = 1;
-         packets_queue_add_packet(&s_QueueRadioPackets, uBuffer);
+         packets_queue_add_packet(&s_QueueRadioPacketsRegPrio, uBuffer);
          log_line("[TestLink-%d] Sent end message %d to vehicle", s_iTestLinkRunCount, s_iTestLinkCurrentStepSendCount);
       }
       return;

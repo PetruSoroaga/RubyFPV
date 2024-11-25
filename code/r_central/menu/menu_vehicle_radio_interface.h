@@ -23,12 +23,6 @@ class MenuVehicleRadioInterface: public Menu
       MenuItemSlider* m_pItemsSlider[20];
       MenuItemSelect* m_pItemsSelect[20];
 
-      int m_IndexTXPreferred;
       int m_IndexCardModel;
-      int m_IndexEnabled;
-      int m_IndexUsage;
-      int m_IndexCapabilities;
-      int m_IndexDataRate;
       int m_IndexName;
-      int m_IndexInternal;
 };

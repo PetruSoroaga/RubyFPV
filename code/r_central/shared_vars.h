@@ -1,5 +1,6 @@
 #pragma once
 #include "../base/base.h"
+#include "../base/config.h"
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopackets_rc.h"
 #include "../base/shared_mem.h"
@@ -57,6 +58,7 @@ extern bool g_bToglleOSDOff;
 extern bool g_bToglleStatsOff;
 extern bool g_bToglleAllOSDOff;
 extern bool g_bFreezeOSD;
+extern bool g_bDidAnUpdate;
 
 extern bool g_bIsRouterPacketsHistoryGraphOn;
 extern bool g_bIsRouterPacketsHistoryGraphPaused;

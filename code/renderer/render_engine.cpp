@@ -592,6 +592,11 @@ void RenderEngine::freeRawFont(u32 idFont)
    log_line("Unloaded font id %u, remaining fonts: %d", idFont, m_iCountRawFonts);
 }
 
+void RenderEngine::setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a)
+{
+ 
+}
+
 u32 RenderEngine::loadImage(const char* szFile)
 {
    return 0;

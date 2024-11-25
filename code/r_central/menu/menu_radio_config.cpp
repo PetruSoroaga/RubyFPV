@@ -84,6 +84,7 @@ MenuRadioConfig::MenuRadioConfig(void)
    m_fHeaderHeight = 0.0;
    m_fTotalHeightRadioConfig = 0.0;
    m_bComputedHeights = false;
+   m_bGoToFirstRadioLinkOnShow = false;
    m_bHasSwapInterfacesCommand = false;
    m_bHasRotateRadioLinksOrderCommand = false;
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
@@ -159,6 +160,13 @@ void MenuRadioConfig::onShow()
    setTooltipText();
 
    Menu::onShow();
+
+   if ( m_bGoToFirstRadioLinkOnShow )
+   {
+      m_iIndexCurrentItem = m_iHeaderItemsCount;
+      m_bGoToFirstRadioLinkOnShow = false;
+      setTooltipText();
+   }
 
    if ( ! (menu_is_menu_on_top(this)) )
    if ( ! (menu_has_menu(MENU_ID_TXINFO)) )

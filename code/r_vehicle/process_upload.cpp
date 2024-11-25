@@ -201,6 +201,7 @@ static void * _thread_process_upload(void *argument)
 
    _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_START_PROCESSING, 5);
    
+   #if defined(HW_PLATFORM_RASPBERRY)
    log_line("Save received update archive for backup...");
    sprintf(szComm, "rm -rf %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
@@ -208,6 +209,7 @@ static void * _thread_process_upload(void *argument)
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %slast_update_received.tar 2>&1", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
+   #endif
 
    vehicle_stop_rx_rc();
 
@@ -479,12 +481,12 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
       if ( params->type == 0 )
       {
          sprintf(s_szUpdateArchiveFile, "%s%s", FOLDER_UPDATES, "ruby_update.zip");
-         log_line("Receiving update zip file.");
+         log_line("Receiving update zip file, to save it in (%s)", s_szUpdateArchiveFile);
       }
       else
       {
          sprintf(s_szUpdateArchiveFile, "%s%s", FOLDER_UPDATES, "ruby_update.tar");
-         log_line("Receiving update tar file.");
+         log_line("Receiving update tar file, to save it in (%s)", s_szUpdateArchiveFile);
       }
    }
 
@@ -496,8 +498,11 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
       return;
    }
 
-   s_pSWPacketsReceived[params->file_block_index]++;
    s_pSWPacketsSize[params->file_block_index] = length-sizeof(t_packet_header)-sizeof(t_packet_header_command)-sizeof(command_packet_sw_package);
+   s_pSWPacketsReceived[params->file_block_index]++;
+   if ( 1 == s_pSWPacketsReceived[params->file_block_index] )
+      s_uCurrentReceivedSoftwareSize += s_pSWPacketsSize[params->file_block_index];
+
    if ( s_pSWPacketsSize[params->file_block_index] > s_uSWPacketsMaxSize )
    {
       log_softerror_and_alarm("Received SW Upload packet index %d too big (%u bytes, max allowed: %u)", params->file_block_index, s_pSWPacketsSize[params->file_block_index], s_uSWPacketsMaxSize);
@@ -579,13 +584,19 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
 
    s_bUpdateInProgress = true;
 
+
+   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
    s_pFileSoftware = fopen(s_szUpdateArchiveFile, "wb");
    if ( NULL == s_pFileSoftware )
    {
-      log_softerror_and_alarm("Failed to create file for the downloaded software package.");
+      log_softerror_and_alarm("Failed to create file for the downloaded software package. (file (%s))", s_szUpdateArchiveFile);
       log_softerror_and_alarm("The download did not completed correctly. Expected size: %d, received size: %d", params->total_size, s_uCurrentReceivedSoftwareSize );
       _sw_update_close_remove_temp_files();
       s_bUpdateInProgress = false;
+      _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_FAILED_DISK_SPACE, 10);
       return;
    }
 
@@ -598,6 +609,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
          log_softerror_and_alarm("Failed to write to file for the downloaded software package.");
          _sw_update_close_remove_temp_files();
          s_bUpdateInProgress = false;
+         _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_FAILED_DISK_SPACE, 10);
          return;
       }
       fileSize += s_pSWPacketsSize[i];
@@ -610,8 +622,6 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    if ( fileSize != params->total_size )
       log_softerror_and_alarm("Missmatch between expected file size (%u) and created file size (%u)!", params->total_size, fileSize);
 
-   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
    sync();
 
    log_line("Received software package correctly (6.3 method). Update file: [%s]. Applying it.", s_szUpdateArchiveFile);
@@ -620,6 +630,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Failed to create worker thread to process upload.");
       s_bUpdateInProgress = false;
+      _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_FAILED, 10);
       return;
    }
 }

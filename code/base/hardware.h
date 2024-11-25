@@ -41,6 +41,7 @@
 
 
 #define BOARD_TYPE_RADXA_ZERO3 60
+#define BOARD_TYPE_RADXA_3C 61
 
 
 #define CAMERA_TYPE_NONE 0
@@ -162,7 +163,7 @@ int hardware_set_audio_output(int iAudioDevice, int iAudioVolume);
 
 void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost);
 void hardware_set_oipc_gpu_boost(int iGPUBoost);
-
+void hardware_balance_interupts();
 #ifdef __cplusplus
 }  
 #endif 

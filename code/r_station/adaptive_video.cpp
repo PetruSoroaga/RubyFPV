@@ -42,8 +42,26 @@
 #include "shared_vars_state.h"
 #include "timers.h"
 
-extern t_packet_queue s_QueueRadioPackets;
+extern t_packet_queue s_QueueRadioPacketsHighPrio;
 
+u32 s_uTimePauseAdaptiveVideoUntil = 0;
+
+void adaptive_video_pause(u32 uMilisec)
+{
+   if ( 0 == uMilisec )
+   {
+      s_uTimePauseAdaptiveVideoUntil = 0;
+      log_line("[AdaptiveVideo] Resumed");
+
+   }
+   else
+   {
+      if ( uMilisec > 20000 )
+         uMilisec = 20000;
+      s_uTimePauseAdaptiveVideoUntil = g_TimeNow + uMilisec;
+      log_line("[AdaptiveVideo] Pause for %u milisec", uMilisec);
+   }
+}
 
 int _adaptive_video_get_lower_video_profile(int iVideoProfile)
 {
@@ -91,12 +109,14 @@ void _adaptive_video_send_video_profile_to_vehicle(int iVideoProfile, u32 uVehic
    memcpy(packet+sizeof(t_packet_header), (u8*)&(pRuntimeInfo->uVideoProfileRequestId), sizeof(u32));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32), (u8*)&uVideoProfile, sizeof(u8));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), (u8*)&uVideoStreamIndex, sizeof(u8));
-   packets_queue_inject_packet_first(&s_QueueRadioPackets, packet);
+   packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
 }
 
 void adaptive_video_switch_to_video_profile(int iVideoProfile, u32 uVehicleId)
 {
    if ( ! isPairingDoneWithVehicle(uVehicleId) )
+      return;
+   if ( g_bNegociatingRadioLinks )
       return;
    type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(uVehicleId);
    if ( NULL == pRuntimeInfo )
@@ -107,7 +127,7 @@ void adaptive_video_switch_to_video_profile(int iVideoProfile, u32 uVehicleId)
    _adaptive_video_send_video_profile_to_vehicle(iVideoProfile, uVehicleId);
 }
 
-void adaptive_video_received_video_profile_switch_confirmation(u32 uRequestId, u8 uVideoProfile, u32 uVehicleId)
+void adaptive_video_received_video_profile_switch_confirmation(u32 uRequestId, u8 uVideoProfile, u32 uVehicleId, int iInterfaceIndex)
 {
    type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(uVehicleId);
    if ( NULL == pRuntimeInfo )
@@ -123,7 +143,7 @@ void adaptive_video_received_video_profile_switch_confirmation(u32 uRequestId, u
    if ( pRuntimeInfo->uVideoProfileRequestId == uRequestId )
    {
       u32 uDeltaTime = g_TimeNow - pRuntimeInfo->uLastTimeSentVideoProfileRequest;
-      controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, uVehicleId, uDeltaTime);
+      controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, uVehicleId, g_SM_RadioStats.radio_interfaces[iInterfaceIndex].assignedLocalRadioLinkId, uDeltaTime);
    }
 }
 
@@ -263,9 +283,17 @@ void _adaptive_video_check_vehicle(Model* pModel, type_global_state_vehicle_runt
 
 void adaptive_video_periodic_loop()
 {
-   if (g_TimeNow < g_TimeStart + 4000 )
+   if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks )
       return;
 
+   if ( 0 != s_uTimePauseAdaptiveVideoUntil )
+   {
+      if ( g_TimeNow < s_uTimePauseAdaptiveVideoUntil )
+         return;
+      log_line("[AdaptiveVideo] Resumed after pause.");
+      s_uTimePauseAdaptiveVideoUntil = 0;
+   }
+   
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       if ( (g_State.vehiclesRuntimeInfo[i].uVehicleId == 0) || (g_State.vehiclesRuntimeInfo[i].uVehicleId == MAX_U32) )

@@ -339,9 +339,9 @@ int _read_keyboard_input_events()
             else if ( (events[k].code == 14) || (events[k].code == 1) )
                uEvent = INPUT_EVENT_PRESS_BACK;
             else if ( (events[k].code == 103) || (events[k].code == 22) || (events[k].code == 72) || (events[k].code == 75) )
-               uEvent = INPUT_EVENT_PRESS_MINUS;
-            else if ( (events[k].code == 108) || (events[k].code == 32) || (events[k].code == 80) || (events[k].code == 77) )
                uEvent = INPUT_EVENT_PRESS_PLUS;
+            else if ( (events[k].code == 108) || (events[k].code == 32) || (events[k].code == 80) || (events[k].code == 77) )
+               uEvent = INPUT_EVENT_PRESS_MINUS;
             else if ( (events[k].code == 2) || (events[k].code == 79) )
                uEvent = INPUT_EVENT_PRESS_QA1;
             else if ( (events[k].code == 3) )

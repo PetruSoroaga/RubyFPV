@@ -106,6 +106,7 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[3]->addSelection("Medium");
    m_pItemsSelect[3]->addSelection("Normal");
    m_pItemsSelect[3]->addSelection("Minimum");
+   m_pItemsSelect[3]->addSelection("None");
    m_pItemsSelect[3]->setIsEditable();
    m_IndexOSDTransparency = addMenuItem(m_pItemsSelect[3]);
 
@@ -154,7 +155,7 @@ void MenuVehicleOSD::valuesToUI()
    
    m_pItemsSelect[0]->setSelectedIndex(layoutIndex);
    m_pItemsSelect[2]->setSelectedIndex(g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & 0xFF);
-   m_pItemsSelect[3]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex])>>8) & 0xFF);
+   m_pItemsSelect[3]->setSelectedIndex(((g_pCurrentModel->osd_params.osd_preferences[layoutIndex]) & OSD_PREFERENCES_OSD_TRANSPARENCY_BITMASK) >> OSD_PREFERENCES_OSD_TRANSPARENCY_SHIFT);
    
    m_pItemsSelect[4]->setSelectedIndex(0);
    if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
@@ -350,7 +351,7 @@ void MenuVehicleOSD::onSelectItem()
    if ( m_IndexOSDTransparency == m_SelectedIndex )
    {
       params.osd_preferences[layoutIndex] &= 0xFFFF00FF;
-      params.osd_preferences[layoutIndex] |= ((u32)m_pItemsSelect[3]->getSelectedIndex())<<8;
+      params.osd_preferences[layoutIndex] |= ((((u32)m_pItemsSelect[3]->getSelectedIndex()) << OSD_PREFERENCES_OSD_TRANSPARENCY_SHIFT) & OSD_PREFERENCES_OSD_TRANSPARENCY_BITMASK);
       sendToVehicle = true;
    }
 

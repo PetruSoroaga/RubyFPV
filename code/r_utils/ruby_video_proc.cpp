@@ -341,7 +341,9 @@ int main(int argc, char *argv[])
       log_enable_stdout();
    
    char szComm[256];
-   sprintf(szComm, "chmod 777 %s*", FOLDER_MEDIA);
+   sprintf(szComm, "chmod 777 %s 2>&1 1>/dev/null", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
    hw_execute_bash_command(szComm, NULL);
    
    if ( bStoreOnly )
@@ -361,7 +363,9 @@ int main(int argc, char *argv[])
       process_video(szFileInfo, szFileOut);
    }
 
-   sprintf(szComm, "chmod 777 %s*", FOLDER_MEDIA);
+   sprintf(szComm, "chmod 777 %s 2>&1 1>/dev/null", FOLDER_MEDIA);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
    hw_execute_bash_command(szComm, NULL);
 
    log_line("Finished processing video file.");

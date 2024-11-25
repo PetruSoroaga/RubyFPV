@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../base/base.h"
+#include "../base/config.h"
 
 #define SHARED_MEM_NAME_I2C_CURRENT "/SYSTEM_SHARED_MEM_RUBY_I2C_CURRENT"
 #define SHARED_MEM_NAME_I2C_CONTROLLER_RC_IN "/SYSTEM_SHARED_MEM_RUBY_I2C_CONTROLLER_RC_IN"
@@ -16,7 +17,7 @@ typedef struct
    u32 uParam;
    u32 voltage;  // MAX_U32 for not measured
    u32 current;  // MAX_U32 for not measured
-} __attribute__((packed)) t_shared_mem_i2c_current;
+} ALIGN_STRUCT_SPEC_INFO t_shared_mem_i2c_current;
 
 
 #define RC_IN_FLAG_HAS_INPUT 0x01
@@ -29,7 +30,7 @@ typedef struct
    u8 uFrameIndex;
    u8 uChannelsCount;
    u16 uChannels[MAX_RC_CHANNELS];
-} __attribute__((packed)) t_shared_mem_i2c_controller_rc_in;
+} ALIGN_STRUCT_SPEC_INFO t_shared_mem_i2c_controller_rc_in;
 
 typedef struct
 {
@@ -41,7 +42,7 @@ typedef struct
    u8  uHasRotaryEncoder;
    u8  uHasSecondaryRotaryEncoder;
    u32 uCRC; // should be last in the structure as is not part of the CRC computation;
-} __attribute__((packed)) t_shared_mem_i2c_rotary_encoder_buttons_events;
+} ALIGN_STRUCT_SPEC_INFO t_shared_mem_i2c_rotary_encoder_buttons_events;
 
 
 t_shared_mem_i2c_current* shared_mem_i2c_current_open_for_write();

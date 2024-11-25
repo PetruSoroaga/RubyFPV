@@ -434,6 +434,37 @@ void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int i
    }
 }
 
+void radio_stats_reset_interfaces_rx_info(shared_mem_radio_stats* pSMRS)
+{
+   if ( NULL == pSMRS )
+      return;
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+      pSMRS->radio_interfaces[i].rxBytesPerSec = 0;
+      pSMRS->radio_interfaces[i].totalRxBytes = 0;
+      pSMRS->radio_interfaces[i].totalRxPackets = 0;
+      pSMRS->radio_interfaces[i].totalRxPacketsBad = 0;
+      pSMRS->radio_interfaces[i].totalRxPacketsLost = 0;
+      pSMRS->radio_interfaces[i].rxPacketsPerSec = 0;
+      pSMRS->radio_interfaces[i].timeLastRxPacket = 0;
+
+      pSMRS->radio_interfaces[i].tmpRxBytes = 0;
+      pSMRS->radio_interfaces[i].tmpRxPackets = 0;
+
+      for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
+      {
+         pSMRS->radio_interfaces[i].hist_rxPacketsCount[k] = 0;
+         pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[k] = 0;
+         pSMRS->radio_interfaces[i].hist_rxPacketsLostCount[k] = 0;
+         pSMRS->radio_interfaces[i].hist_rxGapMiliseconds[k] = 0xFF;
+      }
+      pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount = 0;
+      pSMRS->radio_interfaces[i].hist_tmp_rxPacketsBadCount = 0;
+      pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCount = 0;
+   }
+}
+
 void radio_stats_set_graph_refresh_interval(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
 {
    if ( NULL == pSMRS )

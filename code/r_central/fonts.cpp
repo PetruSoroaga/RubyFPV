@@ -167,6 +167,9 @@ bool loadAllFonts(bool bReloadMenuFonts)
     log_line("Loading OSD fonts...");
    _loadFontFamily(szFont, s_ListOSDFontSizes, &s_iListOSDFontSizesCount );
 
+   for( int i=0; i<s_iListOSDFontSizesCount; i++ )
+      g_pRenderEngine->setFontOutlineColor(s_ListOSDFontSizes[i], p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], p->iColorOSDOutline[3]);
+
    applyFontScaleChanges();
 
    log_line("Done loading fonts.");

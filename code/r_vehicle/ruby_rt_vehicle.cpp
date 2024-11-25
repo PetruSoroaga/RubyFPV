@@ -131,9 +131,6 @@ extern u32 s_uLastAlarmsCount;
 
 u32 s_uTimeLastTryReadIPCMessages = 0;
 
-#define MAX_RADIO_PACKETS_TO_CACHE_LOCALLY 100
-type_received_radio_packet s_ReceivedRadioPacketsBuffer[MAX_RADIO_PACKETS_TO_CACHE_LOCALLY];
-
 bool links_set_cards_frequencies_and_params(int iLinkId)
 {
    if ( NULL == g_pCurrentModel )
@@ -697,6 +694,12 @@ void _read_ipc_pipes(u32 uTimeNow)
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferTelemetryDownlink); 
       else
       {
+         if ( get_video_capture_start_program_time() != 0 )
+         if ( g_TimeNow < get_video_capture_start_program_time() + 2000 )
+         {
+            log_line("Skipped telemetry packet as video capture just started.");
+            continue;
+         }
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferTelemetryDownlink); 
          /*
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
@@ -1130,69 +1133,6 @@ void _check_rx_loop_consistency()
    }
 }
 
-void _consume_radio_rx_packets()
-{
-   int iReceivedAnyPackets = radio_rx_has_packets_to_consume();
-
-   if ( iReceivedAnyPackets <= 0 )
-      return;
-
-   if ( iReceivedAnyPackets > 15 )
-      iReceivedAnyPackets = 15;
-
-   u32 uTimeStart = get_current_timestamp_ms();
-
-   for( int i=0; i<iReceivedAnyPackets; i++ )
-   {
-      int iPacketLength = 0;
-      int iIsShortPacket = 0;
-      int iRadioInterfaceIndex = 0;
-      u8* pPacket = radio_rx_get_next_received_packet(&iPacketLength, &iIsShortPacket, &iRadioInterfaceIndex);
-      if ( (NULL == pPacket) || (iPacketLength <= 0) )
-         continue;
-
-      shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
-      process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
-      u32 uTime = get_current_timestamp_ms();    
-      if ( uTime > uTimeStart + 500 )
-      {
-         log_softerror_and_alarm("Consuming radio rx packets takes too long (%u ms), read ipc messages.", uTime - uTimeStart);
-         uTimeStart = uTime;
-         _read_ipc_pipes(uTime);
-      }
-      if ( (0 != s_uTimeLastTryReadIPCMessages) && (uTime > s_uTimeLastTryReadIPCMessages + 500) )
-      {
-         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
-         uTimeStart = uTime;
-         _read_ipc_pipes(uTime);
-      }
-   }
-
-   if ( iReceivedAnyPackets <= 0 )
-   if ( (NULL != g_pProcessStats) && (0 != g_pProcessStats->lastRadioRxTime) && (g_TimeNow > TIMEOUT_LINK_TO_CONTROLLER_LOST) && (g_pProcessStats->lastRadioRxTime + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow) )
-   {
-      if ( g_TimeLastReceivedRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
-      if ( g_bHasLinkToController )
-      {
-         g_bHasLinkToController = false;
-         if ( g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM )
-            send_alarm_to_controller(ALARM_ID_LINK_TO_CONTROLLER_LOST, 0, 0, 5);
-      }
-
-      if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
-      if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
-      if ( (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_REMOTE) ||
-           (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_PIP_MAIN) ||
-           (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_PIP_REMOTE) )
-      {
-         u32 uOldRelayMode = g_pCurrentModel->relay_params.uCurrentRelayMode;
-         g_pCurrentModel->relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
-         saveCurrentModel();
-         onEventRelayModeChanged(uOldRelayMode, g_pCurrentModel->relay_params.uCurrentRelayMode, "stop");
-      }
-   }
-}
-
 u32 get_video_capture_start_program_time()
 {
    if ( (NULL == g_pCurrentModel) || ( ! g_pCurrentModel->hasCamera()) )
@@ -1544,9 +1484,6 @@ int main(int argc, char *argv[])
 
    log_line("Start sequence: Done creating audio processor.");
 
-   for( int i=0; i<MAX_RADIO_PACKETS_TO_CACHE_LOCALLY; i++ )
-      s_ReceivedRadioPacketsBuffer[i].pPacketData = (u8*)malloc(MAX_PACKET_TOTAL_SIZE);
-
    radio_duplicate_detection_init();
    radio_rx_start_rx_thread(&g_SM_RadioStats, NULL, 0, g_pCurrentModel->getVehicleFirmwareType());
    
@@ -1607,6 +1544,7 @@ int main(int argc, char *argv[])
       bDebugNoVideoOutput = true;
 
    g_iDefaultRouterThreadPriority = hw_increase_current_thread_priority("Main thread", g_pCurrentModel->processesPriorities.iThreadPriorityRouter);
+
 
    // -----------------------------------------------------------
    // Main loop here
@@ -1724,36 +1662,26 @@ void _main_loop()
  
    _update_main_loop_debug_info();
    
-   int iCountRadioRxPacketsToConsume = 0;
-   int iCountRadioRxPacketsToProcess = 0;
-
+  
    //---------------------------------------------
    // Check and process retransmissions received and pings received and other high priority radio messages
+   int iCountConsumedHighPrio = 0;
+   
+   int iPacketLength = 0;
+   int iPacketIsShort = 0;
+   int iRadioInterfaceIndex = 0;
+   u8* pPacket = NULL;
 
-   iCountRadioRxPacketsToConsume = radio_rx_has_packets_to_consume();
-   if ( iCountRadioRxPacketsToConsume > 0 )
+   while ( (iCountConsumedHighPrio < 10) && (!g_bQuit) )
    {
-      if ( iCountRadioRxPacketsToConsume >= MAX_RADIO_PACKETS_TO_CACHE_LOCALLY-2 )
-         iCountRadioRxPacketsToConsume = MAX_RADIO_PACKETS_TO_CACHE_LOCALLY-2;
+      pPacket = radio_rx_wait_get_next_received_high_prio_packet(0, &iPacketLength, &iPacketIsShort, &iRadioInterfaceIndex);
+      if ( (NULL == pPacket) || g_bQuit )
+         break;
 
-      iCountRadioRxPacketsToProcess = radio_rx_get_received_packets(iCountRadioRxPacketsToConsume, s_ReceivedRadioPacketsBuffer);
+      iCountConsumedHighPrio++;
 
-      for( int i=0; i<iCountRadioRxPacketsToProcess; i++ )
-      {
-         if ( g_bQuit )
-            break;
-         int iPacketLength = s_ReceivedRadioPacketsBuffer[i].iPacketLength;
-         int iRadioInterfaceIndex = s_ReceivedRadioPacketsBuffer[i].iPacketRxInterface;
-         u8* pPacket = s_ReceivedRadioPacketsBuffer[i].pPacketData;
-
-         t_packet_header* pPH = (t_packet_header*) pPacket;
-
-         if ( radio_packet_type_is_high_priority(pPH->packet_type) )
-         {
-            process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
-            shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
-         }
-      }
+      process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
+      shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
    }
 
    //--------------------------------------------
@@ -1761,130 +1689,142 @@ void _main_loop()
 
    if ( g_pCurrentModel->hasCamera() )
    {
-      // Read multiple times for large I-frames
-      int iMaxRepeatCount = 3;
+      int iReadSize = 0;
+      u8* pVideoData = NULL;
+      bool bIsInsideIFrame = false;
+      bool bEndOfFrame = false;
 
-      while ( iMaxRepeatCount > 0 )
+      // Clear up video pipes on start
+      if ( g_TimeNow < g_TimeStart + 2000 )
       {
-         iMaxRepeatCount--;
-         int iReadSize = 0;
-         u8* pVideoData = NULL;
-         bool bIsInsideIFrame = false;
-         bool bEndOfFrame = false;
-
-         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+         for( int i=0; i<50; i++ )
          {
-            pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
-            if ( iReadSize > 0 )
+            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+               pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
+            if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+               pVideoData = video_source_majestic_read(&iReadSize, true);
+         }
+         g_TimeNow = get_current_timestamp_ms();
+      }
+      else
+      {
+         // Read multiple times for large I-frames
+         int iMaxRepeatCount = 4;
+
+         while ( iMaxRepeatCount > 0 )
+         {
+            iMaxRepeatCount--;
+            iReadSize = 0;
+            pVideoData = NULL;
+            bIsInsideIFrame = false;
+            bEndOfFrame = false;
+
+            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
             {
-               int iBuffSize = video_source_csi_get_buffer_size();
-               bEndOfFrame = (iReadSize < iBuffSize)?true:false;
-               if ( ! bDebugNoVideoOutput )
-                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
-               if ( iReadSize < iBuffSize )
+               pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
+               if ( iReadSize > 0 )
+               {
+                  int iBuffSize = video_source_csi_get_buffer_size();
+                  bEndOfFrame = (iReadSize < iBuffSize)?true:false;
+                  if ( ! bDebugNoVideoOutput )
+                     g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+                  if ( iReadSize < iBuffSize )
+                     iMaxRepeatCount = 0;
+               }
+               else
                   iMaxRepeatCount = 0;
             }
-            else
-               iMaxRepeatCount = 0;
-         }
-         
-         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         {
-            pVideoData = video_source_majestic_read(&iReadSize, true);
-            if ( iReadSize > 0 )
+            
+            if ( g_pCurrentModel->isActiveCameraOpenIPC() )
             {
-               bool bSingle = video_source_majestic_last_read_is_single_nal();
-               bool bEnd = video_source_majestic_last_read_is_end_nal();
-               bIsInsideIFrame = video_source_majestic_is_inside_iframe();
-               bEndOfFrame = (bSingle || bEnd);
-               if ( ! bDebugNoVideoOutput )
+               pVideoData = video_source_majestic_read(&iReadSize, true);
+               if ( iReadSize > 0 )
                {
-                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+                  bool bSingle = video_source_majestic_last_read_is_single_nal();
+                  bool bEnd = video_source_majestic_last_read_is_end_nal();
+                  bIsInsideIFrame = video_source_majestic_is_inside_iframe();
+                  bEndOfFrame = (bSingle || bEnd);
+                  if ( ! bDebugNoVideoOutput )
+                  {
+                     g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+                  }
+               }
+               else
+                  iMaxRepeatCount = 0;
+            }
+
+            adaptive_video_on_new_camera_read(bEndOfFrame, bIsInsideIFrame);
+
+            // Send telemetry/commands/etc before video data
+            if ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
+            if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
+               process_and_send_packets();
+
+            // Intermix video packets and try again to see if we got any new high priority packets
+            while ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
+            {
+               int iPending = g_pVideoTxBuffers->hasPendingPacketsToSend();
+               int iCountSent = g_pVideoTxBuffers->sendAvailablePackets(10);
+               g_TimeNow = get_current_timestamp_ms();
+               int iCount2 = 0;
+               while ( (iCount2 < 3) && (!g_bQuit) )
+               {
+                  pPacket = radio_rx_wait_get_next_received_high_prio_packet(0, &iPacketLength, &iPacketIsShort, &iRadioInterfaceIndex);
+                  if ( (NULL == pPacket) || g_bQuit )
+                     break;
+
+                  iCount2++;
+                  iCountConsumedHighPrio++;
+
+                  process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
+                  shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
                }
             }
-            else
-               iMaxRepeatCount = 0;
+
+            if ( g_pCurrentModel->bDeveloperMode )
+               _check_compute_send_rt_debug_info();
+
+            g_TimeNow = get_current_timestamp_ms();
          }
-
-         adaptive_video_on_new_camera_read(bEndOfFrame, bIsInsideIFrame);
-
-         // Send telemetry/commands/etc before video data
-         if ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
-         if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
-            process_and_send_packets();
-
-         g_pVideoTxBuffers->sendAvailablePackets();
-
-         if ( g_pCurrentModel->bDeveloperMode )
-            _check_compute_send_rt_debug_info();
-
-         g_TimeNow = get_current_timestamp_ms();
-
-         // To fix
-         /*
-         if ( (NULL != pVideoData) && (iReadSize > 0) )
-         if ( ! bDebugNoVideoOutput )
-         {
-            if ( process_data_tx_video_on_new_data(pVideoData, iReadSize) )
-               s_debugVideoBlocksInCount++;
-            int videoPacketsReadyToSend = process_data_tx_video_has_packets_ready_to_send();
-            if ( videoPacketsReadyToSend > 0 )
-            if ( ! bDebugNoVideoOutput )
-            {
-               //log_line("DEBUG sent %d video packs", videoPacketsReadyToSend);
-               //if ( videoPacketsReadyToSend > 10 )
-               //   log_line("DEBUG video stall %d", videoPacketsReadyToSend );
-               process_data_tx_video_send_packets_ready_to_send(videoPacketsReadyToSend);
-            }
-         }
-         */
       }
    }
 
    //------------------------------------------
    // Process all the other radio-in packets
    
-   // Consume remaining packets cached locally
-
    u32 uTimeStart = get_current_timestamp_ms();
 
-   if ( iCountRadioRxPacketsToProcess > 0 )
+   int iCountConsumedRegPrio = 0;
+   while ( (iCountConsumedRegPrio < 50) && (!g_bQuit) )
    {
-      for( int i=0; i<iCountRadioRxPacketsToProcess; i++ )
+      pPacket = radio_rx_wait_get_next_received_reg_prio_packet(200, &iPacketLength, &iPacketIsShort, &iRadioInterfaceIndex);
+      if ( (NULL == pPacket) || g_bQuit )
+         break;
+
+      iCountConsumedRegPrio++;
+
+      shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
+      process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);
+   
+
+      u32 uTime = get_current_timestamp_ms();
+      if ( uTime > uTimeStart + 500 )
       {
-         if ( g_bQuit )
-            break;
-         int iPacketLength = s_ReceivedRadioPacketsBuffer[i].iPacketLength;
-         int iRadioInterfaceIndex = s_ReceivedRadioPacketsBuffer[i].iPacketRxInterface;
-         u8* pPacket = s_ReceivedRadioPacketsBuffer[i].pPacketData;
-
-         // Skip retransmissions and pings as they where already processed
-
-         t_packet_header* pPH = (t_packet_header*) pPacket;
-         if ( radio_packet_type_is_high_priority(pPH->packet_type) )
-            continue;
-         shared_mem_radio_stats_rx_hist_update(&g_SM_HistoryRxStats, iRadioInterfaceIndex, pPacket, g_TimeNow);
-         process_received_single_radio_packet(iRadioInterfaceIndex, pPacket, iPacketLength);      
-      
-
-         u32 uTime = get_current_timestamp_ms();    
-         if ( uTime > uTimeStart + 500 )
-         {
-            log_softerror_and_alarm("Consuming radio rx packets takes too long (%u ms), read ipc messages.", uTime - uTimeStart);
-            uTimeStart = uTime;
-            _read_ipc_pipes(uTime);
-         }
-         if ( (0 != s_uTimeLastTryReadIPCMessages) && (uTime > s_uTimeLastTryReadIPCMessages + 500) )
-         {
-            log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
-            uTimeStart = uTime;
-            _read_ipc_pipes(uTime);
-         }
+         log_softerror_and_alarm("Consuming radio rx packets takes too long (%u ms), read ipc messages.", uTime - uTimeStart);
+         uTimeStart = uTime;
+         _read_ipc_pipes(uTime);
+      }
+      if ( (0 != s_uTimeLastTryReadIPCMessages) && (uTime > s_uTimeLastTryReadIPCMessages + 500) )
+      {
+         log_softerror_and_alarm("Too much time since last ipc messages read (%u ms) while consuming radio messages, read ipc messages.", uTime - s_uTimeLastTryReadIPCMessages);
+         uTimeStart = uTime;
+         _read_ipc_pipes(uTime);
       }
    }
 
+
    // Check Radio Rx state
-   if ( iCountRadioRxPacketsToProcess <= 0 )
+   if ( (0 == iCountConsumedHighPrio) && (0 == iCountConsumedRegPrio) )
    if ( (NULL != g_pProcessStats) && (0 != g_pProcessStats->lastRadioRxTime) && (g_TimeNow > TIMEOUT_LINK_TO_CONTROLLER_LOST) && (g_pProcessStats->lastRadioRxTime + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow) )
    {
       if ( g_TimeLastReceivedRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
@@ -1908,6 +1848,8 @@ void _main_loop()
       }
    }
 
+   adaptive_video_periodic_loop();
+   
    //-------------------------------------------
    // Process IPCs
 

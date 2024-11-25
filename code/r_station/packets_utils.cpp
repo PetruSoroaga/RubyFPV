@@ -47,6 +47,7 @@
 #include "links_utils.h"
 #include "shared_vars.h"
 #include "timers.h"
+#include "test_link_params.h"
 
 u8 s_RadioRawPacket[MAX_PACKET_TOTAL_SIZE];
 
@@ -227,6 +228,9 @@ int _get_lower_datarate_value(int iDataRate, int iLevelsDown )
 
 int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, type_radio_links_parameters* pRadioLinksParams)
 {
+   if ( g_bNegociatingRadioLinks )
+      return DEFAULT_RADIO_DATARATE_LOWEST;
+
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterface);
    if ( (NULL == pRadioHWInfo) || (NULL == pRadioLinksParams) )
       return DEFAULT_RADIO_DATARATE_DATA;
@@ -412,6 +416,9 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       nRateTx = DEFAULT_RADIO_DATARATE_DATA;
    radio_set_out_datarate(nRateTx);
 
+   if ( test_link_is_in_progress() )
+      log_line("Test link in progress. Sending radio packet using datarate: %d", nRateTx);
+     
    if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
         (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
    {
@@ -508,10 +515,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
    u8* pData = pPacketData;
    int nLength = nPacketLength;
    
-   // To remove
-   static int siDebugCCC = 0;
-   siDebugCCC++;
-
    while ( nLength > 0 )
    {
       iTotalPackets++;

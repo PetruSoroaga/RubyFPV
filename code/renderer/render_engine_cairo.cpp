@@ -191,6 +191,11 @@ void RenderEngineCairo::_freeRawFontImageObject(void* pImageObject)
    log_line("[RendererCairo] Destroyed image object %X", pImageObject);
 }
 
+void RenderEngineCairo::setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a)
+{
+
+}
+
 u32 RenderEngineCairo::loadImage(const char* szFile)
 {
    if ( m_iCountImages > MAX_RAW_IMAGES )

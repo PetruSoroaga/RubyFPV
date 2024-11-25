@@ -34,7 +34,7 @@ typedef struct
 
    bool bBoundingBox;
    bool bHighlight;
-} __attribute__((packed)) plugin_osd_t;
+} ALIGN_STRUCT_SPEC_INFO plugin_osd_t;
 
 extern plugin_osd_t* g_pPluginsOSD[MAX_OSD_PLUGINS];
 extern int g_iPluginsOSDCount;

@@ -15,7 +15,7 @@ typedef struct
    u32 tmp_rxPackets;
    u32 tmp_rxPacketsBad;
    u32 tmp_rxPacketsLost;
-} __attribute__((packed)) shared_mem_radio_stats_interface_rx_graph;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_interface_rx_graph;
 
 typedef struct
 {
@@ -23,7 +23,7 @@ typedef struct
    u32 uTimeSliceDurationMs;
    u32 uTimeStartCurrentSlice;
    shared_mem_radio_stats_interface_rx_graph interfaces[MAX_RADIO_INTERFACES];
-} __attribute__((packed)) shared_mem_radio_stats_interfaces_rx_graph;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_interfaces_rx_graph;
 
 
 typedef struct
@@ -37,12 +37,12 @@ typedef struct
 
    int iCurrentSlice;
    u32 uTimeLastUpdate;
-} __attribute__((packed)) shared_mem_radio_stats_interface_rx_hist;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_interface_rx_hist;
 
 typedef struct
 {
    shared_mem_radio_stats_interface_rx_hist interfaces_history[MAX_RADIO_INTERFACES];
-} __attribute__((packed)) shared_mem_radio_stats_rx_hist;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_rx_hist;
 
 typedef struct
 {
@@ -64,7 +64,7 @@ typedef struct
    u32 tmpTxBytes;
    u32 tmpRxPackets;
    u32 tmpTxPackets;
-} __attribute__((packed)) shared_mem_radio_stats_stream;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_stream;
 
 // Vehicle radio interfaces order is given by physical order. Can't be changed.
 // Vehicle radio links order is auto/user defined.
@@ -83,7 +83,7 @@ typedef struct
    int iDbmNoiseMin[MAX_RADIO_ANTENNAS];
    int iDbmNoiseMax[MAX_RADIO_ANTENNAS];
    int iDbmNoiseAvg[MAX_RADIO_ANTENNAS];
-} __attribute__((packed)) shared_mem_radio_stats_radio_interface_rx_signal;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface_rx_signal;
 
 typedef struct 
 {
@@ -93,7 +93,7 @@ typedef struct
    shared_mem_radio_stats_radio_interface_rx_signal dbmValuesData;
    int iDbmBest;
    int iDbmNoiseLowest;
-} __attribute__((packed)) shared_mem_radio_stats_radio_interface_rx_signal_all;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface_rx_signal_all;
 
 typedef struct
 {
@@ -141,7 +141,7 @@ typedef struct
    u32 hist_tmp_rxPacketsBadCount;
    u32 hist_tmp_rxPacketsLostCount;
 
-} __attribute__((packed)) shared_mem_radio_stats_radio_interface;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface;
 
 typedef struct
 {
@@ -173,7 +173,7 @@ typedef struct
    u8 hist_rxPacketsLostCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxGapMiliseconds[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
 
-} __attribute__((packed)) shared_mem_radio_stats_radio_interface_compact;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface_compact;
 
 
 typedef struct
@@ -207,7 +207,7 @@ typedef struct
    u32 downlink_tx_time_per_sec;
    u32 tmp_downlink_tx_time_per_sec;
 
-} __attribute__((packed)) shared_mem_radio_stats_radio_link;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_link;
 
 
 typedef struct
@@ -231,5 +231,5 @@ typedef struct
    shared_mem_radio_stats_radio_interface  radio_interfaces[MAX_RADIO_INTERFACES];
    shared_mem_radio_stats_radio_link       radio_links[MAX_RADIO_INTERFACES];
 
-} __attribute__((packed)) shared_mem_radio_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats;
 

@@ -9,6 +9,8 @@
 #include "config_video.h"
 #include "config_timers.h"
 
+#define ALIGN_STRUCT_SPEC_INFO __attribute__((aligned(4)))
+
 //#define DISABLE_ALL_LOGS 1
 #define FEATURE_ENABLE_RC 1
 #define FEATURE_RELAYING 1
@@ -50,8 +52,8 @@
 #define MAX_MCS_INDEX 9
 
 
-#define SYSTEM_RT_INFO_UPDATE_INTERVAL_MS 10
-#define SYSTEM_RT_INFO_INTERVALS 200
+#define SYSTEM_RT_INFO_UPDATE_INTERVAL_MS 5
+#define SYSTEM_RT_INFO_INTERVALS 180
 
 #define DEFAULT_TX_TIME_OVERLOAD 500 // milisec
 
