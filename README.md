@@ -3,6 +3,8 @@ Ruby is a complete solution (hardware and software) for robust end to end digita
 
 Read more about Ruby, including how to setup, install and use your Ruby systems, here: https://rubyfpv.com/
 
+<B>Note:</B>Ruby has a high code complexity and it sucks. Please read and use WFB repo. It's a better system, cleaner code, written by smarter people.
+
 # Features highlights:
 
 <B>Mutiple, rendundant radio links on 433/868/915 Mhz and 2.4/5.8 Ghz bands:</B>
