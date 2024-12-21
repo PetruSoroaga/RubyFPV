@@ -1,5 +1,5 @@
 Ruby written by Petru Soroaga (petrusoroaga@yahoo.com)
-Contributors: Tree Orbit, Piotr Kujawski (aka bitkuna)
+Contributors: Tree Orbit, Piotr Kujawski (aka bitkuna), Ramkrishna Verma
 
 More info about Ruby here:
 https://rubyfpv.com
@@ -17,7 +17,7 @@ https://www.rcgroups.com/forums/showthread.php?3880253-Ruby-Digital-FPV-Video-Li
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -27,7 +27,7 @@ https://www.rcgroups.com/forums/showthread.php?3880253-Ruby-Digital-FPV-Video-Li
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL Julien Verneuil BE LIABLE FOR ANY
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
