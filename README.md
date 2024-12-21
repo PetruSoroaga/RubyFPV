@@ -3,7 +3,7 @@ Ruby is a complete solution (hardware and software) for robust end to end digita
 
 Read more about Ruby, including how to setup, install and use your Ruby systems, here: https://rubyfpv.com/
 
-<B>Note:</B>Ruby has a high code complexity and it sucks. Please read and use WFB repo. It's a better system, cleaner code, written by smarter people.
+<B>Note:</B> Ruby has a high code complexity and it sucks. Please read about and use WFB system. It's a better system, has cleaner code, it's written by smarter people.
 
 # Features highlights:
 
