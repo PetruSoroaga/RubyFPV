@@ -43,6 +43,7 @@
 #include "../common/radio_stats.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
+#include "../utils/utils_controller.h"
 
 #include "packets_utils.h"
 #include "links_utils.h"
@@ -173,7 +174,7 @@ void radio_links_reinit_radio_interfaces()
 
    log_line("=================================================================");
    log_line("Detected hardware radio interfaces:");
-   hardware_log_radio_info();
+   hardware_log_radio_info(NULL, 0);
 
    radio_links_open_rxtx_radio_interfaces();
 
@@ -542,9 +543,14 @@ void radio_links_open_rxtx_radio_interfaces()
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
    log_line("Finished opening RX/TX radio interfaces.");
+
+   radio_links_set_monitor_mode();
+   load_ControllerSettings();
+   load_ControllerInterfacesSettings();
+   apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
+
    log_line("OPEN RADIO INTERFACES END ===========================================================");
    log_line("");
-   radio_links_set_monitor_mode();
 }
 
 

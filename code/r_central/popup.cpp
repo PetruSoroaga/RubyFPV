@@ -317,6 +317,7 @@ Popup::Popup(const char* title, float x, float y, float timeoutSec)
    m_fPadding = 0.0;
    m_fPaddingX = 0.0;
    m_fPaddingY = 0.0;
+   m_uCreatedTime = g_TimeNow;
 }
 
 Popup::Popup(const char* title, float x, float y, float maxWidth, float timeoutSec)
@@ -361,6 +362,7 @@ Popup::Popup(const char* title, float x, float y, float maxWidth, float timeoutS
    m_fPadding = 0.0;
    m_fPaddingX = 0.0;
    m_fPaddingY = 0.0;
+   m_uCreatedTime = g_TimeNow;
 }
 
 
@@ -402,6 +404,8 @@ Popup::Popup(bool bCentered, const char* title, float timeoutSec)
 
    if ( m_bCentered )
       m_bBottomAlign = false;
+
+   m_uCreatedTime = g_TimeNow;
 }
 
 
@@ -598,6 +602,11 @@ void Popup::addLine(const char* szLine)
       strcpy(m_szLines[MAX_POPUP_LINES-1], szLine);
    }
    m_bInvalidated = true;
+}
+
+u32 Popup::getCreationTime()
+{
+   return m_uCreatedTime;
 }
 
 bool Popup::hasDisabledAutoRemove()

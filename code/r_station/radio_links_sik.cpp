@@ -144,9 +144,14 @@ static void * _reinit_sik_thread_func(void *ignored_argument)
          else
          {
             ControllerSettings* pCS = get_ControllerSettings();
+            ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
+            t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+
             u32 uFreqKhz = pRadioHWInfo->uHardwareParamsList[8];
             u32 uDataRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
-            u32 uTxPower = pCS->iTXPowerSiK;
+            u32 uTxPower = DEFAULT_RADIO_SIK_TX_POWER;
+            if ( NULL != pCRII )
+               uTxPower = pCRII->iRawPowerLevel;
             u32 uLBT = 0;
             u32 uECC = 0;
             u32 uMCSTR = 0;

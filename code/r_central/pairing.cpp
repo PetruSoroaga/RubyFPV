@@ -135,7 +135,7 @@ bool _pairing_start()
 
    g_bMenuPopupUpdateVehicleShown = false;
 
-   s_uTimeToSetAffinities = g_TimeNow + 3000;
+   s_uTimeToSetAffinities = g_TimeNow + 4000;
    
    log_line("-----------------------------------------");
    log_line("Started pairing processes successfully.");
@@ -155,6 +155,8 @@ bool pairing_start_normal()
    g_iSearchSiKLBT = -1;
    g_iSearchSiKMCSTR = -1;
    g_bDidAnUpdate = false;
+   g_bMustNegociateRadioLinksFlag = false;
+   g_bAskedForNegociateRadioLink = false;
    
    onEventBeforePairing();
 
@@ -347,30 +349,33 @@ void _pairing_open_shared_mem()
    }
    if ( NULL == g_pSM_VideoLinkStats )
       iAnyFailed++;
-*/
+   */
+     
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
-      if ( NULL != g_pSM_VideoInfoStatsOutput )
+      if ( NULL != g_pSM_VideoFramesStatsOutput )
          break;
-      g_pSM_VideoInfoStatsOutput = shared_mem_video_info_stats_open_for_read();
+      g_pSM_VideoFramesStatsOutput = shared_mem_video_frames_stats_open_for_read();
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
-   if ( NULL == g_pSM_VideoInfoStatsOutput )
+   if ( NULL == g_pSM_VideoFramesStatsOutput )
       iAnyFailed++;
 
+   /*
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
    {
       if ( NULL != g_pSM_VideoInfoStatsRadioIn )
          break;
-      g_pSM_VideoInfoStatsRadioIn = shared_mem_video_info_stats_radio_in_open_for_read();
+      g_pSM_VideoInfoStatsRadioIn = shared_mem_video_frames_stats_radio_in_open_for_read();
       hardware_sleep_ms(5);
       iAnyNewOpen++;
    }
    if ( NULL == g_pSM_VideoInfoStatsRadioIn )
       iAnyFailed++;
+   */
 
    ruby_signal_alive();
    for( int i=0; i<20; i++ )
@@ -406,19 +411,6 @@ void _pairing_open_shared_mem()
       iAnyNewOpen++;
    }
    if ( NULL == g_pSM_RadioRxQueueInfo )
-      iAnyFailed++;
-
-
-   ruby_signal_alive();
-   for( int i=0; i<20; i++ )
-   {
-      if ( NULL != g_pSM_VDS_history )
-         break;
-      g_pSM_VDS_history = shared_mem_video_stream_stats_history_rx_processors_open(true);
-      hardware_sleep_ms(5);
-      iAnyNewOpen++;
-   }
-   if ( NULL == g_pSM_VDS_history )
       iAnyFailed++;
 
    ruby_signal_alive();
@@ -488,20 +480,17 @@ void _pairing_close_shared_mem()
    //shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);
    //g_pSM_VideoLinkStats = NULL;
 
-   shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsOutput);
-   g_pSM_VideoInfoStatsOutput = NULL;
+   shared_mem_video_frames_stats_close(g_pSM_VideoFramesStatsOutput);
+   g_pSM_VideoFramesStatsOutput = NULL;
 
-   shared_mem_video_info_stats_radio_in_close(g_pSM_VideoInfoStatsRadioIn);
-   g_pSM_VideoInfoStatsRadioIn = NULL;
+   //shared_mem_video_frames_stats_radio_in_close(g_pSM_VideoInfoStatsRadioIn);
+   //g_pSM_VideoInfoStatsRadioIn = NULL;
 
    shared_mem_video_link_graphs_close(g_pSM_VideoLinkGraphs);
    g_pSM_VideoLinkGraphs = NULL;
 
    shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
    g_pSM_VideoDecodeStats = NULL;
-
-   shared_mem_video_stream_stats_history_rx_processors_close(g_pSM_VDS_history);
-   g_pSM_VDS_history = NULL;
 
    shared_mem_radio_rx_queue_info_close(g_pSM_RadioRxQueueInfo);
    g_pSM_RadioRxQueueInfo = NULL;

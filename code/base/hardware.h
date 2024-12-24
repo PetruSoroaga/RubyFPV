@@ -14,6 +14,7 @@
 
 #define BOARD_TYPE_MASK (u32)0xFF
 #define BOARD_SUBTYPE_MASK (u32)0xFF00
+#define BOARD_SUBTYPE_SHIFT 8
 
 #define BOARD_TYPE_NONE     0
 #define BOARD_TYPE_PIZERO   1
@@ -31,13 +32,17 @@
 #define BOARD_TYPE_OPENIPC_GOKE210 31
 #define BOARD_TYPE_OPENIPC_GOKE300 32
 
-#define BOARD_TYPE_OPENIPC_SIGMASTER_338Q 40
+#define BOARD_TYPE_OPENIPC_SIGMASTAR_338Q 40
 
 #define BOARD_SUBTYPE_OPENIPC_UNKNOWN  0
-#define BOARD_SUBTYPE_OPENIPC_GENERIC  ((u32)(((u32)1)<<8))
-#define BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT  ((u32)(((u32)2)<<8))
-#define BOARD_SUBTYPE_OPENIPC_AIO_MARIO  ((u32)(((u32)3)<<8))
-#define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM  ((u32)(((u32)4)<<8))
+#define BOARD_SUBTYPE_OPENIPC_GENERIC         ((u32)1)
+#define BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ    ((u32)2)
+#define BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT  ((u32)3)
+#define BOARD_SUBTYPE_OPENIPC_AIO_MARIO       ((u32)4)
+#define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM      ((u32)5)
+#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX        ((u32)6)
+#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER     ((u32)7)
+#define BOARD_SUBTYPE_OPENIPC_LAST            ((u32)8)
 
 
 #define BOARD_TYPE_RADXA_ZERO3 60
@@ -95,7 +100,6 @@ void hardware_swap_buttons(int swap);
 
 u32 hardware_getOnlyBoardType();
 u32 hardware_getBoardType();
-u32 hardware_get_base_ruby_version();
 
 int hardware_board_is_raspberry(u32 uBoardType);
 int hardware_board_is_openipc(u32 uBoardType);
@@ -152,7 +156,7 @@ void hardware_recording_led_set_off();
 void hardware_recording_led_set_on();
 void hardware_recording_led_set_blinking();
 
-int hardware_has_eth();
+char* hardware_has_eth();
 
 void hardware_set_default_sigmastar_cpu_freq();
 void hardware_set_default_radxa_cpu_freq();

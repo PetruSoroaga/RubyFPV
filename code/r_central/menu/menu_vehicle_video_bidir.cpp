@@ -31,7 +31,7 @@
 
 #include "../../base/video_capture_res.h"
 #include "../../base/utils.h"
-#include "../../base/controller_utils.h"
+#include "../../utils/utils_controller.h"
 #include "menu.h"
 #include "menu_vehicle_video_bidir.h"
 #include "menu_vehicle_video_profile.h"

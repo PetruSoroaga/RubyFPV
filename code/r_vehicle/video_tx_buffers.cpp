@@ -72,6 +72,7 @@ VideoTxPacketsBuffer::VideoTxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
       m_VideoPackets[i][k].pPHVF = NULL;
       m_VideoPackets[i][k].pVideoData = NULL;
    }
+   m_uCurrentFrameId = 0;
    m_iCurrentBufferIndexToSend = 0;
    m_iCurrentBufferPacketIndexToSend = 0;
    m_iNextBufferIndexToFill = 0;
@@ -189,6 +190,7 @@ void VideoTxPacketsBuffer::_fillVideoPacketHeaders(int iBufferIndex, int iPacket
 
    t_packet_header_video_full_98* pCurrentVideoPacketHeader = m_VideoPackets[iBufferIndex][iPacketIndex].pPHVF;
    memcpy(pCurrentVideoPacketHeader, &m_PacketHeaderVideo, sizeof(t_packet_header_video_full_98));
+   pCurrentVideoPacketHeader->uFrameId = m_uCurrentFrameId;
    pCurrentVideoPacketHeader->uCurrentBlockIndex = m_uNextVideoBlockIndexToGenerate;
    pCurrentVideoPacketHeader->uCurrentBlockPacketIndex = m_uNextVideoBlockPacketIndexToGenerate;
 
@@ -319,6 +321,7 @@ void VideoTxPacketsBuffer::fillVideoPackets(u8* pVideoData, int iDataSize, bool 
          {
             addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, bEndOfFrame, bIsInsideIFrame);
             m_iTempVideoBufferFilledBytes = 0;
+            m_uCurrentFrameId++;
          }
          return;
       }
@@ -351,7 +354,7 @@ void VideoTxPacketsBuffer::addNewVideoPacket(u8* pVideoData, int iDataSize, bool
 
    // Update packet headers
    _fillVideoPacketHeaders(m_iNextBufferIndexToFill, m_iNextBufferPacketIndexToFill, iDataSize + sizeof(u16), bEndOfFrame, bIsInsideIFrame);
-   t_packet_header* pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPH;
+   //t_packet_header* pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPH;
    t_packet_header_video_full_98* pCurrentVideoPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPHVF;
    u8* pVideoDestination = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pVideoData;
    if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
@@ -426,7 +429,7 @@ void VideoTxPacketsBuffer::addNewVideoPacket(u8* pVideoData, int iDataSize, bool
          // Update packet headers
          _fillVideoPacketHeaders(m_iNextBufferIndexToFill, i+iECDelta, m_PacketHeaderVideo.uCurrentBlockPacketSize, bEndOfFrame, bIsInsideIFrame);
 
-         pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pPH;
+         //pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pPH;
          pCurrentVideoPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pPHVF;
          pVideoDestination = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pVideoData;
 

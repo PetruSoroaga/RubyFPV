@@ -222,6 +222,10 @@ float _osd_render_debug_stats_graph_bars(float xPos, float yPos, float hGraph, f
    float fHeightPixel = g_pRenderEngine->getPixelHeight();
    float fWidthBar = fWidth / iCountValues;
 
+   g_pRenderEngine->setStrokeSize(1.0);
+   g_pRenderEngine->drawLine(xPos, yPos-g_pRenderEngine->getPixelHeight(), xPos+fWidth, yPos-g_pRenderEngine->getPixelHeight());
+   g_pRenderEngine->drawLine(xPos, yPos+hGraph+g_pRenderEngine->getPixelHeight(), xPos+fWidth, yPos+hGraph+g_pRenderEngine->getPixelHeight());
+
    for( int i=0; i<iCountValues; i++ )
    {
       float hBar1 = hGraph * (float)pValues[i] / (float)iMax;
@@ -478,8 +482,7 @@ void osd_render_debug_stats()
    }
    if ( 2 == s_bDebugStatsControllerInfoZoom )
    {
-      iStartIntervals = SYSTEM_RT_INFO_INTERVALS/2-1;
-      iCountIntervals = SYSTEM_RT_INFO_INTERVALS/2;
+      iCountIntervals = SYSTEM_RT_INFO_INTERVALS/4;
    }
    int iIndexVehicleStart = iStartIntervals + pCRTInfo->iDeltaIndexFromVehicle;
    if ( iIndexVehicleStart < 0 )
@@ -578,7 +581,7 @@ void osd_render_debug_stats()
    /**/
 
    //--------------------------------------------
-   if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS )
+   if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_TX_PACKETS )
    {
       for( int i=0; i<iCountIntervals; i++ )
       {
@@ -587,12 +590,27 @@ void osd_render_debug_stats()
          uTmp3[i] = 0;
          for( int k=0; k<hardware_get_radio_interfaces_count(); k++ )
          {
-            uTmp[i] += pCRTInfo->uRxVideoPackets[i+iStartIntervals][0];
-            uTmp2[i]+= pCRTInfo->uRxVideoECPackets[i+iStartIntervals][0];
-            uTmp3[i]+= 5*pCRTInfo->uRxVideoRetrPackets[i+iStartIntervals][0];
+            uTmp[i] += pCRTInfo->uRxVideoPackets[i+iStartIntervals][k];
+            uTmp2[i]+= 5*pCRTInfo->uRxDataPackets[i+iStartIntervals][k];
+            uTmp3[i]+= 5*pCRTInfo->uRxHighPriorityPackets[i+iStartIntervals][k];
          }
+         if ( uTmp3[i] > 0 )
+         if ( uTmp3[i] < uTmp[i]/4 )
+            uTmp3[i] = uTmp[i]/4;
       }
-      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Rx Video/EC/Retr Packets");
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Rx Video/Data/High Priority Packets");
+      y += height_text*1.3;
+      y += _osd_render_debug_stats_graph_bars(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, uTmp2, uTmp3, iCountIntervals, 1);
+      y += height_text_small;
+      iCountGraphs++;
+
+      for( int i=0; i<iCountIntervals; i++ )
+      {
+         uTmp[i] = pCRTInfo->uTxPackets[i+iStartIntervals];
+         uTmp2[i] = 0;
+         uTmp3[i] = pCRTInfo->uTxHighPriorityPackets[i+iStartIntervals];
+      }
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Tx Regular/High Priority Packets");
       y += height_text*1.3;
       y += _osd_render_debug_stats_graph_bars(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, uTmp2, uTmp3, iCountIntervals, 1);
       y += height_text_small;
@@ -600,17 +618,43 @@ void osd_render_debug_stats()
    }
 
    //--------------------------------------------
+   if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_AIR_GAPS )
+   {
+      for( int i=0; i<iCountIntervals; i++ )
+      {
+         uTmp[i] = pCRTInfo->uRxMaxAirgapSlots[i+iStartIntervals];
+      }
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Rx Max air gaps");
+      y += height_text*1.3;
+      //y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);
+      y += _osd_render_debug_stats_graph_bars(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, NULL, NULL, iCountIntervals, 0);
+      y += height_text_small;
+      iCountGraphs++;
+
+      for( int i=0; i<iCountIntervals; i++ )
+      {
+         uTmp[i] = pCRTInfo->uRxMaxAirgapSlots2[i+iStartIntervals];
+      }
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Rx Max air gaps (2)");
+      y += height_text*1.3;
+      //y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);
+      y += _osd_render_debug_stats_graph_bars(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, NULL, NULL, iCountIntervals, 0);
+      y += height_text_small;
+      iCountGraphs++;
+   }
+
+   //--------------------------------------------
    if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES )
    {
-   for( int i=0; i<iCountIntervals; i++ )
-   {
-      uTmp[i] = pCRTInfo->uRecvEndOfFrame[i+iStartIntervals];
-   }
-   g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Received P/I frames end");
-   y += height_text*1.3;
-   y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);
-   y += height_text_small;
-   iCountGraphs++;
+      for( int i=0; i<iCountIntervals; i++ )
+      {
+         uTmp[i] = pCRTInfo->uRecvEndOfFrame[i+iStartIntervals];
+      }
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Received P/I frames end");
+      y += height_text*1.3;
+      y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);
+      y += height_text_small;
+      iCountGraphs++;
    }
 
    //-----------------------------------------------

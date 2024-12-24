@@ -310,7 +310,7 @@ void controller_wait_for_stop_all()
 
 static void * _thread_adjust_affinities(void *argument)
 {
-   log_line("Started background thread to adjust processes affinities...");
+   log_line("[BGThread] Started background thread to adjust processes affinities...");
    if ( s_iCPUCoresCount > 2 )
    {
       hw_set_proc_affinity("ruby_rt_station", 1,1);
@@ -329,7 +329,7 @@ static void * _thread_adjust_affinities(void *argument)
       hw_set_proc_affinity("ruby_rt_station", 1,1);
       hw_set_proc_affinity("ruby_central", 2,2); 
    }
-   log_line("Background thread to adjust processes affinities completed.");
+   log_line("[BGThread] Background thread to adjust processes affinities completed.");
    return NULL;
 }
 
@@ -349,4 +349,5 @@ void controller_check_update_processes_affinities()
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
       return;
    }
+   log_line("Done launching worker thread to adjust affinities.");
 }

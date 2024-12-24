@@ -52,7 +52,6 @@
 #include "test_link_params.h"
 #include "packets_utils.h"
 #include "processor_relay.h"
-#include "utils_vehicle.h"
 #include "launchers_vehicle.h"
 #include "video_source_csi.h"
 
@@ -99,7 +98,7 @@ static void * _reinit_sik_thread_func(void *ignored_argument)
                {
                   uFreqKhz = g_pCurrentModel->radioLinksParams.link_frequency_khz[iRadioLink];
                   uDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iRadioLink];
-                  uTxPower = g_pCurrentModel->radioInterfacesParams.txPowerSiK;
+                  uTxPower = g_pCurrentModel->radioInterfacesParams.interface_raw_power[g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex];
                   uECC = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_ECC)? 1:0;
                   uLBT = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_LBT)? 1:0;
                   uMCSTR = (g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink] & RADIO_FLAGS_SIK_MCSTR)? 1:0;
@@ -906,6 +905,14 @@ int periodicLoop()
 
    _periodic_update_radio_stats();
    
+
+   if ( g_bNegociatingRadioLinks )
+   if ( (g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*1000) || (g_TimeNow > g_uTimeLastNegociateRadioLinksCommand + 4000) )
+   {
+      g_uTimeStartNegociatingRadioLinks = 0;
+      g_bNegociatingRadioLinks = false;
+   }
+
    //_periodic_loop_check_ping();
 
    int iMaxRxQuality = 0;

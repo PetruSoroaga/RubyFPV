@@ -35,13 +35,14 @@
 #include "menu_item_select.h"
 #include "menu_confirmation.h"
 #include "menu_item_text.h"
+#include "menu_item_legend.h"
 #include "menu_vehicle_radio_link.h"
 #include "menu_vehicle_radio_link_sik.h"
 #include "menu_radio_config.h"
-#include "menu_tx_power.h"
-#include "menu_tx_power_8812eu.h"
+#include "menu_tx_raw_power.h"
 #include "menu_negociate_radio.h"
-
+#include "../../base/tx_powers.h"
+#include "../../utils/utils_controller.h"
 #include "../link_watch.h"
 #include "../launchers_controller.h"
 #include "../../base/encr.h"
@@ -52,18 +53,27 @@ int s_iTempGenNewFrequencyLink = 0;
 MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
 :Menu(MENU_ID_VEHICLE_RADIO_CONFIG, "Vehicle Radio Configuration", NULL)
 {
-   m_Width = 0.30;
+   m_Width = 0.38;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
    m_bControllerHasKey = false;
-
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       m_IndexFreq[i] = -1;
       m_IndexConfigureLinks[i] = -1;
    }
-   m_IndexTxPowerRTL8812AU = -1;
-   m_IndexTxPowerRTL8812EU = -1;
-   m_IndexTxPowerAtheros = -1;
+   m_IndexTxPower = -1;
+
+
+   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
+      int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
+      int iPowerRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+      int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+      log_line("[MenuVehicleRadio] Max power for radio interface %d (%s, %s): raw: %d, mw: %d, current raw power: %d",
+         i+1, str_get_radio_card_model_string(iCardModel), str_get_radio_driver_description(iDriver), iPowerRaw, iPowerMw, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
+   }
+
    valuesToUI();
 }
 
@@ -73,7 +83,9 @@ MenuVehicleRadioConfig::~MenuVehicleRadioConfig()
 
 void MenuVehicleRadioConfig::populate()
 {
+   int iTmp = getSelectedMenuItemIndex();
    removeAllItems();
+
    char szBuff[128];
    char szTooltip[256];
    char szTitle[128];
@@ -262,23 +274,17 @@ void MenuVehicleRadioConfig::populate()
    }
    */
 
-   if ( g_pCurrentModel->hasRadioCardsRTL8812AU() > 0 )
-   {
-      m_IndexTxPowerRTL8812AU = addMenuItem(new MenuItem("Power Level (RTL8812AU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812AU chipset."));
-      m_pMenuItems[m_IndexTxPowerRTL8812AU]->showArrow();
-   }
-   if ( g_pCurrentModel->hasRadioCardsRTL8812EU() > 0 )
-   {
-      m_IndexTxPowerRTL8812EU = addMenuItem(new MenuItem("Power Level (RTL8812EU)", "Change the transmit power levels for the vehicle's radio interfaces that use RTL8812EU chipset."));
-      m_pMenuItems[m_IndexTxPowerRTL8812EU]->showArrow();
-   }
-   if ( g_pCurrentModel->hasRadioCardsAtheros() > 0 )
-   {
-      m_IndexTxPowerAtheros = addMenuItem(new MenuItem("Power Level (Atheros)", "Change the transmit power levels for the vehicle's radio interfaces that use Atheros chipset."));
-      m_pMenuItems[m_IndexTxPowerAtheros]->showArrow();
-   }
+   int iMwPowers[MAX_RADIO_INTERFACES];
+   tx_power_get_current_mw_powers_for_model(g_pCurrentModel, &iMwPowers[0]);
+   m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_model(g_pCurrentModel);
+   m_pItemsSelect[0] = createMenuItemTxPowers("Radio Tx Power (mW)", false, &(iMwPowers[0]), g_pCurrentModel->radioInterfacesParams.interfaces_count, m_iMaxPowerMw);
+   m_IndexTxPower = addMenuItem(m_pItemsSelect[0]);
+   
+   MenuItemLegend* pLegend = new MenuItemLegend("Note", "Maximum selectable Tx power is computed based on detected radio interfaces on the vehicle and controller.", 0);
+   pLegend->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
+   addMenuItem(pLegend);
 
-   m_IndexRadioConfig = addMenuItem(new MenuItem("Radio Parameters", "Full radio configuration"));
+   m_IndexRadioConfig = addMenuItem(new MenuItem("Radio Links Config", "Full radio configuration"));
    m_pMenuItems[m_IndexRadioConfig]->showArrow();
 
    m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
@@ -293,6 +299,7 @@ void MenuVehicleRadioConfig::populate()
    m_pItemsSelect[3]->setIsEditable();
    m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
 
+   /*
    m_pItemsSelect[2] = new MenuItemSelect("Radio Encryption", "Changes the encryption used for the radio links. You can encrypt the video data, or telemetry data, or everything, including the ability to search for and find this vehicle (unless your controller has the right pass phrase).");
    m_pItemsSelect[2]->addSelection("None");
    m_pItemsSelect[2]->addSelection("Video Stream Only");
@@ -301,16 +308,38 @@ void MenuVehicleRadioConfig::populate()
    m_pItemsSelect[2]->addSelection("All Streams and Data");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
+   */
+   m_IndexEncryption = -1;
 
    m_IndexOptimizeLinks = addMenuItem(new MenuItem("Optmize Radio Links Wizard", "Runs a process to optimize radio links parameters."));
    m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
 }
+
+void MenuVehicleRadioConfig::onShow()
+{
+   int iTmp = getSelectedMenuItemIndex();
+
+   valuesToUI();
+   Menu::onShow();
+   invalidate();
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
+}
+
 
 void MenuVehicleRadioConfig::valuesToUI()
 {
    populate();
    
-   m_pItemsSelect[2]->setSelectedIndex(0);
+   if ( m_IndexEncryption != -1 )
+      m_pItemsSelect[2]->setSelectedIndex(0);
+   
    m_pItemsSelect[3]->setSelectedIndex(0);
 
    if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
@@ -325,48 +354,32 @@ void MenuVehicleRadioConfig::valuesToUI()
    else
       m_pItemsSelect[3]->setEnabled(true);
 
-   if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
-      m_pItemsSelect[2]->setSelectedIndex(1); 
-
-   if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
-      m_pItemsSelect[2]->setSelectedIndex(2); 
-
-   if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
-   if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
-      m_pItemsSelect[2]->setSelectedIndex(3); 
-
-   if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL )
-      m_pItemsSelect[2]->setSelectedIndex(4); 
-
-   if ( ! m_bControllerHasKey )
+   if ( -1 != m_IndexEncryption )
    {
-      m_pItemsSelect[2]->setSelectedIndex(0);
-      //m_pItemsSelect[2]->setEnabled(false);
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
+         m_pItemsSelect[2]->setSelectedIndex(1); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
+         m_pItemsSelect[2]->setSelectedIndex(2); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
+         m_pItemsSelect[2]->setSelectedIndex(3); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL )
+         m_pItemsSelect[2]->setSelectedIndex(4); 
+
+      if ( ! m_bControllerHasKey )
+      {
+         m_pItemsSelect[2]->setSelectedIndex(0);
+         //m_pItemsSelect[2]->setEnabled(false);
+      }
    }
 
-   if ( -1 != m_IndexTxPowerRTL8812AU )
-   {
-      char szBuff[32];
-      strcpy(szBuff, "N/A");
-      sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
-      m_pMenuItems[m_IndexTxPowerRTL8812AU]->setValue(szBuff);
-   }
-
-   if ( -1 != m_IndexTxPowerRTL8812EU )
-   {
-      char szBuff[32];
-      strcpy(szBuff, "N/A");
-      sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU);
-      m_pMenuItems[m_IndexTxPowerRTL8812EU]->setValue(szBuff);
-   }
-
-   if ( -1 != m_IndexTxPowerAtheros )
-   {
-      char szBuff[32];
-      strcpy(szBuff, "N/A");
-      sprintf(szBuff, "%d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
-      m_pMenuItems[m_IndexTxPowerAtheros]->setValue(szBuff);
-   }
+   int iMwPowers[MAX_RADIO_INTERFACES];
+   tx_power_get_current_mw_powers_for_model(g_pCurrentModel, &iMwPowers[0]);
+   m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_model(g_pCurrentModel);
+   selectMenuItemTxPowersValue(m_pItemsSelect[0], false, &(iMwPowers[0]), g_pCurrentModel->radioInterfacesParams.interfaces_count, m_iMaxPowerMw);
 }
 
 void MenuVehicleRadioConfig::Render()
@@ -382,6 +395,18 @@ void MenuVehicleRadioConfig::Render()
    RenderEnd(yTop);
 }
 
+
+int MenuVehicleRadioConfig::onBack()
+{
+   return Menu::onBack();
+}
+
+void MenuVehicleRadioConfig::onReturnFromChild(int iChildMenuId, int returnValue)
+{
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
+
+   valuesToUI();
+}
 
 void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz)
 {
@@ -424,6 +449,56 @@ void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u3
 }
 
 
+void MenuVehicleRadioConfig::computeSendPowerToVehicle()
+{
+   int iIndex = m_pItemsSelect[0]->getSelectedIndex();
+
+   if ( iIndex == m_pItemsSelect[0]->getSelectionsCount() -1 )
+   {
+      add_menu_to_stack(new MenuTXRawPower());
+      return;
+   }
+
+   log_line("MenuVehicleRadio: Setting tx power to %s", m_pItemsSelect[0]->getSelectionIndexText(iIndex));
+
+   int iPowerLevelsCount = 0;
+   const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
+   int iPowerMwToSet = piPowerLevelsMw[iIndex];
+
+   u8 uCommandParams[MAX_RADIO_INTERFACES+1];
+   uCommandParams[0] = g_pCurrentModel->radioInterfacesParams.interfaces_count;
+   bool bDifferent = false;
+   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
+      int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
+      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+      int iCardNewPowerMw = iPowerMwToSet;
+      if ( iCardNewPowerMw > iCardMaxPowerMw )
+         iCardNewPowerMw = iCardMaxPowerMw;
+      int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(iDriver, iCardModel, iCardNewPowerMw);
+      uCommandParams[i+1] = iTxPowerRawToSet;
+      log_line("MenuVehicleRadio: Setting tx raw power for card %d from %d to: %d (%d mw)",
+         i+1, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i], uCommandParams[i+1], iCardNewPowerMw);
+      if ( uCommandParams[i+1] != g_pCurrentModel->radioInterfacesParams.interface_raw_power[i] )
+         bDifferent = true;
+   }
+
+   if ( ! bDifferent )
+   {
+      log_line("MenuVehicleRadio: No change");
+      return;
+   }
+   
+   save_ControllerInterfacesSettings();
+   apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
+   save_ControllerInterfacesSettings();
+
+   if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TX_POWERS, 0, uCommandParams, uCommandParams[0]+1) )
+       valuesToUI();
+}
+
+
 void MenuVehicleRadioConfig::onSelectItem()
 {
    if ( handle_commands_is_command_in_progress() )
@@ -459,7 +534,7 @@ void MenuVehicleRadioConfig::onSelectItem()
          valuesToUI();
    }
 
-   if ( m_IndexEncryption == m_SelectedIndex )
+   if ( (-1 != m_IndexEncryption) && (m_IndexEncryption == m_SelectedIndex) )
    {
       if ( ! m_bControllerHasKey )
       {
@@ -504,22 +579,9 @@ void MenuVehicleRadioConfig::onSelectItem()
       return;
    }
 
-   if ( (m_IndexTxPowerRTL8812AU == m_SelectedIndex) || (m_IndexTxPowerAtheros == m_SelectedIndex) )
+   if ( m_IndexTxPower == m_SelectedIndex )
    {
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowController = false;
-      pMenu->m_bShowVehicle = true;
-      add_menu_to_stack(pMenu);
-      return;
-   }
-
-   if ( m_IndexTxPowerRTL8812EU == m_SelectedIndex )
-   {
-      //MenuTXPower8812EU* pMenu = new MenuTXPower8812EU();
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowController = false;
-      pMenu->m_bShowVehicle = true;
-      add_menu_to_stack(pMenu);
+      computeSendPowerToVehicle();
       return;
    }
 

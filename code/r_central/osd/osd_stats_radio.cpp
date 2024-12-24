@@ -496,7 +496,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
       float ySt = y;
       bool bIsTxCard = false;
       
-      if ( 1 < pStats->countLocalRadioInterfaces )
+      //if ( 1 < pStats->countLocalRadioInterfaces )
       if ( (iLocalRadioLinkId >= 0) && (pStats->radio_links[iLocalRadioLinkId].lastTxInterfaceIndex == i) )
          bIsTxCard = true;
          
@@ -634,21 +634,22 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
       osd_set_colors();
 
-      if ( bIsTxCard && (iCountInterfacesAssignedToCurrentLocalLink>1) )
+      if ( bIsTxCard && (iCountInterfacesAssignedToCurrentLocalLink>1) && (1 < pStats->countLocalRadioInterfaces) )
          g_pRenderEngine->drawIcon(xPos, y-height_text*0.2, hGraph*0.7/g_pRenderEngine->getAspectRatio() , hGraph*0.7, g_idIconUplink2);
 
       y += hGraph;
       
       y += height_text*0.2;
 
-      char szBuffD[64];
-      char szBuffU[64];
-      str_format_bitrate(pStats->radio_interfaces[i].rxBytesPerSec * 8, szBuffD);
-      str_format_bitrate(pStats->radio_interfaces[i].txBytesPerSec * 8, szBuffU);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szBuffU, szBuffD);
+      //char szBuffD[64];
+      //char szBuffU[64];
+      //str_format_bitrate(pStats->radio_interfaces[i].rxBytesPerSec * 8, szBuffD);
+      //str_format_bitrate(pStats->radio_interfaces[i].txBytesPerSec * 8, szBuffU);
+      //snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s / %s", szBuffU, szBuffD);
+      str_format_bitrate(pStats->radio_interfaces[i].rxBytesPerSec * 8, szBuff);
       g_pRenderEngine->drawTextLeft(rightMargin, y, s_idFontStats, szBuff);
       float fWT = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
-      if ( bIsTxCard )
+      if ( bIsTxCard && (1 < pStats->countLocalRadioInterfaces) )
       {
          float fIconH = height_text*1.14;
          float fIconW = 0.6 * fIconH / g_pRenderEngine->getAspectRatio();
@@ -657,44 +658,50 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
       
       szName[0] = 0;
-      controllerGetCardUserDefinedNameOrType(pNICInfo, szName);
+      controllerGetCardUserDefinedNameOrShortType(pNICInfo, szName);
       strcpy(szBuff,szName);
 
       sprintf(szName, "%s%s", pNICInfo->szUSBPort, (controllerIsCardInternal(pNICInfo->szMAC)?"":"(Ext)"));
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szName);
       float fW = g_pRenderEngine->textWidth(s_idFontStats, szName);
+      fW += height_text_small*0.3;
       if ( 0 != szBuff[0] )
       {
          snprintf(szName, sizeof(szName)/sizeof(szName[0]), "(%s)", szBuff);
-         g_pRenderEngine->drawText(xPos + fW + height_text_small*0.2, y + 0.5*(height_text-height_text_small), s_idFontStatsSmall, szName);
-         fW += height_text_small*0.2 + g_pRenderEngine->textWidth(s_idFontStatsSmall, szName);
-      }    
+         g_pRenderEngine->drawText(xPos + fW, y + 0.5*(height_text-height_text_small), s_idFontStatsSmall, szName);
+         fW += height_text_small*0.3 + g_pRenderEngine->textWidth(s_idFontStatsSmall, szName);
+      } 
       
-      y += height_text*s_OSDStatsLineSpacing;
-
-      szName[0] = 0;
+      szBuff[0] = 0;
       if ( pStats->radio_interfaces[i].openedForWrite && pStats->radio_interfaces[i].openedForRead )
       {
          if ( bIsTxCard )
-            strcpy(szName, "RX/TX");
+            strcpy(szBuff, "RX/TX");
          else
-            strcpy(szName,"RX");
+            strcpy(szBuff,"RX");
       }   
       else if ( pStats->radio_interfaces[i].openedForWrite )
-         strcpy(szName,"TX Only");
+         strcpy(szBuff,"TX Only");
       else if ( pStats->radio_interfaces[i].openedForRead )
-         strcpy(szName,"RX Only");
+         strcpy(szBuff,"RX Only");
       else
-         strcpy(szName,"NOT USED");
+         strcpy(szBuff,"NOT USED");
+      g_pRenderEngine->drawText(xPos + fW, y + 0.5*(height_text-height_text_small), s_idFontStatsSmall, szBuff);
+      fW += height_text_small*0.3 + g_pRenderEngine->textWidth(s_idFontStatsSmall, szBuff);
 
+      y += height_text*s_OSDStatsLineSpacing;
+
+      // Line 2
+      szName[0] = 0;
+      szBuff[0] = 0;
       char szLinePrefix[128];
       //sprintf(szLinePrefix, "Link %d", iLocalRadioLinkId+1);
       sprintf(szLinePrefix, "%s", str_format_frequency(pStats->radio_interfaces[i].uCurrentFrequencyKhz));
 
       if ( ! hardware_radio_index_is_sik_radio(i) )
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s, %s, %d dbm", szLinePrefix, szName, (int)g_fOSDDbm[i] );
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s %d dbm", szLinePrefix, (int)g_fOSDDbm[i] );
       else
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s, %s", szLinePrefix, szName);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s", szLinePrefix);
          
       if ( controllerIsCardDisabled(pNICInfo->szMAC) )
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "DISABLED");
@@ -719,14 +726,18 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
          szDRV[0] = 0;
          szDRD[0] = 0;
          str_getDataRateDescriptionNoSufix(pStats->radio_interfaces[i].lastRecvDataRateVideo, szDRV);
-         str_getDataRateDescription(pStats->radio_interfaces[i].lastRecvDataRateData, 0, szDRD);
-         snprintf(szDR, sizeof(szDR)/sizeof(szDR[0]), " V/D: %s/%s", szDRV, szDRD);
+         if ( pStats->radio_interfaces[i].lastRecvDataRateData < 0 )
+            str_getDataRateDescriptionNoSufix(pStats->radio_interfaces[i].lastRecvDataRateData, szDRD);
+         else
+            str_getDataRateDescription(pStats->radio_interfaces[i].lastRecvDataRateData, 0, szDRD);
+         snprintf(szDR, sizeof(szDR)/sizeof(szDR[0]), " %s/%s", szDRV, szDRD);
          strcat(szBuff, szDR);
       }
       g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
 
       y += height_text*s_OSDStatsLineSpacing;
 
+      // Line 3
       if ( pActiveModel->bDeveloperMode || s_bDebugStatsShowAll )
       {
          g_pRenderEngine->setColors(get_Color_Dev());

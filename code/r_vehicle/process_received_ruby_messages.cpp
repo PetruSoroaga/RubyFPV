@@ -305,6 +305,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(&uParam, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8), sizeof(u32));
       memcpy(&iParam, &uParam, sizeof(int));
       log_line("Received negociate radio link, command %d, param: %d", uCommand, iParam);
+      g_uTimeLastNegociateRadioLinksCommand = g_TimeNow;
       
       if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
       {

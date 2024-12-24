@@ -34,11 +34,11 @@
 #include "menu_item_select.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"
-#include "menu_tx_power.h"
+#include "menu_tx_raw_power.h"
 #include "menu_confirmation.h"
 #include "../launchers_controller.h"
 #include "../link_watch.h"
-
+#include "../../base/tx_powers.h"
 
 const char* s_szMenuRadio_SingleCard3 = "Note: You can not change the function and capabilities of the radio interface as there is a single one present on the vehicle.";
 
@@ -80,9 +80,9 @@ void MenuVehicleRadioInterface::onShow()
 void MenuVehicleRadioInterface::valuesToUI()
 {
    if ( g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface] < 0 )
-      m_pItemsSelect[1]->setSelection(-g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
+      m_pItemsSelect[1]->setSelection(1-g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
    else
-      m_pItemsSelect[1]->setSelection(g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
+      m_pItemsSelect[1]->setSelection(1+g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
 }
 
 void MenuVehicleRadioInterface::Render()
@@ -135,9 +135,11 @@ void MenuVehicleRadioInterface::onSelectItem()
       int iCardModel = m_pItemsSelect[1]->getSelectedIndex();
       u32 uParam = m_iRadioInterface;
       if ( 0 == iCardModel )
+         uParam |= 0xFF00;
+      else if ( 1 == iCardModel )
          uParam = uParam | (128<<8);
       else
-         uParam = uParam | ((128-iCardModel) << 8);
+         uParam = uParam | ((128-(iCardModel-1)) << 8);
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_CARD_MODEL, uParam, NULL, 0) )
          valuesToUI();
 

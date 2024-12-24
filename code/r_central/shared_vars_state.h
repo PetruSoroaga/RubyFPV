@@ -170,8 +170,6 @@ extern bool g_bGotStatsVehicleTx;
 
 extern bool g_bHasVideoDecodeStatsSnapshot;
 
-extern int g_iDeltaVideoInfoBetweenVehicleController;
-
 extern u32 g_uLastControllerAlarmIOFlags;
 
 extern bool g_bChangedOSDStatsFontSize;

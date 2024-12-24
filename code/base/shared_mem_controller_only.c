@@ -223,20 +223,6 @@ shared_mem_video_stream_stats* get_shared_mem_video_stream_stats_for_vehicle(sha
    return NULL;
 }
 
-shared_mem_video_stream_stats_history_rx_processors* shared_mem_video_stream_stats_history_rx_processors_open(int readOnly)
-{
-   void *retVal =  open_shared_mem(SHARED_MEM_VIDEO_STREAM_STATS_HISTORY, sizeof(shared_mem_video_stream_stats_history_rx_processors), readOnly);
-   shared_mem_video_stream_stats_history_rx_processors *tretval = (shared_mem_video_stream_stats_history_rx_processors*)retVal;
-   return tretval;
-}
-
-void shared_mem_video_stream_stats_history_rx_processors_close(shared_mem_video_stream_stats_history_rx_processors* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_video_stream_stats_history_rx_processors));
-   //shm_unlink(SHARED_MEM_VIDEO_STREAM_STATS_HISTORY);
-}
-
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read()
 {
    void *retVal = open_shared_mem(SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS, sizeof(shared_mem_radio_rx_queue_info), 1);

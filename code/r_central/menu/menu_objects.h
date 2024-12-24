@@ -3,6 +3,7 @@
 #include "menu_item_select.h"
 #include "../../base/base.h"
 #include "../../base/models.h"
+#include "../../common/strings_table.h"
 
 #include "../handle_commands.h"
 
@@ -95,7 +96,7 @@
 #define MENU_ID_IMPORT_ENC_KEY 107
 #define MENU_ID_PREFERENCES_BUTTONS 108
 #define MENU_ID_TEXT 110
-#define MENU_ID_TXINFO 111
+#define MENU_ID_TX_RAW_POWER 111
 #define MENU_ID_VEHICLE_RADIO_LINK_ELRS 112
 #define MENU_ID_OSD_PLUGINS 113
 #define MENU_ID_VEHICLE_OSD_WIDGET 114
@@ -107,6 +108,8 @@
 #define MENU_ID_VEHICLE_BOARD 120
 #define MENU_ID_CONTROLLER_DEV_STATS 121
 #define MENU_ID_NEGOCIATE_RADIO 122
+#define MENU_ID_ABOUT 123
+#define MENU_ID_CONTROLLER_RADIO 124
 
 
 #define MAX_MENU_ITEMS 150
@@ -157,11 +160,14 @@ class Menu
      bool m_bDisableStacking;
      bool m_bIsModal;
 
+     int getId();
+     void setId(int iId);
      void setParent(Menu* pParent);
      void invalidate();
      void setModal(bool bModal);
      bool isModal();
      void disableScrolling();
+     char* getTitle();
      void setTitle(const char* szTitle);
      void setSubTitle(const char* szSubTitle);
      void removeAllTopLines();
@@ -211,7 +217,7 @@ class Menu
      float getUsableWidth();
      float getRenderWidth();
      float getRenderXPos();
-     
+     void resetRenderXPos();
      void startAnimationOnChildMenuAdd();
      void startAnimationOnChildMenuClosed();
      
@@ -241,8 +247,10 @@ class Menu
      bool _uploadVehicleUpdate(const char* szArchiveToUpload);
      bool checkCancelUpload();
 
-     MenuItemSelect* createMenuItemCardModelSelector(const char* szName);
-     
+     MenuItemSelect* createMenuItemCardModelSelector(const char* szTitle);
+     MenuItemSelect* createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw);
+     void selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw);
+
      static int m_siRenderMode;
      static float m_sfMenuPaddingX;
      static float m_sfMenuPaddingY;

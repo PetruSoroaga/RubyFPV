@@ -14,12 +14,14 @@ class MenuVehicleVideoEncodings: public Menu
       
    private:
       void sendVideoLinkProfile();
+      void sendVideoParams();
 
       int m_IndexPacketSize, m_IndexBlockPackets, m_IndexBlockFECs, m_IndexECSchemeSpread;
       int m_IndexDataRate;
-      int m_IndexH264Profile, m_IndexH264Level, m_IndexH264Refresh, m_IndexH264Headers;
-      int m_IndexH264SPSTimings;
+      int m_IndexH264Profile, m_IndexH264Level, m_IndexH264Refresh;
+      int m_IndexRemoveH264PPS, m_IndexInsertH264PPS, m_IndexInsertH264SPSTimings;
       int m_IndexH264Slices;
+      int m_IndexIPQuantizationDelta;
       int m_IndexCustomQuant, m_IndexQuantValue;
       int m_IndexResetParams;
       int m_IndexEnableAdaptiveQuantization;

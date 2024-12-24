@@ -39,7 +39,7 @@
 MenuControllerRecording::MenuControllerRecording(void)
 :Menu(MENU_ID_CONTROLLER_RECORDING, "Video Recording Settings", NULL)
 {
-   m_Width = 0.29;
+   m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    int c = 0;
@@ -88,6 +88,12 @@ MenuControllerRecording::MenuControllerRecording(void)
    m_pItemsSelect[c]->addSelection("Yes");
    m_IndexRecordDisarm = addMenuItem(m_pItemsSelect[c]);
    c++;
+
+
+   float fSliderWidth = 0.12;
+   m_pItemsSlider[0] = new MenuItemSlider("Stop recording on link lost", "Sets a delay to automatically stop recording if link is lost for too long.", 10,100,20, fSliderWidth);
+   m_pItemsSlider[0]->setStep(1);
+   m_iIndexStopOnLinkLost = addMenuItem(m_pItemsSlider[0]);
 }
 
 void MenuControllerRecording::valuesToUI()
@@ -117,6 +123,8 @@ void MenuControllerRecording::valuesToUI()
 
    m_pItemsSelect[5]->setSelection(p->iStartVideoRecOnArm);
    m_pItemsSelect[6]->setSelection(p->iStopVideoRecOnDisarm);
+
+   m_pItemsSlider[0]->setCurrentValue(p->iStopRecordingAfterLinkLostSeconds);
 }
 
 void MenuControllerRecording::onShow()
@@ -155,15 +163,12 @@ void MenuControllerRecording::onSelectItem()
    if ( m_IndexRecordIndicator == m_SelectedIndex )
    {
       p->iShowBigRecordButton =  m_pItemsSelect[2]->getSelectedIndex();
-      save_Preferences();
    }
 
    if ( m_IndexRecordLED == m_SelectedIndex )
    {
       p->iRecordingLedAction =  m_pItemsSelect[3]->getSelectedIndex();
-      save_Preferences();
    }
-
 
    if ( m_IndexRecordButton == m_SelectedIndex )
    {
@@ -200,21 +205,21 @@ void MenuControllerRecording::onSelectItem()
          if ( p->iActionQuickButton2 == quickActionVideoRecord )
             p->iActionQuickButton2 = quickActionTakePicture;
       }
-
-      save_Preferences();
    }
 
    if ( m_IndexRecordArm == m_SelectedIndex )
    {
       p->iStartVideoRecOnArm =  m_pItemsSelect[5]->getSelectedIndex();
-      save_Preferences();
    }
 
    if ( m_IndexRecordDisarm == m_SelectedIndex )
    {
       p->iStopVideoRecOnDisarm =  m_pItemsSelect[6]->getSelectedIndex();
-      save_Preferences();
    }
 
+   if ( m_iIndexStopOnLinkLost == m_SelectedIndex )
+   {
+      p->iStopRecordingAfterLinkLostSeconds = m_pItemsSlider[0]->getCurrentValue();
+   }
    save_Preferences();
 }

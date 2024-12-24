@@ -436,6 +436,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
+            if ( pModelToUse->bDeveloperMode )
             if ( pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
             if ( g_TimeNow < s_uLastOSDVehRadioLinkInterfacesRecvDataratesChangeTimes[iVehicleRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
@@ -472,7 +473,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             if ( bShowLine1AsError )
                g_pRenderEngine->setColors(get_Color_IconError());
 
-            if ( bDRChanged && g_bOSDElementChangeNotification )
+            if ( bDRChanged && g_bOSDElementChangeNotification && pModelToUse->bDeveloperMode )
             if ( pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
                osd_set_colors_text(get_Color_OSDElementChanged());
 
@@ -629,6 +630,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
 
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
+            if ( pModelToUse->bDeveloperMode )
             if ( pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
             if ( g_TimeNow < s_uLastOSDRadioLinkInterfacesRecvDataratesChangeTimes[iLocalRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
@@ -701,7 +703,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             if ( bShowLine1AsError )
                g_pRenderEngine->setColors(get_Color_IconError());
 
-            if ( bDRChanged && g_bOSDElementChangeNotification )
+            if ( bDRChanged && g_bOSDElementChangeNotification && pModelToUse->bDeveloperMode )
             if ( pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.layout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS )
                osd_set_colors_text(get_Color_OSDElementChanged());
 

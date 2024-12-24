@@ -88,6 +88,19 @@ int MenuItemSelectBase::addSelection(const char* szText, bool bEnabled)
    return i;
 }
 
+void MenuItemSelectBase::updateSelectionText(int iIndex, const char* szText)
+{
+   if ( (iIndex < 0) || (iIndex >= m_SelectionsCount) )
+      return;
+   if ( NULL == szText )
+      return;
+
+   if ( NULL != m_szSelections[iIndex] )
+      free(m_szSelections[iIndex]);
+   m_szSelections[iIndex] = (char*)malloc(strlen(szText)+1);
+   strcpy(m_szSelections[iIndex], szText);
+}
+
 void MenuItemSelectBase::setSelection(int index)
 {
    if ( index >= 0 && index < m_SelectionsCount )
@@ -124,6 +137,13 @@ int MenuItemSelectBase::getSelectionsCount()
 void MenuItemSelectBase::restoreSelectedIndex()
 {
    m_SelectedIndex = m_SelectedIndexBeforeEdit;
+}
+
+char* MenuItemSelectBase::getSelectionIndexText(int iSelectionIndex)
+{
+   if ( (iSelectionIndex < 0) || (iSelectionIndex >= m_SelectionsCount) )
+      return NULL;
+   return m_szSelections[iSelectionIndex];
 }
 
 void MenuItemSelectBase::disableClick()

@@ -9,3 +9,7 @@ cd mpp
 cmake -B build
 sudo cmake --build build --target install
 
+
+
+* drivers Pi3: 'make' -j4 KVER=5.10.103-v7+ KSRC=/lib/modules/5.10.103-v7+/build
+* drivers Pi4: 'make' -j4 KVER=5.10.103-v7l+ KSRC=/lib/modules/5.10.103-v7l+/build

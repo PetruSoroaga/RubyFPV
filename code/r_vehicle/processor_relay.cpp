@@ -38,12 +38,12 @@
 #include "../common/relay_utils.h"
 #include "../radio/radiolink.h"
 #include "../radio/radio_rx.h"
+#include "../utils/utils_vehicle.h"
 #include "processor_relay.h"
 #include "ruby_rt_vehicle.h"
 #include "radio_links.h"
 #include "shared_vars.h"
 #include "timers.h"
-#include "utils_vehicle.h"
 
 bool s_bHasEverReceivedDataFromRelayedVehicle = false;
 bool s_uLastReceivedRelayedVehicleID = MAX_U32;
@@ -78,9 +78,13 @@ void relay_init_and_set_rx_info_stats(type_uplink_rx_info_stats* pUplinkStats)
 void relay_process_received_single_radio_packet_from_controller_to_relayed_vehicle(int iRadioInterfaceIndex, u8* pBufferData, int iBufferLength)
 {
    t_packet_header* pPH = (t_packet_header*)pBufferData;
-   //log_line("[Relay] Relay from CID %u to VID %u, type: %s",
-   //   pPH->vehicle_id_src, pPH->vehicle_id_dest, str_get_packet_type(pPH->packet_type));
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
+        
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   if ( pPHC->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
+      s_uLastLocalRadioLinkUsedForPingToRelayedVehicle = (u8) g_pCurrentModel->radioInterfacesParams.interface_link_id[iRadioInterfaceIndex];
 
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
       s_uLastLocalRadioLinkUsedForPingToRelayedVehicle = (u8) g_pCurrentModel->radioInterfacesParams.interface_link_id[iRadioInterfaceIndex];
 
@@ -100,17 +104,37 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
       return;
 
    t_packet_header* pPH = (t_packet_header*)pBufferData;
-
-   if ( (pPH->vehicle_id_src == 0) || (pPH->vehicle_id_src == MAX_U32) ||
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
+   u32 uVehicleIdSrc = 0;
+   int iTotalLength = 0;
+   u8 uPacketType = 0;
+   u8 uPacketFlags = 0;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   {
+      uVehicleIdSrc = pPHC->vehicle_id_src;
+      iTotalLength = pPHC->total_length;
+      uPacketType = pPHC->packet_type;
+      uPacketFlags = pPHC->packet_flags;
+      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
+      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
+   }
+   else
+   {
+      uVehicleIdSrc = pPH->vehicle_id_src;
+      iTotalLength = pPH->total_length;
+      uPacketType = pPH->packet_type;
+      uPacketFlags = pPH->packet_flags;
+   }
+   if ( (uVehicleIdSrc == 0) || (uVehicleIdSrc == MAX_U32) ||
         (g_pCurrentModel->relay_params.uRelayedVehicleId == 0 ) ||
         (g_pCurrentModel->relay_params.uRelayedVehicleId == MAX_U32) ||
-        (pPH->vehicle_id_src != g_pCurrentModel->relay_params.uRelayedVehicleId) )
+        (uVehicleIdSrc != g_pCurrentModel->relay_params.uRelayedVehicleId) )
    {
       static bool s_bFirstTimeReceivedDataFromWrongRelayedVID = true;
       if ( s_bFirstTimeReceivedDataFromWrongRelayedVID )
       {
          log_line("[Relay] Started to receive data for first time from wrong relayed VID (%u). Expected relayed VID: %u",
-            pPH->vehicle_id_src, g_pCurrentModel->relay_params.uRelayedVehicleId);
+            uVehicleIdSrc, g_pCurrentModel->relay_params.uRelayedVehicleId);
          s_bFirstTimeReceivedDataFromWrongRelayedVID = false;
       }
       return;
@@ -119,18 +143,18 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
    if ( ! s_bHasEverReceivedDataFromRelayedVehicle )
    {
       log_line("[Relay] Started to receive valid data from relayed VID: %u, current relay flags: %s, current relay mode: %s",
-       pPH->vehicle_id_src, str_format_relay_flags(g_pCurrentModel->relay_params.uRelayCapabilitiesFlags), str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
+         uVehicleIdSrc, str_format_relay_flags(g_pCurrentModel->relay_params.uRelayCapabilitiesFlags), str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
       s_bHasEverReceivedDataFromRelayedVehicle = true;
-      s_uLastReceivedRelayedVehicleID = pPH->vehicle_id_src;
+      s_uLastReceivedRelayedVehicleID = uVehicleIdSrc;
    }
 
    // Do not relay video packets if relay mode is not one where remote video through this vehicle is needed
 
-   if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO) ||
-        ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_AUDIO) )
-   if ( (pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98) ||
-        (pPH->packet_type == PACKET_TYPE_AUDIO_SEGMENT) )
-   if ( ! relay_vehicle_must_forward_video_from_relayed_vehicle(g_pCurrentModel, pPH->vehicle_id_src) )
+   if ( ((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO) ||
+        ((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_AUDIO) )
+   if ( (uPacketType == PACKET_TYPE_VIDEO_DATA_98) ||
+        (uPacketType == PACKET_TYPE_AUDIO_SEGMENT) )
+   if ( ! relay_vehicle_must_forward_video_from_relayed_vehicle(g_pCurrentModel, uVehicleIdSrc) )
       return;
 
    type_uplink_rx_info_stats* pRxInfoStats = NULL;
@@ -138,30 +162,47 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
       pRxInfoStats = (type_uplink_rx_info_stats*)(((u32*)s_pRelayRxInfoStats) + iRadioInterfaceIndex * sizeof(type_uplink_rx_info_stats));
 
    u8* pData = pBufferData;
-   int nLength = iBufferLength;
+   int nRemainingLength = iBufferLength;
    int iCountReceivedPackets = 0;
    bool bIsFullComposedPacketOkToForward = true;
    bool bPacketContainsDataToForward = false;
    
-   while ( nLength > 0 )
+   while ( nRemainingLength > 0 )
    {
-      t_packet_header* pPH = (t_packet_header*)pData;
+      pPH = (t_packet_header*)pData;
+      pPHC = (t_packet_header_compressed*)pData;
 
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      {
+         uVehicleIdSrc = pPHC->vehicle_id_src;
+         iTotalLength = pPHC->total_length;
+         uPacketType = pPHC->packet_type;
+         uPacketFlags = pPHC->packet_flags;
+         uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
+         uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
+      }
+      else
+      {
+         uVehicleIdSrc = pPH->vehicle_id_src;
+         iTotalLength = pPH->total_length;
+         uPacketType = pPH->packet_type;
+         uPacketFlags = pPH->packet_flags;
+      }
       int bCRCOk = 0;
-      int iPacketLength = packet_process_and_check(iRadioInterfaceIndex, pData, nLength, &bCRCOk);
+      int iPacketLength = packet_process_and_check(iRadioInterfaceIndex, pData, nRemainingLength, &bCRCOk);
 
       if ( iPacketLength <= 0 )
          return;
 
-      if ( pPH->vehicle_id_src != g_pCurrentModel->relay_params.uRelayedVehicleId )
+      if ( uVehicleIdSrc != g_pCurrentModel->relay_params.uRelayedVehicleId )
       {
-         pData += pPH->total_length;
-         nLength -= pPH->total_length;
+         pData += iTotalLength;
+         nRemainingLength -= iTotalLength;
          
          if ( (NULL != pRxInfoStats) && (g_TimeNow > pRxInfoStats->timeLastLogWrongRxPacket + 2000) )
          {
             pRxInfoStats->timeLastLogWrongRxPacket = g_TimeNow;
-            log_softerror_and_alarm("[Relaying] Received radio packet on the relay link from a different vehicle than the relayed vehicle (received VID: %u, current main VID: %u, relayed VID: %u)", pPH->vehicle_id_src, g_pCurrentModel->uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId );
+            log_softerror_and_alarm("[Relaying] Received radio packet on the relay link from a different vehicle than the relayed vehicle (received VID: %u, current main VID: %u, relayed VID: %u)", uVehicleIdSrc, g_pCurrentModel->uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId );
          }
          
          bIsFullComposedPacketOkToForward = false;
@@ -170,47 +211,48 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
 
       iCountReceivedPackets++;
   
-      if ( (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST) ||
-           (pPH->packet_type ==  PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
+      if ( (uPacketType == PACKET_TYPE_RUBY_PAIRING_REQUEST) ||
+           (uPacketType ==  PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
       {
          bPacketContainsDataToForward = true;
          log_line("Will relay from relayed vehicle to controller the pairing confirmation message.");
       }
-      if ( (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK) ||
-           (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK) )
+      if ( (uPacketType == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK) ||
+           (uPacketType == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK) ||
+           (uPacketType == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) )
          bPacketContainsDataToForward = true;
 
       if ( g_pCurrentModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_TRANSPORT_VIDEO )
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+      if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
       if ( relay_current_vehicle_must_send_relayed_video_feeds() )
          bPacketContainsDataToForward = true;
    
       if ( g_pCurrentModel->relay_params.uRelayCapabilitiesFlags & RELAY_CAPABILITY_TRANSPORT_TELEMETRY )
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
+      if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
          bPacketContainsDataToForward = true;
 
       // Ruby telemetry and FC telemetry is always forwarded on the relay link
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
-      if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
-           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY) ||
-           (pPH->packet_type == PACKET_TYPE_FC_TELEMETRY_EXTENDED) )
+      if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
+      if ( (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
+           (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
+           (uPacketType == PACKET_TYPE_FC_TELEMETRY) ||
+           (uPacketType == PACKET_TYPE_FC_TELEMETRY_EXTENDED) )
       {
-         if ( (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT) )
-            _process_received_ruby_telemetry_from_relayed_vehicle((u8*)&pPH, pPH->total_length);
+         if ( (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
+              (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_SHORT) )
+            _process_received_ruby_telemetry_from_relayed_vehicle(pData, iTotalLength);
          bPacketContainsDataToForward = true;
       }
 
-      if ( (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK) ||
-           (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) )
+      if ( (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK) ||
+           (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) )
       {
          bPacketContainsDataToForward = true;
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
+         if ( uPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
             memcpy(pData+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &s_uLastLocalRadioLinkUsedForPingToRelayedVehicle, sizeof(u8));
       }
-      pData += pPH->total_length;
-      nLength -= pPH->total_length;
+      pData += iTotalLength;
+      nRemainingLength -= iTotalLength;
    }
 
    if ( (! bIsFullComposedPacketOkToForward) || (! bPacketContainsDataToForward) )
@@ -354,24 +396,40 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
    }
 
    u8* pData = pBufferData;
-   int nLength = iBufferLength;
+   int iRemainingLength = iBufferLength;
    u32 uCountChainedPackets = 0;
+   int iPacketLength = 0;
    u32 uStreamId = 0;
    u32 uSourceVehicleId = 0;
    bool bContainsPairConfirmation = false;
 
-   while ( nLength > 0 )
+   while ( iRemainingLength > 0 )
    {
       t_packet_header* pPH = (t_packet_header*)pData;
-      if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+      u8 uPacketType = 0;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      {
+         iPacketLength = pPHC->total_length;
+         uPacketType = pPHC->packet_type;
+         uSourceVehicleId = pPHC->vehicle_id_src;
+         uStreamId = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      }
+      else
+      {
+         iPacketLength = pPH->total_length;
+         uPacketType = pPH->packet_type;
+         uSourceVehicleId = pPH->vehicle_id_src;
+         uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      }
+      if ( uPacketType == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
          bContainsPairConfirmation = true;
-      uSourceVehicleId = pPH->vehicle_id_src;
-      uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      if ( uStreamId < 0 || uStreamId >= MAX_RADIO_STREAMS )
+
+      if ( (uStreamId < 0) || (uStreamId >= MAX_RADIO_STREAMS) )
          uStreamId = 0;
 
-      nLength -= pPH->total_length;
-      pData += pPH->total_length;
+      iRemainingLength -= iPacketLength;
+      pData += iPacketLength;
       uCountChainedPackets++;
    }
 
@@ -460,10 +518,22 @@ void relay_send_single_packet_to_relayed_vehicle(u8* pBufferData, int iBufferLen
       return;
    }
    t_packet_header* pPH = (t_packet_header*)pBufferData;
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
 
-   u32 uRelayedVehicleId = pPH->vehicle_id_dest;
-   u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-   if ( uStreamId < 0 || uStreamId >= MAX_RADIO_STREAMS )
+   u32 uRelayedVehicleId = 0;
+   u32 uStreamId = 0;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   {
+      uRelayedVehicleId = pPHC->vehicle_id_dest;
+      uStreamId = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   }
+   else
+   {
+      uRelayedVehicleId = pPH->vehicle_id_dest;
+      uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   }
+
+   if ( (uStreamId < 0) || (uStreamId >= MAX_RADIO_STREAMS) )
       uStreamId = 0;
 
    if ( uRelayedVehicleId != g_pCurrentModel->relay_params.uRelayedVehicleId )

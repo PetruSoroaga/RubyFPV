@@ -36,6 +36,7 @@
 #include "hardware_radio.h"
 #include "ctrl_interfaces.h"
 #include "ctrl_settings.h"
+#include "tx_powers.h"
 #include "../common/string_utils.h"
 
 #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
@@ -43,6 +44,12 @@
 ControllerInterfacesSettings s_CIS;
 bool s_bAddedNewRadioInterfaces = false;
 int  s_iNewCardRadioInterfaceIndex = -1;
+
+// returns true if the power levels where updated
+bool controllerInterfacesCheckPowerLevels()
+{
+   return false;
+}
 
 // Returns the index of the card
 int controllerAddedNewRadioInterfaces()
@@ -72,7 +79,7 @@ void _controller_interfaces_add_card(const char* szMAC)
    if ( hardware_radio_is_sik_radio(pRadioInfo) )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].capabilities_flags &= ~(RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
 
-   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iDummy1 = 0;
+   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iRawPowerLevel = DEFAULT_RADIO_TX_POWER_CONTROLLER;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName = (char*)malloc(2);
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szUserDefinedName[0] = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].iInternal = false;
@@ -146,10 +153,11 @@ int save_ControllerInterfacesSettings()
       if ( szBuff[0] == '~' && szBuff[1] == 0 )
          szBuff[0] = 0;
       if (  0 == szBuff[0] )
-         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iDummy1);
+         fprintf(fd, "~ %s %d %u %d\n", s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iRawPowerLevel);
       else
-         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iDummy1);
+         fprintf(fd, "%s %s %d %u %d\n", szBuff, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].cardModel, s_CIS.listRadioInterfaces[i].capabilities_flags, s_CIS.listRadioInterfaces[i].iRawPowerLevel);
       fprintf(fd, "%d\n", s_CIS.listRadioInterfaces[i].iInternal);
+      log_line("Saved raw tx power for card %d: %d", i, s_CIS.listRadioInterfaces[i].iRawPowerLevel);
    }
 
    fprintf(fd, "TX_Preferred: %d\n", s_CIS.listMACTXPreferredCount );
@@ -260,7 +268,7 @@ int load_ControllerInterfacesSettings()
          }
 
          s_CIS.listRadioInterfaces[i].capabilities_flags = tmp;
-         s_CIS.listRadioInterfaces[i].iDummy1 = tmp2;
+         s_CIS.listRadioInterfaces[i].iRawPowerLevel = tmp2;
 
          int kSize = (int)strlen(s_CIS.listRadioInterfaces[i].szUserDefinedName);
          for( int k=0; k<kSize; k++ )
@@ -273,9 +281,9 @@ int load_ControllerInterfacesSettings()
          }
          char szFlags[128];
          str_get_radio_capabilities_description(s_CIS.listRadioInterfaces[i].capabilities_flags, szFlags);
-         log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], flags: %s",
+         log_line("Loaded controller interface %d settings: MAC: [%s], name: [%s], flags: %s, raw tx power: %d",
             i, s_CIS.listRadioInterfaces[i].szMAC, s_CIS.listRadioInterfaces[i].szUserDefinedName,
-            szFlags );
+            szFlags, s_CIS.listRadioInterfaces[i].iRawPowerLevel );
       }
    }
    s_CIS.listMACTXPreferredCount = 0;
@@ -401,7 +409,7 @@ void controllerRadioInterfacesLogInfo()
       str_get_supported_bands_string(pRadioInfo->supportedBands, szBands);
       
       if ( NULL != pCardInfo )
-         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
+         log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s, raw_tx_power: %d", i+1, str_get_radio_card_model_string(pCardInfo->cardModel), pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands, pCardInfo->iRawPowerLevel);
       else
          log_line("* RadioInterface %d: %s, %s MAC:%s phy#%d, %s %s, %s", i+1, "Unknown Type", pRadioInfo->szName, pRadioInfo->szMAC, pRadioInfo->phy_index, (controllerIsCardDisabled(pRadioInfo->szMAC)?"[DISABLED]":"[ENABLED]"), szBuff, szBands);
       u32 uFlags = controllerGetCardFlags(pRadioInfo->szMAC);
@@ -642,6 +650,38 @@ void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char*
    if ( NULL != pCardInfo )
    {
       const char* szCardModel = str_get_radio_card_model_string(pCardInfo->cardModel);
+      if ( NULL != szCardModel && 0 != szCardModel[0] )
+      {
+         strcpy(szOutput, szCardModel);
+         return;
+      }
+   }
+         
+   strcpy(szOutput, "Generic");
+}
+
+
+void controllerGetCardUserDefinedNameOrShortType(radio_hw_info_t* pRadioHWInfo, char* szOutput)
+{
+   if ( NULL != szOutput )
+      szOutput[0] = 0;
+   if ( (NULL == pRadioHWInfo) || (NULL == szOutput) )
+      return;
+   char* szN = NULL;
+   if ( NULL != pRadioHWInfo )
+      szN = controllerGetCardUserDefinedName(pRadioHWInfo->szMAC);
+   if ( (NULL != szN) && (0 != szN[0]) )
+   {
+      strcpy(szOutput, szN);
+      return;
+   }
+   
+   t_ControllerRadioInterfaceInfo* pCardInfo = NULL;
+   if ( NULL != pRadioHWInfo )
+      pCardInfo = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+   if ( NULL != pCardInfo )
+   {
+      const char* szCardModel = str_get_radio_card_model_string_short(pCardInfo->cardModel);
       if ( NULL != szCardModel && 0 != szCardModel[0] )
       {
          strcpy(szOutput, szCardModel);
@@ -1182,7 +1222,6 @@ t_ControllerInputInterface* controllerInterfacesGetAt(int index)
    }
    return NULL;
 }
-
 
 #else
 

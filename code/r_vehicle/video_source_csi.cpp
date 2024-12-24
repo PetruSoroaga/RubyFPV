@@ -84,7 +84,6 @@ u32 s_uDebugTimeLastCSIVideoInputCheck = 0;
 u32 s_uDebugCSIInputBytes = 0;
 u32 s_uDebugCSIInputReads = 0;
 
-
 static void * _thread_watchdog_video_capture(void *ignored_argument)
 {
    int iCount = 0;
@@ -352,9 +351,42 @@ u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame)
    s_uDebugCSIInputReads++;
    *piReadSize = iRead;
 
-   s_ParserH264_CSICameraOutput.parseData(s_uInputVideoCSIPipeBuffer, iRead, g_TimeNow);
+   bool bHasIFrameData = false;
+   bool bHasPPSFrames = false;
+   int iParsePos = 0;
+   int iSizeLeft = iRead;
+   while ( iSizeLeft > 0 )
+   {
+      int iParsed = s_ParserH264_CSICameraOutput.parseDataUntillStartOfNextNAL(&s_uInputVideoCSIPipeBuffer[iParsePos], iSizeLeft, g_TimeNow);
+      if ( iParsed >= iSizeLeft )
+        break;
+      if ( s_ParserH264_CSICameraOutput.getPreviousFrameType() == 5 )
+         bHasIFrameData = true;
+      if ( s_ParserH264_CSICameraOutput.getCurrentFrameType() == 5 )
+         bHasIFrameData = true;
+
+      if ( (s_ParserH264_CSICameraOutput.getCurrentFrameType() == 7) ||
+           (s_ParserH264_CSICameraOutput.getCurrentFrameType() == 8) )
+         bHasPPSFrames = true;
+      //log_line("DEBUG start %u (%d b) of NAL %d, prev NAL: %d, prev size: %d",
+      //  s_uDebugCSIInputReads, iRead, s_ParserH264_CSICameraOutput.getCurrentFrameType(),
+      //  s_ParserH264_CSICameraOutput.getPreviousFrameType(),
+      //  s_ParserH264_CSICameraOutput.getSizeOfLastCompleteFrameInBytes());
+      iParsePos += iParsed+1;
+      iSizeLeft -= iParsed+1;
+   }
    if ( NULL != pbIsInsideIFrame )
-      *pbIsInsideIFrame = s_ParserH264_CSICameraOutput.IsInsideIFrame();
+      *pbIsInsideIFrame = bHasIFrameData;
+
+   /*
+   static int sssiii = 0;
+   if ( bHasPPSFrames && iRead < 50 )
+   {
+      sssiii++;
+      if ( sssiii > 10 )
+         *piReadSize = 0;
+   }
+   */
    return s_uInputVideoCSIPipeBuffer;
 }
 

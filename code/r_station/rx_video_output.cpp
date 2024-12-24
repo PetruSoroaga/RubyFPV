@@ -162,25 +162,25 @@ void _rx_video_output_launch_video_player()
    if ( pcs->iNiceRXVideo >= 0 )
    {
       // Auto priority
-      sprintf(szPlayer, "./%s > /dev/null 2>&1&", s_szOutputVideoPlayerFilename);
+      sprintf(szPlayer, "./%s > /dev/null 2>&1 &", s_szOutputVideoPlayerFilename);
       //sprintf(szPlayer, "%s -z -o hdmi /tmp/ruby/fifovidstream > /dev/null 2>&1 &", s_szOutputVideoPlayerFilename);
    }
    else
    {
       #ifdef HW_CAPABILITY_IONICE
       if ( pcs->ioNiceRXVideo > 0 )
-         sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s > /dev/null 2>&1 &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+         sprintf(szPlayer, "ionice -c 1 -n %d nice -n %d ./%s 2>&1 1>/dev/null &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
       else
       #endif
-         sprintf(szPlayer, "nice -n %d ./%s > /dev/null 2>&1 &", pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
+         sprintf(szPlayer, "nice -n %d ./%s 2>&1 1>/dev/null &", pcs->iNiceRXVideo, s_szOutputVideoPlayerFilename);
    }
 
    //pthread_t th;
    //pthread_create(&th, NULL, &_thread_video_player, NULL );
 
-   hw_execute_bash_command(szPlayer, NULL);
-   if ( pcs->iNiceRXVideo < 0 )
-      hw_set_proc_priority(s_szOutputVideoPlayerFilename, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
+   //hw_execute_bash_command(szPlayer, NULL);
+   system(szPlayer);
+   log_line("Executed video player command.");
 
    char szComm[256];
    char szPids[128];
@@ -188,7 +188,9 @@ void _rx_video_output_launch_video_player()
    sprintf(szComm, "pidof %s", s_szOutputVideoPlayerFilename);
    szPids[0] = 0;
    int count = 0;
-   while ( (strlen(szPids) <= 2) && (count < 1000) )
+   u32 uTimeStart = get_current_timestamp_ms();
+
+   while ( (strlen(szPids) <= 2) && (count < 1000) && (get_current_timestamp_ms() < uTimeStart+2000) )
    {
       hw_execute_bash_command_silent(szComm, szPids);
       if ( strlen(szPids) > 2 )
@@ -198,8 +200,15 @@ void _rx_video_output_launch_video_player()
       count++;
    }
    s_iPIDVideoPlayer = atoi(szPids);
-   log_line("[VideoOutput] Started video player [%s], PID: %s (%d)", s_szOutputVideoPlayerFilename, szPids, s_iPIDVideoPlayer);
 
+   if ( (strlen(szPids) > 2) && (s_iPIDVideoPlayer > 0) )
+   {
+      if ( pcs->iNiceRXVideo < 0 )
+         hw_set_proc_priority(s_szOutputVideoPlayerFilename, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
+      log_line("[VideoOutput] Started video player [%s], PID: %s (%d)", s_szOutputVideoPlayerFilename, szPids, s_iPIDVideoPlayer);
+   }
+   else
+      log_softerror_and_alarm("Failed to launch video player");
    #endif
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
@@ -563,7 +572,7 @@ void rx_video_output_enable_pipe_output()
       return;
    }
 
-   s_fPipeVideoOutToPlayer = open(FIFO_RUBY_STATION_VIDEO_STREAM, O_CREAT | O_WRONLY);
+   s_fPipeVideoOutToPlayer = open(FIFO_RUBY_STATION_VIDEO_STREAM, O_CREAT | O_WRONLY | O_NONBLOCK);
    if ( s_fPipeVideoOutToPlayer < 0 )
    {
       log_error_and_alarm("[VideoOutput] Failed to open video output pipe write endpoint: %s, error code (%d): [%s]",
@@ -576,13 +585,12 @@ void rx_video_output_enable_pipe_output()
    //if ( RUBY_PIPES_EXTRA_FLAGS & O_NONBLOCK )
    //if ( 0 != fcntl(s_fPipeVideoOutToPlayer, F_SETFL, O_NONBLOCK) )
    //   log_softerror_and_alarm("[IPC] Failed to set nonblock flag on PIC channel %s write endpoint.", FIFO_RUBY_STATION_VIDEO_STREAM);
-
-   log_line("[IPC] Video player FIFO write endpoint pipe flags: %s", str_get_pipe_flags(fcntl(s_fPipeVideoOutToPlayer, F_GETFL)));
+   //log_line("[VideoOutput] Video player FIFO write endpoint pipe new flags: %s", str_get_pipe_flags(fcntl(s_fPipeVideoOutToPlayer, F_GETFL)));
   
    log_line("[VideoOutput] Video player FIFO default size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
 
-   //fcntl(s_fPipeVideoOutToPlayer, F_SETPIPE_SZ, 9000);
-   //log_line("[VideoOutput] Video player FIFO new size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
+   fcntl(s_fPipeVideoOutToPlayer, F_SETPIPE_SZ, 250000);
+   log_line("[VideoOutput] Video player FIFO new size: %d bytes", fcntl(s_fPipeVideoOutToPlayer, F_GETPIPE_SZ));
    s_bDidSentAnyDataToVideoPlayerPipe = false;
 }
 
@@ -637,38 +645,27 @@ void rx_video_output_disable_local_player_udp_output()
    s_iLocalVideoPlayerUDPSocket = -1;
 }
 
-void _processor_rx_video_forward_parse_h264_stream(u8* pBuffer, int length)
+void _processor_rx_video_output_parse_h264_stream(u8* pBuffer, int iLength)
 {
-   bool bStartOfFrameDetected = s_ParserH264Output.parseData(pBuffer, length, g_TimeNow);
-   if ( ! bStartOfFrameDetected )
-      return;
-   
-   u32 uLastFrameDuration = s_ParserH264Output.getTimeDurationOfLastCompleteFrame();
-   if ( uLastFrameDuration > 127 )
-      uLastFrameDuration = 127;
-   if ( uLastFrameDuration < 1 )
-      uLastFrameDuration = 1;
+   while ( iLength > 0 )
+   {
+      int iBytesParsed = s_ParserH264Output.parseDataUntillStartOfNextNAL(pBuffer, iLength, g_TimeNow);
+      if ( iBytesParsed >= iLength )
+         break;
 
-   u32 uLastFrameSize = s_ParserH264Output.getSizeOfLastCompleteFrame();
-   uLastFrameSize /= 1000; // transform to kbytes
+      //log_line("DEBUG %d", iStartOfFramesDetected);   
+      //log_line("DEBUG o last frame size: %d bytes",  s_ParserH264Output.getSizeOfLastCompleteFrameInBytes());
+      //log_line("DEBUG o detected start of %sframe", s_ParserH264Output.IsInsideIFrame()?"I":"P");
 
-   if ( uLastFrameSize > 127 )
-      uLastFrameSize = 127; // kbytes
+      update_shared_mem_video_frames_stats_on_new_frame( &g_SM_VideoFramesStatsOutput,
+          s_ParserH264Output.getSizeOfLastCompleteFrameInBytes(),
+          s_ParserH264Output.getCurrentFrameType(),
+          s_ParserH264Output.getDetectedSlices(), 
+          s_ParserH264Output.getDetectedFPS(), g_TimeNow );
 
-   g_SM_VideoInfoStatsOutput.uLastIndex = (g_SM_VideoInfoStatsOutput.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-   g_SM_VideoInfoStatsOutput.uFramesDuration[g_SM_VideoInfoStatsOutput.uLastIndex] = uLastFrameDuration;
-   g_SM_VideoInfoStatsOutput.uFramesTypesAndSizes[g_SM_VideoInfoStatsOutput.uLastIndex] = (g_SM_VideoInfoStatsOutput.uFramesTypesAndSizes[g_SM_VideoInfoStatsOutput.uLastIndex] & 0x80) | ((u8)uLastFrameSize);
- 
-   u32 uNextIndex = (g_SM_VideoInfoStatsOutput.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-  
-   if ( s_ParserH264Output.IsInsideIFrame() )
-      g_SM_VideoInfoStatsOutput.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
-   else
-      g_SM_VideoInfoStatsOutput.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
-
-   g_SM_VideoInfoStatsOutput.uKeyframeIntervalMs = s_ParserH264Output.getCurrentlyDetectedKeyframeIntervalMs();
-   g_SM_VideoInfoStatsOutput.uDetectedFPS = s_ParserH264Output.getDetectedFPS();
-   g_SM_VideoInfoStatsOutput.uDetectedSlices = (u32) s_ParserH264Output.getDetectedSlices();
+      pBuffer += iBytesParsed + 1;
+      iLength -= iBytesParsed + 1;
+   }
 }
 
 void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8* pBuffer, int length)
@@ -720,6 +717,8 @@ void _rx_video_output_to_video_player(u32 uVehicleId, int width, int height, u8*
 
    // Error outputing video to player
 
+   log_softerror_and_alarm("[VideoOutput] Failed to write to player pipe (%d bytes). Ret code: %d, Error code: %d, err string: (%s)",
+     length, iRes, errno, strerror(errno));
    u32 uFlags = 0;
 
    if ( iRes >= 0 )
@@ -868,12 +867,12 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
    //  */
    //}
 
-   if ( NULL != g_pCurrentModel )
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
-   if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
    {
-      _processor_rx_video_forward_parse_h264_stream(pBuffer, video_data_length);
+      _processor_rx_video_output_parse_h264_stream(pBuffer, video_data_length);
    }
 
    if ( -1 != s_fPipeVideoOutToPlayer ) 

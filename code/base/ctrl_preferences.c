@@ -61,7 +61,7 @@ void reset_Preferences()
    s_Preferences.iVideoDestination = prefVideoDestination_Disk;
    s_Preferences.iStartVideoRecOnArm = 0;
    s_Preferences.iStopVideoRecOnDisarm = 0;
-   s_Preferences.iShowControllerCPUInfo = 1;
+   s_Preferences.iShowControllerCPUInfo = 0;
    s_Preferences.iShowBigRecordButton = 0;
    s_Preferences.iSwapUpDownButtons = 0;
    s_Preferences.iSwapUpDownButtonsValues = 0;
@@ -101,7 +101,7 @@ void reset_Preferences()
    s_Preferences.iDebugShowVideoSnapshotOnDiscard = 0;
    s_Preferences.iDebugWiFiChangeDelay = DEFAULT_DELAY_WIFI_CHANGE;
 
-   s_Preferences.iAutoExportSettings = 1;
+   s_Preferences.iAutoExportSettings = 0;
    s_Preferences.iAutoExportSettingsWasModified = 0;
 
    s_Preferences.iShowProcessesMonitor = 0;
@@ -110,12 +110,13 @@ void reset_Preferences()
    s_Preferences.iShowOnlyPresentTxPowerCards = 1;
    s_Preferences.iShowTxBoosters = 0;
    s_Preferences.iMenuStyle = 0;
+   s_Preferences.iStopRecordingAfterLinkLostSeconds = 20;
 
    s_Preferences.iDebugStatsQAButton = 0;
-   s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS |
+   s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_TX_PACKETS |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES |
-      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM |
-      CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
+      //CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM |
+      //CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
       //CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED |
@@ -182,8 +183,8 @@ int save_Preferences()
 
    fprintf(fd, "%d \n", s_Preferences.iShowCPULoad);
    fprintf(fd, "%d %d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters, s_Preferences.iMenuStyle);
-   fprintf(fd, "%d %d\n", s_Preferences.iDebugStatsQAButton, s_Preferences.uDebugStatsFlags);
-
+   fprintf(fd, "%d %u\n", s_Preferences.iDebugStatsQAButton, s_Preferences.uDebugStatsFlags);
+   fprintf(fd, "%d\n", s_Preferences.iStopRecordingAfterLinkLostSeconds);
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
    return 1;
@@ -323,18 +324,21 @@ int load_Preferences()
    if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iDebugShowVideoSnapshotOnDiscard) )
    {
       s_Preferences.iDebugShowVideoSnapshotOnDiscard = 0;
+      bOk = 0;
    }
 
    if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iDebugShowVehicleVideoStats, &s_Preferences.iDebugShowVehicleVideoGraphs) )
    {
       s_Preferences.iDebugShowVehicleVideoStats = 0;
       s_Preferences.iDebugShowVehicleVideoGraphs = 0;
+      bOk = 0;
    }
 
    if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iAutoExportSettings, &s_Preferences.iAutoExportSettingsWasModified) )
    {
       s_Preferences.iAutoExportSettings = 1;
       s_Preferences.iAutoExportSettingsWasModified = 0;
+      bOk = 0;
    }
 
    if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iShowProcessesMonitor) )
@@ -352,14 +356,21 @@ int load_Preferences()
    if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iMenuStyle) )
       s_Preferences.iMenuStyle = 0;
 
-   if ( bOk && 2 != fscanf(fd, "%d %d", &s_Preferences.iDebugStatsQAButton, &s_Preferences.uDebugStatsFlags) )
+   if ( bOk && 2 != fscanf(fd, "%d %u", &s_Preferences.iDebugStatsQAButton, &s_Preferences.uDebugStatsFlags) )
    {
       s_Preferences.iDebugStatsQAButton = 0;
-      s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS |
+      s_Preferences.uDebugStatsFlags = CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_TX_PACKETS |
          CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS_MAX_GAP |
          //CTRL_RT_DEBUG_INFO_FLAG_SHOW_MIN_MAX_ACK_TIME |
          CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY |
          CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED;
+      bOk = 0;
+   }
+
+   if ( bOk && 1 != fscanf(fd, "%d", &s_Preferences.iStopRecordingAfterLinkLostSeconds) )
+   {
+      s_Preferences.iStopRecordingAfterLinkLostSeconds = 20;
+      bOk = 0;
    }
 
    // ----------------------------------------------------
@@ -403,6 +414,8 @@ int load_Preferences()
       fclose(fd);
       return 0;
    }
+   if ( ! bOk )
+      log_softerror_and_alarm("Some preferences settings where missing from file.");
    fclose(fd);
    log_line("Loaded preferences from file: %s", szFile);
    return 1;

@@ -69,20 +69,15 @@ shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;
 shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats = NULL;
 shared_mem_audio_decode_stats g_SM_AudioDecodeStats;
 
-shared_mem_video_info_stats* g_pSM_VideoInfoStatsOutput = NULL;
-shared_mem_video_info_stats g_SM_VideoInfoStatsOutput;
-
-shared_mem_video_info_stats* g_pSM_VideoInfoStatsRadioIn = NULL;
-shared_mem_video_info_stats g_SM_VideoInfoStatsRadioIn;
-
-shared_mem_video_info_stats g_VideoInfoStatsFromVehicleCameraOut;
-shared_mem_video_info_stats g_VideoInfoStatsFromVehicleRadioOut;
+shared_mem_video_frames_stats* g_pSM_VideoFramesStatsOutput = NULL;
+shared_mem_video_frames_stats g_SM_VideoFramesStatsOutput;
+//shared_mem_video_frames_stats* g_pSM_VideoInfoStatsRadioIn = NULL;
+//shared_mem_video_frames_stats g_SM_VideoInfoStatsRadioIn;
+//shared_mem_video_frames_stats g_VideoInfoStatsFromVehicleCameraOut;
+//shared_mem_video_frames_stats g_VideoInfoStatsFromVehicleRadioOut;
 
 shared_mem_video_stream_stats_rx_processors* g_pSM_VideoDecodeStats = NULL;
 shared_mem_video_stream_stats_rx_processors g_SM_VideoDecodeStats;
-
-shared_mem_video_stream_stats_history_rx_processors* g_pSM_VDS_history = NULL;
-shared_mem_video_stream_stats_history_rx_processors g_SM_VDS_history;
 
 shared_mem_radio_rx_queue_info* g_pSM_RadioRxQueueInfo = NULL;
 shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;

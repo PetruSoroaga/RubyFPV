@@ -33,7 +33,7 @@
 #include "menu_objects.h"
 #include "menu_controller_radio_interface_sik.h"
 #include "menu_text.h"
-#include "menu_tx_power.h"
+#include "menu_tx_raw_power.h"
 #include "menu_confirmation.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"

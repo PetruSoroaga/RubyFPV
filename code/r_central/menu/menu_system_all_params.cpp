@@ -406,7 +406,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
 
    g_pRenderEngine->setColors(get_Color_MenuText());
 
-   sprintf(szBuff, "Controller TX power: %d", pCS->iTXPowerRTL8812AU);
+   sprintf(szBuff, "Controller TX power: N/A");
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;
@@ -414,7 +414,7 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
    if ( NULL == g_pCurrentModel )
       return 0.0;
 
-   sprintf(szBuff, "Vehicle TX power (RTL8812AU): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
+   sprintf(szBuff, "Vehicle TX power (RTL8812AU): %d", g_pCurrentModel->radioInterfacesParams.interface_raw_power[0]);
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;

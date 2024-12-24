@@ -42,6 +42,10 @@
 #define CARD_MODEL_RTL8814AU      13
 #define CARD_MODEL_ALFA_AWUS036ACS  14
 #define CARD_MODEL_BLUE_8812EU    15
+#define CARD_MODEL_ATHEROS_GENERIC 16
+#define CARD_MODEL_RTL8812AU_GENERIC 17
+#define CARD_MODEL_RTL8812AU_OIPC_USIGHT 18
+#define CARD_MODEL_RTL8812AU_OIPC_USIGHT2 19
 
 #define CARD_MODEL_SIK_RADIO 100
 #define CARD_MODEL_SERIAL_RADIO 101
@@ -67,6 +71,8 @@
 #define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK ((u32)(((u32)0x01)<<10))
 #define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_SIK ((u32)(((u32)0x01)<<11))
 #define RADIO_HW_CAPABILITY_FLAG_SERIAL_LINK_ELRS ((u32)(((u32)0x01)<<12))
+#define RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_2W ((u32)(((u32)0x01)<<13))
+#define RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W ((u32)(((u32)0x01)<<14))
 
 #define RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD ((u32)(((u32)0x01)))
 
@@ -169,13 +175,18 @@ typedef struct
 
 void hardware_save_radio_info();
 int hardware_load_radio_info();
-void hardware_log_radio_info();
+int hardware_load_radio_info_into_buffers(int* piOutputTotalCount, int* piOutputSupportedCount, radio_hw_info_t* pRadioInfoArray);
+void hardware_log_radio_info(radio_hw_info_t* pRadioInfo, int iCount);
 
 void hardware_reset_radio_enumerated_flag();
 int hardware_enumerate_radio_interfaces();
 int hardware_enumerate_radio_interfaces_step(int iStep);
 
 int hardware_radio_load_radio_modules(int iEchoToConsole);
+int hardware_install_driver_rtl8812au(int iRemoveFirst);
+int hardware_install_driver_rtl8812eu(int iRemoveFirst);
+void hardware_install_drivers();
+int hardware_radio_get_driver_id_for_product_id(const char* szProdId);
 
 int hardware_get_radio_interfaces_count();
 int hardware_get_supported_radio_interfaces_count();
@@ -187,6 +198,9 @@ int hardware_radio_has_low_capacity_links();
 int hardware_radio_has_rtl8812au_cards();
 int hardware_radio_has_rtl8812eu_cards();
 int hardware_radio_has_atheros_cards();
+int hardware_radio_driver_is_rtl8812au_card(int iDriver);
+int hardware_radio_driver_is_rtl8812eu_card(int iDriver);
+int hardware_radio_driver_is_atheros_card(int iDriver);
 
 const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);

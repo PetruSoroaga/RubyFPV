@@ -26,54 +26,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 // Video deocode demo using OpenMAX IL though the ilcient helper library
-
+// Build: /opt/vc/src/hello_pi/hello_video
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <asm/termbits.h>
+#include <sys/ioctl.h>
 
 #include "bcm_host.h"
 #include "ilclient.h"
+#include "base.h"
 
-struct timeval s_TimeStruct;
-uint32_t s_Time;
-uint32_t s_TimeLastFPS = 0;
-
-static int s_iFPS = 0;
-static int s_iFPSReads = 0;
-static int s_iFPSSearchTagsFound = 0;
-
-static DISPMANX_DISPLAY_HANDLE_T display;
-uint32_t s_uSearchTag = 0x3333;
-
-static FILE* fdLog = NULL;
-
-uint32_t iFPS = 30;
-char szFileName[256];
-
-void onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
-{
-   s_iFPS++;
-
-   gettimeofday(&s_TimeStruct, NULL);
-   s_Time = s_TimeStruct.tv_sec*1000 + s_TimeStruct.tv_usec/1000;
-
-   if ( s_Time >= s_TimeLastFPS+1000 )
-   {
-      s_TimeLastFPS = s_Time;
-      if ( NULL != fdLog )
-      {
-         fprintf(fdLog, "------------------------\nvsync: %d FPS, %d reads, %d tags found\n", s_iFPS, s_iFPSReads, s_iFPSSearchTagsFound);
-         fflush(fdLog);
-      }
-      s_iFPS = 0;
-      s_iFPSReads = 0;
-      s_iFPSSearchTagsFound = 0;
-   }
-}
- 
 static int video_decode()
 {
    OMX_VIDEO_PARAM_PORTFORMATTYPE format;
@@ -82,12 +49,12 @@ static int video_decode()
    TUNNEL_T tunnel[4];
    ILCLIENT_T *client;
    int status = 0;
-   unsigned int uBufferReadSize = 0;
+   unsigned int data_len = 0;
    int iExit = 0;
-   
    memset(list, 0, sizeof(list));
    memset(tunnel, 0, sizeof(tunnel));
-   
+
+
    if((client = ilclient_init()) == NULL)
    {
       return -3;
@@ -99,38 +66,55 @@ static int video_decode()
       return -4;
    }
 
-   int iPipeRead = -1;
-   iPipeRead = open(szFileName, O_RDONLY);
-   if ( iPipeRead < 0 )
-      return -1;
 
+    char szFIFOName[100];
+    strcpy(szFIFOName, "/tmp/ruby/fifovidstream");
+    int readfd = -1;
+    readfd = open(szFIFOName, O_RDONLY | O_NONBLOCK);
+    if( -1 == readfd )
+    {
+        log_error_and_alarm("Failed to open input stream: (%s)", szFIFOName);
+        return EXIT_FAILURE;
+    }
+
+    log_line("Opened fifo: [%s], fd=%d", szFIFOName, readfd);
+   
    // create video_decode
    if(ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
+   {
       status = -14;
+      log_softerror_and_alarm("Failed to create video decoder component.");
+   }
    list[0] = video_decode;
 
 
    // create video_render
    if(status == 0 && ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+   {
       status = -14;
+      log_softerror_and_alarm("Failed to create video renderer component.");
+   }
    list[1] = video_render;
 
 
-   set_tunnel(tunnel, video_decode, 131, video_render, 90);
-
-
-   if(status == 0)
+   if ( status == 0 )
+   {
+      set_tunnel(tunnel, video_decode, 131, video_render, 90);
       ilclient_change_component_state(video_decode, OMX_StateIdle);
+   }
 
+   if ( status != 0 )
+   {
+      log_softerror_and_alarm("Failed to initialize compontens. Aborting.");
+      goto exit;
+   }
    memset(&format, 0, sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE));
    format.nSize = sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE);
    format.nVersion.nVersion = OMX_VERSION;
    format.nPortIndex = 130;
    format.eCompressionFormat = OMX_VIDEO_CodingAVC;
-   format.xFramerate = iFPS << 16;
-   
-   if ( NULL != fdLog )
-      fprintf(fdLog, "FPS: %d\n", iFPS);
+
+   log_line("Initialized components.");
 
    if(status == 0 &&
       OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
@@ -142,57 +126,39 @@ static int video_decode()
 
       ilclient_change_component_state(video_decode, OMX_StateExecuting);
 
+      fd_set selectReadSet;
+      struct timeval selectTimeInterval;
 
       while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
       {
          // feed data and wait until we get port settings changed
-         unsigned char *pBufferRead = buf->pBuffer;
-         uBufferReadSize = 0;
-         while (buf->nAllocLen - uBufferReadSize > 0 )
+         unsigned char *dest = buf->pBuffer;
+         data_len = 0;
+
+         while (data_len == 0)
          {
-            //int read_count = read(STDIN_FILENO, pBufferRead, buf->nAllocLen-uBufferReadSize);
-            int read_count = read(iPipeRead, pBufferRead, buf->nAllocLen-uBufferReadSize);
-            s_iFPSReads++;
-          
-            if ( read_count < 0 )
-            {
-               iExit = 1;
-               break;
-            }
-            
-            uBufferReadSize += read_count;
-            
-            if ( uBufferReadSize == buf->nAllocLen )
-               break;
+            FD_ZERO(&selectReadSet);
+            FD_SET(readfd, &selectReadSet);
+            selectTimeInterval.tv_sec = 0;
+            selectTimeInterval.tv_usec = 10000; // 10 milisec timeout
 
-            unsigned char *pTmp = pBufferRead;
-            pBufferRead += read_count;
-  
-            while (pTmp != pBufferRead) // search for frame delimiter, break reading on start of frame
-            {
-               s_uSearchTag = (s_uSearchTag << 8) + (*pTmp);
+            int iSelect = select(readfd+1, &selectReadSet, NULL, NULL, &selectTimeInterval);
 
-               if ((s_uSearchTag == 0x0121) || (s_uSearchTag == 0x0127))
-                   break;
-               pTmp++;
-            }
-            if (pTmp != pBufferRead)
+            if ( (iSelect > 0) && (FD_ISSET(readfd, &selectReadSet)) )
             {
-               s_iFPSSearchTagsFound++;
-               break;
+               //int iCountReady = 0;
+               //ioctl(readfd, FIONREAD, &iCountReady);
+               int read_count = read(readfd, dest, buf->nAllocLen-data_len);
+               if ( read_count > 0 )
+                  data_len += read_count;
             }
-            
-         } // end of: while (buf->nAllocLen - uBufferReadSize > 0 )
-           
-         if ( NULL != fdLog )
-            fprintf(fdLog, "buff  %d/%d bytes\n", buf->nAllocLen, uBufferReadSize);
-
+         }
          if ( iExit )
             break;
 
          if(port_settings_changed == 0 &&
-            ((uBufferReadSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-             (uBufferReadSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+            ((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+             (data_len == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
                                                        ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
          {
             port_settings_changed = 1;
@@ -206,8 +172,8 @@ static int video_decode()
             ilclient_change_component_state(video_render, OMX_StateExecuting);
          }
          
-         buf->nFilledLen = uBufferReadSize;
-         uBufferReadSize = 0;
+         buf->nFilledLen = data_len;
+         data_len = 0;
 
          buf->nOffset = 0;
          if(first_packet)
@@ -224,8 +190,6 @@ static int video_decode()
             break;
          }
       }
-      // end of: while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
-      
 
       buf->nFilledLen = 0;
       buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
@@ -241,16 +205,15 @@ static int video_decode()
       ilclient_flush_tunnels(tunnel, 0);
 
    }
-
-   if ( NULL != fdLog )
-      fclose(fdLog);
-
-   if ( -1 != iPipeRead )
-      close(iPipeRead);
-
+ 
    ilclient_disable_tunnel(tunnel);
    ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
    ilclient_teardown_tunnels(tunnel);
+
+exit:
+
+   if ( readfd != -1 )
+      close(readfd);
 
    ilclient_state_transition(list, OMX_StateIdle);
    ilclient_state_transition(list, OMX_StateLoaded);
@@ -265,30 +228,38 @@ static int video_decode()
 
 int main (int argc, char **argv)
 {
-
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("%d.%d (b%d)", 6,9,20);
+      printf("%d.%d (b%d)", 10,1,253);
       return 0;
    }
 
-   if ( argc<3 )
-      return 0;
+   bcm_host_init();
 
-   iFPS = atoi(argv[argc-1]);
-   if ( iFPS < 10 || iFPS > 120 )
-      iFPS = 30;
+   log_init("RubyVideoStreamer");
 
-   strcpy(szFileName, argv[argc-2]);
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
+   int policy = 0;
+   int ret = 0;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("Failed to get schedule param");
+   else
+      log_line("Current thread policy/priority: %d/%d", policy, params.sched_priority);
 
-  bcm_host_init();
+   params.sched_priority = 50;
+   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
 
-  //fdLog = fopen("tmp.log", "wb");
-  fdLog = NULL;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("Failed to get schedule param");
+   else
+     log_line("Current new thread policy/priority: %d/%d", policy, params.sched_priority);
 
-  display = vc_dispmanx_display_open( 0 );
-  vc_dispmanx_vsync_callback(display, onVSync, NULL); 
-  return video_decode();
+   return video_decode();
 }
 
 

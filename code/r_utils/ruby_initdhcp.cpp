@@ -74,7 +74,7 @@ void configureDHCP()
          strcpy(szType, "STATION");
 
       #ifdef HW_PLATFORM_RASPBERRY
-      sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s", szType);
+      sprintf(szBuff, "nice pump -i eth0 --no-ntp -h Ruby%s 2>&1 1>/dev/nulll", szType);
       hw_execute_bash_command(szBuff, NULL);
       #endif
       //ETHCLIENTIP=`ip addr show eth0 | grep -Po 'inet \K[\d.]+'`            
@@ -83,6 +83,44 @@ void configureDHCP()
    }
    else
       log_line("No ethernet connection detected!");		
+}
+
+void _check_set_fixed_ip()
+{
+   load_ControllerSettings();
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( (pCS == NULL) || (pCS->nUseFixedIP == 0) )
+      return;
+
+   char* pszETH = hardware_has_eth();
+   if ( NULL == pszETH )
+   {
+      log_line("Device does not have an ETH port.");
+      return;
+   }
+   log_line("Setting a fixed IP for eth device: %s", pszETH);
+
+   hw_execute_bash_command("export PATH=/usr/local/bin:${PATH}", NULL);
+   //hw_execute_bash_command("ip link set dev eth0 up", NULL);
+   //execute_bash_command("ip link set dev eth0 down", NULL);
+
+   char szBuff[256];
+   szBuff[0] = 0;
+   #ifdef HW_PLATFORM_RASPBERRY
+   sprintf(szBuff, "ifconfig %s %d.%d.%d.%d up &", pszETH, (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
+   #endif
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   sprintf(szBuff, "ip addr add %d.%d.%d.%d/24 dev %s", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF, pszETH );
+   #endif
+   if ( 0 != szBuff[0] )
+      hw_execute_bash_command(szBuff, NULL);
+   log_line("Setting a fixed IP done.");
+   sprintf(szBuff, "ip r a default via 192.168.1.1 2>/dev/null");
+   hw_execute_bash_command(szBuff, NULL);
+
+   sprintf(szBuff, "ip link set %s up", pszETH);
+   hw_execute_bash_command(szBuff, NULL);
+   log_line("Added default ETH route done.");
 }
 
 int main(int argc, char *argv[])
@@ -123,7 +161,7 @@ int main(int argc, char *argv[])
    }
    log_line("Board type: %d -> %s", board_type, str_get_hardware_board_name(board_type));
 
-   bool bHasETH = hardware_has_eth();
+   bool bHasETH = ((hardware_has_eth() != NULL)?true:false);
 
    // DHCP
    if ( ( access( "/boot/nodhcp", R_OK ) != -1 ) || (!bHasETH) )
@@ -132,45 +170,25 @@ int main(int argc, char *argv[])
 
       if ( ! bHasETH )
       {
-         log_line("Pi with no ETH port: no ETH port to enable");
+         log_line("SBC with no ETH port: no ETH port to enable");
          return 0;
       }
 
       log_line("DHCP is disabled with /boot/nodhcp option.");
       if ( bIsStation )
-      {
-            load_ControllerSettings();
-            ControllerSettings* pCS = get_ControllerSettings();
-            if ( pCS != NULL && pCS->nUseFixedIP != 0 )
-            {
-               log_line("Setting a fixed IP.");
-               hw_execute_bash_command("export PATH=/usr/local/bin:${PATH}", NULL);
-               //hw_execute_bash_command("ip link set dev eth0 up", NULL);
-               //execute_bash_command("ip link set dev eth0 down", NULL);
-
-               char szBuff[256];
-               szBuff[0] = 0;
-               #ifdef HW_PLATFORM_RASPBERRY
-               sprintf(szBuff, "ifconfig eth0 %d.%d.%d.%d up &", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
-               #endif
-               #ifdef HW_PLATFORM_RADXA_ZERO3
-               sprintf(szBuff, "ip addr add %d.%d.%d.%d/24 dev eth0", (pCS->uFixedIP >> 24 ) & 0xFF, (pCS->uFixedIP >> 16 ) & 0xFF, (pCS->uFixedIP >> 8 ) & 0xFF, pCS->uFixedIP & 0xFF );
-               #endif
-               if ( 0 != szBuff[0] )
-                  hw_execute_bash_command(szBuff, NULL);
-               log_line("Setting a fixed IP done.");
-               sprintf(szBuff, "ip r a default via 192.168.1.1 2>/dev/null");
-               hw_execute_bash_command(szBuff, NULL);
-               hw_execute_bash_command("ip link set eth0 up", NULL);
-               log_line("Added default ETH route done.");
-            }
-      }
+         _check_set_fixed_ip();
       log_line("Done DHCP/ETH Configuration.");
       return 0;
    }
 
-   configureDHCP();
+   #if defined HW_PLATFORM_RADXA_ZERO3
+   _check_set_fixed_ip();
+   #endif
 
+   #if defined HW_PLATFORM_RASPBERRY
+   configureDHCP();
+   #endif
+   
    hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
    log_line("Network devices found: [%s]", szOutput);
 

@@ -147,6 +147,7 @@ void MenuVehicleCamera::addItems()
 
       szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
       if ( (NULL != szCamName) && (0 != szCamName[0]) )
+      if ( NULL == strstr(szCam, szCamName) )
       {
          strcat(szCam, " (");
          strcat(szCam, szCamName);
@@ -160,14 +161,14 @@ void MenuVehicleCamera::addItems()
 
    m_pItemsSelect[12] = new MenuItemSelect("Camera Type", "Autodetect the active camera type or force a particular camera type for the active camera.");
    m_pItemsSelect[12]->addSelection("Autodetect");
-   m_pItemsSelect[12]->addSelection("CSI Camera");
-   m_pItemsSelect[12]->addSelection("HDMI Camera");
-   m_pItemsSelect[12]->addSelection("Veye 290");
-   m_pItemsSelect[12]->addSelection("Veye 307");
-   m_pItemsSelect[12]->addSelection("Veye 327");
-   m_pItemsSelect[12]->addSelection("OpenIPC IMX307");
-   m_pItemsSelect[12]->addSelection("OpenIPC IMX335");
-   m_pItemsSelect[12]->addSelection("OpenIPC IMX415");
+   m_pItemsSelect[12]->addSelection("CSI Camera", !g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("HDMI Camera", !g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("Veye 290", !g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("Veye 307", !g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("Veye 327", !g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("OpenIPC IMX307", g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("OpenIPC IMX335", g_pCurrentModel->isRunningOnOpenIPCHardware());
+   m_pItemsSelect[12]->addSelection("OpenIPC IMX415", g_pCurrentModel->isRunningOnOpenIPCHardware());
    m_pItemsSelect[12]->addSelection("USB Camera", false);
    m_pItemsSelect[12]->addSelection("IP Camera", false);
    m_pItemsSelect[12]->setIsEditable();

@@ -46,13 +46,7 @@ void reset_ControllerSettings()
 {
    memset(&s_CtrlSettings, 0, sizeof(s_CtrlSettings));
    s_CtrlSettings.iUseBrokenVideoCRC = 0;
-   s_CtrlSettings.iTXPowerRTL8812AU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-   s_CtrlSettings.iTXPowerRTL8812EU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-   s_CtrlSettings.iTXPowerAtheros = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-   s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
-   s_CtrlSettings.iMaxTXPowerRTL8812AU = MAX_TX_POWER;
-   s_CtrlSettings.iMaxTXPowerRTL8812EU = MAX_TX_POWER;
-   s_CtrlSettings.iMaxTXPowerAtheros = MAX_TX_POWER;
+   s_CtrlSettings.iFixedTxPower = 0;
    s_CtrlSettings.iHDMIBoost = 6;
    s_CtrlSettings.iOverVoltage = 0;
    s_CtrlSettings.iFreqARM = 0;
@@ -90,8 +84,8 @@ void reset_ControllerSettings()
    s_CtrlSettings.nRotaryEncoderFunction2 = 2; // 0 - none, 1 - menu, 2 - camera
    s_CtrlSettings.nRotaryEncoderSpeed2 = 0; // 0 - normal, 1 - slow
    s_CtrlSettings.nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
-   s_CtrlSettings.nGraphRadioRefreshInterval = 100;
-   s_CtrlSettings.nGraphVideoRefreshInterval = 100;
+   s_CtrlSettings.nGraphRadioRefreshInterval = 50;
+   s_CtrlSettings.nGraphVideoRefreshInterval = 50;
    s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
    s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout = 1;
    s_CtrlSettings.iFreezeOSD = 0;
@@ -133,8 +127,7 @@ int save_ControllerSettings()
    }
    fprintf(fd, "%s\n", CONTROLLER_SETTINGS_STAMP_ID);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iDeveloperMode, s_CtrlSettings.iUseBrokenVideoCRC, s_CtrlSettings.iHDMIBoost);
-   fprintf(fd, "%d %d %d %d %d %d\n", s_CtrlSettings.iTXPowerRTL8812AU, s_CtrlSettings.iTXPowerRTL8812EU, s_CtrlSettings.iTXPowerAtheros, s_CtrlSettings.iMaxTXPowerRTL8812AU, s_CtrlSettings.iMaxTXPowerRTL8812EU, s_CtrlSettings.iMaxTXPowerAtheros);
-
+   
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iOverVoltage, s_CtrlSettings.iFreqARM, s_CtrlSettings.iFreqGPU);
 
    fprintf(fd, "%d %d %d\n%d %d\n", s_CtrlSettings.iNiceRouter, s_CtrlSettings.iNiceCentral, s_CtrlSettings.iNiceRXVideo, s_CtrlSettings.ioNiceRouter, s_CtrlSettings.ioNiceRXVideo);
@@ -163,14 +156,13 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", -1, s_CtrlSettings.iFreezeOSD);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton, s_CtrlSettings.iShowControllerAdaptiveInfoStats);
    fprintf(fd, "%d\n", s_CtrlSettings.iShowVideoStreamInfoCompactType);
-   fprintf(fd, "%d\n", s_CtrlSettings.iTXPowerSiK);
 
    fprintf(fd, "%d %d %d %d\n", s_CtrlSettings.iSearchSiKAirRate, s_CtrlSettings.iSearchSiKECC, s_CtrlSettings.iSearchSiKLBT, s_CtrlSettings.iSearchSiKMCSTR);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iAudioOutputDevice, s_CtrlSettings.iAudioOutputVolume);
    fprintf(fd, "%d %u\n", s_CtrlSettings.iDevRxLoopTimeout, s_CtrlSettings.uShowBigRxHistoryInterface);
    fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
-   fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers);
+   fprintf(fd, "%d %d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers, s_CtrlSettings.iFixedTxPower);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -212,175 +204,81 @@ int load_ControllerSettings()
       return 0;
    }
 
-   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iDeveloperMode) )
-      s_CtrlSettings.iDeveloperMode = 0;
-   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iUseBrokenVideoCRC) )
-      s_CtrlSettings.iUseBrokenVideoCRC = 0;
-   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iHDMIBoost) )
-      s_CtrlSettings.iHDMIBoost = 5;
-
-   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iTXPowerRTL8812AU, &s_CtrlSettings.iTXPowerRTL8812EU, &s_CtrlSettings.iTXPowerAtheros) )
-   {
-      s_CtrlSettings.iTXPowerRTL8812AU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-      s_CtrlSettings.iTXPowerRTL8812EU = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-      s_CtrlSettings.iTXPowerAtheros = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-      hardware_radio_set_txpower_rtl8812au(DEFAULT_RADIO_TX_POWER_CONTROLLER);
-      hardware_radio_set_txpower_rtl8812eu(DEFAULT_RADIO_TX_POWER_CONTROLLER);
-      hardware_radio_set_txpower_atheros(DEFAULT_RADIO_TX_POWER_CONTROLLER);
-   }
-
-   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iMaxTXPowerRTL8812AU, &s_CtrlSettings.iMaxTXPowerRTL8812EU, &s_CtrlSettings.iMaxTXPowerAtheros) )
-   {
-      s_CtrlSettings.iMaxTXPowerRTL8812AU = MAX_TX_POWER;
-      s_CtrlSettings.iMaxTXPowerRTL8812EU = MAX_TX_POWER;
-      s_CtrlSettings.iMaxTXPowerAtheros = MAX_TX_POWER;
-   }
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iDeveloperMode, &s_CtrlSettings.iUseBrokenVideoCRC, &s_CtrlSettings.iHDMIBoost) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 1"); }
 
    if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iOverVoltage, &s_CtrlSettings.iFreqARM, &s_CtrlSettings.iFreqGPU) )
-      { s_CtrlSettings.iOverVoltage = 0; s_CtrlSettings.iFreqARM = 0; s_CtrlSettings.iFreqGPU = 0; }
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 2"); }
 
    if ( 5 != fscanf(fd, "%d %d %d %d %d", &s_CtrlSettings.iNiceRouter, &s_CtrlSettings.iNiceCentral, &s_CtrlSettings.iNiceRXVideo, &s_CtrlSettings.ioNiceRouter, &s_CtrlSettings.ioNiceRXVideo) )
-      { log_softerror_and_alarm("Failed to load controller settings (line nice)"); }
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 3"); }
 
 
-   if ( (!failed) && (3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.iVideoForwardUSBType, &s_CtrlSettings.iVideoForwardUSBPort, &s_CtrlSettings.iVideoForwardUSBPacketSize)) )
-      { s_CtrlSettings.iVideoForwardUSBType = 0; s_CtrlSettings.iVideoForwardUSBPort = 0; s_CtrlSettings.iVideoForwardUSBPacketSize = 1024; failed = 4; }
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.iVideoForwardUSBType, &s_CtrlSettings.iVideoForwardUSBPort, &s_CtrlSettings.iVideoForwardUSBPacketSize) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 4"); }
 
-   if ( (!failed) && (3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.iTelemetryForwardUSBType, &s_CtrlSettings.iTelemetryForwardUSBPort, &s_CtrlSettings.iTelemetryForwardUSBPacketSize)) )
-      { s_CtrlSettings.iTelemetryForwardUSBType = 0; s_CtrlSettings.iTelemetryForwardUSBPort = 0; s_CtrlSettings.iTelemetryForwardUSBPacketSize = 1024; failed = 5; }
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.iTelemetryForwardUSBType, &s_CtrlSettings.iTelemetryForwardUSBPort, &s_CtrlSettings.iTelemetryForwardUSBPacketSize) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 5"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iTelemetryOutputSerialPortIndex, &s_CtrlSettings.iTelemetryInputSerialPortIndex)) )
-   {
-      s_CtrlSettings.iTelemetryOutputSerialPortIndex = -1;
-      s_CtrlSettings.iTelemetryInputSerialPortIndex = -1;
-      failed = 6;
-   }
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iMAVLinkSysIdController, &s_CtrlSettings.iDisableHDMIOverscan)) )
-   {
-       s_CtrlSettings.iMAVLinkSysIdController = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
-       s_CtrlSettings.iDisableHDMIOverscan = 0;
-       failed = 7;
-   }
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iRenderFPS)) )
-      { s_CtrlSettings.iRenderFPS = 10; failed = 8; }
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iTelemetryOutputSerialPortIndex, &s_CtrlSettings.iTelemetryInputSerialPortIndex) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 6"); }
 
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iShowVoltage)) )
-      { s_CtrlSettings.iShowVoltage = 1; failed = 9; }
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iMAVLinkSysIdController, &s_CtrlSettings.iDisableHDMIOverscan) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 7"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS, &s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs)) )
-   {
-      s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS = DEFAULT_VIDEO_RETRANS_MINIMUM_RETRY_INTERVAL;
-      s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs = DEFAULT_VIDEO_RETRANS_REQUEST_ON_VIDEO_SILENCE_MS;
-      failed = 10;
-   }
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRenderFPS, &s_CtrlSettings.iShowVoltage) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 8"); }
+
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRetryRetransmissionAfterTimeoutMS, &s_CtrlSettings.nRequestRetransmissionsOnVideoSilenceMs) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 9"); }
    
-   if ( (!failed) && (2 != fscanf(fd, "%d %u", &s_CtrlSettings.nUseFixedIP, &s_CtrlSettings.uFixedIP)) )
-   {
-      s_CtrlSettings.nUseFixedIP = 0;
-      s_CtrlSettings.uFixedIP = (192<<24) | (168<<16) | (1<<8) | 20;
-      failed = 11;
-   }
+   if ( 2 != fscanf(fd, "%d %u", &s_CtrlSettings.nUseFixedIP, &s_CtrlSettings.uFixedIP) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 10"); }
 
-   if ( (!failed) && (3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.nVideoForwardETHType, &s_CtrlSettings.nVideoForwardETHPort, &s_CtrlSettings.nVideoForwardETHPacketSize)) )
-      { s_CtrlSettings.nVideoForwardETHType = 0; s_CtrlSettings.nVideoForwardETHPort = 5010; s_CtrlSettings.nVideoForwardETHPacketSize = 1024; failed = 12; }
+   if ( 3 != fscanf(fd, "%*s %d %d %d", &s_CtrlSettings.nVideoForwardETHType, &s_CtrlSettings.nVideoForwardETHPort, &s_CtrlSettings.nVideoForwardETHPacketSize) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 11"); }
 
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.nAutomaticTxCard)) )
-   {
-      s_CtrlSettings.nAutomaticTxCard = 1;
-      failed = 13;
-   }
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.nAutomaticTxCard, &s_CtrlSettings.nRotaryEncoderFunction, &s_CtrlSettings.nRotaryEncoderSpeed) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 12"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRotaryEncoderFunction, &s_CtrlSettings.nRotaryEncoderSpeed)) )
-   {
-      s_CtrlSettings.nRotaryEncoderFunction = 1;
-      s_CtrlSettings.nRotaryEncoderSpeed = 0;
-      failed = 14;
-   }
-
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.nPingClockSyncFrequency, &s_CtrlSettings.nGraphRadioRefreshInterval)) )
-   {
-      s_CtrlSettings.nPingClockSyncFrequency = DEFAULT_PING_FREQUENCY;
-      s_CtrlSettings.nGraphRadioRefreshInterval = 100;
-      failed = 15;
-   }
-
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.nGraphVideoRefreshInterval)) )
-      s_CtrlSettings.nGraphVideoRefreshInterval = 100;
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.nPingClockSyncFrequency, &s_CtrlSettings.nGraphRadioRefreshInterval, &s_CtrlSettings.nGraphVideoRefreshInterval) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 13"); }
 
    // Extended values
 
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds)) )
-      s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds = DEFAULT_CONTROLLER_LINK_MILISECONDS_TIMEOUT_TO_DISABLE_RETRANSMISSIONS;
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iDisableRetransmissionsAfterControllerLinkLostMiliseconds, &s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 14"); }
 
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout)) )
-      s_CtrlSettings.iVideoDecodeStatsSnapshotClosesOnTimeout = 1;
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRotaryEncoderFunction2, &s_CtrlSettings.nRotaryEncoderSpeed2) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 15"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.nRotaryEncoderFunction2, &s_CtrlSettings.nRotaryEncoderSpeed2)) )
-   {
-      s_CtrlSettings.nRotaryEncoderFunction2 = 2;
-      s_CtrlSettings.nRotaryEncoderSpeed2 = 0;
-   }
+   if ( 2 != fscanf(fd, "%d %d", &iDummy, &s_CtrlSettings.iFreezeOSD) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 16"); }
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &iDummy)) )
-      iDummy = -1;
-     
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iFreezeOSD)) )
-      s_CtrlSettings.iFreezeOSD = 0;
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton, &s_CtrlSettings.iShowControllerAdaptiveInfoStats) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 17"); }
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton)) )
-      s_CtrlSettings.iDevSwitchVideoProfileUsingQAButton = -1;
-   
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowControllerAdaptiveInfoStats)) )
-      s_CtrlSettings.iShowControllerAdaptiveInfoStats = 0;
+   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowVideoStreamInfoCompactType) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 18"); }
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iShowVideoStreamInfoCompactType)) )
-      s_CtrlSettings.iShowVideoStreamInfoCompactType = 0;
+   if ( 4 != fscanf(fd, "%d %d %d %d", &s_CtrlSettings.iSearchSiKAirRate, &s_CtrlSettings.iSearchSiKECC, &s_CtrlSettings.iSearchSiKLBT, &s_CtrlSettings.iSearchSiKMCSTR) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 19"); }
 
-   if ( (!failed) && ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iTXPowerSiK)) )
-      s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
 
-   if ( (!failed) && ( 4 != fscanf(fd, "%d %d %d %d", &s_CtrlSettings.iSearchSiKAirRate, &s_CtrlSettings.iSearchSiKECC, &s_CtrlSettings.iSearchSiKLBT, &s_CtrlSettings.iSearchSiKMCSTR)) )
-   {
-      s_CtrlSettings.iSearchSiKAirRate = DEFAULT_RADIO_DATARATE_SIK_AIR;
-      s_CtrlSettings.iSearchSiKECC = 0;
-      s_CtrlSettings.iSearchSiKLBT = 0;
-      s_CtrlSettings.iSearchSiKMCSTR = 0;
-   }
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iAudioOutputDevice, &s_CtrlSettings.iAudioOutputVolume) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 20"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iAudioOutputDevice, &s_CtrlSettings.iAudioOutputVolume)) )
-   {
-      s_CtrlSettings.iAudioOutputDevice = 1;
-      s_CtrlSettings.iAudioOutputVolume = 100;
-      failed = 15;
-   }
+   if ( 2 != fscanf(fd, "%d %u", &s_CtrlSettings.iDevRxLoopTimeout, &s_CtrlSettings.uShowBigRxHistoryInterface) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 21"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %u", &s_CtrlSettings.iDevRxLoopTimeout, &s_CtrlSettings.uShowBigRxHistoryInterface)) )
-   {
-      s_CtrlSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
-      s_CtrlSettings.uShowBigRxHistoryInterface = 0;
-      failed = 16;
-   }
+   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iSiKPacketSize) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 22"); }
 
-   if ( (!failed) && (1 != fscanf(fd, "%d", &s_CtrlSettings.iSiKPacketSize)) )
-      { s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE; }
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioRxThreadPriority, &s_CtrlSettings.iRadioTxThreadPriority) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 23"); }
 
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioRxThreadPriority, &s_CtrlSettings.iRadioTxThreadPriority)) )
-   {
-      s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
-      s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
-   }
-
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioRxThreadPriority, &s_CtrlSettings.iRadioTxThreadPriority)) )
-   {
-      s_CtrlSettings.iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
-      s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
-   }
-
-   if ( (!failed) && (2 != fscanf(fd, "%d %d", &s_CtrlSettings.iRadioTxUsesPPCAP, &s_CtrlSettings.iRadioBypassSocketBuffers)) )
-   {
-      s_CtrlSettings.iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
-      s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
-   }
+   if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iRadioTxUsesPPCAP, &s_CtrlSettings.iRadioBypassSocketBuffers, &s_CtrlSettings.iFixedTxPower) )
+      { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 24"); }
 
    fclose(fd);
 
@@ -401,11 +299,6 @@ int load_ControllerSettings()
       s_CtrlSettings.iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
    if ( s_CtrlSettings.iNiceCentral < -16 || s_CtrlSettings.iNiceCentral > 0 )
       s_CtrlSettings.iNiceCentral = DEFAULT_PRIORITY_PROCESS_CENTRAL;
-
-   if ( s_CtrlSettings.iTXPowerSiK < 1 )
-      s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
-   if ( s_CtrlSettings.iTXPowerSiK > 20 )
-      s_CtrlSettings.iTXPowerSiK = DEFAULT_RADIO_SIK_TX_POWER;
      
    if ( s_CtrlSettings.iRenderFPS < 10 || s_CtrlSettings.iRenderFPS > 30 )
       s_CtrlSettings.iRenderFPS = 10;
@@ -420,6 +313,7 @@ int load_ControllerSettings()
 
    if ( (s_CtrlSettings.iSiKPacketSize < 10) || (s_CtrlSettings.iSiKPacketSize > 250 ) )
       s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
+
    if ( failed )
    {
       log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);

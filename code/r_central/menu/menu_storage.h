@@ -51,11 +51,12 @@ class MenuStorage: public Menu
       int m_ViewScreenShotIndex;
       u32 m_ScreenshotImageId;
       Popup* m_pPopupProgress;
-
+      u32 m_uMustRefreshTime;
       int m_IndexExpand;
       int m_IndexCopy;
       int m_IndexMove;
       int m_IndexDelete;
+      int m_IndexRecordingOptions;
       int m_MainItemsCount;
       
       void buildFilesListPictures();

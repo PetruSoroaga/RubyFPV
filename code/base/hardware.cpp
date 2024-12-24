@@ -127,8 +127,6 @@ hw_joystick_info_t s_HardwareJoystickInfo[MAX_JOYSTICK_INTERFACES];
 int s_iUSBMounted = 0;
 char s_szUSBMountName[64];
 
-u32 s_uBaseRubyVersion = 0;
-
 void _hardware_detectSystemType()
 {
    log_line("[Hardware] Detecting system type...");
@@ -160,9 +158,19 @@ void _hardware_detectSystemType()
       log_line("Hardware: Detected GPIO signal to start as vehicle or relay.");
       s_iHardwareSystemIsVehicle = 1;
    }
-   else if( (access( FILE_FORCE_VEHICLE, R_OK ) != -1) || (access( "/boot/forcevehicle.txt", R_OK ) != -1) )
+   #endif
+   
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   if( access( FILE_FORCE_VEHICLE, R_OK ) != -1 )
    {
       log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
+      s_iHardwareSystemIsVehicle = 1;
+   }   
+   strcpy(szFile, FOLDER_WINDOWS_PARTITION);
+   strcat(szFile, "forcevehicle.txt");
+   if( access( szFile, R_OK ) != -1 )
+   {
+      log_line("Hardware: Detected file %s to force start as vehicle or relay.", szFile);
       s_iHardwareSystemIsVehicle = 1;
    }   
    #endif
@@ -173,12 +181,14 @@ void _hardware_detectSystemType()
       s_iHardwareSystemIsVehicle = 1;
    }   
 
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_OPENIPC_CAMERA)
    if ( hardware_hasCamera() && (hardware_getCameraType() != CAMERA_TYPE_NONE) )
    {
       log_line("Hardware: Has Camera.");
       s_iHardwareSystemIsVehicle = 1;
    }
-
+   #endif
+   
    #ifdef HW_CAPABILITY_GPIO
    val = GPIORead(GPIOGetPinDetectController());
    if ( val == 1 )
@@ -207,6 +217,8 @@ void _hardware_detectSystemType()
       strcpy(szBuff, "N/A");
    log_line("[Hardware] Detected board type: %s", szBuff);
 
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
    fd = fopen(szFile, "w");
    if ( NULL != fd )
    {
@@ -470,6 +482,12 @@ void hardware_swap_buttons(int swap)
 
 u32 hardware_getOnlyBoardType()
 {
+   static int s_iGetBoardTypeOnlyExecuted = 0;
+
+   if ( s_iGetBoardTypeOnlyExecuted )
+      return s_uHardwareBoardType;
+
+   s_iGetBoardTypeOnlyExecuted = 1;
    char szBuff[256];
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
@@ -495,23 +513,41 @@ u32 hardware_getOnlyBoardType()
    if ( strcmp(szBuff, "d03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
    if ( strcmp(szBuff, "d03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
 
+   if ( strcmp(szBuff, "9020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
    if ( strcmp(szBuff, "29020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
+
+   if ( strcmp(szBuff, "a02082") == 0 )  { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBuff, "a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
    if ( strcmp(szBuff, "2a02082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
    if ( strcmp(szBuff, "2a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
    if ( strcmp(szBuff, "2a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
    if ( strcmp(szBuff, "2a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
    if ( strcmp(szBuff, "2a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
 
+   if ( strcmp(szBuff, "900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "9000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBuff, "900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
    if ( strcmp(szBuff, "1900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
    if ( strcmp(szBuff, "19000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
    if ( strcmp(szBuff, "2900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-
    if ( strcmp(szBuff, "2900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
    if ( strcmp(szBuff, "29000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+
+   if ( strcmp(szBuff, "902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
    if ( strcmp(szBuff, "2902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
 
+   if ( strcmp(szBuff, "920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBuff, "920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
    if ( strcmp(szBuff, "2920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
    if ( strcmp(szBuff, "2920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+
+   if ( strcmp(szBuff, "a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
+   if ( strcmp(szBuff, "a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBuff, "a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBuff, "a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
 
    if ( strcmp(szBuff, "2a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
    if ( strcmp(szBuff, "2a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
@@ -540,9 +576,9 @@ u32 hardware_getOnlyBoardType()
          s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE300;
    }
    if ( NULL != strstr(szBuff, "ssc338") )
-      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
    if ( NULL != strstr(szBuff, "ssc33x") )
-      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTER_338Q;
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
 
    #endif
 
@@ -560,48 +596,6 @@ u32 hardware_getBoardType()
    return s_uHardwareBoardType;
 }
 
-u32 hardware_get_base_ruby_version()
-{
-   if ( 0 != s_uBaseRubyVersion )
-      return s_uBaseRubyVersion;
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   szFile[0] = 0;
-   FILE* fd = try_open_base_version_file(szFile);
-   if ( NULL == fd )
-   {
-      log_softerror_and_alarm("[Hardware] Failed to open base Ruby version file (%s).", szFile);
-      return s_uBaseRubyVersion;
-   }
-   char szBuff[32];
-   if ( 1 != fscanf(fd, "%s", szBuff) )
-   {
-      fclose(fd);
-      log_softerror_and_alarm("[Hardware] Failed to read base Ruby version file (%s).", szFile);
-      return s_uBaseRubyVersion;
-   }
-   fclose(fd);
-   log_line("[Hardware] Read raw base Ruby version: [%s] from file (%s)", szBuff, szFile);
-
-   for( int i=0; i<(int)strlen(szBuff); i++ )
-   {
-      if ( szBuff[i] == '.' )
-      {
-         szBuff[i] = 0;
-         int iMajor = 0;
-         int iMinor = 0;
-         sscanf(szBuff, "%d", &iMajor);
-         sscanf(&szBuff[i+1], "%d", &iMinor);
-         s_uBaseRubyVersion = (((u32)iMajor) << 8) | ((u32)iMinor);
-         log_line("[Hardware] Parsed base Ruby version: %u.%u", (s_uBaseRubyVersion>>8) & 0xFF, s_uBaseRubyVersion & 0xFF);
-         return s_uBaseRubyVersion;
-      }
-   }
-   log_softerror_and_alarm("[Hardware] Failed to parse base Ruby version from file (%s).", szFile);
-   return s_uBaseRubyVersion;
-}
-
-
 int hardware_board_is_raspberry(u32 uBoardType)
 {
    if ( (uBoardType & BOARD_TYPE_MASK) > 0 )
@@ -614,7 +608,7 @@ int hardware_board_is_openipc(u32 uBoardType)
 {
    if ( hardware_board_is_goke(uBoardType) )
       return 1;
-   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
       return 1;
    return 0;
 }
@@ -630,7 +624,7 @@ int hardware_board_is_goke(u32 uBoardType)
 
 int hardware_board_is_sigmastar(u32 uBoardType)
 {
-   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
       return 1;
    return 0;
 }
@@ -1704,29 +1698,43 @@ void hardware_recording_led_set_blinking()
    s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
 }
 
-int hardware_has_eth()
+static char s_szHardwareETHName[64];
+
+char* hardware_has_eth()
 {
-   int nHasETH = 1;
-   char szOutput[1024];
+   char szETHName[128];
+   s_szHardwareETHName[0] = 0;
 
-   szOutput[0] = 0;
-   #if defined(HW_PLATFORM_RASPBERRY)
-   hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
-   #endif
+   hw_execute_bash_command_raw("ls /sys/class/net/ | grep eth0", szETHName);
+   if ( strlen(szETHName) < 4 )
+      hw_execute_bash_command_raw("ls /sys/class/net/ | grep eth1", szETHName);
+   if ( strlen(szETHName) < 4 )
+      hw_execute_bash_command_raw("ls /sys/class/net/ | grep etx", szETHName);
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
-   hw_execute_bash_command_raw("ip link | grep enx 2>&1", szOutput);
-   if ( 0 == szOutput[0] || NULL != strstr(szOutput, "not found") )
-      hw_execute_bash_command_raw("ip link | grep eth0 2>&1", szOutput);
-   #endif
-   
-   if ( (0 == szOutput[0]) || (NULL != strstr(szOutput, "not found")) )
+   if ( strlen(szETHName) < 4 )
    {
-      nHasETH = 0;
-      szOutput[1023] = 0;
-      log_line("ETH not found. Response: [%s]", szOutput);
+      log_line("ETH not found.");
+      return NULL;
    }
-   return nHasETH;
+
+   for( int i=strlen(szETHName)-1; i>0; i-- )
+   {
+      if ( (szETHName[i] == 10) || (szETHName[i] == 13) || (szETHName[i] == ' ') )
+         szETHName[i] = 0;
+      else
+         break;
+   }
+   strncpy(s_szHardwareETHName, szETHName, sizeof(s_szHardwareETHName)/sizeof(s_szHardwareETHName[0]));
+
+   char szComm[256];
+   char szOutput[1024];
+   szOutput[0] = 0;
+   sprintf(szComm, "ip link set dev %s up", szETHName);
+   hw_execute_bash_command(szComm, szOutput);
+   if ( 5 < strlen(szOutput) )
+      log_line("ETH up command failed: (%s)", szOutput);
+   
+   return s_szHardwareETHName;
 }
 
 void hardware_set_default_sigmastar_cpu_freq()
@@ -1949,7 +1957,7 @@ void hardware_set_oipc_gpu_boost(int iGPUBoost)
    #endif
 }
 
-void _hardware_set_int_affinity_core(char* szIntName, int iCoreIndex)
+void _hardware_set_int_affinity_core(const char* szIntName, int iCoreIndex)
 {
    if ( (NULL == szIntName) || (0 == szIntName[0]) || (iCoreIndex < 0) )
       return;

@@ -9,6 +9,9 @@ class MenuVehicleRadioConfig: public Menu
    public:
       MenuVehicleRadioConfig();
       virtual ~MenuVehicleRadioConfig();
+      virtual void onShow();
+      virtual int onBack();
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void Render();
       virtual void valuesToUI();
       virtual void onSelectItem();
@@ -20,9 +23,7 @@ class MenuVehicleRadioConfig: public Menu
       int m_IndexPrioritizeUplink;
       int m_IndexDisableUplink;
       int m_IndexEncryption;
-      int m_IndexTxPowerRTL8812AU;
-      int m_IndexTxPowerRTL8812EU;
-      int m_IndexTxPowerAtheros;
+      int m_IndexTxPower;
       int m_IndexRadioConfig;
       int m_IndexOptimizeLinks;
       int m_IndexFreq[MAX_RADIO_INTERFACES];
@@ -31,7 +32,10 @@ class MenuVehicleRadioConfig: public Menu
       int m_SupportedChannelsCount[MAX_RADIO_INTERFACES];
 
       bool m_bControllerHasKey;
+      int m_iMaxPowerMw;
+
       void populate();
       void sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz);
+      void computeSendPowerToVehicle();
 
 };

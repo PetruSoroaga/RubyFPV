@@ -13,6 +13,7 @@ class MenuItemSelectBase: public MenuItem
      void removeAllSelections();
      int addSelection(const char* szText);
      int addSelection(const char* szText, bool bEnabled);
+     void updateSelectionText(int iIndex, const char* szText);
      void setSelection(int index);
      void setSelectedIndex(int index);
      void setSelectionIndexDisabled(int index);
@@ -22,6 +23,7 @@ class MenuItemSelectBase: public MenuItem
      int getSelectedIndex();
      int getSelectionsCount();
      void restoreSelectedIndex();
+     char* getSelectionIndexText(int iSelectionIndex);
      virtual void beginEdit();
      virtual void endEdit(bool bCanceled);
      virtual void onClick();

@@ -66,7 +66,7 @@ class VideoRxPacketsBuffer
       bool _check_allocate_video_block_in_buffer(int iBufferIndex);
       void _empty_block_buffer_packet_index(int iBufferIndex, int iPacketIndex);
       void _empty_block_buffer_index(int iBufferIndex);
-      void _empty_buffers(const char* szReason);
+      void _empty_buffers(const char* szReason, t_packet_header* pPH, t_packet_header_video_full_98* pPHVF);
       void _check_do_ec_for_video_block(int iBufferIndex);
       // Returns true if the packet has the highest video block/packet index received (in order)
       bool _add_video_packet_to_buffer(int iBufferIndex, u8* pPacket, int iPacketLength);

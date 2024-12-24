@@ -62,7 +62,7 @@
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
-#include "../base/controller_utils.h"
+#include "../utils/utils_controller.h"
 #include "../base/plugins_settings.h"
 #include "../base/vehicle_rt_info.h"
 //#include "../base/radio_utils.h"
@@ -79,6 +79,7 @@
 #endif
 
 #include "../common/string_utils.h"
+#include "../common/strings_table.h"
 #include "../common/relay_utils.h"
 #include "../common/favorites.h"
 
@@ -144,7 +145,7 @@ static u32 s_uTimeFreezeOSD = 0;
 
 shared_mem_process_stats* s_pProcessStatsCentral = NULL;
 
-Popup popupNoModel("No vehicle defined or linked to!", 0.22, 0.45, 5);
+Popup popupNoModel("No vehicle defined or linked to!", 0.2, 0.45, 5);
 Popup popupStartup("System starting. Please wait.", 0.05, 0.16, 0);
 
 static char s_szFileHDMIChanged[128];
@@ -1315,17 +1316,21 @@ void ruby_load_models()
       // Recreate active model file
       ruby_set_active_model_id(g_uActiveControllerModelVID);
    }
-
    FILE* fd = fopen(szFile, "rb");
    if ( NULL != fd )
    {
       fscanf(fd, "%u", &g_uActiveControllerModelVID);
       fclose(fd);
+      log_line("Controller current active model id is: %u", g_uActiveControllerModelVID);
    }
+   else
+      log_softerror_and_alarm("Can't access active model id file (%s)", szFile);
 
    if ( ! controllerHasModelWithId(g_uActiveControllerModelVID) )
+   {
+      log_line("Controller does not have a model for current active controller model id %u. Reset active model id to 0.", g_uActiveControllerModelVID);
       ruby_set_active_model_id(0);
- 
+   }
    if ( g_bFirstModelPairingDone )
    {
       if ( (0 == getControllerModelsCount()) && ( 0 == getControllerModelsSpectatorCount()) )
@@ -1427,18 +1432,6 @@ void start_loop()
       log_line("Getting radio hardware info...");
       popupStartup.addLine("Getting radio hardware info...");
       hardware_enumerate_radio_interfaces();
-
-      ControllerSettings* pCS = get_ControllerSettings();
-
-      if ( hardware_radio_has_atheros_cards() )
-      if ( pCS->iTXPowerAtheros > 0 )
-         hardware_radio_set_txpower_atheros(pCS->iTXPowerAtheros);
-      if ( hardware_radio_has_rtl8812au_cards() )
-      if ( pCS->iTXPowerRTL8812AU > 0 )
-         hardware_radio_set_txpower_rtl8812au(pCS->iTXPowerRTL8812AU);
-      if ( hardware_radio_has_rtl8812eu_cards() )
-      if ( pCS->iTXPowerRTL8812EU )
-         hardware_radio_set_txpower_rtl8812eu(pCS->iTXPowerRTL8812EU);
 
       log_line("Finished executing start up sequence step: %d", s_StartSequence);
       s_StartSequence = START_SEQ_NICS;
@@ -1641,14 +1634,14 @@ void start_loop()
       {
          if ( 0 == getControllerModelsCount() )
          {
-            popupNoModel.setTitle("Info");
+            popupNoModel.setTitle("Info No Vehicles");
             popupNoModel.addLine("You have no vehicles linked to this controller.");
             popupNoModel.addLine("Press [Menu] key and then select 'Search' to search for a vehicle to connect to.");
             popupNoModel.setIconId(g_idIconInfo,get_Color_IconWarning());
          }
          else
          {
-            popupNoModel.setTitle("Info");
+            popupNoModel.setTitle("Info No Active Vehicle");
             popupNoModel.addLine("You have no vehicle selected as active.");
             popupNoModel.addLine("Press [Menu] key and then select 'My Vehicles' to select the vehicle to connect to.");
             popupNoModel.setIconId(g_idIconInfo,get_Color_IconWarning());
@@ -1848,31 +1841,14 @@ void start_loop()
       int iMajor = 0;
       int iMinor = 0;
       get_Ruby_BaseVersion(&iMajor, &iMinor);
-      if ( iMajor < 6 )
+      if ( (iMajor < 10) || ((iMajor == 10) && (iMinor < 1)) )
       {
-         Popup* p = new Popup(true, "Can't update from version older than 6.0. You need to do a full install of version 6.0 or a newer one.", 10);
-         p->setIconId(g_idIconError, get_Color_IconError());
-         popups_add_topmost(p);
+         MenuConfirmation* pMC = new MenuConfirmation(getString(0), getString(1), 0, true);
+         pMC->addTopLine(getString(3));
+         pMC->setIconId(g_idIconWarning);
+         pMC->m_yPos = 0.3;
+         add_menu_to_stack(pMC);
       }
-
-      #if defined(HW_PLATFORM_RADXA_ZERO3)
-      FILE* fd = try_open_base_version_file(NULL);
-      if ( NULL == fd )
-      {
-         iMajor = 9;
-         iMinor = 3;
-      }
-      else
-         fclose(fd);
-      if ( (iMajor < 9) || ((iMajor == 9) && (iMinor < 4)))
-      {
-         char szText[128];
-         sprintf(szText, "You have a deprecated version (%d.%d). Please do a full install of your controller, to version 9.4 or newer.", iMajor, iMinor);
-         Popup* p = new Popup(true, szText, 10);
-         p->setIconId(g_idIconError, get_Color_IconError());
-         popups_add_topmost(p);
-      }
-      #endif
 
       if ( g_iBootCount == 2 )
       {
@@ -1944,15 +1920,14 @@ void packets_scope_input_loop()
 
 void clear_shared_mems()
 {
-   memset(&g_SM_VideoInfoStatsOutput, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_SM_VideoInfoStatsRadioIn, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_VideoInfoStatsFromVehicleCameraOut, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_SM_VideoFramesStatsOutput, 0, sizeof(shared_mem_video_frames_stats));
+   //memset(&g_SM_VideoInfoStatsRadioIn, 0, sizeof(shared_mem_video_frames_stats));
+   //memset(&g_VideoInfoStatsFromVehicleCameraOut, 0, sizeof(shared_mem_video_frames_stats));
+   //memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_frames_stats));
    memset(&g_SM_HistoryRxStats, 0, sizeof(shared_mem_radio_stats_rx_hist));
    memset(&g_SM_HistoryRxStatsVehicle, 0, sizeof(shared_mem_radio_stats_rx_hist));
    memset(&g_SM_AudioDecodeStats, 0, sizeof(shared_mem_audio_decode_stats));
    memset(&g_SM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
-   memset(&g_SM_VDS_history, 0, sizeof(shared_mem_video_stream_stats_history_rx_processors));
    
    memset(&g_SMControllerRTInfo, 0, sizeof(controller_runtime_info));
    memset(&g_SMVehicleRTInfo, 0, sizeof(vehicle_runtime_info));
@@ -2075,20 +2050,19 @@ void synchronize_shared_mems()
       memcpy((u8*)&g_SM_AudioDecodeStats, g_pSM_AudioDecodeStats, sizeof(shared_mem_audio_decode_stats));
    
    if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
+   if ( g_pCurrentModel->bDeveloperMode )
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
-      if ( NULL != g_pSM_VideoInfoStatsOutput )
-      if ( g_TimeNow >= g_SM_VideoInfoStatsOutput.uTimeLastUpdate + 200 )
-         memcpy((u8*)&g_SM_VideoInfoStatsOutput, g_pSM_VideoInfoStatsOutput, sizeof(shared_mem_video_info_stats));
-      if ( NULL != g_pSM_VideoInfoStatsRadioIn )
-      if ( g_TimeNow >= g_SM_VideoInfoStatsRadioIn.uTimeLastUpdate + 200 )
-         memcpy((u8*)&g_SM_VideoInfoStatsRadioIn, g_pSM_VideoInfoStatsRadioIn, sizeof(shared_mem_video_info_stats));
+      if ( NULL != g_pSM_VideoFramesStatsOutput )
+      if ( g_TimeNow >= g_SM_VideoFramesStatsOutput.uLastTimeStatsUpdate + 200 )
+         memcpy((u8*)&g_SM_VideoFramesStatsOutput, g_pSM_VideoFramesStatsOutput, sizeof(shared_mem_video_frames_stats));
+      //if ( NULL != g_pSM_VideoInfoStatsRadioIn )
+      //if ( g_TimeNow >= g_SM_VideoInfoStatsRadioIn.uLastTimeStatsUpdate + 200 )
+      //   memcpy((u8*)&g_SM_VideoInfoStatsRadioIn, g_pSM_VideoInfoStatsRadioIn, sizeof(shared_mem_video_frames_stats));
    }
 
    if ( NULL != g_pSM_VideoDecodeStats )
       memcpy((u8*)&g_SM_VideoDecodeStats, g_pSM_VideoDecodeStats, sizeof(shared_mem_video_stream_stats_rx_processors));
-   if ( NULL != g_pSM_VDS_history )
-      memcpy((u8*)&g_SM_VDS_history, g_pSM_VDS_history, sizeof(shared_mem_video_stream_stats_history_rx_processors));
    if ( NULL != g_pSM_RadioRxQueueInfo )
       memcpy((u8*)&g_SM_RadioRxQueueInfo, g_pSM_RadioRxQueueInfo, sizeof(shared_mem_radio_rx_queue_info));
    // To fix
@@ -2108,7 +2082,9 @@ void ruby_processing_loop(bool bNoKeys)
    ControllerSettings* pCS = get_ControllerSettings();
 
    hardware_sleep_ms(10);
+
    try_read_messages_from_router(7);
+
    keyboard_consume_input_events();
    u32 uSumEvent = keyboard_get_triggered_input_events();
 
@@ -2117,6 +2093,7 @@ void ruby_processing_loop(bool bNoKeys)
    handle_commands_loop();
 
    pairing_loop();
+   
    synchronize_shared_mems();
 
    if ( g_bIsRouterPacketsHistoryGraphOn )
@@ -2555,11 +2532,17 @@ int main(int argc, char *argv[])
 void ruby_set_active_model_id(u32 uVehicleId)
 {
    g_uActiveControllerModelVID = uVehicleId;
-   Model* pModel = findModelWithId(uVehicleId, 62);
-   if ( NULL == pModel )
-      log_line("Ruby: Set active model vehicle id to %u (no model found on controller for this VID)", g_uActiveControllerModelVID );
+   Model* pModel = NULL;
+   if ( uVehicleId != 0 )
+   {
+     pModel = findModelWithId(uVehicleId, 62);
+     if ( NULL == pModel )
+        log_line("Ruby: Set active model vehicle id to %u (no model found on controller for this VID)", g_uActiveControllerModelVID );
+     else
+        log_line("Ruby: Set active model vehicle id to %u, %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
+   }
    else
-      log_line("Ruby: Set active model vehicle id to %u, %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
+      log_line("Ruby: Set active model vehicle id to 0");
 
    char szFile[128];
    strcpy(szFile, FOLDER_CONFIG);

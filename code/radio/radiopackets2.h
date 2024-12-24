@@ -1,12 +1,32 @@
 /*
-You can use this C/C++ code however you wish (for example, but not limited to:
-     as is, or by modifying it, or by adding new code, or by removing parts of the code;
-     in public or private projects, in new free or commercial products) 
-     only if you get a priori written consent from Petru Soroaga (petrusoroaga@yahoo.com) for your specific use
-     and only if this copyright terms are preserved in the code.
-     This code is public for learning and academic purposes.
-Also, check the licences folder for additional licences terms.
-Code written by: Petru Soroaga, 2021-2023
+    Ruby Licence
+    Copyright (c) 2024 Petru Soroaga
+    All rights reserved.
+
+    Redistribution and use in source and/or binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+        * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+        * Copyright info and developer info must be preserved as is in the user
+        interface, additions could be made to that info.
+        * Neither the name of the organization nor the
+        names of its contributors may be used to endorse or promote products
+        derived from this software without specific prior written permission.
+        * Military use is not permited.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR (PETRU SOROAGA) BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #pragma once
@@ -42,10 +62,11 @@ Code written by: Petru Soroaga, 2021-2023
 #define STREAM_ID_DATA    ((u32)0)
 #define STREAM_ID_TELEMETRY ((u32)1)
 #define STREAM_ID_DATA2    ((u32)2)
-#define STREAM_ID_VIDEO_1 ((u32)3)
+#define STREAM_ID_COMPRESSED ((u32)3)
+#define STREAM_ID_VIDEO_1 ((u32)4)
 
 // Packet flags is a byte and contains flags:
-// bit 0..2 - target module type (video/telem/rc/comm) (3 bits)
+// bit 0..2 - target module type (video/telem/rc/comm) (3 bits) or 0b111 for a compressed packet header
 // bit 3 - header only CRC
 // bit 4 - chained flag: has more radio packets in the same buffer, just after this packet
 // bit 5 - has extra data after the regular packet data
@@ -53,6 +74,7 @@ Code written by: Petru Soroaga, 2021-2023
 // bit 7 - can TX after this one (to be used by the controller when it receives this packet)
 
 #define PACKET_FLAGS_MASK_MODULE 0b0111
+#define PACKET_FLAGS_MASK_COMPRESSED_HEADER 0b0111
 #define PACKET_FLAGS_MASK_STREAM_PACKET_IDX 0x0FFFFFFF
 #define PACKET_FLAGS_MASK_STREAM_INDEX (((u32)0x0F)<<28)
 #define PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX (28)
@@ -75,7 +97,7 @@ Code written by: Petru Soroaga, 2021-2023
 #define PACKET_COMPONENT_RC 4
 #define PACKET_COMPONENT_RUBY 5  // Used for control messages between vehicle and controller
 #define PACKET_COMPONENT_AUDIO 6
-#define PACKET_COMPONENT_DATA 7
+
 
 #define PACKET_TYPE_EMBEDED_FULL_PACKET 0xFF
 #define PACKET_TYPE_EMBEDED_SHORT_PACKET 0x00
@@ -113,140 +135,26 @@ typedef struct
 } __attribute__((packed)) t_packet_header;
 
 
-// Deprecated in 9.8
-/*
-#define PACKET_TYPE_VIDEO_DATA_FULL 2
-
-//----------------------------------------------
-// packet_header_video_full
-//
+// Compressed packets (t_packet_header_compressed) are sent only on high bandwidth radio links
+// Short packets (t_packet_header_short) are sent only on low bandwidth radio links
 
 typedef struct
 {
-   u8 video_link_profile;
-      // (video stream id: 0xF0 bits, current video link profile: 0x0F bits); added in v.5.6
-   u8 video_stream_and_type; // bits 0...3: video stream index, bits 4...7: video stream type: H264, H265, IP, etc
-   u32 uProfileEncodingFlags; // same as video link profile's uProfileEncodingFlags;
-      // byte 0:
-      //    bit 0..2  - scramble blocks count
-      //    bit 3     - enables restransmission of missing packets
-      //    bit 4     - enable adaptive video keyframe interval
-      //    bit 5     - enable adaptive video link params
-      //    bit 6     - use controller info too when adjusting video link params
-      //    bit 7     - go lower adaptive video profile when controller link lost
+   u8 uCRC; // computed for the entire packet
+   u8 packet_type; // 1...150: components packets types, 150-200: local control controller packets, 200-250: local control vehicle packets
+   u8 total_length; // Total length, including all the header data, including CRC
+   u8 uExtraBits;
+      // bit 0,1,2: component id, as component id in packets_flags below is not valid for this header type
+      // bit 3-7: tbd
+   // packets_flags must be the 5th byte so we can differentiate it from a regular t_packet_header;
+   u8 packet_flags; // first 3 bits are 1 to differentiate it from a regular t_packet_header;
+   u32 stream_packet_idx; // high 4 bits: stream id (0..15), lower 28 bits: stream packet index
+                          // monotonically increassing, to detect missing/lost packets on each stream
+   u32 vehicle_id_src;
+   u32 vehicle_id_dest;
+   u32 uExtraData; // Can be used as a fast short payload
+} __attribute__((packed)) t_packet_header_compressed;
 
-      // byte 1:   - max time to wait for retransmissions (in ms*5)// affects rx buffers size
-      // byte 2:   - retransmission duplication percent (0-100%), 0xFF = auto, bit 0..3 - regular packets duplication, bit 4..7 - retransmitted packets duplication
-      // byte 3:
-      //    bit 0  - use medium adaptive video
-      //    bit 1  - enable video auto quantization
-      //    bit 2  - video auto quantization strength
-      //    bit 3  - one way video link
-      //    bit 4  - video profile should use EC scheme as auto;
-      //    bit 5,6 - EC scheme spreading factor (0...3)
-      //    bit 7  - try to keep constant video bitrate when it fluctuates
-
-   u32 uVideoStatusFlags2;
-      // byte 0: current h264 quantization value
-      // byte 1:
-      //    bit 0  - 0/1: has debug timings info after the video data:
-      //                  u32 - delta ms between video packets
-      //                  u32 - local timestamp camera capture,
-      //                  u32 - local timestamp sent to radio processing;
-      //                  u32 - local timestamp sent to radio output;
-      //                  u32 - local timestamp received on radio;
-      //                  u32 - local timestamp sent to video processing;
-      //                  u32 - local timestamp sent to video output;
-      //    bit 1  - 0/1: is this video packet part of a I-frame
-      //    bit 2  - 1: is on lower video bitrate
-
-   u16 video_width;
-   u16 video_height;
-   u8  video_fps;
-   u16 video_keyframe_interval_ms;
-   u8  block_packets;
-   u8  block_fecs;
-
-   u16 video_data_length;
-   u32 video_block_index;
-   u8  video_block_packet_index;
-   u32 fec_time; // how long FEC took, in microseconds/second
-   u32 uLastRecvVideoRetransmissionId; // unique id of the last retransmission request received by vehicle
-   u16 uLastAckKeyframeInterval; // in milisec
-   u8  uLastAckLevelShift;
-   u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
-   u32 uExtraData; // not used, for future
-} __attribute__((packed)) t_packet_header_video_full_77;
-*/
-
-#define PACKET_TYPE_VIDEO_DATA_98 22
-
-#define VIDEO_STREAM_INFO_FLAG_NONE 0
-#define VIDEO_STREAM_INFO_FLAG_SIZE 1
-#define VIDEO_STREAM_INFO_FLAG_FPS 2
-#define VIDEO_STREAM_INFO_FLAG_FEC_TIME 3
-#define VIDEO_STREAM_INFO_FLAG_VIDEO_PROFILE_FLAGS 4
-#define VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID 5
-
-typedef struct
-{
-   u8 uVideoStreamIndexAndType;
-      // bits 0...3: video stream index
-      // bits 4...7: video stream type: H264, H265, IP, etc
-   u32 uVideoStatusFlags2;
-      // byte 0: current h264 quantization value
-      // byte 1:
-      //    bit 0  - 0/1: has debug timings info after the video data:
-      //                  u32 - delta ms between video packets
-      //                  u32 - local timestamp camera capture,
-      //                  u32 - local timestamp sent to radio processing;
-      //                  u32 - local timestamp sent to radio output;
-      //                  u32 - local timestamp received on radio;
-      //                  u32 - local timestamp sent to video processing;
-      //                  u32 - local timestamp sent to video output;
-      //    bit 1  - 0/1: is this video packet part of a I-frame
-      //    bit 2  - 1: is on lower video bitrate
-      //    bit 3  - 0/1: is end of current frame
-
-   u8 uCurrentVideoLinkProfile;
-  
-   u8 uStreamInfoFlags;
-   // See enum above
-   //  0: none;
-   //  1: video width (low 16 bits) and video height (high 16 bits)
-   //  2: video fps
-   //  3: fec time: how long FEC took, in microseconds/second
-   //  4: contains uProfileEncodingFlags; same as video link profile's uProfileEncodingFlags;
-   //  5: retransmission id
-   
-   u32 uStreamInfo; // value dependent on uStreamInfoFlags;
-
-   u16 uCurrentVideoKeyframeIntervalMs;
-
-   u32 uCurrentBlockIndex;
-   u8  uCurrentBlockPacketIndex;
-   u16 uCurrentBlockPacketSize;
-   u8  uCurrentBlockDataPackets;
-   u8  uCurrentBlockECPackets;
-
-   u32 uLastRecvVideoRetransmissionId; // unique id of the last retransmission request received by vehicle
-   u16 uLastAckKeyframeInterval; // in milisec
-   u8  uLastAckLevelShift;
-   u32 uLastSetVideoBitrate; // in bps, highest bit: 1 - initial set, 0 - auto adjusted
-   u32 uExtraData; // not used, for future
-   // After video header, first two bites are the size of actual video data, part of error reconstruction as video data
-} __attribute__((packed)) t_packet_header_video_full_98;
-
-typedef struct
-{
-   u32 uTime1;
-   u32 uTime2;
-   u32 uTime3;
-   u32 uTime4;
-   u32 uTime5;
-   u32 uTime6;
-   u32 uVideoCRC;
-} __attribute__((packed)) t_packet_header_video_full_98_debug_info;
 
 // PING packets do not increase stream packet index as they are sent on each radio link separatelly
 #define PACKET_TYPE_RUBY_PING_CLOCK 3
@@ -355,6 +263,82 @@ typedef struct
 //   u8: video stream index
 //   u8: number of video packets requested
 //   (u32+u8)*n = each (video block index + video packet index) requested 
+
+#define PACKET_TYPE_VIDEO_ACK 21
+// Sent only as a compressed packet (t_packet_header_compressed)
+// uExtraData in header contains the acknoledged video frame id
+
+#define PACKET_TYPE_VIDEO_DATA_98 22
+
+#define VIDEO_STREAM_INFO_FLAG_NONE 0
+#define VIDEO_STREAM_INFO_FLAG_SIZE 1
+#define VIDEO_STREAM_INFO_FLAG_FPS 2
+#define VIDEO_STREAM_INFO_FLAG_FEC_TIME 3
+#define VIDEO_STREAM_INFO_FLAG_VIDEO_PROFILE_FLAGS 4
+#define VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID 5
+
+typedef struct
+{
+   u8 uVideoStreamIndexAndType;
+      // bits 0...3: video stream index
+      // bits 4...7: video stream type: H264, H265, IP, etc
+   u32 uVideoStatusFlags2;
+      // byte 0: current h264 quantization value
+      // byte 1:
+      //    bit 0  - 0/1: has debug timings info after the video data:
+      //                  u32 - delta ms between video packets
+      //                  u32 - local timestamp camera capture,
+      //                  u32 - local timestamp sent to radio processing;
+      //                  u32 - local timestamp sent to radio output;
+      //                  u32 - local timestamp received on radio;
+      //                  u32 - local timestamp sent to video processing;
+      //                  u32 - local timestamp sent to video output;
+      //    bit 1  - 0/1: is this video packet part of a I-frame
+      //    bit 2  - 1: is on lower video bitrate
+      //    bit 3  - 0/1: is end of current frame
+
+   u8 uCurrentVideoLinkProfile;
+  
+   u8 uStreamInfoFlags;
+   // See enum above
+   //  0: none;
+   //  1: video width (low 16 bits) and video height (high 16 bits)
+   //  2: video fps
+   //  3: fec time: how long FEC took, in microseconds/second
+   //  4: contains uProfileEncodingFlags; same as video link profile's uProfileEncodingFlags;
+   //  5: retransmission id
+   
+   u32 uStreamInfo; // value dependent on uStreamInfoFlags;
+
+   u16 uCurrentVideoKeyframeIntervalMs;
+
+   u32 uCurrentBlockIndex;
+   u8  uCurrentBlockPacketIndex;
+   u16 uCurrentBlockPacketSize;
+   u8  uCurrentBlockDataPackets;
+   u8  uCurrentBlockECPackets;
+
+   // Future
+   u16 uFrameId; // H264/H264 frame id (monotonically increasing)
+   u16 uDummy1;
+   u16 uDummy2;
+   u8  uDummy3;
+   u32 uDummy4;
+   u32 uExtraData; // not used, for future
+   // After video header, first two bites are the size of actual video data, part of error reconstruction as video data
+} __attribute__((packed)) t_packet_header_video_full_98;
+
+typedef struct
+{
+   u32 uTime1;
+   u32 uTime2;
+   u32 uTime3;
+   u32 uTime4;
+   u32 uTime5;
+   u32 uTime6;
+   u32 uVideoCRC;
+} __attribute__((packed)) t_packet_header_video_full_98_debug_info;
+
 
 //---------------------------------------
 // COMPONENT RC PACKETS
@@ -698,7 +682,7 @@ typedef struct
 #define PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD 46  // upload data link packet from controller to vehicle
 // payload is a data link segment index and data
 
-#define PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS 47 // has a shared_mem_video_info_stats structure
+#define PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS 47 // has a shared_mem_video_frames_stats structure
 
 #define MAX_HISTORY_VEHICLE_TX_STATS_SLICES 40
 typedef struct
@@ -864,7 +848,9 @@ extern "C" {
 #endif  
 
 void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 uStreamId);
+void radio_packet_compressed_init(t_packet_header_compressed* pPHC, u8 component, u8 packet_type);
 void radio_packet_compute_crc(u8* pBuffer, int length);
+void radio_packet_compressed_compute_crc(u8* pBuffer, int length);
 int radio_packet_check_crc(u8* pBuffer, int length);
 
 int radio_packet_type_is_high_priority(u8 uPacketType);

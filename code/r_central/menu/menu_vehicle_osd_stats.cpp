@@ -60,6 +60,7 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_IndexDevStatsVehicleVideo = -1;
    m_IndexDevStatsVehicleVideoGraphs = -1;
    m_IndexSnapshot = -1;
+   m_IndexStatsVideoH264FramesInfo = -1;
 
    m_pItemsSelect[0] = new MenuItemSelect("Font Size", "Increase/decrease OSD font size for stats windows for current OSD screen.");  
    m_pItemsSelect[0]->addSelection("Smallest");
@@ -119,12 +120,12 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
 
 
    m_pItemsSelect[8] = new MenuItemSelect("    Graphs Resolution", "The resolution of the graphs, in miliseconds / bar.");  
-   m_pItemsSelect[8]->addSelection("500 ms/bar");
-   m_pItemsSelect[8]->addSelection("200 ms/bar");
-   m_pItemsSelect[8]->addSelection("100 ms/bar");
-   m_pItemsSelect[8]->addSelection("50 ms/bar");
-   m_pItemsSelect[8]->addSelection("20 ms/bar");
    m_pItemsSelect[8]->addSelection("10 ms/bar");
+   m_pItemsSelect[8]->addSelection("20 ms/bar");
+   m_pItemsSelect[8]->addSelection("50 ms/bar");
+   m_pItemsSelect[8]->addSelection("100 ms/bar");
+   m_pItemsSelect[8]->addSelection("200 ms/bar");
+   m_pItemsSelect[8]->addSelection("500 ms/bar");
    m_pItemsSelect[8]->setIsEditable();
    m_IndexRadioRefreshInterval = addMenuItem(m_pItemsSelect[8]);
 
@@ -222,20 +223,21 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_IndexStatsVideoExtended = addMenuItem(m_pItemsSelect[4]);
 
    m_pItemsSelect[9] = new MenuItemSelect("    Graphs Resolution", "The resolution of the graphs, in miliseconds / bar.");  
-   m_pItemsSelect[9]->addSelection("500 ms/bar");
-   m_pItemsSelect[9]->addSelection("200 ms/bar");
-   m_pItemsSelect[9]->addSelection("100 ms/bar");
-   m_pItemsSelect[9]->addSelection("50 ms/bar");
-   m_pItemsSelect[9]->addSelection("20 ms/bar");
    m_pItemsSelect[9]->addSelection("10 ms/bar");
+   m_pItemsSelect[9]->addSelection("20 ms/bar");
+   m_pItemsSelect[9]->addSelection("50 ms/bar");
+   m_pItemsSelect[9]->addSelection("100 ms/bar");
+   //m_pItemsSelect[9]->addSelection("200 ms/bar");
+   //m_pItemsSelect[9]->addSelection("500 ms/bar");
    m_pItemsSelect[9]->setIsEditable();
    m_IndexVideoRefreshInterval = addMenuItem(m_pItemsSelect[9]);
 
-   m_pItemsSelect[16] = new MenuItemSelect("    Adaptive video graph", "Shows a live graph of adaptive video link changes.");  
-   m_pItemsSelect[16]->addSelection("Off");
-   m_pItemsSelect[16]->addSelection("On");
-   m_pItemsSelect[16]->setUseMultiViewLayout();
-   m_IndexStatsAdaptiveVideoGraph = addMenuItem(m_pItemsSelect[16]);
+   //m_pItemsSelect[16] = new MenuItemSelect("    Adaptive video graph", "Shows a live graph of adaptive video link changes.");  
+   //m_pItemsSelect[16]->addSelection("Off");
+   //m_pItemsSelect[16]->addSelection("On");
+   //m_pItemsSelect[16]->setUseMultiViewLayout();
+   //m_IndexStatsAdaptiveVideoGraph = addMenuItem(m_pItemsSelect[16]);
+   m_IndexStatsAdaptiveVideoGraph = -1;
 
    if ( pCS->iDeveloperMode )
    {
@@ -274,16 +276,15 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_pItemsSelect[33]->setIsEditable();
    m_IndexRefreshIntervalVideoBitrateHistory = addMenuItem(m_pItemsSelect[33]);
 
-   m_pItemsSelect[23] = new MenuItemSelect("Video: Keyframe Stats", "Show statistics about the video stream keyframe intervals and auto adjustments.");
-   m_pItemsSelect[23]->addSelection("Off");
-   m_pItemsSelect[23]->addSelection("Minimal");
-   m_pItemsSelect[23]->addSelection("Compact");
-   m_pItemsSelect[23]->addSelection("Full");
-   m_pItemsSelect[23]->setIsEditable();
-   m_IndexStatsVideoStreamKeyFramesInfo = addMenuItem(m_pItemsSelect[23]);
-   
    if ( pCS->iDeveloperMode )
    {
+      m_pItemsSelect[23] = new MenuItemSelect("Video: H264/H265 Frame Stats", "Show statistics about the video stream H264/H65 frames and auto adjustments.");
+      m_pItemsSelect[23]->addSelection("Off");
+      m_pItemsSelect[23]->addSelection("On");
+      m_pItemsSelect[23]->setUseMultiViewLayout();
+      m_pItemsSelect[23]->setTextColor(get_Color_Dev());
+      m_IndexStatsVideoH264FramesInfo = addMenuItem(m_pItemsSelect[23]);
+      
       m_pItemsSelect[10] = new MenuItemSelect("Video: Retransmissions Stats", "Shows the extended developer video retransmissions stats.");
       m_pItemsSelect[10]->addSelection("Off");
       m_pItemsSelect[10]->addSelection("On");
@@ -376,28 +377,28 @@ void MenuVehicleOSDStats::valuesToUI()
    else
       m_pItemsSelect[2]->setSelection(3);
 
-   if ( pCS->nGraphRadioRefreshInterval > 200 )
+   if ( pCS->nGraphRadioRefreshInterval <= 10 )
       m_pItemsSelect[8]->setSelection(0);
-   else if ( pCS->nGraphRadioRefreshInterval > 100 )
+   else if ( pCS->nGraphRadioRefreshInterval <= 20 )
       m_pItemsSelect[8]->setSelection(1);
-   else if ( pCS->nGraphRadioRefreshInterval > 50 )
+   else if ( pCS->nGraphRadioRefreshInterval <= 50 )
       m_pItemsSelect[8]->setSelection(2);
-   else if ( pCS->nGraphRadioRefreshInterval > 20 )
+   else if ( pCS->nGraphRadioRefreshInterval <= 100 )
       m_pItemsSelect[8]->setSelection(3);
-   else if ( pCS->nGraphRadioRefreshInterval > 10 )
+   else if ( pCS->nGraphRadioRefreshInterval <= 200 )
       m_pItemsSelect[8]->setSelection(4);
    else
       m_pItemsSelect[8]->setSelection(5);
 
-   if ( pCS->nGraphVideoRefreshInterval > 200 )
+   if ( pCS->nGraphVideoRefreshInterval <= 10 )
       m_pItemsSelect[9]->setSelection(0);
-   else if ( pCS->nGraphVideoRefreshInterval > 100 )
+   else if ( pCS->nGraphVideoRefreshInterval <= 20 )
       m_pItemsSelect[9]->setSelection(1);
-   else if ( pCS->nGraphVideoRefreshInterval > 50 )
+   else if ( pCS->nGraphVideoRefreshInterval <= 50 )
       m_pItemsSelect[9]->setSelection(2);
-   else if ( pCS->nGraphVideoRefreshInterval > 20 )
+   else if ( pCS->nGraphVideoRefreshInterval <= 100 )
       m_pItemsSelect[9]->setSelection(3);
-   else if ( pCS->nGraphVideoRefreshInterval > 10 )
+   else if ( pCS->nGraphVideoRefreshInterval <= 200 )
       m_pItemsSelect[9]->setSelection(4);
    else
       m_pItemsSelect[9]->setSelection(5);
@@ -462,23 +463,27 @@ void MenuVehicleOSDStats::valuesToUI()
    m_pItemsSelect[26]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS)?1:0);
    m_pItemsSelect[17]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS)?1:0);
 
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO )
+   if ( -1 != m_IndexStatsVideoH264FramesInfo )
    {
-      if ( 0 == pCS->iShowVideoStreamInfoCompactType )
-         m_pItemsSelect[23]->setSelectedIndex(3);
-      else if ( 1 == pCS->iShowVideoStreamInfoCompactType )
-         m_pItemsSelect[23]->setSelectedIndex(2);
+      if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO )
+      {
+         //if ( 0 == pCS->iShowVideoStreamInfoCompactType )
+         //   m_pItemsSelect[23]->setSelectedIndex(3);
+         //else if ( 1 == pCS->iShowVideoStreamInfoCompactType )
+         //   m_pItemsSelect[23]->setSelectedIndex(2);
+         //else
+            m_pItemsSelect[23]->setSelectedIndex(1);
+      }
       else
-         m_pItemsSelect[23]->setSelectedIndex(1);
+         m_pItemsSelect[23]->setSelectedIndex(0);
    }
-   else
-      m_pItemsSelect[23]->setSelectedIndex(0);
 
    if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_STATS_VIDEO )
    {
       m_pItemsSelect[4]->setEnabled(true);
       m_pItemsSelect[9]->setEnabled(true);
-      m_pItemsSelect[16]->setEnabled(true);
+      if ( -1 != m_IndexStatsAdaptiveVideoGraph )
+         m_pItemsSelect[16]->setEnabled(true);
       if ( pCS->iDeveloperMode )
       {
          if ( -1 != m_IndexSnapshot )
@@ -491,7 +496,8 @@ void MenuVehicleOSDStats::valuesToUI()
    {
       m_pItemsSelect[4]->setEnabled(false);
       m_pItemsSelect[9]->setEnabled(false);
-      m_pItemsSelect[16]->setEnabled(false);
+      if ( -1 != m_IndexStatsAdaptiveVideoGraph )
+         m_pItemsSelect[16]->setEnabled(false);
       //if ( pCS->iDeveloperMode )
       {
          if ( -1 != m_IndexSnapshot )
@@ -510,7 +516,8 @@ void MenuVehicleOSDStats::valuesToUI()
    if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_EXTENDED_VIDEO_DECODE_STATS )
       m_pItemsSelect[4]->setSelectedIndex(3);
 
-   m_pItemsSelect[16]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH)?1:0);
+   if ( -1 != m_IndexStatsAdaptiveVideoGraph )
+      m_pItemsSelect[16]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH)?1:0);
 
    m_pItemsSelect[5]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_EFFICIENCY_STATS)?1:0);
    m_pItemsSelect[6]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_STATS_RC)?1:0);
@@ -699,17 +706,17 @@ void MenuVehicleOSDStats::onSelectItem()
    if ( m_IndexRadioRefreshInterval == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[8]->getSelectedIndex() )
-         pCS->nGraphRadioRefreshInterval = 500;
-      if ( 1 == m_pItemsSelect[8]->getSelectedIndex() )
-         pCS->nGraphRadioRefreshInterval = 200;
-      if ( 2 == m_pItemsSelect[8]->getSelectedIndex() )
-         pCS->nGraphRadioRefreshInterval = 100;
-      if ( 3 == m_pItemsSelect[8]->getSelectedIndex() )
-         pCS->nGraphRadioRefreshInterval = 50;
-      if ( 4 == m_pItemsSelect[8]->getSelectedIndex() )
-         pCS->nGraphRadioRefreshInterval = 20;
-      if ( 5 == m_pItemsSelect[8]->getSelectedIndex() )
          pCS->nGraphRadioRefreshInterval = 10;
+      if ( 1 == m_pItemsSelect[8]->getSelectedIndex() )
+         pCS->nGraphRadioRefreshInterval = 20;
+      if ( 2 == m_pItemsSelect[8]->getSelectedIndex() )
+         pCS->nGraphRadioRefreshInterval = 50;
+      if ( 3 == m_pItemsSelect[8]->getSelectedIndex() )
+         pCS->nGraphRadioRefreshInterval = 100;
+      if ( 4 == m_pItemsSelect[8]->getSelectedIndex() )
+         pCS->nGraphRadioRefreshInterval = 200;
+      if ( 5 == m_pItemsSelect[8]->getSelectedIndex() )
+         pCS->nGraphRadioRefreshInterval = 500;
       save_ControllerSettings();
       invalidate();
       valuesToUI();
@@ -778,17 +785,17 @@ void MenuVehicleOSDStats::onSelectItem()
    if ( m_IndexVideoRefreshInterval == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
-         pCS->nGraphVideoRefreshInterval = 500;
-      if ( 1 == m_pItemsSelect[9]->getSelectedIndex() )
-         pCS->nGraphVideoRefreshInterval = 200;
-      if ( 2 == m_pItemsSelect[9]->getSelectedIndex() )
-         pCS->nGraphVideoRefreshInterval = 100;
-      if ( 3 == m_pItemsSelect[9]->getSelectedIndex() )
-         pCS->nGraphVideoRefreshInterval = 50;
-      if ( 4 == m_pItemsSelect[9]->getSelectedIndex() )
-         pCS->nGraphVideoRefreshInterval = 20;
-      if ( 5 == m_pItemsSelect[9]->getSelectedIndex() )
          pCS->nGraphVideoRefreshInterval = 10;
+      if ( 1 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->nGraphVideoRefreshInterval = 20;
+      if ( 2 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->nGraphVideoRefreshInterval = 50;
+      if ( 3 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->nGraphVideoRefreshInterval = 100;
+      if ( 4 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->nGraphVideoRefreshInterval = 200;
+      if ( 5 == m_pItemsSelect[9]->getSelectedIndex() )
+         pCS->nGraphVideoRefreshInterval = 500;
       save_ControllerSettings();
       invalidate();
       valuesToUI();
@@ -819,7 +826,7 @@ void MenuVehicleOSDStats::onSelectItem()
       sendToVehicle = true;
    }
 
-   if ( m_IndexStatsAdaptiveVideoGraph == m_SelectedIndex )
+   if ( (-1 != m_IndexStatsAdaptiveVideoGraph) && (m_IndexStatsAdaptiveVideoGraph == m_SelectedIndex) )
    {
       if ( 0 == m_pItemsSelect[16]->getSelectedIndex() )
          params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH;
@@ -828,19 +835,19 @@ void MenuVehicleOSDStats::onSelectItem()
       sendToVehicle = true;
    }
 
-   if ( m_IndexStatsVideoStreamKeyFramesInfo == m_SelectedIndex )
+   if ( (-1 != m_IndexStatsVideoH264FramesInfo) && (m_IndexStatsVideoH264FramesInfo == m_SelectedIndex) )
    {
       if ( 0 == m_pItemsSelect[23]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO;
+         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO;
       else
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO;
-         if ( 3 == m_pItemsSelect[23]->getSelectedIndex() )
-            pCS->iShowVideoStreamInfoCompactType = 0;
-         else if ( 2 == m_pItemsSelect[23]->getSelectedIndex() )
-            pCS->iShowVideoStreamInfoCompactType = 1;
-         else
-            pCS->iShowVideoStreamInfoCompactType = 2;
+         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO;
+         //if ( 3 == m_pItemsSelect[23]->getSelectedIndex() )
+         //   pCS->iShowVideoStreamInfoCompactType = 0;
+         //else if ( 2 == m_pItemsSelect[23]->getSelectedIndex() )
+         //   pCS->iShowVideoStreamInfoCompactType = 1;
+         //else
+         //   pCS->iShowVideoStreamInfoCompactType = 2;
          save_ControllerSettings();
       }
       sendToVehicle = true;    

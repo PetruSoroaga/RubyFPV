@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -1131,6 +1131,21 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
       return 0;
    }
 
+   t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
+
+   if ( iBufferLength < (int)sizeof(t_packet_header_compressed) )
+   {
+      s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_PACKET_RECEIVED_TOO_SMALL;
+
+      #ifdef DEBUG_PACKET_RECEIVED
+      printf("Received packet to small: packet length: %d bytes, header minimum: %d\n", iBufferLength, (int)sizeof(t_packet_header_compressed));
+      log_line("Received packet to small: packet length: %d bytes, header minimum: %d", iBufferLength, (int)sizeof(t_packet_header_compressed));
+      #endif
+      return 0;
+   }
+
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    if ( iBufferLength < (int)sizeof(t_packet_header) )
    {
       s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_PACKET_RECEIVED_TOO_SMALL;
@@ -1142,8 +1157,20 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
       return 0;
    }
 
-   t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-   int packetLength = pPH->total_length;
+   int packetLength = 0;
+   u8 uPacketFlags = 0;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   {
+      packetLength = pPHC->total_length;
+      uPacketFlags = pPHC->packet_flags;
+      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
+      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
+   }
+   else
+   {
+      packetLength = pPH->total_length;
+      uPacketFlags = pPH->packet_flags;
+   }
 
    if ( packetLength > iBufferLength )
    {
@@ -1156,7 +1183,8 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
       return 0;
    }
 
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_HAS_ENCRYPTION )
+   if ( uPacketFlags & PACKET_FLAGS_BIT_HAS_ENCRYPTION )
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    {
       #ifdef DEBUG_PACKET_RECEIVED
       log_line("enc detected");
@@ -1166,25 +1194,44 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
       dpp(pPacketBuffer + dx, l);
    }
 
-   u32 uCRC = 0;
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-      uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), sizeof(t_packet_header)-sizeof(u32));
-   else
-      uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), pPH->total_length-sizeof(u32));
-
-   if ( (uCRC & 0x00FFFFFF) != (pPH->uCRC & 0x00FFFFFF) )
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    {
-      s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
-      #ifdef DEBUG_PACKET_RECEIVED
-      log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPH->uCRC, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, packetLength);
-      if ( packetLength <= 48 )
-         log_buffer(pPacketBuffer, packetLength);
-      #endif
-      if ( NULL != pbCRCOk )
-         *pbCRCOk = 0;
-      return 0;
-   }
+      u8 uCRC = base_compute_crc8(pPacketBuffer+sizeof(u8), pPHC->total_length-sizeof(u8));
 
+      if ( uCRC != pPHC->uCRC )
+      {
+         s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
+         #ifdef DEBUG_PACKET_RECEIVED
+         log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPHC->uCRC, (pPHC->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, packetLength);
+         if ( packetLength <= 48 )
+            log_buffer(pPacketBuffer, packetLength);
+         #endif
+         if ( NULL != pbCRCOk )
+            *pbCRCOk = 0;
+         return 0;
+      }
+   }
+   else
+   {
+      u32 uCRC = 0;
+      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
+         uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), sizeof(t_packet_header)-sizeof(u32));
+      else
+         uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), pPH->total_length-sizeof(u32));
+
+      if ( (uCRC & 0x00FFFFFF) != (pPH->uCRC & 0x00FFFFFF) )
+      {
+         s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
+         #ifdef DEBUG_PACKET_RECEIVED
+         log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPH->uCRC, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, packetLength);
+         if ( packetLength <= 48 )
+            log_buffer(pPacketBuffer, packetLength);
+         #endif
+         if ( NULL != pbCRCOk )
+            *pbCRCOk = 0;
+         return 0;
+      }
+   }
    if ( NULL != pbCRCOk )
       *pbCRCOk = 1;
 
@@ -1270,12 +1317,12 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    memcpy(pRawPacket, pPacketData, nInputLength);
    totalRadioLength += nInputLength;
 
-   memset(s_uLastPacketBuilt, 0, MAX_PACKET_TOTAL_SIZE);
-   // To fix, only on debug
-   if ( 1 )
-   //if ( s_bRadioDebugFlag )
+   if ( s_bRadioDebugFlag )
+   {
+      memset(s_uLastPacketBuilt, 0, MAX_PACKET_TOTAL_SIZE);
       memcpy(s_uLastPacketBuilt, pPacketData, nInputLength);
-
+   }
+   
    #ifdef DEBUG_PACKET_SENT
    log_line("Building a composed packet of total size: %d, extra data: %d", nInputLength + iExtraData, iExtraData);
    #endif
@@ -1294,29 +1341,43 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    {
       nPCount++;
       t_packet_header* pPH = (t_packet_header*)pData;
-      int nPacketLength = pPH->total_length;
-    
-      pPH->radio_link_packet_index = uRadioLinkPacketIndex;
-      if ( bEncrypt )
-         pPH->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+      int nPacketLength = 0;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      {
+         nPacketLength = pPHC->total_length;
+         if ( bEncrypt )
+            pPHC->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
 
-
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-         radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
+         radio_packet_compressed_compute_crc(pData, nPacketLength);
+      }
       else
-         radio_packet_compute_crc((u8*)pPH, pPH->total_length);
+      {
+         nPacketLength = pPH->total_length;
+         pPH->radio_link_packet_index = uRadioLinkPacketIndex;
+         if ( bEncrypt )
+            pPH->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
+
+         if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
+            radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
+         else
+            radio_packet_compute_crc((u8*)pPH, pPH->total_length);
+
+         if ( bEncrypt )
+         {
+            int dx = sizeof(t_packet_header) - sizeof(u32) - sizeof(u32);
+            epp(pData+dx, pPH->total_length-dx);
+         }
+      }
+       
 
       #ifdef DEBUG_PACKET_SENT
-      log_line("Packet %d in composed packet: enc: %d, crc (%s): %u, len: %d", nPCount, bEncrypt, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", pPH->uCRC, pPH->total_length);
-      if ( pPH->total_length <= 125 )
-         log_buffer3(pData, pPH->total_length, 10,6,8);
+      // Add compressed header support:
+      //log_line("Packet %d in composed packet: enc: %d, crc (%s): %u, len: %d", nPCount, bEncrypt, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", pPH->uCRC, pPH->total_length);
+      //if ( pPH->total_length <= 125 )
+      //   log_buffer3(pData, pPH->total_length, 10,6,8);
       #endif
 
-      if ( bEncrypt )
-      {
-         int dx = sizeof(t_packet_header) - sizeof(u32) - sizeof(u32);
-         epp(pData+dx, pPH->total_length-dx);
-      }
       nLength -= nPacketLength;
       pData += nPacketLength;
    }
@@ -1343,6 +1404,7 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    if ( s_bRadioDebugFlag )
    {
       t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
       {
          s_uLastRadioPingSentTime = get_current_timestamp_ms();

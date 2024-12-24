@@ -72,7 +72,6 @@ bool g_bGotStatsVehicleTx = false;
 
 bool g_bHasVideoDecodeStatsSnapshot = false;
 
-int g_iDeltaVideoInfoBetweenVehicleController = 0;
 u32 g_uLastControllerAlarmIOFlags = 0;
 
 bool g_bChangedOSDStatsFontSize = false;

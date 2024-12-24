@@ -39,6 +39,24 @@ MenuItemLegend::MenuItemLegend(const char* szTitle, const char* szDesc, float ma
 {
    m_bEnabled = false;
    m_bIsEditable = false;
+   m_bSmall = false;
+   m_fMarginX = Menu::getMenuPaddingX();
+   m_fMaxWidth = maxWidth;
+   m_pszTitle = (char*)malloc(strlen(szTitle)+7);
+   //strcpy(m_pszTitle, "• ");
+   //strcat(m_pszTitle, szTitle);
+   strcpy(m_pszTitle, szTitle);
+   if ( NULL != szDesc && 0 < strlen(szDesc) )
+      strcat(m_pszTitle, ":");
+}
+
+
+MenuItemLegend::MenuItemLegend(const char* szTitle, const char* szDesc, float maxWidth, bool bSmall)
+:MenuItem(szTitle, szDesc)
+{
+   m_bEnabled = false;
+   m_bIsEditable = false;
+   m_bSmall = bSmall;
    m_fMarginX = Menu::getMenuPaddingX();
    m_fMaxWidth = maxWidth;
    m_pszTitle = (char*)malloc(strlen(szTitle)+7);
@@ -55,24 +73,47 @@ MenuItemLegend::~MenuItemLegend()
 
 float MenuItemLegend::getItemHeight(float maxWidth)
 {
-   MenuItem::getItemHeight(maxWidth);
+   int iFont = g_idFontMenu;
+   if ( m_bSmall )
+      iFont = g_idFontMenuSmall;
+
+   m_RenderTitleHeight = g_pRenderEngine->textHeight(iFont);
+   m_RenderHeight = m_RenderTitleHeight + m_fExtraHeight;
+
    getTitleWidth(maxWidth);
    if ( maxWidth > 0.0001 )
       getValueWidth(maxWidth-m_RenderTitleWidth-Menu::getMenuPaddingX());
    else
       getValueWidth(0);
-   float h = g_pRenderEngine->getMessageHeight(m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, g_idFontMenu);
+   float h = 0.0;
+   if ( (NULL != m_pszTooltip) && (0 != m_pszTooltip[0]) )
+      h = g_pRenderEngine->getMessageHeight(m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
    if ( h > m_RenderHeight )
       m_RenderHeight = h;
+
+   m_RenderHeight += 0.3 * g_pRenderEngine->textHeight(iFont);
    return m_RenderHeight + m_fExtraHeight;
 }
 
 float MenuItemLegend::getTitleWidth(float maxWidth)
 {
-   if ( m_fMaxWidth > 0.001 )
-      return MenuItem::getTitleWidth(m_fMaxWidth);
+   int iFont = g_idFontMenu;
+   if ( m_bSmall )
+      iFont = g_idFontMenuSmall;
 
-   m_RenderTitleWidth = g_pRenderEngine->getMessageHeight(m_pszTitle, MENU_TEXTLINE_SPACING, maxWidth - m_fMarginX, g_idFontMenu);
+   if ( m_fMaxWidth > 0.001 )
+   {
+      if ( m_RenderTitleWidth > 0.001 )
+         return m_RenderTitleWidth;
+
+      m_RenderTitleWidth = g_pRenderEngine->textWidth(iFont, m_pszTitle);
+
+      if ( m_bShowArrow )
+         m_RenderTitleWidth += 0.66*g_pRenderEngine->textHeight(iFont);
+      return m_RenderTitleWidth;
+   }
+
+   m_RenderTitleWidth = g_pRenderEngine->getMessageHeight(m_pszTitle, MENU_TEXTLINE_SPACING, maxWidth - m_fMarginX, iFont);
    return m_RenderTitleWidth;
 }
 
@@ -90,10 +131,15 @@ void MenuItemLegend::Render(float xPos, float yPos, bool bSelected, float fWidth
       
    g_pRenderEngine->setColors(get_Color_MenuText());
 
-   g_pRenderEngine->drawText(xPos, yPos, g_idFontMenu, m_pszTitle); 
-   //g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTitle, MENU_TEXTLINE_SPACING, m_RenderTitleWidth, g_idFontMenu);
+   int iFont = g_idFontMenu;
+   if ( m_bSmall )
+      iFont = g_idFontMenuSmall;
+
+   g_pRenderEngine->drawText(xPos, yPos, iFont, m_pszTitle); 
+   //g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTitle, MENU_TEXTLINE_SPACING, m_RenderTitleWidth, iFont);
 
    xPos += m_RenderTitleWidth + Menu::getMenuPaddingX();
 
-   g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, g_idFontMenu);
+   if ( (NULL != m_pszTooltip) && (0 != m_pszTooltip[0]) )
+      g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
 }

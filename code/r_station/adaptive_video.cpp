@@ -109,7 +109,8 @@ void _adaptive_video_send_video_profile_to_vehicle(int iVideoProfile, u32 uVehic
    memcpy(packet+sizeof(t_packet_header), (u8*)&(pRuntimeInfo->uVideoProfileRequestId), sizeof(u32));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32), (u8*)&uVideoProfile, sizeof(u8));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), (u8*)&uVideoStreamIndex, sizeof(u8));
-   packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
+   for( int i=0; i<5; i++ )
+      packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
 }
 
 void adaptive_video_switch_to_video_profile(int iVideoProfile, u32 uVehicleId)
@@ -281,7 +282,7 @@ void _adaptive_video_check_vehicle(Model* pModel, type_global_state_vehicle_runt
    }
 }
 
-void adaptive_video_periodic_loop()
+void adaptive_video_periodic_loop(bool bForceSyncNow)
 {
    if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks )
       return;
@@ -323,7 +324,7 @@ void adaptive_video_periodic_loop()
          continue;
 
       // Use last rx time to back off on link lost
-      if ( g_TimeNow >= pRuntimeInfo->uLastTimeSentVideoProfileRequest+20 )
+      if ( bForceSyncNow || (g_TimeNow >= pRuntimeInfo->uLastTimeSentVideoProfileRequest+20) )
       {
          _adaptive_video_send_video_profile_to_vehicle(pRuntimeInfo->uPendingVideoProfileToSet, pRuntimeInfo->uVehicleId);
       }

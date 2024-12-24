@@ -57,6 +57,7 @@ int s_iSearchMode = 0;
 u32 s_uRadioRxTimeNow = 0;
 u32 s_uRadioRxLastTimeRead = 0;
 u32 s_uRadioRxLastTimeQueue = 0;
+u32 s_uRadioRxLastReceivedPacket =0;
 
 int s_iRadioRxPausedInterfaces[MAX_RADIO_INTERFACES];
 int s_iRadioRxAllInterfacesPaused = 0;
@@ -74,10 +75,11 @@ u32 s_uLastRxShortPacketsVehicleIds[MAX_RADIO_INTERFACES];
 // Pointers to array of int-s (max radio cards, for each card)
 u8* s_pPacketsCounterOutputVideo = NULL;
 u8* s_pPacketsCounterOutputECVideo = NULL;
-u8* s_pPacketsCounterOutputRetrVideo = NULL;
+u8* s_pPacketsCounterOutputHighPriority = NULL;
 u8* s_pPacketsCounterOutputData = NULL;
 u8* s_pPacketsCounterOutputMissing = NULL;
 u8* s_pPacketsCounterOutputMissingMaxGap = NULL;
+u8* s_pRxAirGapTracking = NULL;
 
 extern pthread_mutex_t s_pMutexRadioSyncRxTxThreads;
 extern int s_iMutexRadioSyncRxTxThreadsInitialized;
@@ -88,19 +90,13 @@ volatile int s_bCanDoOperations = 0;
 extern u32 s_uLastRadioPingSentTime;
 extern u8 s_uLastRadioPingId;
 
-// returns the number of missing packets detected on the radio link
-
-int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
+t_radio_rx_state_vehicle* _radio_rx_get_stats_structure_for_vehicle(u32 uVehicleId)
 {
-   if ( (NULL == pPacket) || ( iLength <= 2 ) )
-      return 0;
-
-   int nReturnLost = 0;
+   t_radio_rx_state_vehicle* pStatsVehicle = NULL;
 
    //----------------------------------------------
    // Begin: Compute index of stats to use
 
-   t_radio_rx_state_vehicle* pStatsVehicle = NULL;
    if ( (s_RadioRxState.vehicles[0].uVehicleId == 0) || (s_RadioRxState.vehicles[0].uVehicleId == uVehicleId)  )
       pStatsVehicle = &(s_RadioRxState.vehicles[0]);
    
@@ -131,10 +127,22 @@ int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShor
    if ( NULL == pStatsVehicle )
       pStatsVehicle = &(s_RadioRxState.vehicles[MAX_CONCURENT_VEHICLES-1]);
 
+   pStatsVehicle->uVehicleId = uVehicleId;
+
    // End: Compute index of stats to use
    //----------------------------------------------
+   return pStatsVehicle;
+}
 
-   pStatsVehicle->uVehicleId = uVehicleId;
+// returns the number of missing packets detected on the radio link
+int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShortPacket, u32 uVehicleId, u8* pPacket, int iLength, int iDataIsOk)
+{
+   if ( (NULL == pPacket) || ( iLength <= 2 ) )
+      return 0;
+
+   int nReturnLost = 0;
+
+   t_radio_rx_state_vehicle* pStatsVehicle = _radio_rx_get_stats_structure_for_vehicle(uVehicleId);
 
    if ( iDataIsOk )
    {
@@ -166,22 +174,27 @@ int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShor
    else
    {
       t_packet_header* pPH = (t_packet_header*)pPacket;
-      if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 0 )
-      if ( pPH->radio_link_packet_index > pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]+1 )
+
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       {
-         u32 lost = pPH->radio_link_packet_index - (pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] + 1);
-         pStatsVehicle->uTotalRxPacketsLost += lost;
-         pStatsVehicle->uTmpRxPacketsLost += lost;
-         nReturnLost = lost;
+         // Check for lost packets
+         if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 0 )
+         if ( pPH->radio_link_packet_index > pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]+1 )
+         {
+            u32 lost = pPH->radio_link_packet_index - (pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] + 1);
+            pStatsVehicle->uTotalRxPacketsLost += lost;
+            pStatsVehicle->uTmpRxPacketsLost += lost;
+            nReturnLost = lost;
+         }
+
+         // Check for restarted on the other end
+         //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 10 )
+         //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] < 0xFFFF-10 ) // pPH->radio_link_packet_index is 16 bits
+         //if ( pPH->radio_link_packet_index < pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]-10 )
+         //    radio_dup_detection_set_vehicle_restarted_flag(pPH->vehicle_id_src);
+
+         pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
       }
-
-      if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 0 )
-      if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] < 0xFA00 )
-      if ( pPH->radio_link_packet_index > 0x0500 )
-      if ( pPH->radio_link_packet_index < pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] )
-          radio_dup_detection_set_vehicle_restarted_flag(pPH->vehicle_id_src);
-
-      pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
    }
    return nReturnLost;
 }
@@ -216,58 +229,121 @@ void _radio_rx_update_fd_sets()
    s_iRadioRxMaxFD++;
 }
 
+
+
+u8* _radio_rx_wait_get_queue_packet(t_radio_rx_state_packets_queue* pQueue, int iHighPriorityQueue, u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
+{
+   int iRes = -1;
+
+   if ( 0 == uTimeoutMicroSec )
+   {
+      iRes = sem_trywait(pQueue->pSemaphoreRead);
+   }
+   else
+   {
+      struct timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ts.tv_nsec += 1000*uTimeoutMicroSec;
+      iRes = sem_timedwait(pQueue->pSemaphoreRead, &ts);
+   }
+   if ( 0 != iRes )
+      return NULL;
+
+   int iIndexToCopy = 0;
+
+   iIndexToCopy = pQueue->iCurrentPacketIndexToConsume;
+   if ( NULL != pLength )
+      *pLength = pQueue->iPacketsLengths[iIndexToCopy];
+   if ( NULL != pIsShortPacket )
+      *pIsShortPacket = pQueue->uPacketsAreShort[iIndexToCopy];
+   if ( NULL != pRadioInterfaceIndex )
+      *pRadioInterfaceIndex = pQueue->uPacketsRxInterface[iIndexToCopy];
+
+   memcpy(s_tmpLastProcessedRadioRxPacket, pQueue->pPacketsBuffers[iIndexToCopy], pQueue->iPacketsLengths[iIndexToCopy]);
+
+   pQueue->iCurrentPacketIndexToConsume++;
+   if ( pQueue->iCurrentPacketIndexToConsume >= pQueue->iQueueSize )
+      pQueue->iCurrentPacketIndexToConsume = 0;
+
+   return s_tmpLastProcessedRadioRxPacket;
+}
+
+u8* radio_rx_wait_get_next_received_high_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
+{
+   if ( NULL != pLength )
+      *pLength = 0;
+   if ( NULL != pIsShortPacket )
+      *pIsShortPacket = 0;
+   if ( NULL != pRadioInterfaceIndex )
+      *pRadioInterfaceIndex = 0;
+   if ( 0 == s_iRadioRxInitialized )
+      return NULL;
+
+   return _radio_rx_wait_get_queue_packet(&(s_RadioRxState.queue_high_priority), 1, uTimeoutMicroSec, pLength, pIsShortPacket, pRadioInterfaceIndex);
+}
+
+u8* radio_rx_wait_get_next_received_reg_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
+{
+   if ( NULL != pLength )
+      *pLength = 0;
+   if ( NULL != pIsShortPacket )
+      *pIsShortPacket = 0;
+   if ( NULL != pRadioInterfaceIndex )
+      *pRadioInterfaceIndex = 0;
+   if ( 0 == s_iRadioRxInitialized )
+      return NULL;
+
+   return _radio_rx_wait_get_queue_packet(&(s_RadioRxState.queue_reg_priority), 0, uTimeoutMicroSec, pLength, pIsShortPacket, pRadioInterfaceIndex);
+}
+
 void _radio_rx_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadioInterface)
 {
    if ( (NULL == pPacket) || (iLength <= 0) || s_iRadioRxMarkedForQuit )
       return;
 
-   t_radio_rx_state_packets_queue* pQueue = &s_RadioRxState.queue_reg_priority;
    t_packet_header* pPH = (t_packet_header*)pPacket;
-   if ( radio_packet_type_is_high_priority( pPH->packet_type ) )
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacket;
+   u8 uPacketType = 0;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      uPacketType = pPHC->packet_type;
+   else
+      uPacketType = pPH->packet_type;
+
+   t_radio_rx_state_packets_queue* pQueue = &s_RadioRxState.queue_reg_priority;
+   if ( radio_packet_type_is_high_priority( uPacketType ) )
       pQueue = &s_RadioRxState.queue_high_priority;
 
-   // Add the packet to the queue
-   pQueue->uPacketsRxInterface[pQueue->iCurrentRxPacketIndex] = iRadioInterface;
-   pQueue->uPacketsAreShort[pQueue->iCurrentRxPacketIndex] = 0;
-   pQueue->iPacketsLengths[pQueue->iCurrentRxPacketIndex] = iLength;
-   memcpy(pQueue->pPacketsBuffers[pQueue->iCurrentRxPacketIndex], pPacket, iLength);
-   
-   u32 uTimeStartTryLock = get_current_timestamp_ms();
-   int iLock = -1;
-   while ( (iLock != 0 ) && (get_current_timestamp_ms() <= uTimeStartTryLock+5) )
-   {
-      iLock = pthread_mutex_trylock(&(pQueue->mutex));
-      hardware_sleep_micros(100);
-   }
-
-   if ( iLock != 0 )
-      log_softerror_and_alarm("[RadioRxThread] Doing unguarded rx buffers manipulation");
-   
    // No more room? Discard it
-   if ( pQueue->iCurrentRxPacketsInQueue >= MAX_RX_PACKETS_QUEUE )
+   if ( ((pQueue->iCurrentPacketIndexToWrite+1) % pQueue->iQueueSize) == (pQueue->iCurrentPacketIndexToConsume % pQueue->iQueueSize) )
    {
-      if ( 0 == iLock )
-         pthread_mutex_unlock(&(pQueue->mutex));
       s_uRadioRxLastTimeQueue += get_current_timestamp_ms() - s_uRadioRxTimeNow;
       return;
    }
 
-   pQueue->iCurrentRxPacketsInQueue++;   
-   pQueue->iCurrentRxPacketIndex++;
-   if ( pQueue->iCurrentRxPacketIndex >= MAX_RX_PACKETS_QUEUE )
-      pQueue->iCurrentRxPacketIndex = 0;
+   // Add the packet to the queue
+   pQueue->uPacketsRxInterface[pQueue->iCurrentPacketIndexToWrite] = iRadioInterface;
+   pQueue->uPacketsAreShort[pQueue->iCurrentPacketIndexToWrite] = 0;
+   pQueue->iPacketsLengths[pQueue->iCurrentPacketIndexToWrite] = iLength;
+   memcpy(pQueue->pPacketsBuffers[pQueue->iCurrentPacketIndexToWrite], pPacket, iLength);
+      
+   pQueue->iCurrentPacketIndexToWrite++;
+   if ( pQueue->iCurrentPacketIndexToWrite >= pQueue->iQueueSize )
+      pQueue->iCurrentPacketIndexToWrite = 0;
 
-   if ( pQueue->iCurrentRxPacketsInQueue > pQueue->iStatsMaxPacketsInQueueLastMinute )
-      pQueue->iStatsMaxPacketsInQueueLastMinute = pQueue->iCurrentRxPacketsInQueue;
-   if ( pQueue->iCurrentRxPacketsInQueue > pQueue->iStatsMaxPacketsInQueue )
-      pQueue->iStatsMaxPacketsInQueue = pQueue->iCurrentRxPacketsInQueue;
+   int iCountPackets = pQueue->iCurrentPacketIndexToWrite - pQueue->iCurrentPacketIndexToConsume;
+   if ( pQueue->iCurrentPacketIndexToWrite < pQueue->iCurrentPacketIndexToConsume )
+      iCountPackets = pQueue->iCurrentPacketIndexToWrite + (pQueue->iQueueSize - pQueue->iCurrentPacketIndexToConsume);
 
-   if ( NULL != pQueue->pSemaphore )
-         sem_post(pQueue->pSemaphore);
+   if ( iCountPackets > pQueue->iStatsMaxPacketsInQueueLastMinute )
+      pQueue->iStatsMaxPacketsInQueueLastMinute = iCountPackets;
+   if ( iCountPackets > pQueue->iStatsMaxPacketsInQueue )
+      pQueue->iStatsMaxPacketsInQueue = iCountPackets;
 
-   if ( 0 == iLock )
-      pthread_mutex_unlock(&(pQueue->mutex));
-
+   if ( NULL != pQueue->pSemaphoreWrite )
+   {
+      if ( 0 != sem_post(pQueue->pSemaphoreWrite) )
+         log_softerror_and_alarm("Failed to set semaphore.");
+   }
    s_uRadioRxLastTimeQueue += get_current_timestamp_ms() - s_uRadioRxTimeNow;
 }
 
@@ -315,7 +391,14 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
      if ( pPHS->data_length >= sizeof(t_packet_header) - sizeof(u32) )
      {
         t_packet_header* pPH = (t_packet_header*)(pPacketBuffer + sizeof(t_packet_header_short));
-        s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPH->vehicle_id_src;
+        if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+           s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPH->vehicle_id_src;
+     }
+     else if ( pPHS->data_length >= sizeof(t_packet_header_compressed) - sizeof(u32) )
+     {
+        t_packet_header_compressed* pPHC = (t_packet_header_compressed*)(pPacketBuffer + sizeof(t_packet_header_short));
+        if ( (pPHC->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+           s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPHC->vehicle_id_src;
      }
    }
 
@@ -343,6 +426,7 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
    if ( s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= sizeof(t_packet_header) )
    {
       t_packet_header* pPH = (t_packet_header*) s_uBuffersFullMessages[iInterfaceIndex];
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( (pPH->total_length >= sizeof(t_packet_header)) && (s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= pPH->total_length) )
       {
          u32 uCRC = base_compute_crc32(&s_uBuffersFullMessages[iInterfaceIndex][sizeof(u32)], pPH->total_length - sizeof(u32));
@@ -350,6 +434,20 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
          {
             s_uBuffersFullMessagesReadPos[iInterfaceIndex] = 0;
             _radio_rx_check_add_packet_to_rx_queue(s_uBuffersFullMessages[iInterfaceIndex], pPH->total_length, iInterfaceIndex);
+         }
+      }
+   }
+   else if ( s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= sizeof(t_packet_header_compressed) )
+   {
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*) s_uBuffersFullMessages[iInterfaceIndex];
+      if ( (pPHC->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      if ( (pPHC->total_length >= sizeof(t_packet_header_compressed)) && (s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= pPHC->total_length) )
+      {
+         u8 uCRC = base_compute_crc8(&s_uBuffersFullMessages[iInterfaceIndex][sizeof(u8)], pPHC->total_length - sizeof(u8));
+         if ( uCRC == pPHC->uCRC )
+         {
+            s_uBuffersFullMessagesReadPos[iInterfaceIndex] = 0;
+            _radio_rx_check_add_packet_to_rx_queue(s_uBuffersFullMessages[iInterfaceIndex], pPHC->total_length, iInterfaceIndex);
          }
       }
    }
@@ -480,6 +578,9 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    u8* pBuffer = NULL;
    int iCountParsed = 0;
 
+   static int sdebugCountParser = 0;
+   sdebugCountParser++;
+
    for( int iCountReads=0; iCountReads<3; iCountReads++ )
    {
       iBufferLength = 0;
@@ -503,47 +604,93 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
 
       int iCountPackets = 0;
       int iIsVideoData = 0;
-
-      while ( (iLength > 0) && (NULL != pData) )
+      int iRemainingLength = iLength;
+      while ( (iRemainingLength > 0) && (NULL != pData) )
       { 
          t_packet_header* pPH = (t_packet_header*)pData;
-
+         t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+         u8 uPacketType = 0;
+         int iThisLen = 0;
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         {
+            iThisLen = pPHC->total_length;
+            uPacketType = pPHC->packet_type;
+         }
+         else
+         {
+            iThisLen = pPH->total_length;
+            uPacketType = pPH->packet_type;
+         }
          if ( s_iRadioRxDevMode )
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         if ( uPacketType == PACKET_TYPE_RUBY_PING_CLOCK )
          {
             s_uLastRadioPingSentTime = get_current_timestamp_ms();
             s_uLastRadioPingId = *(pData +sizeof(t_packet_header));
          }
 
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-            iIsVideoData = 1;
+         if ( radio_packet_type_is_high_priority(uPacketType) || (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+         if ( NULL != s_pPacketsCounterOutputHighPriority )
+            s_pPacketsCounterOutputHighPriority[iInterfaceIndex]++;
+         
 
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+         if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
          {
+            iIsVideoData = 1;
             t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pData+sizeof(t_packet_header));    
             
-            if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-            {
-               if ( NULL != s_pPacketsCounterOutputRetrVideo )
-                  s_pPacketsCounterOutputRetrVideo[iInterfaceIndex] = s_pPacketsCounterOutputRetrVideo[iInterfaceIndex]+1;
-            }
-            else
+               /*
+               static u32 sdebugRBlockIndex = 0;
+               static u32 sdebugRBlockPacketIndex = 0;
+               static u32 sdebugRRadioPacketIndex = 0;
+               static u32 sdebugRStreamPacketIndex = 0;
+               static u32 sdebugRPacektFlags = 0;
+               static int sdebugRTotalLength = 0;
+               if ( (pPHVF->uCurrentBlockIndex < sdebugRBlockIndex) ||
+                    ((pPHVF->uCurrentBlockIndex == sdebugRBlockIndex) && (pPHVF->uCurrentBlockPacketIndex < sdebugRBlockPacketIndex)) ||
+                    ((pPH->radio_link_packet_index < sdebugRRadioPacketIndex) && pPH->radio_link_packet_index != 0) ||
+                    (pPH->stream_packet_idx < sdebugRStreamPacketIndex) )
+               if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+               if ( ! (sdebugRPacektFlags & PACKET_FLAGS_BIT_RETRANSMITED) )
+               {
+                  log_line("DEBUG radio (%d, %d, %d) recv out of order video packet: [%u/%u], last received: [%u/%u], type: %s",
+                     sdebugCountParser, iCountReads, iCountPackets, pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex, sdebugRBlockIndex, sdebugRBlockPacketIndex,
+                     str_get_packet_type(pPH->packet_type) );
+                  log_line("DEBUG recv/last radio packet index: %u %u", pPH->radio_link_packet_index, sdebugRRadioPacketIndex);
+                  log_line("DEBUG recv/last stream packet index: %u %u", pPH->stream_packet_idx, sdebugRStreamPacketIndex);
+                  log_line("DEBUG recv/last retr type: %d %d", pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED, sdebugRPacektFlags & PACKET_FLAGS_BIT_RETRANSMITED);
+                  log_line("DEBUG recv/last component: %d %d", pPH->packet_flags & PACKET_FLAGS_MASK_MODULE, sdebugRPacektFlags & PACKET_FLAGS_MASK_MODULE);
+                  log_line("DEBUG recv/last length: %d %d (headers: %d+%d)", pPH->total_length, sdebugRTotalLength, sizeof(t_packet_header), sizeof(t_packet_header_video_full_98));
+               }
+               sdebugRBlockIndex = pPHVF->uCurrentBlockIndex;
+               sdebugRBlockPacketIndex = pPHVF->uCurrentBlockPacketIndex;
+               sdebugRRadioPacketIndex = pPH->radio_link_packet_index;
+               sdebugRStreamPacketIndex = pPH->stream_packet_idx;
+               sdebugRPacektFlags = pPH->packet_flags;
+               sdebugRTotalLength = pPH->total_length;
+               */
+            
+            if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
             {
                if ( pPHVF->uCurrentBlockPacketIndex >= pPHVF->uCurrentBlockDataPackets )
                {
                   if ( NULL != s_pPacketsCounterOutputECVideo )
-                     s_pPacketsCounterOutputECVideo[iInterfaceIndex] = s_pPacketsCounterOutputECVideo[iInterfaceIndex]+1;
+                     s_pPacketsCounterOutputECVideo[iInterfaceIndex]++;
                }
                else
                {
                   if ( NULL != s_pPacketsCounterOutputVideo )
-                     s_pPacketsCounterOutputVideo[iInterfaceIndex] = s_pPacketsCounterOutputVideo[iInterfaceIndex]+1;
+                     s_pPacketsCounterOutputVideo[iInterfaceIndex]++;
                }
             }
          }
+
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
          if ( NULL != s_pPacketsCounterOutputData )
-            s_pPacketsCounterOutputData[iInterfaceIndex] = s_pPacketsCounterOutputData[iInterfaceIndex]+1;
+            s_pPacketsCounterOutputData[iInterfaceIndex]++;
 
          // To fix
          /*
@@ -562,7 +709,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
          */
          iCountPackets++;
          int bCRCOk = 0;
-         int iPacketLength = packet_process_and_check(iInterfaceIndex, pData, iLength, &bCRCOk);
+         int iPacketLength = packet_process_and_check(iInterfaceIndex, pData, iRemainingLength, &bCRCOk);
 
          if ( iPacketLength <= 0 )
          {
@@ -577,40 +724,48 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
                iInterfaceIndex+1, pPH->total_length, str_get_packet_type(pPH->packet_type));
             iDataIsOk = 0;
             pData += pPH->total_length;
-            iLength -= pPH->total_length; 
+            iRemainingLength -= pPH->total_length; 
             continue;
          }
 
-         if ( (iPacketLength != pPH->total_length) || (pPH->total_length >= MAX_PACKET_TOTAL_SIZE) )
+         if ( (iPacketLength != iThisLen) || (iThisLen >= MAX_PACKET_TOTAL_SIZE) )
          {
-            log_softerror_and_alarm("[RadioRxThread] Received broken packet (computed size: %d). Packet size: %d bytes, type: %s", iPacketLength, pPH->total_length, str_get_packet_type(pPH->packet_type));
+            log_softerror_and_alarm("[RadioRxThread] Received broken packet (computed size: %d). Packet size: %d bytes, type: %s", iPacketLength, iThisLen, str_get_packet_type(pPH->packet_type));
             iDataIsOk = 0;
-            pData += pPH->total_length;
-            iLength -= pPH->total_length; 
+            pData += iThisLen;
+            iRemainingLength -= iThisLen;
             continue;
          }
-         _radio_rx_check_add_packet_to_rx_queue(pData, pPH->total_length, iInterfaceIndex);
+         _radio_rx_check_add_packet_to_rx_queue(pData, iThisLen, iInterfaceIndex);
 
-         pData += pPH->total_length;
-         iLength -= pPH->total_length;
+         pData += iThisLen;
+         iRemainingLength -= iThisLen;
       }
     
-      // To fix, remove
-      //t_packet_header* pPH2 = (t_packet_header*)pBuffer;
-      //if ( (pPH2->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-      //if ( NULL != s_pVideoPacketsCounterOutput )
-      //   continue;
-
       s_uRadioRxTimeNow = get_current_timestamp_ms();
+      if ( NULL != s_pRxAirGapTracking )
+      {
+         u32 uGap = s_uRadioRxTimeNow - s_uRadioRxLastReceivedPacket;
+         if ( uGap > 255 )
+            uGap = 255;
+         if ( uGap > *s_pRxAirGapTracking )
+            *s_pRxAirGapTracking = uGap;
+      }
+      s_uRadioRxLastReceivedPacket = s_uRadioRxTimeNow;
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
-      u32 uVehicleId = pPH->vehicle_id_src;
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBuffer;
+      u32 uVehicleId = 0;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         uVehicleId = pPH->vehicle_id_src;
+      else
+         uVehicleId = pPHC->vehicle_id_src;
 
       int nLost = _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
       if ( nLost > 0 )
       {
          if ( NULL != s_pPacketsCounterOutputMissing)
-            s_pPacketsCounterOutputMissing[iInterfaceIndex] = s_pPacketsCounterOutputMissing[iInterfaceIndex]+1;
+            s_pPacketsCounterOutputMissing[iInterfaceIndex]++;
          if ( NULL != s_pPacketsCounterOutputMissingMaxGap )
          if ( nLost > s_pPacketsCounterOutputMissingMaxGap[iInterfaceIndex] )
             s_pPacketsCounterOutputMissingMaxGap[iInterfaceIndex] = (u8)nLost;
@@ -783,7 +938,6 @@ static void * _thread_radio_rx(void *argument)
       uTimeLastRead = uTime;
 
       int nResult = select(s_iRadioRxMaxFD, &s_RadioRxReadSet, NULL, NULL, &s_iRadioRxReadTimeInterval);
-
       s_uRadioRxLastTimeRead += get_current_timestamp_micros() - uTimeLastRead;
       s_uRadioRxLastTimeQueue = 0;
 
@@ -850,8 +1004,6 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
    if ( s_iRadioRxInitialized )
       return 1;
 
-   _radio_rx_update_fd_sets();
-
    s_pSMRadioStats = pSMRadioStats;
    s_pSMRadioRxGraphs = pSMRadioRxGraphs;
    s_iSearchMode = iSearchMode;
@@ -864,17 +1016,11 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
 
    s_iRadioRxAllInterfacesPaused = 0;
 
-   for( int i=0; i<MAX_RX_PACKETS_QUEUE; i++ )
+   s_RadioRxState.queue_reg_priority.iQueueSize = MAX_RX_PACKETS_QUEUE;
+   s_RadioRxState.queue_high_priority.iQueueSize = 150;
+
+   for( int i=0; i<s_RadioRxState.queue_reg_priority.iQueueSize; i++ )
    {
-      s_RadioRxState.queue_high_priority.iPacketsLengths[i] = 0;
-      s_RadioRxState.queue_high_priority.uPacketsAreShort[i] = 0;
-      s_RadioRxState.queue_high_priority.uPacketsRxInterface[i] = 0;
-      s_RadioRxState.queue_high_priority.pPacketsBuffers[i] = (u8*) malloc(MAX_PACKET_TOTAL_SIZE);
-      if ( NULL == s_RadioRxState.queue_high_priority.pPacketsBuffers[i] )
-      {
-         log_error_and_alarm("[RadioRx] Failed to allocate rx packets buffers!");
-         return 0;
-      }
       s_RadioRxState.queue_reg_priority.iPacketsLengths[i] = 0;
       s_RadioRxState.queue_reg_priority.uPacketsAreShort[i] = 0;
       s_RadioRxState.queue_reg_priority.uPacketsRxInterface[i] = 0;
@@ -885,15 +1031,26 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
          return 0;
       }
    }
+   log_line("[RadioRx] Allocated %u bytes for %d rx packets (reg priority)", s_RadioRxState.queue_reg_priority.iQueueSize * MAX_PACKET_TOTAL_SIZE, s_RadioRxState.queue_reg_priority.iQueueSize);
 
-   log_line("[RadioRx] Allocated %u bytes for %d rx packets.", 2*MAX_RX_PACKETS_QUEUE * MAX_PACKET_TOTAL_SIZE, MAX_RX_PACKETS_QUEUE);
+   for( int i=0; i<s_RadioRxState.queue_high_priority.iQueueSize; i++ )
+   {
+      s_RadioRxState.queue_high_priority.iPacketsLengths[i] = 0;
+      s_RadioRxState.queue_high_priority.uPacketsAreShort[i] = 0;
+      s_RadioRxState.queue_high_priority.uPacketsRxInterface[i] = 0;
+      s_RadioRxState.queue_high_priority.pPacketsBuffers[i] = (u8*) malloc(MAX_PACKET_TOTAL_SIZE);
+      if ( NULL == s_RadioRxState.queue_high_priority.pPacketsBuffers[i] )
+      {
+         log_error_and_alarm("[RadioRx] Failed to allocate rx packets buffers!");
+         return 0;
+      }
+   }
+   log_line("[RadioRx] Allocated %u bytes for %d rx packets (high priority)", s_RadioRxState.queue_high_priority.iQueueSize * MAX_PACKET_TOTAL_SIZE, s_RadioRxState.queue_high_priority.iQueueSize);
 
-   s_RadioRxState.queue_high_priority.iCurrentRxPacketToConsume = 0;
-   s_RadioRxState.queue_high_priority.iCurrentRxPacketIndex = 0;
-   s_RadioRxState.queue_high_priority.iCurrentRxPacketsInQueue = 0;
-   s_RadioRxState.queue_reg_priority.iCurrentRxPacketToConsume = 0;
-   s_RadioRxState.queue_reg_priority.iCurrentRxPacketIndex = 0;
-   s_RadioRxState.queue_reg_priority.iCurrentRxPacketsInQueue = 0;
+   s_RadioRxState.queue_high_priority.iCurrentPacketIndexToConsume = 0;
+   s_RadioRxState.queue_high_priority.iCurrentPacketIndexToWrite = 0;
+   s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToConsume = 0;
+   s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToWrite = 0;
    
    s_RadioRxState.queue_high_priority.iStatsMaxPacketsInQueue = 0;
    s_RadioRxState.queue_high_priority.iStatsMaxPacketsInQueueLastMinute = 0;
@@ -903,29 +1060,45 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
    s_RadioRxState.uTimeLastStatsUpdate = get_current_timestamp_ms();
    s_RadioRxState.uTimeLastMinuteStatsUpdate = get_current_timestamp_ms();
    
-   s_RadioRxState.queue_high_priority.pSemaphore = sem_open(RUBY_SEM_RX_RADIO_HIGH_PRIORITY, O_CREAT, S_IWUSR | S_IRUSR, 0);
-   if ( NULL == s_RadioRxState.queue_high_priority.pSemaphore )
+   sem_unlink(RUBY_SEM_RX_RADIO_HIGH_PRIORITY);
+   sem_unlink(RUBY_SEM_RX_RADIO_REG_PRIORITY);
+
+   s_RadioRxState.queue_high_priority.pSemaphoreWrite = sem_open(RUBY_SEM_RX_RADIO_HIGH_PRIORITY, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR, 0);
+   if ( (NULL == s_RadioRxState.queue_high_priority.pSemaphoreWrite) || (SEM_FAILED == s_RadioRxState.queue_high_priority.pSemaphoreWrite) )
    {
-      log_error_and_alarm("[RadioRx] Failed to create semaphore: %s", RUBY_SEM_RX_RADIO_HIGH_PRIORITY);
+      log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s", RUBY_SEM_RX_RADIO_HIGH_PRIORITY);
       return 0;
    }
-   s_RadioRxState.queue_reg_priority.pSemaphore = sem_open(RUBY_SEM_RX_RADIO_REG_PRIORITY, O_CREAT, S_IWUSR | S_IRUSR, 0);
-   if ( NULL == s_RadioRxState.queue_reg_priority.pSemaphore )
+   s_RadioRxState.queue_high_priority.pSemaphoreRead = sem_open(RUBY_SEM_RX_RADIO_HIGH_PRIORITY, O_RDWR);
+   if ( (NULL == s_RadioRxState.queue_high_priority.pSemaphoreRead) || (SEM_FAILED == s_RadioRxState.queue_high_priority.pSemaphoreRead) )
    {
-      log_error_and_alarm("[RadioRx] Failed to create semaphore: %s", RUBY_SEM_RX_RADIO_REG_PRIORITY);
+      log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s", RUBY_SEM_RX_RADIO_HIGH_PRIORITY);
+      return 0;
+   }
+   int iSemVal = 0;
+   if ( 0 == sem_getvalue(s_RadioRxState.queue_high_priority.pSemaphoreRead, &iSemVal) )
+      log_line("[RadioRx] High priority queue semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("[RadioRx] Failed to get high priority queue sem value.");
+
+   s_RadioRxState.queue_reg_priority.pSemaphoreWrite = sem_open(RUBY_SEM_RX_RADIO_REG_PRIORITY, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR, 0);
+   if ( (NULL == s_RadioRxState.queue_reg_priority.pSemaphoreWrite) || (SEM_FAILED == s_RadioRxState.queue_reg_priority.pSemaphoreWrite) )
+   {
+      log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s", RUBY_SEM_RX_RADIO_REG_PRIORITY);
+      return 0;
+   }
+   s_RadioRxState.queue_reg_priority.pSemaphoreRead = sem_open(RUBY_SEM_RX_RADIO_REG_PRIORITY, O_RDWR);
+   if ( (NULL == s_RadioRxState.queue_reg_priority.pSemaphoreRead) || (SEM_FAILED == s_RadioRxState.queue_reg_priority.pSemaphoreRead) )
+   {
+      log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s", RUBY_SEM_RX_RADIO_REG_PRIORITY);
       return 0;
    }
 
-   if ( 0 != pthread_mutex_init(&(s_RadioRxState.queue_high_priority.mutex), NULL) )
-   {
-      log_error_and_alarm("[RadioRx] Failed to init high priority mutex.");
-      return 0;
-   }
-   if ( 0 != pthread_mutex_init(&(s_RadioRxState.queue_reg_priority.mutex), NULL) )
-   {
-      log_error_and_alarm("[RadioRx] Failed to init reg priority mutex.");
-      return 0;
-   }
+   iSemVal = 0;
+   if ( 0 == sem_getvalue(s_RadioRxState.queue_reg_priority.pSemaphoreRead, &iSemVal) )
+      log_line("[RadioRx] Reg priority queue semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("[RadioRx] Failed to get reg priority queue sem value.");
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
@@ -966,23 +1139,23 @@ void radio_rx_stop_rx_thread()
    s_iRadioRxSingalStop = 1;
    s_iRadioRxInitialized = 0;
 
-   pthread_mutex_lock(&(s_RadioRxState.queue_high_priority.mutex));
-   pthread_mutex_unlock(&(s_RadioRxState.queue_high_priority.mutex));
-
-   pthread_mutex_lock(&(s_RadioRxState.queue_reg_priority.mutex));
-   pthread_mutex_unlock(&(s_RadioRxState.queue_reg_priority.mutex));
-
    pthread_cancel(s_pThreadRadioRx);
 
-   pthread_mutex_destroy(&(s_RadioRxState.queue_high_priority.mutex));
-   pthread_mutex_destroy(&(s_RadioRxState.queue_reg_priority.mutex));
+   if ( NULL != s_RadioRxState.queue_high_priority.pSemaphoreWrite )
+      sem_close(s_RadioRxState.queue_high_priority.pSemaphoreWrite);
+   if ( NULL != s_RadioRxState.queue_high_priority.pSemaphoreRead )
+      sem_close(s_RadioRxState.queue_high_priority.pSemaphoreRead);
+   if ( NULL != s_RadioRxState.queue_reg_priority.pSemaphoreWrite )
+      sem_close(s_RadioRxState.queue_reg_priority.pSemaphoreWrite);
+   if ( NULL != s_RadioRxState.queue_reg_priority.pSemaphoreRead )
+      sem_close(s_RadioRxState.queue_reg_priority.pSemaphoreRead);
+   s_RadioRxState.queue_high_priority.pSemaphoreWrite = NULL;
+   s_RadioRxState.queue_high_priority.pSemaphoreRead = NULL;
+   s_RadioRxState.queue_reg_priority.pSemaphoreWrite = NULL;
+   s_RadioRxState.queue_reg_priority.pSemaphoreRead = NULL;
 
-   if ( NULL != s_RadioRxState.queue_high_priority.pSemaphore )
-      sem_close(s_RadioRxState.queue_high_priority.pSemaphore);
-   if ( NULL != s_RadioRxState.queue_reg_priority.pSemaphore )
-      sem_close(s_RadioRxState.queue_reg_priority.pSemaphore);
-   s_RadioRxState.queue_high_priority.pSemaphore = NULL;
-   s_RadioRxState.queue_reg_priority.pSemaphore = NULL;
+   sem_unlink(RUBY_SEM_RX_RADIO_HIGH_PRIORITY);
+   sem_unlink(RUBY_SEM_RX_RADIO_REG_PRIORITY);
 }
 
 void radio_rx_set_custom_thread_priority(int iPriority)
@@ -1020,14 +1193,9 @@ void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason)
       while ( ! s_bCanDoOperations )
          hardware_sleep_ms(1);
 
-      pthread_mutex_lock(&(s_RadioRxState.queue_high_priority.mutex));
-      pthread_mutex_lock(&(s_RadioRxState.queue_reg_priority.mutex));
       s_iRadioRxPausedInterfaces[iInterfaceIndex]++;
       _radio_rx_check_update_all_paused_flag();
-      pthread_mutex_unlock(&(s_RadioRxState.queue_reg_priority.mutex));
-      pthread_mutex_unlock(&(s_RadioRxState.queue_high_priority.mutex));
 
-      _radio_rx_update_fd_sets();
       s_bHasPendingOperation = 0;
       s_bCanDoOperations = 0;
    }
@@ -1063,17 +1231,12 @@ void radio_rx_resume_interface(int iInterfaceIndex)
       while ( ! s_bCanDoOperations )
          hardware_sleep_ms(1);
 
-      pthread_mutex_lock(&(s_RadioRxState.queue_high_priority.mutex));
-      pthread_mutex_lock(&(s_RadioRxState.queue_reg_priority.mutex));
       if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] > 0 )
       {
          s_iRadioRxPausedInterfaces[iInterfaceIndex]--;
          if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] == 0 )
             s_iRadioRxAllInterfacesPaused = 0;
       }
-      pthread_mutex_unlock(&(s_RadioRxState.queue_reg_priority.mutex));
-      pthread_mutex_unlock(&(s_RadioRxState.queue_high_priority.mutex));
-      _radio_rx_update_fd_sets();
       s_bHasPendingOperation = 0;
       s_bCanDoOperations = 0;
    }
@@ -1102,14 +1265,19 @@ void radio_rx_set_dev_mode()
 }
 
 // Pointers to array of int-s (max radio cards, for each card)
-void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputRetrVideo, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap)
+void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputHighPriority, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap)
 {
    s_pPacketsCounterOutputVideo = pCounterOutputVideo;
    s_pPacketsCounterOutputECVideo = pCounterOutputECVideo;
-   s_pPacketsCounterOutputRetrVideo = pCounterOutputRetrVideo;
+   s_pPacketsCounterOutputHighPriority = pCounterOutputHighPriority;
    s_pPacketsCounterOutputData = pCounterOutputData;
    s_pPacketsCounterOutputMissing = pCounterMissingPackets;
    s_pPacketsCounterOutputMissingMaxGap = pCounterMissingPacketsMaxGap;
+}
+
+void radio_rx_set_air_gap_track_output(u8* pCounterRxAirgap)
+{
+   s_pRxAirGapTracking = pCounterRxAirgap;
 }
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength)
@@ -1217,84 +1385,4 @@ u32 radio_rx_get_and_reset_max_loop_time_queue()
    u32 u = s_uRadioRxLastTimeQueue;
    s_uRadioRxLastTimeQueue = 0;
    return u;
-}
-
-
-u8* _radio_rx_wait_get_queue_packet(t_radio_rx_state_packets_queue* pQueue, u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
-{
-   int iRes = -1;
-
-   if ( 0 == uTimeoutMicroSec )
-   {
-      iRes = sem_trywait(pQueue->pSemaphore);
-   }
-   else
-   {
-      struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ts.tv_nsec += 1000*uTimeoutMicroSec;
-      iRes = sem_timedwait(pQueue->pSemaphore, &ts);
-   }
-   if ( 0 != iRes )
-      return NULL;
-
-   int iIndexToCopy = 0;
-   pthread_mutex_lock(&(pQueue->mutex));
-
-   iIndexToCopy = pQueue->iCurrentRxPacketToConsume;
-   if ( NULL != pLength )
-      *pLength = pQueue->iPacketsLengths[pQueue->iCurrentRxPacketToConsume];
-   if ( NULL != pIsShortPacket )
-      *pIsShortPacket = pQueue->uPacketsAreShort[pQueue->iCurrentRxPacketToConsume];
-   if ( NULL != pRadioInterfaceIndex )
-      *pRadioInterfaceIndex = pQueue->uPacketsRxInterface[pQueue->iCurrentRxPacketToConsume];
-
-   // Defer copy after mutex unlock
-   //memcpy(s_tmpLastProcessedRadioRxPacket, pQueue->pPacketsBuffers[pQueue->iCurrentRxPacketToConsume], pQueue->iPacketsLengths[pQueue->iCurrentRxPacketToConsume]);
-
-   pQueue->iCurrentRxPacketToConsume++;
-   if ( pQueue->iCurrentRxPacketToConsume >= MAX_RX_PACKETS_QUEUE )
-      pQueue->iCurrentRxPacketToConsume = 0;
-   pQueue->iCurrentRxPacketsInQueue--;
-   pthread_mutex_unlock(&(pQueue->mutex));
-
-   memcpy(s_tmpLastProcessedRadioRxPacket, pQueue->pPacketsBuffers[iIndexToCopy], pQueue->iPacketsLengths[iIndexToCopy]);
-
-   return s_tmpLastProcessedRadioRxPacket;
-}
-
-u8* radio_rx_wait_get_next_received_high_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
-{
-   if ( NULL != pLength )
-      *pLength = 0;
-   if ( NULL != pIsShortPacket )
-      *pIsShortPacket = 0;
-   if ( NULL != pRadioInterfaceIndex )
-      *pRadioInterfaceIndex = 0;
-   if ( 0 == s_iRadioRxInitialized )
-      return NULL;
-
-   if ( NULL == s_RadioRxState.queue_high_priority.pSemaphore )
-   if ( s_RadioRxState.queue_high_priority.iCurrentRxPacketIndex == s_RadioRxState.queue_high_priority.iCurrentRxPacketToConsume )
-      return 0;
-
-   return _radio_rx_wait_get_queue_packet(&(s_RadioRxState.queue_high_priority), uTimeoutMicroSec, pLength, pIsShortPacket, pRadioInterfaceIndex);
-}
-
-u8* radio_rx_wait_get_next_received_reg_prio_packet(u32 uTimeoutMicroSec, int* pLength, int* pIsShortPacket, int* pRadioInterfaceIndex)
-{
-   if ( NULL != pLength )
-      *pLength = 0;
-   if ( NULL != pIsShortPacket )
-      *pIsShortPacket = 0;
-   if ( NULL != pRadioInterfaceIndex )
-      *pRadioInterfaceIndex = 0;
-   if ( 0 == s_iRadioRxInitialized )
-      return NULL;
-
-   if ( NULL == s_RadioRxState.queue_reg_priority.pSemaphore )
-   if ( s_RadioRxState.queue_reg_priority.iCurrentRxPacketIndex == s_RadioRxState.queue_reg_priority.iCurrentRxPacketToConsume )
-      return 0;
-
-   return _radio_rx_wait_get_queue_packet(&(s_RadioRxState.queue_reg_priority), uTimeoutMicroSec, pLength, pIsShortPacket, pRadioInterfaceIndex);
 }

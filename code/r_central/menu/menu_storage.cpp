@@ -33,6 +33,7 @@
 #include "menu_objects.h"
 #include "menu_storage.h"
 #include "menu_confirmation.h"
+#include "menu_controller_recording.h"
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -51,7 +52,7 @@ MenuStorage::MenuStorage(void)
 :Menu(MENU_ID_STORAGE, "Media & Storage", NULL)
 {
    m_Width = 0.68;
-   m_Height = 0.62;
+   m_Height = 0.66;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
    m_VideoInfoFilesCount = 0;
    m_PicturesFilesCount = 0;
@@ -63,6 +64,8 @@ MenuStorage::MenuStorage(void)
    m_ViewScreenShotIndex = -1;
    m_ScreenshotImageId = MAX_U32;
    m_pPopupProgress = NULL;
+   m_uMustRefreshTime = 0;
+   m_IndexRecordingOptions = -1;
 }
 
 MenuStorage::~MenuStorage()
@@ -123,7 +126,7 @@ void MenuStorage::onShow()
    m_IndexCopy = -1;
    m_IndexMove = -1;
    m_IndexDelete = -1;
-   m_MainItemsCount = 4;
+   m_MainItemsCount = 5;
 
    #if defined(HW_PLATFORM_RASPBERRY)
    m_IndexExpand = addMenuItem(new MenuItem("Expand File System", "Expands the file system to occupy the entire available SD card space."));
@@ -135,6 +138,9 @@ void MenuStorage::onShow()
    m_IndexViewPictures = addMenuItem(new MenuItem("View Screenshots", "View the screenshots"));
    if ( 0 == media_get_screenshots_count() )
       m_pMenuItems[m_IndexViewPictures]->setEnabled(false);
+
+   m_IndexRecordingOptions =  addMenuItem(new MenuItem("Recording Options", "Change recording options."));
+   m_pMenuItems[m_IndexRecordingOptions]->showArrow();
 
    addMenuItem(new MenuItem("Prev Page",""));
    addMenuItem(new MenuItem("Next Page",""));
@@ -159,6 +165,12 @@ void MenuStorage::onShow()
    m_ExtraItemsHeight += height_text * 1.5;
    */
    Menu::onShow();
+
+   if ( g_bVideoRecordingStarted )
+   {
+      MenuConfirmation* pMC = new MenuConfirmation("Recording in progress", "A recording is in progress. Do you want to stop it?", 1);
+      add_menu_to_stack(pMC);
+   }
 }
 
 
@@ -303,7 +315,7 @@ void MenuStorage::Render()
    else
       maxMenuIndex += m_VideoInfoFilesCount - indexStartThisPage;
 
-   y += height_text*0.4;
+   //y += height_text*0.4;
 
    sprintf(szBuff, "Page %d of %d", m_UIFilesPage+1,1+(m_VideoInfoFilesCount/m_UIFilesPerPage));
    g_pRenderEngine->drawTextLeft(x+maxWidth-2*m_sfMenuPaddingX, y, g_idFontMenu, szBuff); 
@@ -398,6 +410,16 @@ void MenuStorage::onReturnFromChild(int iChildMenuId, int returnValue)
    Menu::onReturnFromChild(iChildMenuId, returnValue);
    if ( 1 != returnValue )
       return;
+
+   if ( 1 == iChildMenuId/1000 )
+   {
+      if ( g_bVideoRecordingStarted )
+      {
+         ruby_stop_recording();
+         m_uMustRefreshTime = g_TimeNow + 5000;
+      }
+      return;
+   }
 
    if ( 5 == iChildMenuId/1000 )
    {
@@ -858,6 +880,12 @@ bool MenuStorage::periodicLoop()
       }
    }
 
+   if ( m_uMustRefreshTime != 0 )
+   if ( (g_TimeNow > m_uMustRefreshTime) || (! g_bVideoProcessing) )
+   {
+      m_uMustRefreshTime = 0;
+      menu_refresh_all_menus();
+   }
    return false;
 }
 
@@ -908,6 +936,12 @@ void MenuStorage::onSelectItem()
       m_ScreenshotImageId = g_pRenderEngine->loadImage(szFile);
       if ( (0 != m_ScreenshotImageId) && (MAX_U32 != m_ScreenshotImageId) )
          log_line("Men: Image loaded ok");
+      return;
+   }
+
+   if ( m_IndexRecordingOptions == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuControllerRecording());
       return;
    }
 

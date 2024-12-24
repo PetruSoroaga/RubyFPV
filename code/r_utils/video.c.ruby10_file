@@ -33,24 +33,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <fcntl.h>
-#include <pthread.h>
 
 #include "bcm_host.h"
 #include "ilclient.h"
+#include "base.h"
 
-void _log(const char* szText )
+struct timeval s_TimeStruct;
+uint32_t s_Time;
+uint32_t s_TimeLastFPS = 0;
+
+static int s_iFPS = 0;
+static int s_iFPSReads = 0;
+static int s_iFPSSearchTagsFound = 0;
+
+static DISPMANX_DISPLAY_HANDLE_T display;
+uint32_t s_uSearchTag = 0x3333;
+
+char szFileName[256];
+int iFPS = 0;
+
+void onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
 {
-   if ( NULL == szText )
-      return;
+   s_iFPS++;
 
-   FILE* fd = fopen("/tmp/ruby_videoplayer.log", "ab");
-   if ( NULL != fd )
+   gettimeofday(&s_TimeStruct, NULL);
+   s_Time = s_TimeStruct.tv_sec*1000 + s_TimeStruct.tv_usec/1000;
+
+   if ( s_Time >= s_TimeLastFPS+1000 )
    {
-      fprintf(fd, "%s\n", szText);
-      fclose(fd);
-   } 
+      s_TimeLastFPS = s_Time;
+      s_iFPS = 0;
+      s_iFPSReads = 0;
+      s_iFPSSearchTagsFound = 0;
+   }
 }
-
+ 
 static int video_decode()
 {
    OMX_VIDEO_PARAM_PORTFORMATTYPE format;
@@ -59,12 +76,12 @@ static int video_decode()
    TUNNEL_T tunnel[4];
    ILCLIENT_T *client;
    int status = 0;
-   unsigned int data_len = 0;
+   unsigned int uBufferReadSize = 0;
    int iExit = 0;
+   
    memset(list, 0, sizeof(list));
    memset(tunnel, 0, sizeof(tunnel));
-
-
+   
    if((client = ilclient_init()) == NULL)
    {
       return -3;
@@ -76,22 +93,16 @@ static int video_decode()
       return -4;
    }
 
+   int iPipeRead = -1;
+   iPipeRead = open(szFileName, O_RDONLY);
+   if( -1 == iPipeRead )
+   {
+       log_error_and_alarm("Failed to open input file: (%s)", szFileName);
+       return EXIT_FAILURE;
+   }
 
-    char szFIFOName[100];
-    strcpy(szFIFOName, "/tmp/ruby/fifovidstream");
-    int readfd = -1;
-    readfd = open(szFIFOName, O_RDONLY | O_NONBLOCK);
-    if( -1 == readfd )
-    {
-        perror("failed readfd: open()");
-        return EXIT_FAILURE;
-    }
+   log_line("Opened file: [%s], fd=%d", szFileName, iPipeRead);
 
-    char szLog[256];
-    sprintf(szLog, "Opened fifo: [%s], fd=%d", szFIFOName, readfd);
-    _log(szLog);
-
-   
    // create video_decode
    if(ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
       status = -14;
@@ -115,6 +126,9 @@ static int video_decode()
    format.nVersion.nVersion = OMX_VERSION;
    format.nPortIndex = 130;
    format.eCompressionFormat = OMX_VIDEO_CodingAVC;
+   format.xFramerate = iFPS << 16;
+   
+   log_line("FPS: %d", iFPS);
 
    if(status == 0 &&
       OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
@@ -130,36 +144,51 @@ static int video_decode()
       while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
       {
          // feed data and wait until we get port settings changed
-         unsigned char *dest = buf->pBuffer;
-         data_len = 0;
-         while (data_len == 0)
+         unsigned char *pBufferRead = buf->pBuffer;
+         uBufferReadSize = 0;
+         while (buf->nAllocLen - uBufferReadSize > 0 )
          {
-
-            int read_count = read(readfd, dest, buf->nAllocLen-data_len);
-            //if ( read_count > 0 )
-            //{
-            //   sprintf(szLog, "read %d of %d", read_count, buf->nAllocLen-data_len);
-            //    _log(szLog);
-            //}
-            //if ( read_count < 0 )
-            //{
-            //   iExit = 1;
-            //   break;
-            //}
-            if ( read_count <= 0 )
+            //int read_count = read(STDIN_FILENO, pBufferRead, buf->nAllocLen-uBufferReadSize);
+            int read_count = read(iPipeRead, pBufferRead, buf->nAllocLen-uBufferReadSize);
+            s_iFPSReads++;
+          
+            if ( read_count < 0 )
             {
-               struct timespec to_sleep = { 0, (long int)(2*1000*1000) };
-               nanosleep(&to_sleep, NULL);
+               iExit = 1;
+               break;
             }
-            else
-               data_len += read_count;
-         }
+            
+            uBufferReadSize += read_count;
+            
+            if ( uBufferReadSize == buf->nAllocLen )
+               break;
+
+            unsigned char *pTmp = pBufferRead;
+            pBufferRead += read_count;
+  
+            while (pTmp != pBufferRead) // search for frame delimiter, break reading on start of frame
+            {
+               s_uSearchTag = (s_uSearchTag << 8) + (*pTmp);
+
+               if ((s_uSearchTag == 0x0121) || (s_uSearchTag == 0x0127))
+                   break;
+               pTmp++;
+            }
+            if (pTmp != pBufferRead)
+            {
+               s_iFPSSearchTagsFound++;
+               break;
+            }
+            
+         } // end of: while (buf->nAllocLen - uBufferReadSize > 0 )
+           
+         
          if ( iExit )
             break;
 
          if(port_settings_changed == 0 &&
-            ((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-             (data_len == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+            ((uBufferReadSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+             (uBufferReadSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
                                                        ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
          {
             port_settings_changed = 1;
@@ -173,8 +202,8 @@ static int video_decode()
             ilclient_change_component_state(video_render, OMX_StateExecuting);
          }
          
-         buf->nFilledLen = data_len;
-         data_len = 0;
+         buf->nFilledLen = uBufferReadSize;
+         uBufferReadSize = 0;
 
          buf->nOffset = 0;
          if(first_packet)
@@ -191,6 +220,8 @@ static int video_decode()
             break;
          }
       }
+      // end of: while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
+      
 
       buf->nFilledLen = 0;
       buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
@@ -207,9 +238,9 @@ static int video_decode()
 
    }
 
-   if ( readfd != -1 )
-      close(readfd);
- 
+   if ( -1 != iPipeRead )
+      close(iPipeRead);
+
    ilclient_disable_tunnel(tunnel);
    ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
    ilclient_teardown_tunnels(tunnel);
@@ -227,35 +258,28 @@ static int video_decode()
 
 int main (int argc, char **argv)
 {
-   bcm_host_init();
-
-   char szLog[128];
-   pthread_t this_thread = pthread_self();
-   struct sched_param params;
-   int policy = 0;
-   int ret = 0;
-   ret = pthread_getschedparam(this_thread, &policy, &params);
-   if ( ret != 0 )
-     sprintf(szLog, "Failed to get schedule param");
-   else
-      sprintf(szLog, "Current thread policy/priority: %d/%d", policy, params.sched_priority);
-   _log(szLog);
-
-   params.sched_priority = 50;
-   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
-   if ( ret != 0 )
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      sprintf(szLog, "Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
-      _log(szLog);
+      printf("%d.%d (b%d)", 10,1,252);
+      return 0;
    }
 
-   ret = pthread_getschedparam(this_thread, &policy, &params);
-   if ( ret != 0 )
-     sprintf(szLog, "Failed to get schedule param");
-   else
-     sprintf(szLog, "Current new thread policy/priority: %d/%d", policy, params.sched_priority);
-   _log(szLog);
+   if ( argc<3 )
+      return 0;
 
+   log_init("RubyVideoPlayer");
+
+   iFPS = atoi(argv[argc-1]);
+   if ( iFPS < 10 || iFPS > 120 )
+      iFPS = 30;
+
+   strcpy(szFileName, argv[argc-2]);
+
+   bcm_host_init();
+
+
+   display = vc_dispmanx_display_open( 0 );
+   vc_dispmanx_vsync_callback(display, onVSync, NULL); 
    return video_decode();
 }
 

@@ -137,7 +137,7 @@ bool _check_update_hardware_one_interface_after_and_before(Model* pModel)
 
    pModel->radioInterfacesParams.interface_current_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[0];
    pModel->radioInterfacesParams.interface_current_radio_flags[0] = pModel->radioLinksParams.link_radio_flags[0];
-   pModel->radioInterfacesParams.interface_dummy1[0] = 0;
+   pModel->radioInterfacesParams.interface_raw_power[0] = DEFAULT_RADIO_TX_POWER;
    pModel->radioInterfacesParams.interface_dummy2[0] = 0;
 
    log_line("[HW Radio Check] Radio hardware check: Updated radio links based on current hardware radio interfaces. Completed.");
@@ -207,7 +207,7 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
       pModel->radioInterfacesParams.interface_link_id[0] = 0;
       pModel->radioInterfacesParams.interface_current_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[0];
       pModel->radioInterfacesParams.interface_current_radio_flags[0] = pModel->radioLinksParams.link_radio_flags[0];
-      pModel->radioInterfacesParams.interface_dummy1[0] = 0;
+      pModel->radioInterfacesParams.interface_raw_power[0] = DEFAULT_RADIO_TX_POWER;
       pModel->radioInterfacesParams.interface_dummy2[0] = 0;
 
       pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);
@@ -247,7 +247,6 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
    pModel->radioInterfacesParams.interface_link_id[0] = 0;
    pModel->radioInterfacesParams.interface_current_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[0];
    pModel->radioInterfacesParams.interface_current_radio_flags[0] = pModel->radioLinksParams.link_radio_flags[0];
-   pModel->radioInterfacesParams.interface_dummy1[0] = 0;
    pModel->radioInterfacesParams.interface_dummy2[0] = 0;
 
    pModel->radioInterfacesParams.interface_radiotype_and_driver[0] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);
@@ -497,9 +496,9 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
                pModel->radioInterfacesParams.interface_link_id[i] = pModel->radioInterfacesParams.interface_link_id[k];
                pModel->radioInterfacesParams.interface_link_id[k] = tmp;
 
-               tmp = pModel->radioInterfacesParams.interface_power[i];
-               pModel->radioInterfacesParams.interface_power[i] = pModel->radioInterfacesParams.interface_power[k];
-               pModel->radioInterfacesParams.interface_power[k] = tmp;
+               tmp = pModel->radioInterfacesParams.interface_raw_power[i];
+               pModel->radioInterfacesParams.interface_raw_power[i] = pModel->radioInterfacesParams.interface_raw_power[k];
+               pModel->radioInterfacesParams.interface_raw_power[k] = tmp;
 
                u = pModel->radioInterfacesParams.interface_radiotype_and_driver[i];
                pModel->radioInterfacesParams.interface_radiotype_and_driver[i] = pModel->radioInterfacesParams.interface_radiotype_and_driver[k];
@@ -529,9 +528,9 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
                pModel->radioInterfacesParams.interface_current_radio_flags[i] = pModel->radioInterfacesParams.interface_current_radio_flags[k];
                pModel->radioInterfacesParams.interface_current_radio_flags[k] = u;
 
-               tmp = pModel->radioInterfacesParams.interface_dummy1[i];
-               pModel->radioInterfacesParams.interface_dummy1[i] = pModel->radioInterfacesParams.interface_dummy1[k];
-               pModel->radioInterfacesParams.interface_dummy1[k] = tmp;
+               tmp = pModel->radioInterfacesParams.interface_raw_power[i];
+               pModel->radioInterfacesParams.interface_raw_power[i] = pModel->radioInterfacesParams.interface_raw_power[k];
+               pModel->radioInterfacesParams.interface_raw_power[k] = tmp;
 
                tmp = pModel->radioInterfacesParams.interface_dummy2[i];
                pModel->radioInterfacesParams.interface_dummy2[i] = pModel->radioInterfacesParams.interface_dummy2[k];
@@ -580,7 +579,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
       pModel->radioInterfacesParams.interface_card_model[i] = pRadioInfo->iCardModel;
       pModel->radioInterfacesParams.interface_current_frequency_khz[i] = 0;
       pModel->radioInterfacesParams.interface_current_radio_flags[i] = 0;
-      pModel->radioInterfacesParams.interface_dummy1[i] = 0;
+      pModel->radioInterfacesParams.interface_raw_power[i] = DEFAULT_RADIO_TX_POWER;
       pModel->radioInterfacesParams.interface_dummy2[i] = 0;
 
       pModel->radioInterfacesParams.interface_radiotype_and_driver[i] = (pRadioInfo->iRadioType & 0xFF) | ((pRadioInfo->iRadioDriver << 8) & 0xFF00);

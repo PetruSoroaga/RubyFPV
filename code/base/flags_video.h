@@ -53,7 +53,8 @@
 #define VIDEO_BITRATE_FIELD_MASK  0x7FFFFFFF
 
 // Video flags
-#define VIDEO_FLAG_FILL_H264_SPT_TIMINGS     ((u32)((u32)0x01))
+
+//#define VIDEO_FLAG_FILL_H264_SPT_TIMINGS     ((u32)((u32)0x01)) // deprecated in 10.1
 #define VIDEO_FLAG_IGNORE_TX_SPIKES          ((u32)(((u32)0x01)<<1))
 #define VIDEO_FLAG_ENABLE_LOCAL_HDMI_OUTPUT  ((u32)(((u32)0x01)<<2))
 #define VIDEO_FLAG_RETRANSMISSIONS_FAST      ((u32)(((u32)0x01)<<3))

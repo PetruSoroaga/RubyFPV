@@ -34,11 +34,13 @@
 #include "../base/models.h"
 #include "../base/models_list.h"
 #include "../base/controller_rt_info.h"
+#include "../base/parser_h264.h"
 #include "../common/relay_utils.h"
 #include "adaptive_video.h"
 #include "shared_vars.h"
 #include "timers.h"
 
+extern ParserH264 s_ParserH264RadioInput;
 
 ProcessorRxVideo* _find_create_rx_video_processor(u32 uVehicleId, u32 uVideoStreamIndex)
 {
@@ -71,6 +73,59 @@ ProcessorRxVideo* _find_create_rx_video_processor(u32 uVehicleId, u32 uVideoStre
    g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, uVideoStreamIndex);
    g_pVideoProcessorRxList[iFirstFreeSlot]->init();
    return g_pVideoProcessorRxList[iFirstFreeSlot];
+}
+
+
+void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
+{
+   if ( NULL == pPacketData )
+      return;
+/*
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacketData+sizeof(t_packet_header));
+   int iVideoDataLength = pPHVF->uCurrentBlockPacketSize;    
+   u8* pData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98);
+
+   bool bStartOfFrameDetected = s_ParserH264RadioInput.parseData(pData, iVideoDataLength, g_TimeNow);
+   if ( ! bStartOfFrameDetected )
+      return;
+   
+   //log_line("DEBUG last frame size: %d bytes",  s_ParserH264RadioInput.getSizeOfLastCompleteFrameInBytes());
+   //log_line("DEBUG detected start of %sframe", s_ParserH264RadioInput.IsInsideIFrame()?"I":"P");
+   if ( g_iDebugShowKeyFramesAfterRelaySwitch > 0 )
+   if ( s_ParserH264RadioInput.IsInsideIFrame() )
+   {
+      log_line("[Debug] Received video keyframe from VID %u after relay switch.", pPH->vehicle_id_src);
+      g_iDebugShowKeyFramesAfterRelaySwitch--;
+   }
+
+   u32 uLastFrameDuration = s_ParserH264RadioInput.getTimeDurationOfLastCompleteFrame();
+   if ( uLastFrameDuration > 127 )
+      uLastFrameDuration = 127;
+   if ( uLastFrameDuration < 1 )
+      uLastFrameDuration = 1;
+
+   u32 uLastFrameSize = s_ParserH264RadioInput.getSizeOfLastCompleteFrameInBytes();
+   uLastFrameSize /= 1000; // transform to kbytes
+
+   if ( uLastFrameSize > 127 )
+      uLastFrameSize = 127; // kbytes
+
+   g_SM_VideoInfoStatsRadioIn.uLastFrameIndex = (g_SM_VideoInfoStatsRadioIn.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
+   g_SM_VideoInfoStatsRadioIn.uFramesDuration[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] = uLastFrameDuration;
+   g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] = (g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] & 0x80) | ((u8)uLastFrameSize);
+ 
+   u32 uNextIndex = (g_SM_VideoInfoStatsRadioIn.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
+  
+   if ( s_ParserH264RadioInput.IsInsideIFrame() )
+      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
+   else
+      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
+
+   g_SM_VideoInfoStatsRadioIn.uDetectedKeyframeIntervalMs = s_ParserH264RadioInput.getCurrentlyDetectedKeyframeIntervalMs();
+   g_SM_VideoInfoStatsRadioIn.uDetectedFPS = s_ParserH264RadioInput.getDetectedFPS();
+   g_SM_VideoInfoStatsRadioIn.uDetectedSlices = (u32) s_ParserH264RadioInput.getDetectedSlices();
+*/
 }
 
 // Returns 1 if end of a video block was reached
@@ -109,15 +164,26 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    s_uTmpDebugLastPacket = pPHVF->uCurrentBlockPacketIndex;
    */
 
-     
-   //bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
+  // log_line("DEBUG check relay %u", uVehicleId);
+   bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
    u32 uVideoStreamIndex = 0;
+   //log_line("DEBUG find proc %u, %u", uVehicleId, uVideoStreamIndex);
    ProcessorRxVideo* pProcessorVideo = _find_create_rx_video_processor(uVehicleId, uVideoStreamIndex);
 
    if ( NULL == pProcessorVideo )
       return -1;
 
    pProcessorVideo->handleReceivedVideoPacket(iInterfaceIndex, pPacket, iPacketLength);
+
+   /*
+   t_packet_header_video_full_98 * pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
+   if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
+   if ( pPHVF->uCurrentBlockPacketIndex < pPHVF->uCurrentBlockDataPackets )
+   if ( (pPHVF->uVideoStreamIndexAndType >> 4) == VIDEO_TYPE_H264 )
+   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO )
+   //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
+      _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
+   */
 
    // Did we received a new video stream? Add info for it.
 // To fix
@@ -131,7 +197,7 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
    if ( pPHVF->video_block_packet_index < pPHVF->block_packets )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO )
+   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO )
    if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
       _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
 
@@ -179,11 +245,11 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
   
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
    {
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-      {
-          //t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
-          //log_line("DEBUG recv retr video [%u/%u]", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex);
-      }
+      //if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
+      //{
+      //    t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
+      //    log_line("DEBUG recv retr video [%u/%u]", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex);
+      //}
 
       nRet = _process_received_video_data_packet(iInterfaceIndex, pPacket, iPacketLength);
    }

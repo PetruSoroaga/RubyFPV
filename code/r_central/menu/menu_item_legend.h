@@ -5,6 +5,7 @@ class MenuItemLegend: public MenuItem
 {
    public:
      MenuItemLegend(const char* szTitle, const char* szDesc, float maxWidth);
+     MenuItemLegend(const char* szTitle, const char* szDesc, float maxWidth, bool bSmall);
      virtual ~MenuItemLegend();
      
      virtual float getItemHeight(float maxWidth);
@@ -16,6 +17,7 @@ class MenuItemLegend: public MenuItem
 
 
    protected:
+      bool m_bSmall;
       float m_fMarginX;
       float m_fMaxWidth;
 };

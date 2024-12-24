@@ -35,10 +35,12 @@
 #include "../base/config.h"
 #include "../base/models.h"
 #include "../base/radio_utils.h"
+#include "../base/utils.h"
+#include "../base/hardware_radio_txpower.h"
 #include "../common/string_utils.h"
-#include "utils_vehicle.h"
-#include "shared_vars.h"
-#include "timers.h"
+#include "../utils/utils_vehicle.h"
+#include "../radio/radioflags.h"
+
 
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
 {
@@ -70,6 +72,23 @@ bool videoLinkProfileIsOnlyBitrateChanged(type_video_link_profile* pOldProfile, 
    return false;
 }
 
+bool videoLinkProfileIsOnlyIPQuantizationDeltaChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
+{
+   if ( NULL == pOldProfile || NULL == pNewProfile )
+      return false;
+
+   type_video_link_profile tmp;
+   memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
+   tmp.iIPQuantizationDelta = pOldProfile->iIPQuantizationDelta;
+
+   if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
+   if ( pOldProfile->iIPQuantizationDelta != pNewProfile->iIPQuantizationDelta )
+      return true;
+
+   return false;
+}
+
+
 bool videoLinkProfileIsOnlyECSchemeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
 {
    if ( NULL == pOldProfile || NULL == pNewProfile )
@@ -96,13 +115,15 @@ bool videoLinkProfileIsOnlyAdaptiveVideoChanged(type_video_link_profile* pOldPro
 
    type_video_link_profile tmp;
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
-   tmp.uProfileEncodingFlags = (tmp.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO))) | (pOldProfile->uProfileEncodingFlags & ( VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO));
+   tmp.uProfileEncodingFlags = (tmp.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO | VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO))) | (pOldProfile->uProfileEncodingFlags & ( VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO | VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO));
 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
    {
       if ( (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) != (pNewProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
          return true;
       if ( (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) != (pNewProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO) )
+         return true;
+      if ( (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) != (pNewProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO) )
          return true;
    }
    return false;
@@ -227,7 +248,7 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
                continue;
             }
             hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
-               uRadioLinkFrequency, pModel->radioInterfacesParams.txPowerSiK,
+               uRadioLinkFrequency, pModel->radioInterfacesParams.interface_raw_power[iInterface],
                pModel->radioLinksParams.link_datarate_data_bps[iLink],
                (u32)((pModel->radioLinksParams.link_radio_flags[iLink] & RADIO_FLAGS_SIK_ECC)?1:0),
                (u32)((pModel->radioLinksParams.link_radio_flags[iLink] & RADIO_FLAGS_SIK_LBT)?1:0),
@@ -272,32 +293,37 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
    hardware_save_radio_info();
    hardware_sleep_ms(50);
 
-   if ( hardware_is_running_on_openipc() )
-   {
-      char szComm[256];
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( NULL == pRadioHWInfo )
-         {
-            log_error_and_alarm("Failed to get radio info for interface %d.", i+1);
-            continue;
-         }
-         if ( ! pRadioHWInfo->isConfigurable )
-         {
-            log_line("Configuring radio interface %d (%s): radio interface is not configurable. Skipping it.", i+1, pRadioHWInfo->szName);
-            continue;
-         }
-         if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_REALTEK) ||
-              (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
-         {
-            sprintf(szComm, "iw dev %s set txpower fixed %d", pRadioHWInfo->szName, -100*pModel->radioInterfacesParams.txPowerRTL8812AU);
-            hw_execute_bash_command(szComm, NULL);          
-         }
-      }
-   }
+   apply_vehicle_tx_power_levels(pModel);
 
    log_line("CONFIGURE RADIO END ---------------------------------------------------------");
 
    return bMissmatch;
+}
+
+void apply_vehicle_tx_power_levels(Model* pModel)
+{
+   if ( NULL == pModel )
+   {
+      log_softerror_and_alarm("Passing NULL model on applying model tx powers.");
+      return;
+   }
+
+   log_line("Aplying all radio interfaces raw tx powers...");
+   for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( ! hardware_radio_is_index_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( ! pRadioHWInfo->isConfigurable )
+         continue;
+      if ( hardware_radio_driver_is_rtl8812au_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_rtl8812au(i, pModel->radioInterfacesParams.interface_raw_power[i]);
+      if ( hardware_radio_driver_is_rtl8812eu_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_rtl8812eu(i, pModel->radioInterfacesParams.interface_raw_power[i]);
+      if ( hardware_radio_driver_is_atheros_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_atheros(i, pModel->radioInterfacesParams.interface_raw_power[i]);
+   }
+   log_line("Aplied all radio interfaces raw tx powers.");
 }

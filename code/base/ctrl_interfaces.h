@@ -40,7 +40,7 @@ typedef struct
    u32 capabilities_flags;
    //Deprecated in 9.5
    //int datarateBPSMCS; // positive: bps; negative: mcs rate; 0: none
-   int iDummy1;
+   int iRawPowerLevel;
    int iInternal;
 } t_ControllerRadioInterfaceInfo;
 
@@ -81,12 +81,15 @@ int controllerGetTXPreferredIndexForCard(const char* szMAC);
 void controllerSetCardInternal(const char* szMAC, bool bInternal);
 bool controllerIsCardInternal(const char* szMAC);
 
+bool controllerInterfacesCheckPowerLevels();
+
 int controllerAddedNewRadioInterfaces();
 
 u32 controllerGetCardFlags(const char* szMAC);
 void controllerSetCardFlags(const char* szMAC, u32 flags);
 
 void controllerGetCardUserDefinedNameOrType(radio_hw_info_t* pRadioHWInfo, char* szOutput);
+void controllerGetCardUserDefinedNameOrShortType(radio_hw_info_t* pRadioHWInfo, char* szOutput);
 char* controllerGetCardUserDefinedName(const char* szMAC);
 void controllerSetCardUserDefinedName(const char* szMAC, const char* szName);
 

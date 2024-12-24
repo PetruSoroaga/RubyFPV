@@ -32,10 +32,11 @@
 #include "menu_objects.h"
 #include "menu_controller_radio_interface.h"
 #include "menu_text.h"
-#include "menu_tx_power.h"
+#include "menu_tx_raw_power.h"
 #include "menu_confirmation.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"
+#include "../../base/tx_powers.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -169,12 +170,12 @@ void MenuControllerRadioInterface::valuesToUI()
 
    if ( pCardInfo->cardModel < 0 )
    {
-      m_pItemsSelect[1]->setSelection(-pCardInfo->cardModel);
+      m_pItemsSelect[1]->setSelection(1-pCardInfo->cardModel);
       m_pItemsSelect[1]->setEnabled(true);
    }
    else
    {
-      m_pItemsSelect[1]->setSelection(pCardInfo->cardModel);
+      m_pItemsSelect[1]->setSelection(1+pCardInfo->cardModel);
       m_pItemsSelect[1]->setEnabled(true);
    }
 
@@ -420,9 +421,19 @@ void MenuControllerRadioInterface::onSelectItem()
       t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNIC->szMAC);
       if ( NULL != pCardInfo )
       {
-         pCardInfo->cardModel = m_pItemsSelect[1]->getSelectedIndex();
-         if ( pCardInfo->cardModel > 0 )
-            pCardInfo->cardModel = - pCardInfo->cardModel;
+         if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
+         {
+            pCardInfo->cardModel = pNIC->iCardModel;
+            char szMsg[128];
+            sprintf(szMsg, "The radio interface was autodetected as: %s", str_get_radio_card_model_string(pCardInfo->cardModel));
+            addMessage2(0, szMsg, "The selected value was updated.");
+         }
+         else
+         {
+            pCardInfo->cardModel = m_pItemsSelect[1]->getSelectedIndex()-1;
+            if ( pCardInfo->cardModel > 0 )
+               pCardInfo->cardModel = - pCardInfo->cardModel;
+         }
          save_ControllerInterfacesSettings();
          valuesToUI();
       }

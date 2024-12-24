@@ -69,6 +69,7 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
       return;
 
    uSummaryLastUpdateTime = get_current_timestamp_ms();
+   log_line("---------------------------------");
    log_line("Total recv pckts: %u/sec; ", g_uTotalRecvPackets );
    for( int i=0; i<MAX_RADIO_STREAMS; i++ )
    {
@@ -117,6 +118,7 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    else
       sprintf(szBuff, "Recv/Lost (last sec, %d slices):  %d/%d", iSlices, iTotalRecv, iTotalLostBad);
    log_line(szBuff);
+   log_line("");
    fflush(stdout);
 }
 
@@ -189,7 +191,19 @@ void process_packet(int iInterfaceIndex )
       if ( bOnlyErrors )
          iMissingPackets = process_packet_errors(iInterfaceIndex, pBuffer, nLength);
 
+      int bCRCOk = 0;   
+      int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, nLength, &bCRCOk);
+      if ( bCRCOk == 0 )
+         log_softerror_and_alarm("Received packet with invalid CRC.");
+      if ( (nPacketLength != nLength) || (nPacketLength < sizeof(t_packet_header)) )
+         log_softerror_and_alarm("Received invalid packet size: %d, (total buffer: %d)", nPacketLength, nLength);
+
       t_packet_header* pPH = (t_packet_header*)pBuffer;
+      if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == 0 ) || ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == 7 ) )
+         log_softerror_and_alarm("Received invalid packet module: %d", (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE));
+      if ( (pPH->total_length != nLength) || (pPH->total_length < sizeof(t_packet_header)) )
+         log_softerror_and_alarm("Received invalid packet size: %d, (total buffer: %d)", pPH->total_length, nLength);
+      
       u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
       g_uTotalRecvPackets++;
       g_uTotalRecvPacketsTypes[pPH->packet_type]++;

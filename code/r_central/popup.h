@@ -35,6 +35,7 @@ class Popup
    void setLine(int iLine, const char* szLine);
    char* getLine(int iLine);
 
+   u32 getCreationTime();
    bool hasDisabledAutoRemove();
    void disableAutoRemove();
    int getLinesCount();
@@ -91,6 +92,7 @@ class Popup
       float m_fTimeoutSeconds;
       u32 m_uTimeoutEndTime;
       u32 m_StartTime;
+      u32 m_uCreatedTime;
 
       virtual void computeSize();
 };

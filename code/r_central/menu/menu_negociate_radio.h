@@ -20,6 +20,8 @@ class MenuNegociateRadio: public Menu
       void _computeQualities();
       void _send_command_to_vehicle();
       void _switch_to_step(int iStep);
+      void _advance_to_next_step();
+      void _apply_new_settings();
       void _onCancel();
       MenuItemSelect* m_pItemsSelect[10];
       int m_MenuIndexCancel;
@@ -29,10 +31,13 @@ class MenuNegociateRadio: public Menu
       u32 m_uStepStartTime;
       u32 m_uLastTimeSendCommandToVehicle;
       bool m_bWaitingVehicleConfirmation;
+      bool m_bWaitingCancelConfirmationFromUser;
       int m_iStep;
       int m_iDataRateIndex;
       int m_iDataRateTestCount;
       int m_iDataRateToApply;
+      int m_iCountSucceededSteps;
+      int m_iCountFailedSteps;
 
       int m_iRXPackets[20][MAX_RADIO_INTERFACES][3];
       int m_iRxLostPackets[20][MAX_RADIO_INTERFACES][3];

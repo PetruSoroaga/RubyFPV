@@ -57,7 +57,7 @@
 #include "video_source_csi.h"
 #include "shared_vars.h"
 #include "timers.h"
-#include "utils_vehicle.h"
+#include "../utils/utils_vehicle.h"
 #include "process_upload.h"
 
 #include <time.h>
@@ -1119,6 +1119,21 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, szOutput);
          strcat(szBuffer, "#"); 
 
+         szOutput[0] = 0;
+         #ifdef HW_PLATFORM_RASPBERRY
+         hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szOutput);
+         strcat(szBuffer, "CPU Id: ");
+         strcat(szBuffer, szOutput);
+         strcat(szBuffer, "#");
+         #endif
+
+         strcat(szBuffer, "Detected board type: ");
+         strcat(szBuffer, str_get_hardware_board_name(hardware_getOnlyBoardType()));
+         strcat(szBuffer, "#");
+         strcat(szBuffer, "Stored board type: ");
+         strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
+         strcat(szBuffer, "#");
+
          hw_execute_bash_command_raw("free -m  | grep Mem", szOutput);
          char szTemp[1024];
          long lt, lu, lf;
@@ -1761,6 +1776,16 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
+   if ( uCommandType == COMMAND_ID_SET_AUTO_TX_POWERS )
+   {
+      g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = (int)((pPHC->command_param >> 8) & 0xFF);
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_GENERIC,0);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      apply_vehicle_tx_power_levels(g_pCurrentModel);
+      return true;
+   }
+
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PARAMETERS )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
@@ -2102,7 +2127,16 @@ bool process_command(u8* pBuffer, int length)
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      if ( ((pPHC->command_param >> 8) & 0xFF) == 0xFF )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(cardIndex);
+         if ( NULL != pRadioHWInfo )
+            cardType = pRadioHWInfo->iCardModel;
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, cardType, 0);
+      }
+      else
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+
       g_pCurrentModel->radioInterfacesParams.interface_card_model[cardIndex] = cardType;
       if ( 0 == cardType )
       {
@@ -2406,8 +2440,9 @@ bool process_command(u8* pBuffer, int length)
          signalReloadModel(0, 0);
          return true;
       }
-
-      log_line("Received new video params. User selected video link profile change from %s to %s", str_get_video_profile_name(oldParams.user_selected_video_link_profile), str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
+      char szModeOld[32];
+      strcpy(szModeOld, str_get_video_profile_name(oldParams.user_selected_video_link_profile));
+      log_line("Received new video params. User selected video link profile change from %s to %s", szModeOld, str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
 
       log_line("Video flags for video profile %s: %s, %s, %s",
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
@@ -2439,7 +2474,6 @@ bool process_command(u8* pBuffer, int length)
          g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
          g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
       }
-
 
       int iProfileToCheck = g_pCurrentModel->video_params.user_selected_video_link_profile;
 
@@ -2491,7 +2525,6 @@ bool process_command(u8* pBuffer, int length)
            g_pCurrentModel->video_link_profiles[oldParams.user_selected_video_link_profile].h264profile != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile ||
            g_pCurrentModel->video_link_profiles[oldParams.user_selected_video_link_profile].h264level != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level ||
            g_pCurrentModel->video_link_profiles[oldParams.user_selected_video_link_profile].h264refresh != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264refresh ||
-           g_pCurrentModel->video_link_profiles[oldParams.user_selected_video_link_profile].insertPPS != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].insertPPS ||
            g_pCurrentModel->video_link_profiles[oldParams.user_selected_video_link_profile].h264quantization != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization
          )
          bVideoResolutionChanged = true;
@@ -2533,6 +2566,7 @@ bool process_command(u8* pBuffer, int length)
          signalTXVideoEncodingChanged();
          signalUserSelectedVideoProfileChanged();
       }
+      log_line("Finished processing COMMAND_ID_SET_VIDEO_PARAMS");
       return true;
    }
 
@@ -2565,6 +2599,7 @@ bool process_command(u8* pBuffer, int length)
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?"AdaptiveVideo=On":"AdaptiveVideo=Off",
       (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO)?"AdaptiveUseControllerInfo=On":"AdaptiveUseControllerInfo=Off"
       );
+ 
       log_line("Received video data rate for current video profile %s: %d, (current: %d)",
          str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
          g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps,
@@ -2676,6 +2711,21 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
+      if ( videoLinkProfileIsOnlyIPQuantizationDeltaChanged(&oldVideoProfiles[iProfileToCheck], &g_pCurrentModel->video_link_profiles[iProfileToCheck]) )
+      {
+         log_line("[RX Commands]: Changed only IP quantization delta.");
+         if ( g_pCurrentModel->isActiveCameraOpenIPC() && hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+         {
+            log_line("[RX Commands]: Signal IP quantization delta change on the fly for sigmastar.");
+            signalReloadModel(MODEL_CHANGED_VIDEO_IPQUANTIZATION_DELTA, 100 + g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].iIPQuantizationDelta);
+         }
+         else
+         {          
+            signalReloadModel(MODEL_CHANGED_GENERIC, 0);
+         }
+         return true;
+      }
+
       bool bChangedOneWayVideo = false;
       if ( (oldVideoProfiles[oldVideoParams.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO ) !=
         (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO) )
@@ -2783,15 +2833,16 @@ bool process_command(u8* pBuffer, int length)
    {
       log_line("Received new serial ports info");
       type_vehicle_hardware_interfaces_info* pNewInfo = (type_vehicle_hardware_interfaces_info*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count = pNewInfo->serial_bus_count;
-      for( int i=0; i<pNewInfo->serial_bus_count; i++ )
+      g_pCurrentModel->hardwareInterfacesInfo.serial_port_count = pNewInfo->serial_port_count;
+      for( int i=0; i<pNewInfo->serial_port_count; i++ )
       {
-         strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
-         g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
-         g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
+         strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_port_names[i], pNewInfo->serial_port_names[i]);
+         g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i] = pNewInfo->serial_port_speed[i];
+         g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] = pNewInfo->serial_port_supported_and_usage[i];
       }
 
-      int iCount = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count;
+      int iCount = g_pCurrentModel->hardwareInterfacesInfo.serial_port_count;
+      log_line("Received %d serial ports. Hardware has %d serial ports.", iCount, hardware_get_serial_ports_count());
       if ( iCount > hardware_get_serial_ports_count() )
          iCount = hardware_get_serial_ports_count();
 
@@ -2804,19 +2855,19 @@ bool process_command(u8* pBuffer, int length)
             continue;
 
          if ( pPortInfo->iPortUsage == SERIAL_PORT_USAGE_SIK_RADIO )
-         if ( pPortInfo->lPortSpeed != g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] )
+         if ( pPortInfo->lPortSpeed != g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i] )
          if ( hardware_serial_is_sik_radio(pPortInfo->szPortDeviceName) )
          {
             // Changed the serial speed of a SiK radio interface
             log_line("Received command to change the serial speed of a SiK radio interface. Serial port: [%s], old speed: %ld bps, new speed: %d bps",
                pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed,
-               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] );
+               g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i] );
             iSikPortSpeedToUse = (int)pPortInfo->lPortSpeed;
             iSiKPortToUpdate = i;
          }
 
-         pPortInfo->lPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
-         pPortInfo->iPortUsage = (int)(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF);
+         pPortInfo->lPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i];
+         pPortInfo->iPortUsage = (int)(g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF);
       }
       hardware_serial_save_configuration();
 
@@ -2872,15 +2923,15 @@ bool process_command(u8* pBuffer, int length)
       // Remove serial port used, if telemetry is set to None.
       if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
       {
-         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_port_count; i++ )
          {
-            u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+            u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF;
             if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
                  (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
                  (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
             {
                // Remove serial port usage (set it to none)
-               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] &= 0xFFFFFF00;
+               g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] &= 0xFFFFFF00;
                log_line("Did set serial port %d to type None as it was used for telemetry.");
             }
          }
@@ -2889,11 +2940,11 @@ bool process_command(u8* pBuffer, int length)
       if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
       {
          int iCurrentSerialPortIndexForTelemetry = -1;
-         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+         for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_port_count; i++ )
          {
-             u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+             u32 uPortTelemetryType = g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF;
              
-             if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+             if ( g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
              if ( (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_MAVLINK) ||
                   (uPortTelemetryType == SERIAL_PORT_USAGE_TELEMETRY_LTM) ||
                   (uPortTelemetryType == SERIAL_PORT_USAGE_MSP_OSD) )
@@ -2905,11 +2956,11 @@ bool process_command(u8* pBuffer, int length)
          log_line("Currently serial port index used for telemetry: %d", iCurrentSerialPortIndexForTelemetry);
          if ( -1 == iCurrentSerialPortIndexForTelemetry )
          {
-            for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+            for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_port_count; i++ )
             {
-               u32 uPortUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+               u32 uPortUsage = g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF;
                
-               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
                if ( uPortUsage == SERIAL_PORT_USAGE_NONE )
                {
                   iCurrentSerialPortIndexForTelemetry = i;
@@ -2922,16 +2973,16 @@ bool process_command(u8* pBuffer, int length)
             {
                log_line("Found a default serial port for telemetry. Serial port index %d", iCurrentSerialPortIndexForTelemetry);
 
-               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] <= 0 )
-                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[iCurrentSerialPortIndexForTelemetry] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+               if ( g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[iCurrentSerialPortIndexForTelemetry] <= 0 )
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[iCurrentSerialPortIndexForTelemetry] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
 
-               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
+               g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[iCurrentSerialPortIndexForTelemetry] &= 0xFFFFFF00;
                if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK )
-                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
                if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM )
-                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_LTM;
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_TELEMETRY_LTM;
                if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
-                  g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_MSP_OSD;
+                  g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[iCurrentSerialPortIndexForTelemetry] |= SERIAL_PORT_USAGE_MSP_OSD;
             }
          }
       }
@@ -3345,170 +3396,30 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_TX_POWERS )
    {
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
-      bool bUpdated = false;
-      bool bUpdatedWiFi = false;
-
-      if ( iParamsLength >= 11 )
+      if ( iParamsLength < 1 )
       {
-         pData += 8;
-         if ( ( *pData == 0x81 ) && ( *(pData+2) == 0x81 ) )
-         {
-            int iSiKPower = *(pData+1);
-            log_line("Received message with SiK radio power level: %d", iSiKPower);
-
-            if ( iSiKPower > 0 && iSiKPower < 30 )
-            if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
-            {
-               log_line("Updated SiK radio power level to %d", iSiKPower);
-               g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
-               bUpdated = true;
-            }
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-         }
-         else
-         {
-            log_softerror_and_alarm("Received invalid power levels message (for SiK radio interfaces). Ignoring it.");
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
-         }
-         if ( bUpdated )
-         {
-            saveCurrentModel();
-            signalReloadModel(MODEL_CHANGED_RADIO_POWERS, 0);
-         }
+         log_softerror_and_alarm("Received invalid params to set cards tx powers: no params received.");
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0, 0);
          return true;
       }
-
-      u8 txPowerRTL8812AU = *pData;
-      pData++;
-      u8 txPowerRTL8812EU = *pData;
-      pData++;
-      u8 txPowerAtheros = *pData;
-      pData++;
-      u8 txMaxPowerRTL8812AU = *pData;
-      pData++;
-      u8 txMaxPowerRTL8812EU = *pData;
-      pData++;
-      u8 txMaxPowerAtheros = *pData;
-      pData++;
-      u8 cardIndex = *pData;
-      pData++;
-      u8 cardPower = *pData;
-      pData++;
-
-      log_line("Received radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros, txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros);
-      log_line("Current radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
-         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
-      
-      log_line("Current radio interfaces count: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d",
-         hardware_radio_has_rtl8812au_cards(), hardware_radio_has_rtl8812eu_cards(), hardware_radio_has_atheros_cards());
-
+      int iCountCards = iParamsLength-1;
+      if ( iCountCards != *pData )
+      {
+         log_softerror_and_alarm("Received invalid params to set cards tx powers: count cards (%d) different than received buffer size (%d)", *pData, iParamsLength);
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0, 0);  
+         return true;     
+      }
+      log_line("Received new tx power levels for %d cards:", iCountCards);
+      for( int i=0; i<iCountCards; i++ )
+      {
+         log_line("Radio interface %d new tx raw power to set: %d (current: %d)", i+1, pData[i+1], g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
+         if ( pData[i+1] == g_pCurrentModel->radioInterfacesParams.interface_raw_power[i] )
+            continue;
+         g_pCurrentModel->radioInterfacesParams.interface_raw_power[i] = pData[i+1];
+      }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-
-      if ( (txMaxPowerRTL8812AU != 0xFF) && (txMaxPowerRTL8812AU > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU != txMaxPowerRTL8812AU) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;
-         bUpdated = true;
-      }
-      if ( (txMaxPowerRTL8812EU != 0xFF) && (txMaxPowerRTL8812EU > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU != txMaxPowerRTL8812EU) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU = txMaxPowerRTL8812EU;
-         bUpdated = true;
-      }
-      if ( (txMaxPowerAtheros != 0xFF) && (txMaxPowerAtheros > 0) && (g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros != txMaxPowerAtheros))
-      {
-         g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros = txMaxPowerAtheros;
-         bUpdated = true;
-      }
-
-      if ( (txPowerRTL8812AU != 0xFF) && (txPowerRTL8812AU > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU != txPowerRTL8812AU) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = txPowerRTL8812AU;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-      if ( (txPowerRTL8812EU != 0xFF) && (txPowerRTL8812EU > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU != txPowerRTL8812EU) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = txPowerRTL8812EU;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-      if ( (txPowerAtheros != 0xFF) && (txPowerAtheros > 0) && (g_pCurrentModel->radioInterfacesParams.txPowerAtheros != txPowerAtheros) )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerAtheros = txPowerAtheros;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-
-      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-      if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU > g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-      if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros )
-      {
-         g_pCurrentModel->radioInterfacesParams.txPowerAtheros = g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros;
-         bUpdatedWiFi = true;
-         bUpdated = true;
-      }
-
-      if ( (cardPower != 0xFF) && (cardPower > 0) )
-      if ( (cardIndex != 0xFF) && (cardIndex < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
-      if ( g_pCurrentModel->radioInterfacesParams.interface_power[cardIndex] != cardPower )
-      {
-         g_pCurrentModel->radioInterfacesParams.interface_power[cardIndex] = cardPower;
-         bUpdated = true;
-      }
-
-      if ( bUpdatedWiFi )
-      {
-         #ifdef HW_PLATFORM_RASPBERRY 
-         system("sudo mount -o remount,rw /");
-         system("sudo mount -o remount,rw /boot");
-         #endif
-
-         if ( hardware_radio_has_atheros_cards() )
-         if ( g_pCurrentModel->radioInterfacesParams.txPowerAtheros > 0 )
-            hardware_radio_set_txpower_atheros((int)g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
-         if ( hardware_radio_has_rtl8812au_cards() )
-         if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU > 0 )
-            hardware_radio_set_txpower_rtl8812au((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
-         if ( hardware_radio_has_rtl8812eu_cards() )
-         if ( g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU > 0 )
-            hardware_radio_set_txpower_rtl8812eu((int)g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU);
-      }
-
-      if ( bUpdated )
-      {
-         saveCurrentModel();
-         signalReloadModel(MODEL_CHANGED_RADIO_POWERS, 0);
-      }
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_SET_RADIO_SLOTTIME )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->radioInterfacesParams.slotTime = pPHC->command_param;
       saveCurrentModel();
-      //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/slottime=[0-9]*/slottime=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
-      //hw_execute_bash_command(szBuff, NULL);
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_SET_RADIO_THRESH62 )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->radioInterfacesParams.thresh62 = pPHC->command_param;
-      saveCurrentModel();
-      //sprintf(szBuff, "cp /etc/modprobe.d/ath9k_hw.conf tmp/; sed -i 's/thresh62=[0-9]*/thresh62=%d/g' tmp/ath9k_hw.conf; cp tmp/ath9k_hw.conf /etc/modprobe.d/", pPHC->command_param );
-      //hw_execute_bash_command(szBuff, NULL);
+      signalReloadModel(MODEL_CHANGED_RADIO_POWERS, 0);
       return true;
    }
 

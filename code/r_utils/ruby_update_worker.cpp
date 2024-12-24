@@ -47,6 +47,11 @@
 
 
 bool gbQuit = false;
+bool g_bIsController = true;
+char g_szUpdateZipFileFullPath[MAX_FILE_PATH_SIZE];
+char g_szUpdateZipFileName[MAX_FILE_PATH_SIZE];
+char g_szUpdateUnpackFolder[MAX_FILE_PATH_SIZE];
+
 u32 g_TimeNow = 0;
 
 void handle_sigint(int sig) 
@@ -224,29 +229,28 @@ void _write_return_code(int iCode)
    log_softerror_and_alarm("Failed to write update result to file tmp/tmp_update_result.txt");
 }
 
-int _copy_binary_files(char* szInputUpdateFolder)
+int _replace_runtime_binary_files()
 {
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
+   if ( (0 == g_szUpdateUnpackFolder[0]) )
    {
       log_line("Invalid function param for copy binary files.");
       _write_return_code(-10);
       return -1;
    }
 
-   char szComm[256];
+   char szComm[MAX_FILE_PATH_SIZE];
    char szSrcBinariesFolder[MAX_FILE_PATH_SIZE];
-   strcpy(szSrcBinariesFolder, szInputUpdateFolder);
    #ifdef HW_PLATFORM_RASPBERRY
-   strcat(szSrcBinariesFolder, SUBFOLDER_UPDATES_PI);
+   snprintf(szSrcBinariesFolder, sizeof(szSrcBinariesFolder)/sizeof(szSrcBinariesFolder[0]), "%s%s", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_PI);
    #endif
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   strcat(szSrcBinariesFolder, SUBFOLDER_UPDATES_RADXA);
+   snprintf(szSrcBinariesFolder, sizeof(szSrcBinariesFolder)/sizeof(szSrcBinariesFolder[0]), "%s%s", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_RADXA);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   strcat(szSrcBinariesFolder, SUBFOLDER_UPDATES_OIPC);
+   snprintf(szSrcBinariesFolder, sizeof(szSrcBinariesFolder)/sizeof(szSrcBinariesFolder[0]), "%s%s", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_OIPC);
    #endif
 
-   log_line("Check for binary files in source unzipped folder [%s] ...", szSrcBinariesFolder);
+   log_line("Check for binary files in unzipped folder [%s] ...", szSrcBinariesFolder);
 
    // Check if ruby binaries are present in folder
    char szFile[MAX_FILE_PATH_SIZE];
@@ -256,7 +260,7 @@ int _copy_binary_files(char* szInputUpdateFolder)
    {
       char szOutput[4096];
       szOutput[0] = 0;
-      sprintf(szComm, "ls %s", szInputUpdateFolder);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ls %s", g_szUpdateUnpackFolder);
       hw_execute_bash_command(szComm, szOutput);
       log_line("Content of tmp update folder:");
       log_line("[%s]", szOutput);
@@ -268,6 +272,8 @@ int _copy_binary_files(char* szInputUpdateFolder)
    log_line("Copying binary files from unzipped folder [%s] ...", szSrcBinariesFolder);
 
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sruby_* %s", szSrcBinariesFolder, FOLDER_BINARIES);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sstop* %s 2>/dev/null", szSrcBinariesFolder, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
    hardware_sleep_ms(50);
 
@@ -284,23 +290,20 @@ int _copy_binary_files(char* szInputUpdateFolder)
       hw_execute_bash_command("cp -rf ruby_capture_veye307 /usr/local/bin/307/veye_raspivid", NULL);
    #endif
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sstop* %s 2>/dev/null", szSrcBinariesFolder, FOLDER_BINARIES);
-   hw_execute_bash_command(szComm, NULL);
-
    return 0;
 }
 
 
-int _copy_update_binary_files(char* szInputUpdateFolder)
+int _copy_update_binary_files()
 {
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
+   if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy update binary files.");
       _write_return_code(-10);
       return -1;
    }
 
-   char szComm[256];
+   char szComm[MAX_FILE_PATH_SIZE];
 
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %sbin/", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
@@ -308,14 +311,7 @@ int _copy_update_binary_files(char* szInputUpdateFolder)
    sprintf(szComm, "mkdir -p %sbin/", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sbin/* %sbin 2>/dev/null", szInputUpdateFolder, FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %sbin/pi/* 2>/dev/null", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %sbin/radxaz3/* 2>/dev/null", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %sbin/ssc338q/* 2>/dev/null", FOLDER_UPDATES);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sbin/* %sbin 2>/dev/null", g_szUpdateUnpackFolder, FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
@@ -325,15 +321,18 @@ int _copy_update_binary_files(char* szInputUpdateFolder)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
    hw_execute_bash_command(szComm, NULL);
 
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
+   hw_execute_bash_command(szComm, NULL);
+
    hardware_sleep_ms(50);
 
    return 0;
 }
 
 
-int _copy_res_files(char* szInputUpdateFolder)
+int _copy_res_files()
 {
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
+   if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy res files.");
       _write_return_code(-10);
@@ -342,82 +341,36 @@ int _copy_res_files(char* szInputUpdateFolder)
 
    char szComm[256];
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s %s%s 2>/dev/null", szInputUpdateFolder, FILE_INFO_SHORT_LAST_UPDATE, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s %s%s 2>/dev/null", g_szUpdateUnpackFolder, FILE_INFO_SHORT_LAST_UPDATE, FOLDER_CONFIG, FILE_INFO_LAST_UPDATE);
    hw_execute_bash_command(szComm, NULL);
 
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sres/* %sres/ 2>/dev/null", szInputUpdateFolder, FOLDER_BINARIES);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sres/* %sres/ 2>/dev/null", g_szUpdateUnpackFolder, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
    return 0;
 }
 
-int _copy_update_drivers(char* szInputUpdateFolder)
+int _copy_plugin_files()
 {
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
-   {
-      log_line("Invalid function param for copy update drivers files.");
-      _write_return_code(-10);
-      return -1;
-   }
-
-   char szDriver[MAX_FILE_PATH_SIZE];
-   strcpy(szDriver, szInputUpdateFolder);
-   #ifdef HW_PLATFORM_RASPBERRY
-   strcat(szDriver, SUBFOLDER_UPDATES_PI);
-   strcat(szDriver, "drivers/8812eu_pi.ko");
-   #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
-   strcat(szDriver, SUBFOLDER_UPDATES_RADXA);
-   strcat(szDriver, "drivers/8812eu_radxa.ko");
-   #endif
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   strcat(szDriver, SUBFOLDER_UPDATES_OIPC);
-   strcat(szDriver, "drivers/8812eu.ko");
-   #endif
-
-   if ( access(szDriver, R_OK) != -1 )
-   {
-      log_line("Found driver: (%s)", szDriver);
-      #ifdef HW_PLATFORM_RADXA_ZERO3
-      char szComm[256];
-      hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /home/", szDriver);
-      hw_execute_bash_command(szComm, NULL);
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/$(uname -r)/kernel/drivers/net/wireless/", szDriver);
-      hw_execute_bash_command(szComm, NULL);
-      hw_execute_bash_command("insmod /lib/modules/$(uname -r)/kernel/drivers/net/wireless/8812eu_radxa.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", NULL);
-      #endif
-   }
-   else
-      log_line("No driver file found (%d)", szDriver);
-
-   return 0;
-}
-
-int _copy_plugin_files(char* szInputUpdateFolder)
-{
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
+   if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy plugin files.");
       _write_return_code(-10);
       return -1;
    }
 
-   char szComm[256];
-
+   char szComm[MAX_FILE_PATH_SIZE];
    char szSrcPluginsFolder[MAX_FILE_PATH_SIZE];
-   strcpy(szSrcPluginsFolder, szInputUpdateFolder);
+
    #ifdef HW_PLATFORM_RASPBERRY
-   strcat(szSrcPluginsFolder, "plugins/");
+   snprintf(szSrcPluginsFolder, sizeof(szSrcPluginsFolder)/sizeof(szSrcPluginsFolder[0]), "%s%splugins/", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_PI);
    #endif
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   strcat(szSrcPluginsFolder, SUBFOLDER_UPDATES_RADXA);
-   strcat(szSrcPluginsFolder, "plugins/");
+   snprintf(szSrcPluginsFolder, sizeof(szSrcPluginsFolder)/sizeof(szSrcPluginsFolder[0]), "%s%splugins/", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_RADXA);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   strcat(szSrcPluginsFolder, SUBFOLDER_UPDATES_OIPC);
-   strcat(szSrcPluginsFolder, "plugins/");
+   snprintf(szSrcPluginsFolder, sizeof(szSrcPluginsFolder)/sizeof(szSrcPluginsFolder[0]), "%s%splugins/", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_OIPC);
    #endif
 
    log_line("Copying plugins files from source folder: (%s)", szSrcPluginsFolder);
@@ -425,54 +378,174 @@ int _copy_plugin_files(char* szInputUpdateFolder)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s* %splugins/ 2>/dev/null", szSrcPluginsFolder, FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sosd/* %splugins/osd 2>/dev/null", szSrcPluginsFolder, FOLDER_BINARIES);
-   hw_execute_bash_command(szComm, NULL);
-
    hw_execute_bash_command("chmod 777 plugins/*", NULL);
    hw_execute_bash_command("chmod 777 plugins/osd/*", NULL);
+   hw_execute_bash_command("chmod 777 plugins/core/*", NULL);
    return 0;
 }
 
 
-int _copy_config_files(char* szInputUpdateFolder)
+int _copy_config_files()
 {
-   if ( (NULL == szInputUpdateFolder) || (0 == szInputUpdateFolder[0]) )
+   if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy config files.");
       _write_return_code(-10);
       return -1;
    }
-
+   #ifdef HW_PLATFORM_RASPBERRY
    char szSourceFile[MAX_FILE_PATH_SIZE];
-
-   strcpy(szSourceFile, szInputUpdateFolder);
-   strcat(szSourceFile, "ruby_profile");
+   snprintf(szSourceFile, sizeof(szSourceFile)/sizeof(szSourceFile[0]), "%s%sruby_profile", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_PI);
 
    if ( access( szSourceFile, R_OK ) != -1 )
    {
-      #ifdef HW_PLATFORM_RASPBERRY
-      char szComm[256];
+      char szComm[MAX_FILE_PATH_SIZE];
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /root/.profile 2>/dev/null", szSourceFile);
       hw_execute_bash_command(szComm, NULL);
       hw_execute_bash_command("chmod 777 /root/.profile", NULL);
-      #endif
    }
 
-   strcpy(szSourceFile, szInputUpdateFolder);
-   strcat(szSourceFile, "ruby_config.txt");
+   snprintf(szSourceFile, sizeof(szSourceFile)/sizeof(szSourceFile[0]), "%s%sruby_config.txt", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_PI);
 
    if ( access( szSourceFile, R_OK ) != -1 )
    {
-      #ifdef HW_PLATFORM_RASPBERRY
       hardware_mount_boot();
       hardware_sleep_ms(200);
-      char szComm[256];
+      char szComm[MAX_FILE_PATH_SIZE];
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /boot/config.txt 2>/dev/null", szSourceFile);
       hw_execute_bash_command(szComm, NULL);
       hw_execute_bash_command("chmod 777 /boot/config.txt", NULL);
-      #endif
    }
+   #endif
    return 0;
+}
+
+
+int _copy_update_drivers()
+{
+   if ( 0 == g_szUpdateUnpackFolder[0] )
+   {
+      log_line("Invalid function param for copy update drivers files.");
+      _write_return_code(-10);
+      return -1;
+   }
+
+   char szDrivers[MAX_FILE_PATH_SIZE];
+
+   snprintf(szDrivers, sizeof(szDrivers)/sizeof(szDrivers[0]), "%s%s*", g_szUpdateUnpackFolder, SUBFOLDER_UPDATES_DRIVERS);
+   
+   char szComm[MAX_FILE_PATH_SIZE];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s", FOLDER_DRIVERS);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s 2>/dev/null", szDrivers, FOLDER_DRIVERS);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s*", FOLDER_DRIVERS);
+   hw_execute_bash_command(szComm, NULL);
+
+   char szOutput[2048];
+   szOutput[0] = 0;
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "find %s.ko 2>/dev/null", szDrivers);
+   hw_execute_bash_command(szComm, szOutput);
+ 
+   if ( (0 < strlen(szOutput)) && (NULL != strstr(szOutput, ".ko")) )
+      hardware_install_drivers();
+   return 0;
+}
+
+bool _find_update_zip_file()
+{
+   char szComm[MAX_FILE_PATH_SIZE];
+   char szOutput[1024];
+
+   g_szUpdateZipFileFullPath[0] = 0;
+   g_szUpdateZipFileName[0] = 0;
+
+   if ( g_bIsController )
+      sprintf(szComm, "find %sruby_update*.zip 2>/dev/null", FOLDER_USB_MOUNT);
+   else
+      sprintf(szComm, "find ruby_update*.zip 2>/dev/null");
+
+   hw_execute_bash_command(szComm, szOutput);
+
+   if ( (0 == strlen(szOutput)) || (NULL == strstr(szOutput, "ruby_update")) )
+      return false;
+
+   int iLen = strlen(szOutput);
+   for( int i=0; i<iLen; i++ )
+   {
+      if ( (szOutput[i] == ' ') || (szOutput[i] == 10) || (szOutput[i] == 13) )
+      {
+         szOutput[i] = 0;
+         break;
+      }
+   }
+   strncpy(g_szUpdateZipFileFullPath, szOutput, MAX_FILE_PATH_SIZE-1);
+   strncpy(g_szUpdateZipFileName, strstr(szOutput, "ruby_update"), MAX_FILE_PATH_SIZE-1);
+
+   log_line("Found zip archive full path: [%s]", g_szUpdateZipFileFullPath);
+   log_line("Found zip archive filename: [%s]", g_szUpdateZipFileName);
+   return true;
+}
+
+void _step_copy_and_extract_zip()
+{
+   char szComm[MAX_FILE_PATH_SIZE];
+
+   //-----------------------------------------------------
+   // Begin - Copy update zip file to updates folder
+
+   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+
+   sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+   
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s", g_szUpdateZipFileFullPath, FOLDER_UPDATES);
+   hw_execute_bash_command(szComm, NULL);
+
+   // End - Copy update zip file to updates folder
+   //------------------------------------------------------
+
+   //------------------------------------------------------
+   // Begin - Extract archive to a temp folder
+   
+   strcpy(g_szUpdateUnpackFolder, FOLDER_RUBY_TEMP);
+   strcat(g_szUpdateUnpackFolder, "tmpUpdate/");
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s", g_szUpdateUnpackFolder);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s", g_szUpdateUnpackFolder);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s/*", g_szUpdateUnpackFolder);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "unzip %s%s -d %s", FOLDER_UPDATES, g_szUpdateZipFileName, g_szUpdateUnpackFolder);
+   hw_execute_bash_command(szComm, NULL);
+
+   // End - Extract archive to a temp folder
+   //------------------------------------------------------
+}
+
+bool _find_update_info_file()
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+   char szComm[MAX_FILE_PATH_SIZE];
+
+   snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", g_szUpdateUnpackFolder, FILE_INFO_SHORT_LAST_UPDATE);
+   if( access( szFile, R_OK ) == -1 )
+   {
+      char szOutput[4096];
+      szOutput[0] = 0;
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ls %s", g_szUpdateUnpackFolder);
+      hw_execute_bash_command(szComm, szOutput);
+      log_line("Content of tmp update folder:");
+      log_line("[%s]", szOutput);
+      log_line("Found zip archive with no valid update info file (missing update file: [%s]). Ignoring it.", szFile);
+      _write_return_code(-10);
+      return false;
+   }
+   log_line("Found update info file in zip update (%s)", g_szUpdateZipFileName);
+   return true;
 }
 
 int main(int argc, char *argv[])
@@ -490,29 +563,18 @@ int main(int argc, char *argv[])
    log_init("RubyUpdateWorker");
    hardware_sleep_ms(500);
 
-   char szComm[256];
-   char szFile[MAX_FILE_PATH_SIZE];
-   char szFoundUpdateFile[MAX_FILE_PATH_SIZE];
-   char szZipFileName[MAX_FILE_PATH_SIZE];
-   char szZipFullFilePath[MAX_FILE_PATH_SIZE];
+   char szComm[MAX_FILE_PATH_SIZE];
 
-   szZipFileName[0] = 0;
-   szZipFullFilePath[0] = 0;
-   szFoundUpdateFile[0] = 0;
-   bool bIsController = (bool) hardware_is_station();
+   g_szUpdateZipFileFullPath[0] = 0;
+   g_szUpdateZipFileName[0] = 0;
+   g_szUpdateUnpackFolder[0] = 0;
 
-   log_line("Executing update for %s...", bIsController?"station":"vehicle");
+   g_bIsController = (bool) hardware_is_station();
+   log_line("Executing update for %s...", g_bIsController?"controller":"vehicle");
 
-   if ( bIsController )
-      sprintf(szComm, "find %sruby_update*.zip 2>/dev/null", FOLDER_USB_MOUNT);
-   else
-      sprintf(szComm, "find ruby_update*.zip 2>/dev/null");
-
-   hw_execute_bash_command(szComm, szFoundUpdateFile);
-
-   if ( (0 == strlen(szFoundUpdateFile)) || (NULL == strstr(szFoundUpdateFile, "ruby_update")) )
+   if ( ! _find_update_zip_file() )
    {
-      if ( bIsController )
+      if ( g_bIsController )
          log_line("There is no update update archive on the USB stick.");
       else
          log_line("There is no update update archive on the Ruby main folder.");
@@ -521,130 +583,54 @@ int main(int argc, char *argv[])
       return -1;
    }
 
-   szFoundUpdateFile[MAX_FILE_PATH_SIZE-1] = 0;
-   strcpy(szZipFullFilePath, szFoundUpdateFile);
-   strcpy(szZipFileName, strstr(szZipFullFilePath, "ruby_update"));
-   log_line("Found zip archive full path: [%s]", szZipFullFilePath);
-   log_line("Found zip archive filename: [%s]", szZipFileName);
-
-   // Begin - Copy update zip file to updates folder
-
-   sprintf(szComm, "mkdir -p %s", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-
-   sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s", szZipFullFilePath, FOLDER_UPDATES);
-   hw_execute_bash_command(szComm, NULL);
-   // End - Copy update zip file to updates folder
-
-
-   // Begin - Extract archive to a temp folder
-   
-   char szUpdateFromSrcFolder[MAX_FILE_PATH_SIZE];
-   strcpy(szUpdateFromSrcFolder, FOLDER_RUBY_TEMP);
-   strcat(szUpdateFromSrcFolder, "tmpUpdate/");
-
-   sprintf(szComm, "mkdir -p %s", szUpdateFromSrcFolder);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "chmod 777 %s", szUpdateFromSrcFolder);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "rm -rf %s/*", szUpdateFromSrcFolder);
-   hw_execute_bash_command(szComm, NULL);
-
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "unzip %s%s -d %s", FOLDER_UPDATES, szZipFileName, szUpdateFromSrcFolder);
-   hw_execute_bash_command(szComm, NULL);
-
-   // End - Extract archive to a temp folder
-
+   _step_copy_and_extract_zip();
   
-   snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s%s", szUpdateFromSrcFolder, FILE_INFO_SHORT_LAST_UPDATE);
-   if( access( szFile, R_OK ) == -1 )
-   {
-      char szOutput[4096];
-      szOutput[0] = 0;
-      sprintf(szComm, "ls %s", szUpdateFromSrcFolder);
-      hw_execute_bash_command(szComm, szOutput);
-      log_line("Content of tmp update folder:");
-      log_line("[%s]", szOutput);
-      log_line("Found zip archive with no valid update info file (missing update file: [%s]). Ignoring it.", szFile);
-      _write_return_code(-10);
+   if ( ! _find_update_info_file() )
       return -1;
-   }
 
-   log_line("Found update info file in zip file %s", szZipFileName);
-
-   /*
-   long lSizeBefore = compute_file_sizes();
-   if ( -1 == lSizeBefore )
-   {
-      log_error_and_alarm("Failed to do update: can't get original binaries file sizes.");
-      _write_return_code(-2);
-      return -1;    
-   }
-   */
 
    g_TimeNow = get_current_timestamp_ms();
 
-   if ( _copy_binary_files(szUpdateFromSrcFolder) < 0 )
+   if ( _replace_runtime_binary_files() < 0 )
       return -1;
 
-   if ( _copy_update_binary_files(szUpdateFromSrcFolder) < 0 )
+   if ( _copy_update_binary_files() < 0 )
       return -1;
 
-   if ( _copy_res_files(szUpdateFromSrcFolder) < 0 )
+   if ( _copy_res_files() < 0 )
       return -1;
 
-   _copy_update_drivers(szUpdateFromSrcFolder);
+   _copy_plugin_files();
 
-   _copy_plugin_files(szUpdateFromSrcFolder);
+   _copy_config_files();
 
-   _copy_config_files(szUpdateFromSrcFolder);
+   _copy_update_drivers();
+
 
    g_TimeNow = get_current_timestamp_ms();
 
-   sprintf(szComm, "rm -rf %s", szUpdateFromSrcFolder);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", g_szUpdateUnpackFolder);
    hw_execute_bash_command(szComm, NULL);
 
    process_custom_commands_file();
 
-   /*
-   long lSizeAfter = compute_file_sizes();
-   if ( -1 == lSizeAfter )
-   {
-      log_error_and_alarm("Failed to do update: can't get updated binaries file sizes.");
-      _write_return_code(-3);
-      return -1;    
-   }
-   
-   log_line("Files updated. Before files size: %d bytes, after files size: %d bytes", lSizeBefore, lSizeAfter);
-   */
 
    if( access( "ruby_update", R_OK ) != -1 )
    {
       hw_execute_bash_command("./ruby_update -pre", NULL);
-      if ( bIsController )
+      if ( g_bIsController )
          hw_execute_bash_command("cp -rf ruby_update ruby_update_controller", NULL);
       hw_execute_bash_command("chmod 777 ruby_update*", NULL);
    }
 
-   if ( ! bIsController )
+   if ( ! g_bIsController )
       hw_execute_bash_command("rm -rf ruby_update*.zip", NULL);
 
-   if ( bIsController )
+   if ( g_bIsController )
       log_line("Update controller finished.");
    else
       log_line("Update vehicle finished.");
 
-   /*
-   if ( lSizeBefore == lSizeAfter )
-   {
-      log_error_and_alarm("Failed to do update: can't write files: files sizes before is the same as after.");
-      _write_return_code(-4);
-      return -1;    
-   }
-   */
    _write_return_code(0);
    return (0);
 } 

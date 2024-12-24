@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -36,6 +36,7 @@
 #include "../base/ctrl_preferences.h"
 #include "../radio/radiolink.h"
 #include "../common/string_utils.h"
+#include "../common/strings_table.h"
 #include "events.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -129,7 +130,6 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
    g_bHasVideoDataOverloadAlarm = false;
    g_bHasVideoTxOverloadAlarm = false;
    g_bIsVehicleLinkToControllerLost = false;
-   g_iDeltaVideoInfoBetweenVehicleController = 0;
    g_iVehicleCorePluginsCount = 0;
    g_bChangedOSDStatsFontSize = false;
    g_bFreezeOSD = false;
@@ -515,25 +515,25 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    log_line("Currently received temp model osd layout: %d, enabled: %s", modelTemp.osd_params.layout, (modelTemp.osd_params.osd_flags2[modelTemp.osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
    log_line("Currently received temp model developer flags: [%s]", str_get_developer_flags(modelTemp.uDeveloperFlags));
    log_line("Received vehicle info has %d radio links.", modelTemp.radioLinksParams.links_count );
-   
+   log_line("Currently received temp model has Ruby base version: %d.%d", (modelTemp.hwCapabilities.uRubyBaseVersion >> 8) & 0xFF, modelTemp.hwCapabilities.uRubyBaseVersion & 0xFF);
    bool bRadioChanged = false;
    bool bCameraChanged = false;
-   bool bMustNegociateRadioLinks = false;
+   g_bMustNegociateRadioLinksFlag = false;
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
    if ( !(pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
-      bMustNegociateRadioLinks = true;
+      g_bMustNegociateRadioLinksFlag = true;
 
    if ( pModel->radioInterfacesParams.interfaces_count != modelTemp.radioInterfacesParams.interfaces_count )
-      bMustNegociateRadioLinks = true;
+      g_bMustNegociateRadioLinksFlag = true;
    for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
    {
        if ( pModel->radioInterfacesParams.interface_card_model[i] != modelTemp.radioInterfacesParams.interface_card_model[i] )
-           bMustNegociateRadioLinks = true;
+           g_bMustNegociateRadioLinksFlag = true;
        if ( pModel->radioInterfacesParams.interface_radiotype_and_driver[i] != modelTemp.radioInterfacesParams.interface_radiotype_and_driver[i] )
-           bMustNegociateRadioLinks = true;
+           g_bMustNegociateRadioLinksFlag = true;
        if ( 0 != strcmp(pModel->radioInterfacesParams.interface_szMAC[i], modelTemp.radioInterfacesParams.interface_szMAC[i]) )
-           bMustNegociateRadioLinks = true;
+           g_bMustNegociateRadioLinksFlag = true;
    }
 
    if ( pModel->uVehicleId == modelTemp.uVehicleId )
@@ -620,6 +620,25 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    log_line("The vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pModel->sw_version)>>8) & 0xFF, (pModel->sw_version) & 0xFF, ((pModel->sw_version)>>16), pModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
    
 
+   int iMajor = (pModel->hwCapabilities.uRubyBaseVersion>>8) & 0xFF;
+   int iMinor = pModel->hwCapabilities.uRubyBaseVersion & 0xFF;
+   bool bMustInstallFirmware = false;
+   if ( (iMajor < 10) || ((iMajor == 10) && (iMinor < 1)) )
+   if ( ! pModel->isRunningOnOpenIPCHardware() )
+      bMustInstallFirmware = true;
+
+   if ( bMustInstallFirmware )
+   {
+      pModel->b_mustSyncFromVehicle = false;
+      saveControllerModel(pModel);
+      log_line("[Event] Updated current local vehicle with received settings.");
+      MenuConfirmation* pMC = new MenuConfirmation(getString(0), getString(2), 0, true);
+      pMC->addTopLine(getString(3));
+      pMC->setIconId(g_idIconWarning);
+      pMC->m_yPos = 0.3;
+      add_menu_to_stack(pMC);
+   }
+
    bool bMustUpdate = false;  
    if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pModel->sw_version & 0xFFFF) )
       bMustUpdate = true;
@@ -639,7 +658,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
           bMustUpdate = false;
    }
 
-   if ( bMustUpdate )
+   if ( bMustUpdate && (!bMustInstallFirmware) )
    {
       char szBuff[256];
       char szBuff2[32];
@@ -661,18 +680,18 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       {
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;
-          bMustNegociateRadioLinks = false;
+          g_bMustNegociateRadioLinksFlag = false;
       }
    }
 
    if ( !bMustUpdate )
+   if ( !bMustInstallFirmware )
    if ( is_sw_version_atleast(g_pCurrentModel, 9, 7) )
    if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType) )
    if ( (pModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
    {
       add_menu_to_stack( new MenuConfirmationVehicleBoard() );
-      bMustNegociateRadioLinks = false;
    }
 
    pModel->is_spectator = is_spectator;
@@ -773,7 +792,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
    if ( pModel->audio_params.enabled != bOldAudioEnabled )
    {
-      log_line("Audio enable flag changed. Must repair.");
+      log_line("Audio enable flag changed. Must re-pair.");
       bMustPair = true;
    }
    if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
@@ -792,7 +811,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       hardware_sleep_ms(100);
       pairing_start_normal();
       log_line("[Events] Handing of event OnReceivedModelSettings complete.");
-      bMustNegociateRadioLinks = false;
+      g_bMustNegociateRadioLinksFlag = false;
       return true;
    }
 
@@ -817,14 +836,17 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
        MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec", szTextW, 0, true);
        pMC->m_yPos = 0.3;
        add_menu_to_stack(pMC);
-       bMustNegociateRadioLinks = false;
+       g_bMustNegociateRadioLinksFlag = false;
    }
    #endif
 
    if ( pModel->hasCamera() )
-   if ( bMustNegociateRadioLinks )
+   if ( g_bMustNegociateRadioLinksFlag )
    if ( ! g_bDidAnUpdate )
+   if ( ! bMustInstallFirmware )
    if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
+   if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
+   if ( ! g_bAskedForNegociateRadioLink )
    {
       add_menu_to_stack(new MenuNegociateRadio());
    }

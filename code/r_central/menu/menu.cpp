@@ -658,7 +658,13 @@ void menu_refresh_all_menus()
 
 void menu_refresh_all_menus_except(Menu* pMenu)
 {
-   log_line("[Menu] Refresh all menus...");
+   log_line("[Menu] Refresh all menus. Will refresh %d menus (except 0x%X):", g_iMenuStackTopIndex, pMenu);
+   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
+   {
+      if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i] != pMenu) )
+         log_line("[Menu]  * Menu id: %d, title: [%s], render xpos: %.2f", g_pMenuStack[i]->getId(), g_pMenuStack[i]->getTitle(), g_pMenuStack[i]->getRenderXPos());
+   }
+
    for ( int i=0; i<g_iMenuStackTopIndex; i++ )
    {
       if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i] != pMenu) )
@@ -674,6 +680,17 @@ void menu_update_ui_all_menus()
    {
       if ( NULL != g_pMenuStack[i] )
          g_pMenuStack[i]->valuesToUI();
+   }
+   log_line("[Menu] Updated UI for all menus.");
+}
+
+void menu_rearrange_all_menus_no_animation()
+{
+   log_line("[Menu] Rearrange all menus with no animation.");
+   for ( int i=0; i<g_iMenuStackTopIndex; i++ )
+   {
+      if ( NULL != g_pMenuStack[i] )
+         g_pMenuStack[i]->resetRenderXPos();
    }
    log_line("[Menu] Updated UI for all menus.");
 }

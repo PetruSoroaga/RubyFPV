@@ -122,7 +122,7 @@ bool loadAllModels()
    }
    log_line("Loaded %d spectator models.", s_iModelsSpectatorCount);
 
-   log_line("Loaded controller models:");
+   log_line("Loaded controller models (%d):", s_iModelsCount);
    for( int i=0; i<s_iModelsCount; i++ )
       log_line("Controller model %d: [%s], VID: %u", i+1, s_pModels[i]->getLongName(), s_pModels[i]->uVehicleId);
 
@@ -231,6 +231,7 @@ int getControllerModelsSpectatorCount()
 
 void deleteAllModels()
 {
+   log_line("Deleted all controller models.");
    s_iModelsSpectatorCount = 0;
    s_iModelsCount = 0;
    char szFile[MAX_FILE_PATH_SIZE];

@@ -7,9 +7,9 @@
 #include <semaphore.h>
 
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
-#define MAX_RX_PACKETS_QUEUE 300
+#define MAX_RX_PACKETS_QUEUE 700
 #else
-#define MAX_RX_PACKETS_QUEUE 100
+#define MAX_RX_PACKETS_QUEUE 400
 #endif
 typedef struct
 {
@@ -33,14 +33,14 @@ typedef struct
    int iPacketsLengths[MAX_RX_PACKETS_QUEUE];
    u8  uPacketsAreShort[MAX_RX_PACKETS_QUEUE];
    u8  uPacketsRxInterface[MAX_RX_PACKETS_QUEUE];
-   int iCurrentRxPacketIndex; // Where next packet will be added
-   int iCurrentRxPacketToConsume; // Where the first packet to read/consume is
-   int iCurrentRxPacketsInQueue;
+   int iQueueSize;
+   volatile int iCurrentPacketIndexToWrite; // Where next packet will be added
+   volatile int iCurrentPacketIndexToConsume; // Where the first packet to read/consume is
    int iStatsMaxPacketsInQueue;
    int iStatsMaxPacketsInQueueLastMinute;
 
-   pthread_mutex_t mutex;
-   sem_t* pSemaphore;
+   sem_t* pSemaphoreWrite;
+   sem_t* pSemaphoreRead;
 } ALIGN_STRUCT_SPEC_INFO t_radio_rx_state_packets_queue;
 
 typedef struct
@@ -81,7 +81,8 @@ void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason);
 void radio_rx_resume_interface(int iInterfaceIndex);
 void radio_rx_mark_quit();
 void radio_rx_set_dev_mode();
-void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputRetrVideo, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
+void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputHighPriority, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
+void radio_rx_set_air_gap_track_output(u8* pCounterRxAirgap);
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength);
 

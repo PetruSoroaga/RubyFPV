@@ -7,7 +7,6 @@
 #define SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS "R_SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS"
 #define SHARED_MEM_AUDIO_DECODE_STATS "/SYSTEM_SHARED_MEM_AUDIO_DECODE_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS"
-#define SHARED_MEM_VIDEO_STREAM_STATS_HISTORY "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS_HISTORY"
 #define SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS "/SYSTEM_SHARED_MEM_RADIO_RX_QUEUE_STATS"
 
 #define MAX_HISTORY_VIDEO_INTERVALS 50
@@ -79,33 +78,6 @@ typedef struct
 {
    shared_mem_video_stream_stats video_streams[MAX_VIDEO_PROCESSORS];
 } ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_rx_processors;
-
-typedef struct
-{
-   u32 uVehicleId;
-   u8 uVideoStreamIndex;
-   u8 outputHistoryIntervalMs;
-   u8 outputHistoryReceivedVideoPackets[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryReceivedVideoRetransmittedPackets[MAX_HISTORY_VIDEO_INTERVALS];
-   
-   u8 outputHistoryMaxGoodBlocksPendingPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksOkPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksReconstructedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryMaxECPacketsUsedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksBadPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksMissingPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksRetrasmitedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksMaxPacketsGapPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryPacketsRetrasmitedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u8 outputHistoryBlocksDiscardedPerPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u16 missingTotalPacketsAtPeriod[MAX_HISTORY_VIDEO_INTERVALS];
-   u16 totalCurrentlyMissingPackets;
-} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_history;
-
-typedef struct
-{
-   shared_mem_video_stream_stats_history video_streams[MAX_VIDEO_PROCESSORS];
-} ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats_history_rx_processors;
 
 
 #define MAX_CONTROLLER_ADAPTIVE_VIDEO_INFO_INTERVALS 80 // sampled every 40 ms
@@ -203,9 +175,6 @@ shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_pr
 shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_write();
 void shared_mem_video_stream_stats_rx_processors_close(shared_mem_video_stream_stats_rx_processors* pAddress);
 shared_mem_video_stream_stats* get_shared_mem_video_stream_stats_for_vehicle(shared_mem_video_stream_stats_rx_processors* pSM, u32 uVehicleId);
-
-shared_mem_video_stream_stats_history_rx_processors* shared_mem_video_stream_stats_history_rx_processors_open(int readOnly);
-void shared_mem_video_stream_stats_history_rx_processors_close(shared_mem_video_stream_stats_history_rx_processors* pAddress);
 
 shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_read();
 shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_write();

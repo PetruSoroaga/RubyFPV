@@ -34,11 +34,12 @@
 #include "menu_item_select.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"
-#include "menu_tx_power.h"
+#include "menu_tx_raw_power.h"
 #include "menu_confirmation.h"
 #include "../launchers_controller.h"
 #include "../link_watch.h"
 #include "../../radio/radiolink.h"
+#include "../../base/tx_powers.h"
 
 const char* s_szMenuRadio_SingleCard2 = "Note: You can not change the usage and capabilities of the radio link as there is a single radio link between vehicle and controller.";
 

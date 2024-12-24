@@ -182,11 +182,6 @@ bool _configure_radio_interface_realtek(int iInterfaceIndex, radio_hw_info_t* pR
    hw_execute_bash_command(szComm, szOutput);
    hardware_sleep_ms(uDelayMS);
 
-   hardware_radio_set_txpower_rtl8812eu(25);
-   hardware_sleep_ms(uDelayMS);
-   hardware_radio_set_txpower_rtl8812au(25);
-   hardware_sleep_ms(uDelayMS);
-   
    //sprintf(szComm, "ifconfig %s up 2>&1", pRadioHWInfo->szName );
    sprintf(szComm, "ip link set dev %s up", pRadioHWInfo->szName );
    hw_execute_bash_command(szComm, szOutput);
@@ -222,7 +217,14 @@ bool _configure_radio_interface(int iInterfaceIndex, u32 uDelayMS)
    if ( pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS )
       _configure_radio_interface_atheros(iInterfaceIndex, pRadioHWInfo, uDelayMS);
    else
+   {
       _configure_radio_interface_realtek(iInterfaceIndex, pRadioHWInfo, uDelayMS);
+      // Set a default minimum tx power
+      if ( hardware_radio_driver_is_rtl8812au_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_rtl8812au(iInterfaceIndex, 10);
+      if ( hardware_radio_driver_is_rtl8812eu_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_rtl8812eu(iInterfaceIndex, 10);
+   }
 
    if ( hardware_radioindex_supports_frequency(iInterfaceIndex, DEFAULT_FREQUENCY58) )
    {
@@ -380,6 +382,7 @@ int init_Radios()
    fclose(fd);
    
    hardware_save_radio_info();
+
    log_line("Configuring radios COMPLETED.");
    log_line("=================================================================");
    log_line("Radio interfaces and frequencies assigned:");

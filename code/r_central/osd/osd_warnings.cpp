@@ -191,9 +191,11 @@ void osd_warnings_render()
       bool bHasTelemetryFromFC = vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[i].uVehicleId);
 
       bool bShowFCTelemetryAlarm = false;
+      if ( pairing_isStarted() )
       if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
       if ( ! bHasTelemetryFromFC )
       if ( ! g_VehiclesRuntimeInfo[i].bLinkLost )
+      if ( g_VehiclesRuntimeInfo[i].pModel->is_spectator || g_VehiclesRuntimeInfo[i].bPairedConfirmed )
          bShowFCTelemetryAlarm = true;
 
       if ( s_bDebugOSDShowAll )

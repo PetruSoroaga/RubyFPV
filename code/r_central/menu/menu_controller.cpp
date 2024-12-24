@@ -47,6 +47,7 @@
 #include "menu_preferences_buttons.h"
 #include "menu_preferences_ui.h"
 #include "menu_preferences.h"
+#include "menu_controller_radio.h"
 #include "../../base/ctrl_settings.h"
 
 #include <time.h>
@@ -61,21 +62,21 @@ MenuController::MenuController(void)
    m_bShownHDMIChangeNotif = false;
    m_bWaitingForUserFinishUpdateConfirmation = false;
    m_iMustStartUpdate = 0;
-   
-   m_IndexPorts = addMenuItem(new MenuItem("Peripherals / Ports", "Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)"));
-   //m_pMenuItems[m_IndexPorts]->showArrow();
-   
+      
    m_IndexVideo = addMenuItem(new MenuItem("Audio & Video Output", "Change Audio and Video Output Settings (HDMI, USB Tethering, Audio output device)"));
    //m_pMenuItems[m_IndexVideo]->showArrow();
 
    m_IndexTelemetry = addMenuItem(new MenuItem("Telemetry Input/Output", "Change the Telemetry Input/Output settings on the controller ports."));
    //m_pMenuItems[m_IndexTelemetry]->showArrow();
 
-   m_IndexRecording = addMenuItem(new MenuItem("Recording", "Change the recording settings"));
-   //m_pMenuItems[m_IndexRecording]->showArrow();
+   m_IndexRadio = addMenuItem(new MenuItem("Radio", "Configure the radio interfaces on the controller."));
+   //m_pMenuItems[m_IndexTelemetry]->showArrow();
 
    m_IndexCPU = addMenuItem(new MenuItem("CPU and Processes", "Set CPU Overclocking, Processes Priorities"));
    //m_pMenuItems[m_IndexCPU]->showArrow();
+
+   m_IndexPorts = addMenuItem(new MenuItem("Peripherals / Ports", "Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)"));
+   //m_pMenuItems[m_IndexPorts]->showArrow();
 
    //m_pItemsSelect[1] = new MenuItemSelect("Show CPU Info in OSD", "Shows Controller CPU information (load, frequency, temperature) on the OSD, near the vehicle CPU info, when using OSD Full Layout.");
    //m_pItemsSelect[1]->addSelection("No");
@@ -92,7 +93,8 @@ MenuController::MenuController(void)
    m_IndexNetwork = addMenuItem(new MenuItem("Local Network Settings", "Change the local network settings on the controller (DHCP/Fixed IP)"));
    //m_pMenuItems[m_IndexNetwork]->showArrow();
 
-   m_IndexEncryption = addMenuItem(new MenuItem("Encryption", "Change the encryption global settings"));
+   m_IndexEncryption = -1;
+   //m_IndexEncryption = addMenuItem(new MenuItem("Encryption", "Change the encryption global settings"));
    //m_pMenuItems[m_IndexEncryption]->showArrow();
    //m_pMenuItems[m_IndexEncryption]->setEnabled(false);
 
@@ -100,6 +102,9 @@ MenuController::MenuController(void)
    m_IndexPreferences = -1;
    //m_IndexPreferences = addMenuItem(new MenuItem("Preferences", "Change preferences about messages."));
    m_IndexPreferencesUI = addMenuItem(new MenuItem("User Interface", "Change user interface preferences."));
+
+   m_IndexRecording = addMenuItem(new MenuItem("Recording Settings", "Change the recording settings"));
+   //m_pMenuItems[m_IndexRecording]->showArrow();
 
    ControllerSettings* pCS = get_ControllerSettings();
    m_IndexDeveloper = -1;
@@ -280,6 +285,12 @@ void MenuController::onSelectItem()
       return;
    }
 
+   if ( m_IndexRadio == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuControllerRadio());
+      return;
+   }
+
    if ( m_IndexRecording == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuControllerRecording());
@@ -292,7 +303,7 @@ void MenuController::onSelectItem()
       return;
    }
 
-   if ( m_IndexEncryption == m_SelectedIndex )
+   if ( (-1 != m_IndexEncryption) && (m_IndexEncryption == m_SelectedIndex) )
    {
       add_menu_to_stack(new MenuControllerEncryption());
       return;

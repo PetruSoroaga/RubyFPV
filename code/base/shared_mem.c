@@ -171,59 +171,59 @@ void shared_mem_radio_stats_rx_hist_close(shared_mem_radio_stats_rx_hist* pAddre
       munmap(pAddress, sizeof(shared_mem_radio_stats_rx_hist));
 }
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_read()
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_open_for_read()
 {
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_STREAM_INFO_STATS , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
+   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_FRAMES_STATS , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
 }
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_write()
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_open_for_write()
 {
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_STREAM_INFO_STATS , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
+   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_FRAMES_STATS , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
 }
 
-void shared_mem_video_info_stats_close(shared_mem_video_info_stats* pAddress)
+void shared_mem_video_frames_stats_close(shared_mem_video_frames_stats* pAddress)
 {
    if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_video_info_stats));
+      munmap(pAddress, sizeof(shared_mem_video_frames_stats));
 }
 
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_in_open_for_read()
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_in_open_for_read()
 {
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_IN , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
+   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_IN , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
 }
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_in_open_for_write()
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_in_open_for_write()
 {
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_IN , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
+   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_IN , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
 }
 
-void shared_mem_video_info_stats_radio_in_close(shared_mem_video_info_stats* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_video_info_stats));
-}
-
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_read()
-{
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_OUT , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
-}
-
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_write()
-{
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_OUT , sizeof(shared_mem_video_info_stats));
-   return (shared_mem_video_info_stats*)retVal;
-}
-
-void shared_mem_video_info_stats_radio_out_close(shared_mem_video_info_stats* pAddress)
+void shared_mem_video_frames_stats_radio_in_close(shared_mem_video_frames_stats* pAddress)
 {
    if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_video_info_stats));
+      munmap(pAddress, sizeof(shared_mem_video_frames_stats));
+}
+
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_out_open_for_read()
+{
+   void *retVal = open_shared_mem_for_read(SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_OUT , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
+}
+
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_out_open_for_write()
+{
+   void *retVal = open_shared_mem_for_write(SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_OUT , sizeof(shared_mem_video_frames_stats));
+   return (shared_mem_video_frames_stats*)retVal;
+}
+
+void shared_mem_video_frames_stats_radio_out_close(shared_mem_video_frames_stats* pAddress)
+{
+   if ( NULL != pAddress )
+      munmap(pAddress, sizeof(shared_mem_video_frames_stats));
 }
 
 shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_read()
@@ -288,28 +288,26 @@ void shared_mem_rc_upstream_frame_close(t_packet_header_rc_full_frame_upstream* 
    //shm_unlink(SHARED_MEM_RC_UPSTREAM_FRAME);
 }
 
-void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats, u32 uTimeNow)
+void update_shared_mem_video_frames_stats(shared_mem_video_frames_stats* pSMVIStats, u32 uTimeNow)
 {
    if ( NULL == pSMVIStats )
       return;
     
-   pSMVIStats->uTimeLastUpdate = uTimeNow;
+   pSMVIStats->uLastTimeStatsUpdate = uTimeNow;
 
    u32 uMinFrameTime = MAX_U32;
    u32 uMaxFrameTime = 0;
 
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) > uMaxFrameTime )
-         uMaxFrameTime = (pSMVIStats->uFramesDuration[i] & 0x7F);
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) < uMinFrameTime )
-         uMinFrameTime = (pSMVIStats->uFramesDuration[i] & 0x7F);
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) > uMaxFrameTime )
+         uMaxFrameTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) < uMinFrameTime )
+         uMinFrameTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
    }
 
    pSMVIStats->uAverageFPS = 0;
    pSMVIStats->uAverageFrameTime = 0;
-   pSMVIStats->uAverageFrameSize = 0;
-   pSMVIStats->uAveragePFrameSize = 0;
 
    u32 uSumTime = 0;
    u32 uSumSizes = 0;
@@ -318,19 +316,18 @@ void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats,
    u32 uSumFramesPCount = 0;
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) == 0 )
+      // Ignore non P frames
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0xC0) != 0 )
          continue;
       
-      if ( pSMVIStats->uFramesTypesAndSizes[i] & (1<<7) )
+      if ( pSMVIStats->uFramesSizes[i] == 0 )
          continue;
-      else
-      {
-         uSumSizesP += ((u32)(pSMVIStats->uFramesTypesAndSizes[i] & 0x7F)) * 8000;
-         uSumFramesPCount++;
-      }
 
-      uSumTime += (pSMVIStats->uFramesDuration[i] & 0x7F);
-      uSumSizes += ((u32)(pSMVIStats->uFramesTypesAndSizes[i] & 0x7F)) * 8000;
+      uSumSizesP += ((u32)(pSMVIStats->uFramesSizes[i]) * 8000);
+      uSumFramesPCount++;
+
+      uSumTime += (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
+      uSumSizes += ((u32)(pSMVIStats->uFramesSizes[i]) * 8000);
       uSumFramesCount++;
    }
 
@@ -340,26 +337,81 @@ void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats,
       pSMVIStats->uAverageFrameTime = uSumTime / uSumFramesCount;
    }
 
-   if ( (0 < uSumFramesCount) && (0 < uSumSizes) )
-      pSMVIStats->uAverageFrameSize = uSumSizes / uSumFramesCount;
-   if ( (0 < uSumFramesPCount) && (0 < uSumSizesP) )
-      pSMVIStats->uAveragePFrameSize = uSumSizesP / uSumFramesPCount;
-
    
    pSMVIStats->uMaxFrameDeltaTime = 0;
    for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
    {
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) == 0 )
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) == 0 )
          continue;
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) > pSMVIStats->uAverageFrameTime )
-      if ( (pSMVIStats->uFramesDuration[i] & 0x7F) - pSMVIStats->uAverageFrameTime > pSMVIStats->uMaxFrameDeltaTime )
-         pSMVIStats->uMaxFrameDeltaTime = (pSMVIStats->uFramesDuration[i] & 0x7F) - pSMVIStats->uAverageFrameTime;
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) > pSMVIStats->uAverageFrameTime )
+      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) - pSMVIStats->uAverageFrameTime > pSMVIStats->uMaxFrameDeltaTime )
+         pSMVIStats->uMaxFrameDeltaTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) - pSMVIStats->uAverageFrameTime;
       //if ( pSMVIStats->uFramesTimes[i] < pSMVIStats->uAverageFrameTime )
       //if ( pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i] > pSMVIStats->uMaxFrameDeltaTime )
       //   pSMVIStats->uMaxFrameDeltaTime = pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i];
    }
 }
 
+void update_shared_mem_video_frames_stats_on_new_frame(shared_mem_video_frames_stats* pSMVFStats, u32 uLastFrameSizeBytes, int iFrameType, int iDetectedSlices, int iDetectedFPS, u32 uTimeNow)
+{
+   if ( NULL == pSMVFStats )
+      return;
+
+   u32 uLastFrameDuration = 0;
+   if ( 0 != pSMVFStats->uLastFrameTime )
+      uLastFrameDuration = uTimeNow - pSMVFStats->uLastFrameTime;
+   pSMVFStats->uLastFrameTime = uTimeNow;
+
+   if ( uLastFrameDuration > 63 )
+      uLastFrameDuration = 63;
+   if ( uLastFrameDuration < 1 )
+      uLastFrameDuration = 1;
+
+   u32 uLastFrameSizeKb = uLastFrameSizeBytes/1000; // transform from bytes to kbytes
+   if ( uLastFrameSizeKb > 255 )
+      uLastFrameSizeKb = 255; // kbytes
+
+   u32 uFrameIndex = pSMVFStats->uLastFrameIndex;
+   pSMVFStats->uFramesTypesAndDuration[uFrameIndex] = (pSMVFStats->uFramesTypesAndDuration[uFrameIndex] & VIDEO_FRAME_TYPE_MASK) | (uLastFrameDuration & VIDEO_FRAME_DURATION_MASK);
+   pSMVFStats->uFramesSizes[uFrameIndex] = (u8)uLastFrameSizeKb;
+
+   if ( pSMVFStats->uFramesSizes[uFrameIndex] > 0 )
+   {
+      int iLastFrameType = (pSMVFStats->uFramesTypesAndDuration[uFrameIndex] & 0xC0) >> 6;
+      if ( iLastFrameType == 1 )
+      {
+         // IFrame
+         if ( 0 == pSMVFStats->uAverageIFrameSizeBytes )
+            pSMVFStats->uAverageIFrameSizeBytes = uLastFrameSizeBytes;
+         else
+            pSMVFStats->uAverageIFrameSizeBytes = (pSMVFStats->uAverageIFrameSizeBytes * 3 + uLastFrameSizeBytes) / 4;
+      }
+      else if ( iLastFrameType == 0 )
+      {
+         // PFrame
+         if ( 0 == pSMVFStats->uAveragePFrameSizeBytes )
+            pSMVFStats->uAveragePFrameSizeBytes = uLastFrameSizeBytes;
+         else
+            pSMVFStats->uAveragePFrameSizeBytes = (pSMVFStats->uAveragePFrameSizeBytes * 5 + uLastFrameSizeBytes) / 6;
+      }
+   }
+
+   uFrameIndex++;
+   uFrameIndex = (uFrameIndex % MAX_FRAMES_SAMPLES);
+   pSMVFStats->uLastFrameIndex = uFrameIndex;
+ 
+   if ( iFrameType == 1 )
+      pSMVFStats->uFramesTypesAndDuration[uFrameIndex] = 0;
+   else if ( iFrameType == 5 )
+      pSMVFStats->uFramesTypesAndDuration[uFrameIndex] = 1<<6;
+   else
+      pSMVFStats->uFramesTypesAndDuration[uFrameIndex] = 2<<6;
+   pSMVFStats->uFramesSizes[uFrameIndex] = 0;
+
+   pSMVFStats->uDetectedKeyframeIntervalMs = 0;
+   pSMVFStats->uDetectedFPS = (u32)iDetectedFPS;
+   pSMVFStats->uDetectedSlices = (u32)iDetectedSlices;
+}
 
 void reset_radio_tx_timers(type_radio_tx_timers* pRadioTxTimers)
 {

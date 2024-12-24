@@ -21,9 +21,9 @@ typedef struct
    u32 uTimeLastPingReplyReceivedFromVehicleOnLocalRadioLinks[MAX_RADIO_INTERFACES];
    u8  uLastPingIdReceivedFromVehicleOnLocalRadioLinks[MAX_RADIO_INTERFACES];
    u32 uPingRoundtripTimeOnLocalRadioLinks[MAX_RADIO_INTERFACES];
-
+   u32 uMinimumPingTimeMilisec;
    u32 uLastTimeReceivedAckFromVehicle;
-   int iVehicleClockIsBehindThisMilisec;
+   int iVehicleClockDeltaMilisec;
 
    // Commands roundtrip info
 
@@ -35,8 +35,6 @@ typedef struct
    u32 uAverageCommandRoundtripMiliseconds;
    u32 uMaxCommandRoundtripMiliseconds;
    u32 uMinCommandRoundtripMiliseconds;
-
-   u32 uMinPingRoundtripTime;
 
    // Adaptive video info
    u8 uPendingVideoProfileToSet;

@@ -37,6 +37,7 @@
 
 #include "menu.h"
 #include "menu_confirmation_vehicle_board.h"
+#include "menu_negociate_radio.h"
 #include "../ruby_central.h"
 #include "../events.h"
 
@@ -53,10 +54,12 @@ MenuConfirmationVehicleBoard::MenuConfirmationVehicleBoard()
    sprintf(szText, "Select the type of your %s board:", g_pCurrentModel->getVehicleTypeString());
    addTopLine(szText);
    addTopLine("(You can later change it from vehicle menu)");
-   addMenuItem(new MenuItem("Generic Sigmastar SSC338Q board"));
-   addMenuItem(new MenuItem("Ultrasight AIO"));
-   addMenuItem(new MenuItem("Mario AIO"));
-   addMenuItem(new MenuItem("Runcam AIO"));
+
+   for( u32 u=BOARD_SUBTYPE_OPENIPC_GENERIC; u<BOARD_SUBTYPE_OPENIPC_LAST; u++ )
+   {
+      strcpy(szText, str_get_hardware_board_name((g_pCurrentModel->hwCapabilities.uBoardType &BOARD_TYPE_MASK) | (u<<BOARD_SUBTYPE_SHIFT)) );
+      addMenuItem(new MenuItem(szText));
+   }
    m_SelectedIndex = 0;
 }
 
@@ -68,20 +71,27 @@ void MenuConfirmationVehicleBoard::onShow()
 {
    Menu::onShow();
    m_SelectedIndex = 0;
-   u32 uBoardType = 0;
+   u32 uSubType = 0;
    if ( NULL != g_pCurrentModel )
-     uBoardType = (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK);
-
-   if ( uBoardType == BOARD_SUBTYPE_OPENIPC_GENERIC )
-      m_SelectedIndex = 0;
-   if ( uBoardType == BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT )
-      m_SelectedIndex = 1;
-   if ( uBoardType == BOARD_SUBTYPE_OPENIPC_AIO_MARIO )
-      m_SelectedIndex = 2;
-   if ( uBoardType == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM )
-      m_SelectedIndex = 3;
-
+   {
+     uSubType = (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT;
+     if ( (uSubType > BOARD_SUBTYPE_OPENIPC_UNKNOWN) && (uSubType < BOARD_SUBTYPE_OPENIPC_LAST) )
+        m_SelectedIndex = ((int)uSubType) - 1;
+   }
 }
+
+int MenuConfirmationVehicleBoard::onBack()
+{
+   int iRet = Menu::onBack();
+
+   if ( g_bMustNegociateRadioLinksFlag )
+   if ( ! g_bAskedForNegociateRadioLink )
+   {
+      add_menu_to_stack(new MenuNegociateRadio());
+   }
+   return iRet;
+}
+
 
 void MenuConfirmationVehicleBoard::onSelectItem()
 {
@@ -95,15 +105,8 @@ void MenuConfirmationVehicleBoard::onSelectItem()
 
    u32 uBoardType = g_pCurrentModel->hwCapabilities.uBoardType;
    uBoardType &= ~(u32)BOARD_SUBTYPE_MASK;
-   if ( 0 == m_SelectedIndex )
-      uBoardType |= BOARD_SUBTYPE_OPENIPC_GENERIC;
-   if ( 1 == m_SelectedIndex )
-      uBoardType |= BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT;
-   if ( 2 == m_SelectedIndex )
-      uBoardType |= BOARD_SUBTYPE_OPENIPC_AIO_MARIO;
-   if ( 3 == m_SelectedIndex )
-      uBoardType |= BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM;
-
+   uBoardType |= ((u32)m_SelectedIndex+1) << BOARD_SUBTYPE_SHIFT;
+   
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VEHICLE_BOARD_TYPE, uBoardType, NULL, 0) )
       valuesToUI();
 }

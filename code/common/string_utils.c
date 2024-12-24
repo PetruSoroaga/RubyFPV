@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -628,7 +628,7 @@ char* str_format_frequency_no_sufix(u32 uFrequencyKhz)
 
 const char* str_get_hardware_board_name(u32 board_type)
 {
-   static const char* s_szBoardTypeUnknown = "N/A";
+   static const char* s_szBoardTypeUnknown = "Unknown";
    #ifdef HW_PLATFORM_RASPBERRY
    static const char* s_szBoardTypePi0 = "Raspberry Pi Zero";
    static const char* s_szBoardTypePi0W = "Raspberry Pi Zero W";
@@ -648,11 +648,13 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
    static const char* s_szBoardTypeOpenIPCGoke300 = "OpenIPC Goke300";
-   static const char* s_szBoardTypeOpenIPCSigmaster338Q = "OpenIPC SSC338Q";
    static const char* s_szBoardTypeOpenIPCSigmasterGeneric = "OpenIPC SSC338Q Generic";
+   static const char* s_szBoardTypeOpenIPCSigmasterGeneric30KQ = "OpenIPC SSC30KQ Generic";
    static const char* s_szBoardTypeOpenIPCSigmasterUltrasight = "Ultrasight AIO";
    static const char* s_szBoardTypeOpenIPCSigmasterMario = "Mario AIO";
    static const char* s_szBoardTypeOpenIPCSigmasterRuncam = "Runcam";
+   static const char* s_szBoardTypeOpenIPCSigmasterEMax = "EMax";
+   static const char* s_szBoardTypeOpenIPCSigmasterThinker = "OpenIPC Thinker";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
@@ -690,25 +692,25 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypeOpenIPCGoke210;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardTypeOpenIPCGoke300;
-   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
    {
-      if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_GENERIC )
-         return s_szBoardTypeOpenIPCSigmasterGeneric;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT )
-         return s_szBoardTypeOpenIPCSigmasterUltrasight;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_MARIO )
-         return s_szBoardTypeOpenIPCSigmasterMario;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM )
-         return s_szBoardTypeOpenIPCSigmasterRuncam;
-      else
-         return s_szBoardTypeOpenIPCSigmaster338Q;
+      switch ( (board_type & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT)
+      {
+         case BOARD_SUBTYPE_OPENIPC_GENERIC: return s_szBoardTypeOpenIPCSigmasterGeneric;
+         case BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ: return s_szBoardTypeOpenIPCSigmasterGeneric30KQ;
+         case BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT: return s_szBoardTypeOpenIPCSigmasterUltrasight;
+         case BOARD_SUBTYPE_OPENIPC_AIO_MARIO: return s_szBoardTypeOpenIPCSigmasterMario;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM: return s_szBoardTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_EMAX: return s_szBoardTypeOpenIPCSigmasterEMax;
+         case BOARD_SUBTYPE_OPENIPC_AIO_THINKER: return s_szBoardTypeOpenIPCSigmasterThinker;
+      }
    }
    return s_szBoardTypeUnknown;
 }
 
 const char* str_get_hardware_board_name_short(u32 board_type)
 {
-   static const char* s_szBoardSTypeUnknown = "N/A";
+   static const char* s_szBoardSTypeUnknown = "Unknown";
    #ifdef HW_PLATFORM_RASPBERRY
    static const char* s_szBoardSTypePi0 = "Pi 0";
    static const char* s_szBoardSTypePi0W = "Pi 0W";
@@ -730,11 +732,13 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
    static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
    static const char* s_szBoardSTypeOpenIPCGoke300 = "Goke300";
-   static const char* s_szBoardSTypeOpenIPCSigmaster338Q = "SSC338Q";
-   static const char* s_szBoardSTypeOpenIPCSigmasterGeneric = "SSC338Q Generic";
+   static const char* s_szBoardSTypeOpenIPCSigmasterGeneric = "SSC338Q";
+   static const char* s_szBoardSTypeOpenIPCSigmasterGeneric30KQ = "SSC30KQ";
    static const char* s_szBoardSTypeOpenIPCSigmasterUltrasight = "Ultrasight";
    static const char* s_szBoardSTypeOpenIPCSigmasterMario = "Mario";
    static const char* s_szBoardSTypeOpenIPCSigmasterRuncam = "Runcam";
+   static const char* s_szBoardSTypeOpenIPCSigmasterEMax = "EMax";
+   static const char* s_szBoardSTypeOpenIPCSigmasterThinker = "Thinker";
 
    #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
@@ -772,18 +776,18 @@ const char* str_get_hardware_board_name_short(u32 board_type)
       return s_szBoardSTypeOpenIPCGoke210;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
       return s_szBoardSTypeOpenIPCGoke300;
-   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTER_338Q )
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
    {
-      if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_GENERIC )
-         return s_szBoardSTypeOpenIPCSigmasterGeneric;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT )
-         return s_szBoardSTypeOpenIPCSigmasterUltrasight;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_MARIO )
-         return s_szBoardSTypeOpenIPCSigmasterMario;
-      else if ( (board_type & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM )
-         return s_szBoardSTypeOpenIPCSigmasterRuncam;
-      else
-         return s_szBoardSTypeOpenIPCSigmaster338Q;
+      switch ( (board_type & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT)
+      {
+         case BOARD_SUBTYPE_OPENIPC_GENERIC: return s_szBoardSTypeOpenIPCSigmasterGeneric;
+         case BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ: return s_szBoardSTypeOpenIPCSigmasterGeneric30KQ;
+         case BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT: return s_szBoardSTypeOpenIPCSigmasterUltrasight;
+         case BOARD_SUBTYPE_OPENIPC_AIO_MARIO: return s_szBoardSTypeOpenIPCSigmasterMario;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM: return s_szBoardSTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_EMAX: return s_szBoardSTypeOpenIPCSigmasterEMax;
+         case BOARD_SUBTYPE_OPENIPC_AIO_THINKER: return s_szBoardSTypeOpenIPCSigmasterThinker;
+      }
    }
 
    return s_szBoardSTypeUnknown;
@@ -909,6 +913,11 @@ void str_get_supported_bands_string(u32 bands, char* szOut)
       iCount++;
    }
 
+   if ( (0 == szOut[0]) || (0 == iCount) )
+   {
+      strcpy(szOut, "N/A");
+      return;
+   }
    if ( hasGhz )
       strcat(szOut, " Ghz");
 
@@ -972,6 +981,8 @@ const char* str_get_radio_card_model_string(int cardModel)
    s_szCardModelDescription[0] = 0;
    strcpy(s_szCardModelDescription, "Generic");
    if ( cardModel == CARD_MODEL_TPLINK722N )        strcpy(s_szCardModelDescription, "TPLink 722N");
+   if ( cardModel == CARD_MODEL_ATHEROS_GENERIC )   strcpy(s_szCardModelDescription, "Atheros Generic");
+   if ( cardModel == CARD_MODEL_RTL8812AU_GENERIC ) strcpy(s_szCardModelDescription, "RTL8812AU Generic");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036NHA )   strcpy(s_szCardModelDescription, "Alfa AWUS036NHA");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036NH )    strcpy(s_szCardModelDescription, "Alfa AWUS036NH");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036ACH )   strcpy(s_szCardModelDescription, "Alfa AWUS036ACH");
@@ -987,6 +998,9 @@ const char* str_get_radio_card_model_string(int cardModel)
    if ( cardModel == CARD_MODEL_ARCHER_T2UPLUS )    strcpy(s_szCardModelDescription, "Archer T2U Plus");
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
    if ( cardModel == CARD_MODEL_BLUE_8812EU )       strcpy(s_szCardModelDescription, "Blue RTL8812EU");
+   if ( cardModel == CARD_MODEL_RTL8812AU_OIPC_USIGHT ) strcpy(s_szCardModelDescription, "RTL8812AU Ultrasight");
+   if ( cardModel == CARD_MODEL_RTL8812AU_OIPC_USIGHT2 ) strcpy(s_szCardModelDescription, "RTL8812AU Ultrasight 2");
+
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO_ELRS ) strcpy(s_szCardModelDescription, "ELRS-Radio");
@@ -1002,6 +1016,8 @@ const char* str_get_radio_card_model_string_short(int cardModel)
    s_szCardModelDescription[0] = 0;
    strcpy(s_szCardModelDescription, "Generic");
    if ( cardModel == CARD_MODEL_TPLINK722N )        strcpy(s_szCardModelDescription, "TPL-722N");
+   if ( cardModel == CARD_MODEL_ATHEROS_GENERIC )   strcpy(s_szCardModelDescription, "Atheros");
+   if ( cardModel == CARD_MODEL_RTL8812AU_GENERIC ) strcpy(s_szCardModelDescription, "RTL8812AU");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036NHA )   strcpy(s_szCardModelDescription, "AWUS036NHA");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036NH )    strcpy(s_szCardModelDescription, "AWUS036NH");
    if ( cardModel == CARD_MODEL_ALFA_AWUS036ACH )   strcpy(s_szCardModelDescription, "AWUS036ACH");
@@ -1017,6 +1033,8 @@ const char* str_get_radio_card_model_string_short(int cardModel)
    if ( cardModel == CARD_MODEL_ARCHER_T2UPLUS )    strcpy(s_szCardModelDescription, "T2U+");
    if ( cardModel == CARD_MODEL_RTL8814AU )         strcpy(s_szCardModelDescription, "RTL8814AU");
    if ( cardModel == CARD_MODEL_BLUE_8812EU )       strcpy(s_szCardModelDescription, "RTL8812EU");
+   if ( cardModel == CARD_MODEL_RTL8812AU_OIPC_USIGHT ) strcpy(s_szCardModelDescription, "RTL8812AU USight");
+   if ( cardModel == CARD_MODEL_RTL8812AU_OIPC_USIGHT2 ) strcpy(s_szCardModelDescription, "RTL8812AU USight2");
    
    if ( cardModel == CARD_MODEL_SIK_RADIO )         strcpy(s_szCardModelDescription, "SiK-Radio");
    if ( cardModel == CARD_MODEL_SERIAL_RADIO )      strcpy(s_szCardModelDescription, "Serial-Radio");
@@ -1328,8 +1346,6 @@ char* str_get_component_id(int iComponentId)
       strcpy(s_szComponentIdString, "PACKET_COMPONENT_RUBY");
    else if ( iComponentId == PACKET_COMPONENT_AUDIO )
       strcpy(s_szComponentIdString, "PACKET_COMPONENT_AUDIO");
-   else if ( iComponentId == PACKET_COMPONENT_DATA )
-      strcpy(s_szComponentIdString, "PACKET_COMPONENT_DATA");
    else
       strcpy(s_szComponentIdString, "INVALID");
 

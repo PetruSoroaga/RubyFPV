@@ -37,11 +37,12 @@
 #include "menu_confirmation.h"
 #include "menu_system_all_params.h"
 #include "menu_system_hardware.h"
-#include "../../base/controller_utils.h"
+#include "../../utils/utils_controller.h"
 #include "menu_system_dev_logs.h"
 #include "menu_system_alarms.h"
 #include "menu_controller_dev.h"
 #include "menu_vehicle_dev.h"
+#include "menu_about.h"
 #include "../osd/osd_common.h"
 #include "../process_router_messages.h"
 #include "../pairing.h"
@@ -51,13 +52,11 @@
 #include <sys/resource.h>
 #include <semaphore.h>
 
-extern u32 g_idIconOpenIPC;
-
 
 MenuSystem::MenuSystem(void)
 :Menu(MENU_ID_SYSTEM, "System Info", NULL)
 {
-   m_Width = 0.52;
+   m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.24;
    
    m_IndexAlarms = addMenuItem( new MenuItem("Alarms Settings") );
@@ -82,6 +81,7 @@ MenuSystem::MenuSystem(void)
    m_IndexAutoExport = addMenuItem(m_pItemsSelect[1]);
 
    m_IndexReset = addMenuItem(new MenuItem("Factory Reset", "Resets all the settings an files on the controller, as they where when the image was flashed."));
+   m_IndexAbout = addMenuItem(new MenuItem("About", "Get info about Ruby system."));
 
    m_pItemsSelect[0] = new MenuItemSelect("Enable Vehicle Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
    m_pItemsSelect[0]->addSelection("Off");
@@ -141,13 +141,6 @@ void MenuSystem::Render()
 
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
-
-   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float iconHeight = 2.0*height_text;
-   float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
-   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, yEnd - iconHeight - 8.5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconRuby);
-   g_pRenderEngine->drawIcon(m_RenderXPos + m_RenderWidth - m_sfMenuPaddingX - iconWidth - 0.16, yEnd - iconHeight - 5.5*g_pRenderEngine->textHeight(g_idFontMenu), iconWidth, iconHeight, g_idIconOpenIPC);
-
    RenderEnd(yEnd);
 }
 
@@ -386,6 +379,12 @@ void MenuSystem::onSelectItem()
       MenuConfirmation* pMC = new MenuConfirmation("Factory Reset Controller","Are you sure you want to reset the controller to default settings?", 1, false);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
+      return;
+   }
+
+   if ( m_IndexAbout == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuAbout());
       return;
    }
 

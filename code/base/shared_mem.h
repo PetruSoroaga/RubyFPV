@@ -12,9 +12,9 @@
 #define SHARED_MEM_RADIO_STATS "/SYSTEM_SHARED_MEM_RUBY_RADIO_STATS"
 #define SHARED_MEM_RADIO_STATS_RX_HIST "/SYSTEM_SHARED_MEM_RUBY_RADIO_STATS_RX_HIST"
 
-#define SHARED_MEM_VIDEO_STREAM_INFO_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO"
-#define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_IN "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_IN"
-#define SHARED_MEM_VIDEO_STREAM_INFO_STATS_RADIO_OUT "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_OUT"
+#define SHARED_MEM_VIDEO_FRAMES_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO"
+#define SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_IN "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_IN"
+#define SHARED_MEM_VIDEO_FRAMES_STATS_RADIO_OUT "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_INFO_RADIO_OUT"
 #define SHARED_MEM_VIDEO_LINK_GRAPHS "/SYSTEM_SHARED_MEM_STATION_VIDEO_LINK_GRAPHS"
 #define SHARED_MEM_RC_DOWNLOAD_INFO "R_SHARED_MEM_VEHICLE_RC_DOWNLOAD_INFO"
 #define SHARED_MEM_RC_UPSTREAM_FRAME "R_SHARED_MEM_RC_UPSTREAM_FRAME"
@@ -122,30 +122,37 @@ typedef struct
 } ALIGN_STRUCT_SPEC_INFO shared_mem_dev_video_bitrate_history;
 
 
-#define MAX_FRAMES_SAMPLES 60
-
+#define MAX_FRAMES_SAMPLES 121
+#define VIDEO_FRAME_TYPE_MASK 0xC0
+#define VIDEO_FRAME_DURATION_MASK 0x3F
 typedef struct
 {
-   u32 uTimeLastUpdate; // Last time statistics where updated
-   u8 uFramesDuration[MAX_FRAMES_SAMPLES]; // highest bit: 1 if keyframe interval was adjusted. lower 7 bits: frame duration in ms
-   u8 uFramesTypesAndSizes[MAX_FRAMES_SAMPLES]; // Frame type and size in kbytes (frame type: highest bit: 0 regular, 1 keframe; lower 7 bits: frame size in kbytes)
-   u32 uLastIndex; // Increases on each video frame detected
+   u32 uLastTimeStatsUpdate; // Last time statistics where updated
+   u32 uLastFrameIndex; // Increases on each video frame de tected
+   u32 uLastFrameTime;
+   u8 uFramesTypesAndDuration[MAX_FRAMES_SAMPLES];
+     // highest 2 bits: 0-pframe, 1-iframe, 2-other frame
+     // lower 6 bits: frame duration in ms
+   u8 uFramesSizes[MAX_FRAMES_SAMPLES];
+     // Frame size in kbytes
 
    // Computed on H264 parser
    u32 uDetectedFPS;
    u32 uDetectedSlices;
-   
+   u32 uDetectedKeyframeIntervalMs;
+
+   // Computed on each frame update
+   u32 uAverageIFrameSizeBytes;
+   u32 uAveragePFrameSizeBytes;
+
    // Computed on OSD side
    u32 uAverageFPS;
    u32 uAverageFrameTime;
-   u32 uAverageFrameSize; // in bits
-   u32 uAveragePFrameSize; // in bits
    u32 uMaxFrameDeltaTime;
-   u16 uKeyframeIntervalMs;
    u32 uExtraValue1;
    u32 uExtraValue2;
    
-} ALIGN_STRUCT_SPEC_INFO shared_mem_video_info_stats;
+} ALIGN_STRUCT_SPEC_INFO shared_mem_video_frames_stats;
 
 #define MAX_RADIO_TX_TIMES_HISTORY_INTERVALS 50
 
@@ -191,17 +198,17 @@ shared_mem_radio_stats_rx_hist* shared_mem_radio_stats_rx_hist_open_for_read();
 shared_mem_radio_stats_rx_hist* shared_mem_radio_stats_rx_hist_open_for_write();
 void shared_mem_radio_stats_rx_hist_close(shared_mem_radio_stats_rx_hist* pAddress);
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_read();
-shared_mem_video_info_stats* shared_mem_video_info_stats_open_for_write();
-void shared_mem_video_info_stats_close(shared_mem_video_info_stats* pAddress);
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_open_for_read();
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_open_for_write();
+void shared_mem_video_frames_stats_close(shared_mem_video_frames_stats* pAddress);
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_in_open_for_read();
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_in_open_for_write();
-void shared_mem_video_info_stats_radio_in_close(shared_mem_video_info_stats* pAddress);
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_in_open_for_read();
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_in_open_for_write();
+void shared_mem_video_frames_stats_radio_in_close(shared_mem_video_frames_stats* pAddress);
 
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_read();
-shared_mem_video_info_stats* shared_mem_video_info_stats_radio_out_open_for_write();
-void shared_mem_video_info_stats_radio_out_close(shared_mem_video_info_stats* pAddress);
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_out_open_for_read();
+shared_mem_video_frames_stats* shared_mem_video_frames_stats_radio_out_open_for_write();
+void shared_mem_video_frames_stats_radio_out_close(shared_mem_video_frames_stats* pAddress);
 
 
 shared_mem_video_link_graphs* shared_mem_video_link_graphs_open_for_read();
@@ -216,7 +223,8 @@ t_packet_header_rc_full_frame_upstream* shared_mem_rc_upstream_frame_open_read()
 t_packet_header_rc_full_frame_upstream* shared_mem_rc_upstream_frame_open_write();
 void shared_mem_rc_upstream_frame_close(t_packet_header_rc_full_frame_upstream* pRCFrame);
 
-void update_shared_mem_video_info_stats(shared_mem_video_info_stats* pSMVIStats, u32 uTimeNow);
+void update_shared_mem_video_frames_stats(shared_mem_video_frames_stats* pSMVIStats, u32 uTimeNow);
+void update_shared_mem_video_frames_stats_on_new_frame(shared_mem_video_frames_stats* pSMVFStats, u32 uLastFrameSizeBytes, int iFrameType, int iDetectedSlices, int iDetectedFPS, u32 uTimeNow);
 
 void reset_radio_tx_timers(type_radio_tx_timers* pRadioTxTimers);
 

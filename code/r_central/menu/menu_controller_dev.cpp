@@ -111,7 +111,7 @@ void MenuControllerDev::addItems()
    m_pItemsSlider[9]->setCurrentValue(pCS->iDevRxLoopTimeout);
    m_IndexRxLoopTimeout = addMenuItem(m_pItemsSlider[9]);
 
-   m_IndexDebugRTStatsGraphs = addMenuItem(new MenuItem("Real time debug stats graphs", "Show live monitor of Rx links and video stats"));
+   m_IndexDebugRTStatsGraphs = addMenuItem(new MenuItem("Show real time stats graphs", "Show live monitor of Rx links and video stats"));
    m_pMenuItems[m_IndexDebugRTStatsGraphs]->showArrow();
 
    m_IndexDebugRTStatsConfig = addMenuItem(new MenuItem("Real time debug stats config", "Configure live monitor of Rx links and video stats"));

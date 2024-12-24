@@ -19,7 +19,8 @@ class MenuControllerDevStatsConfig: public Menu
       MenuItemSlider* m_pItemsSlider[15];
 
       int m_IndexQAButton;
-      int m_IndexShowRXVideoDataPackets;  
+      int m_IndexShowRXTXPackets;
+      int m_IndexShowRXAirGaps;
       int m_IndexShowRxH264Frames;
       int m_IndexShowRxDBM;
       int m_IndexShowRxMissingPackets;

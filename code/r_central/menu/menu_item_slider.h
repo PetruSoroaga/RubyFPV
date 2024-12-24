@@ -13,6 +13,7 @@ class MenuItemSlider: public MenuItem
      void setCurrentValue(int val);
      void setMaxValue(int val);
      int getCurrentValue();
+     void setSufix(const char* szSufix);
 
      virtual void beginEdit();
      virtual void endEdit(bool bCanceled);
@@ -33,4 +34,5 @@ class MenuItemSlider: public MenuItem
       int m_ValuePrev;
       int m_Step;
       bool m_HalfStepsEnabled;
+      char m_szSufix[32];
 };

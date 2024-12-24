@@ -383,8 +383,15 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
       else
       {
          if ( ! m_bEnabledItems[i] )
-         {
             g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
+         if ( i == m_SelectedIndexBeforeEdit )
+         {
+            g_pRenderEngine->setFill(0,0,0,0);
+            g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV + g_pRenderEngine->getPixelHeight(), width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV - 2.0 * g_pRenderEngine->getPixelHeight(), 0.2*Menu::getMenuPaddingY());
+            if ( m_bCustomTextColor )
+               g_pRenderEngine->setColors(&m_TextColor[0]);
+            else
+               g_pRenderEngine->setColors(get_Color_MenuText());
          }
          g_pRenderEngine->drawText(xValues, y, g_idFontMenu, m_szSelections[i]);
          if ( m_bCustomTextColor )

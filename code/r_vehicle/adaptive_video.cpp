@@ -53,6 +53,7 @@ int s_iPendingAdaptiveRadioDataRate = 0;
 u32 s_uTimeSetPendingAdaptiveRadioDataRate = 0;
 
 u32 s_uLastAdaptiveAppliedVideoBitrate = 0;
+int s_iLastIPQuantizationSet = -1000;
 
 void adaptive_video_init()
 {
@@ -95,6 +96,16 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
       if ( g_pCurrentModel->isActiveCameraOpenIPC() )
          video_source_majestic_set_videobitrate_value(uBitrateBPS); 
    }
+
+   // Update IP quantization delta
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   if ( s_iLastIPQuantizationSet != g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta )
+   {
+      s_iLastIPQuantizationSet = g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta;    
+      video_source_majestic_set_qpdelta_value(s_iLastIPQuantizationSet);
+   }
+
    // Update adaptive video rate for tx radio:
 
    if ( s_uLastVideoProfileRequestedByController == g_pCurrentModel->video_params.user_selected_video_link_profile )
@@ -173,6 +184,7 @@ bool _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
 void adaptive_video_on_capture_restarted()
 {
    s_uLastAdaptiveAppliedVideoBitrate = 0;
+   s_iLastIPQuantizationSet = -1000;
 }
 
 void adaptive_video_on_new_camera_read(bool bEndOfFrame, bool bIsInsideIFrame)
@@ -203,14 +215,7 @@ void adaptive_video_periodic_loop()
    if ( g_TimeNow < s_uTimeLastTimeAdaptivePeriodicLoop + 10 )
       return;
    if ( g_bNegociatingRadioLinks )
-   {
-      if ( g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*1000 )
-      {
-         g_uTimeStartNegociatingRadioLinks = 0;
-         g_bNegociatingRadioLinks = false;
-      }
       return;
-   }
    
    s_uTimeLastTimeAdaptivePeriodicLoop = g_TimeNow;
 

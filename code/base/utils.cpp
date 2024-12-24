@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -931,14 +931,6 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
       iStartIndex = iRadioIndex;
       iEndIndex = iRadioIndex;
    }
-
-   #if defined(HW_PLATFORM_RASPBERRY)
-   log_line("Setting frequency for Pi method");
-   #elif defined(HW_PLATFORM_RADXA_ZERO3)
-   log_line("Setting frequency for Radxa method");
-   #else
-   log_line("Setting frequency for OpenIPC/Radxa method");
-   #endif
 
    char cmd[128];
    char szOutput[512];

@@ -29,13 +29,14 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "base.h"
-#include "config.h"
-#include "hardware.h"
-#include "hardware_radio.h"
-#include "hw_procs.h"
-#include "controller_utils.h"
-#include "ctrl_interfaces.h"
+#include "../base/base.h"
+#include "../base/config.h"
+#include "../base/hardware.h"
+#include "../base/hardware_radio.h"
+#include "../base/hw_procs.h"
+#include "../base/tx_powers.h"
+#include "../base/ctrl_interfaces.h"
+#include "../utils/utils_controller.h"
 
 #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 
@@ -473,12 +474,120 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
       pAllProfiles[VIDEO_PROFILE_MQ].h264refresh = pUpdatedProfile->h264refresh;
       pAllProfiles[VIDEO_PROFILE_LQ].h264refresh = pUpdatedProfile->h264refresh;
    }
+}
 
-   if ( pOrgProfile->insertPPS != pUpdatedProfile->insertPPS )
+int tx_powers_get_max_usable_power_mw_for_controller()
+{
+   // Select the max mw power for any present card
+   int iMaxPowerMw = 10;
+   
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      pAllProfiles[VIDEO_PROFILE_MQ].insertPPS = pUpdatedProfile->insertPPS;
-      pAllProfiles[VIDEO_PROFILE_LQ].insertPPS = pUpdatedProfile->insertPPS;
+      if ( ! hardware_radio_is_index_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+
+      int iDriver = pRadioHWInfo->iRadioDriver;
+      int iCardModel = pCRII->cardModel;
+
+      int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+      int iPowerMw = tx_powers_convert_raw_to_mw(iDriver, iCardModel, iPowerMaxRaw);
+      if ( iPowerMw > iMaxPowerMw )
+         iMaxPowerMw = iPowerMw;
    }
+   return iMaxPowerMw;
+}
+
+int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComputeOnly)
+{
+   load_ControllerInterfacesSettings();
+
+   int iMaxPowerMwSet = 0;
+   int iPowerMwToOverwrite = 0;
+
+   if ( ! bFixedPower )
+   if ( (NULL != pModel) && pModel->radioInterfacesParams.iAutoControllerTxPower )
+   {
+      int iMwPowers[MAX_RADIO_INTERFACES];
+      tx_power_get_current_mw_powers_for_model(pModel, &iMwPowers[0]);
+      int iMaxPowerMwVehicle = 0;
+      for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+      {
+         log_line("Vehicle radio interface %d raw tx power: %d (%d mw)", i+1, pModel->radioInterfacesParams.interface_raw_power[i], iMwPowers[i]);
+         if ( iMwPowers[i] > iMaxPowerMwVehicle )
+            iMaxPowerMwVehicle = iMwPowers[i];
+      }
+      log_line("Vehicle max tx power (mw): %d", iMaxPowerMwVehicle);
+      iPowerMwToOverwrite = iMaxPowerMwVehicle * 2;
+   }
+
+   if ( 0 != iPowerMwToOverwrite )
+      log_line("Applying all radio interfaces tx power overwrite (from model): %d mW", iPowerMwToOverwrite);
+   else
+      log_line("Applying all radio interfaces raw tx powers...");
+
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( ! hardware_radio_is_index_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+
+      int iDriver = pRadioHWInfo->iRadioDriver;
+      int iCardModel = pCRII->cardModel;
+      int iPowerRawToSet = pCRII->iRawPowerLevel;
+
+      if ( 0 != iPowerMwToOverwrite )
+      {
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+         int iCardNewPowerMw = iPowerMwToOverwrite;
+         if ( iCardNewPowerMw > iCardMaxPowerMw )
+            iCardNewPowerMw = iCardMaxPowerMw;
+         iPowerRawToSet = tx_powers_convert_mw_to_raw(iDriver, iCardModel, iCardNewPowerMw);
+         pCRII->iRawPowerLevel = iPowerRawToSet;
+         log_line("Set radio interface %d raw tx power to: %d (%d mw of %d mw max for this card)", i+1, iPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
+      }
+      log_line("Radio interface %d raw tx power: %d", i+1, pCRII->iRawPowerLevel);
+
+      if ( ! bComputeOnly )
+      {
+         if ( hardware_radio_driver_is_rtl8812au_card(pRadioHWInfo->iRadioDriver) )
+            hardware_radio_set_txpower_raw_rtl8812au(i, iPowerRawToSet);
+         if ( hardware_radio_driver_is_rtl8812eu_card(pRadioHWInfo->iRadioDriver) )
+            hardware_radio_set_txpower_raw_rtl8812eu(i, iPowerRawToSet);
+         if ( hardware_radio_driver_is_atheros_card(pRadioHWInfo->iRadioDriver) )
+            hardware_radio_set_txpower_raw_atheros(i, iPowerRawToSet);
+      }
+      
+      int iPowerMwSet = tx_powers_convert_raw_to_mw(iDriver, iCardModel, iPowerRawToSet);
+      if ( iPowerMwSet > iMaxPowerMwSet )
+         iMaxPowerMwSet = iPowerMwSet;
+   }
+   if ( 0 != iPowerMwToOverwrite )
+      log_line("Applied all radio interfaces tx power overwrite (from model): %d mW", iPowerMwToOverwrite);
+   else
+      log_line("Applied all radio interfaces raw tx powers.");
+
+   if ( bComputeOnly )
+      log_line("Computed a max tx power of %d mw", iMaxPowerMwSet);
+   else
+      log_line("Applied a max tx power of %d mw", iMaxPowerMwSet);
+   return iMaxPowerMwSet;
 }
 
 #else
@@ -489,4 +598,6 @@ bool controller_utils_usb_import_has_matching_controller_id_file() { return fals
 bool controller_utils_usb_import_has_any_controller_id_file() { return false; }
 int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId) { return 0; }
 void propagate_video_profile_changes(type_video_link_profile* pOrg, type_video_link_profile* pUpdated, type_video_link_profile* pAllProfiles){}
+int tx_powers_get_max_usable_power_mw_for_controller(){ return 0; }
+int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComputeOnl){ return 0; }
 #endif

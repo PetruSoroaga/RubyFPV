@@ -42,7 +42,6 @@
 #include "../base/hardware.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
-#include "../base/controller_utils.h"
 #include "../common/string_utils.h"
 #include "../common/radio_stats.h"
 #include "../common/models_connect_frequencies.h"
@@ -52,6 +51,7 @@
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
 #include "../radio/radio_duplicate_det.h"
+#include "../utils/utils_controller.h"
 
 #include "shared_vars.h"
 #include "links_utils.h"
@@ -177,6 +177,11 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    rc_parameters_t oldRCParams;
    video_parameters_t oldVideoParams;
 
+   ControllerSettings* pCS = get_ControllerSettings();
+   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
+   ControllerInterfacesSettings oldCIS;
+   memcpy(&oldCIS, pCIS, sizeof(ControllerInterfacesSettings));
+
    memcpy(&oldRadioInterfacesParams, &(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(&oldRadioLinksParams, &(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
    memcpy(&oldRCParams, &(g_pCurrentModel->rc_params), sizeof(rc_parameters_t));
@@ -185,50 +190,83 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
             
    u32 oldEFlags = g_pCurrentModel->enc_flags;
-   ControllerSettings* pCS = get_ControllerSettings();
-   int iOldTxPowerSiK = pCS->iTXPowerSiK;
 
    if ( uChangeType == MODEL_CHANGED_RADIO_POWERS )
    {
       log_line("Received local notification that radio powers have changed.");
       load_ControllerSettings();
-      if ( iOldTxPowerSiK == pCS->iTXPowerSiK )
+      load_ControllerInterfacesSettings();
+      
+      apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, false);
+
+      int iSikRadioIndexToUpdate = -1;
+      int iSikOldPower = -1;
+      int iSikNewPower = -1;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
-         log_line("SiK Tx power is unchanged. Ignoring this notification.");
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( ! pRadioHWInfo->isConfigurable )
+            continue;
+         if ( !hardware_radio_index_is_sik_radio(i) )
+            continue;
+
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
+
+         for( int k=0; k<oldCIS.radioInterfacesCount; k++ )
+         {
+            if ( 0 == strncmp(pRadioHWInfo->szMAC, oldCIS.listRadioInterfaces[k].szMAC, MAX_MAC_LENGTH) )
+            if ( pCRII->iRawPowerLevel != oldCIS.listRadioInterfaces[k].iRawPowerLevel )
+            {
+               iSikOldPower = oldCIS.listRadioInterfaces[k].iRawPowerLevel;
+               iSikRadioIndexToUpdate = i;
+               break;
+            }
+         }
+      }
+
+      if ( iSikRadioIndexToUpdate != -1 )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iSikRadioIndexToUpdate);
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         iSikNewPower = pCRII->iRawPowerLevel;
+         if ( (iSikNewPower < 0) || (iSikNewPower > 20) )
+            iSikNewPower = 20;
+         log_line("SiK Tx power changed on radio interface %d from %d to %d. Updating SiK radio interface params...",
+            iSikRadioIndexToUpdate, iSikOldPower, iSikNewPower);
+         if ( g_SiKRadiosState.bConfiguringToolInProgress )
+         {
+            log_softerror_and_alarm("Another SiK configuration is in progress. Ignoring this one.");
+            return;
+         }
+
+         if ( g_SiKRadiosState.bConfiguringSiKThreadWorking )
+         {
+            log_softerror_and_alarm("SiK reinitialization thread is in progress. Ignoring this notification.");
+            return;
+         }
+
+         if ( g_SiKRadiosState.bMustReinitSiKInterfaces )
+         {
+            log_softerror_and_alarm("SiK reinitialization is already flagged. Ignoring this notification.");
+            return;
+         }
+
+         radio_links_close_and_mark_sik_interfaces_to_reopen();
+         g_SiKRadiosState.bConfiguringToolInProgress = true;
+         g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
+            
+         char szCommand[128];
+         sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
+         hw_execute_bash_command(szCommand, NULL);
+
+         sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", iSikNewPower);
+         hw_execute_bash_command(szCommand, NULL);
+
+         // Do not need to notify other components. Just return.
          return;
       }
-      log_line("SiK Tx power changed from %d to %d. Updating SiK radio interfaces params...", iOldTxPowerSiK, pCS->iTXPowerSiK);
-      if ( g_SiKRadiosState.bConfiguringToolInProgress )
-      {
-         log_softerror_and_alarm("Another SiK configuration is in progress. Ignoring this one.");
-         return;
-      }
-
-      if ( g_SiKRadiosState.bConfiguringSiKThreadWorking )
-      {
-         log_softerror_and_alarm("SiK reinitialization thread is in progress. Ignoring this notification.");
-         return;
-      }
-
-      if ( g_SiKRadiosState.bMustReinitSiKInterfaces )
-      {
-         log_softerror_and_alarm("SiK reinitialization is already flagged. Ignoring this notification.");
-         return;
-      }
-
-      radio_links_close_and_mark_sik_interfaces_to_reopen();
-      g_SiKRadiosState.bConfiguringToolInProgress = true;
-      g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
-         
-      char szCommand[128];
-      sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
-      hw_execute_bash_command(szCommand, NULL);
-
-      sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", pCS->iTXPowerSiK);
-      hw_execute_bash_command(szCommand, NULL);
-
-      // Do not need to notify other components. Just return.
-      return;
    }
 
    // Reload new model state
@@ -664,8 +702,7 @@ void process_local_control_packet(t_packet_header* pPH)
                break;
             if ( g_pVideoProcessorRxList[i]->m_uVehicleId == pPH->vehicle_id_src )
             {
-               // To fix?
-               //g_pVideoProcessorRxList[i]->resetRetransmissionsStats();
+               g_pVideoProcessorRxList[i]->discardRetransmissionsInfo();
                break;
             }
          }

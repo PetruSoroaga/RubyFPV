@@ -49,10 +49,12 @@
 #include "../base/vehicle_settings.h"
 #include "../radio/radioflags.h"
 #include "../base/ruby_ipc.h"
+#include "../base/tx_powers.h"
 
 #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 #include "../base/ctrl_settings.h"
-#include "../base/controller_utils.h"
+#include "../utils/utils_controller.h"
+#include "../base/ctrl_interfaces.h"
 #endif
 
 #include "../common/string_utils.h"
@@ -68,6 +70,7 @@ static sem_t* s_pSemaphoreStarted = NULL;
 static int s_iBootCount = 0;
 
 static bool g_bDebug = false;
+static bool g_bIsFirstBoot = false;
 static bool s_isVehicle = false;
 bool s_bQuit = false;
 Model modelVehicle;
@@ -263,20 +266,6 @@ void _check_files()
       hw_execute_bash_command("cp -rf /etc/modprobe.d/ath9k_hw.conf /etc/modprobe.d/ath9k_hw.conf.org", NULL);
       if ( access( "/etc/modprobe.d/ath9k_hw.conf.org", R_OK ) == -1 )
          {failed = true; strcat(szFilesMissing, " Atheros_config");}
-   }
-
-   if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) == -1 )
-   {
-      hw_execute_bash_command("cp -rf /etc/modprobe.d/rtl8812au.conf /etc/modprobe.d/rtl8812au.conf.org", NULL);
-      if ( access( "/etc/modprobe.d/rtl8812au.conf.org", R_OK ) == -1 )
-         {failed = true; strcat(szFilesMissing, " RTL_config");}
-   }
-   
-   if ( access( "/etc/modprobe.d/rtl88XXau.conf.org", R_OK ) == -1 )
-   {
-      hw_execute_bash_command("cp -rf /etc/modprobe.d/rtl88XXau.conf /etc/modprobe.d/rtl88XXau.conf.org", NULL);
-      if ( access( "/etc/modprobe.d/rtl88XXau.conf.org", R_OK ) == -1 )
-         {failed = true; strcat(szFilesMissing, " RTL_XX_config");}
    }
    #endif
 
@@ -490,6 +479,111 @@ void _test_log(int argc, char *argv[])
 }
 
 
+void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, int iCountPrev)
+{
+   bool bNewCards = false;
+
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      bool bFound = false;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioHWInfo )
+         continue;
+      if ( ! pRadioHWInfo->isSupported )
+         continue;
+      if ( ! hardware_radio_is_wifi_radio(pRadioHWInfo) )
+         continue;
+
+      for( int k=0; k<iCountPrev; k++ )
+      {
+         if ( 0 != pRadioInfoArrayPrev[k].szMAC[0] )
+         if ( 0 != pRadioHWInfo->szMAC[0] )
+         if ( 0 == strcmp(pRadioHWInfo->szMAC, pRadioInfoArrayPrev[k].szMAC) )
+         {
+            bFound = true;
+            break;
+         }
+      }
+
+      if ( ! bFound )
+      {
+         log_line("Radio hardware interface %d: %s (%s, MAC: %s) is new in the system.",
+            i+1, pRadioHWInfo->szName, pRadioHWInfo->szDriver, pRadioHWInfo->szMAC);
+         bNewCards = true;
+      }
+   }
+
+   if ( ! bNewCards )
+   {
+      log_line("No new supported high capacity radio hardware cards found in the system.");
+      return;
+   }
+
+   log_line("Checking power levels as there are new hardware radio interfaces on the system...");
+
+   if ( s_isVehicle )
+   {
+      //bool bUpdated = false;
+      for( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
+      {
+         int iDriver = (modelVehicle.radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
+         int iCardModel = modelVehicle.radioInterfacesParams.interface_card_model[i];
+         int iMaxPowerRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+
+         if ( modelVehicle.radioInterfacesParams.interface_raw_power[i] > iMaxPowerRaw )
+         {
+            modelVehicle.radioInterfacesParams.interface_raw_power[i] = iMaxPowerRaw;
+            //bUpdated = true;
+         }
+      }
+   }
+   else
+   {
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      bool bUpdated = false;
+      int iMaximumRawCanBeSet = 10000;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
+
+         log_line("Checking radio interface %d: type: %s (%s)",
+            i+1, str_get_radio_card_model_string(pCRII->cardModel), (pCRII->cardModel > 0)?"autodetected":"user set");
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(pRadioHWInfo->iRadioDriver, pCRII->cardModel);
+         log_line("Max raw power for radio card %d: %d, current raw power: %d", i+1, iMaxRawPower, pCRII->iRawPowerLevel);
+      
+         if ( iMaxRawPower < iMaximumRawCanBeSet )
+            iMaximumRawCanBeSet = iMaxRawPower;
+      }
+      log_line("Maximum raw power that can be set: %d", iMaximumRawCanBeSet);
+      
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
+
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(pRadioHWInfo->iRadioDriver, pCRII->cardModel);
+         if ( pCRII->iRawPowerLevel > iMaxRawPower )
+         {
+            pCRII->iRawPowerLevel = iMaxRawPower;
+            bUpdated = true;
+         }
+      }
+      if ( bUpdated )
+         save_ControllerSettings();
+      #endif
+   }
+   log_line("Done checking power levels.");
+}
+
 void _log_platform(bool bNewLine)
 {
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
@@ -507,39 +601,38 @@ void _log_platform(bool bNewLine)
       printf("\n");
 }
 
-void handle_sigint(int sig) 
-{ 
-   log_line("Caught signal to stop: %d\n", sig);
-   s_bQuit = true;
-} 
-  
-int main(int argc, char *argv[])
+
+int _step_process_cmd_line(int argc, char* argv[])
 {
-   signal(SIGPIPE, SIG_IGN);
-   signal(SIGINT, handle_sigint);
-   signal(SIGTERM, handle_sigint);
-   signal(SIGQUIT, handle_sigint);
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
+   {
+      printf("%d.%d (b%d) ", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      _log_platform(false);
+      return 1;
+   }
 
    if ( strcmp(argv[argc-1], "-noop") == 0 )
    {
       _log_platform(true);
-      return 0;
+      return 1;
    }
 
    if ( strcmp(argv[argc-1], "-vehicle") == 0 )
    {
       r_start_vehicle(argc, argv);
-      return 0;
+      return 1;
    }
 
    if ( strcmp(argv[argc-1], "-rx_commands") == 0 )
    {
-      return r_start_commands_rx(argc, argv);
+      r_start_commands_rx(argc, argv);
+      return 1;
    }
 
    if ( strcmp(argv[argc-1], "-rc") == 0 )
    {
-      return r_start_rx_rc(argc, argv);
+      r_start_rx_rc(argc, argv);
+      return 1;
    }
 
    if ( (strcmp(argv[argc-1], "-initradio") == 0) || 
@@ -547,40 +640,37 @@ int main(int argc, char *argv[])
         ((argc>1) && (strcmp(argv[1], "-initradio") == 0)) )
    {
       r_initradio(argc, argv);
-      return 0;
-   }
-
-   if ( strcmp(argv[argc-1], "-ver") == 0 )
-   {
-      printf("%d.%d (b%d) ", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
-      _log_platform(false);
-      return 0;
+      return 1;
    }
 
    if ( strcmp(argv[argc-1], "-test") == 0 )
    {
       start_test();
-      return 0;
+      return 1;
    }
 
    if ( strcmp(argv[argc-1], "-testlog") == 0 )
    {
       _test_log(argc, argv);
-      return 0;
+      return 1;
    }
 
    if ( argc >= 2 )
    if ( strcmp(argv[argc-2], "-testlog") == 0 )
    {
       _test_log(argc, argv);
-      return 0;
+      return 1;
    }
 
    g_bDebug = false;
    if ( strcmp(argv[argc-1], "-debug") == 0 )
       g_bDebug = true;
-  
-   char szBuff[256];
+   return 0;
+}
+
+
+int _step_find_console()
+{
    char szComm[1024];
    char szFile[256];
    char *tty_name = ttyname(STDIN_FILENO);
@@ -634,7 +724,7 @@ int main(int argc, char *argv[])
       printf("\nRuby (v %d.%d b.%d) is starting...\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
       fflush(stdout);
       sleep(8);
-      return -1;
+      return 0;
    }
    sprintf(szComm, "echo 'Ruby processes are starting...' >> /tmp/ruby_boot.log");
    hw_execute_bash_command_silent(szComm, NULL);
@@ -663,14 +753,14 @@ int main(int argc, char *argv[])
    sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
-   bool bIsFirstBoot = false;
+   g_bIsFirstBoot = false;
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_FIRST_BOOT);
    if ( access( szFile, R_OK ) != -1 )
-      bIsFirstBoot = true;
+      g_bIsFirstBoot = true;
 
    if ( _init_timestamp_and_boot_count() )
-      bIsFirstBoot = true;
+      g_bIsFirstBoot = true;
 
    initLogFiles();
 
@@ -685,12 +775,15 @@ int main(int argc, char *argv[])
    }
 
    log_init("RubyStart");
-   log_arguments(argc, argv);
-
    log_line("Found good console, starting Ruby...");
+   return 1;
+}
 
-   printf("\nRuby: Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
-   fflush(stdout);
+
+int _step_check_file_system()
+{
+   char szComm[256];
+   char szFile[MAX_FILE_PATH_SIZE];
    bool readWriteOk = false;
    int readWriteRetryCount = 0;
    FILE* fd = NULL;
@@ -704,7 +797,7 @@ int main(int argc, char *argv[])
       if ( readWriteRetryCount > 50 )
       {
          printf("\nError accessing the file system. Abort.\n\n");
-         return 0;
+         return -1;
       }
       hardware_sleep_ms(100);
 
@@ -799,7 +892,7 @@ int main(int argc, char *argv[])
          continue;
       }
 
-      fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d, Ruby on TTY name: %s)\n", readWriteRetryCount, s_iBootCount, ((tty_name != NULL)?tty_name:"N/A"));
+      fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d)\n", readWriteRetryCount, s_iBootCount);
 
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_BOOT_COUNT);
@@ -839,14 +932,17 @@ int main(int argc, char *argv[])
    fd = fopen(szFile, "a+");
    if ( NULL != fd )
    {
-      fprintf(fd, "Starting run number %d; Starting Ruby on TTY name: %s\n\n", s_iBootCount, ((tty_name != NULL)?tty_name:"N/A"));
+      fprintf(fd, "Starting run number %d; Starting Ruby...\n\n", s_iBootCount);
       fclose(fd);
       fd = NULL;
    }
-
-   //power_leds(0);
-
    log_line("Files are ok, checking processes and init log files...");
+   return 0;
+}
+
+void _step_check_binaries_and_processes()
+{
+   char szComm[MAX_FILE_PATH_SIZE];
 
    sprintf(szComm, "chmod 777 %s", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
@@ -863,10 +959,6 @@ int main(int argc, char *argv[])
    _check_files();
    #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
-   hw_execute_bash_command("sed -i '/98:03:cf/d' /etc/udev/rules.d/98-custom-wifi.rules", NULL);
-   #endif
-
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    _log_openipc_info();
    #endif
@@ -874,16 +966,17 @@ int main(int argc, char *argv[])
    log_line("Ruby: Start on verison %d.%d (b %d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    printf("Ruby: Start on verison %d.%d (b %d)\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
    fflush(stdout);
-   u32 uBaseVersion = hardware_get_base_ruby_version();
-   log_line("Ruby: Base version is %d.%d", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
-   printf("Ruby: Base version is %d.%d\n", (uBaseVersion >> 8) & 0xFF, uBaseVersion & 0xFF);
+
+   int iMajor, iMinor;
+   get_Ruby_BaseVersion(&iMajor, &iMinor);
+
+   log_line("Ruby: Base version is %d.%d", iMajor, iMinor);
+   printf("Ruby: Base version is %d.%d\n", iMajor, iMinor);
    fflush(stdout);
-   char szOutput[4096];
-   szOutput[0] = 0;
+}
 
-   if ( bIsFirstBoot )
-      do_first_boot_pre_initialization();
-
+void _step_load_init_devices()
+{
    #ifdef HW_PLATFORM_RADXA_ZERO3
    hw_execute_bash_command("ip link set wlx down 2>&1 1>/dev/null", NULL);
    #endif
@@ -892,10 +985,7 @@ int main(int argc, char *argv[])
    hw_execute_bash_command("modprobe i2c-dev", NULL);
    #endif
 
-   hardware_radio_load_radio_modules(1);
-     
-   hardware_sleep_ms(50);
-
+   char szOutput[2048];
    hw_execute_bash_command_raw("lsusb", szOutput);
    strcat(szOutput, "\n*END*\n");
    log_line("USB Devices:");
@@ -912,13 +1002,88 @@ int main(int argc, char *argv[])
    log_line(szOutput);      
    #endif
 
+   #ifdef HW_CAPABILITY_I2C
 
+   char szComm[256];
+   u32 board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
+
+   // Initialize I2C bus 0 for different boards types
+  
+   log_line("Initialize I2C busses...");
+   sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
+   hw_execute_bash_command(szComm, NULL);
+   if ( (board_type == BOARD_TYPE_PI3APLUS) || (board_type == BOARD_TYPE_PI3B) || (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) )
+   {
+      log_line("Initializing I2C busses for Pi 3/4...");
+      hw_execute_bash_command("raspi-gpio set 0 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 1 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 44 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 44 a1", NULL);
+      hw_execute_bash_command("raspi-gpio set 45 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 45 a1", NULL);
+      hardware_sleep_ms(200);
+      hw_execute_bash_command("i2cdetect -y 0 0x0F 0x0F", NULL);
+      hardware_sleep_ms(200);
+      log_line("Done initializing I2C busses for Pi 3/4.");
+   }
+
+
+   log_line("Ruby: Finding external I2C devices add-ons...");
+   printf("Ruby: Finding external I2C devices add-ons...\n");
+   fflush(stdout);
+   hardware_i2c_reset_enumerated_flag();
+   hardware_enumerate_i2c_busses();
+   // Load existing settings first
+   hardware_i2c_load_device_settings();
+   hardware_i2c_log_devices();
+   // Save existing settings and any new devices
+   hardware_i2c_save_device_settings();
+   int iKnown = hardware_get_i2c_found_count_known_devices();
+   int iConfigurable = hardware_get_i2c_found_count_configurable_devices();
+   if ( 0 == iKnown && 0 == iConfigurable )
+   {
+      log_line("Ruby: Done finding external I2C devices add-ons. None known found." );
+      printf("Ruby: Done finding external I2C devices add-ons. None known found.\n" );
+   }
+   else
+   {
+      log_line("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.", iKnown, iConfigurable );
+      printf("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.\n", iKnown, iConfigurable );
+   }
+   #endif
+
+   fflush(stdout);
+
+   printf("Ruby: Finding serial ports...\n");
+   log_line("Ruby: Finding serial ports...");
+   fflush(stdout);
+
+   hardware_init_serial_ports();
+}
+
+radio_hw_info_t sRadioInfoPrev[MAX_RADIO_INTERFACES];
+int iHwRadiosCountPrev = 0;
+int iHwRadiosSupportedCountPrev = 0;
+
+void  _step_load_init_radios()
+{
+   log_line("Loading previous radio configuration...");
+   hardware_load_radio_info_into_buffers(&iHwRadiosCountPrev, &iHwRadiosSupportedCountPrev, &sRadioInfoPrev[0]);
+   log_line("Loaded previous radio configuration.");
+   
+   hardware_radio_load_radio_modules(1);
+     
+   hardware_sleep_ms(50);
+
+   char szComm[256];
+   char szBuff[256];
+   char szOutput[2048];
    int iCount = 0;
    bool bWiFiDetected = false;
    int iMaxWifiCardsToDetect = 4;
    int iWifiIndexToTry = 0;
 
-   while ( iCount < 5 )
+   while ( iCount < 3 )
    {
       iCount++;
       szOutput[0] = 0;
@@ -993,94 +1158,22 @@ int main(int argc, char *argv[])
       }
    }
 
-   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_SYSTEM_TYPE);
-   hw_execute_bash_command_silent(szComm, NULL);
-   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_CAMERA_TYPE);
-   hw_execute_bash_command_silent(szComm, NULL);
-
-   init_hardware_only_status_led();
-
-   if ( access( FILE_FORCE_RESET, R_OK ) != -1 )
+   if ( hardware_has_eth() != NULL )
    {
-      unlink(FILE_FORCE_RESET);
-      hw_execute_bash_command("rm -rf config/*", NULL);
-      sprintf(szComm, "touch %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
-      hw_execute_bash_command(szComm, NULL);
-      hardware_reboot();
-      hardware_sleep_ms(900);
-   }
-
-   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
-
-   #ifdef HW_CAPABILITY_I2C
-   // Initialize I2C bus 0 for different boards types
-   {
-      log_line("Initialize I2C busses...");
-      sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
-      hw_execute_bash_command(szComm, NULL);
-      if ( (board_type == BOARD_TYPE_PI3APLUS) || (board_type == BOARD_TYPE_PI3B) || (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) )
-      {
-         log_line("Initializing I2C busses for Pi 3/4...");
-         hw_execute_bash_command("raspi-gpio set 0 ip", NULL);
-         hw_execute_bash_command("raspi-gpio set 1 ip", NULL);
-         hw_execute_bash_command("raspi-gpio set 44 ip", NULL);
-         hw_execute_bash_command("raspi-gpio set 44 a1", NULL);
-         hw_execute_bash_command("raspi-gpio set 45 ip", NULL);
-         hw_execute_bash_command("raspi-gpio set 45 a1", NULL);
-         hardware_sleep_ms(200);
-         hw_execute_bash_command("i2cdetect -y 0 0x0F 0x0F", NULL);
-         hardware_sleep_ms(200);
-         log_line("Done initializing I2C busses for Pi 3/4.");
-      }
-   }
-
-   log_line("Ruby: Finding external I2C devices add-ons...");
-   printf("Ruby: Finding external I2C devices add-ons...\n");
-   fflush(stdout);
-   hardware_i2c_reset_enumerated_flag();
-   hardware_enumerate_i2c_busses();
-   // Load existing settings first
-   hardware_i2c_load_device_settings();
-   hardware_i2c_log_devices();
-   // Save existing settings and any new devices
-   hardware_i2c_save_device_settings();
-   int iKnown = hardware_get_i2c_found_count_known_devices();
-   int iConfigurable = hardware_get_i2c_found_count_configurable_devices();
-   if ( 0 == iKnown && 0 == iConfigurable )
-   {
-      log_line("Ruby: Done finding external I2C devices add-ons. None known found." );
-      printf("Ruby: Done finding external I2C devices add-ons. None known found.\n" );
+      log_line("Device has an ETH port.");
+      printf("Ruby: Device has an ETH port.\n");
    }
    else
    {
-      log_line("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.", iKnown, iConfigurable );
-      printf("Ruby: Done finding external I2C devices add-ons. Found %d known devices of which %d are configurable.\n", iKnown, iConfigurable );
+      log_line("Device does not have an ETH port.");
+      printf("Ruby: Device does not have an ETH port.\n");    
    }
-   #endif
-
    fflush(stdout);
+}
 
-   // Detect hardware
-   hardware_getCameraType();
-   hardware_getBoardType();
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
-   #endif
-
-   detectSystemType();
-
-   hardware_release();
-
-
-   log_line("Starting Ruby system...");
-   fflush(stdout);
-   
-   printf("Ruby: Finding serial ports...\n");
-   log_line("Ruby: Finding serial ports...");
-   fflush(stdout);
-
-   hardware_init_serial_ports();
+void _step_enumerate_radios()
+{
+   char szComm[256];
 
    printf("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...\n");
    printf("\n");
@@ -1151,6 +1244,82 @@ int main(int argc, char *argv[])
    printf("Ruby: Done finding radio interfaces.\n");
    log_line("Ruby: Done finding radio interfaces.");
    fflush(stdout);
+}
+
+
+void handle_sigint(int sig) 
+{ 
+   log_line("Caught signal to stop: %d\n", sig);
+   s_bQuit = true;
+} 
+  
+int main(int argc, char *argv[])
+{
+   signal(SIGPIPE, SIG_IGN);
+   signal(SIGINT, handle_sigint);
+   signal(SIGTERM, handle_sigint);
+   signal(SIGQUIT, handle_sigint);
+
+
+   if ( _step_process_cmd_line(argc, argv) )
+      return 0;
+
+   if ( ! _step_find_console() )
+      return 0;
+
+   log_arguments(argc, argv);
+   printf("\nRuby: Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
+   fflush(stdout);
+
+   if ( _step_check_file_system() < 0 )
+      return 0;
+   _step_check_binaries_and_processes();
+
+   char szComm[1204];
+   char szOutput[4096];
+   szOutput[0] = 0;
+
+   if ( g_bIsFirstBoot )
+      do_first_boot_pre_initialization();
+
+   _step_load_init_devices();
+   _step_load_init_radios();
+
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_SYSTEM_TYPE);
+   hw_execute_bash_command_silent(szComm, NULL);
+   sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_CAMERA_TYPE);
+   hw_execute_bash_command_silent(szComm, NULL);
+
+   init_hardware_only_status_led();
+
+   if ( access( FILE_FORCE_RESET, R_OK ) != -1 )
+   {
+      unlink(FILE_FORCE_RESET);
+      hw_execute_bash_command("rm -rf config/*", NULL);
+      sprintf(szComm, "touch %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_reboot();
+      hardware_sleep_ms(900);
+   }
+
+   u32 board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
+
+   // Detect hardware
+   hardware_getCameraType();
+   hardware_getBoardType();
+
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
+   #endif
+
+   detectSystemType();
+
+   hardware_release();
+
+   log_line("Starting Ruby system...");
+   fflush(stdout);
+   
+   _step_enumerate_radios();
    
    // Reenable serial ports that where used for SiK radio and now are just regular serial ports
    
@@ -1207,9 +1376,10 @@ int main(int argc, char *argv[])
    log_line("Feature radio RxTx thread syncronization is: Off.");
 #endif
 
-   if ( bIsFirstBoot )
+   if ( g_bIsFirstBoot )
       do_first_boot_initialization(s_isVehicle, board_type);
-   
+
+   char szFile[MAX_FILE_PATH_SIZE];   
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( access( szFile, R_OK) == -1 )
@@ -1362,7 +1532,7 @@ int main(int argc, char *argv[])
 
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VERSION);
-   fd = fopen(szFile, "w");
+   FILE* fd = fopen(szFile, "w");
    if ( NULL != fd )
    {
       fprintf(fd, "%u\n", (((u32)SYSTEM_SW_VERSION_MAJOR)<<8) | (u32)SYSTEM_SW_VERSION_MINOR | (((u32)SYSTEM_SW_BUILD_NUMBER)<<16));
@@ -1371,7 +1541,7 @@ int main(int argc, char *argv[])
    else
       log_softerror_and_alarm("Failed to save current version id to file: %s",FILE_CONFIG_CURRENT_VERSION);
 
-   if ( bIsFirstBoot )
+   if ( g_bIsFirstBoot )
    {
       printf("\n\n\n");
       printf("Ruby: First install initialization complete. Rebooting now...\n");
@@ -1458,6 +1628,10 @@ int main(int argc, char *argv[])
    }
    hw_execute_ruby_process_wait(NULL, "ruby_start", szParams, NULL, 1);
    
+   log_line("Reloading hardware radio configuration after radio init step completed...");
+   hardware_load_radio_info();
+   _check_power_levels_of_current_cards(&sRadioInfoPrev[0], iHwRadiosCountPrev);
+
    printf("Ruby: Starting main process...\n");
    log_line("Starting main process...");
    fflush(stdout);
@@ -1562,7 +1736,6 @@ int main(int argc, char *argv[])
          {
             log_line("Current model radio link %d is a SiK radio link. Use it to configure controller.", iSiKRadioLinkIndex+1);
             uFreq = modelVehicle.radioLinksParams.link_frequency_khz[iSiKRadioLinkIndex];
-            uTxPower = modelVehicle.radioInterfacesParams.txPowerSiK,
             uDataRate = modelVehicle.radioLinksParams.link_datarate_data_bps[iSiKRadioLinkIndex],
             uECC = (modelVehicle.radioLinksParams.link_radio_flags[iSiKRadioLinkIndex] & RADIO_FLAGS_SIK_ECC)?1:0;
             uLBT = (modelVehicle.radioLinksParams.link_radio_flags[iSiKRadioLinkIndex] & RADIO_FLAGS_SIK_LBT)?1:0;
@@ -1579,6 +1752,7 @@ int main(int argc, char *argv[])
                   log_softerror_and_alarm("Failed to get radio hardware info for radio interface %d.", i+1);
                   continue;
                }
+               uTxPower = modelVehicle.radioInterfacesParams.interface_raw_power[i];
                hardware_radio_sik_set_frequency_txpower_airspeed_lbt_ecc(pRadioHWInfo,
                   uFreq, uTxPower, uDataRate,
                   uECC, uLBT, uMCSTR,
@@ -1612,7 +1786,6 @@ int main(int argc, char *argv[])
    for( int i=0; i<5; i++ )
       hardware_sleep_ms(500);
 
-   if ( ! g_bDebug )
    for( int i=0; i<10; i++ )
       hardware_sleep_ms(500);
    
@@ -1693,7 +1866,10 @@ int main(int argc, char *argv[])
             { log_error_and_alarm("ruby_tx_telemetry is not running"); bError = true; }
 
          if ( bError )
+         {
             printf("Error: Some processes are not running.\n");
+            log_line("Error: Some processes are not running.");
+         }
          else
          {
             u32 uTimeNow = get_current_timestamp_ms();

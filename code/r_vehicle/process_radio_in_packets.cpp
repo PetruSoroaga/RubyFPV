@@ -80,6 +80,9 @@ void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetL
 {
    t_packet_header* pPH = (t_packet_header*)pPacketData;
 
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      return;
+
    bool bHasControllerData = false;
    u8* pData = NULL;
    //int dataLength = 0;
@@ -265,7 +268,11 @@ int _handle_received_packet_error(int iInterfaceIndex, u8* pData, int nDataLengt
    if ( iRadioError == RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED )
    {
       t_packet_header* pPH = (t_packet_header*)pData;
-      pPH->vehicle_id_src = 0;
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         pPHC->vehicle_id_src = 0;
+      else
+         pPH->vehicle_id_src = 0;
       int nPacketLength = packet_process_and_check(iInterfaceIndex, pData, nDataLength, pCRCOk);
 
       if ( nPacketLength > 0 )
@@ -305,6 +312,29 @@ int _handle_received_packet_error(int iInterfaceIndex, u8* pData, int nDataLengt
 void process_received_single_radio_packet(int iRadioInterface, u8* pData, int dataLength )
 {
    t_packet_header* pPH = (t_packet_header*)pData;
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+
+   u32 uVehicleIdSrc = 0;
+   u32 uVehicleIdDest = 0;
+   u8 uPacketType = 0;
+   u8 uPacketFlags = 0;
+
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   {
+      uVehicleIdSrc = pPHC->vehicle_id_src;
+      uVehicleIdDest = pPHC->vehicle_id_dest;
+      uPacketType = pPHC->packet_type;
+      uPacketFlags = pPHC->packet_flags;
+      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
+      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
+   }
+   else
+   {
+      uVehicleIdSrc = pPH->vehicle_id_src;
+      uVehicleIdDest = pPH->vehicle_id_dest;
+      uPacketType = pPH->packet_type;
+      uPacketFlags = pPH->packet_flags;
+   }
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastRadioRxTime = g_TimeNow;
@@ -347,11 +377,11 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       {
          log_line("[Relay-RadioIn] Started for first time to receive data on the relay link (radio link %d, expected relayed VID: %u), from VID: %u, packet type: %s, current relay mode: %s",
             iRadioLinkId+1, g_pCurrentModel->relay_params.uRelayedVehicleId,
-            pPH->vehicle_id_src, str_get_packet_type(pPH->packet_type), str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
+            uVehicleIdSrc, str_get_packet_type(uPacketType), str_format_relay_mode(g_pCurrentModel->relay_params.uCurrentRelayMode));
          s_bFirstTimeReceivedDataOnRelayLink = false;
       }
 
-      if ( pPH->vehicle_id_src != g_pCurrentModel->relay_params.uRelayedVehicleId )
+      if ( uVehicleIdSrc != g_pCurrentModel->relay_params.uRelayedVehicleId )
          return;
 
       // Process packets received on relay links separately
@@ -362,7 +392,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    // Detect if it's a relayed packet from controller to relayed vehicle
    
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
-   if ( pPH->vehicle_id_dest == g_pCurrentModel->relay_params.uRelayedVehicleId )
+   if ( uVehicleIdDest == g_pCurrentModel->relay_params.uRelayedVehicleId )
    {
       _mark_link_from_controller_present();
   
@@ -371,20 +401,22 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    }
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( (((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY ) && (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK)) ||
-        (((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS)) ||
-        (((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)) )
+   if ( (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY ) && (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK)) ||
+        (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (uPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS)) ||
+        (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (uPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)) )
       _try_decode_controller_links_stats_from_packet(pData, dataLength);
    #endif
      
-   if ( (0 == pPH->vehicle_id_src) || (MAX_U32 == pPH->vehicle_id_src) )
-      log_softerror_and_alarm("Received invalid radio packet: Invalid source vehicle id: %u (vehicle id dest: %u, packet type: %s)",
-         pPH->vehicle_id_src, pPH->vehicle_id_dest, str_get_packet_type(pPH->packet_type));
-
-   if ( pPH->vehicle_id_src == g_uControllerId )
+   if ( (0 == uVehicleIdSrc) || (MAX_U32 == uVehicleIdSrc) )
+   {
+      log_error_and_alarm("Received invalid radio packet: Invalid source vehicle id: %u (vehicle id dest: %u, packet type: %s, %d bytes, %d total bytes, component: %d)",
+         uVehicleIdSrc, uVehicleIdDest, str_get_packet_type(uPacketType), dataLength, pPH->total_length, pPH->packet_flags & PACKET_FLAGS_MASK_MODULE);
+      return;
+   }
+   if ( uVehicleIdSrc == g_uControllerId )
       _mark_link_from_controller_present();
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
    {
       if ( ! s_bRCLinkDetected )
       {
@@ -395,16 +427,17 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       s_bRCLinkDetected = true;
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
    {
-      if ( pPH->vehicle_id_dest == g_pCurrentModel->uVehicleId )
+      if ( uVehicleIdDest == g_pCurrentModel->uVehicleId )
          process_received_ruby_message(iRadioInterface, pData);
       return;
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
    {
-      if ( pPH->packet_type == PACKET_TYPE_COMMAND )
+      if ( uPacketType == PACKET_TYPE_COMMAND )
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       {
          int iParamsLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command);
          t_packet_header_command* pPHC = (t_packet_header_command*)(pData + sizeof(t_packet_header));
@@ -437,23 +470,23 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       return;
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
    {
       //log_line("Received an uplink telemetry packet: packet type: %d, module: %d, length: %d", pPH->packet_type, pPH->packet_flags & PACKET_FLAGS_MASK_MODULE, pPH->total_length);
       ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, pData, dataLength);
       return;
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
    {
       if ( g_pCurrentModel->rc_params.rc_enabled )
          ruby_ipc_channel_send_message(s_fIPCRouterToRC, pData, dataLength);
       return;
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+   if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
    {      
-      if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
+      if ( uPacketType == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
       {
          if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
             return;
@@ -484,7 +517,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             PH.packet_flags = PACKET_COMPONENT_VIDEO;
             PH.packet_type =  PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK;
             PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-            PH.vehicle_id_dest = pPH->vehicle_id_src;
+            PH.vehicle_id_dest = uVehicleIdSrc;
             PH.total_length = sizeof(t_packet_header) + sizeof(u32);
             u8 packet[MAX_PACKET_TOTAL_SIZE];
             memcpy(packet, (u8*)&PH, sizeof(t_packet_header));

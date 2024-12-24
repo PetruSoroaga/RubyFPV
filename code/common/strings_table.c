@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -29,65 +29,29 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "menu.h"
-#include "menu_tx_power_8812eu.h"
-#include "menu_objects.h"
-#include "menu_item_text.h"
-#include "menu_confirmation.h"
-#include "menu_tx_power_max.h"
+#include "../base/base.h"
+#include <ctype.h>
+#include "strings_table.h"
 
-MenuTXPower8812EU::MenuTXPower8812EU()
-:MenuTXPower()
+static const char* s_szStringTableUnknown = "[Missing Text]";
+
+static const char* s_szStringTableEN[] =
 {
-   m_MenuId = MENU_ID_TX_POWER_8812EU;
-   setTitle("Radio Output Power Levels (for RTL8812EU)");
-   m_Width = 0.72;
-   m_Height = 0.61;
-   m_xPos = 0.05;
-   m_yPos = 0.16;
+// 0
+"Firmware Instalation",
+"Your controller needs to be fully flashed with the latest version of Ruby.",
+"Your vehicle needs to be fully flashed with the latest version of Ruby.",
+"Instead of a regular update, a full firmware instalation is required as there where changes in Ruby version 10.1 that require a complete update of the system",
+"Computed based on current vehicle radio Tx power settings",
+// 5
+"",
+"Empty"
+};
 
-   m_xTable = m_RenderXPos + m_sfMenuPaddingY;
-   m_xTable += 0.15*m_sfScaleFactor;
-   m_xTableCellWidth = 0.05*m_sfScaleFactor;
-
-   m_bShowThinLine = false;
-   
-   m_bShowVehicle = true;
-   m_bShowController = true;
-   
-   m_bValuesChangedVehicle = false;
-   m_bValuesChangedController = false;
-}
-
-MenuTXPower8812EU::~MenuTXPower8812EU()
+const char* getString(u32 uStringId)
 {
-}
+   if ( uStringId >= sizeof(s_szStringTableEN)/sizeof(s_szStringTableEN[0]) )
+      return s_szStringTableUnknown;
 
-void MenuTXPower8812EU::onShow()
-{
-   
-} 
-      
-void MenuTXPower8812EU::valuesToUI()
-{
-}
-
-
-void MenuTXPower8812EU::Render()
-{
-}
-
-int MenuTXPower8812EU::onBack()
-{
-   return Menu::onBack(); 
-}
-
-void MenuTXPower8812EU::onReturnFromChild(int iChildMenuId, int returnValue)
-{
-   
-}
-
-void MenuTXPower8812EU::onSelectItem()
-{
-   
+   return s_szStringTableEN[uStringId];
 }

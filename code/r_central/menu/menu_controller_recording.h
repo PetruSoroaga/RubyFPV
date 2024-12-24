@@ -12,7 +12,9 @@ class MenuControllerRecording: public Menu
       virtual void valuesToUI();
       
    private:
-      MenuItemSelect* m_pItemsSelect[25];
+      MenuItemSelect* m_pItemsSelect[10];
+      MenuItemSlider* m_pItemsSlider[5];
       int m_IndexRecordIndicator, m_IndexRecordArm, m_IndexRecordDisarm, m_IndexRecordButton, m_IndexRecordLED;
       int m_IndexVideoDestination;
+      int m_iIndexStopOnLinkLost;
 };

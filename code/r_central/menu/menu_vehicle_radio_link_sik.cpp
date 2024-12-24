@@ -34,7 +34,7 @@
 #include "menu_item_select.h"
 #include "menu_item_section.h"
 #include "menu_item_text.h"
-#include "menu_tx_power.h"
+#include "menu_tx_raw_power.h"
 #include "menu_confirmation.h"
 #include "../launchers_controller.h"
 #include "../link_watch.h"

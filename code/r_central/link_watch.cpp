@@ -426,6 +426,19 @@ void link_watch_check_link_lost()
 
    // Link is lost
 
+   if ( g_bVideoRecordingStarted && (!g_bVideoProcessing) )
+   if ( NULL != g_pPopupLinkLost )
+   {
+      Preferences* pP = get_Preferences();
+      if ( NULL != pP )
+      if ( pP->iStopRecordingAfterLinkLostSeconds > 0 )
+      if ( g_TimeNow > g_pPopupLinkLost->getCreationTime() + pP->iStopRecordingAfterLinkLostSeconds*1000 )
+      {
+         ruby_stop_recording();
+      }
+   }
+
+
    if ( NULL != g_pPopupLinkLost )
       return;
    
@@ -620,25 +633,27 @@ void link_watch_loop_telemetry()
       }
 
       // FC source telemetry data present or lost ?
-      bool bHasTelemetryFromFC = vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[i].uVehicleId);
-
-      if ( ! bHasTelemetryFromFC )
+      if ( pairing_isStarted() )
+      if ( g_VehiclesRuntimeInfo[i].pModel->is_spectator || g_VehiclesRuntimeInfo[i].bPairedConfirmed )
       {
-         static bool s_bFirstTimeFCTelemetryWarning = true;
-         if ( g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent || s_bFirstTimeFCTelemetryWarning )
+         bool bHasTelemetryFromFC = vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[i].uVehicleId);
+         if ( ! bHasTelemetryFromFC )
          {
-            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry missing", g_idIconCPU, get_Color_IconError());
+            static bool s_bFirstTimeFCTelemetryWarning = true;
+            if ( g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent || s_bFirstTimeFCTelemetryWarning )
+            {
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry missing", g_idIconCPU, get_Color_IconError());
+            }
+            g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = false;
+            s_bFirstTimeFCTelemetryWarning = false;
          }
-         g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = false;
-         s_bFirstTimeFCTelemetryWarning = false;
+         else
+         {
+            if ( ! g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry recovered", g_idIconCPU, get_Color_IconSucces());
+            g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = true;
+         }
       }
-      else
-      {
-         if ( ! g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
-            warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry recovered", g_idIconCPU, get_Color_IconSucces());
-         g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = true;
-      }
-
       // Check for Ruby telemetry lost or recovered state
 
       if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo )
@@ -684,8 +699,8 @@ void link_watch_loop_video()
    if ( NULL == g_pProcessStatsRouter )
       return;
 
-   if ( s_LastRouterProcessCheckedAlarmFlags != g_ProcessStatsRouter.alarmFlags ||
-        g_ProcessStatsRouter.alarmTime > s_TimeLastAlarmRouterProcess )
+   if ( (s_LastRouterProcessCheckedAlarmFlags != g_ProcessStatsRouter.alarmFlags) ||
+        (g_ProcessStatsRouter.alarmTime > s_TimeLastAlarmRouterProcess) )
    {
       s_LastRouterProcessCheckedAlarmFlags = g_ProcessStatsRouter.alarmFlags;
       s_TimeLastAlarmRouterProcess = g_ProcessStatsRouter.alarmTime;

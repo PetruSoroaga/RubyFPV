@@ -64,18 +64,19 @@ MenuRoot::MenuRoot(void)
    if ( 1 == Menu::getRenderMode() )
       addExtraHeightAtStart(0.2);
 
-   addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
-   addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
-   addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
-   addMenuItem(new MenuItem("Search", "Search for vehicles."));
+   m_iIndexVehicle = addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
+   m_iIndexMyVehicles = addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
+   m_iIndexSpectator = addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
+   m_iIndexSearch = addMenuItem(new MenuItem("Search", "Search for vehicles."));
    //addSeparator();
 
-   addMenuItem(new MenuItem("Radio Configuration", "Change the current radio configuration and radio settings."));
-   addMenuItem(new MenuItem("Controller Settings", "Change controller settings and user interface preferences."));
+   m_iIndexMedia = addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
+
+   //addMenuItem(new MenuItem("Radio Configuration", "Change the current radio configuration and radio settings."));
+   m_iIndexController = addMenuItem(new MenuItem("Controller Settings", "Change controller settings and user interface preferences."));
    //addSeparator();
 
-   addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
-   addMenuItem(new MenuItem("System", "Configure system options, shows detailed information about the system"));
+   m_iIndexSystem = addMenuItem(new MenuItem("System", "Configure system options, shows detailed information about the system"));
 
    m_pMenuItems[m_ItemsCount-1]->setExtraHeight(Menu::getSelectionPaddingY());
    char szBuff[256];
@@ -304,136 +305,9 @@ void MenuRoot::Render()
    RenderEnd(yTop);
 }
 
-
-void MenuRoot::createAboutInfo(Menu* pm)
-{
-   pm->addTopLine(" ");
-   pm->addTopLine("---");
-   pm->addTopLine(" ");
-   pm->addTopLine("Ruby system developed by: Petru Soroaga");
-   pm->addTopLine("");
-   pm->addTopLine("IP cameras firmware support provided by:");
-   pm->addTopLine("OpenIPC: https://openipc.org");
-   pm->addTopLine("https://github.com/OpenIPC");
-   pm->addTopLine("");
-   pm->addTopLine("For info on the licence terms, check the license.txt file.");
-   pm->addTopLine("For more info, questions and suggestions find us on www.rubyfpv.com");
-   pm->addTopLine("---");
-   pm->addTopLine(" ");
-}
-
-void MenuRoot::createHWInfo(Menu* pm)
-{
-   FILE* fp = NULL;
-   char szBuff[512];
-   char szTemp[256];
-   char szOutput[256];
-
-   log_line("Menu System: create HW info.");
-
-   hw_execute_bash_command_raw("cat /proc/device-tree/model", szOutput);
-
-   sprintf(szBuff, "Board: %s, ", szOutput);
-   
-   int temp = 0;
-   fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   if ( NULL != fp )
-   {
-      fscanf(fp, "%d", &temp);
-      fclose(fp);
-      fp = NULL;
-   }
-   int speed = hardware_get_cpu_speed();
-   sprintf(szTemp, "CPU: %d Mhz, Temp: %d C", speed, temp/1000); 
-   strcat(szBuff, szTemp);
-   pm->addTopLine(szBuff);
-
-   pm->addTopLine(" ");
-   pm->addTopLine(" ");
-}
-
-
-void MenuRoot::show_MenuInfo()
-{
-   char szBuff[1024];
-   char szOutput[1024];
-   char szComm[256];
-
-   MenuSystem* pm = new MenuSystem();
-   pm->m_xPos = menu_get_XStartPos(pm->m_Width);
-   pm->m_yPos = 0.14;
-   pm->m_Width = 0.52;
-
-   szBuff[0] = 0;      
-   strcpy(szBuff, "Ruby base version: N/A");
-
-   FILE* fd = try_open_base_version_file(NULL);
-
-   if ( NULL != fd )
-   {
-      szOutput[0] = 0;
-      if ( 1 == fscanf(fd, "%s", szOutput) )
-      {
-         strcpy(szBuff, "Ruby base version: ");
-         strcat(szBuff, szOutput);
-      }
-      fclose(fd);
-   }
-
-   char szFile[128];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_INFO_LAST_UPDATE);
-   fd = fopen(szFile, "r");
-   if ( NULL != fd )
-   {
-      szOutput[0] = 0;
-      if ( 1 == fscanf(fd, "%s", szOutput) )
-      {
-         strcat(szBuff, ", last update: ");
-         strcat(szBuff, szOutput);
-      }
-      fclose(fd);
-   }
-   
-   pm->addTopLine(szBuff);
-
-   pm->addTopLine(" ");
-
-   createHWInfo(pm);
-
-   #ifdef HW_PLATFORM_RASPBERRY
-   sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
-   #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
-   sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
-   #endif
-   if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
-   {
-      char szTemp[1024];
-      long lb, lu, lf;
-      sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
-      sprintf(szBuff, "System storage: %ld Mb free out of %ld Mb total.", lf, lu+lf);
-      pm->addTopLine(szBuff);
-   }
-   /*
-   if ( 1 == hw_execute_bash_command_raw("free -m  | grep Mem", szBuff) )
-   {
-      char szTemp[1024];
-      long lt, lu, lf;
-      sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
-      sprintf(szBuff, "System memory: %ld Mb free out of %ld Mb total.", lf, lt);
-      pm->addTopLine(szBuff);
-   }
-   */
-   createAboutInfo(pm);
-   add_menu_to_stack(pm);
-   return;
-}
-
-
 void MenuRoot::onSelectItem()
 {
-   if ( 0 == m_SelectedIndex )
+   if ( m_iIndexVehicle == m_SelectedIndex )
    {
       if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
         (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
@@ -445,24 +319,24 @@ void MenuRoot::onSelectItem()
       return;
    }
 
-   if ( 1 == m_SelectedIndex )
+   if ( m_iIndexMyVehicles == m_SelectedIndex )
          add_menu_to_stack(new MenuVehicles());
 
-   if ( 2 == m_SelectedIndex )
+   if ( m_iIndexSpectator == m_SelectedIndex )
          add_menu_to_stack(new MenuSpectator());
 
-   if ( 3 == m_SelectedIndex )
+   if ( m_iIndexSearch == m_SelectedIndex )
          add_menu_to_stack(new MenuSearch());
 
-   if ( 4 == m_SelectedIndex )
-      add_menu_to_stack(new MenuRadioConfig()); 
+   //if ( 4 == m_SelectedIndex )
+   //   add_menu_to_stack(new MenuRadioConfig()); 
 
-   if ( 5 == m_SelectedIndex )
+   if ( m_iIndexController == m_SelectedIndex )
       add_menu_to_stack(new MenuController()); 
 
-   if ( 6 == m_SelectedIndex )
-         add_menu_to_stack(new MenuStorage());
+   if ( m_iIndexMedia == m_SelectedIndex )
+      add_menu_to_stack(new MenuStorage());
 
-   if ( 7 == m_SelectedIndex )
-      show_MenuInfo();
+   if ( m_iIndexSystem == m_SelectedIndex )
+      add_menu_to_stack(new MenuSystem());
 }

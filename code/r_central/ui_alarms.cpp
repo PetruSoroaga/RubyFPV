@@ -229,14 +229,38 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
 
    if ( uAlarms & ALARM_ID_VIDEO_CAPTURE_MALFUNCTION )
    {
-      uIconId = g_idIconCamera;
-      strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
-      strcpy(szAlarmText2, "Reinstall your vehicle firmware.");
+      static u32 s_uTimeLastCaptureMalfunctionAlarm = 0;
 
-      if ( uFlags1 == 1 )
+      if ( g_TimeNow < s_uTimeLastCaptureMalfunctionAlarm + 10000 )
+         return;
+      s_uTimeLastCaptureMalfunctionAlarm = g_TimeNow;
+
+      uIconId = g_idIconCamera;
+
+      if ( 0 == (uFlags1 & 0xFF) )
+      {
+         strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
+         strcpy(szAlarmText2, "Reinstall your vehicle firmware.");
+      }
+      else if ( 1 == (uFlags1 & 0xFF) )
       {
          strcpy(szAlarmText, "Video capture process on vehicle is not responding.");
          strcpy(szAlarmText2, "Vehicle will restart now...");
+      }
+      else if ( 2 == (uFlags1 & 0xFF) )
+      {
+         u32 uSkipped = (uFlags1 >> 8) & 0xFF;
+         u32 uDelta1 = uFlags2 & 0xFF;
+         u32 uDelta2 = (uFlags2 >> 8) & 0xFF;
+         u32 uDelta3 = (uFlags2 >> 16) & 0xFF;
+         sprintf(szAlarmText, "Video capture process skipped %u packets from H264/H265 encoder.", uSkipped);
+         sprintf(szAlarmText2, "Please contact Ruby developers. Delta times: %u ms, %u ms, %u ms", uDelta1, uDelta2, uDelta3);
+         bShowAsWarning = true;
+      }
+      else
+      {
+         strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
+         strcpy(szAlarmText2, "A generic error occured. Reinstall your vehicle firmware.");       
       }
    }
 
@@ -460,7 +484,11 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
          bShowAsWarning = true;
       
       if ( bShowAsWarning )
+      {
          warnings_add(0, szAlarmText, uIconId);
+         if ( 0 != szAlarmText2[0] )
+            warnings_add(0, szAlarmText2, uIconId);
+      }
       else
       {
          Popup* p = _get_next_available_alarm_popup(szAlarmText, 7);

@@ -19,7 +19,7 @@ class MenuVehiclePeripherals: public Menu
 
       bool m_bWaitingForVehicleInfo;
 
-      int m_IndexSerialPortsUsage[MAX_MODEL_SERIAL_BUSSES];
-      int m_IndexStartPortUsagePluginsStartIndex[MAX_MODEL_SERIAL_BUSSES];
-      int m_IndexSerialPortsBaudRate[MAX_MODEL_SERIAL_BUSSES];
+      int m_IndexSerialPortsUsage[MAX_MODEL_SERIAL_PORTS];
+      int m_IndexStartPortUsagePluginsStartIndex[MAX_MODEL_SERIAL_PORTS];
+      int m_IndexSerialPortsBaudRate[MAX_MODEL_SERIAL_PORTS];
 };

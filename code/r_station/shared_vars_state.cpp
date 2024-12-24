@@ -58,7 +58,8 @@ void resetVehicleRuntimeInfo(int iIndex)
    }
 
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeReceivedAckFromVehicle = 0;
-   g_State.vehiclesRuntimeInfo[iIndex].iVehicleClockIsBehindThisMilisec = 500000000;
+   g_State.vehiclesRuntimeInfo[iIndex].iVehicleClockDeltaMilisec = 500000000;
+   g_State.vehiclesRuntimeInfo[iIndex].uMinimumPingTimeMilisec = MAX_U32;
 
    g_State.vehiclesRuntimeInfo[iIndex].uTimeLastCommandIdSent = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uLastCommandIdSent = MAX_U32;
@@ -233,15 +234,13 @@ void addCommandRTTimeToRuntimeInfo(type_global_state_vehicle_runtime_info* pRunt
    }
 }
 
-void adjustLinkClockDeltasForVehicleRuntimeIndex(int iRuntimeInfoIndex, u32 uRoundtripTimeMs, u32 uLocalTimeVehicleMs)
+void 
+adjustLinkClockDeltasForVehicleRuntimeIndex(int iRuntimeInfoIndex, u32 uRoundtripTimeMs, u32 uLocalTimeVehicleMs)
 {
    if ( (iRuntimeInfoIndex < 0) || (iRuntimeInfoIndex >= MAX_CONCURENT_VEHICLES) )
       return;
    
-   if ( g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec == 500000000 )
-      g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec = (int) get_current_timestamp_ms() - (int)uRoundtripTimeMs/2 - (int)uLocalTimeVehicleMs;
-   else if ( (int)uRoundtripTimeMs < g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec )
-      g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec = (int) get_current_timestamp_ms() - (int)uRoundtripTimeMs/2 - (int)uLocalTimeVehicleMs;
+   g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockDeltaMilisec = (int)uLocalTimeVehicleMs - ((int) g_TimeNow - (int)uRoundtripTimeMs/3);
 
-   radio_set_link_clock_delta(g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockIsBehindThisMilisec);
+   radio_set_link_clock_delta(g_State.vehiclesRuntimeInfo[iRuntimeInfoIndex].iVehicleClockDeltaMilisec);
 }

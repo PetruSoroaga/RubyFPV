@@ -440,25 +440,12 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    }
   */ 
 
-/* To remove "DEBUG"
-   t_packet_header* pPH = (t_packet_header*)pPacketData;
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
-   {
-   static FILE* sfp2 = NULL;
-   if (NULL == sfp2 )
-      sfp2 = fopen("out4.h264", "wb");
-   u16 uTmp = 0;
-   memcpy(&uTmp, pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98), sizeof(u16));
-   t_packet_header_video_full_98* pCurrentVideoPacketHeader = (t_packet_header_video_full_98*)(pPacketData + sizeof(t_packet_header));
-   if ( pCurrentVideoPacketHeader->uCurrentBlockPacketIndex < 9 )
-   if ( pCurrentVideoPacketHeader->uCurrentBlockIndex > 20 )
-   if ( pCurrentVideoPacketHeader->uCurrentBlockIndex % 200 )
-      fwrite( pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98)+sizeof(u16), 1, pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_video_full_98) - sizeof(u16), sfp2 );
-   }
-*/
    int totalLength = radio_build_new_raw_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_DOWNLINK, be);
 
    u32 microT1 = get_current_timestamp_micros();
+   u32 uPacketType = 0;
+   u32 uStreamId = 0;
+   int iSinglePacketLength = 0;
 
    if ( radio_write_raw_packet(iRadioInterfaceIndex, s_RadioRawPacket, totalLength) )
    {       
@@ -482,13 +469,24 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       while ( nLength > 0 )
       {
          t_packet_header* pPH = (t_packet_header*)pData;
-         u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-
+         t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         {
+            uStreamId = (pPHC->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+            uPacketType = pPHC->packet_type;
+            iSinglePacketLength = pPHC->total_length;
+         }
+         else
+         {
+            uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+            uPacketType = pPH->packet_type;
+            iSinglePacketLength = pPH->total_length;
+         }
          iCountChainedPackets[uStreamId]++;
-         iTotalBytesOnEachStream[uStreamId] += pPH->total_length;
+         iTotalBytesOnEachStream[uStreamId] += iSinglePacketLength;
 
-         nLength -= pPH->total_length;
-         pData += pPH->total_length;
+         nLength -= iSinglePacketLength;
+         pData += iSinglePacketLength;
       }
 
       for( int i=0; i<MAX_RADIO_STREAMS; i++ )
@@ -500,11 +498,9 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       return true;
    }
 
-// To fix
-   //log_softerror_and_alarm("Failed to write to radio interface %d (type %s, size: %d bytes, raw: %d bytes)",
-   //   iRadioInterfaceIndex+1,
-   //   str_get_packet_type(pPH->packet_type), nPacketLength, totalLength);
-      
+   log_softerror_and_alarm("Failed to write to radio interface %d (type %s, size: %d bytes, raw: %d bytes)",
+      iRadioInterfaceIndex+1,
+      str_get_packet_type(uPacketType), nPacketLength, totalLength);
    return false;
 }
 

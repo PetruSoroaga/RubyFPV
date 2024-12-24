@@ -6,7 +6,7 @@
 extern "C" {
 #endif 
 
-#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_DATA_PACKETS  ((u32)(((u32)0x01)<<2))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_TX_PACKETS          ((u32)(((u32)0x01)<<2))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_H264265_FRAMES      ((u32)(((u32)0x01)<<3))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_DBM                 ((u32)(((u32)0x01)<<4))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_MISSING_PACKETS     ((u32)(((u32)0x01)<<5))
@@ -18,6 +18,7 @@ extern "C" {
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES  ((u32)(((u32)0x01)<<11))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_RETRANSMISSIONS  ((u32)(((u32)0x01)<<12))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY       ((u32)(((u32)0x01)<<13))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_AIR_GAPS            ((u32)(((u32)0x01)<<14))
 
 
 typedef enum
@@ -122,7 +123,7 @@ typedef struct
    int iShowOnlyPresentTxPowerCards;
    int iShowTxBoosters;
    int iMenuStyle; // 0: clasic, 1: sticky left
-
+   int iStopRecordingAfterLinkLostSeconds;
    int iDebugStatsQAButton;
    u32 uDebugStatsFlags;
 } Preferences;

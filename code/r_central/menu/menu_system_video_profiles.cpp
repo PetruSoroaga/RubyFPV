@@ -38,8 +38,8 @@
 #include "menu_confirmation.h"
 #include "../../radio/radiolink.h"
 #include "../../base/utils.h"
-#include "../../base/controller_utils.h"
 #include "../process_router_messages.h"
+#include "../../utils/utils_controller.h"
 
 #include <time.h>
 #include <sys/resource.h>

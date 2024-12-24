@@ -2,7 +2,6 @@
 #include "menu_objects.h"
 #include "../popup.h"
 
-
 class MenuRadioConfig: public Menu
 {
    public:
@@ -33,13 +32,12 @@ class MenuRadioConfig: public Menu
       void computeMenuItems();
 
       void onClickAutoTx(int iRadioLink);
-      void onClickSiKTxPower(bool bVehicle);
 
       float computeHeights();
       void computeMaxItemIndexAndCommands();
 
-      float drawRadioLinks(float xStart, float xEnd);
-      float drawRadioPowersHeader(float xStart, float xEnd, float yStart);
+      float drawRadioHeader(float xStart, float xEnd, float yStart);
+      float drawRadioLinks(float xStart, float xEnd, float yStart);
       float drawVehicleRadioLink(float xStart, float xEnd, float yStart, int iVehicleRadioLink);
       void drawVehicleRadioLinkCapabilities(float xStart, float xEnd, float yStart, int iVehicleRadioLink, bool bIsLinkActive, bool bIsRelayLink);
       float drawRadioInterfaceController(float xStart, float xEnd, float yStart, int iRadioLink, int iRadioInterface);
@@ -51,7 +49,6 @@ class MenuRadioConfig: public Menu
       int m_iIdFontLarge;
       Popup* m_pPopupProgress;
       MenuItemSelect* m_pItemSelectTxCard;
-      MenuItemSelect* m_pItemSiKTxPower;
       int m_iCurrentRadioLink;
       float m_fHeaderHeight;
       float m_fYPosAutoTx[MAX_RADIO_INTERFACES];
@@ -59,8 +56,6 @@ class MenuRadioConfig: public Menu
       float m_fYPosVehicleRadioInterfaces[MAX_RADIO_INTERFACES];
       float m_fYPosRadioLinks[MAX_RADIO_INTERFACES];
       float m_fFooterHeight;
-      float m_fXPosSiKTxPowerController;
-      float m_fXPosSiKTxPowerVehicle;
       
       u32  m_uCommandsIds[50];
       char m_szTooltips[50][256];
@@ -68,12 +63,6 @@ class MenuRadioConfig: public Menu
       
       bool m_bShowOnlyControllerUnusedInterfaces;
       
-      bool m_bHas58PowerVehicle;
-      bool m_bHas24PowerVehicle;
-      bool m_bHasSiKPowerVehicle;
-      bool m_bHas58PowerController;
-      bool m_bHas24PowerController;
-      bool m_bHasSiKPowerController;
       u32 m_uBandsSiKVehicle;
       u32 m_uBandsSiKController;
       int m_iCountVehicleRadioLinks;
@@ -87,8 +76,6 @@ class MenuRadioConfig: public Menu
 
       int m_iIndexCurrentItem;
       int m_iIndexMaxItem;
-      int m_iCountItemsTxPowerVehicle;
-      int m_iCountItemsTxPowerController;
       int m_iHeaderItemsCount;
 
       float m_fHeightLinks[MAX_RADIO_INTERFACES];
@@ -96,5 +83,4 @@ class MenuRadioConfig: public Menu
 
       bool m_bTmpHasVideoStreamsEnabled;
       bool m_bTmpHasDataStreamsEnabled;
-      bool m_bConfigSiKPowerVehicle;
 };

@@ -319,14 +319,27 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
    bool bPacketsSent = true;
 
    u8* pData = pPacketData;
-   int nLength = nPacketLength;
-   while ( nLength > 0 )
+   int nRemainingLength = nPacketLength;
+   while ( nRemainingLength > 0 )
    {
       t_packet_header* pPH = (t_packet_header*)pData;
-      if ( ! radio_can_send_packet_on_slow_link(iLocalRadioLinkId, pPH->packet_type, 1, g_TimeNow) )
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
+      u8 uPacketType = 0;
+      int iThisLen = 0;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       {
-         nLength -= pPH->total_length;
-         pData += pPH->total_length;
+         uPacketType = pPHC->packet_type;
+         iThisLen = pPHC->total_length;
+      }
+      else
+      {
+         uPacketType = pPH->packet_type;
+         iThisLen = pPH->total_length;
+      }
+      if ( ! radio_can_send_packet_on_slow_link(iLocalRadioLinkId, uPacketType, 1, g_TimeNow) )
+      {
+         nRemainingLength -= iThisLen;
+         pData += iThisLen;
          continue;
       }
       if ( iAirRate > 0 )
@@ -339,32 +352,39 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
             log_line("Radio interface %d is tx overloaded: sending %d bytes/sec and air data rate is %d bytes/sec", iRadioInterfaceIndex+1, (int)g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec, iAirRate);
             send_alarm_to_central(ALARM_ID_RADIO_LINK_DATA_OVERLOAD, (g_SM_RadioStats.radio_interfaces[iRadioInterfaceIndex].txBytesPerSec & 0xFFFFFF) | (((u32)iRadioInterfaceIndex)<<24), (u32)iAirRate);
          }
-         nLength -= pPH->total_length;
-         pData += pPH->total_length;
+         nRemainingLength -= iThisLen;
+         pData += iThisLen;
          continue;
       }
 
       if ( (iLocalRadioLinkId < 0) || (iLocalRadioLinkId >= MAX_RADIO_INTERFACES) )
          iLocalRadioLinkId = 0;
       u16 uRadioLinkPacketIndex = radio_get_next_radio_link_packet_index(iLocalRadioLinkId);
-      pPH->radio_link_packet_index = uRadioLinkPacketIndex;
-
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-         radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
+      
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         radio_packet_compressed_compute_crc((u8*)pPHC, pPHC->total_length);
       else
-         radio_packet_compute_crc((u8*)pPH, pPH->total_length);
+      {
+         pPH->radio_link_packet_index = uRadioLinkPacketIndex;
+         if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
+            radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
+        else
+            radio_packet_compute_crc((u8*)pPH, pPH->total_length);
+      }
 
       if ( pRadioHWInfo->openedForWrite )
       {
-         int iWriteResult = radio_tx_send_serial_radio_packet(iRadioInterfaceIndex, (u8*)pPH, pPH->total_length);
+         int iWriteResult = radio_tx_send_serial_radio_packet(iRadioInterfaceIndex, pData, iThisLen);
          if ( iWriteResult > 0 )
          {
-            int iTotalSent = pPH->total_length;
+            int iTotalSent = iThisLen;
             if ( 0 < g_pCurrentModel->radioLinksParams.iSiKPacketSize )
-               iTotalSent += sizeof(t_packet_header_short) * (int) (pPH->total_length / g_pCurrentModel->radioLinksParams.iSiKPacketSize);
-            u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+               iTotalSent += sizeof(t_packet_header_short) * (int) (iThisLen / g_pCurrentModel->radioLinksParams.iSiKPacketSize);
+            u32 uStreamId = STREAM_ID_COMPRESSED;
+            if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+               uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
             radio_stats_update_on_packet_sent_on_radio_interface(&g_SM_RadioStats, g_TimeNow, iRadioInterfaceIndex, iTotalSent);
-            radio_stats_update_on_packet_sent_on_radio_link(&g_SM_RadioStats, g_TimeNow, iLocalRadioLinkId, (int)uStreamId, pPH->total_length, 1);
+            radio_stats_update_on_packet_sent_on_radio_link(&g_SM_RadioStats, g_TimeNow, iLocalRadioLinkId, (int)uStreamId, iThisLen, 1);
          }
          else
          {
@@ -374,7 +394,7 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
             {
                if ( hardware_radio_is_sik_radio(pRadioHWInfo) )
                   radio_links_flag_reinit_sik_interface(iRadioInterfaceIndex);
-               nLength = 0;
+               nRemainingLength = 0;
                break;
             }
          }
@@ -384,8 +404,8 @@ bool _send_packet_to_serial_radio_interface(int iLocalRadioLinkId, int iRadioInt
          bPacketsSent = false;
          log_softerror_and_alarm("Radio serial interface %d is not opened for write. Can't send packet on it.", iRadioInterfaceIndex+1);
       }
-      nLength -= pPH->total_length;
-      pData += pPH->total_length;
+      nRemainingLength -= iThisLen;
+      pData += iThisLen;
    }
 
    return bPacketsSent;
@@ -412,8 +432,11 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    int nRateTx = compute_packet_uplink_datarate(iVehicleRadioLinkId, iRadioInterfaceIndex, &(g_pCurrentModel->radioLinksParams));
    
    t_packet_header* pPH = (t_packet_header*)pPacketData;
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketData;
+
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
-      nRateTx = DEFAULT_RADIO_DATARATE_DATA;
+      nRateTx = DEFAULT_RADIO_DATARATE_LOWEST;
    radio_set_out_datarate(nRateTx);
 
    if ( test_link_is_in_progress() )
@@ -443,17 +466,28 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       memset(iTotalBytesOnEachStream, 0, MAX_RADIO_STREAMS*sizeof(int));
 
       u8* pData = pPacketData;
-      int nLength = nPacketLength;
-      while ( nLength > 0 )
+      int nRemainingLength = nPacketLength;
+      while ( nRemainingLength > 0 )
       {
          pPH = (t_packet_header*)pData;
-         u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-
+         pPHC = (t_packet_header_compressed*)pData;
+         u32 uStreamId = 0;
+         int iThisLen = 0;
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         {
+            uStreamId = STREAM_ID_COMPRESSED;
+            iThisLen = pPHC->total_length;
+         }
+         else
+         {
+            uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+            iThisLen = pPH->total_length;
+         }
          iCountChainedPackets[uStreamId]++;
-         iTotalBytesOnEachStream[uStreamId] += pPH->total_length;
+         iTotalBytesOnEachStream[uStreamId] += iThisLen;
 
-         nLength -= pPH->total_length;
-         pData += pPH->total_length;
+         nRemainingLength -= iThisLen;
+         pData += iThisLen;
       }
 
       for( int i=0; i<MAX_RADIO_STREAMS; i++ )
@@ -465,6 +499,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       }
 
       t_packet_header* pPH = (t_packet_header*)pPacketData;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( pPH->packet_type == PACKET_TYPE_SIK_CONFIG )
       {
          u8 uVehicleLinkId = *(pPacketData + sizeof(t_packet_header));
@@ -508,18 +543,39 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
    memset(iCountChainedPackets, 0, MAX_RADIO_STREAMS*sizeof(int));
    memset(iTotalBytesOnEachStream, 0, MAX_RADIO_STREAMS*sizeof(int));
 
-   u8 uFirstPacketType = 0;
    t_packet_header* pPHTemp = (t_packet_header*)pPacketData;
-   uFirstPacketType = pPHTemp->packet_type;
-
+   t_packet_header_compressed* pPHCTemp = (t_packet_header_compressed*)pPacketData;
+   u8 uFirstPacketType = pPHTemp->packet_type;
+   if ( (pPHTemp->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      uFirstPacketType = pPHCTemp->packet_type;
+   u8 uPacketType = uFirstPacketType;
+   int iPacketLength = 0;
+   u32 uStreamId = 0;
    u8* pData = pPacketData;
-   int nLength = nPacketLength;
+   int nRemainingLength = nPacketLength;
    
-   while ( nLength > 0 )
+   while ( nRemainingLength > 0 )
    {
       iTotalPackets++;
       t_packet_header* pPH = (t_packet_header*)pData;
+      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
 
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      {
+         uPacketType = pPHC->packet_type;
+         iPacketLength = pPHC->total_length;
+         uDestVehicleId = pPHC->vehicle_id_dest;
+         uStreamId = STREAM_ID_COMPRESSED;
+      }
+      else
+      {
+         uPacketType = pPH->packet_type;
+         iPacketLength = pPH->total_length;
+         uDestVehicleId = pPH->vehicle_id_dest;
+         uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      }
+
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
       {
          u8 uLocalRadioLinkId = 0;
@@ -528,6 +584,7 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
          bHasPingPacket = true;
       }
 
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
       {
          int iModelRadioLinkIndex = pData[sizeof(t_packet_header)+2];
@@ -547,26 +604,27 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
       //if ( pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)
       //   iCountRetransmissionsPackets++;
 
-      uDestVehicleId = pPH->vehicle_id_dest;
-      u32 uStreamId = (pPH->stream_packet_idx) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
 
-      if ( pPH->packet_type != PACKET_TYPE_RUBY_PING_CLOCK )
-      if ( pPH->packet_type != PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
+      if ( uPacketType != PACKET_TYPE_RUBY_PING_CLOCK )
+      if ( uPacketType != PACKET_TYPE_RUBY_PING_CLOCK_REPLY )
          s_StreamsTxPacketIndex[uStreamId]++;
 
-      pPH->stream_packet_idx = (((u32)uStreamId)<<PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX) | (s_StreamsTxPacketIndex[uStreamId] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
-
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+         pPHC->stream_packet_idx = (((u32)uStreamId)<<PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX) | (s_StreamsTxPacketIndex[uStreamId] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
+      else
+         pPH->stream_packet_idx = (((u32)uStreamId)<<PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX) | (s_StreamsTxPacketIndex[uStreamId] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
       iCountChainedPackets[uStreamId]++;
-      iTotalBytesOnEachStream[uStreamId] += pPH->total_length;
+      iTotalBytesOnEachStream[uStreamId] += iPacketLength;
 
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( s_bReceivedInvalidRadioPackets )
          pPH->vehicle_id_src = 0;
 
-      nLength -= pPH->total_length;
-      pData += pPH->total_length;
+      nRemainingLength -= iPacketLength;
+      pData += iPacketLength;
    }
 
-   // Send the received composed packet (or single packet) to each local radio link
+   // Send the composed packet (or single packet) to each local radio link
 
    for( int iLocalRadioLinkId=0; iLocalRadioLinkId<g_SM_RadioStats.countLocalRadioLinks; iLocalRadioLinkId++ )
    {
@@ -621,6 +679,9 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
 
    if ( bPacketSent )
    {
+      g_SMControllerRTInfo.uTxPackets[g_SMControllerRTInfo.iCurrentIndex]++;
+      if ( radio_packet_type_is_high_priority(uFirstPacketType) )
+         g_SMControllerRTInfo.uTxHighPriorityPackets[g_SMControllerRTInfo.iCurrentIndex]++;
       for( int i=0; i<MAX_RADIO_STREAMS; i++ )
       {
          if ( 0 == iCountChainedPackets[i] )

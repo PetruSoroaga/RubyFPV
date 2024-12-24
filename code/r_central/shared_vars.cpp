@@ -80,3 +80,6 @@ int g_iMustSendCurrentActiveOSDLayoutCounter = 0;
 
 CorePluginSettings g_listVehicleCorePlugins[MAX_CORE_PLUGINS_COUNT];
 int g_iVehicleCorePluginsCount = 0;
+
+bool g_bMustNegociateRadioLinksFlag = false;
+bool g_bAskedForNegociateRadioLink = false;

@@ -13,7 +13,10 @@ class MenuRoot: public Menu
 
    private:
       void RenderVehicleInfo();
-      void createAboutInfo(Menu* pm);
       void createHWInfo(Menu* pm);
-      void show_MenuInfo();
+
+      int m_iIndexVehicle, m_iIndexMyVehicles;
+      int m_iIndexSpectator, m_iIndexSearch;
+      int m_iIndexController, m_iIndexMedia;
+      int m_iIndexSystem;
 };

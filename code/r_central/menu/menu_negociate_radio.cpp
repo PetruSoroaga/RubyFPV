@@ -67,6 +67,10 @@ MenuNegociateRadio::MenuNegociateRadio(void)
    m_iDataRateToApply = 0;
    m_iDataRateIndex = 0;
    m_iDataRateTestCount = 0;
+   m_iCountSucceededSteps = 0;
+   m_iCountFailedSteps = 0;
+   m_bWaitingCancelConfirmationFromUser = false;
+   g_bAskedForNegociateRadioLink = true;
    _switch_to_step(NEGOCIATE_RADIO_STEP_DATA_RATE);
 }
 
@@ -233,33 +237,7 @@ void MenuNegociateRadio::_switch_to_step(int iStep)
    if ( m_iStep == NEGOCIATE_RADIO_STEP_END )
    {
       strcpy(m_szStatusMessage, "Done. Saving parameters.");
-   
-      m_iDataRateToApply = 0;
-
-      _computeQualities();
-      float fQuality18 = m_fQualities[0];
-      float fQuality24 = m_fQualities[1];
-      float fQuality48 = m_fQualities[3];
-      float fQualityMCS2 = m_fQualities[6];
-      float fQualityMCS3 = m_fQualities[7];
-      float fQualityMCS4 = m_fQualities[8];
-      
-      if ( fQualityMCS4 > 0.99 )
-         m_iDataRateToApply = -5;
-      else if ( fQualityMCS3 > 0.99 )
-         m_iDataRateToApply = -4;
-      else if ( fQualityMCS2 > fQuality18 )
-         m_iDataRateToApply = -3;
-      else if ( fQuality48 > 0.99 )
-         m_iDataRateToApply = 48000000;
-      else if ( fQuality24 > 0.99 )
-         m_iDataRateToApply = 24000000;
-      else
-         m_iDataRateToApply = 18000000;
-
-      log_line("Computed Q: 18: %.3f, 24: %.3f, 48: %.3f, MCS2: %.3f, MCS3: %.3f, MCS4: %.3f ",
-         fQuality18, fQuality24, fQuality48, fQualityMCS2, fQualityMCS3, fQualityMCS4);
-      log_line("Appling datarate: %d", m_iDataRateToApply);
+      _apply_new_settings();
    }
    if ( m_iStep == NEGOCIATE_RADIO_STEP_CANCEL )
       strcpy(m_szStatusMessage, "Canceling, please wait.");
@@ -270,6 +248,80 @@ void MenuNegociateRadio::_switch_to_step(int iStep)
 
 }
 
+void MenuNegociateRadio::_advance_to_next_step()
+{
+   if ( m_iStep != NEGOCIATE_RADIO_STEP_DATA_RATE )
+      return;
+
+   if ( m_iCountFailedSteps >= 6 )
+   {
+      log_softerror_and_alarm("Failed 6 data steps. Aborting operation.");
+      _switch_to_step(NEGOCIATE_RADIO_STEP_CANCEL);
+      return;
+   }
+
+   if ( m_iDataRateIndex >= g_ArrayTestRadioRatesCount )
+   {
+      _switch_to_step(NEGOCIATE_RADIO_STEP_END);
+      return;    
+   }    
+
+   m_iDataRateTestCount++;
+   if ( m_iDataRateTestCount > 2 )
+   {
+      m_iDataRateIndex++;
+      m_iDataRateTestCount = 0;
+   }
+   if ( m_iDataRateIndex >= g_ArrayTestRadioRatesCount )
+      m_iStep = NEGOCIATE_RADIO_STEP_END;
+   _switch_to_step(m_iStep);
+}
+
+void MenuNegociateRadio::_apply_new_settings()
+{
+   m_iDataRateToApply = 0;
+
+   _computeQualities();
+   float fQuality18 = m_fQualities[0];
+   float fQuality24 = m_fQualities[1];
+   float fQuality48 = m_fQualities[3];
+   float fQualityMCS2 = m_fQualities[6];
+   float fQualityMCS3 = m_fQualities[7];
+   float fQualityMCS4 = m_fQualities[8];
+   
+   if ( fQualityMCS4 > 0.99 )
+      m_iDataRateToApply = -5;
+   else if ( fQualityMCS3 > 0.99 )
+      m_iDataRateToApply = -4;
+   else if ( fQualityMCS2 > fQuality18 )
+      m_iDataRateToApply = -3;
+   else if ( fQuality48 > 0.99 )
+      m_iDataRateToApply = 48000000;
+   else if ( fQuality24 > 0.99 )
+      m_iDataRateToApply = 24000000;
+   else
+      m_iDataRateToApply = 18000000;
+
+   log_line("Computed Q: 18: %.3f, 24: %.3f, 48: %.3f, MCS2: %.3f, MCS3: %.3f, MCS4: %.3f ",
+      fQuality18, fQuality24, fQuality48, fQualityMCS2, fQualityMCS3, fQualityMCS4);
+   log_line("Appling datarate: %d (%u bps)", m_iDataRateToApply, getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0));
+   log_line("Max/Min video bitrate interval to set: %u / %u bps",
+     (getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) / 100 ) * DEFAULT_VIDEO_LINK_LOAD_PERCENT,
+     (getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) / 100 ) * 30 );
+
+   if ( NULL != g_pCurrentModel )
+   {
+      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+      {
+         if ( (g_pCurrentModel->video_link_profiles[i].bitrate_fixed_bps / 100) * DEFAULT_VIDEO_LINK_LOAD_PERCENT > getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) )
+            g_pCurrentModel->video_link_profiles[i].bitrate_fixed_bps = (getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) / 100 )* DEFAULT_VIDEO_LINK_LOAD_PERCENT;
+      
+         if ( (i == VIDEO_PROFILE_USER) || (i == VIDEO_PROFILE_HIGH_QUALITY) )
+         if ( (g_pCurrentModel->video_link_profiles[i].bitrate_fixed_bps / 100) * 30 < getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) )
+            g_pCurrentModel->video_link_profiles[i].bitrate_fixed_bps = (getRealDataRateFromRadioDataRate(m_iDataRateToApply, 0) / 100 ) * 30;
+      }
+   }
+}
 
 bool MenuNegociateRadio::periodicLoop()
 {
@@ -287,9 +339,30 @@ bool MenuNegociateRadio::periodicLoop()
 
    if ( m_bWaitingVehicleConfirmation )
    {
-      if ( g_TimeNow > m_uLastTimeSendCommandToVehicle + 100 )
-      {
+      if ( (g_TimeNow > m_uLastTimeSendCommandToVehicle + 100) && (!m_bWaitingCancelConfirmationFromUser) && (g_TimeNow < m_uStepStartTime + 3000) )
          _send_command_to_vehicle();       
+      if ( (g_TimeNow > m_uStepStartTime + 3000) && (!m_bWaitingCancelConfirmationFromUser) )
+      {
+         m_iCountFailedSteps++;
+         if ( (m_iStep == NEGOCIATE_RADIO_STEP_CANCEL) || (m_iStep == NEGOCIATE_RADIO_STEP_END) )
+         {
+            if ( m_iCountFailedSteps >= 6 )
+            {
+               setModal(false);
+               menu_stack_pop(0);
+               m_bWaitingCancelConfirmationFromUser = true;
+               log_line("Timing out operation with 6 failed steps.");
+               addMessage2(0, "Failed to negociate radio links.", "You radio links quality is very poor. Please fix the physical radio links quality and try again later.");
+            }
+            else
+            {
+               setModal(false);
+               menu_stack_pop(0);
+            }
+            return false;
+         }
+         else
+            _advance_to_next_step();
       }
    }
    else
@@ -305,18 +378,8 @@ bool MenuNegociateRadio::periodicLoop()
          }
          if ( g_TimeNow > m_uStepStartTime + 2000 )
          {
-            if ( m_iDataRateIndex < g_ArrayTestRadioRatesCount )
-            {
-               m_iDataRateTestCount++;
-               if ( m_iDataRateTestCount > 2 )
-               {
-                  m_iDataRateIndex++;
-                  m_iDataRateTestCount = 0;
-               }
-               if ( m_iDataRateIndex >= g_ArrayTestRadioRatesCount )
-                  m_iStep = NEGOCIATE_RADIO_STEP_END;
-               _switch_to_step(m_iStep);
-            }
+            m_iCountSucceededSteps++;
+            _advance_to_next_step();
          }
       }
       return false;
@@ -360,16 +423,36 @@ void MenuNegociateRadio::onReceivedVehicleResponse(u8* pPacketData, int iPacketL
          g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags |= MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS;
          saveControllerModel(g_pCurrentModel);
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+         g_bMustNegociateRadioLinksFlag = false;
       }
-      setModal(false);
-      menu_stack_pop(0);    
+      if ( (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) && (m_iCountFailedSteps >= 6) )
+      {
+         setModal(false);
+         menu_stack_pop(0);
+         m_bWaitingCancelConfirmationFromUser = true;
+         log_line("Finishing up operation with 6 failed steps.");
+         addMessage2(0, "Failed to negociate radio links.", "You radio links quality is very poor. Please fix the physical radio links quality and try again later.");
+      }
+      else
+      {
+         setModal(false);
+         menu_stack_pop(0);
+      }
    }
+
    m_bWaitingVehicleConfirmation = false;
 }
 
 void MenuNegociateRadio::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
+   if ( m_bWaitingCancelConfirmationFromUser )
+   {
+      log_line("User confirmed canceled operation. Close menu.");
+      //setModal(false);
+      menu_stack_pop(0);
+      menu_rearrange_all_menus_no_animation();
+   }
 }
 
 void MenuNegociateRadio::_onCancel()

@@ -78,15 +78,23 @@ bool s_bLastReadIsSingleNAL = false;
 bool s_bLastReadIsEndNAL = false;
 bool s_bIsInsideIFrameNAL = false;
 bool s_bIsInsidePictureFrameNAL = false;
-
+int s_iLastNALSize = 0;
 u32 s_uTimeLastCheckMajestic = 0;
 int s_iCountMajestigProcessNotRunning = 0;
+
+u32 s_uLastVideoSourceReadTimestamps[4];
+u32 s_uLastAlarmUDPOveflowTimestamp = 0;
+u32 s_uLastTimeMajesticUpdate = 0;
 
 void video_source_majestic_start_capture_program();
 void video_source_majestic_stop_capture_program(int iSignal);
 
 void video_source_majestic_init_all_params()
 {
+   s_uLastTimeMajesticUpdate = g_TimeNow;
+   for( int i=0; i<(int)(sizeof(s_uLastVideoSourceReadTimestamps)/sizeof(s_uLastVideoSourceReadTimestamps[0])); i++ )
+      s_uLastVideoSourceReadTimestamps[i] = 0;
+
    log_line("[VideoSourceUDP] Majestic file size: %d bytes", get_filesize("/usr/bin/majestic") );
 
    hardware_set_oipc_gpu_boost(g_pCurrentModel->processesPriorities.iFreqGPU);
@@ -172,6 +180,7 @@ void video_source_majestic_init_all_params()
       else
          log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
    }
+   s_uLastTimeMajesticUpdate = g_TimeNow;
 }
 
 void video_source_majestic_close()
@@ -208,12 +217,21 @@ int video_source_majestic_open(int iUDPPort)
 
    if ( 0 != setsockopt(s_fInputVideoStreamUDPSocket, SOL_SOCKET, SO_RXQ_OVFL, (const void *)&optval , sizeof(optval)) )
        log_softerror_and_alarm("[VideoSourceUDP] Unable to set SO_RXQ_OVFL: %s", strerror(errno));
-   /*
-   int iRecvSize = MAX_PACKET_TOTAL_SIZE;
-   if( 0 != setsockopt(s_fInputVideoStreamUDPSocket, SOL_SOCKET, SO_RCVBUF, (const void *)&iRecvSize , sizeof(iRecvSize)))
-      log_softerror_and_alarm("[VideoSourceUDP] Unable to set SO_RCVBUF: %s", strerror(errno));
-   */
+   
+   int iRecvSize = 0;
+   socklen_t iParamLen = sizeof(iRecvSize);
+   getsockopt(s_fInputVideoStreamUDPSocket, SOL_SOCKET, SO_RCVBUF, &iRecvSize, &iParamLen);
+   log_line("[VideoSourceUDP] Current socket recv buffer size: %d", iRecvSize);
 
+   int iWantedRecvSize = 512*1024;
+   if( 0 != setsockopt(s_fInputVideoStreamUDPSocket, SOL_SOCKET, SO_RCVBUF, (const void *)&iWantedRecvSize, sizeof(iWantedRecvSize)))
+      log_softerror_and_alarm("[VideoSourceUDP] Unable to set SO_RCVBUF: %s", strerror(errno));
+
+   iRecvSize = 0;
+   iParamLen = sizeof(iRecvSize);
+   getsockopt(s_fInputVideoStreamUDPSocket, SOL_SOCKET, SO_RCVBUF, &iRecvSize, &iParamLen);
+   log_line("[VideoSourceUDP] New current socket recv buffer size: %d (requested: %d)", iRecvSize, iWantedRecvSize);
+ 
    memset(&server_addr, 0, sizeof(server_addr));
    server_addr.sin_family = AF_INET;
    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -260,11 +278,15 @@ void video_source_majestic_start_capture_program()
       else
          log_softerror_and_alarm("[VideoSourceUDP] Can't find the PID of majestic");
    }
+
+   hardware_camera_set_daylight_off( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
+
    adaptive_video_on_capture_restarted();
    s_uTimeLastCheckMajestic = g_TimeNow-3000;
    s_iCountMajestigProcessNotRunning = 0;
    s_uTimeStartVideoInput = g_TimeNow;
    s_bLogStartOfInputVideoData = true;
+   s_uLastTimeMajesticUpdate = g_TimeNow;
 }
 
 void video_source_majestic_stop_capture_program(int iSignal)
@@ -301,24 +323,38 @@ void video_source_majestic_set_keyframe_value(float fGOP)
 {
    char szComm[128];
    char szOutput[256];
-   sprintf(szComm, "curl localhost/api/v1/set?video0.gopSize=%.1f", fGOP);
+   sprintf(szComm, "curl -s localhost/api/v1/set?video0.gopSize=%.1f", fGOP);
    hw_execute_bash_command_raw(szComm, szOutput);
-   //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+   //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
 
    //sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    //hw_execute_bash_command_raw(szComm, NULL);
    //hw_execute_bash_command_raw("killall -1 majestic", NULL);
+   s_uLastTimeMajesticUpdate = g_TimeNow;
 }
 
 void video_source_majestic_set_videobitrate_value(u32 uBitrate)
 {
    char szComm[128];
    //char szOutput[256];
-   sprintf(szComm, "curl localhost/api/v1/set?video0.bitrate=%u", uBitrate/1000);
+   sprintf(szComm, "curl -s localhost/api/v1/set?video0.bitrate=%u", uBitrate/1000);
    hw_execute_bash_command_raw(szComm, NULL);
    sprintf(szComm, "cli -s .video0.bitrate %u", uBitrate/1000);
    hw_execute_bash_command(szComm, NULL);
-   //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput); 
+   //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput); 
+   s_uLastTimeMajesticUpdate = g_TimeNow;
+}
+
+void video_source_majestic_set_qpdelta_value(int iqpdelta)
+{
+   char szComm[128];
+   //char szOutput[256];
+   sprintf(szComm, "curl -s localhost/api/v1/set?video0.qpDelta=%d", iqpdelta);
+   hw_execute_bash_command_raw(szComm, NULL);
+   sprintf(szComm, "cli -s .video0.qpDelta %d", iqpdelta);
+   hw_execute_bash_command(szComm, NULL);
+   //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
+   s_uLastTimeMajesticUpdate = g_TimeNow;
 }
 
 int _video_source_majestic_try_read_input_udp_data(bool bAsync)
@@ -384,6 +420,10 @@ int _video_source_majestic_try_read_input_udp_data(bool bAsync)
          return -1;
       }
 
+      for( int i=3; i>0; i-- )
+         s_uLastVideoSourceReadTimestamps[i] = s_uLastVideoSourceReadTimestamps[i-1];
+      s_uLastVideoSourceReadTimestamps[0] = g_TimeNow;
+
       if ( nRecvBytes > MAX_PACKET_TOTAL_SIZE )
       {
          log_softerror_and_alarm("[VideoSourceUDP] Read too much data %d bytes from UDP socket", nRecvBytes);
@@ -394,7 +434,30 @@ int _video_source_majestic_try_read_input_udp_data(bool bAsync)
       uint32_t cur_rxq_overflow = extract_udp_rxq_overflow(&msghdr);
       if (cur_rxq_overflow != rxq_overflow)
       {
-          log_softerror_and_alarm("[VideoSourceUDP] UDP rxq overflow: %u packets dropped (from %u to %u)", cur_rxq_overflow - rxq_overflow, rxq_overflow, cur_rxq_overflow);
+          u32 uDroppedCount = cur_rxq_overflow - rxq_overflow;
+          log_softerror_and_alarm("[VideoSourceUDP] UDP rxq overflow: %u packets dropped (from %u to %u)", uDroppedCount, rxq_overflow, cur_rxq_overflow);
+          
+          if ( g_TimeNow > s_uLastAlarmUDPOveflowTimestamp + 10000 )
+          if ( g_TimeNow > g_TimeStart + 10000 )
+          if ( g_TimeNow > s_uLastTimeMajesticUpdate + 3000 )
+          {
+             s_uLastAlarmUDPOveflowTimestamp = g_TimeNow;
+             u32 uFlags2 = 0;
+             u32 uDelta = s_uLastVideoSourceReadTimestamps[0] - s_uLastVideoSourceReadTimestamps[1];
+             if ( uDelta > 255 )
+                uDelta = 255;
+             uFlags2 |= uDelta & 0xFF;
+             uDelta = s_uLastVideoSourceReadTimestamps[1] - s_uLastVideoSourceReadTimestamps[2];
+             if ( uDelta > 255 )
+                uDelta = 255;
+             uFlags2 |= (uDelta & 0xFF) << 8;
+             uDelta = s_uLastVideoSourceReadTimestamps[2] - s_uLastVideoSourceReadTimestamps[3];
+             if ( uDelta > 255 )
+                uDelta = 255;
+             uFlags2 |= (uDelta & 0xFF) << 16;
+             
+             send_alarm_to_controller(ALARM_ID_VIDEO_CAPTURE_MALFUNCTION, 0x0002 | ((uDroppedCount & 0xFF) << 8), uFlags2, 5);
+          }
           rxq_overflow = cur_rxq_overflow;
       }
    }
@@ -466,7 +529,7 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
    
    u16 uRTPSeqNb = (((u16)pInputRawData[2]) << 8) | pInputRawData[3];
 
-   if ( 0 != s_uLastRTLSeqNumberInUDPFrame )
+   if ( (0 != s_uLastRTLSeqNumberInUDPFrame) && (65535 != s_uLastRTLSeqNumberInUDPFrame) )
    if ( (s_uLastRTLSeqNumberInUDPFrame + 1) != uRTPSeqNb )
       log_softerror_and_alarm("[VideoSourceUDP] Read skipped RTP frames, from seqnb %d to seqnb %d", s_uLastRTLSeqNumberInUDPFrame, uRTPSeqNb);
    s_uLastRTLSeqNumberInUDPFrame = uRTPSeqNb;
@@ -499,7 +562,6 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
    // Single compact (non-fragmented, non I/P frame (slice)) NAL unit (ie. SPS, PPS, etc)
    if ( (uNALTypeH264 != 28) && (uNALTypeH265 != 49) )
    {
-      //log_line("DEBUG single NAL-264 %d, NAL-265 %d, header byte: %d", uNALTypeH264, uNALTypeH265, uNALHeaderByte);
       // Regular NAL unit
       s_bLastReadIsSingleNAL = true;
       s_bLastReadIsEndNAL = true;
@@ -509,7 +571,9 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
       memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
       iOutputBytes = iInputBytes + iNALOutputHeaderSize;
-      //log_line("DEBUG parsed regular NAL %d, header byte %d, returned %d bytes as a NAL", uNALTypeH264, uNALHeaderByte, iOutputBytes );
+      s_iLastNALSize += iOutputBytes;
+      //log_line("DEBUG NAL SPS/PPS: %d bytes", s_iLastNALSize);
+      s_iLastNALSize = 0;
       return iOutputBytes;
    }
    
@@ -567,15 +631,21 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 
    }
 
-      //log_line("DEBUG fragment NAL-264 %d, NAL-265 %d, header byte: %d, start: %d, end: %d",
-      //   uNALTypeH264, uNALTypeH265, uNALHeaderByte, uFUStartBit? 1:0, uFUEndBit?1:0);
-
    if ( uFUEndBit )
+   {
       s_bLastReadIsEndNAL = true;
+      s_iLastNALSize += iInputBytes;
+      //if ( s_bIsInsideIFrameNAL )
+      //   log_line("DEBUG NAL I: %d bytes", s_iLastNALSize);
+      //else
+      //   log_line("DEBUG NAL P: %d bytes", s_iLastNALSize);
+      s_iLastNALSize = 0;
+   }
+   else
+      s_iLastNALSize += iInputBytes;
 
    if (uFUStartBit) 
    {
-      //log_line("DEBUG start bit");
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
       memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
       iOutputBytes = iInputBytes + iNALOutputHeaderSize;
@@ -589,7 +659,6 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
       //log_line("DEBUG parsed middle of NAL, type %d, end bit: %d, output %d bytes as middle of NAL",
       //   uNALTypeH264, uFUEndBit?1:0, iOutputBytes);
    }
-
    return iOutputBytes;
 }
 
@@ -661,30 +730,30 @@ void _video_source_majestic_check_params_update()
    bool bUpdatedImageParams = false;
    if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_BRIGHTNESS )
    {
-      sprintf(szComm, "curl localhost/api/v1/set?image.luminance=%u", uParam);
+      sprintf(szComm, "curl -s localhost/api/v1/set?image.luminance=%u", uParam);
       hw_execute_bash_command_raw(szComm, szOutput);
-      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
       bUpdatedImageParams = true;
    }
    else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_CONTRAST )
    {
-      sprintf(szComm, "curl localhost/api/v1/set?image.contrast=%u", uParam);
+      sprintf(szComm, "curl -s localhost/api/v1/set?image.contrast=%u", uParam);
       hw_execute_bash_command_raw(szComm, szOutput);
-      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
       bUpdatedImageParams = true;
    }
    else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_SATURATION )
    {
-      sprintf(szComm, "curl localhost/api/v1/set?image.saturation=%u", uParam/2);
+      sprintf(szComm, "curl -s localhost/api/v1/set?image.saturation=%u", uParam/2);
       hw_execute_bash_command_raw(szComm, szOutput);
-      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
       bUpdatedImageParams = true;
    }
    else if ( (s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF) == MODEL_CHANGED_CAMERA_HUE )
    {
-      sprintf(szComm, "curl localhost/api/v1/set?image.hue=%u", uParam);
+      sprintf(szComm, "curl -s localhost/api/v1/set?image.hue=%u", uParam);
       hw_execute_bash_command_raw(szComm, szOutput);
-      //hw_execute_bash_command_raw("curl localhost/api/v1/reload", szOutput);
+      //hw_execute_bash_command_raw("curl -s localhost/api/v1/reload", szOutput);
       bUpdatedImageParams = true;
    }
 
@@ -694,6 +763,7 @@ void _video_source_majestic_check_params_update()
       s_bHasPendingMajesticRealTimeChanges = true;
       s_uTimeLastMajesticImageRealTimeUpdate = g_TimeNow;
       s_uRequestedVideoMajesticCaptureUpdateReason = 0;
+      s_uLastTimeMajesticUpdate = g_TimeNow;
       return;
    }
 
@@ -801,6 +871,7 @@ void video_source_majestic_periodic_checks()
       camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
       // Save image settings to yaml file
       hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
+      s_uLastTimeMajesticUpdate = g_TimeNow;
    }
 
    if ( s_bRequestedVideoMajesticCaptureUpdate )

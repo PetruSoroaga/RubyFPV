@@ -67,45 +67,46 @@ int getChannels25Count() { return sizeof(channels25)/sizeof(channels25[0]); }
 u32* getChannels58() { return channels58; }
 int getChannels58Count() { return sizeof(channels58)/sizeof(channels58[0]); }
 
-int _getChannelsAndCount(u32 nBand, u32** channels)
+int _getChannelsAndCount(u32 nBand, u32** ppuChannels)
 {
-   if( channels == NULL )
+   if (ppuChannels == NULL)
       return -1;
 
-   switch ( nBand ) {
+   switch ( nBand )
+   {
    case RADIO_HW_SUPPORTED_BAND_433:
-      *channels = getChannels433();
+      *ppuChannels = getChannels433();
       return getChannels433Count();
 
    case RADIO_HW_SUPPORTED_BAND_868:
-      *channels = getChannels868();
+      *ppuChannels = getChannels868();
       return getChannels868Count();
 
    case RADIO_HW_SUPPORTED_BAND_915:
-      *channels = getChannels915();
+      *ppuChannels = getChannels915();
       return getChannels915Count();
 
    case RADIO_HW_SUPPORTED_BAND_23:
-      *channels = getChannels23();
+      *ppuChannels = getChannels23();
       return getChannels23Count();
 
    case RADIO_HW_SUPPORTED_BAND_24:
-      *channels = getChannels24();
+      *ppuChannels = getChannels24();
       return getChannels24Count();
 
    case RADIO_HW_SUPPORTED_BAND_25:
-      *channels = getChannels25();
+      *ppuChannels = getChannels25();
       return getChannels25Count();
 
    case RADIO_HW_SUPPORTED_BAND_58:
-      *channels = getChannels58();
+      *ppuChannels = getChannels58();
       return getChannels58Count();
 
    default:
       break;
   }
 
-  *channels = NULL;
+  *ppuChannels = NULL;
   return -1;
 }
 
@@ -150,12 +151,15 @@ int getBand(u32 freqKhz)
 
 int getChannelIndexForFrequency(u32 nBand, u32 freqKhz)
 {
-   u32* channels = NULL;
-   int channelcount = _getChannelsAndCount(nBand, &channels);
-   if( channels != NULL ) {
-      for( int i=0; i<channelcount; i++ )
-         if ( freqKhz == channels[i] )
+   u32* puChannels = NULL;
+   int iChannelcount = _getChannelsAndCount(nBand, &puChannels);
+   if( puChannels != NULL )
+   {
+      for( int i=0; i<iChannelcount; i++ )
+      {
+         if ( freqKhz == puChannels[i] )
             return i;
+      }
    }
    return -1;
 }
@@ -212,7 +216,8 @@ int getSupportedChannels(u32 supportedBands, int includeSeparator, u32* pOutChan
    if ( NULL == pOutChannels || 0 == maxChannels )
       return 0;
 
-   int radio_hw_supported_bands[] = {
+   int radio_hw_supported_bands[] =
+   {
       RADIO_HW_SUPPORTED_BAND_433,
       RADIO_HW_SUPPORTED_BAND_868,
       RADIO_HW_SUPPORTED_BAND_915,
@@ -222,32 +227,33 @@ int getSupportedChannels(u32 supportedBands, int includeSeparator, u32* pOutChan
       RADIO_HW_SUPPORTED_BAND_58
    };
 
-   int countSupported = 0;
+   int iCountSupported = 0;
    for( int r=0; r < sizeof(radio_hw_supported_bands)/sizeof(radio_hw_supported_bands[0]); r++ )
    {
-      u32* channels;
-      int channelcount = _getChannelsAndCount(supportedBands & radio_hw_supported_bands[r], &channels);
-      if( channels != NULL ) {
-         for( int i=0; i<channelcount; i++ )
+      u32* puChannels = NULL;
+      int iChannelsCount = _getChannelsAndCount(supportedBands & radio_hw_supported_bands[r], &puChannels);
+      if( puChannels != NULL )
+      {
+         for( int i=0; i<iChannelsCount; i++ )
          {
-            *pOutChannels = channels[i];
+            *pOutChannels = puChannels[i];
             pOutChannels++;
-            countSupported++;
-            if ( countSupported >= maxChannels )
-               return countSupported;
+            iCountSupported++;
+            if ( iCountSupported >= maxChannels )
+               return iCountSupported;
          }
          if ( includeSeparator )
          {
             *pOutChannels = 0;
             pOutChannels++;
-            countSupported++;
-            if ( countSupported >= maxChannels )
-               return countSupported;
+            iCountSupported++;
+            if ( iCountSupported >= maxChannels )
+               return iCountSupported;
          }
       }
    }
 
-   return countSupported;
+   return iCountSupported;
 }
 
 int *getDataRatesBPS() { return s_WiFidataRates; }
@@ -525,109 +531,110 @@ FILE* try_open_base_version_file(char* szOutputFile)
    return fd;
 }
 
+u32 s_uBaseRubyVersion = 0;
+
 void get_Ruby_BaseVersion(int* pMajor, int* pMinor)
 {
-   int iMajor = 0;
-   int iMinor = 0;
+   if ( NULL != pMajor )
+      *pMajor = 0;
+   if ( NULL != pMinor )
+      *pMinor = 0;
 
-   char szVersion[32];
-   szVersion[0] = 0;
-
-   FILE* fd = try_open_base_version_file(NULL);
-   if ( NULL != fd )
-   {
-      if ( 1 != fscanf(fd, "%s", szVersion) )
-         szVersion[0] = 0;
-      fclose(fd);
-   }
-   else
+   if ( 0 != s_uBaseRubyVersion )
    {
       if ( NULL != pMajor )
-         *pMajor = SYSTEM_SW_VERSION_MAJOR;
+         *pMajor = (s_uBaseRubyVersion >> 8) & 0xFF;
       if ( NULL != pMinor )
-         *pMinor = 0;
+         *pMinor = s_uBaseRubyVersion & 0xFF;
       return;
    }
 
-   if ( 0 != szVersion[0] )
+   char szFile[MAX_FILE_PATH_SIZE];
+   szFile[0] = 0;
+
+   FILE* fd = try_open_base_version_file(szFile);
+   if ( NULL == fd )
    {
-      char* p = &szVersion[0];
-      while ( *p )
-      {
-         if ( isdigit(*p) )
-           iMajor = iMajor * 10 + ((*p)-'0');
-         if ( (*p) == '.' )
-           break;
-         p++;
-      }
-      if ( 0 != *p )
-      {
-         p++;
-         while ( *p )
-         {
-            if ( isdigit(*p) )
-               iMinor = iMinor * 10 + ((*p)-'0');
-            if ( (*p) == '.' )
-              break;
-            p++;
-         }
-      }
-      if ( iMinor > 9 )
-         iMinor = iMinor/10;
+      log_softerror_and_alarm("[Config] Failed to open base Ruby version file (%s).", szFile);
+      return;
    }
-   if ( NULL != pMajor )
-      *pMajor = iMajor;
-   if ( NULL != pMinor )
-      *pMinor = iMinor;
+   char szBuff[64];
+   if ( 1 != fscanf(fd, "%s", szBuff) )
+   {
+      fclose(fd);
+      log_softerror_and_alarm("[Config] Failed to read base Ruby version file (%s).", szFile);
+      return;
+   }
+   fclose(fd);
+   log_line("[Config] Read raw base Ruby version: [%s] from file (%s)", szBuff, szFile);
+
+   for( int i=0; i<(int)strlen(szBuff); i++ )
+   {
+      if ( szBuff[i] == '.' )
+      {
+         szBuff[i] = 0;
+         int iMajor = 0;
+         int iMinor = 0;
+         sscanf(szBuff, "%d", &iMajor);
+         sscanf(&szBuff[i+1], "%d", &iMinor);
+         s_uBaseRubyVersion = (((u32)iMajor) << 8) | ((u32)iMinor);
+         log_line("[Config] Parsed base Ruby version: %u.%u", (s_uBaseRubyVersion>>8) & 0xFF, s_uBaseRubyVersion & 0xFF);
+
+         if ( NULL != pMajor )
+            *pMajor = (s_uBaseRubyVersion >> 8) & 0xFF;
+         if ( NULL != pMinor )
+            *pMinor = s_uBaseRubyVersion & 0xFF;
+
+         return;
+      }
+   }
+   log_softerror_and_alarm("[Config] Failed to parse base Ruby version from file (%s).", szFile);
 }
 
 void get_Ruby_UpdatedVersion(int* pMajor, int* pMinor)
 {
-   int iMajor = 0;
-   int iMinor = 0;
+   if ( NULL != pMajor )
+      *pMajor = 0;
+   if ( NULL != pMinor )
+      *pMinor = 0;
 
-   char szVersion[32];
-   szVersion[0] = 0;
+   char szBuff[64];
+   szBuff[0] = 0;
 
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_INFO_LAST_UPDATE);
+   
    FILE* fd = fopen(szFile, "r");
-   if ( NULL != fd )
-   {
-      if ( 1 != fscanf(fd, "%s", szVersion) )
-         szVersion[0] = 0;
-      fclose(fd);
-   }
+   if ( NULL == fd )
+      return;
 
-   if ( 0 != szVersion[0] )
+   if ( 1 != fscanf(fd, "%s", szBuff) )
    {
-      char* p = &szVersion[0];
-      while ( *p )
-      {
-         if ( isdigit(*p) )
-           iMajor = iMajor * 10 + ((*p)-'0');
-         if ( (*p) == '.' )
-           break;
-         p++;
-      }
-      if ( 0 != *p )
-      {
-         p++;
-         while ( *p )
-         {
-            if ( isdigit(*p) )
-               iMinor = iMinor * 10 + ((*p)-'0');
-            if ( (*p) == '.' )
-              break;
-            p++;
-         }
-      }
-      if ( iMinor > 9 )
-         iMinor = iMinor/10;
+      fclose(fd);
+      return;
    }
-   if ( NULL != pMajor )
-      *pMajor = iMajor;
-   if ( NULL != pMinor )
-      *pMinor = iMinor;
+   fclose(fd);
+
+   log_line("[Config] Read update Ruby version: [%s] from file (%s)", szBuff, szFile);
+
+   for( int i=0; i<(int)strlen(szBuff); i++ )
+   {
+      if ( szBuff[i] == '.' )
+      {
+         szBuff[i] = 0;
+         int iMajor = 0;
+         int iMinor = 0;
+         sscanf(szBuff, "%d", &iMajor);
+         sscanf(&szBuff[i+1], "%d", &iMinor);
+         log_line("[Config] Parsed updated Ruby version: %u.%u", iMajor, iMinor);
+
+         if ( NULL != pMajor )
+            *pMajor = iMajor;
+         if ( NULL != pMinor )
+            *pMinor = iMinor;
+
+         return;
+      }
+   }
 }

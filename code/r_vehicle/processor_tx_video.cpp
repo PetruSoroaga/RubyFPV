@@ -44,7 +44,7 @@
 #include "processor_tx_video.h"
 #include "processor_relay.h"
 #include "packets_utils.h"
-#include "utils_vehicle.h"
+#include "../utils/utils_vehicle.h"
 #include "adaptive_video.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
@@ -691,24 +691,24 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
          if ( uLastFrameDuration < 1 )
             uLastFrameDuration = 1;
 
-         u32 uLastFrameSize = s_ParserH264RadioOutput.getSizeOfLastCompleteFrame();
+         u32 uLastFrameSize = s_ParserH264RadioOutput.getSizeOfLastCompleteFrameInBytes();
          uLastFrameSize /= 1000; // transform to kbytes
 
          if ( uLastFrameSize > 127 )
             uLastFrameSize = 127; // kbytes
 
-         g_VideoInfoStatsRadioOut.uLastIndex = (g_VideoInfoStatsRadioOut.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-         g_VideoInfoStatsRadioOut.uFramesDuration[g_VideoInfoStatsRadioOut.uLastIndex] = uLastFrameDuration;
-         g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[g_VideoInfoStatsRadioOut.uLastIndex] = (g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[g_VideoInfoStatsRadioOut.uLastIndex] & 0x80) | ((u8)uLastFrameSize);
+         g_VideoInfoStatsRadioOut.uLastFrameIndex = (g_VideoInfoStatsRadioOut.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
+         g_VideoInfoStatsRadioOut.uFramesDuration[g_VideoInfoStatsRadioOut.uLastFrameIndex] = uLastFrameDuration;
+         g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[g_VideoInfoStatsRadioOut.uLastFrameIndex] = (g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[g_VideoInfoStatsRadioOut.uLastFrameIndex] & 0x80) | ((u8)uLastFrameSize);
           
-         u32 uNextIndex = (g_VideoInfoStatsRadioOut.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+         u32 uNextIndex = (g_VideoInfoStatsRadioOut.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
          
          if ( s_ParserH264RadioOutput.IsInsideIFrame() )
             g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
          else
             g_VideoInfoStatsRadioOut.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
       
-         g_VideoInfoStatsRadioOut.uKeyframeIntervalMs = s_ParserH264RadioOutput.getCurrentlyDetectedKeyframeIntervalMs();
+         g_VideoInfoStatsRadioOut.uDetectedKeyframeIntervalMs = s_ParserH264RadioOutput.getCurrentlyDetectedKeyframeIntervalMs();
          g_VideoInfoStatsRadioOut.uDetectedFPS = s_ParserH264RadioOutput.getDetectedFPS();
          g_VideoInfoStatsRadioOut.uDetectedSlices = (u32) s_ParserH264RadioOutput.getDetectedSlices();
 
@@ -1382,7 +1382,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       memcpy( &uVideoStreamIndex, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), sizeof(u8));
    
       t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK, STREAM_ID_DATA);
+      radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK, STREAM_ID_VIDEO_1);
       PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.vehicle_id_dest = pPH->vehicle_id_src;
       PH.total_length = sizeof(t_packet_header) + sizeof(u32) + sizeof(u8);
@@ -1504,24 +1504,24 @@ void _parse_camera_source_h264_data(u8* pData, int iDataSize)
    if ( uLastFrameDuration < 1 )
       uLastFrameDuration = 1;
 
-   u32 uLastFrameSize = s_ParserH264CameraOutput.getSizeOfLastCompleteFrame();
+   u32 uLastFrameSize = s_ParserH264CameraOutput.getSizeOfLastCompleteFrameInBytes();
    uLastFrameSize /= 1000; // transform to kbytes
 
    if ( uLastFrameSize > 127 )
       uLastFrameSize = 127; // kbytes
 
-   g_VideoInfoStatsCameraOutput.uLastIndex = (g_VideoInfoStatsCameraOutput.uLastIndex+1) % MAX_FRAMES_SAMPLES;
-   g_VideoInfoStatsCameraOutput.uFramesDuration[g_VideoInfoStatsCameraOutput.uLastIndex] = uLastFrameDuration;
-   g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[g_VideoInfoStatsCameraOutput.uLastIndex] = (g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[g_VideoInfoStatsCameraOutput.uLastIndex] & 0x80) | ((u8)uLastFrameSize);
+   g_VideoInfoStatsCameraOutput.uLastFrameIndex = (g_VideoInfoStatsCameraOutput.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
+   g_VideoInfoStatsCameraOutput.uFramesDuration[g_VideoInfoStatsCameraOutput.uLastFrameIndex] = uLastFrameDuration;
+   g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[g_VideoInfoStatsCameraOutput.uLastFrameIndex] = (g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[g_VideoInfoStatsCameraOutput.uLastFrameIndex] & 0x80) | ((u8)uLastFrameSize);
  
-   u32 uNextIndex = (g_VideoInfoStatsCameraOutput.uLastIndex+1) % MAX_FRAMES_SAMPLES;
+   u32 uNextIndex = (g_VideoInfoStatsCameraOutput.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
   
    if ( s_ParserH264CameraOutput.IsInsideIFrame() )
       g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
    else
       g_VideoInfoStatsCameraOutput.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
 
-   g_VideoInfoStatsCameraOutput.uKeyframeIntervalMs = s_ParserH264CameraOutput.getCurrentlyDetectedKeyframeIntervalMs();
+   g_VideoInfoStatsCameraOutput.uDetectedKeyframeIntervalMs = s_ParserH264CameraOutput.getCurrentlyDetectedKeyframeIntervalMs();
 
    if ( s_ParserH264CameraOutput.IsInsideIFrame() )
       return;
@@ -1554,7 +1554,7 @@ void _parse_camera_source_h264_data(u8* pData, int iDataSize)
       return;
 
    // Set highest bit to mark keyframe changed 
-   g_VideoInfoStatsCameraOutput.uFramesDuration[g_VideoInfoStatsCameraOutput.uLastIndex] |= 0x80;
+   g_VideoInfoStatsCameraOutput.uFramesDuration[g_VideoInfoStatsCameraOutput.uLastFrameIndex] |= 0x80;
    
    g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs = g_SM_VideoLinkStats.overwrites.uCurrentPendingKeyframeMs;
    

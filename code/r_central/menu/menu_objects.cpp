@@ -45,6 +45,7 @@
 #include "../process_router_messages.h"
 #include "../render_commands.h"
 #include "../keyboard.h"
+#include "../../base/tx_powers.h"
 
 #define MENU_ALFA_WHEN_IN_BG 0.5
 
@@ -186,6 +187,17 @@ float Menu::getScaleFactor()
    return m_sfScaleFactor;
 }
 
+int Menu::getId()
+{
+   return m_MenuId;
+}
+
+void Menu::setId(int iId)
+{
+   m_MenuId = iId;
+}
+
+
 void Menu::setParent(Menu* pParent)
 {
    m_pParent = pParent;
@@ -214,6 +226,11 @@ void Menu::disableScrolling()
    m_bEnableScrolling = false;
    m_bHasScrolling = false;
    invalidate();
+}
+
+char* Menu::getTitle()
+{
+   return m_szTitle;
 }
 
 void Menu::setTitle(const char* szTitle)
@@ -247,7 +264,7 @@ void Menu::removeAllTopLines()
 
 void Menu::addTopLine(const char* szLine, float dx)
 {
-   if ( m_TopLinesCount >= MENU_MAX_TOP_LINES-1 || NULL == szLine )
+   if ( (m_TopLinesCount >= MENU_MAX_TOP_LINES-1) || (NULL == szLine) )
       return;
    m_fTopLinesDX[m_TopLinesCount] = dx;
    m_szTopLines[m_TopLinesCount] = (char*)malloc(strlen(szLine)+1);
@@ -434,12 +451,21 @@ float Menu::getRenderXPos()
    return m_RenderXPos;
 }
 
+void Menu::resetRenderXPos()
+{
+   m_RenderXPos = m_xPos;
+   m_fAnimationTargetXPos = m_xPos;
+   m_uAnimationStartTime = 0;
+   m_bIsAnimationInProgress = false;
+}
+
 void Menu::onShow()
 {
-   log_line("[Menu] (loop %u) [%s] on show (%s): xPos: %.2f, xRenderPos: %.2f",
-      menu_get_loop_counter()%1000, m_szTitle, m_bFirstShow? "first show":"not first show", m_xPos, m_RenderXPos);
    if ( m_bDisableStacking )
       m_RenderXPos = m_xPos;
+   log_line("[Menu] (loop %u) [%s] on show (id: %d, title: %s, ptr: 0x%X): xPos: %.2f, xRenderPos: %.2f",
+      menu_get_loop_counter()%1000, m_bFirstShow? "first show":"not first show", 
+      m_MenuId, m_szTitle, this, m_xPos, m_RenderXPos);
 
    m_bFirstShow = false;
    if ( 0 == m_uOnShowTime )
@@ -1852,11 +1878,11 @@ bool Menu::checkIsArmed()
 
 void Menu::addMessageWithTitle(int iId, const char* szTitle, const char* szMessage)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, szTitle,NULL);
+   Menu* pm = new MenuConfirmation(szTitle, szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
+   pm->setId(MENU_ID_SIMPLE_MESSAGE + iId*1000);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    pm->m_bDisableStacking = true;
-   pm->addTopLine(szMessage);
    add_menu_to_stack(pm); 
 }
 
@@ -1867,22 +1893,23 @@ void Menu::addMessage(const char* szMessage)
 
 void Menu::addMessage(int iId, const char* szMessage)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, "Info",NULL);
+   Menu* pm = new MenuConfirmation("Info", szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
+   pm->setId(MENU_ID_SIMPLE_MESSAGE + iId*1000);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    pm->m_bDisableStacking = true;
-   pm->addTopLine(szMessage);
    add_menu_to_stack(pm);
 }
 
 void Menu::addMessage2(int iId, const char* szMessage, const char* szLine2)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE + iId*1000, "Info",NULL);
+   Menu* pm = new MenuConfirmation("Info", szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
+   pm->setId(MENU_ID_SIMPLE_MESSAGE + iId*1000);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    pm->m_bDisableStacking = true;
-   pm->addTopLine(szMessage);
-   pm->addTopLine(szLine2);
+   if ( NULL != szLine2 )
+      pm->addTopLine(szLine2);
    add_menu_to_stack(pm);
 }
 
@@ -1955,14 +1982,6 @@ static void * _thread_generate_upload(void *argument)
    }
    // Done - Check and create update info file if missing
 
-   bool bVersion82Older = false;
-   if ( NULL == g_pCurrentModel )
-      bVersion82Older = true;
-   else if ( ((g_pCurrentModel->sw_version>>8) & 0xFF) < 8 )
-      bVersion82Older = true;
-   else if ( (((g_pCurrentModel->sw_version>>8) & 0xFF) == 8) && (((g_pCurrentModel->sw_version & 0xFF) <= 30)) )
-      bVersion82Older = true;
-
    char szFullPathOutputArchive[MAX_FILE_PATH_SIZE];
    strcpy(szFullPathOutputArchive, FOLDER_UPDATES);
    strcat(szFullPathOutputArchive, szFileNameArchive);
@@ -1997,15 +2016,6 @@ static void * _thread_generate_upload(void *argument)
       return NULL;
    }
 
-   // Generate dummy ruby_vehicle binary for older versions of vehicles
-   if ( bVersion82Older )
-   {
-      sprintf(szComm, "echo 'dummy' > %s/ruby_vehicle", szFolderLocalUpdateBinaries);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "chmod 777 %s/ruby_vehicle", szFolderLocalUpdateBinaries);
-      hw_execute_bash_command(szComm, NULL);
-   }
-
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s* 2>/dev/null", szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
@@ -2020,6 +2030,9 @@ static void * _thread_generate_upload(void *argument)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s 2>/dev/null", FOLDER_DRIVERS, szPathTempUpload);
+   hw_execute_bash_command(szComm, NULL);
+
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %smaj* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
@@ -2030,8 +2043,6 @@ static void * _thread_generate_upload(void *argument)
 
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
       sprintf(szComm, "tar -C %s -cf %s . 2>&1", szPathTempUpload, szFullPathOutputArchive);
-   else if ( bVersion82Older )
-      sprintf(szComm, "tar -czf %s ruby_* 2>&1", szFullPathOutputArchive);
    else
       sprintf(szComm, "tar -czf %s -C %s . 2>&1", szFullPathOutputArchive, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
@@ -2296,9 +2307,10 @@ bool Menu::uploadSoftware()
    return true;
 }
 
-MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szName)
+MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szTitle)
 {
-   MenuItemSelect* pItem = new MenuItemSelect(szName, "Sets the radio interface model.");
+   MenuItemSelect* pItem = new MenuItemSelect(szTitle, "Sets the radio interface model.");
+   pItem->addSelection("Autodetected");
    pItem->addSelection("Generic");
    for( int i=1; i<50; i++ )
    {
@@ -2310,6 +2322,129 @@ MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szName)
    }
    pItem->setIsEditable();
    return pItem;
+}
+
+MenuItemSelect* Menu::createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw)
+{
+   int iPowerLevelsCount = 0;
+   const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
+
+   MenuItemSelect* pItem = new MenuItemSelect(szTitle, "Sets the radio Tx power level.");
+   
+   char szText[128];
+   szText[0] = 0;
+   /*
+   if ( NULL == piCardsCurrentPowerLevelsMw )
+      strcpy(szText, "Custom");
+   else
+      strcpy(szText, "Custom");
+   pItem->addSelection(szText);
+   */
+
+   if ( bAddAutoOption )
+      pItem->addSelection("Auto");
+
+   int iPrevValue = 0;
+   for( int i=0; i<iPowerLevelsCount; i++ )
+   {
+      if ( piPowerLevelsMw[i] > (iMaxUsablePowerMw * (100 + MAX_TX_POWER_UI_DEVIATION_FROM_STANDARD)) / 100 )
+         break;
+      if ( (piPowerLevelsMw[i] >= 100) && (iPrevValue < 100) )
+         pItem->addSeparator();
+      sprintf(szText, "%d mW", piPowerLevelsMw[i]);
+      pItem->addSelection(szText);
+
+      iPrevValue = piPowerLevelsMw[i];
+   }
+   pItem->addSelection("Custom");
+   pItem->setIsEditable();
+   return pItem;
+}
+
+void Menu::selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw)
+{
+   if ( (NULL == pMenuItem) || (NULL == piCardsCurrentPowerLevelsMw) || (0 == iNumCards) )
+      return;
+
+   int iPowerLevelsUICount = 0;
+   const int* piPowerLevelsUIMw = tx_powers_get_ui_levels_mw(&iPowerLevelsUICount);
+
+   int iMaxCurrentPowerMw = 0;
+   for( int i=0; i<iNumCards; i++ )
+   {
+      if ( piCardsCurrentPowerLevelsMw[i] > iMaxCurrentPowerMw )
+         iMaxCurrentPowerMw = piCardsCurrentPowerLevelsMw[i];
+   }
+   if ( iMaxCurrentPowerMw > iMaxUsablePowerMw )
+      iMaxCurrentPowerMw = iMaxUsablePowerMw;
+   log_line("Menu: Current controller max set tx power for all cards: %d mw", iMaxCurrentPowerMw);
+   
+   int iMinDiffMw = 10000;
+   int iMinDiffMwIndexUI = -1;
+   for( int i=0; i<iPowerLevelsUICount; i++ )
+   {
+      if ( piPowerLevelsUIMw[i] > (iMaxUsablePowerMw * (100 + MAX_TX_POWER_UI_DEVIATION_FROM_STANDARD))/100 )
+         break;
+      int iDiffMw = piPowerLevelsUIMw[i] - iMaxCurrentPowerMw;
+      if ( iDiffMw < 0 )
+         iDiffMw = -iDiffMw;
+      if ( iDiffMw < iMinDiffMw )
+      {
+         iMinDiffMw = iDiffMw;
+         iMinDiffMwIndexUI = i;
+      }
+   }
+
+   log_line("Menu: Matching tx power mw index: %d (value: %d mW), diff: %d mW (has auto option: %d)", iMinDiffMwIndexUI, (iMinDiffMwIndexUI != -1)?(piPowerLevelsUIMw[iMinDiffMwIndexUI]):-1, iMinDiffMw, bHasAutoOption);
+   if ( iMinDiffMwIndexUI == -1 )
+   {
+      pMenuItem->setSelectedIndex(0);
+      return;
+   }
+
+   if ( bHasAutoOption )
+      pMenuItem->setSelectedIndex(iMinDiffMwIndexUI+1);
+   else
+      pMenuItem->setSelectedIndex(iMinDiffMwIndexUI);
+   
+   bool bBigDeviation = false;
+   
+   if ( iMinDiffMw > (piPowerLevelsUIMw[iMinDiffMwIndexUI] * MAX_TX_POWER_UI_DEVIATION_FROM_STANDARD) / 100 )
+   //if ( piPowerLevelsUIMw[iMinDiffMwIndexUI] >= 20 )
+      bBigDeviation = true;
+
+   log_line("Menu: Matching tx power is big deviation: %d", bBigDeviation);
+
+   if ( bBigDeviation )
+   {
+      int iIndex = pMenuItem->getSelectionsCount()-1;
+      char szText[128];
+      sprintf(szText, "Custom (%d mW)", iMaxCurrentPowerMw);
+      pMenuItem->updateSelectionText(iIndex, szText);
+      pMenuItem->setSelectedIndex(iIndex);
+   }
+   else
+   {
+      bBigDeviation = false;
+      if ( piPowerLevelsUIMw[iMinDiffMwIndexUI] < 10 )
+      if ( iMinDiffMw > 2 )
+         bBigDeviation = true;
+
+      if ( piPowerLevelsUIMw[iMinDiffMwIndexUI] >= 20 )
+      if ( iMinDiffMw > (piPowerLevelsUIMw[iMinDiffMwIndexUI] * 5) / 100 )
+         bBigDeviation = true;
+      log_line("Menu: Matching tx power is big deviation (2): %d", bBigDeviation);
+      if ( bBigDeviation )
+      {
+         int iIndex = iMinDiffMwIndexUI;
+         if ( bHasAutoOption )
+            iIndex++;
+         char szText[128];
+         strcpy(szText, "~");
+         strcat(szText, pMenuItem->getSelectionIndexText(iIndex));
+         pMenuItem->updateSelectionText(iIndex, szText);
+      }
+   }
 }
 
 bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)

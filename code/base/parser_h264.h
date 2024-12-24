@@ -9,39 +9,30 @@ class ParserH264
       
       void init();
 
-      // Returns number of start of a new frames that was found
-      int parseData(u8* pData, int iDataLength, u32 uTimeNowMs);
+      // Returns number of bytes parsed from input untill start of NAL detected
+      int parseDataUntillStartOfNextNAL(u8* pData, int iDataLength, u32 uTimeNow);
 
-      u32 getStartTimeOfCurrentFrame();
-      u32 getCurrentFrameType();
-      u32 getStartTimeOfLastIFrame();
-      u32 getSizeOfLastCompleteFrame();
-      u32 getTimeDurationOfLastCompleteFrame();
-      int getDetectedSlices();
-      u32 getCurrentlyDetectedKeyframeIntervalMs();
       bool IsInsideIFrame();
-      u32 getFramesSinceLastKeyframe();
-      u32 getDetectedFPS();
-
+      u32 getCurrentFrameType();
+      u32 getPreviousFrameType();
+      u32 getSizeOfLastCompleteFrameInBytes();
+      int getDetectedSlices();
+      int getDetectedFPS();
+      
    protected:
-      int m_iDetectedISlices;
       u32 m_uStreamCurrentParseToken;
       u32 m_uCurrentNALUType;
       u32 m_uLastNALUType;
+      int m_iDetectedISlices;
       int m_iConsecutiveSlicesForCurrentNALU;
       
-      u32 m_uTimeStartOfCurrentFrame;
-      u32 m_uTimeLastStartOfIFrame;
-      u32 m_uTimeDurationOfLastFrame;
       u32 m_uSizeCurrentFrame;
       u32 m_uSizeLastFrame;
-      u32 m_uCurrentDetectedKeyframeIntervalMs;
-      u32 m_uFramesSinceLastKeyframe;
+      int m_iDetectedKeyframeIntervalInFrames;
+      int m_iFramesSinceLastKeyframe;
 
-      u32 m_uDebugFramesCounter;
-      u32 m_uDebugTimeStartFramesCounter;
-      u32 m_uDebugDetectedFPS;
-
-      // returns true if start of a new frame is detected (not of a new slice in a frame)
-      bool _onParseStartOfNALUnit();
+      u32 m_uTimeLastFPSCompute;
+      int m_iFramesSinceLastFPSCompute;
+      int m_iDetectedFPS;
+      void _parseDetectedStartOfNALUnit(u32 uTimeNow);
 };

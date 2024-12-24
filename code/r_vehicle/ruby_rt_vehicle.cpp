@@ -77,7 +77,7 @@
 #include "process_received_ruby_messages.h"
 #include "process_radio_in_packets.h"
 #include "launchers_vehicle.h"
-#include "utils_vehicle.h"
+#include "../utils/utils_vehicle.h"
 #include "periodic_loop.h"
 
 #include "../radio/radiopackets2.h"
@@ -185,7 +185,7 @@ bool links_set_cards_frequencies_and_params(int iLinkId)
          {
             u32 uFreqKhz = uRadioLinkFrequency;
             u32 uDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[nRadioLinkId];
-            u32 uTxPower = g_pCurrentModel->radioInterfacesParams.txPowerSiK;
+            u32 uTxPower = g_pCurrentModel->radioInterfacesParams.interface_raw_power[i];
             u32 uECC = (g_pCurrentModel->radioLinksParams.link_radio_flags[nRadioLinkId] & RADIO_FLAGS_SIK_ECC)? 1:0;
             u32 uLBT = (g_pCurrentModel->radioLinksParams.link_radio_flags[nRadioLinkId] & RADIO_FLAGS_SIK_LBT)? 1:0;
             u32 uMCSTR = (g_pCurrentModel->radioLinksParams.link_radio_flags[nRadioLinkId] & RADIO_FLAGS_SIK_MCSTR)? 1:0;
@@ -550,7 +550,7 @@ void reinit_radio_interfaces()
 
    log_line("=================================================================");
    log_line("Detected hardware radio interfaces:");
-   hardware_log_radio_info();
+   hardware_log_radio_info(NULL, 0);
 
    log_line("Setting all the cards frequencies again...");
 
@@ -834,6 +834,10 @@ void process_and_send_packets()
                  
                pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
                pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
+               if ( g_TimeLastReceivedRadioPacketFromController < g_TimeNow-2000 )
+                  pPHRTE->uplink_link_quality[i] = 0;
+               else if ( (g_TimeLastReceivedRadioPacketFromController < g_TimeNow-1500) && (pPHRTE->uplink_link_quality[i] > 20) )
+                  pPHRTE->uplink_link_quality[i] = 20;
             }
 
             pPHRTE->txTimePerSec = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage;
@@ -862,39 +866,43 @@ void process_and_send_packets()
 
 void _synchronize_shared_mems()
 {
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
+   /*
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    if ( g_TimeNow >= g_VideoInfoStatsCameraOutput.uTimeLastUpdate + 200 )
    {
-      update_shared_mem_video_info_stats( &g_VideoInfoStatsCameraOutput, g_TimeNow);
+      update_shared_mem_video_frames_stats( &g_VideoInfoStatsCameraOutput, g_TimeNow);
 
       if ( NULL != g_pSM_VideoInfoStatsCameraOutput )
-         memcpy((u8*)g_pSM_VideoInfoStatsCameraOutput, (u8*)&g_VideoInfoStatsCameraOutput, sizeof(shared_mem_video_info_stats));
+         memcpy((u8*)g_pSM_VideoInfoStatsCameraOutput, (u8*)&g_VideoInfoStatsCameraOutput, sizeof(shared_mem_video_frames_stats));
       else
       {
-        g_pSM_VideoInfoStatsCameraOutput = shared_mem_video_info_stats_open_for_write();
+        g_pSM_VideoInfoStatsCameraOutput = shared_mem_video_frames_stats_open_for_write();
         if ( NULL == g_pSM_VideoInfoStatsCameraOutput )
            log_error_and_alarm("Failed to open shared mem video info camera stats for write!");
         else
            log_line("Opened shared mem video info stats camera for write.");
       }
    }
+   */
 
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
+   /*
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    if ( g_TimeNow >= g_VideoInfoStatsRadioOut.uTimeLastUpdate + 200 )
    {
-      update_shared_mem_video_info_stats( &g_VideoInfoStatsRadioOut, g_TimeNow);
+      update_shared_mem_video_frames_stats( &g_VideoInfoStatsRadioOut, g_TimeNow);
 
       if ( NULL != g_pSM_VideoInfoStatsRadioOut )
-         memcpy((u8*)g_pSM_VideoInfoStatsRadioOut, (u8*)&g_VideoInfoStatsRadioOut, sizeof(shared_mem_video_info_stats));
+         memcpy((u8*)g_pSM_VideoInfoStatsRadioOut, (u8*)&g_VideoInfoStatsRadioOut, sizeof(shared_mem_video_frames_stats));
       else
       {
-        g_pSM_VideoInfoStatsRadioOut = shared_mem_video_info_stats_radio_out_open_for_write();
+        g_pSM_VideoInfoStatsRadioOut = shared_mem_video_frames_stats_radio_out_open_for_write();
         if ( NULL == g_pSM_VideoInfoStatsRadioOut )
            log_error_and_alarm("Failed to open shared mem video info stats radio out for write!");
         else
            log_line("Opened shared mem video info stats radio out for write.");
       }
    }
+   */
 
    static u32 s_uTimeLastRxHistorySync = 0;
 
@@ -1190,10 +1198,6 @@ void handle_sigint(int sig)
    radio_rx_mark_quit();
 } 
 
-// To remove
-bool bDebugNoVideoOutput = false;
-
-
 void _main_loop();
 
 int main(int argc, char *argv[])
@@ -1465,20 +1469,22 @@ int main(int argc, char *argv[])
 
    log_line("Start sequence: Done creating video processor.");
    
-   g_pSM_VideoInfoStatsCameraOutput = shared_mem_video_info_stats_open_for_write();
+   /*
+   g_pSM_VideoInfoStatsCameraOutput = shared_mem_video_frames_stats_open_for_write();
    if ( NULL == g_pSM_VideoInfoStatsCameraOutput )
       log_error_and_alarm("Start sequence: Failed to open shared mem video camera info stats for write!");
    else
       log_line("Start sequence: Opened shared mem video camera info stats for write.");
 
-   g_pSM_VideoInfoStatsRadioOut = shared_mem_video_info_stats_radio_out_open_for_write();
+   g_pSM_VideoInfoStatsRadioOut = shared_mem_video_frames_stats_radio_out_open_for_write();
    if ( NULL == g_pSM_VideoInfoStatsRadioOut )
       log_error_and_alarm("Start sequence: Failed to open shared mem video info stats radio out for write!");
    else
       log_line("Start sequence: Opened shared mem video info stats radio out for write.");
 
-   memset(&g_VideoInfoStatsCameraOutput, 0, sizeof(shared_mem_video_info_stats));
-   memset(&g_VideoInfoStatsRadioOut, 0, sizeof(shared_mem_video_info_stats));
+   memset(&g_VideoInfoStatsCameraOutput, 0, sizeof(shared_mem_video_frames_stats));
+   memset(&g_VideoInfoStatsRadioOut, 0, sizeof(shared_mem_video_frames_stats));
+   */
 
    g_pProcessorTxAudio = new ProcessorTxAudio();
 
@@ -1540,9 +1546,6 @@ int main(int argc, char *argv[])
          send_alarm_to_controller(ALARM_ID_FIRMWARE_OLD, i, 0, 5);
    }
 
-   if( access( "novideo", R_OK ) != -1 )
-      bDebugNoVideoOutput = true;
-
    g_iDefaultRouterThreadPriority = hw_increase_current_thread_priority("Main thread", g_pCurrentModel->processesPriorities.iThreadPriorityRouter);
 
 
@@ -1581,8 +1584,8 @@ int main(int argc, char *argv[])
    delete g_pProcessorTxVideo;
    delete g_pVideoTxBuffers;
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
-   shared_mem_video_info_stats_close(g_pSM_VideoInfoStatsCameraOutput);
-   shared_mem_video_info_stats_radio_out_close(g_pSM_VideoInfoStatsRadioOut);
+   //shared_mem_video_frames_stats_close(g_pSM_VideoInfoStatsCameraOutput);
+   //shared_mem_video_frames_stats_radio_out_close(g_pSM_VideoInfoStatsRadioOut);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_TX, g_pProcessStats);
    log_line("Stopped.Exit now. (PID %d)", getpid());
    log_line("---------------------\n");
@@ -1726,8 +1729,7 @@ void _main_loop()
                {
                   int iBuffSize = video_source_csi_get_buffer_size();
                   bEndOfFrame = (iReadSize < iBuffSize)?true:false;
-                  if ( ! bDebugNoVideoOutput )
-                     g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
                   if ( iReadSize < iBuffSize )
                      iMaxRepeatCount = 0;
                }
@@ -1744,10 +1746,7 @@ void _main_loop()
                   bool bEnd = video_source_majestic_last_read_is_end_nal();
                   bIsInsideIFrame = video_source_majestic_is_inside_iframe();
                   bEndOfFrame = (bSingle || bEnd);
-                  if ( ! bDebugNoVideoOutput )
-                  {
-                     g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
-                  }
+                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
                }
                else
                   iMaxRepeatCount = 0;

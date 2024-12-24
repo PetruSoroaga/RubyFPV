@@ -67,8 +67,6 @@ void _telemetry_mavlink_send_setup()
    if ( s_bDidSentMAVLinkSetup )
       return;
 
-   set_time_last_mavlink_message_from_fc(g_TimeNow - 1200);
-
    int componentId = MAV_COMP_ID_MISSIONPLANNER;
    //int componentId = MAV_COMP_ID_SYSTEM_CONTROL;
    //int componentId = 255;
@@ -362,11 +360,10 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 {
    pPHFCT->fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
 
-   if ( (g_TimeNow > TIMEOUT_TELEMETRY_LOST) && (get_time_last_mavlink_message_from_fc() + TIMEOUT_TELEMETRY_LOST < g_TimeNow) )
+   if ( (g_TimeNow < TIMEOUT_FC_TELEMETRY_LOST) || (get_time_last_mavlink_message_from_fc() < g_TimeNow - TIMEOUT_FC_TELEMETRY_LOST) )
       pPHFCT->flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
    else
       pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;
-
    if ( g_bDebug )
    {
       pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;

@@ -253,46 +253,53 @@ float osd_show_mah(float x, float y, u32 mah, bool bRightAlign)
 
 float _osd_show_gps(float x, float y, bool bMultiLine)
 {
+   int iOSVehicleDataSourceIndex = osd_get_current_data_source_vehicle_index();
+
    char szBuff[32];
    float height_text = osd_getFontHeight();
    float height_text_big = osd_getFontHeightBig();
 
    float x0 = x;
    float w = 0;
-   if ( NULL == g_pCurrentModel || (0 == g_pCurrentModel->iGPSCount) || (!g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry) )
+   if ( NULL == g_pCurrentModel || (0 == g_pCurrentModel->iGPSCount) || (!g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].bGotFCTelemetry) )
    {
       x += osd_show_value(x,y, "No GPS", g_idFontOSD);
       x += osd_getSpacingH();
       return x-x0;
    }
 
-   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.gps_fix_type >= GPS_FIX_TYPE_3D_FIX || (( g_TimeNow / 300 ) % 3) != 0 )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.gps_fix_type >= GPS_FIX_TYPE_3D_FIX || (( g_TimeNow / 300 ) % 3) != 0 )
       g_pRenderEngine->drawIcon(x,y, 0.8*height_text_big/g_pRenderEngine->getAspectRatio(), 0.8*height_text_big, g_idIconGPS);
    x += 1.0*height_text_big/g_pRenderEngine->getAspectRatio();
 
-   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.gps_fix_type >= GPS_FIX_TYPE_3D_FIX )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.gps_fix_type >= GPS_FIX_TYPE_3D_FIX )
       g_pRenderEngine->drawText(x-0.3*height_text_big, y-0.7*osd_getSpacingV(), g_idFontOSDSmall, "3D");
 
-   sprintf(szBuff, "%d", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.satelites);
+   sprintf(szBuff, "%d", g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.satelites);
    w = osd_show_value(x,y, szBuff, g_idFontOSDBig);
    x += w + 0.5*osd_getSpacingH();
 
-   if ( bMultiLine )
+   if ( pairing_isStarted() )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
+   if ( vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].uVehicleId) )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].pModel->is_spectator || g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].bPairedConfirmed )
    {
-      osd_show_value_centered((x0+x)*0.5, y+height_text_big-height_text*0.1, "HDOP", g_idFontOSDSmall);  
-      sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.hdop/100.0);
-      osd_show_value_centered((x0+x)*0.5, y+height_text_big-height_text*0.1+osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+      if ( bMultiLine )
+      {
+         osd_show_value_centered((x0+x)*0.5, y+height_text_big-height_text*0.1, "HDOP", g_idFontOSDSmall);  
+         sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.hdop/100.0);
+         osd_show_value_centered((x0+x)*0.5, y+height_text_big-height_text*0.1+osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+      }
+      else
+      {
+         w = osd_show_value(x, y-height_text*0.1, "HDOP", g_idFontOSDSmall);  
+         sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.hdop/100.0);
+         osd_show_value(x, y + osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+         x += w;
+         x += osd_getSpacingH();
+      }
    }
-   else
-   {
-      w = osd_show_value(x, y-height_text*0.1, "HDOP", g_idFontOSDSmall);  
-      sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.hdop/100.0);
-      osd_show_value(x, y + osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
-      x += w;
-      x += osd_getSpacingH();
-   }
-
-   u16 hdop2 = (((u16)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[3])<<8) + ((u16)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[4]);
+   u16 hdop2 = (((u16)g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.extra_info[3])<<8) + ((u16)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[4]);
    
    bool bShowMore = false;
    //if ( (g_pCurrentModel->iGPSCount > 1) || ((hdop2 != 0xFFFF) && (hdop2 != 0)) || ((satelites2 != 0xFF)&&(satelites2 != 0)) )
@@ -307,41 +314,46 @@ float _osd_show_gps(float x, float y, bool bMultiLine)
    
    float x1 = x;
 
-   if ( ((g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] >= GPS_FIX_TYPE_3D_FIX) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] != 0xFF)) || (( g_TimeNow / 300 ) % 3) != 0 )
+   if ( ((g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.extra_info[2] >= GPS_FIX_TYPE_3D_FIX) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] != 0xFF)) || (( g_TimeNow / 300 ) % 3) != 0 )
       g_pRenderEngine->drawIcon(x,y, 0.8*height_text_big/g_pRenderEngine->getAspectRatio(), 0.8*height_text_big, g_idIconGPS);
    x += 1.0*height_text_big/g_pRenderEngine->getAspectRatio();
 
-   if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] >= GPS_FIX_TYPE_3D_FIX) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] != 0xFF) )
+   if ( (g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.extra_info[2] >= GPS_FIX_TYPE_3D_FIX) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[2] != 0xFF) )
       g_pRenderEngine->drawText(x-0.3*height_text_big, y-0.7*osd_getSpacingV(), g_idFontOSDSmall, "3D");
 
-   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[1] == 0xFF )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.extra_info[1] == 0xFF )
       strcpy(szBuff, "N/A");
    else
-      sprintf(szBuff, "%d", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.extra_info[1]);
+      sprintf(szBuff, "%d", g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].headerFCTelemetry.extra_info[1]);
    w = osd_show_value(x,y, szBuff, g_idFontOSDBig);
    x += w + 0.5*osd_getSpacingH();
 
-   if ( bMultiLine )
+   if ( pairing_isStarted() )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].pModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
+   if ( vehicle_runtime_has_received_fc_telemetry(g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].uVehicleId) )
+   if ( g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].pModel->is_spectator || g_VehiclesRuntimeInfo[iOSVehicleDataSourceIndex].bPairedConfirmed )
    {
-      osd_show_value_centered((x1+x)*0.5, y+height_text_big-height_text*0.1, "HDOP", g_idFontOSDSmall);
-      if ( hdop2 == 0xFFFF )
-         strcpy(szBuff, "---");
+      if ( bMultiLine )
+      {
+         osd_show_value_centered((x1+x)*0.5, y+height_text_big-height_text*0.1, "HDOP", g_idFontOSDSmall);
+         if ( hdop2 == 0xFFFF )
+            strcpy(szBuff, "---");
+         else
+            sprintf(szBuff, "%.1f", hdop2/100.0);
+         osd_show_value_centered((x1+x)*0.5, y+height_text_big-height_text*0.1+osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+      }
       else
-         sprintf(szBuff, "%.1f", hdop2/100.0);
-      osd_show_value_centered((x1+x)*0.5, y+height_text_big-height_text*0.1+osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+      {
+         w = osd_show_value(x, y-height_text*0.1, "HDOP", g_idFontOSDSmall);  
+         if ( hdop2 == 0xFFFF )
+            strcpy(szBuff, "---");
+         else
+            sprintf(szBuff, "%.1f", hdop2/100.0);
+         osd_show_value(x, y + osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
+         x += w;
+         x += osd_getSpacingH();
+      }
    }
-   else
-   {
-      w = osd_show_value(x, y-height_text*0.1, "HDOP", g_idFontOSDSmall);  
-      if ( hdop2 == 0xFFFF )
-         strcpy(szBuff, "---");
-      else
-         sprintf(szBuff, "%.1f", hdop2/100.0);
-      osd_show_value(x, y + osd_getFontHeightSmall(), szBuff, g_idFontOSDSmall);
-      x += w;
-      x += osd_getSpacingH();
-   }
-
    return x- x0;
 }
 

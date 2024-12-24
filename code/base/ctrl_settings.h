@@ -2,7 +2,7 @@
 
 #include "../base/hardware.h"
 #include "../base/ctrl_preferences.h"
-#define CONTROLLER_SETTINGS_STAMP_ID "vV.6"
+#define CONTROLLER_SETTINGS_STAMP_ID "v10.1"
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,13 +11,7 @@ extern "C" {
 typedef struct
 {
    int iUseBrokenVideoCRC;
-   int iTXPowerRTL8812AU;
-   int iTXPowerRTL8812EU;
-   int iTXPowerAtheros;
-   int iTXPowerSiK;
-   int iMaxTXPowerRTL8812AU;
-   int iMaxTXPowerRTL8812EU;
-   int iMaxTXPowerAtheros;
+   int iFixedTxPower;
    int iHDMIBoost;
    int iOverVoltage; // 0 - disabled
    int iFreqARM; // 0 - disabled

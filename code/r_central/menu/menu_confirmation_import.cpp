@@ -35,7 +35,7 @@
 #include "../../base/ctrl_settings.h"
 #include "../../base/hardware.h"
 #include "../../base/hw_procs.h"
-#include "../../base/controller_utils.h"
+#include "../../utils/utils_controller.h"
 #include "../local_stats.h"
 
 #include "menu.h"

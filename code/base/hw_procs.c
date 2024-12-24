@@ -432,7 +432,7 @@ int hw_execute_bash_command(const char* command, char* outBuffer)
 
 int hw_execute_bash_command_raw(const char* command, char* outBuffer)
 {
-   log_line("Executing command: %s", command);
+   log_line("Executing command raw: %s", command);
    if ( NULL != outBuffer )
       outBuffer[0] = 0;
    FILE* fp = popen( command, "r" );

@@ -40,7 +40,7 @@
 #include "../base/models_list.h"
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
-#include "../base/controller_utils.h"
+#include "../utils/utils_controller.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
 

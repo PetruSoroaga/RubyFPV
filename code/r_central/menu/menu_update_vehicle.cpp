@@ -51,7 +51,7 @@ MenuUpdateVehiclePopup::MenuUpdateVehiclePopup(int vehicleIndex)
 
    addTopLine(szBuff);
 
-   if ( get_sw_version_build(g_pCurrentModel) < 242 )
+   if ( get_sw_version_build(g_pCurrentModel) < 248 )
       addTopLine("Video protocols have changed from the version running on vehicle. It is recommended to update vehicle otherways you will not get a video feed.");
    sprintf(szBuff, "Do you want to update now?");
    addTopLine(szBuff);

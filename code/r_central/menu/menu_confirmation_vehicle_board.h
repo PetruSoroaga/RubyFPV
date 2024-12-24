@@ -8,6 +8,7 @@ class MenuConfirmationVehicleBoard: public Menu
       MenuConfirmationVehicleBoard();
       virtual ~MenuConfirmationVehicleBoard();
       virtual void onShow();
+      virtual int onBack();
       virtual void onSelectItem();
 
 };

@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -99,9 +99,96 @@ void update_openipc_cpu(Model* pModel)
 }
 
 
-void do_update_to_99()
+void do_update_to_101()
 {
-   log_line("Doing update to 9.9");
+   log_line("Doing update to 10.1");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->nGraphRadioRefreshInterval = 50;
+      pCS->nGraphVideoRefreshInterval = 50;
+      pCS->iFixedTxPower = 0;
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+ 
+   pModel->resetVideoParamsToDefaults();
+   pModel->resetVideoLinkProfiles(-1);
+
+   pModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+   pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   pModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY_OIPC;
+   pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER_OPIC;
+   #endif
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+
+   if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+   {
+      pModel->processesPriorities.iFreqGPU = 0;
+      hardware_set_oipc_freq_boost(pModel->processesPriorities.iFreqARM, pModel->processesPriorities.iFreqGPU);
+   }
+   pModel->video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
+
+   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
+   
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+   }
+
+   #endif
+   
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( ! hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+
+      pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
+
+      pModel->video_link_profiles[i].h264profile = 2; // high
+   }
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HP;
+   }
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+
+   pModel->radioInterfacesParams.iAutoVehicleTxPower = 1;
+   pModel->radioInterfacesParams.iAutoControllerTxPower = 1;
+
+   pModel->rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
+
+   log_line("Updated model VID %u (%s) to v10.1", pModel->uVehicleId, pModel->getLongName());
+}
+
+void do_update_to_100()
+{
+   log_line("Doing update to 10.0");
  
    if ( ! s_isVehicle )
    {
@@ -147,7 +234,7 @@ void do_update_to_99()
    }
    #endif
 
-   log_line("Updated model VID %u (%s) to v9.9", pModel->uVehicleId, pModel->getLongName());
+   log_line("Updated model VID %u (%s) to v10.0", pModel->uVehicleId, pModel->getLongName());
 }
 
 void do_update_to_98()
@@ -274,14 +361,14 @@ void do_update_to_97()
    update_openipc_cpu(pModel);
    #endif
      
-   for( int i=0; i<pModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+   for( int i=0; i<pModel->hardwareInterfacesInfo.serial_port_count; i++ )
    {
-      u32 uUsage = pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF;
+      u32 uUsage = pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF;
       if ( uUsage > 0 )
       if ( uUsage < SERIAL_PORT_USAGE_MSP_OSD )
       {
-         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFFFFFF00;
-         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+         pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] = pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFFFFFF00;
+         pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
       }
    }
 
@@ -861,7 +948,6 @@ void do_update_to_76()
          }
          for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            pModel->radioInterfacesParams.interface_dummy1[i] = 0;
             pModel->radioInterfacesParams.interface_dummy2[i] = 0;
          }
 
@@ -1039,14 +1125,14 @@ void do_update_to_72()
       //   pModel->osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
 
 
-      if ( 0 < pModel->hardwareInterfacesInfo.serial_bus_count )
+      if ( 0 < pModel->hardwareInterfacesInfo.serial_port_count )
       if ( hardware_get_serial_ports_count() > 0 )
       {
          hw_serial_port_info_t* pPortInfo = hardware_get_serial_port_info(0);
          if ( NULL != pPortInfo )
          {
-            pPortInfo->lPortSpeed = pModel->hardwareInterfacesInfo.serial_bus_speed[0];
-            pPortInfo->iPortUsage = (int)(pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] & 0xFF);
+            pPortInfo->lPortSpeed = pModel->hardwareInterfacesInfo.serial_port_speed[0];
+            pPortInfo->iPortUsage = (int)(pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[0] & 0xFF);
             hardware_serial_save_configuration();
          }
       }
@@ -1147,11 +1233,11 @@ void do_update_to_70()
       validate_camera(pModel);
 
       pModel->populateVehicleSerialPorts();
-      if ( 0 < pModel->hardwareInterfacesInfo.serial_bus_count )
+      if ( 0 < pModel->hardwareInterfacesInfo.serial_port_count )
       {
-         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] &= 0xFFFFFF00;
-         pModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
-         pModel->hardwareInterfacesInfo.serial_bus_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
+         pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[0] &= 0xFFFFFF00;
+         pModel->hardwareInterfacesInfo.serial_port_supported_and_usage[0] |= SERIAL_PORT_USAGE_TELEMETRY_MAVLINK;
+         pModel->hardwareInterfacesInfo.serial_port_speed[0] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
       }
    }
    else
@@ -1251,7 +1337,6 @@ void do_update_to_69()
 
       for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
       {
-         pModel->radioInterfacesParams.interface_dummy1[i] = 0;
          pModel->radioInterfacesParams.interface_dummy2[i] = 0;
       }
 
@@ -1389,7 +1474,6 @@ void do_update_to_66()
          }
          for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            pModel->radioInterfacesParams.interface_dummy1[i] = 0;
             pModel->radioInterfacesParams.interface_dummy2[i] = 0;
          }
          if ( pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps > 5000000 )
@@ -1824,8 +1908,10 @@ int main(int argc, char *argv[])
       do_update_to_97();
    if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 8) )
       do_update_to_98();
-   if ( (iMajor < 9) || (iMajor == 9 && iMinor <= 9) )
-      do_update_to_99();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 0) )
+      do_update_to_100();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 1) )
+      do_update_to_101();
 
    saveCurrentModel();
    

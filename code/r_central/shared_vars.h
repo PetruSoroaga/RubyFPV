@@ -76,3 +76,5 @@ extern int g_iMustSendCurrentActiveOSDLayoutCounter;
 extern CorePluginSettings g_listVehicleCorePlugins[MAX_CORE_PLUGINS_COUNT];
 extern int g_iVehicleCorePluginsCount;
 
+extern bool g_bMustNegociateRadioLinksFlag;
+extern bool g_bAskedForNegociateRadioLink;

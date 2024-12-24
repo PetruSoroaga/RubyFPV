@@ -145,7 +145,7 @@ int hardware_radio_serial_parse_and_add_from_serial_ports_config()
    if ( iCountAdded > 0 )
    {
       hardware_save_radio_info();
-      hardware_log_radio_info();
+      hardware_log_radio_info(NULL, 0);
    }
    return iCountAdded;
 }

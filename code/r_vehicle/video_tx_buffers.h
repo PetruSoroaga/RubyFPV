@@ -44,6 +44,7 @@ class VideoTxPacketsBuffer
       int m_iCameraIndex;
       int m_iVideoStreamInfoIndex;
 
+      u16 m_uCurrentFrameId;
       u32 m_uNextVideoBlockIndexToGenerate;
       u32 m_uNextVideoBlockPacketIndexToGenerate;
       u32 m_uNextBlockPacketSize;

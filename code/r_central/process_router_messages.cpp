@@ -143,7 +143,7 @@ void stop_pipes_to_router()
    log_line("[Router COMM] Stopped IPC to/from router.");
 }
 
-void send_model_changed_message_to_router(u32 uChangeType, u8 uExtraParam)
+int send_model_changed_message_to_router(u32 uChangeType, u8 uExtraParam)
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
@@ -152,10 +152,10 @@ void send_model_changed_message_to_router(u32 uChangeType, u8 uExtraParam)
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   send_packet_to_router(buffer, PH.total_length);
+   return send_packet_to_router(buffer, PH.total_length);
 }
 
-void send_control_message_to_router(u8 packet_type, u32 extraParam)
+int send_control_message_to_router(u8 packet_type, u32 extraParam)
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, packet_type, STREAM_ID_DATA);
@@ -165,10 +165,10 @@ void send_control_message_to_router(u8 packet_type, u32 extraParam)
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
-   send_packet_to_router(buffer, PH.total_length);
+   return send_packet_to_router(buffer, PH.total_length);
 }
 
-void send_control_message_to_router_and_data(u8 packet_type, u8* pData, int nDataLength)
+int send_control_message_to_router_and_data(u8 packet_type, u8* pData, int nDataLength)
 {
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, packet_type, STREAM_ID_DATA);
@@ -181,20 +181,23 @@ void send_control_message_to_router_and_data(u8 packet_type, u8* pData, int nDat
    if ( nDataLength > 0 )
       memcpy(&(buffer[sizeof(t_packet_header)]), pData, nDataLength);
 
-   send_packet_to_router(buffer, PH.total_length);
+   return send_packet_to_router(buffer, PH.total_length);
 }
 
-void send_packet_to_router(u8* pPacket, int nLength)
+int send_packet_to_router(u8* pPacket, int nLength)
 {
    if ( (NULL == pPacket) || (nLength <= 0) )
-      return;
+      return 0;
 
    if ( -1 == s_fIPCToRouter )
    {
       log_softerror_and_alarm("[Router COMM] No IPC to router to send message to.");
-      return; 
+      return 0; 
    }
-   ruby_ipc_channel_send_message(s_fIPCToRouter, pPacket, nLength);
+   int iRes = ruby_ipc_channel_send_message(s_fIPCToRouter, pPacket, nLength);
+   if ( iRes != nLength )
+      log_softerror_and_alarm("[Router COM] Failed to send message to router (msg size: %d bytes), error: %d", nLength, iRes);
+   return iRes;
 }
 
 t_structure_vehicle_info* _get_runtime_info_for_packet(u8* pPacketBuffer)
@@ -1003,10 +1006,10 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS )
    {
-      if ( pPH->total_length != sizeof(t_packet_header) + 2*sizeof(shared_mem_video_info_stats) )
-         return 0;
-      memcpy((u8*)&g_VideoInfoStatsFromVehicleCameraOut, (u8*)(pPacketBuffer + sizeof(t_packet_header)), sizeof(shared_mem_video_info_stats));
-      memcpy((u8*)&g_VideoInfoStatsFromVehicleRadioOut, (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(shared_mem_video_info_stats)), sizeof(shared_mem_video_info_stats));
+      //if ( pPH->total_length != sizeof(t_packet_header) + 2*sizeof(shared_mem_video_frames_stats) )
+      //   return 0;
+      //memcpy((u8*)&g_VideoInfoStatsFromVehicleCameraOut, (u8*)(pPacketBuffer + sizeof(t_packet_header)), sizeof(shared_mem_video_frames_stats));
+      //memcpy((u8*)&g_VideoInfoStatsFromVehicleRadioOut, (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(shared_mem_video_frames_stats)), sizeof(shared_mem_video_frames_stats));
       return 0;
    }
 

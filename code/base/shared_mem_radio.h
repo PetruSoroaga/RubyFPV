@@ -223,8 +223,8 @@ typedef struct
 
    u32 all_downlinks_tx_time_per_sec;
    u32 tmp_all_downlinks_tx_time_per_sec;
-
    u32 timeLastRxPacket;
+   u32 uLastTimeReceivedAckFromAVehicle;
    
    int iMaxRxQuality;
    shared_mem_radio_stats_stream           radio_streams[MAX_CONCURENT_VEHICLES][MAX_RADIO_STREAMS];

@@ -84,12 +84,14 @@
 #define SUBFOLDER_UPDATES_PI    "bin/pi/"
 #define SUBFOLDER_UPDATES_RADXA "bin/radxaz3/"
 #define SUBFOLDER_UPDATES_OIPC  "bin/ssc338q/"
+#define SUBFOLDER_UPDATES_DRIVERS "bin/drivers/"
 
 //-------------------------------------------
 
 #ifdef HW_PLATFORM_RASPBERRY
 
 #define FOLDER_BINARIES "/home/pi/ruby/"
+#define FOLDER_DRIVERS "/home/pi/ruby/drivers/"
 #define FOLDER_CONFIG "/home/pi/ruby/config/"
 #define FOLDER_CONFIG_MODELS "/home/pi/ruby/config/models/"
 #define FOLDER_VEHICLE_HISTORY "/home/pi/ruby/config/models/history-%d/"
@@ -119,7 +121,6 @@
 #define VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME "ruby_capture_veye"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_p"
-#define VIDEO_PLAYER_STDIN "ruby_player_s"
 #define VIDEO_PLAYER_OFFLINE "ruby_player_f2"
 
 #define VEYE_COMMANDS_FOLDER "/usr/local/share/veye-raspberrypi"
@@ -133,6 +134,7 @@
 #if defined(HW_PLATFORM_RADXA_ZERO3)
 
 #define FOLDER_BINARIES "/home/radxa/ruby/"
+#define FOLDER_DRIVERS "/home/radxa/ruby/drivers/"
 #define FOLDER_CONFIG "/home/radxa/ruby/config/"
 #define FOLDER_CONFIG_MODELS "/home/radxa/ruby/config/models/"
 #define FOLDER_VEHICLE_HISTORY "/home/radxa/ruby/config/models/history-%d/"
@@ -164,6 +166,7 @@
 #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
 #define FOLDER_BINARIES "/usr/sbin/"
+#define FOLDER_DRIVERS "/usr/sbin/drivers/"
 #define FOLDER_CONFIG "/root/ruby/config/"
 #define FOLDER_CONFIG_MODELS "/root/ruby/config/models/"
 #define FOLDER_VEHICLE_HISTORY "/root/ruby/config/models/history-%d/"

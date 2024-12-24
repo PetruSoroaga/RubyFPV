@@ -416,7 +416,19 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    hw_execute_bash_command_raw("cli -s .video1.enabled false", NULL);
    hw_execute_bash_command_raw("cli -s .video0.enabled true", NULL);
    hw_execute_bash_command_raw("cli -s .video0.rcMode cbr", NULL);
+   hw_execute_bash_command_raw("cli -s .isp.slowShutter disabled", NULL);
 
+   if ( pVideoParams->iH264Slices <= 1 )
+   {
+      hw_execute_bash_command_raw("cli -s .video0.sliceUnits 1", NULL);
+      hw_execute_bash_command_raw("cli -d .video0.sliceUnits", NULL);
+   }
+   else
+   {
+      sprintf(szComm, "cli -s .video0.sliceUnits %d", pVideoParams->iH264Slices);
+      hw_execute_bash_command_raw(szComm, NULL);
+   }
+   
    if ( pVideoParams->uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
       hw_execute_bash_command_raw("cli -s .video0.codec h265", NULL);
    else
@@ -429,6 +441,9 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    hw_execute_bash_command_raw(szComm, NULL);
 
    sprintf(szComm, "cli -s .video0.size %dx%d", pModel->video_link_profiles[iVideoProfile].width, pModel->video_link_profiles[iVideoProfile].height);
+   hw_execute_bash_command_raw(szComm, NULL);
+
+   sprintf(szComm, "cli -s .video0.qpDelta %d", pModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
    hw_execute_bash_command_raw(szComm, NULL);
 
    float fGOP = 0.5;

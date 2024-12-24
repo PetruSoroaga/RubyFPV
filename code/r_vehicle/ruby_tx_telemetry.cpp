@@ -110,8 +110,8 @@ u32 s_uLastTotalPacketsReceived = 0;
 
 t_packet_header_rc_info_downstream* s_pPHDownstreamInfoRC = NULL; // Info to send back to ground
 
-shared_mem_video_info_stats* s_pSM_VideoInfoStats = NULL;
-shared_mem_video_info_stats* s_pSM_VideoInfoStatsRadioOut = NULL;
+//shared_mem_video_frames_stats* s_pSM_VideoInfoStats = NULL;
+//shared_mem_video_frames_stats* s_pSM_VideoInfoStatsRadioOut = NULL;
 shared_mem_radio_stats_rx_hist* s_pSM_HistoryRxStats = NULL;
 
 static u32 s_uCurrentVideoProfile = MAX_U32;
@@ -949,11 +949,10 @@ void check_send_telemetry_to_controller()
 
       sPHRTE.flags &= ~(FLAG_RUBY_TELEMETRY_RC_FAILSAFE | FLAG_RUBY_TELEMETRY_RC_ALIVE);
 
-      if ( telemetry_time_last_telemetry_received() + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
+      if ( (g_TimeNow > TIMEOUT_FC_TELEMETRY_LOST) && (telemetry_time_last_telemetry_received() > g_TimeNow - TIMEOUT_FC_TELEMETRY_LOST) )
          sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA;
       else
          sPHRTE.flags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
-
       #ifdef FEATURE_ENABLE_RC
       if ( g_pCurrentModel->rc_params.rc_enabled && NULL != s_pPHDownstreamInfoRC )
       {
@@ -1172,11 +1171,12 @@ void check_send_telemetry_to_controller()
 
 
    // --------------------------------------
-   // Send video info stats
+   // Send video frames stats
 
+   /*
    if ( NULL == s_pSM_VideoInfoStats )
    {
-      s_pSM_VideoInfoStats = shared_mem_video_info_stats_open_for_read();
+      s_pSM_VideoInfoStats = shared_mem_video_frames_stats_open_for_read();
       if ( NULL == s_pSM_VideoInfoStats )
          log_softerror_and_alarm("Failed to open shared mem video info stats for reading.");
       else
@@ -1185,7 +1185,7 @@ void check_send_telemetry_to_controller()
    
    if ( NULL == s_pSM_VideoInfoStatsRadioOut )
    {
-      s_pSM_VideoInfoStatsRadioOut = shared_mem_video_info_stats_radio_out_open_for_read();
+      s_pSM_VideoInfoStatsRadioOut = shared_mem_video_frames_stats_radio_out_open_for_read();
       if ( NULL == s_pSM_VideoInfoStatsRadioOut )
          log_softerror_and_alarm("Failed to open shared mem video info stats radio out for reading.");
       else
@@ -1193,15 +1193,15 @@ void check_send_telemetry_to_controller()
    }
    
    if ( (NULL != g_pCurrentModel) && (NULL != s_pSM_VideoInfoStats) && (NULL != s_pSM_VideoInfoStatsRadioOut) )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-      sPH.total_length = (u16)sizeof(t_packet_header) + 2*(u16)sizeof(shared_mem_video_info_stats);
+      sPH.total_length = (u16)sizeof(t_packet_header) + 2*(u16)sizeof(shared_mem_video_frames_stats);
 
       memcpy(buffer, &sPH, sizeof(t_packet_header));
-      memcpy(buffer+sizeof(t_packet_header), (u8*)s_pSM_VideoInfoStats, sizeof(shared_mem_video_info_stats));
-      memcpy(buffer+sizeof(t_packet_header) + sizeof(shared_mem_video_info_stats), (u8*)s_pSM_VideoInfoStatsRadioOut, sizeof(shared_mem_video_info_stats));
+      memcpy(buffer+sizeof(t_packet_header), (u8*)s_pSM_VideoInfoStats, sizeof(shared_mem_video_frames_stats));
+      memcpy(buffer+sizeof(t_packet_header) + sizeof(shared_mem_video_frames_stats), (u8*)s_pSM_VideoInfoStatsRadioOut, sizeof(shared_mem_video_frames_stats));
       
       if ( g_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
       {
@@ -1214,6 +1214,7 @@ void check_send_telemetry_to_controller()
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
    }
+   */
 
    // FC RC channels and RC extra packets are sent at the same rate as Ruby telemetry
 
@@ -1351,17 +1352,19 @@ void open_shared_mem_objects()
    else
       log_line("Opened shared mem for telemetry tx process watchdog stats for writing.");
 
-   s_pSM_VideoInfoStats = shared_mem_video_info_stats_open_for_read();
+   /*
+   s_pSM_VideoInfoStats = shared_mem_video_frames_stats_open_for_read();
    if ( NULL == s_pSM_VideoInfoStats )
       log_softerror_and_alarm("Failed to open shared mem video info stats for reading.");
    else
       log_line("Opened shared mem video info stats for reading.");
 
-   s_pSM_VideoInfoStatsRadioOut = shared_mem_video_info_stats_radio_out_open_for_read();
+   s_pSM_VideoInfoStatsRadioOut = shared_mem_video_frames_stats_radio_out_open_for_read();
    if ( NULL == s_pSM_VideoInfoStatsRadioOut )
       log_softerror_and_alarm("Failed to open shared mem video info stats radio out for reading.");
    else
       log_line("Opened shared mem video info stats radio out for reading.");
+   */
 
    s_pSM_HistoryRxStats = shared_mem_radio_stats_rx_hist_open_for_read();
    if ( NULL == s_pSM_HistoryRxStats )
@@ -1482,13 +1485,13 @@ int main(int argc, char *argv[])
 
    s_iCurrentDataLinkSerialPortIndex = -1;
    
-   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count; i++ )
+   for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_port_count; i++ )
    {
-       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
-       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
+       if ( g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
+       if ( (g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF) == SERIAL_PORT_USAGE_DATA_LINK )
        {
           s_iCurrentDataLinkSerialPortIndex = i;
-          s_uCurrentDataLinkSerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i];
+          s_uCurrentDataLinkSerialPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i];
        }
    }
 
@@ -1536,8 +1539,8 @@ int main(int argc, char *argv[])
 
    log_line("Stopping...");
    
-   shared_mem_video_info_stats_close(s_pSM_VideoInfoStats);
-   shared_mem_video_info_stats_radio_out_close(s_pSM_VideoInfoStatsRadioOut);
+   //shared_mem_video_frames_stats_close(s_pSM_VideoInfoStats);
+   //shared_mem_video_frames_stats_radio_out_close(s_pSM_VideoInfoStatsRadioOut);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_TELEMETRY_TX, g_pProcessStats);
    shared_mem_radio_stats_rx_hist_close(s_pSM_HistoryRxStats);
 
@@ -1569,7 +1572,7 @@ void _main_loop()
    int iSleepTime = 15;
 
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
-      iSleepTime = 40;
+      iSleepTime = 50;
 
    while ( !g_bQuit )
    {
@@ -1586,7 +1589,7 @@ void _main_loop()
       _periodic_loop();
       
       if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
-         iSleepTime = 40;
+         iSleepTime = 50;
       else
       {
          if ( telemetry_get_serial_port_file() > 0 )
@@ -1597,9 +1600,10 @@ void _main_loop()
             telemetry_close_serial_port();
             telemetry_open_serial_port();
          }
-         telemetry_try_read_serial_port();
-         telemetry_periodic_loop();
          iSleepTime = 15;
+         if ( telemetry_try_read_serial_port() > 0 )
+            iSleepTime = 5;
+         telemetry_periodic_loop();
       }
       
       try_read_serial_datalink();
@@ -1624,7 +1628,8 @@ void _main_loop()
       if ( g_pCurrentModel->rc_params.rc_enabled )
       if ( g_pCurrentModel->rc_params.flags & RC_FLAGS_OUTPUT_ENABLED )
       {
-         iSleepTime = 10;
+         if ( iSleepTime > 10 )
+            iSleepTime = 10;
          _send_rc_data_to_FC();
       }
 
@@ -1656,7 +1661,6 @@ void _main_loop()
          continue;
       }
       */
-      iSleepTime = 15;
 
       check_send_telemetry_to_controller();
 

@@ -186,7 +186,7 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
 
    pSMRS->all_downlinks_tx_time_per_sec = 0;
    pSMRS->tmp_all_downlinks_tx_time_per_sec = 0;
-
+   pSMRS->uLastTimeReceivedAckFromAVehicle = 0;
    pSMRS->iMaxRxQuality = 0;
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
@@ -1034,7 +1034,7 @@ void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_ra
    }
 }
 
-int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsShortPacket, int iIsVideo, int iDataIsOk)
+int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsShortPacket, int iIsVideoData, int iDataIsOk)
 {
    if ( NULL == pSMRS )
       return -1;
@@ -1053,7 +1053,7 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
 
    _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
 
-   if ( iIsVideo )
+   if ( iIsVideoData )
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateVideo = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
       _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
@@ -1133,20 +1133,24 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
       {
          t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
 
-         // Radio_packet_index is 0 for version 7.6 or older, skip gap calculation
-         if ( 0 != pPH->radio_link_packet_index )
-         if ( pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex != MAX_U32 )
-         if ( pPH->radio_link_packet_index > pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex + 1 )
+         if ( (pPH->packet_type & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          {
-            u32 uLost = pPH->radio_link_packet_index - pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex - 1;
-            pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsLostCount += uLost;
-            pSMRS->radio_interfaces[iInterfaceIndex].totalRxPacketsLost += uLost;
-            if ( NULL != pSMRXStats )
-               pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsLost += uLost;
-            s_uControllerLinkStats_tmpRecvLost[iInterfaceIndex] += uLost;
-         }
+            // Radio_packet_index is 0 for version 7.6 or older and missing for compressed packets,
+            //   skip gap calculation
+            if ( 0 != pPH->radio_link_packet_index )
+            if ( pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex != MAX_U32 )
+            if ( pPH->radio_link_packet_index > pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex + 1 )
+            {
+               u32 uLost = pPH->radio_link_packet_index - pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex - 1;
+               pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsLostCount += uLost;
+               pSMRS->radio_interfaces[iInterfaceIndex].totalRxPacketsLost += uLost;
+               if ( NULL != pSMRXStats )
+                  pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsLost += uLost;
+               s_uControllerLinkStats_tmpRecvLost[iInterfaceIndex] += uLost;
+            }
 
-         pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex = pPH->radio_link_packet_index;
+            pSMRS->radio_interfaces[iInterfaceIndex].lastReceivedRadioLinkPacketIndex = pPH->radio_link_packet_index;
+         }
       }
    }
    // End - Update history and good/bad/lost packets for interface 
@@ -1181,14 +1185,30 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
    }
    
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
+   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
    int nRadioLinkId = pSMRS->radio_interfaces[iInterfaceIndex].assignedLocalRadioLinkId;
 
-   u32 uVehicleId = pPH->vehicle_id_src;
-   u32 uStreamPacketIndex = (pPH->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
-   u32 uStreamIndex = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   u32 uVehicleId = 0;
+   u32 uStreamPacketIndex = 0;
+   u32 uStreamIndex = 0;
+   u8 uPacketType = 0;
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   {
+      uVehicleId = pPHC->vehicle_id_src;
+      uStreamPacketIndex = (pPHC->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
+      uStreamIndex = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      uPacketType = pPHC->packet_type;
+   }
+   else
+   {
+      uVehicleId = pPH->vehicle_id_src;
+      uStreamPacketIndex = (pPH->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
+      uStreamIndex = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      uPacketType = pPH->packet_type;
+   }
    if ( uStreamIndex >= MAX_RADIO_STREAMS )
    {
-      log_softerror_and_alarm("Received invalid stream id %u, packet index %u, packet type: %s", uStreamIndex, uStreamPacketIndex, str_get_packet_type(pPH->packet_type));
+      log_softerror_and_alarm("Received invalid stream id %u, packet index %u, packet type: %s", uStreamIndex, uStreamPacketIndex, str_get_packet_type(uPacketType));
       uStreamIndex = 0;
    }
       
@@ -1250,20 +1270,16 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
  
    if ( uStreamPacketIndex > pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex )
    {
+      if ( pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex != 0 )
       if ( uStreamPacketIndex > pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex + 1 )
-      {
-         //if ( uStreamIndex == STREAM_ID_TELEMETRY )
-         //   log_line("DEBUG missed telemetry packet for vehicle index %d: [vid: %u / %u]. last recv telem packet index: %u, now received telem pack index: %u",
-         //   iStreamsVehicleIndex, pPH->vehicle_id_src, 
-         //   pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uVehicleId,
-         //   pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex, uStreamPacketIndex);
          pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].iHasMissingStreamPacketsFlag = 1;
-      }
       pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].uLastRecvStreamPacketIndex = uStreamPacketIndex;
    }
 
    if ( 0 ==  pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxPackets )
-      log_line("[RadioStats] Start receiving radio stream %d (%s) from VID %u", (int)uStreamIndex, str_get_radio_stream_name(uStreamIndex), uVehicleId);
+      log_line("[RadioStats] Start receiving radio stream %d (%s) from VID %u, packet module: %d, packet length: %d,%d, type: %s",
+        (int)uStreamIndex, str_get_radio_stream_name(uStreamIndex), uVehicleId,
+        (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE), pPH->total_length, iPacketLength, str_get_packet_type(pPH->packet_type));
 
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxBytes += iPacketLength;
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].tmpRxBytes += iPacketLength;

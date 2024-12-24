@@ -30,7 +30,7 @@
 */
 
 #include "../render_commands.h"
-#include "../../base/controller_utils.h"
+#include "../../utils/utils_controller.h"
 #include "osd.h"
 #include "osd_common.h"
 #include "../popup.h"
@@ -38,7 +38,6 @@
 #include "menu_radio_config.h"
 #include "menu_confirmation.h"
 #include "menu_item_text.h"
-#include "menu_tx_power.h"
 #include "menu_controller_radio_interface.h"
 #include "menu_controller_radio_interface_sik.h"
 #include "menu_vehicle_radio_link.h"
@@ -53,25 +52,16 @@
 #include "../pairing.h"
 
 #define MRC_ID_SET_PREFFERED_TX 1
-#define MRC_ID_SET_TX_POWER_CONTROLLER_58 2
-#define MRC_ID_SET_TX_POWER_CONTROLLER_24 3
-#define MRC_ID_SET_TX_POWER_CONTROLLER_2458 4
-#define MRC_ID_SET_TX_POWER_CONTROLLER_SIK 5
-#define MRC_ID_SET_TX_POWER_VEHICLE_58 6
-#define MRC_ID_SET_TX_POWER_VEHICLE_24 7
-#define MRC_ID_SET_TX_POWER_VEHICLE_2458 8
-#define MRC_ID_SET_TX_POWER_VEHICLE_SIK 9
-#define MRC_ID_CONFIGURE_RADIO_LINK 10
-#define MRC_ID_CONFIGURE_RADIO_INTERFACE_CONTROLLER 11
-#define MRC_ID_CONFIGURE_RADIO_INTERFACE_VEHICLE 12
-#define MRC_ID_SWITCH_RADIO_LINK 14
-#define MRC_ID_SWAP_VEHICLE_RADIO_INTERFACES 15
-#define MRC_ID_ROTATE_RADIO_LINKS 16
-#define MRC_ID_DISABLE_UPLINKS 17
-#define MRC_ID_DIAGNOSE_RADIO_LINK 20
 
 
-static int s_iListSiKPowers[] = {1, 2, 5, 8, 11, 14, 17, 20};
+#define MRC_ID_CONFIGURE_RADIO_LINK 30
+#define MRC_ID_CONFIGURE_RADIO_INTERFACE_CONTROLLER 31
+#define MRC_ID_CONFIGURE_RADIO_INTERFACE_VEHICLE 32
+#define MRC_ID_SWITCH_RADIO_LINK 34
+#define MRC_ID_SWAP_VEHICLE_RADIO_INTERFACES 35
+#define MRC_ID_ROTATE_RADIO_LINKS 36
+#define MRC_ID_DISABLE_UPLINKS 37
+#define MRC_ID_DIAGNOSE_RADIO_LINK 40
 
 MenuRadioConfig::MenuRadioConfig(void)
 :Menu(MENU_ID_RADIO_CONFIG, "Radio Configuration", NULL)
@@ -97,11 +87,7 @@ MenuRadioConfig::MenuRadioConfig(void)
       m_szTooltips[i][0] = 0;
 
    m_bShowOnlyControllerUnusedInterfaces = false;
-   m_bConfigSiKPowerVehicle = false;
-   m_pItemSiKTxPower = NULL;
    m_pItemSelectTxCard = NULL;
-   m_fXPosSiKTxPowerController = 0.1;
-   m_fXPosSiKTxPowerVehicle = 0.1;
    m_iIndexCurrentItem = 0;
 
    m_iIdFontRegular = g_idFontMenu;
@@ -169,10 +155,22 @@ void MenuRadioConfig::onShow()
    }
 
    if ( ! (menu_is_menu_on_top(this)) )
-   if ( ! (menu_has_menu(MENU_ID_TXINFO)) )
+   if ( ! (menu_has_menu(MENU_ID_TX_RAW_POWER)) )
    {
-      log_line("Menu radio config is not on top, close the top menu.");
-      menu_stack_pop(0);
+      Menu* pTopMenu = menu_get_top_menu();
+
+      // Do not close radio interface card model autodetect confirmation message
+      bool bDoNotClose = false;
+      if ( (NULL != pTopMenu) && (pTopMenu->getId() == (MENU_ID_SIMPLE_MESSAGE + 34*1000)) )
+         bDoNotClose = true;
+      if ( (NULL != pTopMenu) && (pTopMenu->getId() == MENU_ID_VEHICLE_RADIO_INTERFACE) )
+         bDoNotClose = true;
+ 
+      if ( ! bDoNotClose )
+      {
+         log_line("Menu radio config is not on top, close the top menu.");
+         menu_stack_pop(0);
+      }
    }
    log_line("Entered menu radio config.");
 }
@@ -198,21 +196,11 @@ void MenuRadioConfig::setTooltipText()
 void MenuRadioConfig::computeMenuItems()
 {
    log_line("MenuRadioConfig: Compute Menu Items...");
-   if ( NULL != m_pItemSiKTxPower )
-      removeMenuItem(m_pItemSiKTxPower);
    
    if ( NULL != m_pItemSelectTxCard )
       removeMenuItem(m_pItemSelectTxCard);
 
-   m_pItemSiKTxPower = NULL;
    m_pItemSelectTxCard = NULL;
-
-   m_bHas58PowerVehicle = false;
-   m_bHas24PowerVehicle = false;
-   m_bHasSiKPowerVehicle = false;
-   m_bHas58PowerController = false;
-   m_bHas24PowerController = false;
-   m_bHasSiKPowerController = false;
 
    m_bHasSwapInterfacesCommand = false;
    m_bHasRotateRadioLinksOrderCommand = false;
@@ -227,8 +215,6 @@ void MenuRadioConfig::computeMenuItems()
       m_bHasRotateRadioLinksOrderCommand = true;
 
    m_iHeaderItemsCount = 0;
-   m_iCountItemsTxPowerVehicle = 0;
-   m_iCountItemsTxPowerController = 0;
 
    // Check controller interfaces
 
@@ -238,16 +224,8 @@ void MenuRadioConfig::computeMenuItems()
       log_line("MenuRadio: Detected controller radio interface %d type: %s", i+1, str_get_radio_type_description(pRadioHWInfo->iRadioType));
       if ( hardware_radio_index_is_sik_radio(i) )
       {
-         m_bHasSiKPowerController = true;
          if ( NULL != pRadioHWInfo )
             m_uBandsSiKController |= pRadioHWInfo->supportedBands;
-      }
-      else
-      {
-         if ( (NULL != pRadioHWInfo) && ((pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) || ((pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK))) )
-            m_bHas24PowerController = true;
-         else
-            m_bHas58PowerController = true;
       }
    }
 
@@ -258,15 +236,7 @@ void MenuRadioConfig::computeMenuItems()
          log_line("MenuRadio: Detected vehicle radio interface %d type: %s", i+1, str_get_radio_type_description(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i]));
 
          if ( (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_SIK )
-         {
-            m_bHasSiKPowerVehicle = true;
             m_uBandsSiKVehicle |= g_pCurrentModel->radioInterfacesParams.interface_supported_bands[i];
-         }
-         else if ( ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_ATHEROS) || ((g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) == RADIO_TYPE_RALINK) )
-            m_bHas24PowerVehicle = true;
-         else
-            m_bHas58PowerVehicle = true;
-
       }
    }
 
@@ -342,9 +312,50 @@ void MenuRadioConfig::Render()
       computeMaxItemIndexAndCommands();
    }
 
+   float xStart = 0.05;
+   float xEnd = 0.72;
+   float fWidth = xEnd - xStart;
+
+   float yStart = 0.04;
+   if ( m_fTotalHeightRadioConfig < 0.8 )
+      yStart += 0.1;
+
+   g_pRenderEngine->setColors(get_Color_MenuBg());
+   g_pRenderEngine->drawRoundRect(xStart, yStart, fWidth, m_fTotalHeightRadioConfig, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+   
+   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+   g_pRenderEngine->setFill(0,0,0,0);
+   g_pRenderEngine->setStroke(get_Color_MenuBorder());
+   g_pRenderEngine->drawRoundRect(xStart, yStart, fWidth, m_fTotalHeightRadioConfig, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+   g_pRenderEngine->setColors(get_Color_MenuText());
+
+   if ( 1 )
+   {
+      g_pRenderEngine->setColors(get_Color_MenuBgTooltip());
+      float yTooltip = yStart + m_fTotalHeightRadioConfig - m_fFooterHeight;
+      g_pRenderEngine->drawRoundRect(xStart, yTooltip, fWidth, m_fFooterHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
+
+      g_pRenderEngine->setColors(get_Color_MenuBg());
+      g_pRenderEngine->setStroke(get_Color_MenuBorder());
+      g_pRenderEngine->drawLine(xStart, yTooltip, xStart+fWidth, yTooltip);
+
+      yTooltip += 0.4*m_sfMenuPaddingY;
+
+      g_pRenderEngine->setColors(get_Color_MenuText());
+      g_pRenderEngine->drawMessageLines(xStart+m_sfMenuPaddingX, yTooltip, m_szCurrentTooltip, MENU_TEXTLINE_SPACING, fWidth-2.0*m_sfMenuPaddingX, m_iIdFontRegular);
+   }
+
+   if ( m_iIndexCurrentItem < 0 )
+      m_iIndexCurrentItem = 0;
+
+   yStart += m_sfMenuPaddingY;
+   m_fHeaderHeight = drawRadioHeader(xStart, xEnd, yStart);
+   yStart += m_fHeaderHeight;
+   computeHeights();
+
    // Draw radio links
 
-   float yEnd = drawRadioLinks(0.05/g_pRenderEngine->getAspectRatio(), 0.68);
+   float yEnd = drawRadioLinks(xStart, xEnd, yStart);
    g_pRenderEngine->clearFontBackgroundBoundingBoxStrikeColor();
 
    
@@ -355,17 +366,6 @@ void MenuRadioConfig::Render()
       m_pItemSelectTxCard->setLastRenderPos(xPos, m_fYPosAutoTx[m_iCurrentRadioLink]-height_text);
       m_pItemSelectTxCard->getItemHeight(0.5);
       m_pItemSelectTxCard->Render(xPos, m_fYPosAutoTx[m_iCurrentRadioLink]-height_text, true, 0.0);
-   }
-
-   if ( NULL != m_pItemSiKTxPower )
-   {
-      float xPos = m_fXPosSiKTxPowerController;
-      if ( m_bConfigSiKPowerVehicle )
-         xPos = m_fXPosSiKTxPowerVehicle;
-
-      m_pItemSiKTxPower->setLastRenderPos(xPos, m_fHeaderHeight-height_text);
-      m_pItemSiKTxPower->getItemHeight(0.5);
-      m_pItemSiKTxPower->Render(xPos, m_fHeaderHeight-height_text, true, 0.0);
    }
 
    // Draw bottom items
@@ -428,7 +428,7 @@ void MenuRadioConfig::onMoveUp(bool bIgnoreReversion)
 {
    if ( g_bSwitchingRadioLink )
       return;
-   if ( (NULL != m_pItemSelectTxCard) || (NULL != m_pItemSiKTxPower) )
+   if ( NULL != m_pItemSelectTxCard )
    {
       Menu::onMoveUp(bIgnoreReversion);
       setTooltipText();
@@ -452,7 +452,7 @@ void MenuRadioConfig::onMoveDown(bool bIgnoreReversion)
 {
    if ( g_bSwitchingRadioLink )
       return;
-   if ( (NULL != m_pItemSelectTxCard) || (NULL != m_pItemSiKTxPower) )
+   if ( NULL != m_pItemSelectTxCard )
    {
       Menu::onMoveDown(bIgnoreReversion);
       setTooltipText();
@@ -534,37 +534,6 @@ void MenuRadioConfig::onItemEndEdit(int itemIndex)
       pairing_start_normal();
       hideProgressInfo();   
    }
-
-   if ( NULL != m_pItemSiKTxPower )
-   {
-      int iSelection = m_pItemSiKTxPower->getSelectedIndex();
-      int iTxPower = 0;
-      if ( iSelection >= 0 && (iSelection < (int)sizeof(s_iListSiKPowers)/(int)sizeof(s_iListSiKPowers[0])) )
-         iTxPower = s_iListSiKPowers[iSelection];
-      log_line("Changed SiK Tx power to index: %d, power: %d", iSelection, iTxPower);
-      removeMenuItem(m_pItemSiKTxPower);
-      m_pItemSiKTxPower = NULL;
-
-      if ( m_bConfigSiKPowerVehicle )
-      { 
-         u8 buffer[11];
-         memset(&(buffer[0]), 0xFF, 11);
-         buffer[8] = 0x81;
-         buffer[9] = iTxPower;
-         buffer[10] = 0x81;
-        
-         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TX_POWERS, 0, buffer, 11) )
-             valuesToUI();
-      }
-      else
-      {
-         ControllerSettings* pCS = get_ControllerSettings();
-         pCS->iTXPowerSiK = iTxPower;
-         save_ControllerSettings();
-         send_model_changed_message_to_router(MODEL_CHANGED_RADIO_POWERS, 0);
-      }
-      valuesToUI();
-   }
 }
       
 
@@ -616,36 +585,6 @@ void MenuRadioConfig::onClickAutoTx(int iRadioLink)
    m_pItemSelectTxCard->beginEdit();
 }
 
-void MenuRadioConfig::onClickSiKTxPower(bool bVehicle)
-{
-   m_bConfigSiKPowerVehicle = bVehicle;
-   removeMenuItem(m_pItemSiKTxPower);   
-   m_pItemSiKTxPower = new MenuItemSelect("");
-   ControllerSettings* pCS = get_ControllerSettings();
-   
-   // 1 2 5 8 11 14 17 20
-   int iSelectedIndex = -1;
-   for( int i=0; i<(int)sizeof(s_iListSiKPowers)/(int)sizeof(s_iListSiKPowers[0]); i++ )
-   {
-      char szBuff[256];
-      sprintf(szBuff, "%d", s_iListSiKPowers[i]);
-      m_pItemSiKTxPower->addSelection(szBuff);
-
-      if ( m_bConfigSiKPowerVehicle )
-      if ( (NULL != g_pCurrentModel) && g_pCurrentModel->radioInterfacesParams.txPowerSiK == s_iListSiKPowers[i] )
-         iSelectedIndex = i;
-
-      if ( ! m_bConfigSiKPowerVehicle )
-      if ( pCS->iTXPowerSiK == s_iListSiKPowers[i] )
-         iSelectedIndex = i;
-   }
-   addMenuItem(m_pItemSiKTxPower);
-
-   m_pItemSiKTxPower->setSelectedIndex(iSelectedIndex);
-   m_pItemSiKTxPower->setIsEditable();
-   m_pItemSiKTxPower->setPopupSelectorToRight();
-   m_pItemSiKTxPower->beginEdit();
-}
 
 void MenuRadioConfig::onSelectItem()
 {
@@ -670,7 +609,7 @@ void MenuRadioConfig::onSelectItem()
       (int)(m_uCommandsIds[m_iIndexCurrentItem] >> 8),
       bConnectedToVehicle?"yes":"no");
 
-   if ( (NULL != m_pItemSelectTxCard) || (NULL != m_pItemSiKTxPower) )
+   if ( NULL != m_pItemSelectTxCard )
    {
       if ( ! bConnectedToVehicle )
       {
@@ -731,67 +670,6 @@ void MenuRadioConfig::onSelectItem()
       return;
    }
 
-   if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24 )
-   {
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowVehicle = false;
-      add_menu_to_stack(pMenu);
-      return;
-   }
-
-   if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58) ||
-        ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_2458) )
-   {
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowVehicle = false;
-      add_menu_to_stack(pMenu);
-      return;
-   }
-
-   if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_SIK )
-   {
-      onClickSiKTxPower(false);
-      return;
-   }
-
-   if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_24 )
-   {
-      if ( ! bConnectedToVehicle )
-      {
-         addMessage(szConnectMsg);
-         return;
-      }
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowController = false;
-      add_menu_to_stack(pMenu);
-      return;
-   }
-
-   if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58) ||
-        ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_2458) )
-   {
-      if ( ! bConnectedToVehicle )
-      {
-         addMessageWithTitle(0, szConnectTitle, szConnectMsg);
-         return;
-      }
-      MenuTXPower* pMenu = new MenuTXPower();
-      pMenu->m_bShowController = false;
-      add_menu_to_stack(pMenu);
-      return;
-   }
-
-   if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_SIK )
-   {
-      if ( ! bConnectedToVehicle )
-      {
-         addMessageWithTitle(0, szConnectTitle, szConnectMsg);
-         return;
-      }
-      onClickSiKTxPower(true);
-      return;
-   }
-
    if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_CONFIGURE_RADIO_LINK )
    {
       if ( ! bConnectedToVehicle )
@@ -821,9 +699,9 @@ void MenuRadioConfig::onSelectItem()
       }
 
       if ( 0 != iCountInterfacesAssignedToThisLink )
-         pMenu->m_xPos = m_RenderXPos + m_RenderWidth*0.5;
+         pMenu->m_xPos = m_RenderXPos + m_RenderWidth*0.2;
       else
-         pMenu->m_xPos = m_RenderXPos + m_RenderWidth*0.8;
+         pMenu->m_xPos = m_RenderXPos + m_RenderWidth*0.3;
       pMenu->m_yPos = m_fYPosRadioLinks[iVehicleRadioLinkId] - 5.0*height_text;
       if ( pMenu->m_yPos < 0.03 )
          pMenu->m_yPos = 0.03;
@@ -912,6 +790,9 @@ float MenuRadioConfig::computeHeights()
 
    float hTotalHeight = 0.0;
 
+   hTotalHeight += m_fHeaderHeight;
+   hTotalHeight += 2.0 * m_sfMenuPaddingY;
+
    if ( (0 < g_SM_RadioStats.countVehicleRadioLinks) || (0 < g_SM_RadioStats.countLocalRadioLinks) )
    if ( (NULL != g_pCurrentModel) && g_bFirstModelPairingDone && (!m_bShowOnlyControllerUnusedInterfaces) )
    {
@@ -957,6 +838,15 @@ float MenuRadioConfig::computeHeights()
          hTotalHeight += (iCountUnusedControllerInterfaces-1)*height_text*1.5;
    }
 
+   if ( 0 == hardware_get_radio_interfaces_count() )
+      hTotalHeight += height_text*1.5;
+
+   hTotalHeight += m_fFooterHeight;
+   if ( m_iCountVehicleRadioLinks < 2 )
+      hTotalHeight += height_text;
+
+   if ( hTotalHeight > 1.0 - 2.0 * 0.02 )
+      hTotalHeight = 1.0 - 2.0 * 0.02;
    //log_line("Menu radio config: computed heights.");
    m_bComputedHeights = true;
    m_fTotalHeightRadioConfig = hTotalHeight;
@@ -967,73 +857,6 @@ void MenuRadioConfig::computeMaxItemIndexAndCommands()
 {
    m_iHeaderItemsCount = 0;
    m_iIndexMaxItem = 0;
-
-   if ( m_bHas24PowerController )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for controller's radio interfaces on 2.4 Ghz band.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_CONTROLLER_24;
-      m_iCountItemsTxPowerController++;
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
-
-   if ( m_bHas58PowerController )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for controller's radio interfaces on 5.8 Ghz band.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_CONTROLLER_58;
-      if ( ! m_bHas24PowerController )
-      {
-         setTooltip(m_iIndexMaxItem, "Sets the Tx power for controller's radio interfaces on 2.4 Ghz and 5.8 Ghz bands.");      
-         m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_CONTROLLER_2458;
-      }
-      m_iCountItemsTxPowerController++; 
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
-
-   if ( m_bHasSiKPowerController )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for controller's SiK radio interfaces.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_CONTROLLER_SIK;
-      m_iCountItemsTxPowerController++;
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
-
-   if ( (NULL != g_pCurrentModel) && g_bFirstModelPairingDone && (! m_bShowOnlyControllerUnusedInterfaces) )
-   if ( m_bHas24PowerVehicle )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for vehicle's radio interfaces on 2.4 Ghz band.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_VEHICLE_24;
-      m_iCountItemsTxPowerVehicle++;
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
-
-   if ( (NULL != g_pCurrentModel) && g_bFirstModelPairingDone && (! m_bShowOnlyControllerUnusedInterfaces) )
-   if ( m_bHas58PowerVehicle )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for vehicle's radio interfaces on 5.8 Ghz band.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_VEHICLE_58;
-      if ( ! m_bHas24PowerVehicle )
-      {
-         setTooltip(m_iIndexMaxItem, "Sets the Tx power for vehicle's radio interfaces on 2.4 Ghz and 5.8 Ghz bands.");      
-         m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_VEHICLE_2458;
-      }
-      m_iCountItemsTxPowerVehicle++;
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
-
-   if ( (NULL != g_pCurrentModel) && g_bFirstModelPairingDone && (! m_bShowOnlyControllerUnusedInterfaces) )
-   if ( m_bHasSiKPowerVehicle )
-   {
-      setTooltip(m_iIndexMaxItem, "Sets the Tx power for vehicle's SiK radio interfaces.");
-      m_uCommandsIds[m_iIndexMaxItem] = MRC_ID_SET_TX_POWER_VEHICLE_SIK;
-      m_iCountItemsTxPowerVehicle++;
-      m_iHeaderItemsCount++;
-      m_iIndexMaxItem++;
-   }
 
    if ( (NULL == g_pCurrentModel) || (0 == g_SM_RadioStats.countVehicleRadioLinks) || m_bShowOnlyControllerUnusedInterfaces )
    {
@@ -1136,41 +959,15 @@ void MenuRadioConfig::computeMaxItemIndexAndCommands()
 }
 
 
-float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
+float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd, float yStart)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
-   float height_text_large = g_pRenderEngine->textHeight(m_iIdFontLarge);
-   float fMarginY = 0.04;
-   float fPaddingY = 0.042;
-   float fPaddingX = fPaddingY/g_pRenderEngine->getAspectRatio();
-   float yStart = fMarginY + fPaddingY;
-   float yEnd = 1.0 - fMarginY - fPaddingY;
    float fWidth = (xEnd - xStart);
    float fXMid = xStart + fWidth*0.5;
    
-   g_pRenderEngine->setColors(get_Color_MenuBg());
-
-   g_pRenderEngine->drawRoundRect(xStart, fMarginY, fWidth, 1.0-2.0*fMarginY, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
-   
-   if ( 1 )
-   {
-      g_pRenderEngine->setColors(get_Color_MenuBgTooltip());
-      float yTooltip = 1.0-fMarginY-m_fFooterHeight;
-      g_pRenderEngine->drawRoundRect(xStart, yTooltip, fWidth, m_fFooterHeight, MENU_ROUND_MARGIN*m_sfMenuPaddingY);
-
-      g_pRenderEngine->setColors(get_Color_MenuBg());
-      g_pRenderEngine->setStroke(get_Color_MenuBorder());
-      g_pRenderEngine->drawLine(xStart, 1.0-fMarginY-m_fFooterHeight, xStart+fWidth, 1.0-fMarginY-m_fFooterHeight);
-
-      yTooltip += 0.4*m_sfMenuPaddingY;
-
-      g_pRenderEngine->setColors(get_Color_MenuText());
-      g_pRenderEngine->drawMessageLines( xStart+m_sfMenuPaddingX, yTooltip, m_szCurrentTooltip, MENU_TEXTLINE_SPACING, fWidth-2.0*fPaddingX, m_iIdFontRegular);
-   }
-
-   xStart += fPaddingX;
-   xEnd -= fPaddingX;
-   fWidth -= 2.0 * fPaddingX;
+   xStart += m_sfMenuPaddingX;
+   xEnd -= m_sfMenuPaddingX;
+   fWidth -= 2.0 * m_sfMenuPaddingX;
 
    m_RenderXPos = xStart;
    m_RenderWidth = fWidth;
@@ -1191,45 +988,6 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
       g_pRenderEngine->drawText(xStart, yPos, m_iIdFontLarge, "No radio interfaces on controller!");
       return yPos;   
    }
-
-   /*
-   if ( NULL == g_pCurrentModel )
-   {
-      yPos += height_text*4.0;
-      g_pRenderEngine->drawText(xStart, yPos, m_iIdFontLarge, "No active vehicle. Nothing to configure.");
-      yPos += height_text*1.2;
-      g_pRenderEngine->drawText(xStart, yPos, m_iIdFontLarge, "Select a vehicle from your vehicle list or search and connect to a vehicle.");
-      return yPos;  
-   }
-   */
-   /*
-   if ( 0 == g_SM_RadioStats.countVehicleRadioLinks )
-   {
-      yPos += height_text*4.0;
-      g_pRenderEngine->drawText(xStart, yPos, m_iIdFontLarge, "No radio configuration received yet from current active vehicle.");
-      yPos += height_text*1.2;
-      g_pRenderEngine->drawText(xStart, yPos, m_iIdFontLarge, "Nothing to configure.");
-      return yPos;  
-   }
-   */
-
-   float yTmp = yPos;
-   m_fHeaderHeight = drawRadioPowersHeader(xStart, xEnd, yPos);
-   yPos += m_fHeaderHeight;
-
-   float hTotalHeight = computeHeights();
-   
-   yPos += 0.24*((yEnd-yPos) - hTotalHeight);
-
-
-   // ----------------------
-   // Draw mid separator
-
-   float fAlpha = g_pRenderEngine->setGlobalAlfa(0.5);
-   for( float fy = yTmp+height_text_large*1.2 ; fy<yPos-0.04; fy += 0.02 )
-      g_pRenderEngine->drawLine(fXMid, fy, fXMid, fy+0.01);
-   g_pRenderEngine->setGlobalAlfa(fAlpha);
-
 
    // ---------------------------------
    // Draw each radio link
@@ -1301,7 +1059,7 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd)
    return yPos;
 }
 
-float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float yStart)
+float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
    float height_text_large = g_pRenderEngine->textHeight(m_iIdFontLarge);
@@ -1309,15 +1067,13 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
    float yPos = yStart;
    float xMid = (xStart+xEnd)*0.5;
    float xMidMargin = 0.1/g_pRenderEngine->getAspectRatio();
-   bool bBBox = false;
-
    char szBuff[128];
 
-   ControllerSettings* pCS = get_ControllerSettings();
-
    float ftw = g_pRenderEngine->textWidth(m_iIdFontLarge, "Current Radio Configuration");
-   g_pRenderEngine->drawText(xStart + (xEnd-xStart - ftw)*0.5, yPos-height_text_large*0.5, m_iIdFontLarge, "Current Radio Configuration");
+   g_pRenderEngine->drawText(xStart + (xEnd-xStart - ftw)*0.5, yPos, m_iIdFontLarge, "Current Radio Configuration");
    yPos += height_text_large*1.2;
+
+   float yTmp = yPos;
 
    u32 uIdIconVehicle = g_idIconDrone;
    if ( NULL != g_pCurrentModel )
@@ -1343,139 +1099,21 @@ float MenuRadioConfig::drawRadioPowersHeader(float xStart, float xEnd, float ySt
    szBuff[0] = toupper(szBuff[0]);
    g_pRenderEngine->drawText(xRight, yPos + (hIconBig-height_text)*0.5, m_iIdFontRegular, szBuff);
    
-   yPos += height_text*1.5;
-
-   int iTotalLines = 0;
-   float dy = 0.0;
-
-   if ( m_iIndexCurrentItem < 0 )
-      m_iIndexCurrentItem = 0;
-
-   m_fXPosSiKTxPowerController = xMid - xMidMargin*1.2 - 0.03;
-   if ( m_bHas24PowerController && m_bHas58PowerController )
-   {
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24 )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 2.4Ghz: %d", pCS->iTXPowerAtheros);
-      g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24 )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58 )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", pCS->iTXPowerRTL8812AU);
-      g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig + height_text*1.4, m_iIdFontRegular, szBuff);
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58 )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iTotalLines += 2;
-      dy += 2.0*height_text*1.4;
-   }
-   else
-   {
-      if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_2458) )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      if ( m_bHas58PowerController )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerRTL8812AU);
-      else
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", pCS->iTXPowerAtheros);
-      g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);
-
-      if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_24) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_58) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_2458) )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iTotalLines++;
-      dy += height_text*1.4;
-   }
-
-   if ( m_bHasSiKPowerController )
-   {
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_SIK )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKController), pCS->iTXPowerSiK);
-      g_pRenderEngine->drawTextLeft(xMid - xMidMargin*1.2, yPos + hIconBig + dy, m_iIdFontRegular, szBuff);
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_CONTROLLER_SIK )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iTotalLines++;
-      dy += height_text*1.4;
-   }
-
+   yPos += hIconBig + height_text*2.0;
+   if ( m_iCountVehicleRadioLinks < 2 )
+      yPos += height_text;
+   
    if ( (NULL == g_pCurrentModel) || (! g_bFirstModelPairingDone) || m_bShowOnlyControllerUnusedInterfaces )
    {
-      yPos += height_text*1.1;
       g_pRenderEngine->drawMessageLines(xMid + xMidMargin*0.6, yPos, "You have no active model. No radio links are created.", MENU_TEXTLINE_SPACING, (xEnd - xMid) - m_sfMenuPaddingX - xMidMargin*0.6, m_iIdFontRegular);
-      yPos += iTotalLines*height_text*1.2;
+      yPos += height_text*1.2;
       return yPos - yStart;
    }
-   
-   int iLines = 0;
-   dy = 0.0;
 
-   if ( m_bHas24PowerVehicle && m_bHas58PowerVehicle )
-   {
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_24 )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 2.4Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
-      g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_24 )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58 )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power 5.8Ghz: %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
-      g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos +hIconBig + height_text*1.4, m_iIdFontRegular, szBuff);
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58 )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iLines += 2;
-      dy += 2.0*height_text*1.4;
-   }
-   else
-   {
-      if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_24) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_2458) )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      if ( m_bHas58PowerVehicle )
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU);
-      else
-         sprintf(szBuff,"Tx Power (2.4/5.8 Ghz): %d", g_pCurrentModel->radioInterfacesParams.txPowerAtheros);
-      g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig, m_iIdFontRegular, szBuff);
-
-      if ( ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_24) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_58) ||
-           ((m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_2458) )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iLines++;
-      dy += height_text*1.4;
-   }
-
-   if ( m_bHasSiKPowerVehicle )
-   {
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_SIK )
-         bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
-      sprintf(szBuff,"Tx Power SiK (%s): %d", str_getBandName(m_uBandsSiKVehicle), g_pCurrentModel->radioInterfacesParams.txPowerSiK);
-      g_pRenderEngine->drawText(xMid + xMidMargin*1.2, yPos + hIconBig + dy, m_iIdFontRegular, szBuff);
-
-      m_fXPosSiKTxPowerVehicle = xMid + xMidMargin*1.2 - 0.03 + g_pRenderEngine->textWidth(m_iIdFontRegular, szBuff);
-
-      if ( (m_uCommandsIds[m_iIndexCurrentItem] & 0xFF) == MRC_ID_SET_TX_POWER_VEHICLE_SIK )
-         g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
-
-      iTotalLines++;
-      dy += height_text*1.4;
-   }
-
-   if ( iLines > iTotalLines )
-      iTotalLines = iLines;
-
-   yPos += hIconBig + iTotalLines*height_text*1.4;
+   float fAlpha = g_pRenderEngine->setGlobalAlfa(0.5);
+   for( float fy = yTmp; fy<yPos-0.02 + height_text; fy += 0.02 )
+      g_pRenderEngine->drawLine(xMid, fy, xMid, fy+0.01);
+   g_pRenderEngine->setGlobalAlfa(fAlpha);
    
    return yPos - yStart;
 }
@@ -1571,8 +1209,6 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       int adaptive = ((g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK)?1:0;
       if ( adaptive )
          strcpy(szAuto, " (Auto)");
-      else
-         strcpy(szAuto, " (Fixed)");
    } 
 
    bool bShowLinkRed = false;
@@ -1764,24 +1400,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    }
    else
    {
-      /*
-      if ( ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX ) &&
-           ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX ) )
-      {
-         bRadioLinkHasUplink = true;
-         bRadioLinkHasDownlink = true;
-      }
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX )
-      if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX) )
-      {
-         bRadioLinkHasDownlink = true;
-      }
-      if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_RX )
-      if ( ! (g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_TX) )
-      {
-         bRadioLinkHasUplink = true;
-      }
-      */
+     
    }
 
    if ( ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO ) &&

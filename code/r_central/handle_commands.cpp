@@ -34,6 +34,7 @@
 #include "../base/ctrl_settings.h"
 #include "../common/models_connect_frequencies.h"
 #include "../common/string_utils.h"
+#include "../utils/utils_controller.h"
 #include "handle_commands.h"
 #include "popup.h"
 #include "popup_log.h"
@@ -753,7 +754,7 @@ bool handle_last_command_result()
    t_packet_header_command_response* pPHCR = (t_packet_header_command_response*)(s_CommandReplyBuffer + sizeof(t_packet_header));
 
    char szBuff[1500];
-   int tmp = 0, tmp1 = 0, tmp2 = 0;
+   int tmp = 0, tmp1 = 0;
    u32 *pTmp32 = NULL;
    u8* pBuffer = NULL;
    Model modelTemp;
@@ -897,6 +898,15 @@ bool handle_last_command_result()
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          break;
 
+      case COMMAND_ID_SET_AUTO_TX_POWERS:
+         g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = (int)((s_CommandParam >> 8) & 0xFF);
+         saveControllerModel(g_pCurrentModel);
+         apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
+         save_ControllerInterfacesSettings();
+         send_model_changed_message_to_router(MODEL_CHANGED_RADIO_POWERS, 0);
+         menu_invalidate_all();
+         break;
+
       case COMMAND_ID_FACTORY_RESET:
         {
            pairing_stop();
@@ -1025,7 +1035,7 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s, software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         sprintf(szBuff, "Board type: %s (id: %d), software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), g_pCurrentModel->hwCapabilities.uBoardType, ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
@@ -1508,17 +1518,30 @@ bool handle_last_command_result()
          break;
 
       case COMMAND_ID_SET_RADIO_CARD_MODEL:
-         tmp1 = (s_CommandParam & 0xFF);
-         tmp2 = ((int)((s_CommandParam >> 8) & 0xFF)) - 128;
+      {
+         int iRadioInterface = (s_CommandParam & 0xFF);
+         int iCardModel = ((int)((s_CommandParam >> 8) & 0xFF)) - 128;
 
-         if ( (tmp1 >= 0) && (tmp1 < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+         log_line("Received set radio card model response. Requested card model: %d (0x%X), received card model: %d", iCardModel, ((s_CommandParam>>8)&0xFF), (pPHCR->command_response_param & 0xFF));
+         if ( 0xFF == ((s_CommandParam>>8) & 0xFF) )
          {
-            g_pCurrentModel->radioInterfacesParams.interface_card_model[tmp1] = tmp2;
+            // requested autodetection from vehicle
+            iCardModel = (pPHCR->command_response_param & 0xFF);
+            char szMsg[128];
+            sprintf(szMsg, "The vehicle radio interface was autodetected as: %s", str_get_radio_card_model_string(iCardModel));
+            if ( NULL != menu_get_top_menu() )
+               menu_get_top_menu()->addMessage2(34, szMsg, "The selected value was updated.");
+         }
+
+         if ( (iRadioInterface >= 0) && (iRadioInterface < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+         {
+            g_pCurrentModel->radioInterfacesParams.interface_card_model[tmp1] = iCardModel;
             saveControllerModel(g_pCurrentModel);
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            menu_refresh_all_menus();
          }
          break;
-
+      }
       case COMMAND_ID_SET_RADIO_LINK_FREQUENCY:
        {
          warnings_remove_configuring_radio_link(true);
@@ -1763,12 +1786,12 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_SERIAL_PORTS_INFO:
          {
             type_vehicle_hardware_interfaces_info* pNewInfo = (type_vehicle_hardware_interfaces_info*)s_CommandBuffer;
-            g_pCurrentModel->hardwareInterfacesInfo.serial_bus_count = pNewInfo->serial_bus_count;
-            for( int i=0; i<pNewInfo->serial_bus_count; i++ )
+            g_pCurrentModel->hardwareInterfacesInfo.serial_port_count = pNewInfo->serial_port_count;
+            for( int i=0; i<pNewInfo->serial_port_count; i++ )
             {
-               strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_bus_names[i], pNewInfo->serial_bus_names[i]);
-               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_speed[i] = pNewInfo->serial_bus_speed[i];
-               g_pCurrentModel->hardwareInterfacesInfo.serial_bus_supported_and_usage[i] = pNewInfo->serial_bus_supported_and_usage[i];
+               strcpy(g_pCurrentModel->hardwareInterfacesInfo.serial_port_names[i], pNewInfo->serial_port_names[i]);
+               g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i] = pNewInfo->serial_port_speed[i];
+               g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] = pNewInfo->serial_port_supported_and_usage[i];
             }
             saveControllerModel(g_pCurrentModel);
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
@@ -1790,72 +1813,21 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_TX_POWERS:
       {
          u8* pData = &s_CommandBuffer[0];
+         int iCount = *pData;
+         pData++;
 
-         if ( s_CommandBufferLength >= 11 )
+         if ( iCount > MAX_RADIO_INTERFACES )
+            iCount = MAX_RADIO_INTERFACES;
+         for( int i=0; i<iCount; i++ )
          {
-            if ( ( s_CommandBuffer[8] == 0x81 ) && ( s_CommandBuffer[10] == 0x81 ) )
-            {
-               int iSiKPower = s_CommandBuffer[9];
-               log_line("[Commands] Received message confirmation for SiK radio power level: %d", iSiKPower);
-
-               if ( iSiKPower > 0 && iSiKPower < 30 )
-               if ( g_pCurrentModel->radioInterfacesParams.txPowerSiK != iSiKPower )
-               {
-                  log_line("[Commands] Updated current model's SiK radio power level to %d", iSiKPower);
-                  g_pCurrentModel->radioInterfacesParams.txPowerSiK = iSiKPower;
-               }
-            }
-            else
-               log_softerror_and_alarm("[Commands] Received invalid power levels message response (for SiK radio interfaces). Ignoring it.");
-            saveControllerModel(g_pCurrentModel);
-            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
-            menu_refresh_all_menus();
-            break;
+            g_pCurrentModel->radioInterfacesParams.interface_raw_power[i] = *pData;
+            pData++;
          }
 
-         u8 txPowerRTL8812AU = *pData;
-         pData++;
-         u8 txPowerRTL8812EU = *pData;
-         pData++;
-         u8 txPowerAtheros = *pData;
-         pData++;
-         u8 txMaxPowerRTL8812AU = *pData;
-         pData++;
-         u8 txMaxPowerRTL8812EU = *pData;
-         pData++;
-         u8 txMaxPowerAtheros = *pData;
-         pData++;
-         u8 cardIndex = *pData;
-         pData++;
-         u8 cardPower = *pData;
-         pData++;
-
-         log_line("[Commands] Received set tx powers confirmation: set: %d, %d, %d / max: %d, %d, %d / card: %d %d",
-            txPowerRTL8812AU, txPowerRTL8812EU, txPowerAtheros,
-            txMaxPowerRTL8812AU, txMaxPowerRTL8812EU, txMaxPowerAtheros, cardIndex, cardPower);
-
-         log_line("[Commands] Current model radio power levels: 8812AU: %d, 8812EU: %d, Atheros: %d, Max: %d, %d, %d", g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txPowerAtheros,
-            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU, g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU, g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros);
-     
-         if ( (txMaxPowerRTL8812AU > 0) && (txMaxPowerRTL8812AU != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812AU = txMaxPowerRTL8812AU;
-         if ( (txMaxPowerRTL8812EU > 0) && (txMaxPowerRTL8812EU != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txMaxPowerRTL8812EU = txMaxPowerRTL8812EU;
-         if ( (txMaxPowerAtheros > 0) && (txMaxPowerAtheros != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txMaxPowerAtheros = txMaxPowerAtheros;
-
-         if ( (txPowerRTL8812EU > 0) && (txPowerRTL8812EU != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txPowerRTL8812EU = txPowerRTL8812EU;
-         if ( (txPowerRTL8812AU > 0) && (txPowerRTL8812AU != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txPowerRTL8812AU = txPowerRTL8812AU;
-         if ( (txPowerAtheros > 0) && (txPowerAtheros != 0xFF) )
-            g_pCurrentModel->radioInterfacesParams.txPowerAtheros = txPowerAtheros;
-
-         if ( (cardPower > 0) && (cardPower != 0xFF) )
-         if ( cardIndex < g_pCurrentModel->radioInterfacesParams.interfaces_count )
-            g_pCurrentModel->radioInterfacesParams.interface_power[cardIndex] = cardPower;
-      
          saveControllerModel(g_pCurrentModel);
+         save_ControllerInterfacesSettings();
+         apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
+         save_ControllerInterfacesSettings();
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          menu_refresh_all_menus();
          break;
@@ -1911,16 +1883,6 @@ bool handle_last_command_result()
          pBuffer = s_CommandReplyBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_command_response);
 
          log_line("[Commands] Vehicle TOP output (%d chars):\n%s", iDataLength, pBuffer);
-         break;
-
-      case COMMAND_ID_SET_RADIO_SLOTTIME:
-         g_pCurrentModel->radioInterfacesParams.slotTime = s_CommandParam;
-         saveControllerModel(g_pCurrentModel);         
-         break;
-
-      case COMMAND_ID_SET_RADIO_THRESH62:
-         g_pCurrentModel->radioInterfacesParams.thresh62 = s_CommandParam;
-         saveControllerModel(g_pCurrentModel);         
          break;
 
       case COMMAND_ID_DOWNLOAD_FILE:

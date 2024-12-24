@@ -69,6 +69,9 @@ typedef struct
 {
    int user_selected_video_link_profile; // set by user on the controller
    int iH264Slices;
+   int iRemovePPSVideoFrames;
+   int iInsertPPSVideoFrames;
+   int iInsertSPTVideoFramesTimings;
    int videoAdjustmentStrength; // 1..10 (from 10% to 100% strength)
    u32 lowestAllowedAdaptiveVideoBitrate;
    u32 uMaxAutoKeyframeIntervalMs; // in milisec
@@ -117,7 +120,7 @@ typedef struct
    int h264level; //0 = 4.0, 1 = 4.1, 2 = 4.2
    int h264refresh; // 0 = cyclic, 1 = adaptive, 2 = both, 3 = cyclicrows
    int h264quantization; // 0 - auto, // pozitive - value to use, // negative - value when disabled (auto)
-   u8 insertPPS;
+   int iIPQuantizationDelta;
 
    int width;
    int height;
@@ -280,8 +283,8 @@ typedef struct
 
 #define MAX_MODEL_I2C_BUSSES 6
 #define MAX_MODEL_I2C_DEVICES 16
-#define MAX_MODEL_SERIAL_BUSSES 6
-#define MAX_MODEL_SERIAL_BUS_NAME 16
+#define MAX_MODEL_SERIAL_PORTS 6
+#define MAX_MODEL_SERIAL_PORT_NAME 16
 
 #define MODEL_SERIAL_PORT_BIT_EXTRNAL_USB ((u32)(((u32)0x01)<<11))
 #define MODEL_SERIAL_PORT_BIT_SUPPORTED ((u32)(((u32)0x01)<<12))
@@ -294,15 +297,15 @@ typedef struct
    int i2c_devices_bus[MAX_MODEL_I2C_DEVICES];
    int radio_interface_count;
 
-   int serial_bus_count;
-   char serial_bus_names[MAX_MODEL_SERIAL_BUSSES][MAX_MODEL_SERIAL_BUS_NAME];
-   u32 serial_bus_supported_and_usage[MAX_MODEL_SERIAL_BUSSES];
+   int serial_port_count;
+   char serial_port_names[MAX_MODEL_SERIAL_PORTS][MAX_MODEL_SERIAL_PORT_NAME];
+   u32 serial_port_supported_and_usage[MAX_MODEL_SERIAL_PORTS];
      // byte 0: usage type; same as hardware_serial enum: SERIAL_PORT_USAGE_xxxx
      // byte 1: bits 0...3 usb or hardware port index
      //         bits 4 : 0 - hardware builtin, 1 - on usb
      //         bits 5 : supported 0/1
 
-   int serial_bus_speed[MAX_MODEL_SERIAL_BUSSES];
+   int serial_port_speed[MAX_MODEL_SERIAL_PORTS];
 } type_vehicle_hardware_interfaces_info;
 
 
@@ -367,21 +370,30 @@ typedef struct
 
 typedef struct
 {
-   int txPowerRTL8812AU;
-   int txPowerRTL8812EU;
-   int txPowerAtheros;
-   int txPowerSiK;
-   int txMaxPowerRTL8812AU;
-   int txMaxPowerRTL8812EU;
-   int txMaxPowerAtheros;
-   int slotTime;
-   int thresh62;
+   //int txPowerRTL8812AU;
+   //int txPowerRTL8812EU;
+   //int txPowerAtheros;
+   //int txPowerSiK;
+   //int txMaxPowerRTL8812AU;
+   //int txMaxPowerRTL8812EU;
+   //int txMaxPowerAtheros;
+   //int slotTime;
+   //int thresh62;
+   int iAutoVehicleTxPower;
+   int iAutoControllerTxPower;
+   int iDummyR3;
+   int iDummyR4;
+   int iDummyR5;
+   int iDummyR6;
+   int iDummyR7;
+   int iDummyR8;
+   int iDummyR9;
 
    int  interfaces_count;
    int  interface_card_model[MAX_RADIO_INTERFACES]; // 0 or positive - autodetected, negative - user set
    int  interface_link_id[MAX_RADIO_INTERFACES];
-   int  interface_power[MAX_RADIO_INTERFACES];
-   u32  interface_radiotype_and_driver[MAX_RADIO_INTERFACES]; // first byte: radio type, second byte = driver type, third byte: supported card flag
+   int  interface_raw_power[MAX_RADIO_INTERFACES];
+   u32  interface_radiotype_and_driver[MAX_RADIO_INTERFACES]; // low byte: radio type, second byte = driver type, third byte: supported card flag
    u8   interface_supported_bands[MAX_RADIO_INTERFACES];  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
    char interface_szMAC[MAX_RADIO_INTERFACES][MAX_MAC_LENGTH];
    char interface_szPort[MAX_RADIO_INTERFACES][6]; // first byte - first char, sec byte - sec char
@@ -389,10 +401,6 @@ typedef struct
    u32  interface_current_frequency_khz[MAX_RADIO_INTERFACES]; // current frequency for this card
    u32  interface_current_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: frame type, STBC, LDP, MCS etc
    
-   // Deprecated in 9.5
-   //int  interface_datarate_video_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
-   //int  interface_datarate_data_bps[MAX_RADIO_INTERFACES]; // 0 - auto (use radio link datarates), positive: bps, negative (-1 or less): MCS rate
-   int  interface_dummy1[MAX_RADIO_INTERFACES];
    int  interface_dummy2[MAX_RADIO_INTERFACES];
 
 } type_radio_interfaces_parameters;
@@ -476,7 +484,8 @@ typedef struct
    int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
    int iMaxTxVideoBlockPackets; // max packets in a video block
    u32 uFlags;
-   int dummyhwc[2];
+   u32 uRubyBaseVersion;
+   int dummyhwc[1];
    u32 dummyhwc2[3];
 } type_hardware_capabilities;
 
