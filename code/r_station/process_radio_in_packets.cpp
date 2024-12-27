@@ -281,9 +281,6 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       s_uTimeLastReceivedAlarm = g_TimeNow;
       
-      if ( uAlarm & ALARM_ID_RECEIVED_INVALID_RADIO_PACKET )
-         s_bReceivedInvalidRadioPackets = true;
-
       if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
       {
          g_bIsVehicleLinkToControllerLost = true;

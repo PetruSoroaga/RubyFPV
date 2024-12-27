@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -602,6 +602,14 @@ int hardware_board_is_raspberry(u32 uBoardType)
    if ( (uBoardType & BOARD_TYPE_MASK) <= BOARD_TYPE_PI4B )
       return 1;
    return 0;
+}
+
+int hardware_board_is_radxa(u32 uBoardType)
+{
+   if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3) ||
+        ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C) )
+      return 1;
+   return 0; 
 }
 
 int hardware_board_is_openipc(u32 uBoardType)
@@ -1964,26 +1972,37 @@ void _hardware_set_int_affinity_core(const char* szIntName, int iCoreIndex)
 
    char szComm[256];
    char szOutput[256];
-   szOutput[0] = 0;
-   sprintf(szComm, "cat /proc/interrupts | grep %s", szIntName);
-   hw_execute_bash_command(szComm, szOutput);
-   for( int i=0; i<(int)strlen(szOutput); i++ )
+   for( int i=0; i<6; i++ )
    {
-      if ( ! isdigit(szOutput[i]) )
-         szOutput[i] = ' ';
-   }
-   int iIntNumber = -1;
-   if ( 1 != sscanf(szOutput, "%d", &iIntNumber) )
-      iIntNumber = -1;
+      szOutput[0] = 0;
+      sprintf(szComm, "cat /proc/interrupts | grep -m 6 %s | sed -n %dp", szIntName, i+1);
+      hw_execute_bash_command(szComm, szOutput);
+      int iLen = (int)strlen(szOutput);
+      if ( 0 == iLen )
+         break;
+      bool bHasDigits = false;
+      for( int i=0; i<iLen; i++ )
+      {
+         if ( ! isdigit(szOutput[i]) )
+            szOutput[i] = ' ';
+         else
+            bHasDigits = true;
+      }
+      if ( ! bHasDigits )
+         break;
+      int iIntNumber = -1;
+      if ( 1 != sscanf(szOutput, "%d", &iIntNumber) )
+         iIntNumber = -1;
 
-   if ( -1 == iIntNumber )
-   {
-      log_softerror_and_alarm("Can't find interrupt number for interrupt: (%s)", szIntName);
-      return;
-   }
+      if ( -1 == iIntNumber )
+      {
+         log_softerror_and_alarm("Can't find interrupt number for interrupt: (%s)", szIntName);
+         continue;
+      }
 
-   sprintf(szComm, "echo %d > /proc/irq/%d/smp_affinity", iCoreIndex+1, iIntNumber);
-   hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "echo %d > /proc/irq/%d/smp_affinity", iCoreIndex+1, iIntNumber);
+      hw_execute_bash_command(szComm, NULL);
+   }
 }
 
 void hardware_balance_interupts()
@@ -1996,10 +2015,9 @@ void hardware_balance_interupts()
       iCPUCoresCount = 1;
    if ( iCPUCoresCount > 1 )
    {
-      log_line("Balancing interrupts...");
+      log_line("Balancing interrupts (%d cores)...", iCPUCoresCount);
       _hardware_set_int_affinity_core(":usb", 1);
       _hardware_set_int_affinity_core("ms_serial", 1);
-      _hardware_set_int_affinity_core("ms_serial_dma", 1);
    }
    else
       log_line("Can't balance interrupts: single core CPU.");

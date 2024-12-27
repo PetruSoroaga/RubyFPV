@@ -361,11 +361,12 @@ int init_Radios()
       //}
       hardware_sleep_ms(2*uDelayMS);
 
-      for( int k=0; k<3; k++ )
+      for( int k=0; k<4; k++ )
       {
          //sprintf(szComm, "ifconfig | grep %s", pRadioHWInfo->szName);
          sprintf(szComm, "ip link | grep %s", pRadioHWInfo->szName);
          hw_execute_bash_command(szComm, szOutput);
+         removeNewLines(szOutput);
          if ( 0 != szOutput[0] )
          {
             log_line("Radio interface %s state: [%s]", pRadioHWInfo->szName, szOutput);

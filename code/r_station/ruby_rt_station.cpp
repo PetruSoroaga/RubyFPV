@@ -560,7 +560,6 @@ bool links_set_cards_frequencies_for_search( u32 uSearchFreq, bool bSiKSearch, i
    else
       log_line("No SiK mode update. Just change all interfaces frequencies");
    
-   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
    Preferences* pP = get_Preferences();
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -686,8 +685,6 @@ bool links_set_cards_frequencies_and_params(int iVehicleLinkId)
    else
       log_line("Links: Setting cards frequencies and params only for vehicle radio link %d", iVehicleLinkId+1);
 
-   ControllerSettings* pCS = get_ControllerSettings();
-   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
    Preferences* pP = get_Preferences();
          
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )

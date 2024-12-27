@@ -50,7 +50,7 @@ void do_first_boot_pre_initialization()
    log_line("---------------------------------------");
    log_line("Do first time boot preinitialization...");
 
-   hardware_install_drivers();
+   hardware_install_drivers(1);
 
    #if defined HW_PLATFORM_RASPBERRY
    printf("\nRuby doing first time ever initialization on Raspberry. Please wait...\n");

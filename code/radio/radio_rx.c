@@ -757,9 +757,9 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBuffer;
       u32 uVehicleId = 0;
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         uVehicleId = pPH->vehicle_id_src;
-      else
          uVehicleId = pPHC->vehicle_id_src;
+      else
+         uVehicleId = pPH->vehicle_id_src;
 
       int nLost = _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
       if ( nLost > 0 )

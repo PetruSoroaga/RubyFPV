@@ -797,6 +797,16 @@ int _step_check_file_system()
       if ( readWriteRetryCount > 50 )
       {
          printf("\nError accessing the file system. Abort.\n\n");
+
+         strcpy(szFile, FOLDER_LOGS);
+         strcat(szFile, LOG_FILE_START);
+         fd = fopen(szFile, "a+");
+         if ( NULL != fd )
+         {
+            fprintf(fd, "Access to files failed after %d tries. Boot count now: %d\n", readWriteRetryCount, s_iBootCount);
+            fclose(fd);
+            fd = NULL;
+         }
          return -1;
       }
       hardware_sleep_ms(100);
@@ -892,14 +902,14 @@ int _step_check_file_system()
          continue;
       }
 
-      fprintf(fd, "Check for write access, succeeded on try number: %d (boot count: %d)\n", readWriteRetryCount, s_iBootCount);
+      fprintf(fd, "Check for write access (step 1), succeeded on try number: %d (boot count: %d)\n", readWriteRetryCount, s_iBootCount);
 
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_BOOT_COUNT);
       FILE* fd2 = fopen(szFile, "wb");
       if ( NULL == fd2 )
       {
-         fprintf(fd, "Failed to open boot count config file for write [%s].", szFile);
+         fprintf(fd, "Failed to open boot count config file for write [%s].\n", szFile);
          fclose(fd);
          fd = NULL;
          printf("Can't access config folder (%s)\n", FOLDER_CONFIG);
@@ -909,8 +919,10 @@ int _step_check_file_system()
       fclose(fd2);
       fd2 = NULL;
 
+      fprintf(fd, "Check for write access (step 2), succeeded on try number: %d (boot count: %d)\n", readWriteRetryCount, s_iBootCount);
       fclose(fd);
       fd = NULL;
+
       readWriteOk = true;
    }
 
@@ -919,7 +931,10 @@ int _step_check_file_system()
    fd = fopen(szFile, "a+");
    if ( NULL != fd )
    {
-      fprintf(fd, "Access to files ok. Boot count now: %d\n", s_iBootCount);
+      if ( readWriteOk )
+         fprintf(fd, "Access to files ok. Boot count now: %d\n", s_iBootCount);
+      else
+         fprintf(fd, "Access to files failed. Boot count now: %d\n", s_iBootCount);
       fclose(fd);
       fd = NULL;
    }
@@ -1073,7 +1088,7 @@ void  _step_load_init_radios()
    
    hardware_radio_load_radio_modules(1);
      
-   hardware_sleep_ms(50);
+   hardware_sleep_ms(500);
 
    char szComm[256];
    char szBuff[256];
@@ -1083,42 +1098,50 @@ void  _step_load_init_radios()
    int iMaxWifiCardsToDetect = 4;
    int iWifiIndexToTry = 0;
 
-   while ( iCount < 3 )
-   {
-      iCount++;
+   while ( iCount < iMaxWifiCardsToDetect*2 )
+   {      
+      szOutput[0] = 0;
+      hw_execute_bash_command_raw("lsmod | grep 88", szOutput);
+      removeNewLines(szOutput);
+      log_line("Content of lsmod: [%s]", szOutput);
+
+      szOutput[0] = 0;
+      hw_execute_bash_command_raw("ip link | grep wl", szOutput);
+      removeNewLines(szOutput);
+      log_line("Content of ip link: [%s]", szOutput);
+
       szOutput[0] = 0;
       hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
+      removeNewLines(szOutput);
+      log_line("Content of class net: [%s]", szOutput);
 
-      for( int i=0; i<iMaxWifiCardsToDetect; i++ )
+      sprintf(szBuff, "wlan%d", iWifiIndexToTry);
+      if ( NULL != strstr(szOutput, szBuff) )
       {
-         sprintf(szBuff, "wlan%d", i);
-         if ( i == iWifiIndexToTry )
-         if ( NULL != strstr(szOutput, szBuff) )
-         {
-            log_line("WiFi detected on the first try: [%s]", szOutput);
-            bWiFiDetected = true;
-            break;
-         }
+         log_line("wlan%d detected on the first try: [%s]", iWifiIndexToTry, szOutput);
+         bWiFiDetected = true;
       }
 
       if ( bWiFiDetected )
          break;
 
-      hardware_radio_load_radio_modules(1);
-
       for( int i=0; i<iMaxWifiCardsToDetect; i++ )
       {
-         //sprintf(szComm, "ifconfig wlan%d down", i );
-         sprintf(szComm, "ip link set dev wlan%d down", i );
-         hw_execute_bash_command(szComm, NULL);
-         hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
-         //sprintf(szComm, "ifconfig wlan%d up", i );
-         sprintf(szComm, "ip link set dev wlan%d up", i );
-         hw_execute_bash_command(szComm, NULL);
-         hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
+         sprintf(szComm, "ip link | grep wlan%d", i);
+         hw_execute_bash_command_raw(szComm, szOutput);
+         removeNewLines(szOutput);
+         if ( NULL != strstr(szOutput, "wlan") )
+         {
+            sprintf(szComm, "ip link set dev wlan%d down", i );
+            hw_execute_bash_command(szComm, NULL);
+            hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
+            sprintf(szComm, "ip link set dev wlan%d up", i );
+            hw_execute_bash_command(szComm, NULL);
+            hardware_sleep_ms(2*DEFAULT_DELAY_WIFI_CHANGE);
+         }
       }
       
-      log_line("Trying detect wifi cards (%d)...", iCount);
+      log_line("Trying detect wifi cards (try %d)...", iCount);
       printf("Ruby: Trying to detect 2.4/5.8 Ghz cards...\n");
       fflush(stdout);
       
@@ -1131,20 +1154,28 @@ void  _step_load_init_radios()
          hardware_sleep_ms(170);
       }
 
+      iCount++;
       iWifiIndexToTry++;
       if ( iWifiIndexToTry >= iMaxWifiCardsToDetect )
+      {
          iWifiIndexToTry = 0;
+         hardware_radio_load_radio_modules(1);
+         hardware_sleep_ms(1000);
+      }
    }
-   
-   //sprintf(szComm, "ifconfig -a 2>&1 | grep wlan%d", iWifiIndexToTry);
-   sprintf(szComm, "ip link 2>&1 | grep wlan%d", iWifiIndexToTry);
-   hw_execute_bash_command_raw(szComm, szOutput);
-   log_line("Radio interface wlan%d state: [%s]", iWifiIndexToTry, szOutput);
 
+   for( int i=0; i<=iWifiIndexToTry; i++ )
+   {
+      sprintf(szComm, "ip link 2>&1 | grep wlan%d", i);
+      hw_execute_bash_command_raw(szComm, szOutput);
+      removeNewLines(szOutput);
+      log_line("Radio interface wlan%d state: [%s]", i, szOutput);
+   }
    if ( ! bWiFiDetected )
       log_softerror_and_alarm("Failed to find any wifi cards.");
 
    hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
+   removeNewLines(szOutput);
    log_line("Network devices found: [%s]", szOutput);
 
    for( int i=0; i<iMaxWifiCardsToDetect; i++ )
@@ -1154,6 +1185,7 @@ void  _step_load_init_radios()
       {
          sprintf(szComm, "cat /sys/class/net/wlan%d/device/uevent", i);
          hw_execute_bash_command_raw(szComm, szOutput);
+         removeNewLines(szOutput);
          log_line("Network wlan0 info: [%s]", szOutput);
       }
    }
@@ -1266,13 +1298,18 @@ int main(int argc, char *argv[])
 
    if ( ! _step_find_console() )
       return 0;
-
+   log_line_forced_to_file("Found good console. Continuing...");
    log_arguments(argc, argv);
    printf("\nRuby: Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
    fflush(stdout);
 
    if ( _step_check_file_system() < 0 )
+   {
+      #if defined HW_PLATFORM_OPENIPC_CAMERA
+      hw_execute_bash_command("firstboot", NULL);
+      #endif
       return 0;
+   }
    _step_check_binaries_and_processes();
 
    char szComm[1204];
@@ -1564,7 +1601,10 @@ int main(int argc, char *argv[])
 
       hardware_sleep_ms(500);
       if ( ! g_bDebug )
+      {
+         hw_execute_bash_command("sudo raspi-config --expand-rootfs > /dev/null 2>&1", NULL);
          hardware_reboot();
+      }
       return 0;
    }
  

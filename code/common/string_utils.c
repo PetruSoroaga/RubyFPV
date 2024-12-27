@@ -629,7 +629,7 @@ char* str_format_frequency_no_sufix(u32 uFrequencyKhz)
 const char* str_get_hardware_board_name(u32 board_type)
 {
    static const char* s_szBoardTypeUnknown = "Unknown";
-   #ifdef HW_PLATFORM_RASPBERRY
+
    static const char* s_szBoardTypePi0 = "Raspberry Pi Zero";
    static const char* s_szBoardTypePi0W = "Raspberry Pi Zero W";
    static const char* s_szBoardTypePi02 = "Raspberry Pi Zero 2";
@@ -640,11 +640,10 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypePi3B = "Raspberry Pi 3B";
    static const char* s_szBoardTypePi3BP = "Raspberry Pi 3B+";
    static const char* s_szBoardTypePi4B = "Raspberry Pi 4B";
-   #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+
    static const char* s_szBoardTypeRadxaZero3 = "Radxa Zero 3";
    static const char* s_szBoardTypeRadxa3C = "Radxa 3C";
-   #endif
+
    static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
    static const char* s_szBoardTypeOpenIPCGoke300 = "OpenIPC Goke300";
@@ -656,7 +655,6 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypeOpenIPCSigmasterEMax = "EMax";
    static const char* s_szBoardTypeOpenIPCSigmasterThinker = "OpenIPC Thinker";
 
-   #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
       return s_szBoardTypePi0;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW )
@@ -677,14 +675,11 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypePi3BP;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardTypePi4B;
-   #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
       return s_szBoardTypeRadxaZero3;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       return s_szBoardTypeRadxa3C;
-   #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
       return s_szBoardTypeOpenIPCGoke200;
@@ -711,7 +706,7 @@ const char* str_get_hardware_board_name(u32 board_type)
 const char* str_get_hardware_board_name_short(u32 board_type)
 {
    static const char* s_szBoardSTypeUnknown = "Unknown";
-   #ifdef HW_PLATFORM_RASPBERRY
+
    static const char* s_szBoardSTypePi0 = "Pi 0";
    static const char* s_szBoardSTypePi0W = "Pi 0W";
    static const char* s_szBoardSTypePi02 = "Pi 02";
@@ -722,12 +717,9 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypePi3B = "Pi 3B";
    static const char* s_szBoardSTypePi3BP = "Pi 3B+";
    static const char* s_szBoardSTypePi4B = "Pi 4B";
-   #endif
 
-   #ifdef HW_PLATFORM_RADXA_ZERO3
    static const char* s_szBoardSTypeRadxaZero3 = "Radxa Zero3";
    static const char* s_szBoardSTypeRadxa3C = "Radxa 3C";
-   #endif
 
    static const char* s_szBoardSTypeOpenIPCGoke200 = "Goke200";
    static const char* s_szBoardSTypeOpenIPCGoke210 = "Goke210";
@@ -740,7 +732,6 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypeOpenIPCSigmasterEMax = "EMax";
    static const char* s_szBoardSTypeOpenIPCSigmasterThinker = "Thinker";
 
-   #ifdef HW_PLATFORM_RASPBERRY
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO )
       return s_szBoardSTypePi0;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW )
@@ -761,14 +752,11 @@ const char* str_get_hardware_board_name_short(u32 board_type)
       return s_szBoardSTypePi3BP;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B )
       return s_szBoardSTypePi4B;
-   #endif
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3 )
       return s_szBoardSTypeRadxaZero3;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       return s_szBoardSTypeRadxa3C;
-   #endif
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
       return s_szBoardSTypeOpenIPCGoke200;
@@ -824,7 +812,6 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
    
    strcpy(szOutput, "Unknown");
 
-   #ifdef HW_PLATFORM_RASPBERRY   
    if ( camType == CAMERA_TYPE_CSI )
       strcpy(szOutput, "Standard CSI");
    else if ( camType == CAMERA_TYPE_VEYE290 )
@@ -839,7 +826,6 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
       strcpy(szOutput, "USB");
    else if ( camType == CAMERA_TYPE_IP )
       strcpy(szOutput, "IP");
-   #endif
 
    if ( camType == CAMERA_TYPE_OPENIPC_IMX307 )
       strcpy(szOutput, "Sony IMX307");

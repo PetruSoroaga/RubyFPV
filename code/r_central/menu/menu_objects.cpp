@@ -2030,9 +2030,35 @@ static void * _thread_generate_upload(void *argument)
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
+   // Drivers not needed for now to be uploaded
+   /*
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s 2>/dev/null", FOLDER_DRIVERS, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
 
+   // Remove unnecessary drivers
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*pi*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*radxa*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   else if ( g_pCurrentModel->isRunningOnPiHardware() )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*oipc*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*radxa*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   else if ( g_pCurrentModel->isRunningOnRadxaHardware() )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*pi*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*oipc*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   */
+   
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %smaj* %s 2>/dev/null", szFolderLocalUpdateBinaries, szPathTempUpload);

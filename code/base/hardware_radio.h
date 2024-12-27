@@ -182,10 +182,13 @@ void hardware_reset_radio_enumerated_flag();
 int hardware_enumerate_radio_interfaces();
 int hardware_enumerate_radio_interfaces_step(int iStep);
 
+int hardware_load_driver_rtl8812au();
+int hardware_load_driver_rtl8812eu();
 int hardware_radio_load_radio_modules(int iEchoToConsole);
-int hardware_install_driver_rtl8812au(int iRemoveFirst);
-int hardware_install_driver_rtl8812eu(int iRemoveFirst);
-void hardware_install_drivers();
+int hardware_install_driver_rtl8812au(int iEchoToConsole);
+int hardware_install_driver_rtl8812eu(int iEchoToConsole);
+void hardware_install_drivers(int iEchoToConsole);
+
 int hardware_radio_get_driver_id_for_product_id(const char* szProdId);
 
 int hardware_get_radio_interfaces_count();

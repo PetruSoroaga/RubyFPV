@@ -63,7 +63,7 @@ extern u32 s_uRadioRxTimeNow;
 
 void _radio_dd_reset_duplication_stats_for_vehicle(int iVehicleIndex, int iReason)
 {
-   if ( iVehicleIndex < 0 || iVehicleIndex >= MAX_CONCURENT_VEHICLES )
+   if ( (iVehicleIndex < 0) || (iVehicleIndex >= MAX_CONCURENT_VEHICLES) )
       return;
 
    log_line("[RadioRxThread] Reset duplicate detection info for VID %u, buff index %d, reason: %d", s_ListHistoryRxPacketsVehicles[iVehicleIndex].uVehicleId, iVehicleIndex, iReason);
@@ -240,6 +240,7 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
    if ( hardware_radio_index_is_serial_radio(iRadioInterfaceIndex) )
       uMaxDeltaForDataStream = 200;
 
+   if ( uStreamIndex < STREAM_ID_VIDEO_1 )
    if ((pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex > uMaxDeltaForDataStream ) && 
            (uStreamPacketIndex < pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex - uMaxDeltaForDataStream) )
    if ( pDupInfo->streamsPacketsHistory[uStreamIndex].uLastTimeReceivedPacket > uTimeNow - 4000 )
@@ -265,6 +266,7 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
    if ( pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex > uStreamPacketIndex + uMaxDeltaForDataStream )
       iStreamRestarted = 1;
 
+   if ( 0 != pDupInfo->streamsPacketsHistory[uStreamIndex].uLastTimeReceivedPacket )
    if ( pDupInfo->streamsPacketsHistory[uStreamIndex].uLastTimeReceivedPacket < uTimeNow - 8000 )
    if ( uStreamPacketIndex+10 < pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex )
       iStreamRestarted = 1;

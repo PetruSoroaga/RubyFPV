@@ -1143,6 +1143,61 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
    return 1;
 }
 
+
+int hardware_load_driver_rtl8812au()
+{
+   #if defined HW_PLATFORM_OPENIPC_CAMERA
+   hw_execute_bash_command("modprobe cfg80211", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/88XXau.ko rtw_tx_pwr_idx_override=1", NULL);
+   hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1", NULL);
+   return 1;
+   #endif
+
+   char szPlatform[128];
+   char szOutput[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   
+   log_line("[Hardware] Loading driver RTL8812AU for platform: %s ...", szPlatform);
+
+   hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+   hw_execute_bash_command("sudo modprobe 88XXau rtw_tx_pwr_idx_override=1", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to load driver 8812AU on platform (%s), error: (%s)", szPlatform, szOutput);
+      return 0;
+   }
+
+   return 1;
+}
+
+int hardware_load_driver_rtl8812eu()
+{
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command("modprobe cfg80211", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   return 1;
+   #endif
+
+   char szPlatform[128];
+   char szOutput[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   
+   log_line("[Hardware] Loading driver RTL8812EU for platform: %s ...", szPlatform);
+
+   hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+   hw_execute_bash_command("sudo modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to load driver 8812EU on platform (%s), error: (%s)", szPlatform, szOutput);
+      return 0;
+   }
+
+   return 1;
+}
+
 // Called only once, from ruby_start process
 int hardware_radio_load_radio_modules(int iEchoToConsole)
 {
@@ -1201,7 +1256,8 @@ int hardware_radio_load_radio_modules(int iEchoToConsole)
          printf("Ruby: Adding radio modules for RTL8812AU radio cards...\n");
          fflush(stdout);
       }
-      if ( 1 != hardware_install_driver_rtl8812au(0) )
+      log_line("[HardwareRadio] Found RTL8812AU cards. Loading module...");
+      if ( 1 != hardware_load_driver_rtl8812au() )
       {
          log_softerror_and_alarm("[HardwareRadio] Error on loading driver RTL8812AU");
          if ( iEchoToConsole )
@@ -1224,9 +1280,9 @@ int hardware_radio_load_radio_modules(int iEchoToConsole)
          printf("Ruby: Adding radio modules for RTL8812EU radio cards...\n");
          fflush(stdout);
       }
-      log_line("[HardwareRadio] Found RTL8812EU card. Loading module...");
+      log_line("[HardwareRadio] Found RTL8812EU cards. Loading module...");
 
-      if ( 1 != hardware_install_driver_rtl8812eu(0) )    
+      if ( 1 != hardware_load_driver_rtl8812eu() )    
       {
          log_softerror_and_alarm("[HardwareRadio] Error on loading driver RTL8812EU");
          if ( iEchoToConsole )
@@ -1267,137 +1323,221 @@ int hardware_radio_load_radio_modules(int iEchoToConsole)
 }
 
 
-int hardware_install_driver_rtl8812au(int iRemoveFirst)
+int hardware_install_driver_rtl8812au(int iEchoToConsole)
 {
-   hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   char szOutput[1024];
-   char szPlatform[256];
-   char szDriver[128];
-   char szDriverFullPath[MAX_FILE_PATH_SIZE];
-   szDriver[0] = 0;
-   hw_execute_bash_command("uname -r", szPlatform);
-
-   #if defined HW_PLATFORM_RASPBERRY
-   if ( NULL != strstr(szPlatform, "v7l+") )
-      strcpy(szDriver, "88XXau-pi+.ko");
-   else
-      strcpy(szDriver, "88XXau-pi.ko");
-   #endif
-
-   #if defined HW_PLATFORM_RADXA_ZERO3
-   strcpy(szDriver, "88XXau-radxa.ko");
-   #endif
-
    #if defined HW_PLATFORM_OPENIPC_CAMERA
-   hw_execute_bash_command("modprobe 88XXau rtw_tx_pwr_idx_override=1", szOutput);
+   return 1;
    #endif
 
-   if ( 0 != szDriver[0] )
+   char szPlatform[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   log_line("[HardwareRadio] Installing RTL8812AU driver for platform: [%s]", szPlatform);
+   if ( iEchoToConsole )
    {
-      szOutput[0] = 0;
-      strcpy(szDriverFullPath, FOLDER_BINARIES);
-      strcat(szDriverFullPath, "drivers/");
-      strcat(szDriverFullPath, szDriver);
-      if ( access(szDriverFullPath, R_OK) != -1 )
-      {
-         if ( iRemoveFirst )
-            hw_execute_bash_command("rmmod 88XXau 2>&1 1>/dev/null", NULL);
-         char szComm[256];
-         sprintf(szComm, "insmod %s rtw_tx_pwr_idx_override=1 2>&1", szDriverFullPath);
-         hw_execute_bash_command_raw(szComm, szOutput);
-      }
-      if ( (iRemoveFirst) && (strlen(szOutput) > 10) )
-      {
-         log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriver, szPlatform, szOutput);
-         return 0;
-      }
+      printf("Ruby: Installing RTL8812AU driver for platform: %s ...\n", szPlatform);
+      fflush(stdout);
    }
-   return 1;
-}
 
-int hardware_install_driver_rtl8812eu(int iRemoveFirst)
-{
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
    char szOutput[1024];
-   char szDriver[128];
-   char szPlatform[256];
    char szDriverFullPath[MAX_FILE_PATH_SIZE];
-   szDriver[0] = 0;
-
-   hw_execute_bash_command("uname -r", szPlatform);
+   char szDriverFile[128];
+   szDriverFile[0] = 0;
 
    #if defined HW_PLATFORM_RASPBERRY
    if ( NULL != strstr(szPlatform, "v7l+") )
-      strcpy(szDriver, "/home/pi/8812eu-pi+.ko");
+      strcpy(szDriverFile, "88XXau-pi+.ko");
    else
-      strcpy(szDriver, "/home/pi/8812eu-pi.ko");
+      strcpy(szDriverFile, "88XXau-pi.ko");
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
-   strcpy(szDriver, "8812eu-radxa.ko");
+   strcpy(szDriverFile, "88XXau-radxa.ko");
    #endif
 
-   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   hw_execute_bash_command("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1 1>/dev/null", szOutput);
-   #endif
-
-   if ( 0 != szDriver[0] )
+   if ( 0 == szDriverFile[0] )
    {
-      szOutput[0] = 0;
-      strcpy(szDriverFullPath, FOLDER_BINARIES);
-      strcat(szDriverFullPath, "drivers/");
-      strcat(szDriverFullPath, szDriver);
-      if ( access(szDriver, R_OK) != -1 )
-      {
-         if ( iRemoveFirst )
-            hw_execute_bash_command("rmmod 8812eu 2>&1 1>/dev/null", NULL);
-         char szComm[256];
-         sprintf(szComm, "insmod %s rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szDriverFullPath);
-         hw_execute_bash_command_raw(szComm, szOutput);
-      }
-      if ( iRemoveFirst && (strlen(szOutput) > 10) )
-      {
-         log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriver, szPlatform, szOutput);
-         return 0;
-      }
+      log_softerror_and_alarm("[HardwareRadio] Could not find a driver for RTL8812AU");
+      return 0;
    }
+
+   strcpy(szDriverFullPath, FOLDER_BINARIES);
+   strcat(szDriverFullPath, "drivers/");
+   strcat(szDriverFullPath, szDriverFile);
+   log_line("Driver file to use: [%s]", szDriverFullPath);
+   
+   if ( access(szDriverFullPath, R_OK) == -1 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
+      return 0;
+   }
+
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko", szDriverFullPath, szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko rtw_tx_pwr_idx_override=1 2>&1", szPlatform);
+   hw_execute_bash_command_raw(szComm, szOutput);
+   hw_execute_bash_command("depmod -a", NULL);
+   hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
+      return 0;
+   }
+
    return 1;
 }
 
-void hardware_install_drivers()
+int hardware_install_driver_rtl8812eu(int iEchoToConsole)
 {
-   log_line("[Hardware] Installing drivers...");
-   
-   hardware_install_driver_rtl8812au(1);
-   hardware_install_driver_rtl8812eu(1);
-  
+   #if defined HW_PLATFORM_OPENIPC_CAMERA
+   return 1;
+   #endif
+
+   char szPlatform[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   log_line("[HardwareRadio] Installing RTL8812EU driver for platform: [%s]", szPlatform);
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Installing RTL8812EU driver for platform: %s ...\n", szPlatform);
+      fflush(stdout);
+   }
+
+   hw_execute_bash_command("sudo modprobe cfg80211", NULL);
+   char szOutput[1024];
+   char szDriverFullPath[MAX_FILE_PATH_SIZE];
+   char szDriverFile[128];
+   szDriverFile[0] = 0;
+
    #if defined HW_PLATFORM_RASPBERRY
-  
-   hw_execute_bash_command("depmod -a", NULL);
-   hw_execute_bash_command("lsusb", NULL);
-   //hw_execute_bash_command("sudo modprobe -f 88XXau 2>&1 1>/dev/null", NULL);
-   //hw_execute_bash_command("sudo modprobe -f 8812eu 2>&1 1>/dev/null", NULL);
-   hw_execute_bash_command("lsusb", NULL);
-   hw_execute_bash_command("lsmod", NULL);
-   hw_execute_bash_command("ip link", NULL);
-   hw_execute_bash_command("sync", NULL);
-   
+   if ( NULL != strstr(szPlatform, "v7l+") )
+      strcpy(szDriverFile, "8812eu-pi+.ko");
+   else
+      strcpy(szDriverFile, "8812eu-pi.ko");
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
+   strcpy(szDriverFile, "8812eu-radxa.ko");
+   #endif
 
+   if ( 0 == szDriverFile[0] )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Could not find a driver for RTL8812EU");
+      return 0;
+   }
+
+   strcpy(szDriverFullPath, FOLDER_BINARIES);
+   strcat(szDriverFullPath, "drivers/");
+   strcat(szDriverFullPath, szDriverFile);
+   log_line("Driver file to use: [%s]", szDriverFullPath);
+   
+   if ( access(szDriverFullPath, R_OK) == -1 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
+      return 0;
+   }
+
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko", szDriverFullPath, szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko rtw_tx_pwr_idx_override=1 2>&1", szPlatform);
+   hw_execute_bash_command_raw(szComm, szOutput);
    hw_execute_bash_command("depmod -a", NULL);
+   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_idx_override=1", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
+      return 0;
+   }
+
+   return 1;
+}
+
+void hardware_install_drivers(int iEchoToConsole)
+{
+   char szComm[256];
+   char szPlatform[128];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   log_line("Platform: [%s]", szPlatform);
+
+   log_line("[HardwareRadio] Installing drivers for platform: %s ...", szPlatform);
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Installing drivers for platform: %s ...\n", szPlatform);
+      fflush(stdout);
+   }
+   hw_execute_bash_command("rmmod 88XXau 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("rmmod 8812eu 2>&1 1>/dev/null", NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/updates/8812eu*", szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/updates/88XXau*", szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/kernel/drivers/net/wireless/8812eu*", szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/kernel/drivers/net/wireless/88XXau*", szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+   hw_execute_bash_command("depmod -a", NULL);   
+
+   if ( 0 == hardware_install_driver_rtl8812au(iEchoToConsole) )
+   {
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: ERROR: Installing RTL8812AU driver failed.\n");
+         fflush(stdout);
+      }
+   }
+   else
+   {
+      log_line("[HardwareRadio] Installed RTL8812AU driver");
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: Installed RTL8812AU driver.\n");
+         fflush(stdout);
+      }
+   }
+
+   if ( 0 == hardware_install_driver_rtl8812eu(iEchoToConsole) )
+   {
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: ERROR: Installing RTL8812EU driver failed.\n");
+         fflush(stdout);
+      }
+   }
+   else
+   {
+      log_line("[HardwareRadio] Installed RTL8812EU driver");
+      if ( iEchoToConsole )
+      {
+         printf("Ruby: Installed RTL8812EU driver.\n");
+         fflush(stdout);
+      }
+   }
+
+   #if defined HW_PLATFORM_RADXA_ZERO3
+
    hw_execute_bash_command("lsusb", NULL);
    hw_execute_bash_command("sudo modprobe -r aic8800_fdrv 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("sudo modprobe -r aic8800_bsp 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("lsusb", NULL);
    hw_execute_bash_command("lsmod", NULL);
    hw_execute_bash_command("ip link", NULL);
+   hw_execute_bash_command("depmod -a", NULL);
    hw_execute_bash_command("sync", NULL);
 
    #endif
 
-   log_line("[Hardware] Done installing drivers.");
+   log_line("[HardwareRadio] Done installing drivers.");
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Done installing drivers.\n");
+      fflush(stdout);
+   }
 }
 
 int hardware_get_radio_interfaces_count()

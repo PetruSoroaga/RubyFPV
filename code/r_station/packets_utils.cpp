@@ -616,10 +616,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
       iCountChainedPackets[uStreamId]++;
       iTotalBytesOnEachStream[uStreamId] += iPacketLength;
 
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      if ( s_bReceivedInvalidRadioPackets )
-         pPH->vehicle_id_src = 0;
-
       nRemainingLength -= iPacketLength;
       pData += iPacketLength;
    }

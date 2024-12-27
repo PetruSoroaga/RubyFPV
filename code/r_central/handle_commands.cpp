@@ -994,15 +994,11 @@ bool handle_last_command_result()
             s_pMenuVehicleHWInfo->addTopLine(" ");         
             add_menu_to_stack(s_pMenuVehicleHWInfo);
 
-            strcpy(szBuff, (const char*)pBuffer);
-
+            strncpy(szBuff, (const char*)pBuffer, sizeof(szBuff)/sizeof(szBuff[0]));
+            removeNewLines(szBuff);
             szWord = strtok(szBuff, "#");
             while( NULL != szWord )
             {
-               int len = strlen(szWord);
-               for( int i=0; i<len; i++ )
-                  if ( szWord[i] == 10 || szWord[i] == 13 )
-                     szWord[i] = ' ';
                s_pMenuVehicleHWInfo->addTopLine(szWord);
                szWord = strtok(NULL, "#");
             }
@@ -1011,19 +1007,15 @@ bool handle_last_command_result()
          {
             s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
             s_pMenuVehicleHWInfo->m_xPos = 0.18; s_pMenuVehicleHWInfo->m_yPos = 0.16;
-            s_pMenuVehicleHWInfo->m_Width = 0.42;
+            s_pMenuVehicleHWInfo->m_Width = 0.48;
             s_pMenuVehicleHWInfo->addTopLine(" ");         
             add_menu_to_stack(s_pMenuVehicleHWInfo);
 
-            strcpy(szBuff, (const char*)pBuffer);
-
+            strncpy(szBuff, (const char*)pBuffer, sizeof(szBuff)/sizeof(szBuff[0]));
+            removeNewLines(szBuff);
             szWord = strtok(szBuff, "#");
             while( NULL != szWord )
             {
-               int len = strlen(szWord);
-               for( int i=0; i<len; i++ )
-                  if ( szWord[i] == 10 || szWord[i] == 13 )
-                     szWord[i] = ' ';
                s_pMenuVehicleHWInfo->addTopLine(szWord);
                szWord = strtok(NULL, "#");
             }          
@@ -1720,8 +1712,6 @@ bool handle_last_command_result()
             {
                log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
                send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
-               // Reset local info so that we show the "Waiting for video feed" message
-               link_reset_has_received_videostream(0);
             }
             else
                send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);

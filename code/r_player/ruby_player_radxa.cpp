@@ -222,7 +222,7 @@ void _do_player_mode()
          if ( uTime > uTimeLastCheck + 4000 )
          {
             uTimeLastCheck = uTime;
-            log_line("Video player alive, reading %d bytes/sec", iTotalRead/4);
+            log_line("Video player alive, reading %d bits/sec", iTotalRead*8/4);
             iTotalRead = 0;
          }
       }
@@ -402,7 +402,7 @@ void _do_stream_mode_pipe()
          if ( uTime > uTimeLastCheck + 4000 )
          {
             uTimeLastCheck = uTime;
-            log_line("Video player alive, reading %d bytes/sec", iTotalRead/4);
+            log_line("Video player alive, reading %d bits/sec", iTotalRead*8/4);
             iTotalRead = 0;
          }
       }
@@ -550,7 +550,7 @@ void _do_stream_mode_udp()
          if ( uTime > uTimeLastCheck + 4000 )
          {
             uTimeLastCheck = uTime;
-            log_line("Video player alive, reading %d bytes/sec", iTotalRead/4);
+            log_line("Video player alive, reading %d bits/sec", iTotalRead*8/4);
             iTotalRead = 0;
          }
       }

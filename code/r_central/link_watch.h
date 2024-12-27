@@ -9,7 +9,6 @@ void link_watch_remove_popups();
 void link_watch_loop();
 
 bool link_has_received_videostream(u32 uVehicleId);
-void link_reset_has_received_videostream(u32 uVehicleId);
 bool link_has_received_vehicle_telemetry_info(u32 uVehicleId);
 bool link_has_received_main_vehicle_ruby_telemetry();
 bool link_has_received_relayed_vehicle_telemetry_info();

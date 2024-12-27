@@ -572,18 +572,15 @@ void _render_video_background()
    bool bVehicleHasCamera = true;
    bool bDisplayingRelayedVideo = false;
 
-   u32 uSwVersion = 0;
    if ( NULL != g_pCurrentModel )
    {
       uVehicleIdFullVideo = g_pCurrentModel->uVehicleId;
-      uSwVersion = g_pCurrentModel->sw_version;
       Model* pModel = relay_controller_get_relayed_vehicle_model(g_pCurrentModel);
       if ( NULL != pModel )
       if ( relay_controller_must_display_remote_video(pModel) )
       {
          uVehicleIdFullVideo = pModel->uVehicleId;
          bDisplayingRelayedVideo = true;
-         uSwVersion = pModel->sw_version;
       }
    }
 
@@ -593,7 +590,6 @@ void _render_video_background()
       t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleIdFullVideo);
       if ( NULL != pRuntimeInfo )
       if ( pRuntimeInfo->bGotRubyTelemetryInfo )
-      if ( (uSwVersion >> 16) > 79 ) // v 7.7
       if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
          bVehicleHasCamera = false;
 
@@ -602,7 +598,6 @@ void _render_video_background()
       if ( pModel->iCameraCount <= 0 )
          bVehicleHasCamera = false;
       if ( pModel->b_mustSyncFromVehicle )
-      //if ( (uSwVersion >> 16) < 79 ) // v 7.7
          bVehicleHasCamera = true;
       if ( bVehicleHasCamera && link_has_received_videostream(uVehicleIdFullVideo) )
          return;

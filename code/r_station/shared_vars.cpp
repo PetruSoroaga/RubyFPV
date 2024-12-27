@@ -44,7 +44,6 @@ bool g_bSearching = false;
 u32  g_uSearchFrequency = 0;
 u32  g_uAcceptedFirmwareType = MODEL_FIRMWARE_TYPE_RUBY;
 bool g_bUpdateInProgress = false;
-bool s_bReceivedInvalidRadioPackets = false;
 bool g_bNegociatingRadioLinks = false;
 
 bool g_bDebugIsPacketsHistoryGraphOn = false;

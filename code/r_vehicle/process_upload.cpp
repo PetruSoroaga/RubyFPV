@@ -69,6 +69,7 @@ u32 s_uSWPacketsMaxSize = 0;
 
 pthread_t s_pThreadProcessUpload;
 bool s_bUpdateInProgress = false;
+bool s_bProcessUploadInProgress = false;
 pthread_t s_pThreadProcessArchive;
 bool s_bThreadProcessArchiveFinished = true;
 char s_szProcessUploadArchiveCommand[256];
@@ -117,6 +118,7 @@ void _sw_update_close_remove_temp_files()
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
    hw_execute_bash_command_silent(szComm, NULL);
 
+   s_bProcessUploadInProgress = false;
    if ( s_bSoftwareUpdateStoppedVideoPipeline )
    if ( ! s_bUpdateAppliedRebooting )
    {
@@ -178,7 +180,8 @@ static void * _thread_process_archive(void *argument)
 static void * _thread_process_upload(void *argument)
 {
    log_line("[ProcessUploadTh] Started update thread...");
-
+   s_bProcessUploadInProgress = true;
+   
    char szFile[MAX_FILE_PATH_SIZE];
    char szComm[512];
 
@@ -379,6 +382,7 @@ static void * _thread_process_upload(void *argument)
 
    // Begin Check and update drivers
 
+   /*
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    char szDriver[MAX_FILE_PATH_SIZE];
    strcpy(szDriver, FOLDER_BINARIES);
@@ -409,11 +413,13 @@ static void * _thread_process_upload(void *argument)
    else
       log_line("No new RTL8812AU driver in file [%s]", szDriver);
    #endif
-
-   hardware_install_drivers();
+   */
+   
+   hardware_install_drivers(0);
    // End check and update drivers
 
    signalReboot();
+   s_bProcessUploadInProgress = false;
    return NULL;
 }
 
@@ -508,7 +514,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
       }
    }
 
-   if ( (params->file_block_index < 0) || (params->file_block_index >= s_uSWPacketsCount) )
+   if ( (params->file_block_index < 0) || (params->file_block_index > s_uSWPacketsCount) )
    {
       log_softerror_and_alarm("Received SW Upload packet index %d out of bounds (%u)", params->file_block_index, s_uSWPacketsCount);
       _sw_update_close_remove_temp_files();
@@ -648,6 +654,7 @@ void process_sw_upload_new(u32 command_param, u8* pBuffer, int length)
    {
       log_softerror_and_alarm("Failed to create worker thread to process upload.");
       s_bUpdateInProgress = false;
+      s_bProcessUploadInProgress = false;
       _process_upload_send_status_to_controller(OTA_UPDATE_STATUS_FAILED, 10);
       return;
    }
@@ -660,7 +667,7 @@ bool process_sw_upload_is_started()
 
 void process_sw_upload_check_timeout(u32 uTimeNow)
 {
-   if ( ! s_bSoftwareUpdateStoppedVideoPipeline )
+   if ( (! s_bSoftwareUpdateStoppedVideoPipeline) || s_bProcessUploadInProgress )
       return;
 
    if ( uTimeNow > s_uLastTimeReceivedAnySoftwareBlock + 5000 )

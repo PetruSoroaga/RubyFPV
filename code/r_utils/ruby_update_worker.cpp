@@ -448,7 +448,7 @@ int _copy_update_drivers()
    hw_execute_bash_command(szComm, szOutput);
  
    if ( (0 < strlen(szOutput)) && (NULL != strstr(szOutput, ".ko")) )
-      hardware_install_drivers();
+      hardware_install_drivers(0);
    return 0;
 }
 

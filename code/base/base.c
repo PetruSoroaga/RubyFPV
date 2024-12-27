@@ -274,12 +274,12 @@ int is_first_boot()
 
 char* removeTrailingZero(char* szBuff)
 {
-   if ( NULL == szBuff )
-      return NULL;
+   if ( (NULL == szBuff) || (0 == szBuff[0]) )
+      return szBuff;
    int index = strlen(szBuff)-1;
    while ( index >= 0 )
    {
-      if ( szBuff[index] != '0' && szBuff[index] != '.' )
+      if ( (szBuff[index] != '0') && (szBuff[index] != '.') )
          break;
       if ( szBuff[index] == '.' )
       {
@@ -288,6 +288,39 @@ char* removeTrailingZero(char* szBuff)
       }
       szBuff[index] = 0;
       index--;
+   }
+   return szBuff;
+}
+
+char* removeNewLines(char* szBuff)
+{
+   if ( (NULL == szBuff) || (0 == szBuff[0]) )
+      return szBuff;
+
+   removeTrailingNewLines(szBuff);
+
+   int iLen = strlen(szBuff);
+   for( int i=0; i<iLen; i++ )
+   {
+      if ( (szBuff[i] >= 10) && (szBuff[i] <= 14) )
+         szBuff[i] = '*';
+   }
+   return szBuff;
+}
+
+char* removeTrailingNewLines(char* szBuff)
+{
+   if ( (NULL == szBuff) || (0 == szBuff[0]) )
+      return szBuff;
+   int iLen = strlen(szBuff);
+   iLen--;
+   while ( iLen >= 0 )
+   {
+      if ( (szBuff[iLen] >= 10) && (szBuff[iLen] <= 14) )
+         szBuff[iLen] = 0;
+      else
+         break;
+      iLen--;
    }
    return szBuff;
 }

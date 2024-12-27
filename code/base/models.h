@@ -579,6 +579,8 @@ class Model
       bool saveToFile(const char* filename, bool isOnController);
       int  getLoadedFileVersion();
       bool isRunningOnOpenIPCHardware();
+      bool isRunningOnPiHardware();
+      bool isRunningOnRadxaHardware();
       void populateHWInfo();
       bool populateVehicleSerialPorts();
       void resetRadioLinkParams(int iRadioLink);

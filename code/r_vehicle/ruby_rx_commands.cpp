@@ -1071,45 +1071,42 @@ bool process_command(u8* pBuffer, int length)
          char szTmpBuild[256];
          strcat(szBuffer, "OpenIPC firmware build: ");
          szTmpBuild[0] = 0;
-         hw_execute_bash_command("cat /etc/os-release | grep VERSION_ID", szTmpBuild);
-         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
-         {
-            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
-               szTmpBuild[i] = ' ';
-         }
+         hw_execute_bash_command_raw("cat /etc/os-release | grep VERSION_ID", szTmpBuild);
+         removeNewLines(szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
          strcat(szBuffer, szTmpBuild);
          strcat(szBuffer, "#");
 
          strcat(szBuffer, "OpenIPC firmware version: ");
          szTmpBuild[0] = 0;
-         hw_execute_bash_command("cat /etc/os-release | grep OPENIPC_VERSION", szTmpBuild);
-         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
-         {
-            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
-               szTmpBuild[i] = ' ';
-         }
+         hw_execute_bash_command_raw("cat /etc/os-release | grep OPENIPC_VERSION", szTmpBuild);
+         removeNewLines(szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
          strcat(szBuffer, szTmpBuild);
          strcat(szBuffer, "#");
 
          strcat(szBuffer, "OpenIPC name: ");
          szTmpBuild[0] = 0;
-         hw_execute_bash_command("cat /etc/os-release | grep PRETTY_NAME", szTmpBuild);
-         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
-         {
-            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
-               szTmpBuild[i] = ' ';
-         }
+         hw_execute_bash_command_raw("cat /etc/os-release | grep PRETTY_NAME", szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
+         removeNewLines(szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
+         strcat(szBuffer, szTmpBuild);
+         strcat(szBuffer, "#");
+
+         strcat(szBuffer, "OpenIPC Git: ");
+         szTmpBuild[0] = 0;
+         hw_execute_bash_command_raw("cat /etc/os-release | grep GITHUB_VERSION", szTmpBuild);
+         removeNewLines(szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
          strcat(szBuffer, szTmpBuild);
          strcat(szBuffer, "#");
 
          strcat(szBuffer, "Majestic version: ");
          szTmpBuild[0] = 0;
-         hw_execute_bash_command("/usr/bin/majestic --version", szTmpBuild);
-         for( int i=0; i<(int)strlen(szTmpBuild); i++ )
-         {
-            if ( (szTmpBuild[i] == 10) || (szTmpBuild[i] == 13) )
-               szTmpBuild[i] = ' ';
-         }
+         hw_execute_bash_command_raw("/usr/bin/majestic --version", szTmpBuild);
+         removeNewLines(szTmpBuild);
+         log_line("Value: (%s)", szTmpBuild);
          strcat(szBuffer, szTmpBuild);
          strcat(szBuffer, "#");
          #endif
@@ -1121,7 +1118,7 @@ bool process_command(u8* pBuffer, int length)
 
          szOutput[0] = 0;
          #ifdef HW_PLATFORM_RASPBERRY
-         hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szOutput);
+         hw_execute_bash_command_raw("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szOutput);
          strcat(szBuffer, "CPU Id: ");
          strcat(szBuffer, szOutput);
          strcat(szBuffer, "#");
@@ -1233,6 +1230,7 @@ bool process_command(u8* pBuffer, int length)
          szBuffer[MAX_PACKET_PAYLOAD-1] = 0;
       }
       log_line("Sending back modules info, %d bytes", strlen(szBuffer)+1);
+      log_line("Sending back string: (%s)", szBuffer);
       setCommandReplyBuffer((u8*)szBuffer, strlen(szBuffer)+1);
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, replyDelay);
       return true;

@@ -229,6 +229,20 @@ bool Model::isRunningOnOpenIPCHardware()
    return false;
 }
 
+bool Model::isRunningOnPiHardware()
+{
+   if ( hardware_board_is_raspberry(hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+      return true;
+   return false;
+}
+
+bool Model::isRunningOnRadxaHardware()
+{
+   if ( hardware_board_is_radxa(hwCapabilities.uBoardType & BOARD_TYPE_MASK) )
+      return true;
+   return false;
+}
+
 bool Model::reloadIfChanged(bool bLoadStats)
 {
    char szFile[MAX_FILE_PATH_SIZE];

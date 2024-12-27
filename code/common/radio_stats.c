@@ -1208,10 +1208,15 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
    }
    if ( uStreamIndex >= MAX_RADIO_STREAMS )
    {
-      log_softerror_and_alarm("Received invalid stream id %u, packet index %u, packet type: %s", uStreamIndex, uStreamPacketIndex, str_get_packet_type(uPacketType));
+      log_softerror_and_alarm("[RadioStats] Received invalid stream id %u, packet index %u, packet type: %s", uStreamIndex, uStreamPacketIndex, str_get_packet_type(uPacketType));
       uStreamIndex = 0;
    }
       
+   if ( (uVehicleId == 0) || (uVehicleId == MAX_U32) )
+   {
+      log_softerror_and_alarm("[RadioStats] Received packet from invalid VID: %u", uVehicleId);
+      return -1;
+   }
    int iStreamsVehicleIndex = -1;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
@@ -1252,7 +1257,7 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
 
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].timeLastRxPacket = timeNow;
 
-   if ( nRadioLinkId >= 0 && nRadioLinkId < MAX_RADIO_INTERFACES )
+   if ( (nRadioLinkId >= 0) && (nRadioLinkId < MAX_RADIO_INTERFACES) )
    {
       pSMRS->radio_links[nRadioLinkId].timeLastRxPacket = timeNow;
    }
@@ -1261,7 +1266,7 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
       if ( timeNow > s_uLastTimeDebugPacketRecvOnNoLink + 3000 )
       {
          s_uLastTimeDebugPacketRecvOnNoLink = timeNow;
-         log_softerror_and_alarm("Received radio packet on radio interface %d that is not assigned to any radio links.", iInterfaceIndex+1);
+         log_softerror_and_alarm("[RadioStats] Received radio packet on radio interface %d that is not assigned to any radio links.", iInterfaceIndex+1);
       }
       return -1;
    }
@@ -1287,12 +1292,14 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].totalRxPackets++;
    pSMRS->radio_streams[iStreamsVehicleIndex][uStreamIndex].tmpRxPackets++;
    
-   pSMRS->radio_links[nRadioLinkId].totalRxBytes += iPacketLength;
-   pSMRS->radio_links[nRadioLinkId].tmpRxBytes += iPacketLength;
-   
-   pSMRS->radio_links[nRadioLinkId].totalRxPackets++;
-   pSMRS->radio_links[nRadioLinkId].tmpRxPackets++;
-
+   if ( (nRadioLinkId >= 0) && (nRadioLinkId < MAX_RADIO_INTERFACES) )
+   {
+      pSMRS->radio_links[nRadioLinkId].totalRxBytes += iPacketLength;
+      pSMRS->radio_links[nRadioLinkId].tmpRxBytes += iPacketLength;
+      
+      pSMRS->radio_links[nRadioLinkId].totalRxPackets++;
+      pSMRS->radio_links[nRadioLinkId].tmpRxPackets++;
+   }
    return 1;
 }
 
@@ -1337,7 +1344,7 @@ void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* 
 {
    if ( NULL == pSMRS )
       return;
-   if ( iStreamIndex < 0 || iStreamIndex >= MAX_RADIO_STREAMS )
+   if ( (iStreamIndex < 0) || (iStreamIndex >= MAX_RADIO_STREAMS) )
       iStreamIndex = 0;
 
    // Broadcasted packet?
