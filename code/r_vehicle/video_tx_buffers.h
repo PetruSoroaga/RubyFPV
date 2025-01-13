@@ -3,6 +3,7 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/models.h"
+#include "../base/parser_h264.h"
 #include "../radio/radiopackets2.h"
 
 typedef struct
@@ -26,8 +27,8 @@ class VideoTxPacketsBuffer
       void discardBuffer();
       void updateVideoHeader(Model* pModel);
       void updateCurrentKFValue();
-      void fillVideoPackets(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame);
-      void addNewVideoPacket(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame);
+      void fillVideoPacketsFromCSI(u8* pVideoData, int iDataSize, bool bEndOfFrame);
+      void fillVideoPacketsFromRTSPPacket(u8* pVideoData, int iDataSize, bool bSingle, bool bEnd, u32 uNALType);
       int hasPendingPacketsToSend();
       int sendAvailablePackets(int iMaxCountToSend);
       void resendVideoPacket(u32 uRetransmissionId, u32 uVideoBlockIndex, u32 uVideoBlockPacketIndex);
@@ -35,7 +36,8 @@ class VideoTxPacketsBuffer
    protected:
 
       void _checkAllocatePacket(int iBufferIndex, int iPacketIndex);
-      void _fillVideoPacketHeaders(int iBufferIndex, int iPacketIndex, int iVideoSize, bool bEndOfFrame, bool bIsInsideIFrame);
+      void _fillVideoPacketHeaders(int iBufferIndex, int iPacketIndex, int iVideoSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame);
+      void _addNewVideoPacket(u8* pVideoData, int iDataSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame);
       void _sendPacket(int iBufferIndex, int iPacketIndex, u32 uRetransmissionId);
       static int m_siVideoBuffersInstancesCount;
       bool m_bInitialized;
@@ -43,8 +45,10 @@ class VideoTxPacketsBuffer
       int m_iVideoStreamIndex;
       int m_iCameraIndex;
       int m_iVideoStreamInfoIndex;
+      ParserH264 m_ParserInputH264;
 
-      u16 m_uCurrentFrameId;
+      u16 m_uCurrentH264FrameId;
+      u16 m_uCurrentH264SliceId;
       u32 m_uNextVideoBlockIndexToGenerate;
       u32 m_uNextVideoBlockPacketIndexToGenerate;
       u32 m_uNextBlockPacketSize;
@@ -59,6 +63,7 @@ class VideoTxPacketsBuffer
       int m_iCurrentBufferPacketIndexToSend;
       u8 m_TempVideoBuffer[MAX_PACKET_TOTAL_SIZE];
       int m_iTempVideoBufferFilledBytes;
+      u32 m_uTempBufferNALPresenceFlags;
       type_tx_video_packet_info m_VideoPackets[MAX_RXTX_BLOCKS_BUFFER][MAX_TOTAL_PACKETS_IN_BLOCK];
       int m_iCountReadyToSend;
 

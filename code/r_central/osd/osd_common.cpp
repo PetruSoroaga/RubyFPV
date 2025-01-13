@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -115,6 +115,33 @@ int s_iCurrentOSDLayoutIndex = 0;
 Model* s_pCurrentOSDLayoutSourceModel = NULL;
 
 int s_iCurrentOSDVehicleDataSourceRuntimeIndex = 0;
+
+
+float osd_getSetScreenScale(int iOSDScreenSize)
+{
+   float dxPixels = 0.0;
+   float dyPixels = 0.0;
+
+   //if ( 0 != iOSDScreenSize )
+   {
+      dxPixels = 2.0 * g_pRenderEngine->getPixelWidth();
+      dyPixels = 2.0 * g_pRenderEngine->getPixelHeight();
+   }
+
+   float fScreenScale = 1.0;
+   if ( iOSDScreenSize == 1 ) fScreenScale = 0.98;
+   if ( iOSDScreenSize == 2 ) fScreenScale = 0.96;
+   if ( iOSDScreenSize == 3 ) fScreenScale = 0.94;
+   if ( iOSDScreenSize == 4 ) fScreenScale = 0.92;
+   if ( iOSDScreenSize == 5 ) fScreenScale = 0.90;
+   if ( iOSDScreenSize == 6 ) fScreenScale = 0.88;
+   if ( iOSDScreenSize == 7 ) fScreenScale = 0.86;
+
+   osd_setMarginX(dxPixels + 0.5*(1.0-fScreenScale));
+   osd_setMarginY(dyPixels + 0.5*(1.0-fScreenScale)*g_pRenderEngine->getAspectRatio()*0.8);
+   return fScreenScale;
+}
+
 
 float osd_getFontHeight()
 {
@@ -263,9 +290,19 @@ void osd_reload_msp_resources()
    if ( g_idImgMSPOSDArdupilot > 0 )
       g_pRenderEngine->freeImage(g_idImgMSPOSDArdupilot);
 
-   g_idImgMSPOSDBetaflight = g_pRenderEngine->loadImage("res/msp_osd_betaflight.png");
-   g_idImgMSPOSDINAV = g_pRenderEngine->loadImage("res/msp_osd_inav.png");
-   g_idImgMSPOSDArdupilot = g_pRenderEngine->loadImage("res/msp_osd_ardu.png");
+   log_line("Loading MSP OSD images for screen surface height: %d px", g_pRenderEngine->getScreenHeight());
+   if ( g_pRenderEngine->getScreenHeight() > 800 )
+   {
+      g_idImgMSPOSDBetaflight = g_pRenderEngine->loadImage("res/msp_osd_betaflight.png");
+      g_idImgMSPOSDINAV = g_pRenderEngine->loadImage("res/msp_osd_inav.png");
+      g_idImgMSPOSDArdupilot = g_pRenderEngine->loadImage("res/msp_osd_ardu.png");
+   }
+   else
+   {
+      g_idImgMSPOSDBetaflight = g_pRenderEngine->loadImage("res/msp_osd_betaflight720.png");
+      g_idImgMSPOSDINAV = g_pRenderEngine->loadImage("res/msp_osd_inav720.png");
+      g_idImgMSPOSDArdupilot = g_pRenderEngine->loadImage("res/msp_osd_ardu720.png");    
+   }
    Preferences* p = get_Preferences();
    if ( NULL != p )
    {

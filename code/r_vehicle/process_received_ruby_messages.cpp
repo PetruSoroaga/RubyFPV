@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -49,6 +49,7 @@
 #include "test_link_params.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
+#include "ruby_rt_vehicle.h"
 
 u32 s_uResendPairingConfirmationCounter = 0;
 
@@ -179,6 +180,8 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet+sizeof(t_packet_header), &s_uResendPairingConfirmationCounter, sizeof(u32));
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+
+      send_radio_config_to_controller();
 
       // Forward to other components
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, pPacketBuffer, pPH->total_length);
@@ -353,7 +356,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       if ( uCommand == NEGOCIATE_RADIO_STEP_DATA_RATE )
       {
-         log_line("DEBUG set dr: %d", iParam);
+         log_line("Negociate radio link: Set datarate: %d", iParam);
          packet_utils_set_adaptive_video_datarate(iParam);
       }
       t_packet_header PH;

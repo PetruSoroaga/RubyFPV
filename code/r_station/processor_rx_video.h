@@ -74,7 +74,7 @@ class ProcessorRxVideo
 
       virtual bool init();
       virtual bool uninit();
-      virtual void resetState();
+      virtual void resetStateOnVehicleRestart();
       virtual void discardRetransmissionsInfo();
       void onControllerSettingsChanged();
 
@@ -83,7 +83,6 @@ class ProcessorRxVideo
 
       u32 getLastTimeVideoStreamChanged();
       u32 getLastestVideoPacketReceiveTime();
-      int getCurrentlyReceivedVideoProfile();
       int getCurrentlyReceivedVideoFPS();
       int getCurrentlyReceivedVideoKeyframe();
       int getCurrentlyMissingVideoPackets();
@@ -153,8 +152,6 @@ class ProcessorRxVideo
 
       type_last_rx_packet_info m_InfoLastReceivedVideoPacket;
       u8 m_uLastReceivedVideoLinkProfile;
-      u32 m_uLastHardEncodingsChangeVideoBlockIndex;
-      u32 m_uLastVideoResolutionChangeVideoBlockIndex;
 
       u32 m_uLastTimeRequestedRetransmission;
       u32 m_uRequestRetransmissionUniqueId;
@@ -170,4 +167,7 @@ class ProcessorRxVideo
       u32 m_uLastBlockReceivedAdaptiveVideoInterval;
       u32 m_uLastBlockReceivedSetVideoBitrate;
       u32 m_uLastBlockReceivedEncodingExtraFlags2;
+
+      u32 m_uLastVideoBlockIndexResolutionChange;
+      u32 m_uLastVideoBlockPacketIndexResolutionChange;
 };

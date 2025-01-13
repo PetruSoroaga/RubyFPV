@@ -52,7 +52,7 @@ class MenuStorage: public Menu
       u32 m_ScreenshotImageId;
       Popup* m_pPopupProgress;
       u32 m_uMustRefreshTime;
-      int m_IndexExpand;
+      u32 m_uTimestampLastLoopMs;
       int m_IndexCopy;
       int m_IndexMove;
       int m_IndexDelete;

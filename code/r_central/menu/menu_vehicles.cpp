@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -223,10 +223,13 @@ void MenuVehicles::onSelectItem()
 {
    if ( m_IndexImport == m_SelectedIndex )
    {
-      if ( ! hardware_try_mount_usb() )
+      int iMountRes = hardware_try_mount_usb();
+      if ( 1 != iMountRes )
       {
          log_line("[Menu] MenuVehicles: No USB memory stick available.");
          Popup* p = new Popup("Please insert a USB memory stick to import the vehicle from.",0.28, 0.32, 0.32, 3);
+         if ( 0 != iMountRes )
+            p->setTitle("USB memory stick invalid. Please try again.");
          p->setCentered();
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
          popups_add_topmost(p);

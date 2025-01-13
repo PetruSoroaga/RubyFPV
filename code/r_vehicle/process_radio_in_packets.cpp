@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -51,6 +51,7 @@
 #include "processor_relay.h"
 #include "shared_vars.h"
 #include "timers.h"
+#include "adaptive_video.h"
 
 fd_set s_ReadSetRXRadio;
 
@@ -79,9 +80,6 @@ void _mark_link_from_controller_present()
 void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetLength)
 {
    t_packet_header* pPH = (t_packet_header*)pPacketData;
-
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      return;
 
    bool bHasControllerData = false;
    u8* pData = NULL;
@@ -268,11 +266,7 @@ int _handle_received_packet_error(int iInterfaceIndex, u8* pData, int nDataLengt
    if ( iRadioError == RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED )
    {
       t_packet_header* pPH = (t_packet_header*)pData;
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         pPHC->vehicle_id_src = 0;
-      else
-         pPH->vehicle_id_src = 0;
+      pPH->vehicle_id_src = 0;
       int nPacketLength = packet_process_and_check(iInterfaceIndex, pData, nDataLength, pCRCOk);
 
       if ( nPacketLength > 0 )
@@ -312,29 +306,10 @@ int _handle_received_packet_error(int iInterfaceIndex, u8* pData, int nDataLengt
 void process_received_single_radio_packet(int iRadioInterface, u8* pData, int dataLength )
 {
    t_packet_header* pPH = (t_packet_header*)pData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-
-   u32 uVehicleIdSrc = 0;
-   u32 uVehicleIdDest = 0;
-   u8 uPacketType = 0;
-   u8 uPacketFlags = 0;
-
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uVehicleIdSrc = pPHC->vehicle_id_src;
-      uVehicleIdDest = pPHC->vehicle_id_dest;
-      uPacketType = pPHC->packet_type;
-      uPacketFlags = pPHC->packet_flags;
-      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
-      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
-   }
-   else
-   {
-      uVehicleIdSrc = pPH->vehicle_id_src;
-      uVehicleIdDest = pPH->vehicle_id_dest;
-      uPacketType = pPH->packet_type;
-      uPacketFlags = pPH->packet_flags;
-   }
+   u32 uVehicleIdSrc = pPH->vehicle_id_src;
+   u32 uVehicleIdDest = pPH->vehicle_id_dest;
+   u8 uPacketType = pPH->packet_type;
+   u8 uPacketFlags = pPH->packet_flags;
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastRadioRxTime = g_TimeNow;
@@ -437,7 +412,6 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
    {
       if ( uPacketType == PACKET_TYPE_COMMAND )
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       {
          int iParamsLength = pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_command);
          t_packet_header_command* pPHC = (t_packet_header_command*)(pData + sizeof(t_packet_header));
@@ -487,6 +461,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
    {      
       if ( uPacketType == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
+      if ( g_bReceivedPairingRequest )
       {
          if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
             return;
@@ -494,14 +469,16 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             return;
 
          // Discard requests if we are on fixed keyframe
-         //if ( g_pCurrentModel->video_link_profiles[g_SM_VideoLinkStats.overwrites.currentVideoLinkProfile].keyframe_ms > 0 )
-         //   return;
+         //if ( !(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
+         //   return true;
          
          u32 uNewKeyframeValueMs = 0;
          u8 uVideoStreamIndex = 0;
          memcpy( &uNewKeyframeValueMs, pData + sizeof(t_packet_header), sizeof(u32));
          if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
             memcpy( &uVideoStreamIndex, pData + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
+
+         //log_line("DEBUG [KeyFrame] Recv request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
 
 // To fix 
 /*         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
@@ -525,7 +502,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
             packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
          }
 
-         // To fix video_link_auto_keyframe_set_controller_requested_value((int) uVideoStreamIndex, (int)uNewKeyframeValueMs);
+         adaptive_video_set_last_kf_requested_by_controller(uNewKeyframeValueMs);
          return;
       }
 

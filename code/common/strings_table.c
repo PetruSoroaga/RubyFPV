@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -34,18 +34,36 @@
 #include "strings_table.h"
 
 static const char* s_szStringTableUnknown = "[Missing Text]";
-
+static const char* s_szStringTableEmptyText = "";
 static const char* s_szStringTableEN[] =
 {
 // 0
 "Firmware Instalation",
 "Your controller needs to be fully flashed with the latest version of Ruby.",
-"Your vehicle needs to be fully flashed with the latest version of Ruby.",
-"Instead of a regular update, a full firmware instalation is required as there where changes in Ruby version 10.1 that require a complete update of the system",
+"Your vehicle needs to be fully flashed with the latest version of Ruby. An OTA update is not sufficient.",
+"Instead of a regular OTA update, a full firmware instalation is required as there where changes in latest Ruby that require a complete update of the system.",
 "Computed based on current vehicle radio Tx power settings",
 // 5
-"",
-"Empty"
+"Baseline",
+"Main",
+"Extended",
+"High",
+"High10",
+// 10
+"High422",
+"High444",
+"High10Intra",
+"High422Intra",
+"High444Intra",
+// 15
+"CAVL444Intra",
+"Constrained Baseline",
+"Constrained Main",
+"Constrained Extended",
+"Scalable Baseline",
+// 20
+"Scalable High",
+"Your vehicle will not function properly until you do a full firmware flash on it."
 };
 
 const char* getString(u32 uStringId)
@@ -54,4 +72,17 @@ const char* getString(u32 uStringId)
       return s_szStringTableUnknown;
 
    return s_szStringTableEN[uStringId];
+}
+
+const char* L(const char* szString)
+{
+   if ( (NULL == szString) || (0 == szString[0] ) )
+      return s_szStringTableEmptyText;
+
+   for( int i=0; i<sizeof(s_szStringTableEN)/sizeof(s_szStringTableEN[0]); i++ )
+   {
+      if ( 0 == strcmp(szString, s_szStringTableEN[i]) )
+         return s_szStringTableEN[i];
+   }
+   return szString;
 }

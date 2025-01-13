@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -482,7 +482,7 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
          r = *(pIconData+2);
          a = *(pIconData+3);
 
-         if ( a > 2 )
+         if ( a > 4 )
          {
             b = (b*m_ColorFill[2])>>8;
             *pDestPixel++ = b;
@@ -504,6 +504,76 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
       pDestPixel += pOutputBufferInfo->uStride - wDest * 4;
       fIconY += dyIcon;
    }
+}
+
+void RenderEngineCairo::bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+  
+   int xDest = xPosDest*m_iRenderWidth;
+   int yDest = yPosDest*m_iRenderHeight;
+   
+   if ( (xDest < 0) || (yDest < 0) || (xDest+iSrcWidth >= m_iRenderWidth) || (yDest+iSrcHeight >= m_iRenderHeight) )
+      return;
+
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   u8* pSrcImageData = cairo_image_surface_get_data(m_pImages[indexImage]);
+   int iSrcImageStride = cairo_image_surface_get_stride(m_pImages[indexImage]);
+
+   // Input, output surface format order is: BGRA
+   u8 r = 255, g = 255, b = 255, a = 255;
+
+   float fIconY = iSrcY;
+
+   u8* pDestPixel = (u8*)&(pOutputBufferInfo->pData[yDest*pOutputBufferInfo->uStride + xDest*4]);
+   u8* pSrcPixel = pSrcImageData + iSrcY * iSrcImageStride + iSrcX * 4;
+
+   for( int sy=0; sy<iSrcHeight; sy++ )
+   {
+      for( int sx=0; sx<iSrcWidth; sx++ )
+      {   
+         // Output surface format order is: BGRA
+         
+         b = *pSrcPixel++;
+         g = *pSrcPixel++;
+         r = *pSrcPixel++;
+         a = *pSrcPixel++;
+
+         if ( a > 4 )
+         {
+            b = (((b*m_ColorFill[2])>>8) * a + ((*pDestPixel)*(255-a)))>>8;
+            *pDestPixel++ = b;
+
+            g = (((g*m_ColorFill[1])>>8) * a + ((*pDestPixel)*(255-a)))>>8;
+            *pDestPixel++ = g;
+
+            r = (((r*m_ColorFill[0])>>8) * a + ((*pDestPixel)*(255-a)))>>8;
+            *pDestPixel++ = r;
+
+            a = (((a*m_ColorFill[3])>>8) * a + ((*pDestPixel)*(255-a)))>>8;
+            *pDestPixel++ = a;
+         }
+         else
+            pDestPixel += 4;
+      }
+      pDestPixel += pOutputBufferInfo->uStride - iSrcWidth * 4;
+      pSrcPixel += iSrcImageStride - iSrcWidth * 4;
+   } 
 }
 
 void RenderEngineCairo::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 uIconId)
@@ -567,7 +637,7 @@ void RenderEngineCairo::drawIcon(float xPos, float yPos, float fWidth, float fHe
          r = *pIconData++;
          a = *pIconData++;
 
-         if ( a > 2 )
+         if ( a > 4 )
          {
             b = (b*m_ColorFill[2])>>8;
             *pDestPixel++ = b;

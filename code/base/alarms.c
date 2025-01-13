@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,7 +10,7 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-        * * * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
@@ -28,6 +28,7 @@
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 
 #include <string.h>
 #include "alarms.h"
@@ -129,6 +130,7 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
          case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT"); break;
          case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED"); break;
          case ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK: strcpy(szFlags1, "ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK"); break;
+         case ALARM_FLAG_IO_ERROR_VIDEO_MPP_DECODER_STALLED: strcpy(szFlags1, "MPP_DECODER_STALLED"); break;
          default: sprintf(szFlags1, "Unknown (%d)", uFlags1);
 
       }

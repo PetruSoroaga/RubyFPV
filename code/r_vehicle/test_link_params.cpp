@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -85,6 +85,7 @@ void _test_link_end_and_notify()
    g_pCurrentModel->logVehicleRadioLinkDifferences(&s_RadioLinksParamsOriginal, &s_RadioLinksParamsToTest);
 
    memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+   g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
    
    log_line("Current radio power levels:");
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
@@ -309,6 +310,8 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
          _test_link_close_interfaces();
 
       memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsToTest, sizeof(type_radio_links_parameters));
+      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
       if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker_apply, NULL) )
       {
          if ( ! s_bTestLinkOnlyFreqChanged )
@@ -346,6 +349,8 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
          _test_link_close_interfaces();
 
       memcpy(&(g_pCurrentModel->radioLinksParams), &s_RadioLinksParamsOriginal, sizeof(type_radio_links_parameters));
+      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
       if ( 0 != pthread_create(&s_pThreadTestLinkWorker, NULL, &_thread_test_link_worker_revert, NULL) )
       {
          if ( ! s_bTestLinkOnlyFreqChanged )

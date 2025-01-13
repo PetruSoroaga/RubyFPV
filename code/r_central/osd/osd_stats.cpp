@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -256,6 +256,10 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
 
    // Stream info 2
    if ( bIsCompact || bIsNormal || bIsExtended )
+      height += height_text_small*s_OSDStatsLineSpacing;
+
+   // Stream info 3 (H264 profile/level)
+   if ( bIsExtended )
       height += height_text_small*s_OSDStatsLineSpacing;
 
    // Retr, adaptive
@@ -556,6 +560,40 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    }
   
    // Stream info 2
+   // --------------------------------------------------
+
+
+   // --------------------------------------------------
+   // Stream info 3 (H264 profile/level)
+
+   if ( bIsExtended )
+   {
+      if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+         strcpy(szBuff, "H265 Profile & Level:");
+      else if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H264 )
+         strcpy(szBuff, "H264 Profile & Level:");
+      else
+         strcpy(szBuff, "UKN Profile & Level:");
+
+      /*
+      char szTmp[16];
+      szTmp[0] = 0;
+      for( int i=7; i>=0; i--)
+      {
+         if ( pVDS->uDetectedH264ProfileConstrains & (1<<i) )
+            strcat(szTmp, "1");
+         else
+            strcat(szTmp, "0");
+         if ( i == 4 )
+            strcat(szTmp, "-");
+      }
+      */
+      snprintf(szBuff2, sizeof(szBuff2)/sizeof(szBuff2[0]), "(0x%02X 0x%02X) %s %d.%d", pVDS->uDetectedH264Profile, pVDS->uDetectedH264ProfileConstrains, str_get_decode_h264_profile_name(pVDS->uDetectedH264Profile, pVDS->uDetectedH264ProfileConstrains, pVDS->uDetectedH264Level), pVDS->uDetectedH264Level/10, pVDS->uDetectedH264Level%10);
+      _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, szBuff, szBuff2);
+      y += height_text_small*s_OSDStatsLineSpacing;
+   }
+  
+   // Stream info 3
    // --------------------------------------------------
 
    // --------------------------------------

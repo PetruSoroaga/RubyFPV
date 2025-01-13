@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -202,10 +202,13 @@ int ruby_init_ipc_channels()
    sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO1 );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY );
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_ETH_VIDEO_STREAM );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_RECORDING );
+   hw_execute_bash_command(szBuff, NULL);
+
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH );
    hw_execute_bash_command(szBuff, NULL);
    #endif
 

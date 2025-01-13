@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -47,18 +47,21 @@ MenuControllerRecording::MenuControllerRecording(void)
    m_pItemsSelect[c] = new MenuItemSelect("Add OSD To Screenshots", "When taking a screenshot, OSD info can be included in the picture or not.");  
    m_pItemsSelect[c]->addSelection("No");
    m_pItemsSelect[c]->addSelection("Yes");
+   m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
    m_pItemsSelect[c] = new MenuItemSelect("Recording buffers", "When recording, record directly to the persistent storage or to memory first. Record to memory first when having slow performance on the persistent storage. Either way, when video recording ends, the video is saved to persistent storage.");  
    m_pItemsSelect[c]->addSelection("Storage");
    m_pItemsSelect[c]->addSelection("Memory");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexVideoDestination = addMenuItem(m_pItemsSelect[c]);
    c++;
 
    m_pItemsSelect[c] = new MenuItemSelect("Record Indicator Style", "Select which style of record indicator to show on the OSD");  
    m_pItemsSelect[c]->addSelection("Normal");
    m_pItemsSelect[c]->addSelection("Large");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexRecordIndicator = addMenuItem(m_pItemsSelect[c]);
    c++;
 
@@ -66,6 +69,7 @@ MenuControllerRecording::MenuControllerRecording(void)
    m_pItemsSelect[c]->addSelection("Disabled");
    m_pItemsSelect[c]->addSelection("On/Off");
    m_pItemsSelect[c]->addSelection("Blinking");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexRecordLED = addMenuItem(m_pItemsSelect[c]);
    c++;
 
@@ -74,26 +78,34 @@ MenuControllerRecording::MenuControllerRecording(void)
    m_pItemsSelect[c]->addSelection("QA Button 1");
    m_pItemsSelect[c]->addSelection("QA Button 2");
    m_pItemsSelect[c]->addSelection("QA Button 3");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexRecordButton = addMenuItem(m_pItemsSelect[c]);
    c++;
 
    m_pItemsSelect[c] = new MenuItemSelect("Start recording on Arm", "Starts video recording (if it's not started already) when the vehicle arms. It requires an active connection of the vehicle to the flight controller.");
    m_pItemsSelect[c]->addSelection("No");
    m_pItemsSelect[c]->addSelection("Yes");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexRecordArm = addMenuItem(m_pItemsSelect[c]);
    c++;
 
    m_pItemsSelect[c] = new MenuItemSelect("Stop recording on Disarm", "Stops video recording (if one is started) when the vehicle disarms. It requires an active connection of the vehicle to the flight controller.");  
    m_pItemsSelect[c]->addSelection("No");
    m_pItemsSelect[c]->addSelection("Yes");
+   m_pItemsSelect[c]->setIsEditable();
    m_IndexRecordDisarm = addMenuItem(m_pItemsSelect[c]);
    c++;
 
+   m_pItemsSelect[c] = new MenuItemSelect("Stop recording on link lost", "Stops video recording (if one is started) when the radio link is lost, after a timeout.");
+   m_pItemsSelect[c]->addSelection("No");
+   m_pItemsSelect[c]->addSelection("Yes");
+   m_pItemsSelect[c]->setIsEditable();
+   m_iIndexStopOnLinkLost = addMenuItem(m_pItemsSelect[c]);
 
    float fSliderWidth = 0.12;
-   m_pItemsSlider[0] = new MenuItemSlider("Stop recording on link lost", "Sets a delay to automatically stop recording if link is lost for too long.", 10,100,20, fSliderWidth);
+   m_pItemsSlider[0] = new MenuItemSlider("Delay (seconds)", "Sets a delay to automatically stop recording if link is lost for too long.", 1,100,20, fSliderWidth);
    m_pItemsSlider[0]->setStep(1);
-   m_iIndexStopOnLinkLost = addMenuItem(m_pItemsSlider[0]);
+   m_iIndexStopOnLinkLostTime = addMenuItem(m_pItemsSlider[0]);
 }
 
 void MenuControllerRecording::valuesToUI()
@@ -124,7 +136,17 @@ void MenuControllerRecording::valuesToUI()
    m_pItemsSelect[5]->setSelection(p->iStartVideoRecOnArm);
    m_pItemsSelect[6]->setSelection(p->iStopVideoRecOnDisarm);
 
-   m_pItemsSlider[0]->setCurrentValue(p->iStopRecordingAfterLinkLostSeconds);
+   if ( p->iStopRecordingAfterLinkLostSeconds <= 0 )
+   {
+      m_pItemsSelect[7]->setSelectedIndex(0);
+      m_pItemsSlider[0]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[7]->setSelectedIndex(1);
+      m_pItemsSlider[0]->setEnabled(true);
+      m_pItemsSlider[0]->setCurrentValue(p->iStopRecordingAfterLinkLostSeconds);
+   }
 }
 
 void MenuControllerRecording::onShow()
@@ -218,6 +240,13 @@ void MenuControllerRecording::onSelectItem()
    }
 
    if ( m_iIndexStopOnLinkLost == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[7]->getSelectedIndex() )
+         p->iStopRecordingAfterLinkLostSeconds = 0;
+      else
+         p->iStopRecordingAfterLinkLostSeconds = 10;
+   }
+   if ( m_iIndexStopOnLinkLostTime == m_SelectedIndex )
    {
       p->iStopRecordingAfterLinkLostSeconds = m_pItemsSlider[0]->getCurrentValue();
    }

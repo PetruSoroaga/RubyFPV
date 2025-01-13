@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -48,6 +48,8 @@ void reset_ControllerSettings()
    s_CtrlSettings.iUseBrokenVideoCRC = 0;
    s_CtrlSettings.iFixedTxPower = 0;
    s_CtrlSettings.iHDMIBoost = 6;
+   s_CtrlSettings.iCoresAdjustment = 1;
+   s_CtrlSettings.iPrioritiesAdjustment = 1;
    s_CtrlSettings.iOverVoltage = 0;
    s_CtrlSettings.iFreqARM = 0;
    s_CtrlSettings.iFreqGPU = 0;
@@ -163,6 +165,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d\n", s_CtrlSettings.iSiKPacketSize);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers, s_CtrlSettings.iFixedTxPower);
+   fprintf(fd, "%d %d\n", s_CtrlSettings.iCoresAdjustment, s_CtrlSettings.iPrioritiesAdjustment);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -280,6 +283,9 @@ int load_ControllerSettings()
    if ( 3 != fscanf(fd, "%d %d %d", &s_CtrlSettings.iRadioTxUsesPPCAP, &s_CtrlSettings.iRadioBypassSocketBuffers, &s_CtrlSettings.iFixedTxPower) )
       { failed = 1; log_softerror_and_alarm("Load ctrl settings, failed on line 24"); }
 
+   if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iCoresAdjustment, &s_CtrlSettings.iPrioritiesAdjustment) )
+      { log_softerror_and_alarm("Load ctrl settings, failed on line 25");
+        s_CtrlSettings.iCoresAdjustment = 1; s_CtrlSettings.iPrioritiesAdjustment = 1; }
    fclose(fd);
 
    //--------------------------------------------------------

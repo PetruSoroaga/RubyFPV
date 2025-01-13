@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -54,19 +54,6 @@ void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 u
       pPH->packet_flags_extended = 0xFF & ((SYSTEM_SW_VERSION_MAJOR << 4) | (SYSTEM_SW_VERSION_MINOR/10));
 }
 
-void radio_packet_compressed_init(t_packet_header_compressed* pPHC, u8 component, u8 packet_type)
-{
-   if ( NULL == pPHC )
-      return;
-
-   pPHC->uCRC = 0;
-   pPHC->packet_flags = PACKET_FLAGS_MASK_COMPRESSED_HEADER;
-   pPHC->uExtraBits = component & PACKET_FLAGS_MASK_MODULE;
-   pPHC->packet_type = packet_type;
-   pPHC->vehicle_id_src = 0;
-   pPHC->vehicle_id_dest = 0;
-   pPHC->total_length = sizeof(t_packet_header_compressed);
-}
 
 void radio_packet_compute_crc(u8* pBuffer, int length)
 {
@@ -75,11 +62,6 @@ void radio_packet_compute_crc(u8* pBuffer, int length)
    *p = crc;
 }
 
-void radio_packet_compressed_compute_crc(u8* pBuffer, int length)
-{
-   u8 crc = base_compute_crc8(pBuffer + sizeof(u8), length-sizeof(u8)); 
-   *pBuffer = crc; 
-}
 
 int radio_packet_check_crc(u8* pBuffer, int length)
 {

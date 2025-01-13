@@ -1740,20 +1740,35 @@ void fbg_imageDraw(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int w, 
     float dxImg = (float)cw/(float)w;
     float dyImg = (float)ch/(float)h;
 
-    float yImg = cy;
-    for( int sy=0; sy<h; sy++ )
+    if ( (fabs(dxImg-1.0) < 0.02) && (fabs(dyImg - 1.0) < 0.02) )
     {
-       int yImgOffset = ((int)yImg) * img->width;
-       float xImg = cx;
-       for( int sx=0; sx<w; sx++ )
+       float yImg = cy;
+       for( int sy=0; sy<h; sy++ )
        {
-           unsigned char *img_pointer = (unsigned char *)(img->data + ((((int)xImg) + yImgOffset) * fbg->components));
-           memcpy(scr_pointer, img_pointer, 4);
-           scr_pointer += fbg->components;
-           xImg += dxImg;
+          int yImgOffset = ((int)yImg) * img->width;
+          unsigned char *img_pointer = (unsigned char *)(img->data + ((((int)cx) + yImgOffset) * fbg->components));
+          memcpy(scr_pointer, img_pointer, fbg->components*w);
+          scr_pointer += fbg->line_length;
+          yImg += dyImg;
        }
-       scr_pointer += fbg->line_length - w * fbg->components;
-       yImg += dyImg;
+    }
+    else
+    {
+       float yImg = cy;
+       for( int sy=0; sy<h; sy++ )
+       {
+          int yImgOffset = ((int)yImg) * img->width;
+          float xImg = cx;
+          for( int sx=0; sx<w; sx++ )
+          {
+              unsigned char *img_pointer = (unsigned char *)(img->data + ((((int)xImg) + yImgOffset) * fbg->components));
+              memcpy(scr_pointer, img_pointer, 4);
+              scr_pointer += fbg->components;
+              xImg += dxImg;
+          }
+          scr_pointer += fbg->line_length - w * fbg->components;
+          yImg += dyImg;
+       }
     }
 }
 

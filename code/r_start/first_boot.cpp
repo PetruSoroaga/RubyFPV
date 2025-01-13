@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -139,12 +139,31 @@ void do_first_boot_initialization_radxa(bool bIsVehicle, u32 uBoardType)
    hw_execute_bash_command("sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0", NULL);
    hw_execute_bash_command("sudo sysctl -p", NULL);
    hw_execute_bash_command("PATH=\"/usr/sbin:/usr/local/sbin:$PATH\"", NULL);
+
+   hw_execute_bash_command("rm -rf /usr/bin/pulseaudio", NULL);
+
+   hw_execute_bash_command("sudo systemctl stop systemd-timesyncd", NULL);
+   hw_execute_bash_command("sudo systemctl disable systemd-timesyncd", NULL);
+
+   hw_execute_bash_command("/etc/init.d/avahi-daemon stop", NULL);
+   hw_execute_bash_command("rm -rf /etc/init.d/avahi-daemon", NULL);
+   hw_execute_bash_command("rm -rf /usr/sbin/avahi-daemon", NULL);
 }
 
 
 void do_first_boot_initialization_openipc(bool bIsVehicle, u32 uBoardType)
 {
    log_line("Doing first time boot setup for OpenIPC platform...");
+   hw_execute_bash_command("cp -rf /etc/majestic.yaml /etc/majestic.yaml.org", NULL);
+
+   hw_execute_bash_command_raw("cli -s .watchdog.enabled false", NULL);
+   hw_execute_bash_command_raw("cli -s .system.logLevel info", NULL);
+   hw_execute_bash_command_raw("cli -s .rtsp.enabled false", NULL);
+   hw_execute_bash_command_raw("cli -s .video1.enabled false", NULL);
+   hw_execute_bash_command_raw("cli -s .video0.enabled true", NULL);
+   hw_execute_bash_command_raw("cli -s .video0.rcMode cbr", NULL);
+   hw_execute_bash_command_raw("cli -s .isp.slowShutter disabled", NULL);
+
    hw_execute_bash_command("ln -s /lib/firmware/ath9k_htc/htc_9271.fw.3 /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw", NULL);
    hw_execute_bash_command("sed -i 's/console:/#console:/' /etc/inittab", NULL);
 }
@@ -173,42 +192,6 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    hw_execute_bash_command(szComm, szBuff);
 
    first_boot_create_default_model(bIsVehicle, uBoardType);
-
-   if ( bIsVehicle )
-   if ( access( "config/reset_info.txt", R_OK ) != -1 )
-   {
-      log_line("Found info for reset to defaults. Using it.");
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-      if ( ! s_ModelFirstBoot.loadFromFile(szFile, true) )
-      {
-         s_ModelFirstBoot.resetToDefaults(true);
-         s_ModelFirstBoot.is_spectator = false;
-      }
-      FILE* fd = fopen("config/reset_info.txt", "rb");
-      if ( NULL != fd )
-      {
-         fscanf(fd, "%u %u %d %d %d %s",
-            &s_ModelFirstBoot.uVehicleId, &s_ModelFirstBoot.uControllerId,
-            &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[0],
-            &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[1],
-            &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[2],
-            szBuff);
-         fclose(fd);
-      
-         if ( szBuff[0] == '*' && szBuff[1] == 0 )
-            szBuff[0] = 0;
-
-         for( int i=0; i<(int)strlen(szBuff); i++ )
-            if ( szBuff[i] == '_' )
-               szBuff[i] = ' ';
-
-         strcpy(s_ModelFirstBoot.vehicle_name, szBuff);
-      }
-      s_ModelFirstBoot.saveToFile(szFile, false);
-      
-      hw_execute_bash_command("rm -rf config/reset_info.txt", NULL);
-   }
 
    if ( bIsVehicle )
    {
@@ -265,7 +248,7 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;
@@ -290,6 +273,8 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
    log_line("Creating a default model.");
    s_ModelFirstBoot.resetToDefaults(true);
    s_ModelFirstBoot.find_and_validate_camera_settings();
+
+   char szFile[MAX_FILE_PATH_SIZE];
    
    if ( bIsVehicle )
    {
@@ -358,7 +343,36 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
          s_ModelFirstBoot.video_link_profiles[VIDEO_PROFILE_PIP].bitrate_fixed_bps = 5000000;
       }
 
-      char szFile[128];
+      strcpy(szFile, FOLDER_CONFIG);
+      strcat(szFile, "reset_info.txt");
+      if ( access( szFile, R_OK ) != -1 )
+      {
+         log_line("Found info for restoring vehicle frequencies after a reset to defaults. Using it.");
+         FILE* fd = fopen(szFile, "r");
+         if ( NULL != fd )
+         {
+            char szBuff[128];
+            fscanf(fd, "%u %u %d %d %d %s",
+               &s_ModelFirstBoot.uVehicleId, &s_ModelFirstBoot.uControllerId,
+               &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[0],
+               &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[1],
+               &s_ModelFirstBoot.radioLinksParams.link_frequency_khz[2],
+               szBuff);
+            fclose(fd);
+         
+            if ( szBuff[0] == '*' && szBuff[1] == 0 )
+               szBuff[0] = 0;
+            szBuff[MAX_VEHICLE_NAME_LENGTH] = 0;
+            strcpy(s_ModelFirstBoot.vehicle_name, szBuff);
+            log_line("Restored vehicle frequencies.");
+         }
+         else
+            log_softerror_and_alarm("Failed to restore vehicle frequencies.");
+         char szComm[256];
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
+         hw_execute_bash_command(szComm, NULL);
+      }
+
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
       _set_default_sik_params_for_vehicle(&s_ModelFirstBoot);
@@ -385,7 +399,7 @@ Model* first_boot_create_default_model(bool bIsVehicle, u32 uBoardType)
 
       s_ModelFirstBoot.b_mustSyncFromVehicle = true;
       s_ModelFirstBoot.is_spectator = false;
-      char szFile[128];
+
       strcpy(szFile, FOLDER_CONFIG);
       strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
       s_ModelFirstBoot.saveToFile(szFile, false);

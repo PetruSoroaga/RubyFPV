@@ -18,3 +18,5 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
 int tx_powers_get_max_usable_power_mw_for_controller();
 // Returns the max set value in mW
 int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComputeOnly);
+
+bool modelvideoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile);

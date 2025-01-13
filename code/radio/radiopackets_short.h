@@ -4,7 +4,6 @@
 #define SHORT_PACKET_START_BYTE_START_PACKET 0x0F
 #define SHORT_PACKET_START_BYTE_END_PACKET 0x10
 
-// Compressed packets (t_packet_header_compressed) are sent only on high bandwidth radio links
 // Short packets (t_packet_header_short) are sent only on low bandwidth radio links
 
 // Short packets usually have 24 bytes usable payload

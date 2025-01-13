@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -307,12 +307,28 @@ float _osd_render_debug_stats_graph_bars(float xPos, float yPos, float hGraph, f
    return hGraph;
 }
 
-
-float _osd_render_debug_stats_graph_values(float xPos, float yPos, float hGraph, float fWidth, u8* pValues, int iCountValues)
+float _osd_render_debug_stats_graph_values_c(float xPos, float yPos, float hGraph, float fWidth, u8* pValues, int iCountValues, double* pColor1, double* pColor2, double* pColor3, double* pColor4, double* pColor5)
 {
    char szBuff[32];
    float height_text = g_pRenderEngine->textHeight(g_idFontStats);
    float height_text_small = g_pRenderEngine->textHeight(g_idFontStatsSmall);
+
+   double cRed[] = {220, 0, 0, 1};
+   double cRose[] = {250, 130, 130, 1};
+   double cBlue[] = {80, 80, 250, 1};
+   double cYellow[] = {250, 250, 50, 1};
+   double cWhite[] = {250, 250, 250, 1};
+
+   if ( NULL == pColor1 )
+      pColor1 = &cRed[0];
+   if ( NULL == pColor2 )
+      pColor2 = &cRose[0];
+   if ( NULL == pColor3 )
+      pColor3 = &cBlue[0];
+   if ( NULL == pColor4 )
+      pColor4 = &cYellow[0];
+   if ( NULL == pColor5 )
+      pColor5 = &cWhite[0];
 
    int iMax = 0;
    for( int i=0; i<iCountValues; i++ )
@@ -346,33 +362,33 @@ float _osd_render_debug_stats_graph_values(float xPos, float yPos, float hGraph,
       }
       if ( pValues[i] == 1 )
       {
-         g_pRenderEngine->setStroke(220, 0, 0, OSD_STRIKE_WIDTH);
-         g_pRenderEngine->setFill(220, 0, 0, s_fOSDStatsGraphLinesAlpha);
+         g_pRenderEngine->setStroke(pColor1[0], pColor1[1], pColor1[2], OSD_STRIKE_WIDTH);
+         g_pRenderEngine->setFill(pColor1[0], pColor1[1], pColor1[2], s_fOSDStatsGraphLinesAlpha);
          hBar = hGraph * 0.7;
       }
       else if ( pValues[i] == 2 )
       {
-         g_pRenderEngine->setStroke(250, 130, 130, OSD_STRIKE_WIDTH);
-         g_pRenderEngine->setFill(250, 130, 130, s_fOSDStatsGraphLinesAlpha);
+         g_pRenderEngine->setStroke(pColor2[0], pColor2[1], pColor2[2], OSD_STRIKE_WIDTH);
+         g_pRenderEngine->setFill(pColor2[0], pColor2[1], pColor2[2], s_fOSDStatsGraphLinesAlpha);
          dyBar = 0.5*hGraph;
       }
       else if ( pValues[i] == 3 )
       {
-         g_pRenderEngine->setStroke(80, 80, 250, OSD_STRIKE_WIDTH);
-         g_pRenderEngine->setFill(80, 80, 250, s_fOSDStatsGraphLinesAlpha);
+         g_pRenderEngine->setStroke(pColor3[0], pColor3[1], pColor3[2], OSD_STRIKE_WIDTH);
+         g_pRenderEngine->setFill(pColor3[0], pColor3[1], pColor3[2], s_fOSDStatsGraphLinesAlpha);
          dyBar = 0.5*hGraph;
       }
       else if ( pValues[i] == 4 )
       {
          hBar = hGraph;
-         g_pRenderEngine->setStroke(250, 250, 50, OSD_STRIKE_WIDTH);
-         g_pRenderEngine->setFill(250, 250, 50, s_fOSDStatsGraphLinesAlpha);
+         g_pRenderEngine->setStroke(pColor4[0], pColor4[1], pColor4[2], OSD_STRIKE_WIDTH);
+         g_pRenderEngine->setFill(pColor4[0], pColor4[1], pColor4[2], s_fOSDStatsGraphLinesAlpha);
       }
       else if ( pValues[i] > 4 )
       {
          hBar = hGraph;
-         g_pRenderEngine->setStroke(250, 250, 250, OSD_STRIKE_WIDTH);
-         g_pRenderEngine->setFill(250, 250, 250, s_fOSDStatsGraphLinesAlpha);
+         g_pRenderEngine->setStroke(pColor5[0], pColor5[1], pColor5[2], OSD_STRIKE_WIDTH);
+         g_pRenderEngine->setFill(pColor5[0], pColor5[1], pColor5[2], s_fOSDStatsGraphLinesAlpha);
       }
       g_pRenderEngine->drawRect(xBar, yPos + hGraph - hBar - dyBar, fWidthBar - g_pRenderEngine->getPixelWidth(), hBar);
       xBar += fWidthBar;
@@ -381,6 +397,17 @@ float _osd_render_debug_stats_graph_values(float xPos, float yPos, float hGraph,
    g_pRenderEngine->setColors(get_Color_Dev());
    return hGraph;
 }
+
+float _osd_render_debug_stats_graph_values(float xPos, float yPos, float hGraph, float fWidth, u8* pValues, int iCountValues)
+{
+   double cRed[] = {220, 0, 0, 1};
+   double cRose[] = {250, 130, 130, 1};
+   double cBlue[] = {80, 80, 250, 1};
+   double cYellow[] = {250, 250, 50, 1};
+   double cWhite[] = {250, 250, 250, 1};
+   return _osd_render_debug_stats_graph_values_c(xPos, yPos, hGraph, fWidth, pValues, iCountValues, cRed, cRose, cBlue, cYellow, cWhite);
+}
+
 
 float _osd_render_ack_time_hist(controller_runtime_info_vehicle* pRTInfoVehicle, float xPos, float fGraphXStart, float yPos, float hGraph, float fWidthGraph )
 {
@@ -648,11 +675,28 @@ void osd_render_debug_stats()
    {
       for( int i=0; i<iCountIntervals; i++ )
       {
-         uTmp[i] = pCRTInfo->uRecvEndOfFrame[i+iStartIntervals];
+         /*
+         uTmp[i] = 0;
+         if ( pCRTInfo->uRecvFramesInfo[i+iStartIntervals] & 0b01 )
+           uTmp[i] = 1;
+         if ( pCRTInfo->uRecvFramesInfo[i+iStartIntervals] & 0b10 )
+           uTmp[i] = 2;
+         */
+         if ( pCRTInfo->uRecvFramesInfo[i+iStartIntervals] & 0b1000000 )
+           uTmp[i] = 3;
+         else if ( pCRTInfo->uRecvFramesInfo[i+iStartIntervals] & 0b100000 )
+           uTmp[i] = 2;
+         else if ( pCRTInfo->uRecvFramesInfo[i+iStartIntervals] & 0b10000 )
+           uTmp[i] = 1;
       }
-      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Received P/I frames end");
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Received P/I frames");
       y += height_text*1.3;
-      y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);
+
+      double cRed[] = {220, 0, 0, 1};
+      double cBlue[] = {80, 80, 250, 1};
+      double cWhite[] = {250, 250, 250, 1};
+
+      y += _osd_render_debug_stats_graph_values_c(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals, cRed, cBlue, cWhite, NULL, NULL);
       y += height_text_small;
       iCountGraphs++;
    }

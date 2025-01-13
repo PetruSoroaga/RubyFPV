@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -139,6 +139,8 @@ int main(int argc, char *argv[])
 
    int nSleepMs = 100;
 
+   log_line("Entering main loop...");
+
    while ( ! gbQuit )
    {
       u32 uTimeStart = get_current_timestamp_ms();
@@ -237,6 +239,7 @@ int main(int argc, char *argv[])
          log_softerror_and_alarm("Main processing loop took too long (%u ms).", dTime);
    }
 
+   log_line("Exiting...");
    power_leds(1);
    hardware_release();
    return (0);

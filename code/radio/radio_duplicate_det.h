@@ -12,7 +12,7 @@ extern "C" {
 void radio_duplicate_detection_init();
 void radio_duplicate_detection_log_info();
 
-int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer, int iPacketLength, u32 uTimeNow);
+int radio_dup_detection_is_duplicate_on_stream(int iRadioInterfaceIndex, u8* pPacketBuffer, int iPacketLength, u32 uTimeNow);
 void radio_duplicate_detection_remove_data_for_all_except(u32 uVehicleId);
 
 int radio_dup_detection_is_vehicle_restarted(u32 uVehicleId);

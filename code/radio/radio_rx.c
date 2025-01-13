@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -38,11 +38,12 @@
 #include "radio_rx.h"
 #include "radiolink.h"
 #include "radio_duplicate_det.h"
+#include <poll.h>
 
 int s_iRadioRxInitialized = 0;
 int s_iRadioRxSingalStop = 0;
 int s_iRadioRxDevMode = 0;
-int s_iRadioRxLoopTimeoutInterval = 15;
+int s_iRadioRxLoopTimeoutInterval = 60;
 int s_iRadioRxMarkedForQuit = 0;
 int s_iDefaultRxThreadPriority = -1;
 int s_iCustomRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
@@ -56,6 +57,7 @@ shared_mem_radio_stats_interfaces_rx_graph* s_pSMRadioRxGraphs = NULL;
 int s_iSearchMode = 0;
 u32 s_uRadioRxTimeNow = 0;
 u32 s_uRadioRxLastTimeRead = 0;
+u32 s_uRadioRxMaxTimeRead = 0;
 u32 s_uRadioRxLastTimeQueue = 0;
 u32 s_uRadioRxLastReceivedPacket =0;
 
@@ -89,6 +91,13 @@ volatile int s_bCanDoOperations = 0;
 
 extern u32 s_uLastRadioPingSentTime;
 extern u8 s_uLastRadioPingId;
+
+// To remove
+
+static int s_iDebugCountVideo = 0;
+static int s_iDebugCountData = 0;
+static int s_iDebugCountVideoFrame = 0;
+static int s_iDebugCountDataFrame = 0;
 
 t_radio_rx_state_vehicle* _radio_rx_get_stats_structure_for_vehicle(u32 uVehicleId)
 {
@@ -174,27 +183,24 @@ int _radio_rx_update_local_stats_on_new_radio_packet(int iInterface, int iIsShor
    else
    {
       t_packet_header* pPH = (t_packet_header*)pPacket;
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+      
+      // Check for lost packets
+      if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 0 )
+      if ( pPH->radio_link_packet_index > pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]+1 )
       {
-         // Check for lost packets
-         if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 0 )
-         if ( pPH->radio_link_packet_index > pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]+1 )
-         {
-            u32 lost = pPH->radio_link_packet_index - (pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] + 1);
-            pStatsVehicle->uTotalRxPacketsLost += lost;
-            pStatsVehicle->uTmpRxPacketsLost += lost;
-            nReturnLost = lost;
-         }
-
-         // Check for restarted on the other end
-         //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 10 )
-         //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] < 0xFFFF-10 ) // pPH->radio_link_packet_index is 16 bits
-         //if ( pPH->radio_link_packet_index < pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]-10 )
-         //    radio_dup_detection_set_vehicle_restarted_flag(pPH->vehicle_id_src);
-
-         pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
+         u32 lost = pPH->radio_link_packet_index - (pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] + 1);
+         pStatsVehicle->uTotalRxPacketsLost += lost;
+         pStatsVehicle->uTmpRxPacketsLost += lost;
+         nReturnLost = lost;
       }
+
+      // Check for restarted on the other end
+      //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] > 10 )
+      //if ( pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] < 0xFFFF-10 ) // pPH->radio_link_packet_index is 16 bits
+      //if ( pPH->radio_link_packet_index < pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface]-10 )
+      //    radio_dup_detection_set_vehicle_restarted_flag(pPH->vehicle_id_src);
+
+      pStatsVehicle->uLastRxRadioLinkPacketIndex[iInterface] = pPH->radio_link_packet_index;
    }
    return nReturnLost;
 }
@@ -207,7 +213,7 @@ void _radio_rx_update_fd_sets()
    s_iRadioRxCountFDs = 0;
    s_iRadioRxMaxFD = 0;
    s_iRadioRxReadTimeInterval.tv_sec = 0;
-   s_iRadioRxReadTimeInterval.tv_usec = 20000; // 20 milisec timeout
+   s_iRadioRxReadTimeInterval.tv_usec = 50000; // 50 milisec timeout
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
@@ -302,12 +308,7 @@ void _radio_rx_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadioInterf
       return;
 
    t_packet_header* pPH = (t_packet_header*)pPacket;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacket;
-   u8 uPacketType = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      uPacketType = pPHC->packet_type;
-   else
-      uPacketType = pPH->packet_type;
+   u8 uPacketType = pPH->packet_type;
 
    t_radio_rx_state_packets_queue* pQueue = &s_RadioRxState.queue_reg_priority;
    if ( radio_packet_type_is_high_priority( uPacketType ) )
@@ -349,7 +350,7 @@ void _radio_rx_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadioInterf
 
 void _radio_rx_check_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadioInterfaceIndex)
 {   
-   if ( radio_dup_detection_is_duplicate(iRadioInterfaceIndex, pPacket, iLength, s_uRadioRxTimeNow) )
+   if ( radio_dup_detection_is_duplicate_on_stream(iRadioInterfaceIndex, pPacket, iLength, s_uRadioRxTimeNow) )
       return;
 
    if ( NULL != s_pSMRadioStats )
@@ -391,14 +392,7 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
      if ( pPHS->data_length >= sizeof(t_packet_header) - sizeof(u32) )
      {
         t_packet_header* pPH = (t_packet_header*)(pPacketBuffer + sizeof(t_packet_header_short));
-        if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-           s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPH->vehicle_id_src;
-     }
-     else if ( pPHS->data_length >= sizeof(t_packet_header_compressed) - sizeof(u32) )
-     {
-        t_packet_header_compressed* pPHC = (t_packet_header_compressed*)(pPacketBuffer + sizeof(t_packet_header_short));
-        if ( (pPHC->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-           s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPHC->vehicle_id_src;
+        s_uLastRxShortPacketsVehicleIds[iInterfaceIndex] = pPH->vehicle_id_src;
      }
    }
 
@@ -426,7 +420,6 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
    if ( s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= sizeof(t_packet_header) )
    {
       t_packet_header* pPH = (t_packet_header*) s_uBuffersFullMessages[iInterfaceIndex];
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( (pPH->total_length >= sizeof(t_packet_header)) && (s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= pPH->total_length) )
       {
          u32 uCRC = base_compute_crc32(&s_uBuffersFullMessages[iInterfaceIndex][sizeof(u32)], pPH->total_length - sizeof(u32));
@@ -437,21 +430,7 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
          }
       }
    }
-   else if ( s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= sizeof(t_packet_header_compressed) )
-   {
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*) s_uBuffersFullMessages[iInterfaceIndex];
-      if ( (pPHC->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      if ( (pPHC->total_length >= sizeof(t_packet_header_compressed)) && (s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= pPHC->total_length) )
-      {
-         u8 uCRC = base_compute_crc8(&s_uBuffersFullMessages[iInterfaceIndex][sizeof(u8)], pPHC->total_length - sizeof(u8));
-         if ( uCRC == pPHC->uCRC )
-         {
-            s_uBuffersFullMessagesReadPos[iInterfaceIndex] = 0;
-            _radio_rx_check_add_packet_to_rx_queue(s_uBuffersFullMessages[iInterfaceIndex], pPHC->total_length, iInterfaceIndex);
-         }
-      }
-   }
-
+ 
    // Too much data? Then reset the buffer and wait for the start of a new full packet.
    if ( s_uBuffersFullMessagesReadPos[iInterfaceIndex] >= MAX_PACKET_TOTAL_SIZE*2 - 255 )
      s_uBuffersFullMessagesReadPos[iInterfaceIndex] = 0;
@@ -578,10 +557,10 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
    u8* pBuffer = NULL;
    int iCountParsed = 0;
 
-   static int sdebugCountParser = 0;
-   sdebugCountParser++;
+   //static int sdebugCountParser = 0;
+   //sdebugCountParser++;
 
-   for( int iCountReads=0; iCountReads<3; iCountReads++ )
+   for( int iCountReads=0; iCountReads<5; iCountReads++ )
    {
       iBufferLength = 0;
       pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength);
@@ -608,21 +587,15 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       while ( (iRemainingLength > 0) && (NULL != pData) )
       { 
          t_packet_header* pPH = (t_packet_header*)pData;
-         t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-         u8 uPacketType = 0;
-         int iThisLen = 0;
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         {
-            iThisLen = pPHC->total_length;
-            uPacketType = pPHC->packet_type;
-         }
+         int iThisLen = pPH->total_length;
+         u8 uPacketType = pPH->packet_type;
+
+         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
+            s_iDebugCountVideo++;
          else
-         {
-            iThisLen = pPH->total_length;
-            uPacketType = pPH->packet_type;
-         }
+            s_iDebugCountData++;
+
          if ( s_iRadioRxDevMode )
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          if ( uPacketType == PACKET_TYPE_RUBY_PING_CLOCK )
          {
             s_uLastRadioPingSentTime = get_current_timestamp_ms();
@@ -634,7 +607,6 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
             s_pPacketsCounterOutputHighPriority[iInterfaceIndex]++;
          
 
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
          if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
          {
@@ -687,7 +659,6 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
             }
          }
 
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
          if ( NULL != s_pPacketsCounterOutputData )
             s_pPacketsCounterOutputData[iInterfaceIndex]++;
@@ -713,6 +684,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
 
          if ( iPacketLength <= 0 )
          {
+            log_softerror_and_alarm("[RadioRxThread] Process and check packet of %d bytes failed, error: %d", iRemainingLength, get_last_processing_error_code());
             iDataIsOk = 0;
             s_RadioRxState.iRadioInterfacesRxBadPackets[iInterfaceIndex] = get_last_processing_error_code();
             break;
@@ -737,7 +709,6 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
             continue;
          }
          _radio_rx_check_add_packet_to_rx_queue(pData, iThisLen, iInterfaceIndex);
-
          pData += iThisLen;
          iRemainingLength -= iThisLen;
       }
@@ -754,12 +725,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex)
       s_uRadioRxLastReceivedPacket = s_uRadioRxTimeNow;
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBuffer;
-      u32 uVehicleId = 0;
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         uVehicleId = pPHC->vehicle_id_src;
-      else
-         uVehicleId = pPH->vehicle_id_src;
+      u32 uVehicleId = pPH->vehicle_id_src;
 
       int nLost = _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 0, uVehicleId, pBuffer, iBufferLength, iDataIsOk);
       if ( nLost > 0 )
@@ -837,6 +803,17 @@ void _radio_rx_update_stats(u32 uTimeNow)
       s_RadioRxState.queue_high_priority.iStatsMaxPacketsInQueueLastMinute = 0;
       s_RadioRxState.queue_reg_priority.iStatsMaxPacketsInQueueLastMinute = 0;
 
+      int iCountPacketsHigh = s_RadioRxState.queue_high_priority.iCurrentPacketIndexToWrite - s_RadioRxState.queue_high_priority.iCurrentPacketIndexToConsume;
+      if ( s_RadioRxState.queue_high_priority.iCurrentPacketIndexToWrite < s_RadioRxState.queue_high_priority.iCurrentPacketIndexToConsume )
+         iCountPacketsHigh = s_RadioRxState.queue_high_priority.iCurrentPacketIndexToWrite + (s_RadioRxState.queue_high_priority.iQueueSize - s_RadioRxState.queue_high_priority.iCurrentPacketIndexToConsume);
+
+      int iCountPacketsReg = s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToWrite - s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToConsume;
+      if ( s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToWrite < s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToConsume )
+         iCountPacketsReg = s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToWrite + (s_RadioRxState.queue_reg_priority.iQueueSize - s_RadioRxState.queue_reg_priority.iCurrentPacketIndexToConsume);
+
+      log_line("[RadioRxThread] Packets in queues now pending consumption (high/reg prio): %d/%d",
+         iCountPacketsHigh, iCountPacketsReg);
+
       radio_duplicate_detection_log_info();
 
       if ( (s_iCounterRadioRxStatsUpdate2 % 10) == 0 )
@@ -848,7 +825,7 @@ void _radio_rx_update_stats(u32 uTimeNow)
    }
 }
 
-static void * _thread_radio_rx(void *argument)
+void * _thread_radio_rx(void *argument)
 {
    log_line("[RadioRxThread] Started.");
 
@@ -897,22 +874,22 @@ static void * _thread_radio_rx(void *argument)
       s_bCanDoOperations = 0;
       
       uTime = get_current_timestamp_ms();
-      if ( uTime - uTimeLastLoopCheck > 3 )
-         iLoopOkCounter = 0;
-      else
-         iLoopOkCounter++;
+      //if ( uTime - uTimeLastLoopCheck > 3 )
+      //   iLoopOkCounter = 0;
+      //else
+      //   iLoopOkCounter++;
 
-      if ( uTime - uTimeLastLoopCheck > s_iRadioRxLoopTimeoutInterval )
-      {
-         log_softerror_and_alarm("[RadioRxThread] Radio Rx loop took too long (%d ms, read: %u microsec, queue: %u microsec).", uTime - uTimeLastLoopCheck, s_uRadioRxLastTimeRead, s_uRadioRxLastTimeQueue);
-         if ( uTime - uTimeLastLoopCheck > s_RadioRxState.uMaxLoopTime )
-            s_RadioRxState.uMaxLoopTime = uTime - uTimeLastLoopCheck;
-      }
-      uTimeLastLoopCheck = uTime;
+      //if ( uTime - uTimeLastLoopCheck > s_iRadioRxLoopTimeoutInterval )
+      //{
+      //   log_softerror_and_alarm("[RadioRxThread] Radio Rx loop took too long (%d ms, read: %u ms, queue: %u ms).", uTime - uTimeLastLoopCheck, s_uRadioRxMaxTimeRead, s_uRadioRxLastTimeQueue);
+      //   if ( uTime - uTimeLastLoopCheck > s_RadioRxState.uMaxLoopTime )
+      //      s_RadioRxState.uMaxLoopTime = uTime - uTimeLastLoopCheck;
+      //}
+      //uTimeLastLoopCheck = uTime;
 
-      // Loop is executed every 50 ms max. So update stats every 500 ms max
+      // Loop is executed every 50 ms max. So check and update stats every 250 ms max
 
-      if ( 0 == (iLoopCounter % 10) )
+      if ( 0 == (iLoopCounter % 5) )
       {
          _radio_rx_update_stats(uTime);
          if ( s_iLastSetCustomRxThreadPriority != s_iCustomRxThreadPriority )
@@ -927,7 +904,22 @@ static void * _thread_radio_rx(void *argument)
          }
       }
 
-      _radio_rx_update_fd_sets();
+      //_radio_rx_update_fd_sets();
+      struct pollfd fds[MAX_RADIO_INTERFACES];
+      s_iRadioRxCountFDs = 0;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )
+            continue;
+         if ( s_RadioRxState.iRadioInterfacesBroken[i] )
+            continue;
+         if ( s_iRadioRxPausedInterfaces[i] )
+            continue;
+         fds[s_iRadioRxCountFDs].fd = pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd;
+         fds[s_iRadioRxCountFDs].events = POLLIN;
+         s_iRadioRxCountFDs++;
+      }
 
       if ( s_iRadioRxCountFDs <= 0 )
       {
@@ -935,10 +927,25 @@ static void * _thread_radio_rx(void *argument)
          continue;
       }
 
-      uTimeLastRead = uTime;
-
-      int nResult = select(s_iRadioRxMaxFD, &s_RadioRxReadSet, NULL, NULL, &s_iRadioRxReadTimeInterval);
-      s_uRadioRxLastTimeRead += get_current_timestamp_micros() - uTimeLastRead;
+      uTimeLastRead = uTime = get_current_timestamp_ms();
+      
+      //log_line("DEBUG start wait select");
+      s_iDebugCountVideo = 0;
+      s_iDebugCountData = 0;
+      
+      //int nResult = select(s_iRadioRxMaxFD, &s_RadioRxReadSet, NULL, NULL, &s_iRadioRxReadTimeInterval);
+      int nResult = poll(fds, s_iRadioRxCountFDs, 60);
+      s_uRadioRxLastTimeRead = get_current_timestamp_ms() - uTimeLastRead;
+      if ( s_uRadioRxLastTimeRead > s_uRadioRxMaxTimeRead )
+         s_uRadioRxMaxTimeRead = s_uRadioRxLastTimeRead;
+      if ( s_uRadioRxLastTimeRead > 5 )
+      {
+         //log_line("DEBUG select time: %u milisec, last fr: %d video, %d data", s_uRadioRxLastTimeRead, s_iDebugCountVideoFrame, s_iDebugCountDataFrame);
+         s_iDebugCountVideoFrame = 0;
+         s_iDebugCountDataFrame = 0;
+      }
+      //else
+      //   log_line("DEBUG poll time: %u milisec", s_uRadioRxLastTimeRead);
       s_uRadioRxLastTimeQueue = 0;
 
       if ( nResult < 0 )
@@ -960,16 +967,26 @@ static void * _thread_radio_rx(void *argument)
       int iParsedPackets[MAX_RADIO_INTERFACES];
       memset(iParsedPackets, 0, sizeof(int)*MAX_RADIO_INTERFACES);
 
-      // Repeat reading while we have max reads on at leas one interface
+      // Repeat reading while we have max reads on at least one interface
       do
       {
          iMaxedInterface = -1;
+         int kIndex = 0;
          for(int iInterfaceIndex=0; iInterfaceIndex<hardware_get_radio_interfaces_count(); iInterfaceIndex++)
          {
             radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
-            if( (NULL == pRadioHWInfo) || (s_iRadioRxPausedInterfaces[iInterfaceIndex]) || (0 == FD_ISSET(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &s_RadioRxReadSet)) )
+            if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )
+               continue;
+            if ( s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] )
+               continue;
+            if ( s_iRadioRxPausedInterfaces[iInterfaceIndex] )
                continue;
 
+            //if( 0 == FD_ISSET(pRadioHWInfo->runtimeInterfaceInfoRx.selectable_fd, &s_RadioRxReadSet) )
+            //   continue;
+            if( 0 == (fds[kIndex].revents & POLLIN) )
+               continue;
+            kIndex++;
             if ( hardware_radio_index_is_serial_radio(iInterfaceIndex) )
             {
                int iResult = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
@@ -988,11 +1005,14 @@ static void * _thread_radio_rx(void *argument)
                   s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
                   continue;
                }
-               if ( iParsedPackets[iInterfaceIndex] > 2 )
+               if ( iParsedPackets[iInterfaceIndex] > 4 )
                   iMaxedInterface = iInterfaceIndex;
             }
          }
       } while (iMaxedInterface != -1);
+      s_iDebugCountVideoFrame += s_iDebugCountVideo;
+      s_iDebugCountDataFrame += s_iDebugCountData;
+      //log_line("DEBUG recv %d video packets, %d data packets", s_iDebugCountVideo, s_iDebugCountData);
    }
 
    log_line("[RadioRxThread] Stopped.");
@@ -1018,6 +1038,8 @@ int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_r
 
    s_RadioRxState.queue_reg_priority.iQueueSize = MAX_RX_PACKETS_QUEUE;
    s_RadioRxState.queue_high_priority.iQueueSize = 150;
+   if ( s_RadioRxState.queue_high_priority.iQueueSize > MAX_RX_PACKETS_QUEUE )
+      s_RadioRxState.queue_high_priority.iQueueSize = MAX_RX_PACKETS_QUEUE;
 
    for( int i=0; i<s_RadioRxState.queue_reg_priority.iQueueSize; i++ )
    {
@@ -1375,8 +1397,8 @@ u32 radio_rx_get_and_reset_max_loop_time()
 
 u32 radio_rx_get_and_reset_max_loop_time_read()
 {
-   u32 u = s_uRadioRxLastTimeRead;
-   s_uRadioRxLastTimeRead = 0;
+   u32 u = s_uRadioRxMaxTimeRead;
+   s_uRadioRxMaxTimeRead = 0;
    return u;
 }
 

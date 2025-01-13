@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -129,16 +129,8 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBu
    if ( (NULL != pPacketBuffer) && (iPacketLength >= (int)sizeof(t_packet_header)) )
    {
       t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         log_line("[RadioDuplicateDetection] Received packet type: %s, %d bytes, source VID: %u, dest VID:%u",
-            str_get_packet_type(pPH->packet_type), pPH->total_length, pPH->vehicle_id_src, pPH->vehicle_id_dest);
-   }
-   else if ( (NULL != pPacketBuffer) && (iPacketLength >= (int)sizeof(t_packet_header_compressed)) )
-   {
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
-      if ( (pPHC->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-         log_line("[RadioDuplicateDetection] Received packet type: %s, %d bytes, source VID: %u, dest VID:%u",
-            str_get_packet_type(pPHC->packet_type), pPHC->total_length, pPHC->vehicle_id_src, pPHC->vehicle_id_dest);
+      log_line("[RadioDuplicateDetection] Received packet type: %s, %d bytes, source VID: %u, dest VID:%u",
+         str_get_packet_type(pPH->packet_type), pPH->total_length, pPH->vehicle_id_src, pPH->vehicle_id_dest);
    }
 
    char szBuff[256];
@@ -198,32 +190,17 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBu
 
 // return 1 if packet is duplicate, 0 if it's not duplicate
 
-int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer, int iPacketLength, u32 uTimeNow)
+int radio_dup_detection_is_duplicate_on_stream(int iRadioInterfaceIndex, u8* pPacketBuffer, int iPacketLength, u32 uTimeNow)
 {
    if ( (NULL == pPacketBuffer) || (iPacketLength <= 0) )
       return 1;
 
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
-
-   u32 uVehicleId = 0;
-   u32 uStreamPacketIndex = 0;
-   u32 uStreamIndex = 0;
-   u8 uPacketType = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uVehicleId = pPHC->vehicle_id_src;
-      uStreamPacketIndex = (pPHC->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
-      uStreamIndex = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      uPacketType = pPHC->packet_type;
-   }
-   else
-   {
-      uVehicleId = pPH->vehicle_id_src;
-      uStreamPacketIndex = (pPH->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
-      uStreamIndex = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX; 
-      uPacketType = pPH->packet_type;   
-   }
+   
+   u32 uVehicleId = pPH->vehicle_id_src;
+   u32 uStreamPacketIndex = (pPH->stream_packet_idx) & PACKET_FLAGS_MASK_STREAM_PACKET_IDX;
+   u32 uStreamIndex = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX; 
+   u8 uPacketType = pPH->packet_type;   
    int iStatsIndex = -1;
 
    iStatsIndex = _radio_dup_detection_get_runtime_index_for_vid(uVehicleId, pPacketBuffer, iPacketLength);
@@ -258,11 +235,11 @@ int radio_dup_detection_is_duplicate(int iRadioInterfaceIndex, u8* pPacketBuffer
 
    int iStreamRestarted = 0;
 
-   if ( (uStreamIndex >= STREAM_ID_VIDEO_1) || (uStreamIndex == STREAM_ID_COMPRESSED) )
+   if ( uStreamIndex >= STREAM_ID_VIDEO_1 )
    if ( pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex > uStreamPacketIndex + uMaxDeltaForVideoStream )
       iStreamRestarted = 1;
 
-   if ( (uStreamIndex < STREAM_ID_VIDEO_1) && (uStreamIndex != STREAM_ID_COMPRESSED) )
+   if ( uStreamIndex < STREAM_ID_VIDEO_1 )
    if ( pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex > uStreamPacketIndex + uMaxDeltaForDataStream )
       iStreamRestarted = 1;
 

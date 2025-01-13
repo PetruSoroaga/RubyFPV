@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -57,6 +57,7 @@
 #include "shared_vars.h"
 #include "timers.h"
 #include "process_video_packets.h"
+#include "adaptive_video.h"
 
 #define MAX_PACKETS_IN_ID_HISTORY 6
 
@@ -86,27 +87,12 @@ void init_radio_rx_structures()
 int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 {
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
-
-   u8 uPacketType = 0;
-   int iTotalLength = 0;
-   u32 uVehicleIdSrc = 0;
-   u32 uVehicleIdDest = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uPacketType = pPHC->packet_type;
-      iTotalLength = pPHC->total_length;
-      uVehicleIdSrc = pPHC->vehicle_id_src;
-      uVehicleIdDest = pPHC->vehicle_id_dest;
-   }
-   else
-   {
-      uPacketType = pPH->packet_type;
-      iTotalLength = pPH->total_length;
-      uVehicleIdSrc = pPH->vehicle_id_src;
-      uVehicleIdDest = pPH->vehicle_id_dest;
-   }
-
+   
+   u8 uPacketType = pPH->packet_type;
+   int iTotalLength = pPH->total_length;
+   u32 uVehicleIdSrc = pPH->vehicle_id_src;
+   u32 uVehicleIdDest = pPH->vehicle_id_dest;
+   
    if ( uPacketType == PACKET_TYPE_TEST_RADIO_LINK )
    {
       test_link_process_received_message(iInterfaceIndex, pPacketBuffer);
@@ -163,6 +149,7 @@ int _process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(&(g_pCurrentModel->relay_params), pPacketBuffer + sizeof(t_packet_header), sizeof(type_relay_parameters));
       memcpy(&(g_pCurrentModel->radioInterfacesParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters), sizeof(type_radio_interfaces_parameters));
       memcpy(&(g_pCurrentModel->radioLinksParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), sizeof(type_radio_links_parameters));
+      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
       saveControllerModel(g_pCurrentModel);
 
       pPH->packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
@@ -549,21 +536,10 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, u8* pPacket
       return;
 
    t_packet_header* pPH = (t_packet_header*)pPacketData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketData;
-
-   u32 uStreamPacketIndex = 0;
-   u32 uVehicleIdSrc = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uStreamPacketIndex = pPHC->stream_packet_idx;
-      uVehicleIdSrc = pPHC->vehicle_id_src;
-   }
-   else
-   {
-      uStreamPacketIndex = pPH->stream_packet_idx;
-      uVehicleIdSrc = pPH->vehicle_id_src;
-   }
-
+   
+   u32 uStreamPacketIndex = pPH->stream_packet_idx;
+   u32 uVehicleIdSrc = pPH->vehicle_id_src;
+   
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
    u32 uCurrentFrequencyKhz = 0;
    if ( NULL != pRadioHWInfo )
@@ -619,34 +595,13 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, u8* pPacket
 int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDataLength)
 {
    t_packet_header* pPH = (t_packet_header*)pData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-
-   u32 uStreamPacketIndex = 0;
-   u32 uVehicleIdSrc = 0;
-   u32 uVehicleIdDest = 0;
-   u8 uPacketType = 0;
-   u8 uPacketFlags = 0;
-   int iPacketLength = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uStreamPacketIndex = pPHC->stream_packet_idx;
-      uVehicleIdSrc = pPHC->vehicle_id_src;
-      uVehicleIdDest = pPHC->vehicle_id_dest;
-      uPacketType = pPHC->packet_type;
-      iPacketLength = pPHC->total_length;
-      uPacketFlags = pPHC->packet_flags;
-      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
-      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
-   }
-   else
-   {
-      uStreamPacketIndex = pPH->stream_packet_idx;
-      uVehicleIdSrc = pPH->vehicle_id_src;
-      uVehicleIdDest = pPH->vehicle_id_dest;
-      uPacketType = pPH->packet_type;
-      iPacketLength = pPH->total_length;
-      uPacketFlags = pPH->packet_flags;
-   }
+   
+   u32 uStreamPacketIndex = pPH->stream_packet_idx;
+   u32 uVehicleIdSrc = pPH->vehicle_id_src;
+   u32 uVehicleIdDest = pPH->vehicle_id_dest;
+   u8 uPacketType = pPH->packet_type;
+   int iPacketLength = pPH->total_length;
+   u8 uPacketFlags = pPH->packet_flags;
 
    if ( NULL != g_pProcessStats )
    {
@@ -720,6 +675,7 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
          resetVehicleRuntimeInfo(iFirstFree);
          g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[iFirstFree] = uVehicleIdSrc;
          g_State.vehiclesRuntimeInfo[iFirstFree].uVehicleId = uVehicleIdSrc;
+         adaptive_video_on_new_vehicle(iFirstFree);
       }
    }
 
@@ -734,7 +690,9 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
       }
       if ( (uPacketType == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) ||
            (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
-           (uPacketType == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK) )
+           (uPacketType == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK) ||
+           (uPacketType == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) ||
+           (uPacketType == PACKET_TYPE_TEST_RADIO_LINK) )
       {
          g_State.vehiclesRuntimeInfo[iRuntimeIndex].uLastTimeReceivedAckFromVehicle = g_TimeNow;
          g_SM_RadioStats.uLastTimeReceivedAckFromAVehicle = g_TimeNow;
@@ -767,7 +725,7 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
             break;
          if ( g_pVideoProcessorRxList[i]->m_uVehicleId == uVehicleIdSrc )
          {
-            g_pVideoProcessorRxList[i]->resetState();
+            g_pVideoProcessorRxList[i]->resetStateOnVehicleRestart();
             break;
          }
       }
@@ -894,8 +852,11 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
    {
       if ( bIsRelayedPacket )
       {
-         if ( (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
-              (uPacketType == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
+         if ( (uPacketType == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) ||
+              (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK_REPLY) ||
+              (uPacketType == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK) ||
+              (uPacketType == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) ||
+              (uPacketType == PACKET_TYPE_TEST_RADIO_LINK) )
             _process_received_ruby_message(iInterfaceIndex, pData);
          return 0;
       }

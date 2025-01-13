@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -57,7 +57,65 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexRadioRxPriority = -1;
    m_IndexRadioTxPriority = -1;
 
+   m_iIndexCoresAdjustment = -1;
+   m_iIndexPrioritiesAdjustment = -1;
+
+   m_IndexCPUEnabled = -1;
+   m_IndexCPUSpeed = -1;
+   m_IndexGPUEnabled = -1;
+   m_IndexGPUSpeed = -1;
+   m_IndexVoltageEnabled = -1;
+   m_IndexVoltage = -1;
+   m_IndexReset = -1;
+
+   #if defined(HW_PLATFORM_RASPBERRY)
+   addMenuItem(new MenuItemSection("CPU"));
+
+   m_pItemsSelect[2] = new MenuItemSelect("Enable CPU Overclocking", "Enables overclocking of the main ARM CPU.");  
+   m_pItemsSelect[2]->addSelection("No");
+   m_pItemsSelect[2]->addSelection("Yes");
+   m_pItemsSelect[2]->setIsEditable();
+   m_IndexCPUEnabled = addMenuItem(m_pItemsSelect[2]);
+
+   m_pItemsSlider[5] = new MenuItemSlider("CPU Speed (Mhz)", "Sets the main CPU frequency. Requires a reboot.", 700,1600, 1050, fSliderWidth);
+   m_pItemsSlider[5]->setStep(25);
+   m_IndexCPUSpeed = addMenuItem(m_pItemsSlider[5]);
+
+   m_pItemsSelect[3] = new MenuItemSelect("Enable GPU Overclocking", "Enables overclocking of the GPU cores.");  
+   m_pItemsSelect[3]->addSelection("No");
+   m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3]->setIsEditable();
+   m_IndexGPUEnabled = addMenuItem(m_pItemsSelect[3]);
+
+   m_pItemsSlider[6] = new MenuItemSlider("GPU Speed (Mhz)", "Sets the GPU frequency. Requires a reboot.", 200,1000,600, fSliderWidth);
+   m_pItemsSlider[6]->setStep(25);
+   m_IndexGPUSpeed = addMenuItem(m_pItemsSlider[6]);
+
+   m_pItemsSelect[4] = new MenuItemSelect("Enable Overvoltage", "Enables overvotage on the CPU and GPU cores. You need to increase voltage as you increase speed.");  
+   m_pItemsSelect[4]->addSelection("No");
+   m_pItemsSelect[4]->addSelection("Yes");
+   m_IndexVoltageEnabled = addMenuItem(m_pItemsSelect[4]);
+
+   m_pItemsSlider[7] = new MenuItemSlider("Overvoltage (steps)", "Sets the overvoltage value, in 0.025V increments. Requires a reboot.", 1,8,4, fSliderWidth);
+   m_pItemsSlider[7]->setStep(1);
+   m_IndexVoltage = addMenuItem(m_pItemsSlider[7]);
+
+   m_IndexReset = addMenuItem(new MenuItem("Reset CPU Freq", "Resets the controller CPU and GPU frequencies to default values."));
+   #endif
+
    addMenuItem(new MenuItemSection("Priorities"));
+
+   m_pItemsSelect[10] = new MenuItemSelect("Enable CPU Cores Auto Adjustment", "Automatically adjust the work load on each CPU core.");
+   m_pItemsSelect[10]->addSelection("No");
+   m_pItemsSelect[10]->addSelection("Yes");
+   m_pItemsSelect[10]->setIsEditable();
+   m_iIndexCoresAdjustment = addMenuItem(m_pItemsSelect[10]);
+
+   m_pItemsSelect[11] = new MenuItemSelect("Enable Priorities Adjustment", "Enable adjustment of processes priorities or use default priorities.");
+   m_pItemsSelect[11]->addSelection("No");
+   m_pItemsSelect[11]->addSelection("Yes");
+   m_pItemsSelect[11]->setIsEditable();
+   m_iIndexPrioritiesAdjustment = addMenuItem(m_pItemsSelect[11]);
 
    m_pItemsSlider[0] = new MenuItemSlider("Core Priority",  "Sets the priority for the Ruby core functionality. Higher values means higher priority.", 0,18,11, fSliderWidth);
    m_IndexNiceRouter = addMenuItem(m_pItemsSlider[0]);
@@ -109,52 +167,7 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexRadioTxPriority = addMenuItem(m_pItemsSlider[9]);
 
 
-   #if defined(HW_PLATFORM_RASPBERRY)
-   addMenuItem(new MenuItemSection("CPU"));
-
-   m_pItemsSelect[2] = new MenuItemSelect("Enable CPU Overclocking", "Enables overclocking of the main ARM CPU.");  
-   m_pItemsSelect[2]->addSelection("No");
-   m_pItemsSelect[2]->addSelection("Yes");
-   m_pItemsSelect[2]->setIsEditable();
-   m_IndexCPUEnabled = addMenuItem(m_pItemsSelect[2]);
-
-   m_pItemsSlider[5] = new MenuItemSlider("CPU Speed (Mhz)", "Sets the main CPU frequency. Requires a reboot.", 700,1600, 1050, fSliderWidth);
-   m_pItemsSlider[5]->setStep(25);
-   m_IndexCPUSpeed = addMenuItem(m_pItemsSlider[5]);
-
-   m_pItemsSelect[3] = new MenuItemSelect("Enable GPU Overclocking", "Enables overclocking of the GPU cores.");  
-   m_pItemsSelect[3]->addSelection("No");
-   m_pItemsSelect[3]->addSelection("Yes");
-   m_pItemsSelect[3]->setIsEditable();
-   m_IndexGPUEnabled = addMenuItem(m_pItemsSelect[3]);
-
-   m_pItemsSlider[6] = new MenuItemSlider("GPU Speed (Mhz)", "Sets the GPU frequency. Requires a reboot.", 200,1000,600, fSliderWidth);
-   m_pItemsSlider[6]->setStep(25);
-   m_IndexGPUSpeed = addMenuItem(m_pItemsSlider[6]);
-
-   m_pItemsSelect[4] = new MenuItemSelect("Enable Overvoltage", "Enables overvotage on the CPU and GPU cores. You need to increase voltage as you increase speed.");  
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
-   m_IndexVoltageEnabled = addMenuItem(m_pItemsSelect[4]);
-
-   m_pItemsSlider[7] = new MenuItemSlider("Overvoltage (steps)", "Sets the overvoltage value, in 0.025V increments. Requires a reboot.", 1,8,4, fSliderWidth);
-   m_pItemsSlider[7]->setStep(1);
-   m_IndexVoltage = addMenuItem(m_pItemsSlider[7]);
-
-   m_IndexReset = addMenuItem(new MenuItem("Reset CPU Freq", "Resets the controller CPU and GPU frequencies to default values."));
-
-   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));
-   
-   #else
-   m_IndexCPUEnabled = -1;
-   m_IndexCPUSpeed = -1;
-   m_IndexGPUEnabled = -1;
-   m_IndexGPUSpeed = -1;
-   m_IndexVoltageEnabled = -1;
-   m_IndexVoltage = -1;
-   m_IndexReset = -1;
-   m_IndexReboot = -1;
-   #endif
+   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));   
 }
 
 void MenuControllerExpert::valuesToUI()
@@ -166,6 +179,9 @@ void MenuControllerExpert::valuesToUI()
       return;
    }
 
+   m_pItemsSelect[10]->setSelectedIndex(pcs->iCoresAdjustment);
+   m_pItemsSelect[11]->setSelectedIndex(pcs->iPrioritiesAdjustment);
+   
    m_pItemsSlider[0]->setCurrentValue(-pcs->iNiceRouter);
    m_pItemsSlider[4]->setCurrentValue(-pcs->iNiceCentral);
 
@@ -221,6 +237,19 @@ void MenuControllerExpert::valuesToUI()
       m_pItemsSlider[9]->setCurrentValue(pcs->iRadioTxThreadPriority);
       m_pItemsSlider[9]->setEnabled(true);
    }
+
+   m_pItemsSlider[0]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[1]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[2]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[3]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[4]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[8]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSlider[9]->setEnabled(pcs->iPrioritiesAdjustment);
+
+   m_pItemsSelect[0]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSelect[1]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSelect[5]->setEnabled(pcs->iPrioritiesAdjustment);
+   m_pItemsSelect[8]->setEnabled(pcs->iPrioritiesAdjustment);
 
    // CPU
 
@@ -447,6 +476,26 @@ void MenuControllerExpert::onSelectItem()
       return;
    }
 
+   if ( (-1 != m_iIndexCoresAdjustment) && (m_iIndexCoresAdjustment == m_SelectedIndex) )
+   {
+      if ( pcs->iCoresAdjustment != m_pItemsSelect[10]->getSelectedIndex() )
+         addMessage(L("You must restart your controller for changes to take effect."));
+      pcs->iCoresAdjustment = m_pItemsSelect[10]->getSelectedIndex();
+      save_ControllerSettings();
+      valuesToUI();
+      return;
+   }
+
+   if ( (-1 != m_iIndexPrioritiesAdjustment) && (m_iIndexPrioritiesAdjustment == m_SelectedIndex) )
+   {
+      if ( pcs->iPrioritiesAdjustment != m_pItemsSelect[11]->getSelectedIndex() )
+         addMessage(L("You must restart your controller for changes to take effect."));
+      pcs->iPrioritiesAdjustment = m_pItemsSelect[11]->getSelectedIndex();
+      save_ControllerSettings();
+      valuesToUI();
+      return;
+   }
+
    if ( m_IndexNiceRouter == m_SelectedIndex )
    {
       pcs->iNiceRouter = -m_pItemsSlider[0]->getCurrentValue();
@@ -471,7 +520,7 @@ void MenuControllerExpert::onSelectItem()
       #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
@@ -487,7 +536,7 @@ void MenuControllerExpert::onSelectItem()
       #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
@@ -551,7 +600,7 @@ void MenuControllerExpert::onSelectItem()
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {
@@ -589,7 +638,7 @@ void MenuControllerExpert::onSelectItem()
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
       char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_PIPE);
+      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
       hw_execute_bash_command(szBuff, szPids);
       if ( strlen(szPids) > 2 )
       {

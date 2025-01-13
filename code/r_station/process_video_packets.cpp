@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -72,6 +72,20 @@ ProcessorRxVideo* _find_create_rx_video_processor(u32 uVehicleId, u32 uVideoStre
    log_line("Creating new video Rx processor for VID %u, video stream id %d", uVehicleId, uVideoStreamIndex);
    g_pVideoProcessorRxList[iFirstFreeSlot] = new ProcessorRxVideo(uVehicleId, uVideoStreamIndex);
    g_pVideoProcessorRxList[iFirstFreeSlot]->init();
+
+   int iRuntimeIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == uVehicleId )
+      {
+         iRuntimeIndex = i;
+         break;
+      }
+   }
+   if ( -1 == iRuntimeIndex )
+      log_softerror_and_alarm("Failed to find vehicle runtime info for VID %u while processing a video packet.", uVehicleId);
+   else
+      adaptive_video_on_new_vehicle(iRuntimeIndex);
    return g_pVideoProcessorRxList[iFirstFreeSlot];
 }
 
@@ -90,15 +104,6 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
    if ( ! bStartOfFrameDetected )
       return;
    
-   //log_line("DEBUG last frame size: %d bytes",  s_ParserH264RadioInput.getSizeOfLastCompleteFrameInBytes());
-   //log_line("DEBUG detected start of %sframe", s_ParserH264RadioInput.IsInsideIFrame()?"I":"P");
-   if ( g_iDebugShowKeyFramesAfterRelaySwitch > 0 )
-   if ( s_ParserH264RadioInput.IsInsideIFrame() )
-   {
-      log_line("[Debug] Received video keyframe from VID %u after relay switch.", pPH->vehicle_id_src);
-      g_iDebugShowKeyFramesAfterRelaySwitch--;
-   }
-
    u32 uLastFrameDuration = s_ParserH264RadioInput.getTimeDurationOfLastCompleteFrame();
    if ( uLastFrameDuration > 127 )
       uLastFrameDuration = 127;
@@ -117,11 +122,6 @@ void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
  
    u32 uNextIndex = (g_SM_VideoInfoStatsRadioIn.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
   
-   if ( s_ParserH264RadioInput.IsInsideIFrame() )
-      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] |= (1<<7);
-   else
-      g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[uNextIndex] &= 0x7F;
-
    g_SM_VideoInfoStatsRadioIn.uDetectedKeyframeIntervalMs = s_ParserH264RadioInput.getCurrentlyDetectedKeyframeIntervalMs();
    g_SM_VideoInfoStatsRadioIn.uDetectedFPS = s_ParserH264RadioInput.getDetectedFPS();
    g_SM_VideoInfoStatsRadioIn.uDetectedSlices = (u32) s_ParserH264RadioInput.getDetectedSlices();
@@ -138,10 +138,6 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
    Model* pModel = findModelWithId(uVehicleId, 111);
    if ( NULL == pModel )
       return -1;
-
-   //log_line("DEBUG recv [%u/%u] %u, end %d", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex, pPH->radio_link_packet_index, pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME);
-   //if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME )
-   //   log_line("DEBUG end frame");
 
    /*
    static u32 s_uTmpDebugLastBlock = 0;

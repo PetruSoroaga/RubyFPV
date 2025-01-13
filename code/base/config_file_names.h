@@ -86,6 +86,12 @@
 #define SUBFOLDER_UPDATES_OIPC  "bin/ssc338q/"
 #define SUBFOLDER_UPDATES_DRIVERS "bin/drivers/"
 
+
+#define CONFIG_FILE_FULLPATH_MAJESTIC_LOG "/tmp/maj.log"
+#define CONFIG_FILE_FULLPATH_RESTART "/tmp/restart"
+#define CONFIG_FILE_FULLPATH_PAUSE_VIDEO_PLAYER "/tmp/pausedvr"
+
+
 //-------------------------------------------
 
 #ifdef HW_PLATFORM_RASPBERRY
@@ -108,6 +114,7 @@
 
 #define FILE_FORCE_VEHICLE "/boot/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/boot/force_no_camera"
+#define FILE_FORCE_CONTROLLER "/boot/forcecontroller"
 #define FILE_FORCE_ROUTER "/boot/forcerouter"
 #define FILE_FORCE_RESET "/boot/forcereset"
 
@@ -121,7 +128,8 @@
 #define VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME "ruby_capture_veye"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_p"
-#define VIDEO_PLAYER_OFFLINE "ruby_player_f2"
+#define VIDEO_PLAYER_SM "ruby_player_s"
+#define VIDEO_PLAYER_OFFLINE "ruby_player_f"
 
 #define VEYE_COMMANDS_FOLDER "/usr/local/share/veye-raspberrypi"
 #define VEYE_COMMANDS_FOLDER307 "/usr/local/share/veye-raspberrypi/307"
@@ -149,12 +157,14 @@
 #define FOLDER_TEMP_VIDEO_MEM "/home/radxa/ruby/tmp/memdisk/"
 #define FOLDER_WINDOWS_PARTITION "/config/"
 
-#define FILE_FORCE_VEHICLE "/boot/forcevehicle"
-#define FILE_FORCE_VEHICLE_NO_CAMERA "/boot/force_no_camera"
-#define FILE_FORCE_ROUTER "/boot/forcerouter"
-#define FILE_FORCE_RESET "/boot/forcereset"
+#define FILE_FORCE_VEHICLE "/config/forcevehicle"
+#define FILE_FORCE_VEHICLE_NO_CAMERA "/config/force_no_camera"
+#define FILE_FORCE_CONTROLLER "/config/forcecontroller"
+#define FILE_FORCE_ROUTER "/config/forcerouter"
+#define FILE_FORCE_RESET "/config/forcereset"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_radxa"
+#define VIDEO_PLAYER_SM "ruby_player_radxa"
 #define VIDEO_PLAYER_UDP "ruby_player_radxa"
 #define VIDEO_PLAYER_OFFLINE "ruby_player_radxa"
 
@@ -183,6 +193,7 @@
 
 #define FILE_FORCE_VEHICLE "/root/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/root/force_no_camera"
+#define FILE_FORCE_CONTROLLER "/root/forcecontroller"
 #define FILE_FORCE_ROUTER "/root/forcerouter"
 #define FILE_FORCE_RESET "/root/forcereset"
 

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -1150,14 +1150,17 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    if ( ! controllerHasModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId) )
       bIsNew = true;
 
+   Model* pExistingModel = NULL;
    if ( ! bIsNew )
-   if ( NULL == findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 14) )
-      bIsNew = true;
-     
+   {
+      pExistingModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 14);
+      if ( NULL == pExistingModel )
+         bIsNew = true;
+   } 
    if ( bIsNew )
-      log_line("Search: Found vehicle id %u is new (not on controller).", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
+      log_line("Search: The found vehicle VID %u is new (not on controller).", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
    else
-      log_line("Search: Found vehicle id %u already exists on controller.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
+      log_line("Search: The found vehicle VID %u (is spectator: %s) already exists on controller.", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, pExistingModel->is_spectator?"yes":"no");
    
    // Connect as Spectator
 
@@ -1165,6 +1168,11 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    {
       log_line("Pressed add as spectator. Current total spectator vehicles: %d.", getControllerModelsSpectatorCount());
       
+      if ( pExistingModel != NULL)
+      {
+         if ( (pExistingModel->is_spectator == false) || modelIsInControllerList(pExistingModel->uVehicleId) )
+            deleteModel(pExistingModel);
+      }
       Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
       pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = true;
@@ -1199,17 +1207,33 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
    {
       log_line("Pressed add as controller. Current total controller vehicles: %d.", getControllerModelsCount());
      
+      if ( pExistingModel != NULL)
+      {
+         if ( pExistingModel->is_spectator || modelIsInSpectatorList(pExistingModel->uVehicleId) )
+         {
+            deleteModel(pExistingModel);
+            bIsNew = true;
+         }
+      }
+
       Model* pModel = NULL;
       if ( bIsNew )
       {
          log_line("Search: Adding a new vehicle model as controller");
-         log_line("Creating a vehicle model for vehicle uid: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
+         log_line("Creating a vehicle model for VID: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
          pModel = addNewModel();
       }
       else
       {
          pModel = findModelWithId(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, 15);
-         log_line("Search: Found existing controller vehicle model for vehicle id %u.", pModel->uVehicleId);
+         if ( NULL == pModel )
+         {
+            bIsNew = true;
+            log_line("Creating a vehicle model for VID: %u ...", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
+            pModel = addNewModel();
+         }
+         else
+            log_line("Search: Found existing controller vehicle model for VID %u.", pModel->uVehicleId);
       }
       pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = false;

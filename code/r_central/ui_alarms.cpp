@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -240,7 +240,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
       if ( 0 == (uFlags1 & 0xFF) )
       {
          strcpy(szAlarmText, "Video capture process on vehicle is malfunctioning.");
-         strcpy(szAlarmText2, "Reinstall your vehicle firmware.");
+         strcpy(szAlarmText2, "Restarting it...");
       }
       else if ( 1 == (uFlags1 & 0xFF) )
       {
@@ -519,21 +519,22 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       g_nTotalControllerCPUSpikes++;
 
    bool bShowAsWarning = false;
+   bool bLargeFont = false;
    u32 uIconId = g_idIconAlarm;
    char szAlarmText[256];
    char szAlarmText2[256];
+   char szAlarmText3[128];
 
    char szAlarmDesc[2048];
    alarms_to_string(uAlarms, uFlags1, uFlags2, szAlarmDesc);
-   snprintf(szAlarmText, sizeof(szAlarmText)/sizeof(szAlarmText[0]), "Received alarm (%s) from the vehicle", szAlarmDesc);
-
    snprintf(szAlarmText, sizeof(szAlarmText)/sizeof(szAlarmText[0]), "Triggered alarm(%s) on the controller", szAlarmDesc);
    szAlarmText2[0] = 0;
+   szAlarmText3[0] = 0;
 
    if ( g_bUpdateInProgress )
       return;
 
-   if ( uAlarms != ALARM_ID_CONTROLLER_IO_ERROR )
+   //if ( uAlarms != ALARM_ID_CONTROLLER_IO_ERROR )
    if ( uAlarms != ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE )
    if ( ! (p->uEnabledAlarms & uAlarms) )
    {
@@ -816,6 +817,14 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          strcpy(szAlarmText2, "Video player output truncated.");
       if ( uFlags1 & ALARM_FLAG_IO_ERROR_VIDEO_PLAYER_OUTPUT_WOULD_BLOCK )
          strcpy(szAlarmText2, "Video player output full.");
+      if ( uFlags1 & ALARM_FLAG_IO_ERROR_VIDEO_MPP_DECODER_STALLED )
+      {
+         bLargeFont = true;
+         uIconId = g_idIconCamera;
+         strcpy(szAlarmText, "Radxa MPP video streamer stalled!");
+         strcpy(szAlarmText2, "If this is a recurent alarm, you can disable it from [Menu]->[System]->[Alarms].");
+         strcpy(szAlarmText3, "Please notify the developers about this alarm.");
+      }
    }
 
    if ( g_TimeNow > s_TimeLastLocalAlarm + 10000 || ((s_uLastLocalAlarms != uAlarms) && (uAlarms != 0)) )
@@ -885,10 +894,15 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       else
       {
          Popup* p = _get_next_available_alarm_popup(szAlarmText, 15);
-         p->setFont(g_idFontOSDSmall);
+         if ( bLargeFont )
+            p->setFont(g_idFontOSDWarnings);
+         else
+            p->setFont(g_idFontOSDSmall);
          p->setIconId(uIconId, get_Color_IconNormal());
          if ( 0 != szAlarmText2[0] )
             p->addLine(szAlarmText2);
+         if ( 0 != szAlarmText3[0] )
+            p->addLine(szAlarmText3);
          popups_add_topmost(p);
       }
    }

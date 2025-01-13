@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -92,7 +92,7 @@ void reset_Preferences()
    s_Preferences.iDebugRestartOnRadioSilence = 0;
    s_Preferences.iOSDFont = 1;
    s_Preferences.iPersistentMessages = 1;
-   s_Preferences.nLogLevel = 0;
+   s_Preferences.nLogLevel = 1;
    s_Preferences.iDebugShowDevVideoStats = 0;
    s_Preferences.iDebugShowDevRadioStats = 0;
    s_Preferences.iDebugShowFullRXStats = 0;
@@ -122,6 +122,8 @@ void reset_Preferences()
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_MAX_EC_USED |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_UNRECOVERABLE_BLOCKS |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES;
+
+   s_Preferences.iLanguage = 0;
 }
 
 int save_Preferences()
@@ -185,6 +187,15 @@ int save_Preferences()
    fprintf(fd, "%d %d %d\n", s_Preferences.iShowOnlyPresentTxPowerCards, s_Preferences.iShowTxBoosters, s_Preferences.iMenuStyle);
    fprintf(fd, "%d %u\n", s_Preferences.iDebugStatsQAButton, s_Preferences.uDebugStatsFlags);
    fprintf(fd, "%d\n", s_Preferences.iStopRecordingAfterLinkLostSeconds);
+   fprintf(fd, "%d\n", s_Preferences.iLanguage);
+
+   for( int i=0; i<MAX_PREFERENCES_CHECKBOXES; i++ )
+   {
+      fprintf(fd, "%d %d ", s_Preferences.iDoNotShowAgainIds[i], s_Preferences.iDoNotShowAgainValues[i]);
+      if ( ((i%10) == 0) && (i != 0) )
+         fprintf(fd, "\n");
+   }
+   fprintf(fd, "\n");
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
    return 1;
@@ -373,6 +384,18 @@ int load_Preferences()
       bOk = 0;
    }
 
+   if ( bOk && (1 != fscanf(fd, "%d", &s_Preferences.iLanguage)) )
+   {
+      s_Preferences.iLanguage = 0;
+   }
+
+   if ( bOk )
+   {
+      for( int i=0; i<MAX_PREFERENCES_CHECKBOXES; i++ )
+      {
+         fscanf(fd, "%d %d", &s_Preferences.iDoNotShowAgainIds[i], &s_Preferences.iDoNotShowAgainValues[i]);
+      }
+   }
    // ----------------------------------------------------
    // End reading file;
    // Validate settings
@@ -426,10 +449,67 @@ Preferences* get_Preferences()
    return &s_Preferences;
 }
 
+int getPreferencesDoNotShowAgain(int iUniqueId)
+{
+   if ( iUniqueId <= 0 )
+      return 0;
+
+   for( int i=0; i<MAX_PREFERENCES_CHECKBOXES; i++ )
+   {
+      if ( s_Preferences.iDoNotShowAgainIds[i] == iUniqueId )
+         return s_Preferences.iDoNotShowAgainValues[i];
+   }
+   return 0;
+}
+
+void setPreferencesDoNotShowAgain(int iUniqueId, int iDoNotShowAgain)
+{
+   if ( iUniqueId <= 0 )
+      return;
+
+   int iFirstEmptySlot = -1;
+   for( int i=0; i<MAX_PREFERENCES_CHECKBOXES; i++ )
+   {
+      if ( -1 == iFirstEmptySlot )
+      if ( 0 == s_Preferences.iDoNotShowAgainIds[i] )
+         iFirstEmptySlot = i;
+
+      if ( s_Preferences.iDoNotShowAgainIds[i] == iUniqueId )
+      {
+         s_Preferences.iDoNotShowAgainValues[i] = iDoNotShowAgain;
+         return;
+      }
+   }
+   if ( -1 != iFirstEmptySlot )
+   {
+      s_Preferences.iDoNotShowAgainIds[iFirstEmptySlot] = iUniqueId;
+      s_Preferences.iDoNotShowAgainValues[iFirstEmptySlot] = iDoNotShowAgain;
+   }
+}
+
+void removePreferencesDoNotShowAgain(int iUniqueId)
+{
+   if ( iUniqueId <= 0 )
+      return;
+
+   for( int i=0; i<MAX_PREFERENCES_CHECKBOXES; i++ )
+   {
+      if ( s_Preferences.iDoNotShowAgainIds[i] == iUniqueId )
+      {
+         s_Preferences.iDoNotShowAgainIds[i] = 0;
+         s_Preferences.iDoNotShowAgainValues[i] = 0;
+         return;
+      }
+   }
+}
+
 #else
 
 int save_Preferences() { return 0; }
 int load_Preferences() { return 0; }
 void reset_Preferences() {}
 Preferences* get_Preferences() { return NULL; }
+int getPreferencesDoNotShowAgain(int iUniqueId) { return 0; }
+void setPreferencesDoNotShowAgain(int iUniqueId, int iDoNotShowAgain){}
+void removePreferencesDoNotShowAgain(int iUniqueId){}
 #endif

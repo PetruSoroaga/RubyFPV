@@ -86,7 +86,6 @@ extern t_sik_radio_state g_SiKRadiosState;
 
 extern bool g_bFirstModelPairingDone;
 
-
 // Used for Atheros cards data rates set;
 extern u32 g_uLastInterceptedCommandCounterToSetRadioFlags;
 extern u32 g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand;

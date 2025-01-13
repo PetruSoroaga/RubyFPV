@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -50,6 +50,8 @@ bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldPro
    type_video_link_profile tmp;
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
    tmp.keyframe_ms = pOldProfile->keyframe_ms;
+   tmp.uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+   tmp.uProfileEncodingFlags |= (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME);
 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
       return true;
@@ -311,7 +313,7 @@ void apply_vehicle_tx_power_levels(Model* pModel)
    log_line("Aplying all radio interfaces raw tx powers...");
    for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;

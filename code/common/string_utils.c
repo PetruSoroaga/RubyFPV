@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -37,6 +37,7 @@
 #include "../radio/radiopackets2.h"
 #include <ctype.h>
 #include "string_utils.h"
+#include "strings_table.h"
 
 
 void str_sanitize_modelname(char* szName)
@@ -290,7 +291,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD:    strcpy(s_szPacketType, "PACKET_TYPE_AUX_DATA_LINK_DOWNLOAD"); break;
       case PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS:  strcpy(s_szPacketType, "PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS"); break;
       case PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY: strcpy(s_szPacketType, "PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY"); break;
-
+      case PACKET_TYPE_TELEMETRY_MSP:             strcpy(s_szPacketType, "PACKET_TYPE_TELEMETRY_MSP"); break;
       case PACKET_TYPE_VEHICLE_RECORDING: strcpy(s_szPacketType, "PACKET_TYPE_VEHICLE_RECORDING"); break;
       case PACKET_TYPE_NEGOCIATE_RADIO_LINKS: strcpy(s_szPacketType, "PACKET_TYPE_NEGOCIATE_RADIO_LINKS"); break;       
       // Local packets
@@ -298,6 +299,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO:           strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO:          strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM"); break;
+      case PACKET_TYPE_LOCAL_CONTROL_PAUSE_LOCAL_VIDEO_DISPLAY: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_LOCAL_VIDEO_DISPLAY"); break;
       case PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED:         strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED:    strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED"); break;
@@ -1068,10 +1070,14 @@ char* str_get_radio_frame_flags_description2(u32 frameFlags)
 
 void str_get_radio_frame_flags_description(u32 frameFlags, char* szOutput)
 {
-   if ( frameFlags & 0x00FF0000 )
+   if ( (frameFlags & RADIO_FLAGS_USE_LEGACY_DATARATES) && (frameFlags & RADIO_FLAGS_USE_MCS_DATARATES) )
+      strcpy(szOutput, "[MIXED rates]");
+   else if ( frameFlags & RADIO_FLAGS_USE_LEGACY_DATARATES )
+      strcpy(szOutput, "[LEGACY rates]");
+   else if ( frameFlags & RADIO_FLAGS_USE_MCS_DATARATES )
       strcpy(szOutput, "[MCS rates]");
    else
-      strcpy(szOutput, "[LEGACY rates]");
+      strcpy(szOutput, "[Unknown rates]");
 
    if ( frameFlags & RADIO_FLAGS_FRAME_TYPE_RTS )
       strcat(szOutput, " [Frames Type: RTS]");
@@ -1156,6 +1162,28 @@ char* str_format_video_encoding_flags(u32 uVideoProfileEncodingFlags)
    return sl_szVideoEncodingFlagsString;
 }
 
+char* str_format_video_nal_frame_flags_from_status_flags2(u32 uVideoStatusFlags2)
+{
+   static char s_szFrameNALFlags[256];
+   s_szFrameNALFlags[0] = 0;
+
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME )
+      strcat(s_szFrameNALFlags, " EndOfTransmissionFrame");
+
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_NAL_START )
+      strcat(s_szFrameNALFlags, " NALStart");
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_NAL_END )
+      strcat(s_szFrameNALFlags, " NALEnd");
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL )
+      strcat(s_szFrameNALFlags, " HasINAL");
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL )
+      strcat(s_szFrameNALFlags, " HasPNAL");
+   if ( uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_CONTAINS_SPS_NAL )
+      strcat(s_szFrameNALFlags, " HasSPSNAL");
+
+   return s_szFrameNALFlags;
+}
+
 char* str_get_video_profile_name(u32 videoProfileId)
 {
    static char s_szOSDSchema[32];
@@ -1177,6 +1205,75 @@ char* str_get_video_profile_name(u32 videoProfileId)
       strcpy(s_szOSDSchema,"N/A");
 
    return s_szOSDSchema;
+}
+
+char* str_get_decode_h264_profile_name(u8 uH264Profile, u8 uH264ProfileConstrains, u8 uH264Level)
+{
+   static char s_szH264DecodedProfileName[64];
+   s_szH264DecodedProfileName[0] = 0;
+
+   if ( uH264Profile == 0x42 ) //Baseline
+   {
+      if ( uH264ProfileConstrains & 0b01000000 )
+         strcpy(s_szH264DecodedProfileName, getString(16));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(5));
+   }
+   if ( uH264Profile == 0x4D ) // Main
+   {
+      if ( uH264ProfileConstrains & 0b10000000 )
+         strcpy(s_szH264DecodedProfileName, getString(17));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(6));
+   }
+   if ( uH264Profile == 0x53 ) // Scalable baseline
+   {
+      strcpy(s_szH264DecodedProfileName, getString(19));
+   }
+   if ( uH264Profile == 0x56 ) // Scalable high
+   {
+      strcpy(s_szH264DecodedProfileName, getString(20));
+   }
+
+   if ( uH264Profile == 0x58 ) // Extended
+   {
+      if ( uH264ProfileConstrains & 0b11000000 )
+         strcpy(s_szH264DecodedProfileName, getString(18));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(7));
+   }
+   if ( uH264Profile == 0x64 ) // High
+   {
+      strcpy(s_szH264DecodedProfileName, getString(8));
+   }
+   if ( uH264Profile == 0x6E ) // High10
+   {
+      if ( uH264ProfileConstrains & 0b00010000 )
+         strcpy(s_szH264DecodedProfileName, getString(12));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(9));
+   }
+   if ( uH264Profile == 0x7A ) // High422
+   {
+      if ( uH264ProfileConstrains & 0b00010000 )
+         strcpy(s_szH264DecodedProfileName, getString(13));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(10));
+   }
+   if ( uH264Profile == 0xF4 ) // High444
+   {
+      if ( uH264ProfileConstrains & 0b00010000 )
+         strcpy(s_szH264DecodedProfileName, getString(13));
+      else
+         strcpy(s_szH264DecodedProfileName, getString(11));
+   }
+   
+   if ( uH264Profile == 0x2C )
+   {
+      strcpy(s_szH264DecodedProfileName, getString(15));
+   }
+
+   return s_szH264DecodedProfileName;
 }
 
 char* str_get_radio_stream_name(int iStreamId)
@@ -1382,6 +1479,8 @@ char* str_get_model_change_type(int iModelChangeType)
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME");
    else if ( iModelChangeType == MODEL_CHANGED_VIDEO_KEYFRAME )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_KEYFRAME");
+   else if ( iModelChangeType == MODEL_CHANGED_VIDEO_PROFILES )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_VIDEO_PROFILES");
    else if ( iModelChangeType == MODEL_CHANGED_SWAPED_RADIO_INTERFACES )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_SWAPED_RADIO_INTERFACES");
    else if ( iModelChangeType == MODEL_CHANGED_CONTROLLER_TELEMETRY )

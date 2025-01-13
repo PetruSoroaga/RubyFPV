@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -208,11 +208,12 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
       else
       {
          g_bSyncModelSettingsOnLinkRecover = true;
-         Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Reset Complete",NULL);
-         pm->m_xPos = 0.4; pm->m_yPos = 0.4;
-         pm->m_Width = 0.36;
-         pm->addTopLine("Your vehicle was reseted to default settings. It will reboot now.");
-         add_menu_to_stack(pm);
+         //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Reset Complete",NULL);
+         //pm->m_xPos = 0.4; pm->m_yPos = 0.4;
+         //pm->m_Width = 0.36;
+         //pm->addTopLine("Your vehicle was reseted to default settings. It will reboot now.");
+         MenuConfirmation* pM = new MenuConfirmation("Reset Complete", "Your vehicle was reseted to default settings. It will reboot now.", 3, true);
+         add_menu_to_stack(pM);
       }
       return;
    }
@@ -302,10 +303,13 @@ void MenuVehicleManagement::onSelectItem()
 
    if ( m_IndexExport == m_SelectedIndex )
    {
-      if ( ! hardware_try_mount_usb() )
+      int iMountRes = hardware_try_mount_usb();
+      if ( 1 != iMountRes )
       {
          log_line("No USB memory stick available.");
          Popup* p = new Popup("Please insert a USB memory stick.",0.28, 0.32, 0.32, 3);
+         if ( 0 != iMountRes )
+            p->setTitle("USB memory stick invalid. Please try again.");
          p->setCentered();
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
          popups_add_topmost(p);
@@ -336,10 +340,13 @@ void MenuVehicleManagement::onSelectItem()
    {
       if ( checkIsArmed() )
          return;
-      if ( ! hardware_try_mount_usb() )
+      int iMountRes = hardware_try_mount_usb();
+      if ( 1 != iMountRes )
       {
          log_line("No USB memory stick available.");
          Popup* p = new Popup("Please insert a USB memory stick.",0.28, 0.32, 0.32, 3);
+         if ( 0 != iMountRes )
+            p->setTitle("USB memory stick invalid. Please try again.");
          p->setCentered();
          p->setIconId(g_idIconInfo, get_Color_IconWarning());
          popups_add_topmost(p);

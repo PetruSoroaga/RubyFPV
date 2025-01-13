@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -101,9 +101,13 @@ void controller_launch_router(bool bSearchMode, int iFirmwareType)
          sprintf(szPrefix, "nice -n %d", pcs->iNiceRouter);
    }
 
+   if ( ! pcs->iPrioritiesAdjustment )
+      szPrefix[0] = 0;
+
    hw_execute_ruby_process(szPrefix, "ruby_rt_station", szParams, NULL);
 
-   hw_set_proc_priority( "ruby_rt_station", pcs->iNiceRouter, pcs->ioNiceRouter, 1);
+   if ( pcs->iPrioritiesAdjustment )
+      hw_set_proc_priority( "ruby_rt_station", pcs->iNiceRouter, pcs->ioNiceRouter, 1);
 
    log_line("Done launching controller router.");
 }
@@ -340,6 +344,13 @@ void controller_check_update_processes_affinities()
       log_line("Single core CPU (%d), no affinity adjustments for processes to be done.", s_iCPUCoresCount);
       return;
    }
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( (NULL == pCS) || (0 == pCS->iCoresAdjustment) )
+   {
+      log_line("%d CPU cores, affinity adjustments is disabled. Do nothing.", s_iCPUCoresCount);
+      return;
+   }
+   
    log_line("%d CPU cores, doing affinity adjustments for processes...", s_iCPUCoresCount);
 
    pthread_t pThreadBg;

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -77,7 +77,7 @@ void MenuControllerRadio::valuesToUI()
    int iCountPowers = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;
@@ -121,7 +121,7 @@ void MenuControllerRadio::addItems()
    int iCountPowers = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;
@@ -249,7 +249,7 @@ void MenuControllerRadio::onSelectItem()
          log_line("MenuControllerRadio: Setting all cards mw tx power to: %d mw", iPowerMwToSet);
          for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
          {
-            if ( ! hardware_radio_is_index_wifi_radio(i) )
+            if ( ! hardware_radio_index_is_wifi_radio(i) )
                continue;
             if ( hardware_radio_index_is_sik_radio(i) )
                continue;

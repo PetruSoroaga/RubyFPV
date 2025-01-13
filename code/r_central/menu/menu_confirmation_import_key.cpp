@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -80,7 +80,7 @@ void MenuConfirmationImportKey::onSelectItem()
    if ( 0 != m_SelectedIndex )
       return;
 
-   if ( ! hardware_try_mount_usb() )
+   if ( 1 != hardware_try_mount_usb() )
    {
       addMessage("No USB memory stick detected. Please insert a USB stick");
       return;

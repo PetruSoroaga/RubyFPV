@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -126,7 +126,7 @@ bool _loadFontFamily(const char* szName, u32* pOutputList, int* pCountOutput)
 bool loadAllFonts(bool bReloadMenuFonts)
 {
    float hScreen = hdmi_get_current_resolution_height();
-   log_line("Loading fonts for screen height: %d px, reload menu fonts: %s", (int)hScreen, bReloadMenuFonts?"yes":"no");
+   log_line("Loading fonts for screen surface height: %d px (hdmi height: %d px), reload menu fonts: %s", g_pRenderEngine->getScreenHeight(), (int)hScreen, bReloadMenuFonts?"yes":"no");
 
    if ( s_bFontsInitialized )
    {

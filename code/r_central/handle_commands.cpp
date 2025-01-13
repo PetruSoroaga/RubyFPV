@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -115,6 +115,10 @@ Menu* s_pMenuUSBInfoVehicle = NULL;
 void update_processes_priorities()
 {
    ControllerSettings* pCS = get_ControllerSettings();
+
+   if ( ! pCS->iPrioritiesAdjustment )
+      return;
+
    //hw_set_proc_priority("ruby_rt_station", pCS->iNiceRouter, pCS->ioNiceRouter, 1);
    hw_set_proc_priority("ruby_tx_rc", g_pCurrentModel->processesPriorities.iNiceRC, DEFAULT_IO_PRIORITY_RC, 1 );
    hw_set_proc_priority("ruby_rx_telemetry", g_pCurrentModel->processesPriorities.iNiceTelemetry, 0, 1 );
@@ -849,8 +853,12 @@ bool handle_last_command_result()
             if ( (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0) ||
                  (g_pCurrentModel->relay_params.uRelayedVehicleId == 0) )
             {
-               for( int i=1; i<MAX_CONCURENT_VEHICLES; i++ )
-                  reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[i]));
+               log_line("Relaing was disabled. Remove relayed node runtime info.");
+               for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+               {
+                  if ( oldRelayParams.uRelayedVehicleId == g_VehiclesRuntimeInfo[i].uVehicleId )
+                     reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[i]));
+               }
             }
 
             // If relayed vehicle changed
@@ -858,9 +866,23 @@ bool handle_last_command_result()
             if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
             if ( oldRelayParams.uRelayedVehicleId != g_pCurrentModel->relay_params.uRelayedVehicleId )
             {
-                reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[1]));
-                g_VehiclesRuntimeInfo[1].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
-                g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId, 7);
+                int iIndexEmptySlot = -1;
+                for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+                {
+                   if ( (g_VehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->relay_params.uRelayedVehicleId) ||
+                        (g_VehiclesRuntimeInfo[i].uVehicleId == oldRelayParams.uRelayedVehicleId) )
+                      reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[i]));
+
+                   if ( -1 == iIndexEmptySlot )
+                   if ( g_VehiclesRuntimeInfo[i].uVehicleId == 0 )
+                       iIndexEmptySlot = i;
+                }
+                if ( iIndexEmptySlot == -1 )
+                   iIndexEmptySlot = MAX_CONCURENT_VEHICLES-1;
+                log_line("Assign vehicle runtime index %d (currently has VID: %u) to relayed node VID %u",
+                    iIndexEmptySlot, g_VehiclesRuntimeInfo[iIndexEmptySlot].uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId);
+                g_VehiclesRuntimeInfo[iIndexEmptySlot].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
+                g_VehiclesRuntimeInfo[iIndexEmptySlot].pModel = findModelWithId(g_VehiclesRuntimeInfo[iIndexEmptySlot].uVehicleId, 7);
             }
 
             u8 uOldRelayMode = oldRelayParams.uCurrentRelayMode;
@@ -910,6 +932,7 @@ bool handle_last_command_result()
       case COMMAND_ID_FACTORY_RESET:
         {
            pairing_stop();
+           ruby_set_active_model_id(0);
            deleteModel(g_pCurrentModel);
            deletePluginModelSettings(g_pCurrentModel->uVehicleId);
            g_pCurrentModel = NULL;
@@ -917,12 +940,14 @@ bool handle_last_command_result()
            log_line("[Commands] Command response factory reset: Deleted model 1/3.");
            menu_discard_all();
            log_line("[Commands] Command response factory reset: Deleted model 2/3.");
-           Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Factory Reset Complete",NULL);
-           pm->m_xPos = 0.4; pm->m_yPos = 0.4;
-           pm->m_Width = 0.36;
-           pm->addTopLine("Your vehicle was reset to default settings (including name, id, frequencies) and the full configuration is as on a fresh instalation. It will reboot now.");
-           pm->addTopLine("You need to search for it again and pair with the vehicle as with a new vehicle.");
-           add_menu_to_stack(pm);
+           //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Factory Reset Complete",NULL);
+           //pm->m_xPos = 0.4; pm->m_yPos = 0.4;
+           //pm->m_Width = 0.36;
+           //pm->addTopLine("Your vehicle was reset to default settings (including name, id, frequencies) and the full configuration is as on a fresh instalation. It will reboot now.");
+           //pm->addTopLine("You need to search for it again and pair with the vehicle as with a new vehicle.");
+           MenuConfirmation* pM = new MenuConfirmation("Factory Reset Complete", "Your vehicle was reset to default settings (including name, id, frequencies) and the full configuration is as on a fresh instalation. It will reboot now.", 0, true);
+           pM->addTopLine("You need to search for it again and pair with the vehicle as with a new vehicle.");
+           add_menu_to_stack(pM);
            log_line("[Commands] Command response factory reset: Deleted model 2/3.");
         }
         break;
@@ -1396,6 +1421,12 @@ bool handle_last_command_result()
 
       case COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES:
          {
+            log_line("Handle commands: received command confirmation to change video profiles.");
+            video_parameters_t oldVideoParams;
+            type_video_link_profile oldVideoProfiles[MAX_VIDEO_LINK_PROFILES];
+            memcpy(&oldVideoParams, &(g_pCurrentModel->video_params), sizeof(video_parameters_t));
+            memcpy(&(oldVideoProfiles[0]), &(g_pCurrentModel->video_link_profiles[0]), MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
+
             for( tmp=0; tmp<MAX_VIDEO_LINK_PROFILES; tmp++ )
                memcpy(&(g_pCurrentModel->video_link_profiles[tmp]), s_CommandBuffer + tmp * sizeof(type_video_link_profile), sizeof(type_video_link_profile));
             
@@ -1408,8 +1439,14 @@ bool handle_last_command_result()
                   menu_get_top_menu()->addMessage(0, "Your camera exposure setting was updated to accommodate the new FPS value.");
             }
             
-            saveControllerModel(g_pCurrentModel);         
-            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            saveControllerModel(g_pCurrentModel);
+            if ( modelvideoLinkProfileIsOnlyVideoKeyframeChanged(&oldVideoProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]) )
+            {
+               log_line("HandleCommands: Changed only user selected video profile keyframe interval.");
+               send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_KEYFRAME, 0);
+            }
+            else
+               send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_PROFILES, 0);
             break;
          }
 
@@ -1424,6 +1461,7 @@ bool handle_last_command_result()
 
       case COMMAND_ID_RESET_ALL_TO_DEFAULTS:
          {
+            log_line("Received confirmation from vehicle to reset to defaults. Reseting local model to defaults...");
             u32 vid = g_pCurrentModel->uVehicleId;
             u32 ctrlId = g_pCurrentModel->uControllerId;
             u32 uBoardType = g_pCurrentModel->hwCapabilities.uBoardType;
@@ -1456,6 +1494,9 @@ bool handle_last_command_result()
             g_pCurrentModel->is_spectator = false;
             saveControllerModel(g_pCurrentModel);
             g_pCurrentModel->b_mustSyncFromVehicle = true;
+            g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bPairedConfirmed = false;
+            send_model_changed_message_to_router(MODEL_CHANGED_RESET_TO_DEFAULTS, 0);
+            log_line("Done reseting local model to defaults.");
             break;
          }
 
@@ -1627,7 +1668,7 @@ bool handle_last_command_result()
          {
             u32 linkIndex = s_CommandParam;
             log_line("[Commands] Received command response for command to reset radio link %u.", linkIndex+1);
-            g_pCurrentModel->resetRadioLinkParams(linkIndex);
+            g_pCurrentModel->resetRadioLinkDataRatesAndFlags(linkIndex);
             int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(linkIndex);
             bool bIsAtheros = false;
             if ( iRadioInterfaceId >= 0 )
@@ -1904,16 +1945,17 @@ bool _commands_check_send_get_settings()
    //           g_TimeNow, g_RouterIsReadyTimestamp, s_iCountRetriesToGetModelSettingsCommand);
 
    if ( ! g_bIsReinit )
+   if ( ! g_bVideoPlaying )
+   if ( ! g_bSearching )
    if ( ! s_bHasCommandInProgress )
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
-   if ( ! g_bSearching )
    if ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
-   if ( g_VehiclesRuntimeInfo[0].bPairedConfirmed )
+   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bPairedConfirmed )
    if ( g_TimeNow > g_RouterIsReadyTimestamp + 500  )
    if ( s_iCountRetriesToGetModelSettingsCommand < 5 )
    {
-      log_line("[Commands] Must sycn settings from vehicle...");
+      log_line("[Commands] Must sync settings from vehicle...");
       s_iCountRetriesToGetModelSettingsCommand++;
       ControllerSettings* pCS = get_ControllerSettings();
       log_line("[Commands] Current vehicle sw version: %d.%d (b%d)", ((g_pCurrentModel->sw_version >> 8 ) & 0xFF), (g_pCurrentModel->sw_version & 0xFF)/10, (g_pCurrentModel->sw_version >> 16));
@@ -1969,6 +2011,7 @@ bool _commands_check_send_get_settings()
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
+   if ( ! g_bVideoPlaying )
    {
       static u32 s_uLastTimeErrorVehicleSync = 0;
       if ( g_TimeNow >= s_uLastTimeErrorVehicleSync + 2000 )
@@ -1983,9 +2026,9 @@ bool _commands_check_send_get_settings()
             link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)?"yes":"no",
             s_iCountRetriesToGetModelSettingsCommand,
             (g_TimeNow > g_RouterIsReadyTimestamp + 500)?"yes":"no",
-            g_VehiclesRuntimeInfo[0].bPairedConfirmed?"yes":"no"
+            g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bPairedConfirmed?"yes":"no"
             );
-     }
+      }
    }
    
    bool bHasPluginsSupport = false;

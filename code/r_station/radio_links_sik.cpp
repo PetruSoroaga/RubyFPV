@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -143,8 +143,6 @@ static void * _reinit_sik_thread_func(void *ignored_argument)
             log_softerror_and_alarm("[Router-SiKThread] Failed to get radio hw info for radio interface %d.", g_SiKRadiosState.iMustReconfigureSiKInterfaceIndex+1);
          else
          {
-            ControllerSettings* pCS = get_ControllerSettings();
-            ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
             t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
 
             u32 uFreqKhz = pRadioHWInfo->uHardwareParamsList[8];

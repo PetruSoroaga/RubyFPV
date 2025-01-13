@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -105,7 +105,7 @@ int controller_utils_export_all_to_usb()
    if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "zip") )
       return -1;
 
-   if ( ! hardware_try_mount_usb() )
+   if ( 1 != hardware_try_mount_usb() )
       return -2;
 
    u32 uControllerId = controller_utils_getControllerId();
@@ -181,7 +181,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
    if ( 0 == strlen(szOutput) || NULL == strstr(szOutput, "unzip") )
       return -1;
 
-   if ( ! hardware_try_mount_usb() )
+   if ( 1 != hardware_try_mount_usb() )
       return -2;
 
    u32 uControllerId = controller_utils_getControllerId();
@@ -232,9 +232,11 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
    sprintf(szComm, "cp -rf %s %s/importexport/%s", szUSBFile, FOLDER_RUBY_TEMP, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
-   sprintf(szComm, "rm -rf %s/*", FOLDER_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-
+   if ( 0 < strlen(FOLDER_CONFIG) )
+   {
+      sprintf(szComm, "rm -rf %s/*", FOLDER_CONFIG);
+      hw_execute_bash_command(szComm, NULL);
+   }
    sprintf(szComm, "unzip %s/importexport/%s", FOLDER_RUBY_TEMP, szInFile);
    hw_execute_bash_command(szComm, NULL);
 
@@ -254,7 +256,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
 
 bool controller_utils_usb_import_has_matching_controller_id_file()
 {
-   if ( ! hardware_try_mount_usb() )
+   if ( 1 != hardware_try_mount_usb() )
       return false;
 
    u32 uControllerId = controller_utils_getControllerId();
@@ -279,7 +281,7 @@ bool controller_utils_usb_import_has_matching_controller_id_file()
 
 bool controller_utils_usb_import_has_any_controller_id_file()
 {
-   if ( ! hardware_try_mount_usb() )
+   if ( 1 != hardware_try_mount_usb() )
       return false;
 
    char szOutput[2048];
@@ -483,7 +485,7 @@ int tx_powers_get_max_usable_power_mw_for_controller()
    
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;
@@ -536,7 +538,7 @@ int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComp
 
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
-      if ( ! hardware_radio_is_index_wifi_radio(i) )
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
          continue;
       if ( hardware_radio_index_is_sik_radio(i) )
          continue;
@@ -590,6 +592,22 @@ int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComp
    return iMaxPowerMwSet;
 }
 
+
+bool modelvideoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
+{
+   if ( NULL == pOldProfile || NULL == pNewProfile )
+      return false;
+
+   type_video_link_profile tmp;
+   memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
+   tmp.keyframe_ms = pOldProfile->keyframe_ms;
+   tmp.uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+   tmp.uProfileEncodingFlags |= (pOldProfile->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME);
+   if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
+      return true;
+   return false;
+}
+
 #else
 u32 controller_utils_getControllerId() { return 0; }
 int controller_utils_export_all_to_usb() { return 0; }
@@ -600,4 +618,5 @@ int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pMo
 void propagate_video_profile_changes(type_video_link_profile* pOrg, type_video_link_profile* pUpdated, type_video_link_profile* pAllProfiles){}
 int tx_powers_get_max_usable_power_mw_for_controller(){ return 0; }
 int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComputeOnl){ return 0; }
+bool modelvideoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile) { return false; }
 #endif

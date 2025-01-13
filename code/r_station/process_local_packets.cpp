@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -464,6 +464,28 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       return;
    }
 
+   if ( (uChangeType == MODEL_CHANGED_VIDEO_PROFILES) || 
+        (uChangeType == MODEL_CHANGED_VIDEO_KEYFRAME) )
+   {
+      if ( uChangeType == MODEL_CHANGED_VIDEO_PROFILES )
+         log_line("Received notification from central that only keyframe changed on current vehicle video stream.");
+      else
+         log_line("Received notification from central that video profiles have changed.");
+      int iRuntimeIndex = -1;
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->uVehicleId )
+         {
+            iRuntimeIndex = i;
+            break;
+         }
+      }
+      if ( -1 == iRuntimeIndex )
+         log_softerror_and_alarm("Failed to find vehicle runtime info for VID %u while processing video profile changed notif from central.", g_pCurrentModel->uVehicleId);
+      else
+         adaptive_video_on_new_vehicle(iRuntimeIndex);
+      return;
+   }
    if ( uChangeType == MODEL_CHANGED_OSD_PARAMS )
    {
       log_line("Received notification from central that current model OSD params have changed.");
@@ -473,7 +495,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    if ( uChangeType == MODEL_CHANGED_VIDEO_CODEC )
    {
       log_line("Received notification that video codec changed. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
-      rx_video_output_signal_restart_player();
+      rx_video_output_signal_restart_streamer();
       // Reset local info so that we show the "Waiting for video feed" message
       log_line("Reset received video stream flag");
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
@@ -481,9 +503,25 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       return;
    }
 
+   if ( uChangeType == MODEL_CHANGED_RESET_TO_DEFAULTS )
+   {
+      log_line("Received local notification that current model was reset to defaults or factory reseted.");
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->uVehicleId )
+         {
+            g_State.vehiclesRuntimeInfo[i].bIsPairingDone = false;
+            g_State.vehiclesRuntimeInfo[i].uPairingRequestTime = g_TimeNow + 5000;
+         }
+      }
+   }
+
    // Signal other components about the model change if it's not from central or if settings where synchronised from vehicle
    // Signal other components too if the RC parameters where changed
    bool bNotify = false;
+
+   if ( uChangeType == MODEL_CHANGED_RESET_TO_DEFAULTS )
+      bNotify = true;
    if ( (pPH->vehicle_id_src == PACKET_COMPONENT_COMMANDS) ||
         (uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE) )
       bNotify = true;
@@ -537,6 +575,21 @@ void process_local_control_packet(t_packet_header* pPH)
       log_line("Router received a local message to reload core plugins.");
       refresh_CorePlugins(0);
       log_line("Router finished reloading core plugins.");
+      return;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_PAUSE_LOCAL_VIDEO_DISPLAY )
+   {
+      log_line("Router received local message to %s local video display", (0 == pPH->vehicle_id_dest)?"resume":"pause");
+      if ( 0 == pPH->vehicle_id_dest )
+      {
+         rx_video_output_enable_streamer_output();
+      }
+      else
+      {
+         rx_video_output_disable_streamer_output();
+         rx_video_output_stop_video_streamer();
+      }
       return;
    }
 
@@ -893,9 +946,12 @@ void process_local_control_packet(t_packet_header* pPH)
 
       if ( NULL != g_pControllerSettings )
       {
-         log_line("Set new radio rx/tx threads priorities: %d/%d", g_pControllerSettings->iRadioRxThreadPriority, g_pControllerSettings->iRadioTxThreadPriority);
-         radio_rx_set_custom_thread_priority(g_pControllerSettings->iRadioRxThreadPriority);
-         radio_tx_set_custom_thread_priority(g_pControllerSettings->iRadioTxThreadPriority);
+         log_line("Set new radio rx/tx threads priorities: %d/%d (adjustments enabled: %d)", g_pControllerSettings->iRadioRxThreadPriority, g_pControllerSettings->iRadioTxThreadPriority, g_pControllerSettings->iPrioritiesAdjustment);
+         if ( g_pControllerSettings->iPrioritiesAdjustment )
+         {
+           radio_rx_set_custom_thread_priority(g_pControllerSettings->iRadioRxThreadPriority);
+           radio_tx_set_custom_thread_priority(g_pControllerSettings->iRadioTxThreadPriority);
+         }
       }
 
       if ( NULL != g_pSM_RadioStats )

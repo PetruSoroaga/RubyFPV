@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -645,9 +645,10 @@ int r_start_vehicle(int argc, char *argv[])
    }
 
    #ifdef HW_PLATFORM_RASPBERRY
-   hw_launch_process("./ruby_alive");
+   hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
    #endif
    
+   log_line("Launching processes...");
    _launch_vehicle_processes();
 
    log_line("");
@@ -667,6 +668,9 @@ int r_start_vehicle(int argc, char *argv[])
       log_only_errors();
 
    g_TimeStart = get_current_timestamp_ms();
+   g_TimeLastCheckRadioSilenceFailsafe = get_current_timestamp_ms();
+   for( int i=0; i<10; i++ )
+      hardware_sleep_ms(500);
 
    u32 maxTimeForProcess = 1;
    char szTime[64];
@@ -675,7 +679,7 @@ int r_start_vehicle(int argc, char *argv[])
    int counter = 0;
    bool bMustRestart = false;
    int iRestartCount = 0;
-   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 1000;
+   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
    u32 uTimeLoopLog = g_TimeStart;
 
    char szFileUpdate[MAX_FILE_PATH_SIZE];
@@ -803,6 +807,13 @@ int r_start_vehicle(int argc, char *argv[])
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
                log_softerror_and_alarm("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
             }
+
+            if ( modelVehicle.hasCamera() )
+            if ( modelVehicle.isActiveCameraOpenIPC() )
+            {
+               szPIDs = hw_process_get_pid("majestic");
+               log_line("Majestic PID(s): (%s)", szPIDs);
+            }
             bMustRestart = true;
          }
       }
@@ -884,6 +895,22 @@ int r_start_vehicle(int argc, char *argv[])
          }
       }
 
+      if ( access(CONFIG_FILE_FULLPATH_RESTART, R_OK) != -1 )
+      {
+         log_line("Flag to force restart is set. Restarting...");
+         for( int i=0; i<10; i++ )
+         {
+            hardware_sleep_ms(300);
+            int iPIDRouter = hw_process_exists("ruby_rt_vehicle");
+            if ( iPIDRouter <= 1 )
+               break;
+         }
+         log_line("Router did quit. Can restart now.");
+         sprintf(szBuff, "rm -rf %s", CONFIG_FILE_FULLPATH_RESTART);
+         hw_execute_bash_command_raw(szBuff, NULL);
+         bMustRestart = true;
+      }
+
       if ( bMustRestart )
       {
          log_softerror_and_alarm("Restarting processes...");
@@ -907,6 +934,9 @@ int r_start_vehicle(int argc, char *argv[])
          shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_RC_RX, s_pProcessStatsRC);
          s_pProcessStatsRC = NULL;
            
+         log_line("----------------------------------------------");
+         log_line("Stopped all processes");
+         log_line("----------------------------------------------");
 
          hardware_sleep_ms(200);
          log_line("Launching processes...");
@@ -914,7 +944,7 @@ int r_start_vehicle(int argc, char *argv[])
 
          log_line("Restarting processes. Done.");
 
-         uTimeToAdjustAffinities = get_current_timestamp_ms() + 1000;
+         uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
          s_failCountProcessRouter = 0;
          s_failCountProcessTelemetry = 0;
          s_failCountProcessCommands = 0;

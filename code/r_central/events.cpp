@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -182,6 +182,8 @@ void onEventBeforePairing()
 {
    log_line("[Event] Handling event BeforePairing...");
 
+   log_current_runtime_vehicles_info();
+
    notification_add_start_pairing();
 
    if ( NULL != g_pCurrentModel )
@@ -221,6 +223,7 @@ void onEventBeforePairing()
    // First vehicle is always the main vehicle, the next ones are relayed vehicles
    if ( NULL != g_pCurrentModel )
    {
+      log_line("[Event] Add the current g_pCurrentModel as the first vehicle runtime info.");
       g_VehiclesRuntimeInfo[0].uVehicleId = g_pCurrentModel->uVehicleId;
       g_VehiclesRuntimeInfo[0].pModel = g_pCurrentModel;
       g_iCurrentActiveVehicleRuntimeInfoIndex = 0;
@@ -228,28 +231,27 @@ void onEventBeforePairing()
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
       {
+         log_line("[Event] Add the current relayed vehicle (VID: %u) by the g_pCurrentModel as the second vehicle runtime info.", g_pCurrentModel->relay_params.uRelayedVehicleId);
          g_VehiclesRuntimeInfo[1].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
          g_VehiclesRuntimeInfo[1].pModel = findModelWithId(g_VehiclesRuntimeInfo[1].uVehicleId, 3);
       }
    }
 
-   log_current_runtime_vehicles_info();
-
    if ( (NULL != g_pCurrentModel) && g_pCurrentModel->audio_params.has_audio_device )
    {
       ControllerSettings* pCS = get_ControllerSettings();
-      
       hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
    }
 
-   log_line("[Event] Current VID for vehicle runtime info[0] is: %u", g_VehiclesRuntimeInfo[0].uVehicleId);
+   log_current_runtime_vehicles_info();
+   log_line("[Event] Current VID for vehicle runtime info[0] is (if any): %u", g_VehiclesRuntimeInfo[0].uVehicleId);
    log_line("[Event] Handled event BeforePairing. Done.");
 }
 
 void onEventPaired()
 {
    log_line("[Event] Handling event Paired...");
-
+   log_current_runtime_vehicles_info();
    if ( NULL != g_pCurrentModel )
       osd_set_current_layout_index_and_source_model(g_pCurrentModel, g_pCurrentModel->osd_params.layout);
    else
@@ -263,6 +265,7 @@ void onEventPaired()
 void onEventBeforePairingStop()
 {
    log_line("[Event] Handling event Before Pairing Stop...");
+   log_current_runtime_vehicles_info();
 
    osd_remove_stats_flight_end();
 
@@ -272,12 +275,15 @@ void onEventBeforePairingStop()
       g_pCurrentModel->relay_params.uCurrentRelayMode = RELAY_MODE_MAIN | RELAY_MODE_IS_RELAY_NODE;
       saveControllerModel(g_pCurrentModel);
    }
+
+   log_current_runtime_vehicles_info();
    log_line("[Event] Handled event Before Pairing Stop.");
 }
 
 void onEventPairingStopped()
 {
    log_line("[Event] Handling event Pairing Stopped...");
+   log_current_runtime_vehicles_info();
 
    g_bSwitchingRadioLink = false;
    
@@ -307,12 +313,14 @@ void onEventPairingStopped()
 
    osd_warnings_reset();
    warnings_remove_all();
+   log_current_runtime_vehicles_info();
    log_line("[Event] Handled event Pairing Stopped. Done.");
 }
 
 void onEventPairingStartReceivingData()
 {
    log_line("[Event] Hadling event 'Started receiving data from a vehicle'.");
+   log_current_runtime_vehicles_info();
 
    if ( NULL != g_pPopupLooking )
    {
@@ -335,9 +343,8 @@ void onEventPairingStartReceivingData()
       log_line("Removed popup wrong model (3).");
    }
 
-   log_current_runtime_vehicles_info();
 
-   log_line("[Event] Got current runtime ruby telemetry: %s, FC telemetry: %s",
+   log_line("[Event] Got already telemetry for the current active vehicle runtime?: Ruby telem: %s, FC telemetry: %s",
       g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo? "yes":"no",
       g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry? "yes":"no");
 
@@ -353,6 +360,7 @@ void onEventPairingStartReceivingData()
          g_pCurrentModel->b_mustSyncFromVehicle = true;
    }
 
+   log_current_runtime_vehicles_info();
    log_line("[Event] Handled event 'Started receiving data from vehicle'.");
 }
 
@@ -385,293 +393,167 @@ void onEventDisarmed(u32 uVehicleId)
    log_line("[Event] Handled event OnDisarmed. Done.");
 }
 
-bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited)
+bool _onEventCheck_NegociateRadioLinks(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
 {
-   log_line("[Event] Handling event OnReceivedModelSettings for VID %u (%d bytes, expected: %s)...", uVehicleId, length, (bUnsolicited?"no":"yes"));
-
-   if ( 0 == uVehicleId )
-   {
-      log_line("[Event] Received model settings for VID 0. Ignoring it.");
-      return false;
-   }
-
-   if ( NULL == g_pCurrentModel )
-   {
-      log_line("[Event] current model is NULL. Ignore received model settings.");
-      return false;
-   }
-   log_current_runtime_vehicles_info();
-
-   Model* pModel = NULL;
-   bool bFoundInList = false;
-   int iRuntimeIndex = -1;
-   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-   {
-      if ( g_VehiclesRuntimeInfo[i].uVehicleId != uVehicleId )
-         continue;
-      if ( NULL != g_VehiclesRuntimeInfo[i].pModel )
-         log_line("[Event] Received model settings for runtime info %d, %s", i, g_VehiclesRuntimeInfo[i].pModel->getLongName());
-      else
-         log_line("[Event] Received model settings for runtime info %d, NULL model.", i);
-      pModel = g_VehiclesRuntimeInfo[i].pModel;
-      bFoundInList = true;
-      iRuntimeIndex = i;
-      break;
-   }
-
-   if ( (! bFoundInList) || (-1 == iRuntimeIndex) )
-   {
-      log_softerror_and_alarm("[Event] Received model settings for unknown vehicle who's not in the runtime list. Ignoring it.");
-      log_current_runtime_vehicles_info();
-      return false;
-   }
-
-   if ( NULL == pModel )
-   {
-      log_softerror_and_alarm("[Event] Received model settings for vehicle who who has no model in the runtime list. Ignoring it.");
-      log_current_runtime_vehicles_info();
-      return false;
-   }
-
-   log_line("[Event] Found model (VID %u) in the runtimelist at position %d", pModel->uVehicleId, iRuntimeIndex);
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
-      log_line("[Event] Found model is current model.");
-   else
-      log_line("[Event] Found model is not current model (current model VID: %u)", (NULL != g_pCurrentModel)?(g_pCurrentModel->uVehicleId): 0);
-
-   bool bOldAudioEnabled = false;
-   osd_parameters_t osd_temp;
-   video_parameters_t oldVideoParams;
-
-   bOldAudioEnabled = pModel->audio_params.enabled;
-   memcpy((u8*)&osd_temp, (u8*)&(pModel->osd_params), sizeof(osd_parameters_t));
-   memcpy(&oldVideoParams, &(pModel->video_params), sizeof(video_parameters_t));
-
-   char szFile[MAX_FILE_PATH_SIZE];
-   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
-
-   FILE* fd = fopen(szFile, "wb");
-   if ( NULL != fd )
-   {
-       fwrite(pBuffer, 1, length, fd);
-       fclose(fd);
-       fd = NULL;
-   }
-   else
-   {
-      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
-      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
-      return false;
-   }
-
-   sprintf(szFile, "%s/last_recv_model.bak", FOLDER_RUBY_TEMP);
-   fd = fopen(szFile, "wb");
-   if ( NULL != fd )
-   {
-       fwrite(pBuffer, 1, length, fd);
-       fclose(fd);
-       fd = NULL;
-   }
-   else
-   {
-      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
-      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
-      return false;
-   }
-
-   Model modelTemp;
-   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
-   if ( ! modelTemp.loadFromFile(szFile, true) )
-   {
-      log_softerror_and_alarm("HCommands: Failed to load the received vehicle model file. Invalid file.");
-      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
-      warnings_add_error_null_model(1);
-      return false;
-   }
-
-   // Remove relay flags from radio links flags for vehicles version 7.6 or older (build 79)
-
-   bool bRemoveRelayFlags = false;
-   if ( (modelTemp.sw_version>>16) < 79 )
-      bRemoveRelayFlags = true;
-
-   if ( bRemoveRelayFlags )
-   {
-      log_line("Received model settings for vehicle version 7.5 or older. Remove relay flags.");
-
-      for( int i=0; i<modelTemp.radioLinksParams.links_count; i++ )
-         modelTemp.radioLinksParams.link_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
-
-      for( int i=0; i<modelTemp.radioInterfacesParams.interfaces_count; i++ )
-         modelTemp.radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
-   }
-
-   log_line("Current (before update) local model (VID: %u) is in controll mode: %s", pModel->uVehicleId, pModel->is_spectator?"no":"yes");
-   log_line("Currently received temp model (VID: %u) is in controll mode: %s", modelTemp.uVehicleId, modelTemp.is_spectator?"no":"yes");
-   //if ( modelTemp.is_spectator )
-   //    log_softerror_and_alarm("Received model is set as spectator mode.");
-
-   log_line("Currently received temp model is in developer mode: %s, total flights: %u", modelTemp.bDeveloperMode?"yes":"no", modelTemp.m_Stats.uTotalFlights);
-   log_line("Currently received temp model osd layout: %d, enabled: %s", modelTemp.osd_params.layout, (modelTemp.osd_params.osd_flags2[modelTemp.osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
-   log_line("Currently received temp model developer flags: [%s]", str_get_developer_flags(modelTemp.uDeveloperFlags));
-   log_line("Received vehicle info has %d radio links.", modelTemp.radioLinksParams.links_count );
-   log_line("Currently received temp model has Ruby base version: %d.%d", (modelTemp.hwCapabilities.uRubyBaseVersion >> 8) & 0xFF, modelTemp.hwCapabilities.uRubyBaseVersion & 0xFF);
-   bool bRadioChanged = false;
-   bool bCameraChanged = false;
    g_bMustNegociateRadioLinksFlag = false;
 
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
-   if ( !(pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pCurrentlyStoredModel->uVehicleId) )
+   if ( !(pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+      g_bMustNegociateRadioLinksFlag = true;
+   if ( !(pNewReceivedModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
       g_bMustNegociateRadioLinksFlag = true;
 
-   if ( pModel->radioInterfacesParams.interfaces_count != modelTemp.radioInterfacesParams.interfaces_count )
+   if ( pCurrentlyStoredModel->radioInterfacesParams.interfaces_count != pNewReceivedModel->radioInterfacesParams.interfaces_count )
       g_bMustNegociateRadioLinksFlag = true;
-   for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
+   for( int i=0; i<pCurrentlyStoredModel->radioInterfacesParams.interfaces_count; i++ )
    {
-       if ( pModel->radioInterfacesParams.interface_card_model[i] != modelTemp.radioInterfacesParams.interface_card_model[i] )
+       if ( pCurrentlyStoredModel->radioInterfacesParams.interface_card_model[i] != pNewReceivedModel->radioInterfacesParams.interface_card_model[i] )
            g_bMustNegociateRadioLinksFlag = true;
-       if ( pModel->radioInterfacesParams.interface_radiotype_and_driver[i] != modelTemp.radioInterfacesParams.interface_radiotype_and_driver[i] )
+       if ( pCurrentlyStoredModel->radioInterfacesParams.interface_radiotype_and_driver[i] != pNewReceivedModel->radioInterfacesParams.interface_radiotype_and_driver[i] )
            g_bMustNegociateRadioLinksFlag = true;
-       if ( 0 != strcmp(pModel->radioInterfacesParams.interface_szMAC[i], modelTemp.radioInterfacesParams.interface_szMAC[i]) )
+       if ( 0 != strcmp(pCurrentlyStoredModel->radioInterfacesParams.interface_szMAC[i], pNewReceivedModel->radioInterfacesParams.interface_szMAC[i]) )
            g_bMustNegociateRadioLinksFlag = true;
    }
+   return g_bMustNegociateRadioLinksFlag;
+}
 
-   if ( pModel->uVehicleId == modelTemp.uVehicleId )
+bool _onEventCheck_CameraChanged(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
+{
+   if ( pCurrentlyStoredModel->uVehicleId != pNewReceivedModel->uVehicleId )
+      return false;
+
+   if ( pNewReceivedModel->iCurrentCamera != pCurrentlyStoredModel->iCurrentCamera )
+      return true;
+   if ( (pNewReceivedModel->iCurrentCamera >= 0) && (pNewReceivedModel->iCameraCount > 0) && (pCurrentlyStoredModel->iCurrentCamera >= 0) && (pCurrentlyStoredModel->iCameraCount > 0) )
+   if ( (pNewReceivedModel->camera_params[pNewReceivedModel->iCurrentCamera].iCameraType != pCurrentlyStoredModel->camera_params[pCurrentlyStoredModel->iCurrentCamera].iCameraType ) ||
+        (pNewReceivedModel->camera_params[pNewReceivedModel->iCurrentCamera].iForcedCameraType != pCurrentlyStoredModel->camera_params[pCurrentlyStoredModel->iCurrentCamera].iForcedCameraType ) )
+      return true;
+
+   return false;
+}
+
+bool _onEventCheck_RadioChanged(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
+{
+   if ( pCurrentlyStoredModel->uVehicleId != pNewReceivedModel->uVehicleId )
+      return false;
+
+   bool bRadioChanged = IsModelRadioConfigChanged(&(pCurrentlyStoredModel->radioLinksParams), &(pCurrentlyStoredModel->radioInterfacesParams),
+       &(pNewReceivedModel->radioLinksParams), &(pNewReceivedModel->radioInterfacesParams));
+   log_line("Received model has different radio config? %s", bRadioChanged?"yes":"no");
+   
+   if ( ! bRadioChanged )
+      return false;
+
+   if ( pCurrentlyStoredModel->radioLinksParams.links_count != pNewReceivedModel->radioLinksParams.links_count )
+      return true;
+
+   if ( pCurrentlyStoredModel->radioInterfacesParams.interfaces_count != pNewReceivedModel->radioInterfacesParams.interfaces_count )
+      return true;
+
+   for( int i=0; i<pCurrentlyStoredModel->radioLinksParams.links_count; i++ )
    {
-      if ( modelTemp.iCurrentCamera != pModel->iCurrentCamera )
-         bCameraChanged = true;
-      else if ( (modelTemp.iCurrentCamera >= 0) && (modelTemp.iCameraCount > 0) && (pModel->iCurrentCamera >= 0) && (pModel->iCameraCount > 0) )
+      if ( pCurrentlyStoredModel->radioLinksParams.link_frequency_khz[i] != pNewReceivedModel->radioLinksParams.link_frequency_khz[i] )
+         return true;
+   }
+
+   return false;
+}
+
+// Returns true if a big change is detected that requires re-pairing
+bool _onEventCheckChangesToModel(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
+{
+   if ( (NULL == pCurrentlyStoredModel) || (NULL == pNewReceivedModel) )
+      return false;
+
+   bool bCurrentModelIsInActiveRuntime = false;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == pCurrentlyStoredModel->uVehicleId )
       {
-         if ( ( modelTemp.camera_params[modelTemp.iCurrentCamera].iCameraType != pModel->camera_params[pModel->iCurrentCamera].iCameraType ) ||
-            (modelTemp.camera_params[modelTemp.iCurrentCamera].iForcedCameraType != pModel->camera_params[pModel->iCurrentCamera].iForcedCameraType ) )
-            bCameraChanged = true;
-      }
-
-      bRadioChanged = IsModelRadioConfigChanged(&(pModel->radioLinksParams), &(pModel->radioInterfacesParams),
-        &(modelTemp.radioLinksParams), &(modelTemp.radioInterfacesParams));
-      log_line("Received model has different radio config? %s", bRadioChanged?"yes":"no");
-
-      if ( bRadioChanged )
-      {
-         bRadioChanged = false;
-         if ( pModel->radioLinksParams.links_count != modelTemp.radioLinksParams.links_count )
-            bRadioChanged = true;
-
-         if ( pModel->radioInterfacesParams.interfaces_count != modelTemp.radioInterfacesParams.interfaces_count )
-            bRadioChanged = true;
-
-         for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
-         {
-            if ( pModel->radioLinksParams.link_frequency_khz[i] != modelTemp.radioLinksParams.link_frequency_khz[i] )
-               bRadioChanged = true;
-         }
-
-         if ( bRadioChanged )
-         {
-            if ( pModel == g_pCurrentModel )
-               log_line("Received model has different number of radio links or different frequencies. Must update local radio configuration now.");
-            else
-               log_line("Received model has different number of radio links or different frequencies.");
-         }
+         bCurrentModelIsInActiveRuntime = true;
+         break;
       }
    }
 
-   for( int i=0; i<modelTemp.radioLinksParams.links_count; i++ )
-   {
-      char szBuff[128];
-      char szBuffC[128];
+   osd_parameters_t oldOSDParams;
+   video_parameters_t oldVideoParams;
+   memcpy((u8*)&oldOSDParams, (u8*)&(pCurrentlyStoredModel->osd_params), sizeof(osd_parameters_t));
+   memcpy(&oldVideoParams, &(pCurrentlyStoredModel->video_params), sizeof(video_parameters_t));
 
-      str_get_radio_capabilities_description(modelTemp.radioLinksParams.link_capabilities_flags[i], szBuffC);   
-      str_get_radio_frame_flags_description(modelTemp.radioLinksParams.link_radio_flags[i], szBuff);
-      log_line("Received vechile info: radio link %d: %s, capabilities flags: %s, radio flags: %s", i+1, str_format_frequency(modelTemp.radioLinksParams.link_frequency_khz[i]), szBuffC, szBuff);
+   g_bMustNegociateRadioLinksFlag = _onEventCheck_NegociateRadioLinks(pCurrentlyStoredModel, pNewReceivedModel);
+
+   bool bCameraChanged = _onEventCheck_CameraChanged(pCurrentlyStoredModel, pNewReceivedModel);
+   log_line("Camera did change on the VID %u ? %s", pNewReceivedModel->uVehicleId, (bCameraChanged?"Yes":"No"));
+   
+   bool bRadioChanged = _onEventCheck_RadioChanged(pCurrentlyStoredModel, pNewReceivedModel);
+   if ( bRadioChanged )
+   {
+      if ( (pCurrentlyStoredModel == g_pCurrentModel) || bCurrentModelIsInActiveRuntime )
+         log_line("Received model has different number of radio links or different frequencies. Must update local radio configuration now as it's the current model or it's an active relay node.");
+      else
+         log_line("Received model has different number of radio links or different frequencies but it's not the current model.");
    }
+   else
+      log_line("Received model has same radio config as the currently stored model.");
 
+   if ( pCurrentlyStoredModel->uVehicleId == g_pCurrentModel->uVehicleId )
+   if ( bRadioChanged )
+      return true;
 
-   if ( pModel->uVehicleId != modelTemp.uVehicleId )
+   if ( pCurrentlyStoredModel->uVehicleId == g_pCurrentModel->uVehicleId )
+   if ( pCurrentlyStoredModel->audio_params.enabled != pNewReceivedModel->audio_params.enabled )
    {
-      Model* pTempModel = findModelWithId(modelTemp.uVehicleId, 4);
-      if ( NULL == pTempModel )
-      {
-         log_softerror_and_alarm("[Event] Received model settings for unknown vehicle id %u (none in the list).", modelTemp.uVehicleId);
-         return false;
-      }
-      saveControllerModel(&modelTemp);
-      warnings_add(modelTemp.uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
+      log_line("Audio enable flag changed.");
       return true;
    }
+   return false;
+}
 
-   log_line("Camera did change on the vehicle %u ? %s", modelTemp.uVehicleId, (bCameraChanged?"Yes":"No"));
+// Returns true if actions where taken or needed to be taken
+
+bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
+{
+   if ( (NULL == pCurrentlyStoredModel) || (NULL == pNewReceivedModel) )
+      return false;
    
-   bool is_spectator = pModel->is_spectator;
+   bool bTookActions = false;
 
-   if ( pModel == g_pCurrentModel )
+   int iCurrentModelActiveRuntimeIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
-      log_line("[Event] Update current model...");
-      saveControllerModel(&modelTemp);
-   }
-   else
-      saveControllerModel(&modelTemp);
-
-   if ( bUnsolicited )
-      warnings_add(pModel->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
-   else
-      warnings_add(pModel->uVehicleId, "Got vehicle settings.", g_idIconCheckOK);
-
-   log_line("The vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pModel->sw_version)>>8) & 0xFF, (pModel->sw_version) & 0xFF, ((pModel->sw_version)>>16), pModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
-   
-
-   int iMajor = (pModel->hwCapabilities.uRubyBaseVersion>>8) & 0xFF;
-   int iMinor = pModel->hwCapabilities.uRubyBaseVersion & 0xFF;
-   bool bMustInstallFirmware = false;
-   if ( (iMajor < 10) || ((iMajor == 10) && (iMinor < 1)) )
-   if ( ! pModel->isRunningOnOpenIPCHardware() )
-      bMustInstallFirmware = true;
-
-   if ( bMustInstallFirmware )
-   {
-      pModel->b_mustSyncFromVehicle = false;
-      saveControllerModel(pModel);
-      log_line("[Event] Updated current local vehicle with received settings.");
-      MenuConfirmation* pMC = new MenuConfirmation(getString(0), getString(2), 0, true);
-      pMC->addTopLine(getString(3));
-      pMC->setIconId(g_idIconWarning);
-      pMC->m_yPos = 0.3;
-      add_menu_to_stack(pMC);
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId == pCurrentlyStoredModel->uVehicleId )
+      {
+         iCurrentModelActiveRuntimeIndex = i;
+         break;
+      }
    }
 
    bool bMustUpdate = false;  
-   if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pModel->sw_version & 0xFFFF) )
+   if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pNewReceivedModel->sw_version & 0xFFFF) )
       bMustUpdate = true;
    
-   //if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR == (pModel->sw_version & 0xFFFF) )
-   if ( SYSTEM_SW_BUILD_NUMBER > (pModel->sw_version >> 16) )
+   if ( SYSTEM_SW_BUILD_NUMBER > (pNewReceivedModel->sw_version >> 16) )
       bMustUpdate = true;
 
-   if ( pModel->isRunningOnOpenIPCHardware() )
-   {
-       if ( hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
-          bMustUpdate = false;
-       if ( ((pModel->sw_version & 0xFF00) >> 8 ) < 9 )
-          bMustUpdate = false;
-       if ( ((pModel->sw_version & 0xFF00) >> 8 ) == 9 )
-       if ( (pModel->sw_version & 0xFF) < 20 )
-          bMustUpdate = false;
-   }
+   if ( pNewReceivedModel->isRunningOnOpenIPCHardware() )
+   if ( hardware_board_is_goke(pNewReceivedModel->hwCapabilities.uBoardType) )
+      bMustUpdate = false;
 
-   if ( bMustUpdate && (!bMustInstallFirmware) )
+   if ( bMustUpdate )
    {
       char szBuff[256];
       char szBuff2[32];
       char szBuff3[32];
       char szBuff4[64];
-      getSystemVersionString(szBuff2, pModel->sw_version);
+      getSystemVersionString(szBuff2, pNewReceivedModel->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-      strcpy(szBuff4, pModel->getVehicleTypeString());
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%d) and your controller %s (b%d). You should update your %s.", szBuff4, szBuff2, pModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
-      warnings_add(pModel->uVehicleId, szBuff, 0, NULL, 12);
+      strcpy(szBuff4, pNewReceivedModel->getVehicleTypeString());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%d) and your controller %s (b%d). You should update your %s.", szBuff4, szBuff2, pNewReceivedModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
+      warnings_add(pNewReceivedModel->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
-      if ( g_VehiclesRuntimeInfo[iRuntimeIndex].bGotFCTelemetry )
-      if ( g_VehiclesRuntimeInfo[iRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+      if ( -1 != iCurrentModelActiveRuntimeIndex )
+      if ( g_VehiclesRuntimeInfo[iCurrentModelActiveRuntimeIndex].bGotFCTelemetry )
+      if ( g_VehiclesRuntimeInfo[iCurrentModelActiveRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
          bArmed = true;
 
       if ( ! bArmed )
@@ -681,40 +563,80 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
           add_menu_to_stack( new MenuUpdateVehiclePopup(-1) );
           g_bMenuPopupUpdateVehicleShown = true;
           g_bMustNegociateRadioLinksFlag = false;
+          bTookActions = true;
       }
    }
 
-   if ( !bMustUpdate )
-   if ( !bMustInstallFirmware )
-   if ( is_sw_version_atleast(g_pCurrentModel, 9, 7) )
-   if ( hardware_board_is_sigmastar(pModel->hwCapabilities.uBoardType) )
-   if ( (pModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
+   if ( ! bTookActions )
+   if ( is_sw_version_atleast(pNewReceivedModel, 9, 7) )
+   if ( hardware_board_is_sigmastar(pNewReceivedModel->hwCapabilities.uBoardType) )
+   if ( (pNewReceivedModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
    {
       add_menu_to_stack( new MenuConfirmationVehicleBoard() );
+      bTookActions = true;
    }
 
-   pModel->is_spectator = is_spectator;
-   pModel->b_mustSyncFromVehicle = false;
-   log_line("Set settings synchronised flag to true for vehicle.");
-   if ( pModel->is_spectator )
-      log_line("Vehicle is spectator!");
+   #if defined(HW_PLATFORM_RASPBERRY)
+   if ( pNewReceivedModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+   {
+       char szVehicleType[64];
+       char szText[128];
+       strcpy(szVehicleType, pNewReceivedModel->getVehicleTypeString());
+       snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Your %s generates H265 video but your controller supports only H264. Change the %s video encoder to H264 encoder", szVehicleType, szVehicleType);
+       warnings_add(pNewReceivedModel->uVehicleId, szText, g_idIconCamera, get_Color_IconWarning() );
+       snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Your %s generates H265 video but your controller supports only H264. Change teh %s video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", szVehicleType, szVehicleType);
+       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec", szText, 0, true);
+       pMC->m_yPos = 0.3;
+       add_menu_to_stack(pMC);
+       g_bMustNegociateRadioLinksFlag = false;
+       bTookActions = true;
+   }
+   #endif
 
-   if ( pModel->is_spectator )
-      memcpy((u8*)&(pModel->osd_params), (u8*)&osd_temp, sizeof(osd_parameters_t));
+   if ( ! bTookActions )
+   if ( pNewReceivedModel->hasCamera() )
+   if ( g_bMustNegociateRadioLinksFlag )
+   if ( ! g_bDidAnUpdate )
+   if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
+   if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
+   if ( ! g_bAskedForNegociateRadioLink )
+   {
+      add_menu_to_stack(new MenuNegociateRadio());
+      bTookActions = true;
+   }
 
-   log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->bDeveloperMode?"yes":"no");
-   log_line("Current model (VID %u) is spectator: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"yes":"no");
-   log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->uVehicleId, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
-   log_line("Received model (VID %u) is in developer mode: %s", pModel->uVehicleId, pModel->bDeveloperMode?"yes":"no");
-   log_line("Received model (VID %u) is spectator: %s", pModel->uVehicleId, pModel->is_spectator?"yes":"no");
-   log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", pModel->uVehicleId, pModel->m_Stats.uCurrentOnTime/60, pModel->m_Stats.uCurrentOnTime%60, pModel->m_Stats.uCurrentFlightTime/60, pModel->m_Stats.uCurrentFlightTime%60, pModel->m_Stats.uTotalFlights);
-   saveControllerModel(pModel);
-   log_line("[Event] Updated current local vehicle with received settings.");
+   #if defined HW_PLATFORM_RASPBERRY
+   if ( ! bTookActions )
+   if ( ! g_bDidAnUpdate )
+   if ( pNewReceivedModel->isRunningOnOpenIPCHardware() )
+   if ( getPreferencesDoNotShowAgain(ID_DONOT_SHOW_AGAIN_MIXED_PI_OPENIPC_HARDWARE) != 1 )
+   {
+      char szText1[256];
+      char szText2[256];
+      strcpy(szText1, L("You are using a Raspberry pi board connected to an OpenIPC board."));
+      strcpy(szText2, L("You might experience spikes in the video feed on this hardware combination depending on the video settings."));
+      MenuConfirmation* pMC = new MenuConfirmation(L("Hardware Info"), szText1, 0, true);
+      pMC->m_yPos = 0.3;
+      pMC->addTopLine(szText2);
+      pMC->setUniqueId(ID_DONOT_SHOW_AGAIN_MIXED_PI_OPENIPC_HARDWARE);
+      pMC->enableShowDoNotShowAgain();
+      pMC->setIconId(g_idIconCPU);
+      add_menu_to_stack(pMC);
+      g_bMustNegociateRadioLinksFlag = false;
+      bTookActions = true;
+   }
+   #endif
 
-   pModel->logVehicleRadioInfo();
+   return bTookActions;
+}
 
-   char szTextW[256];
+void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolicitedSync)
+{
+   if ( NULL == pModel )
+      return;
+
+   char szText[256];
 
    // Check supported cards
 
@@ -727,25 +649,30 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    
       if ( countUnsuported == pModel->radioInterfacesParams.interfaces_count )
       {
-         sprintf(szTextW, "No radio interface on your %s is fully supported.", pModel->getVehicleTypeString());
-         Popup* p = new Popup(szTextW, 0.3,0.4, 0.5, 6);
+         sprintf(szText, "No radio interface on your %s is fully supported.", pModel->getVehicleTypeString());
+         Popup* p = new Popup(szText, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconError, get_Color_IconError());
          popups_add_topmost(p);
       }
       else if ( countUnsuported > 0 )
       {
-         sprintf(szTextW, "Some radio interfaces on your %s are not fully supported.", pModel->getVehicleTypeString());
-         Popup* p = new Popup(szTextW, 0.3,0.4, 0.5, 6);
+         sprintf(szText, "Some radio interfaces on your %s are not fully supported.", pModel->getVehicleTypeString());
+         Popup* p = new Popup(szText, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
       }
    }
 
+   // Check unsuported UARTs
+
    if ( pModel->alarms & ALARM_ID_UNSUPORTED_USB_SERIAL )
    {
-      sprintf(szTextW, "Your %s has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", pModel->getVehicleTypeString());
-      warnings_add(pModel->uVehicleId, szTextW, g_idIconError);
+      sprintf(szText, "Your %s has an unsupported USB to Serial adapter. Use brand name serial adapters or ones with  CP2102 chipset. The ones with 340 chipset are not compatible.", pModel->getVehicleTypeString());
+      warnings_add(pModel->uVehicleId, szText, g_idIconError);
    }
+
+   // Check invalid audio
+
    if ( pModel->audio_params.enabled )
    {
       if ( ! pModel->audio_params.has_audio_device )
@@ -779,30 +706,243 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
          warnings_add(pModel->uVehicleId, szBuff, g_idIconCamera, get_Color_IconWarning() );
       }
    }
-   
+}
 
-   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
+bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited)
+{
+   log_line("[Event] Handling event OnReceivedModelSettings for VID %u (%d bytes, expected: %s)...", uVehicleId, length, (bUnsolicited?"no":"yes"));
+
+   if ( 0 == uVehicleId )
+   {
+      log_line("[Event] Received model settings for VID 0. Ignoring it.");
+      return false;
+   }
+
+   if ( NULL == g_pCurrentModel )
+   {
+      log_line("[Event] Currently active model is NULL. Ignore received model settings.");
+      return false;
+   }
+   else
+      log_line("[Event] Currently active model VID: %d, mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode");
+   
+   log_current_runtime_vehicles_info();
+
+   Model* pCurrentlyStoredModel = NULL;
+   bool bFoundInList = false;
+   int iRuntimeIndex = -1;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_VehiclesRuntimeInfo[i].uVehicleId != uVehicleId )
+         continue;
+      if ( NULL != g_VehiclesRuntimeInfo[i].pModel )
+         log_line("[Event] Received model settings for runtime index %d, %s", i, g_VehiclesRuntimeInfo[i].pModel->getLongName());
+      else
+         log_line("[Event] Received model settings for runtime index %d, NULL model.", i);
+      pCurrentlyStoredModel = g_VehiclesRuntimeInfo[i].pModel;
+      bFoundInList = true;
+      iRuntimeIndex = i;
+      break;
+   }
+
+   if ( (! bFoundInList) || (-1 == iRuntimeIndex) )
+   {
+      log_softerror_and_alarm("[Event] Received model settings for unknown vehicle who's not in the runtime list. Ignoring it.");
+      log_current_runtime_vehicles_info();
+      return false;
+   }
+
+   if ( NULL == pCurrentlyStoredModel )
+   {
+      log_softerror_and_alarm("[Event] Received model settings for vehicle who has no model in the runtime list. Ignoring it.");
+      log_current_runtime_vehicles_info();
+      return false;
+   }
+
+   log_line("[Event] Found model (VID %u) in the runtime list at position %d, mode: %s", pCurrentlyStoredModel->uVehicleId, iRuntimeIndex, pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode");
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pCurrentlyStoredModel->uVehicleId) )
+      log_line("[Event] Found model in storage (0x%X) is the same as current model (g_pCurrentModel = 0x%X).", pCurrentlyStoredModel, g_pCurrentModel);
+   else
+      log_line("[Event] Found model in storage is not the same as current model (current model VID: %u)", (NULL != g_pCurrentModel)?(g_pCurrentModel->uVehicleId): 0);
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
+
+   FILE* fd = fopen(szFile, "wb");
+   if ( NULL != fd )
+   {
+       fwrite(pBuffer, 1, length, fd);
+       fclose(fd);
+       fd = NULL;
+   }
+   else
+   {
+      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
+      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
+      return false;
+   }
+
+   sprintf(szFile, "%s/last_recv_model.bak", FOLDER_RUBY_TEMP);
+   fd = fopen(szFile, "wb");
+   if ( NULL != fd )
+   {
+       fwrite(pBuffer, 1, length, fd);
+       fclose(fd);
+       fd = NULL;
+   }
+   else
+   {
+      log_error_and_alarm("Failed to save received vehicle configuration to temp file (%s).", szFile);
+      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
+      return false;
+   }
+
+   Model receivedModel;
+   sprintf(szFile, "%s/last_recv_model.mdl", FOLDER_RUBY_TEMP);
+   if ( ! receivedModel.loadFromFile(szFile, true) )
+   {
+      log_softerror_and_alarm("HCommands: Failed to load the received vehicle model file. Invalid file.");
+      log_error_and_alarm("[Event]: Failed to process received model settings from vehicle.");
+      warnings_add_error_null_model(1);
+      return false;
+   }
+
+   // Remove relay flags from radio links flags for vehicles version 7.6 or older (build 79)
+
+   bool bRemoveRelayFlags = false;
+   if ( (receivedModel.sw_version>>16) < 79 )
+      bRemoveRelayFlags = true;
+
+   if ( bRemoveRelayFlags )
+   {
+      log_line("Received model settings for vehicle version 7.5 or older. Remove relay flags.");
+
+      for( int i=0; i<receivedModel.radioLinksParams.links_count; i++ )
+         receivedModel.radioLinksParams.link_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+
+      for( int i=0; i<receivedModel.radioInterfacesParams.interfaces_count; i++ )
+         receivedModel.radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
+   }
+
+   log_line("Current (before update) local model (VID: %u) mode: %s", pCurrentlyStoredModel->uVehicleId, pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode");
+   log_line("Current (before update) current model (g_pCurrentModel) (VID: %u) mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode");
+
+   log_line("Currently received temp model (VID: %u) mode: %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode");
+   log_line("Currently received temp model is in developer mode: %s, total flights: %u", receivedModel.bDeveloperMode?"yes":"no", receivedModel.m_Stats.uTotalFlights);
+   log_line("Currently received temp model osd layout: %d, enabled: %s", receivedModel.osd_params.layout, (receivedModel.osd_params.osd_flags2[receivedModel.osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+   log_line("Currently received temp model developer flags: [%s]", str_get_developer_flags(receivedModel.uDeveloperFlags));
+   log_line("Currently received temp model has %d radio links.", receivedModel.radioLinksParams.links_count );
+   log_line("Currently received temp model has Ruby base version: %d.%d", (receivedModel.hwCapabilities.uRubyBaseVersion >> 8) & 0xFF, receivedModel.hwCapabilities.uRubyBaseVersion & 0xFF);
+   
+   for( int i=0; i<receivedModel.radioLinksParams.links_count; i++ )
+   {
+      char szBuff[128];
+      char szBuffC[128];
+
+      str_get_radio_capabilities_description(receivedModel.radioLinksParams.link_capabilities_flags[i], szBuffC);   
+      str_get_radio_frame_flags_description(receivedModel.radioLinksParams.link_radio_flags[i], szBuff);
+      log_line("Currently received temp model info: radio link %d: %s, capabilities flags: %s, radio flags: %s", i+1, str_format_frequency(receivedModel.radioLinksParams.link_frequency_khz[i]), szBuffC, szBuff);
+   }
+
+   if ( pCurrentlyStoredModel->uVehicleId != receivedModel.uVehicleId )
+   {
+      Model* pTempModel = findModelWithId(receivedModel.uVehicleId, 4);
+      if ( NULL == pTempModel )
+      {
+         log_softerror_and_alarm("[Event] Received model settings for unknown VID %u (none in the list).", receivedModel.uVehicleId);
+         return false;
+      }
+      saveControllerModel(&receivedModel);
+      warnings_add(receivedModel.uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
+      return true;
+   }
+
+   if ( bUnsolicited )
+      warnings_add(pCurrentlyStoredModel->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
+   else
+      warnings_add(pCurrentlyStoredModel->uVehicleId, "Synchronised vehicle settings.", g_idIconCheckOK);
+
+   log_line("The currently stored vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pCurrentlyStoredModel->sw_version)>>8) & 0xFF, (pCurrentlyStoredModel->sw_version) & 0xFF, ((pCurrentlyStoredModel->sw_version)>>16), pCurrentlyStoredModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
+
+   bool bOldIsSpectator = pCurrentlyStoredModel->is_spectator;
+   osd_parameters_t oldOSDParams;
+   video_parameters_t oldVideoParams;
+   memcpy((u8*)&oldOSDParams, (u8*)&(pCurrentlyStoredModel->osd_params), sizeof(osd_parameters_t));
+   memcpy(&oldVideoParams, &(pCurrentlyStoredModel->video_params), sizeof(video_parameters_t));
+
+   if ( ! bUnsolicited )
+   {
+      int iMajor = (receivedModel.hwCapabilities.uRubyBaseVersion>>8) & 0xFF;
+      int iMinor = receivedModel.hwCapabilities.uRubyBaseVersion & 0xFF;
+      bool bMustInstallFirmware = false;
+      if ( (iMajor < 10) || ((iMajor == 10) && (iMinor < 1)) )
+      if ( ! receivedModel.isRunningOnOpenIPCHardware() )
+         bMustInstallFirmware = true;
+
+      if ( bMustInstallFirmware )
+      {
+         receivedModel.is_spectator = bOldIsSpectator;
+         pCurrentlyStoredModel->b_mustSyncFromVehicle = false;
+         if ( pCurrentlyStoredModel->uVehicleId == g_pCurrentModel->uVehicleId )
+            g_bIsFirstConnectionToCurrentVehicle = false;
+         saveControllerModel(&receivedModel);
+         log_line("[Event] Updated current local vehicle with received settings.");
+         MenuConfirmation* pMC = new MenuConfirmation(getString(0), getString(2), 0, true);
+         pMC->addTopLine(getString(3));
+         pMC->addTopLine(getString(21));
+         pMC->setIconId(g_idIconWarning);
+         pMC->m_yPos = 0.3;
+         add_menu_to_stack(pMC);
+         return true;
+      }
+   }
+   
+   bool bMustRePair = _onEventCheckChangesToModel(pCurrentlyStoredModel, &receivedModel);
+   
+   pCurrentlyStoredModel->is_spectator = bOldIsSpectator;
+   pCurrentlyStoredModel->b_mustSyncFromVehicle = false;
+   log_line("[Event] Did set 'settings synchronised' flag to true for the vehicle (%u)", pCurrentlyStoredModel->uVehicleId);
+   if ( pCurrentlyStoredModel->is_spectator )
+   {
+      log_line("Vehicle is spectator!");
+      memcpy((u8*)&(pCurrentlyStoredModel->osd_params), (u8*)&oldOSDParams, sizeof(osd_parameters_t));
+   }
+
+   log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->bDeveloperMode?"yes":"no");
+   log_line("Current model (VID %u) mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode");
+   log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->uVehicleId, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
+   log_line("Received model (VID %u) is in developer mode: %s", receivedModel.uVehicleId, receivedModel.bDeveloperMode?"yes":"no");
+   log_line("Received model (VID %u) mode: %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode");
+   log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", receivedModel.uVehicleId, receivedModel.m_Stats.uCurrentOnTime/60, receivedModel.m_Stats.uCurrentOnTime%60, receivedModel.m_Stats.uCurrentFlightTime/60, receivedModel.m_Stats.uCurrentFlightTime%60, receivedModel.m_Stats.uTotalFlights);
+   
+   if ( pCurrentlyStoredModel == g_pCurrentModel )
+      log_line("[Event] Update received model to current model to storage...");
+   else
+      log_line("[Event] Update received model to storage...");
+   
+   receivedModel.is_spectator = bOldIsSpectator;
+   saveControllerModel(&receivedModel);
+   setCurrentModel(pCurrentlyStoredModel->uVehicleId);
+   g_pCurrentModel = getCurrentModel();
+
+   log_line("[Event] Updated current local vehicle with received vehicle settings.");
+
+   pCurrentlyStoredModel->logVehicleRadioInfo();
+
+   _onEventCheckModelAddNonBlockingPopupWarnings(pCurrentlyStoredModel, bUnsolicited);
+
+   if ( pCurrentlyStoredModel->uVehicleId == g_pCurrentModel->uVehicleId )
    if ( g_bIsFirstConnectionToCurrentVehicle )
    {
       osd_add_stats_total_flights();
       g_bIsFirstConnectionToCurrentVehicle = false;
    }
 
-   bool bMustPair = false;
-   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
-   if ( pModel->audio_params.enabled != bOldAudioEnabled )
+   if ( bMustRePair )
    {
-      log_line("Audio enable flag changed. Must re-pair.");
-      bMustPair = true;
-   }
-   if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
-   if ( bRadioChanged )
-      bMustPair = true;
-
-   if ( bMustPair )
-   {
-      sprintf(szTextW, "Radio links configuration changed on your %s. Updating local radio configuration...", pModel->getVehicleTypeString());
-      Popup* p = new Popup(szTextW, 0.15,0.5, 0.7, 5);
+      char szText[128];
+      snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Radio links configuration changed on your %s. Updating local radio configuration...", pCurrentlyStoredModel->getVehicleTypeString());
+      Popup* p = new Popup(szText, 0.15,0.5, 0.7, 5);
       p->setIconId(g_idIconRadio, get_Color_IconWarning());
       popups_add_topmost(p);
 
@@ -815,40 +955,18 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       return true;
    }
 
-   log_line("[Event] No critical change in radio params on the received model settings. Just notify components to reload model.");
-   
+   log_line("[Event] No critical change that requires repairing on the received model settings.");
+
+   _onEventCheckNewModelForActionsToTake(pCurrentlyStoredModel, &receivedModel);
+
+   log_line("[Event] Current controller model mode: %s", g_pCurrentModel->is_spectator?"spectator mode":"control mode");   
+   log_line("[Event] Notify components to reload the new updated model. Updated model mode: %s", pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode");
    send_model_changed_message_to_router(MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE, 0);
 
-   if ( (pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldVideoParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+   if ( (pCurrentlyStoredModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldVideoParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
    {
-      log_line("Changed video codec. New codec: %s", (pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
+      log_line("Changed video codec. New codec: %s", (pCurrentlyStoredModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
       send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
-   }
-
-   #if defined(HW_PLATFORM_RASPBERRY)
-   if ( pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
-   {
-       char szVehicleType[64];
-       strcpy(szVehicleType, pModel->getVehicleTypeString());
-       sprintf(szTextW, "Your %s generates H265 video but your controller supports only H264. Change the %s video encoder to H264 encoder", szVehicleType, szVehicleType);
-       warnings_add(pModel->uVehicleId, szTextW, g_idIconCamera, get_Color_IconWarning() );
-       snprintf(szTextW, sizeof(szTextW)/sizeof(szTextW[0]), "Your %s generates H265 video but your controller supports only H264. Change teh %s video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", szVehicleType, szVehicleType);
-       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec", szTextW, 0, true);
-       pMC->m_yPos = 0.3;
-       add_menu_to_stack(pMC);
-       g_bMustNegociateRadioLinksFlag = false;
-   }
-   #endif
-
-   if ( pModel->hasCamera() )
-   if ( g_bMustNegociateRadioLinksFlag )
-   if ( ! g_bDidAnUpdate )
-   if ( ! bMustInstallFirmware )
-   if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
-   if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
-   if ( ! g_bAskedForNegociateRadioLink )
-   {
-      add_menu_to_stack(new MenuNegociateRadio());
    }
 
    log_line("[Event] Handled of event OnReceivedModelSettings complete.");

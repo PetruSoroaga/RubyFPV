@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -775,6 +775,7 @@ void link_watch_loop_processes()
             char szPids[1024];
             szPids[0] = 0;
             hw_execute_bash_command("pidof ruby_rx_telemetry", szPids);
+            removeTrailingNewLines(szPids);
             if ( strlen(szPids) > 2 )
                log_line("Process ruby_rx_telemetry is still present, pid: %s.", szPids);
             else
@@ -782,6 +783,7 @@ void link_watch_loop_processes()
 
             szPids[0] = 0;
             hw_execute_bash_command("pidof ruby_rt_station", szPids);
+            removeTrailingNewLines(szPids);
             if ( strlen(szPids) > 2 )
                log_line("Process ruby_rt_station is still present, pid: %s.", szPids);
             else
@@ -802,62 +804,63 @@ void link_watch_loop_processes()
 
       if ( g_bVideoRecordingStarted )
       {
-      Preferences *p = get_Preferences();
-      if ( p->iVideoDestination == 1 )
-      {
-         if ( g_TimeNow > s_TimeLastVideoMemoryFreeCheck + 4000 )
+         Preferences *p = get_Preferences();
+         if ( p->iVideoDestination == 1 )
          {
-            s_TimeLastVideoMemoryFreeCheck = g_TimeNow;
-            char szComm[1024];
-            char szBuff[2048];
-            char szTemp[64];
-            sprintf(szComm, "df %s | sed -n 2p", FOLDER_TEMP_VIDEO_MEM);
-            hw_execute_bash_command_raw(szComm, szBuff);
-            long lu, lf, lt;
-            sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
-            if ( lf/1000 < 20 )
-               ruby_stop_recording();
+            if ( g_TimeNow > s_TimeLastVideoMemoryFreeCheck + 4000 )
+            {
+               s_TimeLastVideoMemoryFreeCheck = g_TimeNow;
+               char szComm[1024];
+               char szBuff[2048];
+               char szTemp[64];
+               sprintf(szComm, "df %s | sed -n 2p", FOLDER_TEMP_VIDEO_MEM);
+               hw_execute_bash_command_raw(szComm, szBuff);
+               long lu, lf, lt;
+               sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
+               if ( lf/1000 < 20 )
+                  ruby_stop_recording();
+            }
          }
-      }
       }
 
       if ( g_bVideoProcessing )
       {
-      char szPids[1024];
-      bool procRunning = false;
-      hw_execute_bash_command_silent("pidof ruby_video_proc", szPids);
-      if ( strlen(szPids) > 2 )
-         procRunning = true;
-      if ( ! procRunning )
-      {
-         log_line("Video processing process finished.");
-         g_bVideoProcessing = false;
-         strcpy(szFile, FOLDER_RUBY_TEMP);
-         strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-         if ( access(szFile, R_OK) != -1 )
+         char szPids[1024];
+         bool procRunning = false;
+         hw_execute_bash_command_silent("pidof ruby_video_proc", szPids);
+         removeTrailingNewLines(szPids);
+         if ( strlen(szPids) > 2 )
+            procRunning = true;
+         if ( ! procRunning )
          {
-            warnings_add(0, "Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
-
-            char szBuff[256];
-            char * line = NULL;
-            size_t len = 0;
-            ssize_t read;
-            FILE* fd = fopen(szFile, "r");
-
-            while ( (NULL != fd) && ((read = getline(&line, &len, fd)) != -1))
+            log_line("Video processing process finished.");
+            g_bVideoProcessing = false;
+            strcpy(szFile, FOLDER_RUBY_TEMP);
+            strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+            if ( access(szFile, R_OK) != -1 )
             {
-              printf("Retrieved line of length %zu:\n", read);
-              if ( read > 0 )
-                 warnings_add(0, line, g_idIconCamera, get_Color_IconWarning());
+               warnings_add(0, "Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
+
+               char szBuff[256];
+               char * line = NULL;
+               size_t len = 0;
+               ssize_t read;
+               FILE* fd = fopen(szFile, "r");
+
+               while ( (NULL != fd) && ((read = getline(&line, &len, fd)) != -1))
+               {
+                 printf("Retrieved line of length %zu:\n", read);
+                 if ( read > 0 )
+                    warnings_add(0, line, g_idIconCamera, get_Color_IconWarning());
+               }
+               if ( NULL != fd )
+                  fclose(fd);
+               sprintf(szBuff, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
+               hw_execute_bash_command(szBuff, NULL );
             }
-            if ( NULL != fd )
-               fclose(fd);
-            sprintf(szBuff, "rm -rf %s%s 2>/dev/null", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
-            hw_execute_bash_command(szBuff, NULL );
+            else
+                warnings_add(0, "Video file processing complete.", g_idIconCamera, get_Color_IconNormal());
          }
-         else
-             warnings_add(0, "Video file processing complete.", g_idIconCamera, get_Color_IconNormal());
-      }
       }
    }
 }

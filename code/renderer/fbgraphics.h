@@ -656,7 +656,15 @@ extern "C" {
     */
     extern void fbg_imageColorkey(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cr, int cg, int cb);
 
-    //! draw a clipped image
+    //! flip an image vertically
+    /*!
+      \param img image structure pointer
+      \sa fbg_createImage(), fbg_loadPNG(), fbg_loadJPEG(), fbg_loadImage()
+    */
+    extern void fbg_imageFlip(struct _fbg_img *img);
+    extern void fbg_imageChangeHue(struct _fbg *fbg, struct _fbg_img *img, unsigned char r, unsigned char g, unsigned char b);
+
+    //! draw a clipped image (aka blt sprite)
     /*!
       \param fbg pointer to a FBG context / data structure
       \param img image structure pointer
@@ -671,14 +679,6 @@ extern "C" {
     extern void fbg_imageClip(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx, int cy, int cw, int ch);
     extern void fbg_imageClipA(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx, int cy, int cw, int ch);
     extern void fbg_imageClipAColor(struct _fbg *fbg, struct _fbg_img *img, int x, int y, int cx, int cy, int cw, int ch);
-
-    //! flip an image vertically
-    /*!
-      \param img image structure pointer
-      \sa fbg_createImage(), fbg_loadPNG(), fbg_loadJPEG(), fbg_loadImage()
-    */
-    extern void fbg_imageFlip(struct _fbg_img *img);
-    extern void fbg_imageChangeHue(struct _fbg *fbg, struct _fbg_img *img, unsigned char r, unsigned char g, unsigned char b);
 
     //! draw an image with support for clipping and scaling (Nearest-neighbor algorithm)
     /*!

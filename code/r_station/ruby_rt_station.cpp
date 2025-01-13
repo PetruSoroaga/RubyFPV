@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -68,6 +68,7 @@
 #include "processor_rx_video.h"
 #include "rx_video_output.h"
 #include "process_radio_in_packets.h"
+#include "process_radio_out_packets.h"
 #include "process_local_packets.h"
 #include "packets_utils.h"
 #include "test_link_params.h"
@@ -1052,60 +1053,6 @@ bool _check_queue_ping()
    return true;
 }
 
-void _preprocess_radio_out_packet(u8* pPacketBuffer)
-{
-   if ( NULL == pPacketBuffer )
-      return;
-
-   t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-      
-   if ( pPH->packet_type == PACKET_TYPE_SIK_CONFIG )
-   {
-      u8 uVehicleLinkId = *(pPacketBuffer + sizeof(t_packet_header));
-      u8 uCommandId = *(pPacketBuffer + sizeof(t_packet_header) + sizeof(u8));
-      log_line("Received message to send to vehicle to configure SiK vehicle radio link %d, command: %d", (int) uVehicleLinkId+1, (int)uCommandId);
-   }
-
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
-   {
-      t_packet_header_command* pCom = (t_packet_header_command*)(pPacketBuffer + sizeof(t_packet_header));
-      type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(pPH->vehicle_id_dest);
-      if ( NULL != pRuntimeInfo )
-      {
-         pRuntimeInfo->uTimeLastCommandIdSent = g_TimeNow;
-         pRuntimeInfo->uLastCommandIdSent = pCom->command_counter;
-         pRuntimeInfo->uLastCommandIdRetrySent = pCom->command_resend_counter;
-      }
-      if ( pPH->packet_type == PACKET_TYPE_COMMAND )
-      {
-         t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketBuffer + sizeof(t_packet_header));
-         if ( (pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_CAMERA_PARAMETERS )
-         {
-            type_camera_parameters* pPHCamP = (type_camera_parameters*)(pPacketBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-
-            int iProfile = pPHCamP->iCurrentProfile;
-            
-            log_line("Sending cam params: br: %d, co: %d, sa: %d, sh: %d, hue: %d, exp: %d, shutter: %d, drc: %d",
-               (int)pPHCamP->profiles[iProfile].brightness,
-               (int)pPHCamP->profiles[iProfile].contrast,
-               (int)pPHCamP->profiles[iProfile].saturation,
-               (int)pPHCamP->profiles[iProfile].sharpness,
-               (int)pPHCamP->profiles[iProfile].hue,
-               (int)pPHCamP->profiles[iProfile].exposure,
-               (int)pPHCamP->profiles[iProfile].shutterspeed,
-               (int)pPHCamP->profiles[iProfile].drc );
-         }
-      }
-   }
-   if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
-   {
-      u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
-      if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
-         g_bNegociatingRadioLinks = false;
-      else
-         g_bNegociatingRadioLinks = true;
-   }
-}
 
 void _process_and_send_packet(u8* pPacketBuffer, int iPacketLength)
 {
@@ -1114,7 +1061,7 @@ void _process_and_send_packet(u8* pPacketBuffer, int iPacketLength)
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
    pPH->vehicle_id_src = g_uControllerId;
 
-   _preprocess_radio_out_packet(pPacketBuffer);
+   preprocess_radio_out_packet(pPacketBuffer, iPacketLength);
 
    int send_count = 1;
    
@@ -1848,12 +1795,12 @@ int _try_read_consume_reg_priority_packets(int iCountMax, u32 uTimeoutMicrosec, 
          s_uLastTimeRecvVideoDataPacket = g_TimeNow;
          t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*)(pPacket + sizeof(t_packet_header));
          
-         if ( pPHVF->uFrameId > *puVideoFrameId )
+         if ( pPHVF->uH264FrameId > *puVideoFrameId )
          {
-            *puVideoFrameId = pPHVF->uFrameId;
+            *puVideoFrameId = pPHVF->uH264FrameId;
             *pbEndOfVideoFrameDetected = false;
          }
-         else if ( (pPHVF->uFrameId == *puVideoFrameId) && (pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME) )
+         else if ( (pPHVF->uH264FrameId == *puVideoFrameId) && (pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME) )
             *pbEndOfVideoFrameDetected = true;
       }
   
@@ -2002,7 +1949,7 @@ int main(int argc, char *argv[])
 
    packet_utils_init();
 
-   if ( NULL != g_pControllerSettings )
+   if ( (NULL != g_pControllerSettings) && g_pControllerSettings->iPrioritiesAdjustment )
    {
       radio_rx_set_custom_thread_priority(g_pControllerSettings->iRadioRxThreadPriority);
       radio_tx_set_custom_thread_priority(g_pControllerSettings->iRadioTxThreadPriority);
@@ -2062,7 +2009,7 @@ int main(int argc, char *argv[])
               (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
             continue;
 
-         int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, &(g_pCurrentModel->radioLinksParams));
+         int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, &(g_pCurrentModel->radioLinksParams), NULL);
          update_atheros_card_datarate(g_pCurrentModel, i, nRateTx, g_pProcessStats);
          g_TimeNow = get_current_timestamp_ms();
       }
@@ -2110,7 +2057,7 @@ int main(int argc, char *argv[])
 
    radio_duplicate_detection_init();
    radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching, g_uAcceptedFirmwareType);
-
+   
    log_line("Broadcasting that router is ready.");
    broadcast_router_ready();
 
@@ -2228,12 +2175,15 @@ void video_processors_init()
    if ( ! g_bSearching )
    {
       rx_video_output_init();
+      
+      rx_video_output_start_video_streamer();
+
       #ifdef HW_PLATFORM_RASPBERRY
-      rx_video_output_enable_pipe_output();
+      rx_video_output_enable_streamer_output();
       #endif
       #ifdef HW_PLATFORM_RADXA_ZERO3
       //rx_video_output_enable_local_player_udp_output();
-      rx_video_output_enable_pipe_output();
+      rx_video_output_enable_streamer_output();
       #endif
 
       log_line("Do one time init of processors rx video...");
@@ -2476,6 +2426,8 @@ void _main_loop_adv_sync()
    
    if ( bEndOfVideoFrameDetected && (!g_pCurrentModel->isVideoLinkFixedOneWay()))
    {
+      // To fix
+      /*
       t_packet_header_compressed PHC;
       radio_packet_compressed_init(&PHC, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_ACK);
       PHC.vehicle_id_src = g_uControllerId;
@@ -2484,6 +2436,7 @@ void _main_loop_adv_sync()
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PHC, sizeof(t_packet_header_compressed));
       send_packet_to_radio_interfaces(packet, PHC.total_length, -1, 501);
+      */
    }
 
    u32 tTime1 = g_TimeNow;

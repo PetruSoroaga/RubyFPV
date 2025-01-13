@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -149,64 +149,81 @@ void _hardware_detectSystemType()
       fclose(fd);
    }
 
+   int iDoAditionalChecks = 1;
    s_iHardwareSystemIsVehicle = 0;
 
    #ifdef HW_CAPABILITY_GPIO
    int val = GPIORead(GPIOGetPinDetectVehicle());
    if ( val == 1 )
    {
-      log_line("Hardware: Detected GPIO signal to start as vehicle or relay.");
+      log_line("[Hardware] Detected GPIO signal to start as vehicle or relay.");
       s_iHardwareSystemIsVehicle = 1;
+      iDoAditionalChecks = 0;
+   }
+   val = GPIORead(GPIOGetPinMenu());
+   if ( val == 1 )
+   {
+      log_line("[Hardware] Detected GPIO signal to start as controller (Menu key).");
+      s_iHardwareSystemIsVehicle = 0;
+      iDoAditionalChecks = 0;
+   }
+   val = GPIORead(GPIOGetPinDetectController());
+   if ( val == 1 )
+   {
+      log_line("[Hardware] Detected GPIO signal to start as controller.");
+      s_iHardwareSystemIsVehicle = 0;
+      iDoAditionalChecks = 0;
    }
    #endif
    
    #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
    if( access( FILE_FORCE_VEHICLE, R_OK ) != -1 )
    {
-      log_line("Hardware: Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
+      log_line("[Hardware] Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
       s_iHardwareSystemIsVehicle = 1;
+      iDoAditionalChecks = 0;
    }   
    strcpy(szFile, FOLDER_WINDOWS_PARTITION);
    strcat(szFile, "forcevehicle.txt");
    if( access( szFile, R_OK ) != -1 )
    {
-      log_line("Hardware: Detected file %s to force start as vehicle or relay.", szFile);
+      log_line("[Hardware] Detected file %s to force start as vehicle or relay.", szFile);
       s_iHardwareSystemIsVehicle = 1;
+      iDoAditionalChecks = 0;
+   }   
+   if( access( FILE_FORCE_CONTROLLER, R_OK ) != -1 )
+   {
+      log_line("[Hardware] Detected file %s to force start as controller.", FILE_FORCE_CONTROLLER);
+      s_iHardwareSystemIsVehicle = 0;
+      iDoAditionalChecks = 0;
    }   
    #endif
 
+   if ( iDoAditionalChecks )
    if( access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
    {
-      log_line("Hardware: Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      log_line("[Hardware] Detected file %s to force start as vehicle or relay with no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
       s_iHardwareSystemIsVehicle = 1;
    }   
 
    #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_OPENIPC_CAMERA)
+   if ( iDoAditionalChecks )
    if ( hardware_hasCamera() && (hardware_getCameraType() != CAMERA_TYPE_NONE) )
    {
-      log_line("Hardware: Has Camera.");
+      log_line("[Hardware] Has Camera.");
       s_iHardwareSystemIsVehicle = 1;
    }
    #endif
    
-   #ifdef HW_CAPABILITY_GPIO
-   val = GPIORead(GPIOGetPinDetectController());
-   if ( val == 1 )
-   {
-      log_line("Hardware: Detected GPIO signal to start as controller.");
-      s_iHardwareSystemIsVehicle = 0;
-   }
-   #endif
-
    if ( s_iHardwareSystemIsVehicle )
    {
       if ( 0 == hardware_hasCamera() )
-         log_line("Hardware: Detected system as vehicle/relay without camera.");
+         log_line("[Hardware] Detected system as vehicle/relay without camera.");
       else
-         log_line("Hardware: Detected system as vehicle/relay with camera.");
+         log_line("[Hardware] Detected system as vehicle/relay with camera.");
    }
    else
-      log_line("Hardware: Detected system as controller.");
+      log_line("[Hardware] Detected system as controller.");
 
    hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
    log_line("[Hardware] Board description string: %s", szBuff);
@@ -230,7 +247,7 @@ void _hardware_detectSystemType()
    strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    fd = fopen(szFile, "w");
    if ( NULL == fd )
-      log_softerror_and_alarm("Failed to save board configuration to file: %s", szFile);
+      log_softerror_and_alarm("[Hardware] Failed to save board configuration to file: %s", szFile);
    else
    {
       fprintf(fd, "%u %s\n", s_uHardwareBoardType, szBuff);
@@ -383,25 +400,25 @@ int init_hardware_only_status_led()
    #ifdef HW_CAPABILITY_GPIO
    if (-1 == GPIOExport(GPIOGetPinDetectVehicle()))
    {
-      log_line("Failed to get GPIO access to Ruby type PIN.");
+      log_line("[Hardware] Failed to get GPIO access to Ruby type PIN.");
       return(0);
    }
 
    if (-1 == GPIODirection(GPIOGetPinDetectVehicle(), IN))
    {
-      log_line("Failed set GPIO configuration for Ruby type PIN.");
+      log_line("[Hardware] Failed set GPIO configuration for Ruby type PIN.");
       return(0);
    }
 
    if (-1 == GPIOExport(GPIOGetPinDetectController()) )
    {
-      log_line("Failed to get GPIO access to Ruby type C PIN.");
+      log_line("[Hardware] Failed to get GPIO access to Ruby type C PIN.");
       return(0);
    }
 
    if (-1 == GPIODirection(GPIOGetPinDetectController(), IN))
    {
-      log_line("Failed set GPIO configuration for Ruby type C PIN.");
+      log_line("[Hardware] Failed set GPIO configuration for Ruby type C PIN.");
       return(0);
    }
 
@@ -423,7 +440,7 @@ int init_hardware_only_status_led()
    }
    #endif
    
-   log_line("HW: GPIO setup successfully.");
+   log_line("[Hardware] GPIO setup successfully.");
    #endif
    s_iHardwareJoystickCount = 0;
    s_bHardwareWasSetup = true;
@@ -472,7 +489,7 @@ void hardware_release()
    GPIOUnexport(GPIOGetPinDetectVehicle());
    GPIOUnexport(GPIOGetPinDetectController());
    #endif
-   log_line("Hardware released!");
+   log_line("[Hardware] Released!");
 }
 
 void hardware_swap_buttons(int swap)
@@ -488,104 +505,106 @@ u32 hardware_getOnlyBoardType()
       return s_uHardwareBoardType;
 
    s_iGetBoardTypeOnlyExecuted = 1;
-   char szBuff[256];
+   char szBoardId[64];
    #ifdef HW_PLATFORM_RASPBERRY
-   hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBuff);
-   log_line("[Hardware] Detected board Id: %s", szBuff);
+   hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBoardId);
+   removeTrailingNewLines(szBoardId);
+   log_line("[Hardware] Detected board Id: (%s)", szBoardId);
 
-   if ( strcmp(szBuff, "a03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03113") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "a03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "b03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "c03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
-   if ( strcmp(szBuff, "d03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03113") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "a03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "b03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "b03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "b03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "b03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "b03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "c03111") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "c03112") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "c03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "c03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "c03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "d03114") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "d03115") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
+   if ( strcmp(szBoardId, "d03116") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI4B;}
 
-   if ( strcmp(szBuff, "9020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
-   if ( strcmp(szBuff, "29020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
+   if ( strcmp(szBoardId, "9020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
+   if ( strcmp(szBoardId, "29020e0") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3APLUS;}
 
-   if ( strcmp(szBuff, "a02082") == 0 )  { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
-   if ( strcmp(szBuff, "2a02082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
-   if ( strcmp(szBuff, "2a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
+   if ( strcmp(szBoardId, "a02082") == 0 )  { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
+   if ( strcmp(szBoardId, "2a02082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "2a22082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "2a32082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "2a52082") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3B;}
+   if ( strcmp(szBoardId, "2a020d3") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI3BPLUS;}
 
-   if ( strcmp(szBuff, "900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "9000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
-   if ( strcmp(szBuff, "900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "1900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "19000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
-   if ( strcmp(szBuff, "2900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "2900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "29000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBoardId, "900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "9000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBoardId, "900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "1900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "19000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
+   if ( strcmp(szBoardId, "2900092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "2900093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "29000c1") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZEROW;}
 
-   if ( strcmp(szBuff, "902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
-   if ( strcmp(szBuff, "2902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
+   if ( strcmp(szBoardId, "902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
+   if ( strcmp(szBoardId, "2902120") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO2;}
 
-   if ( strcmp(szBuff, "920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "2920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
-   if ( strcmp(szBuff, "2920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "2920092") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
+   if ( strcmp(szBoardId, "2920093") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PIZERO;}
 
-   if ( strcmp(szBuff, "a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
-   if ( strcmp(szBuff, "a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
+   if ( strcmp(szBoardId, "a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
+   if ( strcmp(szBoardId, "a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBoardId, "a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBoardId, "a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
 
-   if ( strcmp(szBuff, "2a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
-   if ( strcmp(szBuff, "2a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "2a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
-   if ( strcmp(szBuff, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
+   if ( strcmp(szBoardId, "2a01040") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2B;}
+   if ( strcmp(szBoardId, "2a21041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBoardId, "2a01041") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV11;}
+   if ( strcmp(szBoardId, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
    #endif
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
    s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
    char szOutput[1024];
    hw_execute_bash_command_raw("uname -a", szOutput);
+   removeTrailingNewLines(szOutput);
    if ( NULL != strstr(szOutput, "radxa3c") )
       s_uHardwareBoardType = BOARD_TYPE_RADXA_3C;
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
    s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
-   hw_execute_bash_command("ipcinfo -c 2>/dev/null", szBuff);
-   log_line("Detected board type: %s", szBuff);
-   if ( NULL != strstr(szBuff, "gk72") )
+   hw_execute_bash_command_raw("ipcinfo -c 2>/dev/null", szBoardId);
+   log_line("[Hardware] Detected board type: (%s)", szBoardId);
+   if ( NULL != strstr(szBoardId, "gk72") )
    {
       s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
-      if ( NULL != strstr(szBuff, "v210") )
+      if ( NULL != strstr(szBoardId, "v210") )
          s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE210;
-      if ( NULL != strstr(szBuff, "v300") )
+      if ( NULL != strstr(szBoardId, "v300") )
          s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE300;
    }
-   if ( NULL != strstr(szBuff, "ssc338") )
+   if ( NULL != strstr(szBoardId, "ssc338") )
       s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
-   if ( NULL != strstr(szBuff, "ssc33x") )
+   if ( NULL != strstr(szBoardId, "ssc33x") )
       s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
-
    #endif
 
-   strncpy(szBuff, str_get_hardware_board_name(s_uHardwareBoardType), 255);
-   if ( szBuff[0] == 0 )
-      strcpy(szBuff, "N/A");
-   log_line("[Hardware] Detected board type: %s", szBuff);
+   char szBoardName[128];
+   strncpy(szBoardName, str_get_hardware_board_name(s_uHardwareBoardType), 127);
+   if ( szBoardName[0] == 0 )
+      strcpy(szBoardName, "N/A");
+   log_line("[Hardware] Detected board type for id %s (int: %d): %s", szBoardId, s_uHardwareBoardType, szBoardName);
    return s_uHardwareBoardType;
 }
 
@@ -646,8 +665,8 @@ void hardware_enum_joystick_interfaces()
 
    char szDevName[256];
 
-   log_line("------------------------------------------------------------------------");
-   log_line("|  HW: Enumerating hardware HID interfaces...                          |");
+   log_line("----------------------------------------------------------------");
+   log_line("|  [Hardware] Enumerating hardware HID interfaces...            |");
 
    for( int i=0; i<MAX_JOYSTICK_INTERFACES; i++ )
    {
@@ -668,15 +687,15 @@ void hardware_enum_joystick_interfaces()
 
       u32 uid = 0;
       if (ioctl(fd, JSIOCGVERSION, &uid) == -1)
-         log_softerror_and_alarm("Error to query for joystick UID");
+         log_softerror_and_alarm("[Hardware] Error to query for joystick UID");
 
       u8 count_axes = 0;
       if (ioctl(fd, JSIOCGAXES, &count_axes) == -1)
-         log_softerror_and_alarm("Error to query for joystick axes");
+         log_softerror_and_alarm("[Hardware] Error to query for joystick axes");
 
       u8 count_buttons = 0;
       if (ioctl(fd, JSIOCGBUTTONS, &count_buttons) == -1)
-         log_softerror_and_alarm("Error to query for joystick buttons");
+         log_softerror_and_alarm("[Hardware] Error to query for joystick buttons");
    
       close(fd);
 
@@ -700,8 +719,8 @@ void hardware_enum_joystick_interfaces()
       log_line("|  Found joystick interface %s: Name: %s, UID: %u, has %d axes and %d buttons.", szDevName, name, uid, count_axes, count_buttons);
       s_iHardwareJoystickCount++;
    }
-   log_line("|  HW: Enumerating hardware HID interfaces result: found %d interfaces. |", s_iHardwareJoystickCount);
-   log_line("------------------------------------------------------------------------");
+   log_line("|  [Hardware] Enumerating hardware HID interfaces result: found %d interfaces. |", s_iHardwareJoystickCount);
+   log_line("-------------------------------------------------------------------------------");
    #endif
 }
 
@@ -727,24 +746,24 @@ int hardware_open_joystick(int joystickIndex)
 
    if ( s_HardwareJoystickInfo[joystickIndex].fd > 0 )
    {
-      log_softerror_and_alarm("HW: Opening HID interface /dev/input/js%d (it's already opened)", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+      log_softerror_and_alarm("[Hardware] Opening HID interface /dev/input/js%d (it's already opened)", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
       return 1;
    }
    char szDevName[256];
    sprintf(szDevName, "/dev/input/js%d", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    if( access( szDevName, R_OK ) == -1 )
    {
-      log_softerror_and_alarm("HW: Failed to access HID interface /dev/input/js%d !", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+      log_softerror_and_alarm("[Hardware] Failed to access HID interface /dev/input/js%d !", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
       return 0;
    }
    s_HardwareJoystickInfo[joystickIndex].fd = open(szDevName, O_RDONLY | O_NONBLOCK);
    if ( s_HardwareJoystickInfo[joystickIndex].fd <= 0 )
    {
-      log_softerror_and_alarm("HW: Failed to open HID interface /dev/input/js%d !", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+      log_softerror_and_alarm("[Hardware] Failed to open HID interface /dev/input/js%d !", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
       s_HardwareJoystickInfo[joystickIndex].fd = -1;
       return 0;
    }
-   log_line("HW: Opened HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+   log_line("[Hardware] Opened HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    return 1;
    #else
    return 0;
@@ -757,12 +776,12 @@ void hardware_close_joystick(int joystickIndex)
    if (joystickIndex < 0 || joystickIndex >= s_iHardwareJoystickCount )
       return;
    if ( -1 == s_HardwareJoystickInfo[joystickIndex].fd )
-      log_softerror_and_alarm("HW: Closing HID interface /dev/input/js%d (it's already closed)", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+      log_softerror_and_alarm("[Hardware] Closing HID interface /dev/input/js%d (it's already closed)", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    else
    {   
       close(s_HardwareJoystickInfo[joystickIndex].fd);
       s_HardwareJoystickInfo[joystickIndex].fd = -1;
-      log_line("HW: Closed HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
+      log_line("[Hardware] Closed HID interface /dev/input/js%d;", s_HardwareJoystickInfo[joystickIndex].deviceIndex);
    }
    #endif
 }
@@ -810,7 +829,7 @@ int hardware_read_joystick(int joystickIndex, int miliSec)
          continue;
       if ( iRead < 0 )
       {
-         log_softerror_and_alarm("Error on reading joystick data, joystick index: %d, error: %d", joystickIndex, errno);
+         log_softerror_and_alarm("[Hardware] Error on reading joystick data, joystick index: %d, error: %d", joystickIndex, errno);
          hardware_close_joystick(joystickIndex);
          return -1;
       }
@@ -1448,6 +1467,8 @@ int hardware_try_mount_usb()
    if ( s_iUSBMounted )
       return 1;
 
+   log_line("[Hardware] Try mounting USB storage...");
+
    char szBuff[128];
    char szCommand[128];
    char szOutput[2048];
@@ -1455,9 +1476,11 @@ int hardware_try_mount_usb()
    sprintf(szCommand, "mkdir -p %s", FOLDER_USB_MOUNT); 
    hw_execute_bash_command(szCommand, NULL);
 
-   sprintf(szCommand, "rm -rf %s/*", FOLDER_USB_MOUNT); 
-   hw_execute_bash_command(szCommand, NULL);
-
+   if ( 0 < strlen(FOLDER_USB_MOUNT) )
+   {
+      sprintf(szCommand, "rm -rf %s*", FOLDER_USB_MOUNT); 
+      hw_execute_bash_command(szCommand, NULL);
+   }
    hw_execute_bash_command_raw("lsblk -l -n -o NAME | grep sd 2>&1", szOutput);
    if ( 0 == szOutput[0] )
    {
@@ -1497,7 +1520,7 @@ int hardware_try_mount_usb()
           szToken = strtok(NULL, " \n\r");
           continue;
        }
-
+       log_line("[Hardware] Device [%s] is valid.", szToken);
        if ( iValid )
        {
           iFoundUSBDevice = 1;
@@ -1514,14 +1537,12 @@ int hardware_try_mount_usb()
 
    log_line("[Hardware] Found USB block device: [%s], Mounting it...", szToken );
 
-   szOutput[0] = 0;
    sprintf(szBuff, "/dev/%s", szToken);
+   removeTrailingNewLines(szBuff);
    sprintf(szCommand, "mount /dev/%s %s 2>&1", szToken, FOLDER_USB_MOUNT);
+   szOutput[0] = 0;
    if( access( szBuff, R_OK ) != -1 )
-   {
-      hw_execute_bash_command(szCommand, szOutput);
-      s_iUSBMounted = 1;
-   }
+      hw_execute_bash_command_timeout(szCommand, szOutput, 6000);
    else
    {
       log_softerror_and_alarm("[Hardware] Can't access USB device block [/dev/%s]. USB not mounted.", szToken);
@@ -1529,8 +1550,29 @@ int hardware_try_mount_usb()
    }
 
    log_line("[Hardware] USB mount result: [%s]", szOutput);
-   if ( 0 == s_iUSBMounted )
-      log_line("[Hardware] USB memory stick could NOT be mounted!");
+   if ( (0 < strlen(szOutput)) &&
+        ((NULL != strstr(szOutput, "Fixing")) || (NULL != strstr(szOutput, "unclean")) || (NULL != strstr(szOutput, "closed"))) )
+   {
+      s_iUSBMounted = 0;
+      log_line("[Hardware] Can't mount USB stick. Could retry.");
+
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
+      hw_execute_bash_command(szCommand, NULL);
+
+      return -1;
+   }
+   if ( 5 < strlen(szOutput) )
+   {
+      s_iUSBMounted = 0;
+      log_line("[Hardware] Can't mount USB stick");
+
+      snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
+      hw_execute_bash_command(szCommand, NULL);
+      return -2;
+   }
+
+   s_iUSBMounted = 1;
+   log_line("[Hardware] USB memory stick was mounted.");
 
 
    strcpy(s_szUSBMountName, "UnknownUSB");
@@ -1613,9 +1655,9 @@ void hardware_unmount_usb()
 {
    if ( 0 == s_iUSBMounted )
       return;
-
+   log_line("[Hardware] Unmounting USB folder (%s)...", FOLDER_USB_MOUNT);
    char szCommand[128];
-   sprintf(szCommand, "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
+   snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "umount %s 2>/dev/null", FOLDER_USB_MOUNT);
    hw_execute_bash_command(szCommand, NULL);
 
    hardware_sleep_ms(200);
@@ -1740,7 +1782,7 @@ char* hardware_has_eth()
    sprintf(szComm, "ip link set dev %s up", szETHName);
    hw_execute_bash_command(szComm, szOutput);
    if ( 5 < strlen(szOutput) )
-      log_line("ETH up command failed: (%s)", szOutput);
+      log_line("[Hardware] ETH up command failed: (%s)", szOutput);
    
    return s_szHardwareETHName;
 }
@@ -1996,7 +2038,7 @@ void _hardware_set_int_affinity_core(const char* szIntName, int iCoreIndex)
 
       if ( -1 == iIntNumber )
       {
-         log_softerror_and_alarm("Can't find interrupt number for interrupt: (%s)", szIntName);
+         log_softerror_and_alarm("[Hardware] Can't find interrupt number for interrupt: (%s)", szIntName);
          continue;
       }
 
@@ -2009,17 +2051,37 @@ void hardware_balance_interupts()
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    char szOutput[128];
-   hw_execute_bash_command_raw("nproc", szOutput);
+   hw_execute_bash_command_raw("nproc --all", szOutput);
+   removeTrailingNewLines(szOutput);
+   log_line("[Hardware] CPU cores: (%s)", szOutput);
+   strcat(szOutput, "\n");
    int iCPUCoresCount = 1;
-   if ( 1 != sscanf(szOutput, "%d", &iCPUCoresCount) )
+   if ( (1 != sscanf(szOutput, "%d", &iCPUCoresCount)) || (1 == iCPUCoresCount) )
+   {
       iCPUCoresCount = 1;
+      szOutput[0] = 0;
+      hw_execute_bash_command_raw("cat /proc/cpuinfo | grep processor | grep 0", szOutput);
+      removeTrailingNewLines(szOutput);
+      log_line("[Hardware] procinfo: (%s)", szOutput);
+      if ( strlen(szOutput) > 8 )
+      {
+         szOutput[0] = 0;
+         hw_execute_bash_command_raw("cat /proc/cpuinfo | grep processor | grep 1", szOutput);
+         removeTrailingNewLines(szOutput);
+         log_line("[Hardware] procinfo: (%s)", szOutput);
+         if ( strlen(szOutput) > 8 )
+         if ( NULL != strstr(szOutput, "1") )
+            iCPUCoresCount = 2;
+      }
+   }
+
    if ( iCPUCoresCount > 1 )
    {
-      log_line("Balancing interrupts (%d cores)...", iCPUCoresCount);
+      log_line("[Hardware] Balancing interrupts (%d cores)...", iCPUCoresCount);
       _hardware_set_int_affinity_core(":usb", 1);
       _hardware_set_int_affinity_core("ms_serial", 1);
    }
    else
-      log_line("Can't balance interrupts: single core CPU.");
+      log_line("[Hardware] Can't balance interrupts: single core CPU.");
    #endif
 }

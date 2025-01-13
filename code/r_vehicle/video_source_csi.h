@@ -8,7 +8,7 @@ void video_source_csi_flush_discard();
 int video_source_csi_get_buffer_size();
 
 // Returns the buffer and number of bytes read
-u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame);
+u8* video_source_csi_read(int* piReadSize);
 bool video_source_csi_read_any_data();
 void video_source_csi_start_program();
 void video_source_csi_stop_program();

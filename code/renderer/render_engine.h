@@ -103,6 +103,7 @@ class RenderEngine
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId);
      virtual void bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
+     virtual void bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId);
      virtual void bltIcon(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 iconId);
 

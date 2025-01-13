@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -392,8 +392,6 @@ float MenuSystemAllParams::renderRadioInfo(float xPos, float yPos, float width, 
 
 float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, float fScale)
 {
-   ControllerSettings* pCS = get_ControllerSettings();
-   
    float y0 = yPos;
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
 

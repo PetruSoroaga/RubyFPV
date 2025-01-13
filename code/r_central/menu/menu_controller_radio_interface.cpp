@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -127,10 +127,10 @@ void MenuControllerRadioInterface::valuesToUI()
 
    int iRadioLinkId = g_SM_RadioStats.radio_interfaces[m_iInterfaceIndex].assignedLocalRadioLinkId;
 
+   u32 cardFlags = controllerGetCardFlags(pNIC->szMAC);
+
    m_pItemsSelect[0]->setEnabled(true);
    m_pItemsSelect[0]->setSelection(0);
-
-   u32 cardFlags = controllerGetCardFlags(pNIC->szMAC);
 
    if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || ( !(cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_TX) ) )
       m_pItemsSelect[0]->setEnabled(false);
@@ -194,30 +194,54 @@ void MenuControllerRadioInterface::valuesToUI()
 
    if ( 1 == hardware_get_radio_interfaces_count() )
    {
-      m_pItemsSelect[2]->setSelection(1);
-      m_pItemsSelect[2]->setEnabled(false);
+      m_pItemsSelect[0]->setEnabled(false);
+
+      if ( controllerIsCardDisabled(pNIC->szMAC) )
+      {
+         m_pItemsSelect[2]->setSelection(0);
+         m_pItemsSelect[2]->setEnabled(true);
+      }
+      else
+      {
+         m_pItemsSelect[2]->setSelection(1);
+         m_pItemsSelect[2]->setEnabled(false);
+      }
       if ( -1 != m_IndexUsage )
          m_pItemsSelect[3]->setEnabled(false);
-      m_pItemsSelect[4]->setEnabled(false);
-      controllerRemoveCardDisabled(pNIC->szMAC);
-      controllerSetCardTXRX(pNIC->szMAC);
-   }
 
-     
-   if ( controllerIsCardDisabled(pNIC->szMAC) )
+      if ( controllerIsCardDisabled(pNIC->szMAC) )
+      {
+         m_pItemsSelect[4]->setEnabled(false);
+      }
+   }
+   else if ( controllerIsCardDisabled(pNIC->szMAC) )
    {
       m_pItemsSelect[0]->setSelectedIndex(0);
       m_pItemsSelect[0]->setEnabled(false);
       m_pItemsSelect[2]->setSelection(0);
+      m_pItemsSelect[4]->setEnabled(false);
       if ( -1 != m_IndexUsage )
          m_pItemsSelect[3]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[0]->setSelectedIndex(0);
+      m_pItemsSelect[0]->setEnabled(false);
+      m_pItemsSelect[2]->setSelection(0);
       m_pItemsSelect[4]->setEnabled(false);
+      if ( -1 != m_IndexUsage )
+         m_pItemsSelect[3]->setEnabled(false);
    }
 
    if ( controllerIsCardRXOnly(pNIC->szMAC) )
       m_pItemsSelect[4]->setSelection(1);
    if ( controllerIsCardTXOnly(pNIC->szMAC) )
       m_pItemsSelect[4]->setSelection(2);
+
+   if ( 1 == hardware_get_radio_interfaces_count() )
+   if ( ! controllerIsCardDisabled(pNIC->szMAC) )
+   if ( controllerIsCardRXOnly(pNIC->szMAC) || controllerIsCardTXOnly(pNIC->szMAC) )
+      m_pItemsSelect[4]->setEnabled(true);
 
    if ( -1 != m_IndexUsage )
    {

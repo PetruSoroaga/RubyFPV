@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -638,7 +638,7 @@ int _hardware_find_usb_radio_interfaces_info()
    hw_execute_bash_command_raw("lsusb", szBuff);
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   log_line("[HardwareRadio] Output of lsusb: <<<%s>>>", szBuff);
+   log_line("[HardwareRadio] Output of lsusb: (%s)", szBuff);
    #endif
 
    int iLen = strlen(szBuff);
@@ -877,8 +877,8 @@ int _hardware_enumerate_wifi_radios()
       hw_execute_bash_command(szComm, szDriver);
       #endif
 
-      log_line("[HardwareRadio] Driver for %s: <<<%s>>>", sRadioInfo[i].szName, szDriver);
-      log_line("[HardwareRadio] Driver for %s (last part): <<<%s>>>", sRadioInfo[i].szName, &szDriver[strlen(szDriver)/2]);
+      log_line("[HardwareRadio] Driver for %s: (%s)", sRadioInfo[i].szName, szDriver);
+      log_line("[HardwareRadio] Driver for %s (last part): (%s)", sRadioInfo[i].szName, &szDriver[strlen(szDriver)/2]);
       char* pszDriver = szDriver;
       if ( strlen(szDriver) > 0 )
       for( int i=strlen(szDriver)-1; i>0; i-- )
@@ -889,7 +889,7 @@ int _hardware_enumerate_wifi_radios()
             break;
          }
       }
-      log_line("[HardwareRadio] Minimised driver string: <<<%s>>>", pszDriver);
+      log_line("[HardwareRadio] Minimised driver string: (%s)", pszDriver);
 
       sRadioInfo[i].isSupported = 0;
       if ( (NULL != strstr(pszDriver,"rtl88xxau")) ||
@@ -1747,13 +1747,6 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo)
    return 0;
 }
 
-int hardware_radio_is_index_wifi_radio(int iRadioIndex)
-{
-   if ( (iRadioIndex <0) || (iRadioIndex >= s_iHwRadiosCount) )
-      return 0;
-   return hardware_radio_is_wifi_radio(&sRadioInfo[iRadioIndex]);
-}
-
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo)
 {
    if ( NULL == pRadioInfo )
@@ -1775,6 +1768,13 @@ int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo)
       return 0;
      
    return 1;
+}
+
+int hardware_radio_index_is_wifi_radio(int iRadioIndex)
+{
+   if ( (iRadioIndex <0) || (iRadioIndex >= s_iHwRadiosCount) )
+      return 0;
+   return hardware_radio_is_wifi_radio(&sRadioInfo[iRadioIndex]);
 }
 
 int hardware_radio_index_is_serial_radio(int iHWInterfaceIndex)

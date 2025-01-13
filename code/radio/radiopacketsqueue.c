@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -70,8 +70,7 @@ int packets_queue_inject_packet_first(t_packet_queue* pQueue, u8* pBuffer)
       return 0;
 
    t_packet_header* pPH = (t_packet_header*)pBuffer;
-
-
+   
    if ( (-1 == pQueue->queue_start_pos) || (pQueue->queue_start_pos == pQueue->queue_end_pos) )
    {
       pQueue->queue_start_pos = 0;

@@ -13,34 +13,36 @@ int hw_process_exists(const char* szProcName)
 {
    char szComm[128];
    char szPids[1024];
-
+   int iPID = 0;
    if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return 0;
 
    sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command_silent(szComm, szPids);
-   if ( (strlen(szPids) > 2) && isdigit(szPids[0]) )
+   hw_execute_bash_command_raw_silent(szComm, szPids);
+   removeTrailingNewLines(szPids);
+   char* p = removeLeadingWhiteSpace(szPids);
+   if ( strlen(p) < 3 )
    {
-      if ( (szPids[0] == 10) || (szPids[0] == 13) )
-         szPids[0] = ' ';
-      if ( (szPids[1] == 10) || (szPids[1] == 13) )
-         szPids[1] = ' ';
-
-      // get only first pid
-      for( int i=0; i<strlen(szPids); i++ )
-      {
-         if ( ! isdigit(szPids[i]) )
-         {
-            szPids[i] = 0;
-            break;
-         }
-      }
-      int iPID = atoi(szPids);
-      if ( iPID > 0 )
-         return iPID;
-      return 1;
+      sprintf(szComm, "ps -aef | grep %s | grep -v \"grep\"", szProcName);
+      hw_execute_bash_command_raw_silent(szComm, szPids);
+      removeTrailingNewLines(szPids);
+      p = removeLeadingWhiteSpace(szPids);
+      if ( ! isdigit(*p) )
+         return 0;
+      if ( 1 != sscanf(p, "%d", &iPID) )
+         return 0;
+      if ( iPID < 10 )
+         return 1;
+      return iPID;
    }
-   return 0;
+
+   if ( ! isdigit(*p) )
+      return 0;
+   if ( 1 != sscanf(p, "%d", &iPID) )
+      return 0;
+   if ( iPID < 10 )
+      return 1;
+   return iPID;
 }
 
 char* hw_process_get_pid(const char* szProcName)
@@ -49,12 +51,13 @@ char* hw_process_get_pid(const char* szProcName)
 
    s_szHWProcessPIDs[0] = 0;
 
-   if ( NULL == szProcName || 0 == szProcName[0] )
+   if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return s_szHWProcessPIDs;
 
    char szComm[128];
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command_silent(szComm, s_szHWProcessPIDs);
+   removeTrailingNewLines(s_szHWProcessPIDs);
    return s_szHWProcessPIDs;
 }
 
@@ -70,18 +73,20 @@ void hw_stop_process(const char* szProcName)
    
    sprintf(szComm, "pidof %s", szProcName);
    hw_execute_bash_command(szComm, szPids);
+   removeTrailingNewLines(szPids);
    if ( strlen(szPids) > 2 )
    {
       log_line("Found PID(s) for process %s: %s", szProcName, szPids);
       sprintf(szComm, "kill $(pidof %s) 2>/dev/null", szProcName);
       hw_execute_bash_command(szComm, NULL);
-      int retryCount = 20;
+      int retryCount = 30;
       sprintf(szComm, "pidof %s", szProcName);
       while ( retryCount > 0 )
       {
          hardware_sleep_ms(10);
          szPids[0] = 0;
          hw_execute_bash_command(szComm, szPids);
+         removeTrailingNewLines(szPids);
          if ( strlen(szPids) < 2 )
          {
             log_line("Did stopped process %s", szProcName);
@@ -98,32 +103,35 @@ void hw_stop_process(const char* szProcName)
 
 int hw_kill_process(const char* szProcName, int iSignal)
 {
+   char szCommStop[256];
    char szComm[256];
    char szPids[256];
 
-   if ( NULL == szProcName || 0 == szProcName[0] )
+   if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return -1;
 
-   sprintf(szComm, "kill %d $(pidof %s) 2>/dev/null", iSignal, szProcName);
-   hw_execute_bash_command(szComm, NULL);
+   sprintf(szCommStop, "kill %d $(pidof %s) 2>/dev/null", iSignal, szProcName);
+   hw_execute_bash_command_raw(szCommStop, NULL);
    hardware_sleep_ms(20);
 
    sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command(szComm, szPids);
+   hw_execute_bash_command_raw(szComm, szPids);
+   removeTrailingNewLines(szPids);
    if ( strlen(szPids) < 3 )
       return 1;
 
-   log_line("Process %s pid is: %s", szProcName, szPids);
+   log_line("Process still exists, %s pid is: %s", szProcName, szPids);
 
-   int retryCount = 10;
+   int retryCount = 5;
    while ( retryCount > 0 )
    {
       hardware_sleep_ms(10);
+      hw_execute_bash_command_raw(szCommStop, NULL);
       szPids[0] = 0;
-      hw_execute_bash_command(szComm, szPids);
+      hw_execute_bash_command_raw(szComm, szPids);
       if ( strlen(szPids) < 3 )
          return 1;
-      log_line("Process %s pid is: %s", szProcName, szPids);
+      log_line("Process still exists (%d), %s pid is: %s", retryCount, szProcName, szPids);
       retryCount--;
    }
    return 0;
@@ -155,10 +163,13 @@ int hw_launch_process4(const char *szFile, const char* szParam1, const char* szP
    // execv messes up the timer
 
    char szBuff[1024];
-   if ( NULL == szParam1 && NULL == szParam2 && NULL == szParam3 && NULL == szParam4 )
+   if ( (NULL == szParam1) && (NULL == szParam2) && (NULL == szParam3) && (NULL == szParam4) )
       sprintf(szBuff, "%s &", szFile);
+   else if ( (NULL != szParam1) && (NULL == szParam2) && (NULL == szParam3) && (NULL == szParam4) )
+      sprintf(szBuff, "%s %s &", szFile, szParam1);
    else
       sprintf(szBuff, "%s %s %s %s %s &", szFile, ((NULL != szParam1)?szParam1:""), ((NULL != szParam2)?szParam2:""), ((NULL != szParam3)?szParam3:""), ((NULL != szParam4)?szParam4:"") );
+   
    hw_execute_bash_command(szBuff, NULL);
    return 0;
 
@@ -177,22 +188,22 @@ int hw_launch_process4(const char *szFile, const char* szParam1, const char* szP
    argv[3] = NULL;
    argv[2] = NULL;
    argv[1] = NULL;
-   if ( NULL != szParam4 && 0 < strlen(szParam4) )
+   if ( (NULL != szParam4) && (0 < strlen(szParam4)) )
    {
       argv[4] = (char*)malloc(strlen(szParam4)+1);
       strcpy(argv[4], szParam4);
    }
-   if ( NULL != szParam3 && 0 < strlen(szParam3) )
+   if ( (NULL != szParam3) && (0 < strlen(szParam3)) )
    {
       argv[3] = (char*)malloc(strlen(szParam3)+1);
       strcpy(argv[3], szParam3);
    }
-   if ( NULL != szParam2 && 0 < strlen(szParam2) )
+   if ( (NULL != szParam2) && (0 < strlen(szParam2)) )
    {
       argv[2] = (char*)malloc(strlen(szParam2)+1);
       strcpy(argv[2], szParam2);
    }
-   if ( NULL != szParam1 && 0 < strlen(szParam1) )
+   if ( (NULL != szParam1) && (0 < strlen(szParam1)) )
    {
       argv[1] = (char*)malloc(strlen(szParam1)+1);
       strcpy(argv[1], szParam1);
@@ -250,17 +261,18 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    szPids[0] = 0;
    int count = 0;
    hw_execute_bash_command_silent(szComm, szPids);
+   removeTrailingNewLines(szPids);
    while ( waitForProcess && (strlen(szPids) <= 2) && (count < 100) )
    {
       hardware_sleep_ms(2);
       szPids[0] = 0;
       hw_execute_bash_command_silent(szComm, szPids);
+      removeTrailingNewLines(szPids);
       count++;
    }
 
    if ( strlen(szPids) <= 2 )
       return;
-
    sprintf(szComm, "renice -n %d -p %s", nice, szPids);
    hw_execute_bash_command(szComm, NULL);
 
@@ -402,119 +414,154 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
 }
 
 
-int hw_execute_bash_command(const char* command, char* outBuffer)
+int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, u32 uTimeoutMs)
 {
-   log_line("Executing command: %s", command);
    if ( NULL != outBuffer )
-      outBuffer[0] = 0;
+      *outBuffer = 0;
    FILE* fp = popen( command, "r" );
    if ( NULL == fp )
    {
       log_error_and_alarm("Failed to execute command: %s", command);
       return 0;
    }
-   if ( NULL != outBuffer )
+   if ( uTimeoutMs == 0 )
+      uTimeoutMs = 5;
+   char szBuff[1024];
+   u32 uTimeStart = get_current_timestamp_ms();
+   int iCountRead = 0;
+   int iRead = 0;
+   char* pOut = outBuffer;
+   while ( 1 )
    {
-      char szBuff[10024];
-      if ( fgets(szBuff, 10023, fp) != NULL)
+      if ( ferror(fp) || feof(fp) )
+         break;
+
+      iRead = fread(szBuff, 1, 1022, fp);
+      if ( iRead > 0 )
       {
-         //printf("\nbuffer:[%s]\n", szBuff);
-         szBuff[1023] = 0;
-         sscanf(szBuff, "%s", outBuffer);
+         iCountRead += iRead;
+         if ( NULL != pOut )
+         {
+            szBuff[iRead] = 0;
+            memcpy(pOut, szBuff, iRead+1);
+            pOut += iRead;
+         }
+      }
+      if ( get_current_timestamp_ms() >= uTimeStart + uTimeoutMs )
+      {
+         log_line("Abandoning reading start process output.");
+         break;
+      }
+   }
+
+   if ( 0 == iSilent )
+   {
+      if ( (iCountRead < 20) && (NULL != outBuffer) )
+      {
+         char szTmp[24];
+         strncpy(szTmp, outBuffer, 23);
+         szTmp[23] = 0;
+         removeTrailingNewLines(szTmp);
+         log_line("Read process output: %d bytes in %u ms. Content: [%s]", iCountRead, get_current_timestamp_ms() - uTimeStart, szTmp);
       }
       else
-         log_line("Empty response from command.");
+         log_line("Read process output: %d bytes in %u ms", iCountRead, get_current_timestamp_ms() - uTimeStart);
    }
    if ( -1 == pclose(fp) )
+   {
       log_softerror_and_alarm("Failed to close command: %s", command);
+      return 0;
+   }
    return 1;
+}
+
+int hw_execute_bash_command_nonblock(const char* command, char* outBuffer)
+{
+   if ( NULL != outBuffer )
+      *outBuffer = 0;
+
+   if ( (NULL == command) || (0 == command[0]) )
+      return 0;
+
+   log_line("Executing command nonblock: %s", command);
+   FILE* fp = popen( command, "r" );
+   if ( NULL == fp )
+   {
+      log_error_and_alarm("Failed to execute command: [%s]", command);
+      return 0;
+   }
+
+   if ( NULL != outBuffer )
+   {
+      char szBuff[256];
+      if ( fgets(szBuff, 254, fp) != NULL)
+      {
+         szBuff[254] = 0;
+         if ( NULL != outBuffer )
+            strcpy(outBuffer, szBuff);
+      }
+      else
+         log_line("Empty response from executing command.");
+   }
+   if ( -1 == pclose(fp) )
+   {
+      log_softerror_and_alarm("Failed to execute command: [%s]", command);
+      return 0;
+   }
+
+   log_line("Executed command nonblock: [%s]", command);
+   return 0;
+}
+
+int hw_execute_bash_command(const char* command, char* outBuffer)
+{
+   log_line("Executing command: %s", command);
+   return _hw_execute_bash_command(command, outBuffer, 0, 3000);
+}
+
+int hw_execute_bash_command_timeout(const char* command, char* outBuffer, u32 uTimeoutMs)
+{
+   log_line("Executing command (timeout: %u ms): %s", uTimeoutMs, command);
+   return _hw_execute_bash_command(command, outBuffer, 0, uTimeoutMs);
+}
+
+int hw_execute_bash_command_silent(const char* command, char* outBuffer)
+{
+   if ( (NULL == command) || (0 == command[0]) )
+      return 0;
+   char szCommand[1024];
+   int iLen = strlen(command);
+
+   if ( NULL == strstr(command, "2>/dev/null") )
+   {
+      if ( command[iLen-1] == '&' )
+      {
+         char szTmp[1024];
+         strncpy(szTmp, command, sizeof(szTmp)/sizeof(szTmp[0]));
+         szTmp[iLen-1] = 0;
+         if ( command[iLen-2] == ' ' )
+            szTmp[iLen-2] = 0;
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null &", szTmp);
+      }
+      else
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null", command);
+   }
+   else
+      strncpy(szCommand, command, sizeof(szCommand)/sizeof(szCommand[0]));
+
+   return _hw_execute_bash_command(szCommand, outBuffer, 1, 3000);
 }
 
 int hw_execute_bash_command_raw(const char* command, char* outBuffer)
 {
    log_line("Executing command raw: %s", command);
-   if ( NULL != outBuffer )
-      outBuffer[0] = 0;
-   FILE* fp = popen( command, "r" );
-   if ( NULL == fp )
-   {
-      log_error_and_alarm("Failed to execute command: %s", command);
-      return 0;
-   }
-   if ( NULL != outBuffer )
-   {
-      *outBuffer = 0;
-      char szBuff[10024];
-      int lines = 0;
-      szBuff[0] = 0;
-      while ( fgets(szBuff, 10023, fp) != NULL )
-      {
-         szBuff[1023] = 0;
-         if ( strlen(szBuff) + strlen(outBuffer) < 1023 )
-            strcat(outBuffer, szBuff);
-         lines++;
-         szBuff[0] = 0;
-      }
-      if ( 0 == lines )
-         log_line("No response lines. Empty response from command.");
-   }
-   if ( -1 == pclose(fp) )
-      log_softerror_and_alarm("Failed to close command: %s", command);
-   return 1;
+   return _hw_execute_bash_command(command, outBuffer, 0, 3000);
 }
 
 int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer)
 {
-   if ( NULL != outBuffer )
-      outBuffer[0] = 0;
-   FILE* fp = popen( command, "r" );
-   if ( NULL == fp )
-   {
-      log_error_and_alarm("Failed to execute command: %s", command);
-      return 0;
-   }
-   if ( NULL != outBuffer )
-   {
-      *outBuffer = 0;
-      char szBuff[10024];
-      int lines = 0;
-      szBuff[0] = 0;
-      while ( fgets(szBuff, 10023, fp) != NULL )
-      {
-         szBuff[1023] = 0;
-         if ( strlen(szBuff) + strlen(outBuffer) < 1023 )
-            strcat(outBuffer, szBuff);
-         lines++;
-         szBuff[0] = 0;
-      }
-   }
-   if ( -1 == pclose(fp) )
-      log_softerror_and_alarm("Failed to close command: %s", command);
-   return 1;
+   return _hw_execute_bash_command(command, outBuffer, 1, 3000);
 }
-
-int hw_execute_bash_command_silent(const char* command, char* outBuffer)
-{
-   if ( NULL != outBuffer )
-      outBuffer[0] = 0;
-   char szCommand[1024];
-   sprintf(szCommand, "%s 2>/dev/null", command);
-   FILE* fp = popen( szCommand, "r" );
-   if ( NULL == fp )
-      return 0;
-
-   char szBuff[10024];
-   if ( fgets(szBuff, 10023, fp) != NULL)
-   {
-      //printf("\nbuffer:[%s]\n", szBuff);
-      szBuff[1023] = 0;
-      if ( NULL != outBuffer )
-         sscanf(szBuff, "%s", outBuffer);
-   }
-   pclose(fp);
-   return 1;
-}
-
 
 void hw_execute_ruby_process(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput)
 {

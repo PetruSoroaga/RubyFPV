@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -471,7 +471,8 @@ void _send_radio_stats_to_controller()
       statsCompact.rxRelativeQuality = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].rxRelativeQuality;
 
       memcpy(statsCompact.hist_rxPacketsCount, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-      memcpy(statsCompact.hist_rxPacketsLostCount, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsLostCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+      memcpy(statsCompact.hist_rxPacketsLostCountVideo, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+      memcpy(statsCompact.hist_rxPacketsLostCountData, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
       memcpy(statsCompact.hist_rxGapMiliseconds, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
 
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));

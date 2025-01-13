@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -70,13 +70,14 @@ void resetVehicleRuntimeInfo(int iIndex)
    g_State.vehiclesRuntimeInfo[iIndex].uAverageCommandRoundtripMiliseconds = MAX_U32;
    g_State.vehiclesRuntimeInfo[iIndex].uMaxCommandRoundtripMiliseconds = MAX_U32;
    g_State.vehiclesRuntimeInfo[iIndex].uMinCommandRoundtripMiliseconds = MAX_U32;
-   g_State.vehiclesRuntimeInfo[iIndex].bReceivedKeyframeInfoInVideoStream = false;
    
    g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSet = 0xFF;
    g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSetRequestedBy = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeSentVideoProfileRequest = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeRecvVideoProfileAck = 0;
 
+   g_State.vehiclesRuntimeInfo[iIndex].uPendingKeyFrameToSet = 0;
+   
    // Reset shared mem adaptive info
 
    memset(&(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex]), 0, sizeof(shared_mem_controller_adaptive_video_info_vehicle));

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -42,7 +42,7 @@ int s_VehicleSettingsLoaded = 0;
 void reset_VehicleSettings()
 {
    memset(&s_VehicleSettings, 0, sizeof(s_VehicleSettings));
-   s_VehicleSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+   s_VehicleSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS_VEHICLE;
    
    log_line("Reseted vehicle settings.");
 }
@@ -101,7 +101,7 @@ int load_VehicleSettings()
    
    if ( (!failed) && (1 != fscanf(fd, "%d", &s_VehicleSettings.iDevRxLoopTimeout)) )
    {
-      s_VehicleSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+      s_VehicleSettings.iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS_VEHICLE;
       failed = 1;
    }
 

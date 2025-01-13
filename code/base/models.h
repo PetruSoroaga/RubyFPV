@@ -115,6 +115,7 @@ typedef struct
 
    int radio_datarate_video_bps; // radio data rate to use for this video profile for video packets: 0 - to use auto datarate, positive: bps, negative: MCS
    int radio_datarate_data_bps;  // radio data rate to use for this video profile for data packets: 0 - to use auto datarate, positive: bps, negative: MCS
+   
    u32 radio_flags; // 0 if no custom ones, use the radio link radio flags
    int h264profile; // 0 = baseline, 1 = main, 2 = high
    int h264level; //0 = 4.0, 1 = 4.1, 2 = 4.2
@@ -399,7 +400,7 @@ typedef struct
    char interface_szPort[MAX_RADIO_INTERFACES][6]; // first byte - first char, sec byte - sec char
    u32  interface_capabilities_flags[MAX_RADIO_INTERFACES]; // what the card is used for: video/data/relay/tx/rx
    u32  interface_current_frequency_khz[MAX_RADIO_INTERFACES]; // current frequency for this card
-   u32  interface_current_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: frame type, STBC, LDP, MCS etc
+   u32  interface_current_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: legacy/MCS datarate type, frame type, STBC, LDP, MCS etc
    
    int  interface_dummy2[MAX_RADIO_INTERFACES];
 
@@ -415,7 +416,7 @@ typedef struct
    int links_count;
    u32 link_frequency_khz[MAX_RADIO_INTERFACES];
    u32 link_capabilities_flags[MAX_RADIO_INTERFACES]; // data/video/both?
-   u32 link_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: frame type, STBC, LDP, MCS, SIK flags, etc
+   u32 link_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: legacy/MCS datarate type, frame type, STBC, LDP, MCS, SIK flags, etc
    int link_datarate_video_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
    int link_datarate_data_bps[MAX_RADIO_INTERFACES]; // positive: bps, negative (-1 or less): MCS rate
 
@@ -583,10 +584,11 @@ class Model
       bool isRunningOnRadxaHardware();
       void populateHWInfo();
       bool populateVehicleSerialPorts();
-      void resetRadioLinkParams(int iRadioLink);
+      void resetRadioLinkDataRatesAndFlags(int iRadioLink);
       void addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbDefault24Used, bool* pbDefault24_2Used, bool* pbDefault58Used, bool* pbDefault58_2Used);
       void populateRadioInterfacesInfoFromHardware();
       void populateDefaultRadioLinksInfoFromRadioInterfaces();
+      void updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
       bool check_update_radio_links();
       void resetToDefaults(bool generateId);
       void resetHWCapabilities();
@@ -609,7 +611,6 @@ class Model
       bool validate_fps_and_exposure_settings(type_video_link_profile* pVideoLinkProfile, camera_profile_parameters_t* pCameraProfile);
       bool validate_settings();
       bool validate_relay_links_flags();
-      void updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
       u32 getLinkRealDataRate(int nLinkId);
       int getRadioInterfaceIndexForRadioLink(int iRadioLink);
       bool canSwapEnabledHighCapacityRadioInterfaces();

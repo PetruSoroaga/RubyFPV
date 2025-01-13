@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -12,7 +12,7 @@
         documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -331,10 +331,11 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       //log_line("Loaded vehicle successfully (%u ms) from file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s, is in developer mode: %s, %d radio links, 1st link: %s, 2nd link: %s, 3rd link: %s",
       // timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes", (bDeveloperMode?"yes":"no"), radioLinksParams.links_count, szFreq1, szFreq2, szFreq3);
 
-      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, dev mode: %s, software: %d.%d (b%d), on time: %02d:%02d",
+      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, dev mode: %s, %s, software: %d.%d (b%d), on time: %02d:%02d",
          bLoadStats?"with stats":"without stats",
          filename, vehicle_name, uVehicleId, 
          bDeveloperMode?"yes":"no",
+         is_spectator?"spectator mode": "control mode",
          (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       constructLongName();
@@ -1690,8 +1691,8 @@ bool Model::loadVersion10(FILE* fd)
       if ( 2 != fscanf(fd, "%d %d", &tmp1, &tmp2) )
       {
          log_softerror_and_alarm("Load model10: Error on line r5");
-         tmp1 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
-         tmp2 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+         tmp1 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+         tmp2 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
       }
       radioLinksParams.uUplinkDataDataRateType[i] = tmp1;
       radioLinksParams.uDownlinkDataDataRateType[i] = tmp2;
@@ -2249,10 +2250,11 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       fflush(fd);
       fclose(fd);
    }
-   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, dev mode: %s, on time: %02d:%02d",
+   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, dev mode: %s, %s, on time: %02d:%02d",
          filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          isOnController?"yes":"no",
          bDeveloperMode?"yes":"no",
+         is_spectator?"spectator mode": "control mode",
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       
    strcpy(szBuff, filename);
@@ -3036,7 +3038,7 @@ bool Model::populateVehicleSerialPorts()
    return true;
 }
 
-void Model::resetRadioLinkParams(int iRadioLink)
+void Model::resetRadioLinkDataRatesAndFlags(int iRadioLink)
 {
    if ( (iRadioLink < 0) || (iRadioLink >= MAX_RADIO_INTERFACES) )
       return;
@@ -3049,11 +3051,13 @@ void Model::resetRadioLinkParams(int iRadioLink)
    radioLinksParams.uplink_datarate_video_bps[iRadioLink] = radioLinksParams.link_datarate_video_bps[iRadioLink];
    radioLinksParams.uplink_datarate_data_bps[iRadioLink] = radioLinksParams.link_datarate_data_bps[iRadioLink];
 
-   radioLinksParams.uUplinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
-   radioLinksParams.uDownlinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+   radioLinksParams.uUplinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+   radioLinksParams.uDownlinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
 
    radioLinksParams.uSerialPacketSize[iRadioLink] = DEFAULT_RADIO_SERIAL_AIR_PACKET_SIZE;
    radioLinksParams.uDummy2[iRadioLink] = 0;
+
+   updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
 }
 
 
@@ -3068,7 +3072,7 @@ void Model::addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbD
    if ( NULL == pRadioHWInfo )
       return;
 
-   resetRadioLinkParams(radioLinksParams.links_count);
+   resetRadioLinkDataRatesAndFlags(radioLinksParams.links_count);
 
    radioInterfacesParams.interface_link_id[iRadioInterfaceIndex] = radioLinksParams.links_count;
 
@@ -3168,6 +3172,9 @@ void Model::addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbD
 
    radioLinksParams.uplink_datarate_video_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_video_bps[radioLinksParams.links_count];
    radioLinksParams.uplink_datarate_data_bps[radioLinksParams.links_count] = radioLinksParams.link_datarate_data_bps[radioLinksParams.links_count];
+   
+   updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
    log_line("Model: Added a new radio link (link %d) on %s for radio interface %d (%s)",
       radioLinksParams.links_count+1, str_format_frequency(radioLinksParams.link_frequency_khz[radioLinksParams.links_count]), iRadioInterfaceIndex+1, pRadioHWInfo->szName);
 }
@@ -3263,7 +3270,7 @@ void Model::populateDefaultRadioLinksInfoFromRadioInterfaces()
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
-      resetRadioLinkParams(i);
+      resetRadioLinkDataRatesAndFlags(i);
       radioLinksParams.link_frequency_khz[i] = 0;
    }
 
@@ -3320,19 +3327,26 @@ void Model::populateDefaultRadioLinksInfoFromRadioInterfaces()
 
 
    // Populate radio interfaces radio flags and rates from radio links radio flags and rates
-
-   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-   {
-     if ( radioInterfacesParams.interface_link_id[i] >= 0 && radioInterfacesParams.interface_link_id[i] < radioLinksParams.links_count )
-     {
-         radioInterfacesParams.interface_current_radio_flags[i] = radioLinksParams.link_radio_flags[radioInterfacesParams.interface_link_id[i]];
-         radioInterfacesParams.interface_dummy2[i] = 0;
-     }
-   }
+   updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
 
    if ( true )
       logVehicleRadioInfo();
 
+}
+
+void Model::updateRadioInterfacesRadioFlagsFromRadioLinksFlags()
+{
+   for( int iLink=0; iLink<radioLinksParams.links_count; iLink++ )
+   {
+      for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+      {
+         radioInterfacesParams.interface_dummy2[i] = 0;
+         if ( radioInterfacesParams.interface_link_id[i] == iLink )
+         {
+            radioInterfacesParams.interface_current_radio_flags[i] = radioLinksParams.link_radio_flags[iLink];
+         }
+      }
+   }
 }
 
 bool Model::check_update_radio_links()
@@ -3441,8 +3455,6 @@ bool Model::check_update_radio_links()
 
       addNewRadioLinkForRadioInterface(iInterface, &bDefault24Used, &bDefault24_2Used, &bDefault58Used, &bDefault58_2Used);
 
-      radioInterfacesParams.interface_current_radio_flags[iInterface] = radioLinksParams.link_radio_flags[radioLinksParams.links_count];
-
       if ( 0 == radioLinksParams.links_count )
       {
          log_line("Model: Making sure radio link 1 (first one in the model) has all required capabilities flags. Enable them on radio link 1.");
@@ -3458,21 +3470,6 @@ bool Model::check_update_radio_links()
    }
 
    return bAnyLinkRemoved | bAnyLinkAdded;
-}
-
-
-void Model::updateRadioInterfacesRadioFlagsFromRadioLinksFlags()
-{
-   for( int iLink=0; iLink<radioLinksParams.links_count; iLink++ )
-   {
-      for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-      {
-         if ( radioInterfacesParams.interface_link_id[i] == iLink )
-         {
-            radioInterfacesParams.interface_current_radio_flags[i] = radioLinksParams.link_radio_flags[iLink];
-         }
-      }
-   }
 }
 
 void Model::logVehicleRadioInfo()
@@ -3816,6 +3813,7 @@ bool Model::validate_fps_and_exposure_settings(type_video_link_profile* pVideoLi
 
 bool Model::validate_settings()
 {
+   log_line("Model: Validating model settings...");
    for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc)/sizeof(hwCapabilities.dummyhwc[0])); i++ )
       hwCapabilities.dummyhwc[i] = 0;
    for( unsigned int i=0; i<(sizeof(hwCapabilities.dummyhwc2)/sizeof(hwCapabilities.dummyhwc2[0])); i++ )
@@ -3830,9 +3828,9 @@ bool Model::validate_settings()
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       if ( (radioLinksParams.uUplinkDataDataRateType[i] <= 0) || (radioLinksParams.uUplinkDataDataRateType[i] > 3) )
-         radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+         radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
       if ( (radioLinksParams.uDownlinkDataDataRateType[i] <= 0) || (radioLinksParams.uDownlinkDataDataRateType[i] > 3) )
-         radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
+         radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
 
       if ( (radioInterfacesParams.interface_raw_power[i] < 1) || (radioInterfacesParams.interface_raw_power[i] > 71) )
          radioInterfacesParams.interface_raw_power[i] = DEFAULT_RADIO_TX_POWER;
@@ -3931,7 +3929,29 @@ bool Model::validate_settings()
    {
       if ( radioLinksParams.link_frequency_khz[i] == 0 )
          radioLinksParams.link_frequency_khz[i] = DEFAULT_FREQUENCY;
+
+      // Clear and set datarate type
+      u32 uCurrentRadioFlags = radioLinksParams.link_radio_flags[i];
+      radioLinksParams.link_radio_flags[i] &= ~(RADIO_FLAGS_USE_LEGACY_DATARATES | RADIO_FLAGS_USE_MCS_DATARATES);
+      if ( radioLinksParams.link_datarate_video_bps[i] < 0 )
+         radioLinksParams.link_radio_flags[i] |= RADIO_FLAGS_USE_MCS_DATARATES;
+      else
+         radioLinksParams.link_radio_flags[i] |= RADIO_FLAGS_USE_LEGACY_DATARATES;
+      if ( uCurrentRadioFlags != radioLinksParams.link_radio_flags[i] )
+         log_line("Model: Updated radio link %d radio flags to match data rates.", i+1);
+      for( int k=0; k<radioInterfacesParams.interfaces_count; k++ )
+      {
+         if ( radioInterfacesParams.interface_link_id[k] == i )
+         {
+            uCurrentRadioFlags = radioInterfacesParams.interface_current_radio_flags[k];
+            radioInterfacesParams.interface_current_radio_flags[k] &= ~(RADIO_FLAGS_USE_LEGACY_DATARATES | RADIO_FLAGS_USE_MCS_DATARATES);
+            radioInterfacesParams.interface_current_radio_flags[k] |= (radioLinksParams.link_radio_flags[i] & (RADIO_FLAGS_USE_LEGACY_DATARATES | RADIO_FLAGS_USE_MCS_DATARATES));
+            if ( uCurrentRadioFlags != radioInterfacesParams.interface_current_radio_flags[k] )
+               log_line("Model: Updated radio interface %d on radio link %d radio flags to match data rates.", k+1, i+1);
+         }
+      }
    }
+
    
    if ( osd_params.layout < osdLayout1 || osd_params.layout >= osdLayoutLast )
       osd_params.layout = osdLayout1;
@@ -3987,6 +4007,7 @@ bool Model::validate_settings()
    if ( (hwCapabilities.iMaxTxVideoBlockPackets < 2) || (hwCapabilities.iMaxTxVideoBlockPackets > MAX_TOTAL_PACKETS_IN_BLOCK) )
       hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
 
+   log_line("Model: Validated model settings.");
    return true;
 }
 
@@ -4272,7 +4293,7 @@ void Model::resetRadioLinksParams()
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
-      resetRadioLinkParams(i);
+      resetRadioLinkDataRatesAndFlags(i);
       radioLinksParams.link_frequency_khz[i] = 0;
    }
 
@@ -4350,7 +4371,7 @@ void Model::resetOSDFlags()
       osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
       osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
       osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
-      osd_params.osd_preferences[i] = ((u32)3) | (((u32)2)<<8) | (((u32)2)<<16) | (((u32)1)<<20) | OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM;
+      osd_params.osd_preferences[i] = ((u32)2) | (((u32)2)<<8) | (((u32)2)<<16) | (((u32)1)<<20) | OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM;
       osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
    }
 
@@ -4473,7 +4494,7 @@ void Model::resetCameraToDefaults(int iCameraIndex)
       {
          resetCameraProfileToDefaults(&(camera_params[k].profiles[i]));
 
-         if ( hardware_isCameraVeye() && k == 0 )
+         if ( hardware_isCameraVeye() && (k == 0) )
          {
             camera_params[k].profiles[i].brightness = 47;
             camera_params[k].profiles[i].contrast = 50;
@@ -4481,8 +4502,6 @@ void Model::resetCameraToDefaults(int iCameraIndex)
             camera_params[k].profiles[i].sharpness = 110; // 100 is zero
             camera_params[k].profiles[i].whitebalance = 1; //auto
             camera_params[k].profiles[i].shutterspeed = 0; //auto
-            if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
-              camera_params[k].profiles[i].shutterspeed = 10; //milisec
             camera_params[k].profiles[i].hue = 40;
             if ( (hardware_getCameraType() == CAMERA_TYPE_VEYE307) || (hardware_getCameraType() == CAMERA_TYPE_VEYE290) )
                camera_params[k].profiles[i].drc = 0;
@@ -4523,7 +4542,7 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->exposure = 3; // sports   2; //backlight
    pCamParams->shutterspeed = 0; // auto
    if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
-     pCamParams->shutterspeed = 10; //milisec
+     pCamParams->shutterspeed = 8; //milisec
 
    pCamParams->whitebalance = 1; //auto
    pCamParams->metering = 2; //backlight

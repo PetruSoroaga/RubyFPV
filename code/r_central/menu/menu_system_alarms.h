@@ -17,6 +17,7 @@ class MenuSystemAlarms: public Menu
       MenuItemSlider* m_pItemsSlider[10];
 
       int m_IndexAllAlarms;
+      int m_IndexAlarmControllerIOErrors;
       int m_IndexAlarmInvalidRadioPackets;
       int m_IndexAlarmControllerLink;
       int m_IndexAlarmVideoDataOverload;

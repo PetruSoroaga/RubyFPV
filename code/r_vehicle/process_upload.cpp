@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -415,7 +415,7 @@ static void * _thread_process_upload(void *argument)
    #endif
    */
    
-   hardware_install_drivers(0);
+   //hardware_install_drivers(0);
    // End check and update drivers
 
    signalReboot();

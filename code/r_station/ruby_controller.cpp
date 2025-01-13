@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(800);
    
    int sleepIntervalMs = 200;
-   u32 maxTimeForProcess = 6000;
+   u32 maxTimeForProcess = 9000;
    int counter = 0;
 
    log_line("Enter watchdog state");

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -178,18 +178,22 @@ void MenuVehicleSelector::onSelectItem()
          menu_discard_all();
          return;
       }
-
+      log_line("[MenuVehicleSelector] Switching to VID: %u (mode: %s)", pModel->uVehicleId, pModel->is_spectator?"spectator mode":"control mode");
       menu_discard_all();
       warnings_remove_all();
       render_all(get_current_timestamp_ms(), true);
       Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
       popups_add_topmost(p);
       render_all(get_current_timestamp_ms(), true);
-            
+
       pairing_stop();
 
       hardware_sleep_ms(100);
-      g_pCurrentModel = pModel;
+      pModel->is_spectator = false;
+      setCurrentModel(pModel->uVehicleId);
+      g_pCurrentModel = getCurrentModel();
+      g_pCurrentModel->is_spectator = false;
+      log_line("[MenuVehicleSelector] New VID %u mode: %s", pModel->uVehicleId, pModel->is_spectator?"spectator mode":"control mode");
       setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 

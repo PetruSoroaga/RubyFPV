@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -32,6 +32,7 @@
 #include "shared_vars.h"
 #include "timers.h"
 #include "packets_utils.h"
+#include "../common/string_utils.h"
 #include "../radio/fec.h"
 #include "adaptive_video.h"
 #include "processor_tx_video.h"
@@ -72,7 +73,7 @@ VideoTxPacketsBuffer::VideoTxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
       m_VideoPackets[i][k].pPHVF = NULL;
       m_VideoPackets[i][k].pVideoData = NULL;
    }
-   m_uCurrentFrameId = 0;
+   m_uCurrentH264FrameId = 0;
    m_iCurrentBufferIndexToSend = 0;
    m_iCurrentBufferPacketIndexToSend = 0;
    m_iNextBufferIndexToFill = 0;
@@ -86,6 +87,9 @@ VideoTxPacketsBuffer::VideoTxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
 
    memset(&m_PacketHeaderVideo, 0, sizeof(t_packet_header_video_full_98));
    memset(&m_PacketHeaderVideo, 0, sizeof(t_packet_header_video_full_98));
+
+   m_ParserInputH264.init();
+   m_uTempBufferNALPresenceFlags = 0;
 }
 
 VideoTxPacketsBuffer::~VideoTxPacketsBuffer()
@@ -178,7 +182,7 @@ void VideoTxPacketsBuffer::_checkAllocatePacket(int iBufferIndex, int iPacketInd
    m_VideoPackets[iBufferIndex][iPacketIndex].pVideoData = &(m_VideoPackets[iBufferIndex][iPacketIndex].pRawData[sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98)]);
 }
 
-void VideoTxPacketsBuffer::_fillVideoPacketHeaders(int iBufferIndex, int iPacketIndex, int iVideoSize, bool bEndOfFrame, bool bIsInsideIFrame)
+void VideoTxPacketsBuffer::_fillVideoPacketHeaders(int iBufferIndex, int iPacketIndex, int iVideoSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame)
 {
    t_packet_header* pCurrentPacketHeader = m_VideoPackets[iBufferIndex][iPacketIndex].pPH;
    memcpy(pCurrentPacketHeader, &m_PacketHeader, sizeof(t_packet_header));
@@ -190,20 +194,28 @@ void VideoTxPacketsBuffer::_fillVideoPacketHeaders(int iBufferIndex, int iPacket
 
    t_packet_header_video_full_98* pCurrentVideoPacketHeader = m_VideoPackets[iBufferIndex][iPacketIndex].pPHVF;
    memcpy(pCurrentVideoPacketHeader, &m_PacketHeaderVideo, sizeof(t_packet_header_video_full_98));
-   pCurrentVideoPacketHeader->uFrameId = m_uCurrentFrameId;
+   pCurrentVideoPacketHeader->uH264FrameId = m_uCurrentH264FrameId;
+   pCurrentVideoPacketHeader->uH264SliceId = m_uCurrentH264SliceId;
    pCurrentVideoPacketHeader->uCurrentBlockIndex = m_uNextVideoBlockIndexToGenerate;
    pCurrentVideoPacketHeader->uCurrentBlockPacketIndex = m_uNextVideoBlockPacketIndexToGenerate;
 
-   pCurrentVideoPacketHeader->uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_END_FRAME;
-   if ( bEndOfFrame )
-   if ( (pCurrentVideoPacketHeader->uCurrentBlockECPackets == 0) || (pCurrentVideoPacketHeader->uCurrentBlockPacketIndex < pCurrentVideoPacketHeader->uCurrentBlockDataPackets) || (pCurrentVideoPacketHeader->uCurrentBlockPacketIndex == pCurrentVideoPacketHeader->uCurrentBlockDataPackets + pCurrentVideoPacketHeader->uCurrentBlockECPackets - 1) )
-      pCurrentVideoPacketHeader->uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_END_FRAME;
+   pCurrentVideoPacketHeader->uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME;
+   if ( bEndOfTransmissionFrame )
+   if ( pCurrentVideoPacketHeader->uCurrentBlockECPackets == 0 )
+      pCurrentVideoPacketHeader->uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME;
+   if ( bEndOfTransmissionFrame )
+   if ( ( pCurrentVideoPacketHeader->uCurrentBlockPacketIndex < pCurrentVideoPacketHeader->uCurrentBlockDataPackets) || (pCurrentVideoPacketHeader->uCurrentBlockPacketIndex == pCurrentVideoPacketHeader->uCurrentBlockDataPackets + pCurrentVideoPacketHeader->uCurrentBlockECPackets - 1) )
+      pCurrentVideoPacketHeader->uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME;
 
-   if ( bIsInsideIFrame )
-      pCurrentVideoPacketHeader->uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_IS_IFRAME;
-   else
-      pCurrentVideoPacketHeader->uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_IS_IFRAME;
-  
+   pCurrentVideoPacketHeader->uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_MASK_NAL_FLAGS;
+   pCurrentVideoPacketHeader->uVideoStatusFlags2 |= uNALPresenceFlags;
+   
+   //log_line("DEBUG filled video packet [%u/%u], %d bytes, end-of-tr-frame: %d, video-stat-flags: [%s]",
+   //   pCurrentVideoPacketHeader->uCurrentBlockIndex,
+   //   pCurrentVideoPacketHeader->uCurrentBlockPacketIndex,
+   //   iVideoSize, bEndOfTransmissionFrame,
+   //   str_format_video_nal_frame_flags_from_status_flags2(pCurrentVideoPacketHeader->uVideoStatusFlags2));
+   
    int iVideoProfile = adaptive_video_get_current_active_video_profile();
    pCurrentVideoPacketHeader->uCurrentVideoLinkProfile = iVideoProfile;
    
@@ -301,7 +313,7 @@ void VideoTxPacketsBuffer::updateCurrentKFValue()
    m_PacketHeaderVideo.uCurrentVideoKeyframeIntervalMs = adaptive_video_get_current_kf();
 }
 
-void VideoTxPacketsBuffer::fillVideoPackets(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame)
+void VideoTxPacketsBuffer::fillVideoPacketsFromCSI(u8* pVideoData, int iDataSize, bool bEndOfFrame)
 {
    if ( (NULL == pVideoData) || (iDataSize <= 0) )
       return;
@@ -312,32 +324,191 @@ void VideoTxPacketsBuffer::fillVideoPackets(u8* pVideoData, int iDataSize, bool 
    while ( iDataSize > 0 )
    {
       int iSizeLeftToFillInCurrentPacket = m_PacketHeaderVideo.uCurrentBlockPacketSize - m_iTempVideoBufferFilledBytes - sizeof(u16);
+      int iParsed = m_ParserInputH264.parseSingleSegmentDataUntilStartOfNextNALOrLimit(pVideoData, iDataSize, iSizeLeftToFillInCurrentPacket);
+      
+      // End of NAL unit?
+      bool bEndNAL = false;
+      if ( (iParsed == iDataSize) && bEndOfFrame )
+         bEndNAL = true;
+      if ( (iParsed < iSizeLeftToFillInCurrentPacket) && (iParsed >= 0) && (pVideoData[iParsed] == 0) && (pVideoData[iParsed+1] == 0) && (pVideoData[iParsed+2] == 0) && (pVideoData[iParsed+3] == 0x01) )
+         bEndNAL = true;
 
-      if ( iDataSize <= iSizeLeftToFillInCurrentPacket )
+      u32 uStart = 0;
+      u32 uEnd = 0;
+      memcpy(&uStart, pVideoData, sizeof(u32));
+      memcpy(&uEnd, &pVideoData[iParsed-4], sizeof(u32));
+
+      // End of P or I frame or frame slice? (otherways it's smaller SPS PPS NALs)
+      // Then end a video packet block here
+      if ( bEndNAL )
+      if ( (m_ParserInputH264.getCurrentSegmentNALType() == 1) || (m_ParserInputH264.getCurrentSegmentNALType() == 5) )
       {
-         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoData, iDataSize);
-         m_iTempVideoBufferFilledBytes += iDataSize;
-         if ( bEndOfFrame )
-         {
-            addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, bEndOfFrame, bIsInsideIFrame);
-            m_iTempVideoBufferFilledBytes = 0;
-            m_uCurrentFrameId++;
-         }
-         return;
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_END;
+         if ( m_ParserInputH264.getCurrentSegmentNALType() == 1 )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+         else
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+         if ( (pVideoData[0] == 0) && (pVideoData[1] == 0) && (pVideoData[2] == 0) && (pVideoData[3] == 0x01) )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
+
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoData, iParsed);
+         m_iTempVideoBufferFilledBytes += iParsed;
+         _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, (iParsed == iDataSize) && bEndOfFrame);
+         m_iTempVideoBufferFilledBytes = 0;
+         m_uTempBufferNALPresenceFlags = 0;
+         pVideoData += iParsed;
+         iDataSize -= iParsed;
+         continue;
       }
 
-      memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoData, iSizeLeftToFillInCurrentPacket);
-      m_iTempVideoBufferFilledBytes += iSizeLeftToFillInCurrentPacket;
-      pVideoData += iSizeLeftToFillInCurrentPacket;
-      iDataSize -= iSizeLeftToFillInCurrentPacket;
-      addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, false, bIsInsideIFrame);
-      m_iTempVideoBufferFilledBytes = 0;
+      // It's a SPS,PSP or part of an I/P NAL unit (not end of it)
+      // Just fill video packets as needed/possible
+      
+      u8 *pDataToAdd = pVideoData;
+      int iDataToAdd = iParsed;
+      while ( iDataToAdd > 0 )
+      {
+         if ( m_ParserInputH264.getCurrentSegmentNALType() == 1 )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+         if ( m_ParserInputH264.getCurrentSegmentNALType() == 5 )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+         if ( (m_ParserInputH264.getCurrentSegmentNALType() == 7) ||
+              (m_ParserInputH264.getCurrentSegmentNALType() == 8 ) )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_SPS_NAL;
+         if ( (pDataToAdd[0] == 0) && (pDataToAdd[1] == 0) && (pDataToAdd[2] == 0) && (pDataToAdd[3] == 0x01) )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
 
-      //sendAvailablePackets();
+         iSizeLeftToFillInCurrentPacket = m_PacketHeaderVideo.uCurrentBlockPacketSize - m_iTempVideoBufferFilledBytes - sizeof(u16);
+    
+         if ( iDataToAdd < iSizeLeftToFillInCurrentPacket )
+         {
+            memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pDataToAdd, iDataToAdd);
+            m_iTempVideoBufferFilledBytes += iDataToAdd;            
+            break;
+         }
+
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pDataToAdd, iSizeLeftToFillInCurrentPacket);
+         m_iTempVideoBufferFilledBytes += iSizeLeftToFillInCurrentPacket;
+         _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, false);
+         pDataToAdd += iSizeLeftToFillInCurrentPacket;
+         iDataToAdd -= iSizeLeftToFillInCurrentPacket;
+         m_iTempVideoBufferFilledBytes = 0;
+         m_uTempBufferNALPresenceFlags = 0;
+      }
+      pVideoData += iParsed;
+      iDataSize -= iParsed;
    }
 }
 
-void VideoTxPacketsBuffer::addNewVideoPacket(u8* pVideoData, int iDataSize, bool bEndOfFrame, bool bIsInsideIFrame)
+void VideoTxPacketsBuffer::fillVideoPacketsFromRTSPPacket(u8* pVideoData, int iDataSize, bool bSingle, bool bEnd, u32 uNALType)
+{
+   if ( (NULL == pVideoData) || (iDataSize <= 0) )
+      return;
+
+   if ( NULL != g_pProcessorTxVideo )
+      process_data_tx_video_on_new_data(pVideoData, iDataSize);
+
+
+   int iSizeLeftToFillInCurrentPacket = m_PacketHeaderVideo.uCurrentBlockPacketSize - m_iTempVideoBufferFilledBytes - sizeof(u16);
+   
+   u32 uStart = 0;
+   u32 uEnd = 0;
+   memcpy(&uStart, pVideoData, sizeof(u32));
+   memcpy(&uEnd, &pVideoData[iDataSize-4], sizeof(u32));
+
+   // Fits in the current remaining packet buffer?
+   if ( bEnd )
+   if ( iDataSize <= iSizeLeftToFillInCurrentPacket )
+   {
+      if ( (uNALType == 7) || (uNALType == 8) )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_SPS_NAL;
+      else if ( uNALType == 1 )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+      else
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+      if ( (pVideoData[0] == 0) && (pVideoData[1] == 0) && (pVideoData[2] == 0) && (pVideoData[3] == 0x01) )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
+
+      if ( (uNALType == 7) || (uNALType == 8) )
+      {
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoData, iDataSize);
+         m_iTempVideoBufferFilledBytes += iDataSize;            
+         return;
+      }
+      else
+      {
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_END;
+         if ( (pVideoData[0] == 0) && (pVideoData[1] == 0) && (pVideoData[2] == 0) && (pVideoData[3] == 0x01) )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
+         if ( uNALType == 1 )
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+         else
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoData, iDataSize);
+         m_iTempVideoBufferFilledBytes += iDataSize;
+         _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, true);
+         m_iTempVideoBufferFilledBytes = 0;
+         m_uTempBufferNALPresenceFlags = 0;
+         return;
+      }
+   }
+   
+   u8 *pDataToAdd = pVideoData;
+   int iDataToAdd = iDataSize;
+   while ( iDataToAdd > 0 )
+   {
+      if ( (uNALType == 7) || (uNALType == 8) )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_SPS_NAL;
+      else if ( uNALType == 1 )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+      else
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+      if ( (pDataToAdd[0] == 0) && (pDataToAdd[1] == 0) && (pDataToAdd[2] == 0) && (pDataToAdd[3] == 0x01) )
+         m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
+
+      iSizeLeftToFillInCurrentPacket = m_PacketHeaderVideo.uCurrentBlockPacketSize - m_iTempVideoBufferFilledBytes - sizeof(u16);
+      if ( iDataToAdd >= iSizeLeftToFillInCurrentPacket )
+      {
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pDataToAdd, iSizeLeftToFillInCurrentPacket);
+         m_iTempVideoBufferFilledBytes += iSizeLeftToFillInCurrentPacket;
+         _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, false);
+         pDataToAdd += iSizeLeftToFillInCurrentPacket;
+         iDataToAdd -= iSizeLeftToFillInCurrentPacket;
+         m_iTempVideoBufferFilledBytes = 0;
+         m_uTempBufferNALPresenceFlags = 0;
+         continue;
+      }
+      else
+      {
+         memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pDataToAdd, iDataToAdd);
+         m_iTempVideoBufferFilledBytes += iDataToAdd;
+         if ( bEnd )
+         {
+            if ( (uNALType == 7) || (uNALType == 8) )
+               m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_SPS_NAL;
+            else if ( uNALType == 1 )
+               m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_P_NAL;
+            else
+               m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_CONTAINS_I_NAL;
+            if ( (pDataToAdd[0] == 0) && (pDataToAdd[1] == 0) && (pDataToAdd[2] == 0) && (pDataToAdd[3] == 0x01) )
+               m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_START;
+
+            if ( (uNALType == 7) || (uNALType == 8) )
+               return;
+            
+            m_uTempBufferNALPresenceFlags |= VIDEO_STATUS_FLAGS2_NAL_END;
+            _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, true);
+            m_iTempVideoBufferFilledBytes = 0;
+            m_uTempBufferNALPresenceFlags = 0;
+         }
+         return;
+      }
+   }
+}
+
+
+void VideoTxPacketsBuffer::_addNewVideoPacket(u8* pVideoData, int iDataSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame)
 {
    if ( (! m_bInitialized) || (NULL == pVideoData) || (iDataSize <= 0) || (iDataSize > MAX_PACKET_PAYLOAD) )
       return;
@@ -353,7 +524,7 @@ void VideoTxPacketsBuffer::addNewVideoPacket(u8* pVideoData, int iDataSize, bool
    }
 
    // Update packet headers
-   _fillVideoPacketHeaders(m_iNextBufferIndexToFill, m_iNextBufferPacketIndexToFill, iDataSize + sizeof(u16), bEndOfFrame, bIsInsideIFrame);
+   _fillVideoPacketHeaders(m_iNextBufferIndexToFill, m_iNextBufferPacketIndexToFill, iDataSize + sizeof(u16), uNALPresenceFlags, bEndOfTransmissionFrame);
    //t_packet_header* pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPH;
    t_packet_header_video_full_98* pCurrentVideoPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPHVF;
    u8* pVideoDestination = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pVideoData;
@@ -427,7 +598,7 @@ void VideoTxPacketsBuffer::addNewVideoPacket(u8* pVideoData, int iDataSize, bool
       for( int i=0; i<m_PacketHeaderVideo.uCurrentBlockECPackets; i++ )
       {
          // Update packet headers
-         _fillVideoPacketHeaders(m_iNextBufferIndexToFill, i+iECDelta, m_PacketHeaderVideo.uCurrentBlockPacketSize, bEndOfFrame, bIsInsideIFrame);
+         _fillVideoPacketHeaders(m_iNextBufferIndexToFill, i+iECDelta, m_PacketHeaderVideo.uCurrentBlockPacketSize, uNALPresenceFlags, bEndOfTransmissionFrame);
 
          //pCurrentPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pPH;
          pCurrentVideoPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][i+iECDelta].pPHVF;

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -192,9 +192,13 @@ void MenuSystemDevLogs::exportVehicleLogs(char* szVehicleFolder)
 
 void MenuSystemDevLogs::exportAllLogs()
 {
-   if ( ! hardware_try_mount_usb() )
+   int iMountRes = hardware_try_mount_usb();
+   if ( 1 != iMountRes )
    {
-      addMessage("No USB memory stick detected. Please insert a USB stick");
+      if ( 0 == iMountRes )
+         addMessage("No USB memory stick detected. Please insert a USB stick.");
+      else
+         addMessage("USB memory stick detected but could not be mounted. Please try again.");
       return;
    }
    ruby_signal_alive();
@@ -363,6 +367,9 @@ void MenuSystemDevLogs::onSelectItem()
    {
       if ( NULL == g_pCurrentModel )
          return;
+      int iLogNow = 0;
+      if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
+         iLogNow = 1;
       int log = m_pItemsSelect[6]->getSelectedIndex();
       if ( 0 == log )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS);
@@ -370,14 +377,23 @@ void MenuSystemDevLogs::onSelectItem()
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
 
       if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
-         valuesToUI();  
+         valuesToUI();
+      else
+      {
+         if ( iLogNow != log )
+            addMessage("You need to restart your vehicle for the changes to take effect.");
+      }
    }
 
    if ( m_IndexLogLevelController == m_SelectedIndex )
    {
+      int nLogNow = pP->nLogLevel;
       pP->nLogLevel = m_pItemsSelect[7]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
+
+      if ( nLogNow != pP->nLogLevel )
+         addMessage("You need to restart your controller for the changes to take effect.");
    }
 
    if ( m_IndexZipAllLogs == m_SelectedIndex )

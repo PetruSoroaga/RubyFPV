@@ -72,6 +72,9 @@ typedef struct
    u32 uCurrentFECTimeMicros; // in micro seconds per second   
    int iCurrentPacketsInBuffers;
    int iMaxPacketsInBuffers;
+   u8 uDetectedH264Profile;
+   u8 uDetectedH264ProfileConstrains;
+   u8 uDetectedH264Level;
 } ALIGN_STRUCT_SPEC_INFO shared_mem_video_stream_stats;
 
 typedef struct

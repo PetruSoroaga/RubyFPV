@@ -21,10 +21,12 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput);
 
 void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd);
 
+int hw_execute_bash_command_nonblock(const char* command, char* outBuffer);
 int hw_execute_bash_command(const char* command, char* outBuffer);
+int hw_execute_bash_command_timeout(const char* command, char* outBuffer, u32 uTimeoutMs);
+int hw_execute_bash_command_silent(const char* command, char* outBuffer);
 int hw_execute_bash_command_raw(const char* command, char* outBuffer);
 int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer);
-int hw_execute_bash_command_silent(const char* command, char* outBuffer);
 
 void hw_execute_ruby_process(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput);
 void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput, int iWait);

@@ -17,7 +17,7 @@ class MenuVehicleVideoEncodings: public Menu
       void sendVideoParams();
 
       int m_IndexPacketSize, m_IndexBlockPackets, m_IndexBlockFECs, m_IndexECSchemeSpread;
-      int m_IndexDataRate;
+      //int m_IndexDataRate;
       int m_IndexH264Profile, m_IndexH264Level, m_IndexH264Refresh;
       int m_IndexRemoveH264PPS, m_IndexInsertH264PPS, m_IndexInsertH264SPSTimings;
       int m_IndexH264Slices;
@@ -28,7 +28,7 @@ class MenuVehicleVideoEncodings: public Menu
       int m_IndexAdaptiveH264QuantizationStrength;
       int m_IndexHDMIOutput;
 
-      bool m_ShowBitrateWarning;
+      //bool m_ShowBitrateWarning;
       MenuItemSlider* m_pItemsSlider[25];
       MenuItemSelect* m_pItemsSelect[40];
 };

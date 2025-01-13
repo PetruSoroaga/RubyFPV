@@ -13,7 +13,6 @@ typedef struct
    u8* pRawData;
    u32 uReceivedTime;
    u32 uRequestedTime; // if requested for retransmission
-   bool bEndOfFirstIFrameDetected;
    bool bEmpty;
    bool bOutputed;
 }
@@ -59,7 +58,6 @@ class VideoRxPacketsBuffer
 
       bool isFrameEnded();
       u32 getLastFrameEndTime();
-      bool isInsideIFrame();
 
    protected:
 
@@ -77,8 +75,6 @@ class VideoRxPacketsBuffer
       int m_iVideoStreamIndex;
       int m_iCameraIndex;
       u32 m_uMaxVideoBlockIndexInBuffer;
-      bool m_bEndOfFirstIFrameDetected;
-      bool m_bIsInsideIFrame;
       bool m_bFrameEnded;
       u32  m_uFrameEndedTime;
 

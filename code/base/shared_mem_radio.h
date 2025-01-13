@@ -2,7 +2,7 @@
 #include "base.h"
 #include "config.h"
 
-#define MAX_HISTORY_RADIO_STATS_RECV_SLICES 40
+#define MAX_HISTORY_RADIO_STATS_RECV_SLICES 50
 #define MAX_RADIO_STATS_INTERFACE_RX_HISTORY_SLICES 100
 #define MAX_RX_GRAPH_SLICES 300
 
@@ -135,11 +135,13 @@ typedef struct
    u8 uSlicesUpdated;
    u8 hist_rxPacketsCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxPacketsBadCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
-   u8 hist_rxPacketsLostCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
+   u8 hist_rxPacketsLostCountVideo[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
+   u8 hist_rxPacketsLostCountData[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxGapMiliseconds[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u32 hist_tmp_rxPacketsCount;
    u32 hist_tmp_rxPacketsBadCount;
-   u32 hist_tmp_rxPacketsLostCount;
+   u32 hist_tmp_rxPacketsLostCountVideo;
+   u32 hist_tmp_rxPacketsLostCountData;
 
 } ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface;
 
@@ -170,7 +172,8 @@ typedef struct
    int rxRelativeQuality; // higher value means better link; it's relative to the other radio interfaces
 
    u8 hist_rxPacketsCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
-   u8 hist_rxPacketsLostCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
+   u8 hist_rxPacketsLostCountVideo[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
+   u8 hist_rxPacketsLostCountData[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxGapMiliseconds[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
 
 } ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_radio_interface_compact;

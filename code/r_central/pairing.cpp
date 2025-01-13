@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -65,6 +65,7 @@ extern bool s_bDebugOSDShowAll;
 
 bool s_isRXStarted = false;
 bool s_isVideoReceiving = false;
+bool s_bPairingIsRouterReady = false;
 
 u32 s_uTimeToSetAffinities = 0;
 
@@ -217,6 +218,7 @@ bool pairing_stop()
    s_uTimeToSetAffinities = 0;
 
    onEventBeforePairingStop();
+   s_bPairingIsRouterReady = false;
 
    forward_streams_on_pairing_stop();
    hardware_recording_led_set_off();
@@ -268,6 +270,7 @@ void pairing_on_router_ready()
    log_line("Pairing: received event that router is ready. Open shared mem objects...");
    _pairing_open_shared_mem();
    log_line("Pairing: received event that router is ready. Open shared mem objects complete.");
+   s_bPairingIsRouterReady = true;
 }
 
 void _pairing_open_shared_mem()
@@ -506,6 +509,11 @@ void _pairing_close_shared_mem()
 bool pairing_isStarted()
 {
    return s_isRXStarted;
+}
+
+bool pairing_isRouterReady()
+{
+   return s_bPairingIsRouterReady;
 }
 
 void pairing_loop()

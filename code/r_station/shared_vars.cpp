@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -101,7 +101,6 @@ int g_fIPCFromRC = -1;
 t_sik_radio_state g_SiKRadiosState;
 
 bool g_bFirstModelPairingDone = false;
-
 
 u32 g_uLastInterceptedCommandCounterToSetRadioFlags = MAX_U32;
 u32 g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand = MAX_U32;

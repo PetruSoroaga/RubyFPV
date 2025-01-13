@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -133,7 +133,6 @@ void MenuSwitchVehicle::onSelectItem()
       render_all(get_current_timestamp_ms(), true);
          
       pairing_stop();
-      pModel->is_spectator = false;
       setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
       setControllerCurrentModel(g_pCurrentModel->uVehicleId);

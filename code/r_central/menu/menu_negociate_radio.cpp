@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -115,7 +115,7 @@ void MenuNegociateRadio::Render()
    for( int iInt=0; iInt<hardware_get_radio_interfaces_count(); iInt++ )
    for( int iRun=0; iRun<3; iRun++ )
    {
-      if ( !hardware_radio_is_index_wifi_radio(iInt) )
+      if ( !hardware_radio_index_is_wifi_radio(iInt) )
          continue;
 
       float fQuality = 0.0;
@@ -177,7 +177,7 @@ void MenuNegociateRadio::_computeQualities()
       for( int iInt=0; iInt<hardware_get_radio_interfaces_count(); iInt++ )
       for( int iRun=0; iRun<3; iRun++ )
       {
-         if ( !hardware_radio_is_index_wifi_radio(iInt) )
+         if ( !hardware_radio_index_is_wifi_radio(iInt) )
             continue;
 
          float fQuality = 0.0;
@@ -371,7 +371,7 @@ bool MenuNegociateRadio::periodicLoop()
       {
          for(int i=0; i<hardware_get_radio_interfaces_count(); i++ )
          {
-            if ( !hardware_radio_is_index_wifi_radio(i) )
+            if ( !hardware_radio_index_is_wifi_radio(i) )
                continue;
             m_iRXPackets[m_iDataRateIndex][i][m_iDataRateTestCount] = g_SM_RadioStats.radio_interfaces[i].totalRxPackets;
             m_iRxLostPackets[m_iDataRateIndex][i][m_iDataRateTestCount] = g_SM_RadioStats.radio_interfaces[i].totalRxPacketsBad + g_SM_RadioStats.radio_interfaces[i].totalRxPacketsLost;

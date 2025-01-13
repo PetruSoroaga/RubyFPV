@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -300,9 +300,13 @@ void MenuControllerPlugins::onSelectItem()
 
 void MenuControllerPlugins::importFromUSB()
 {
-   if ( ! hardware_try_mount_usb() )
+   int iMountRes = hardware_try_mount_usb();
+   if ( 1 != iMountRes )
    {
-      addMessage("No USB memory stick detected. Please insert a USB stick");
+      if ( 0 == iMountRes )
+         addMessage("No USB memory stick detected. Please insert a USB stick.");
+      else
+         addMessage("USB memory stick detected but could not be mounted. Please try again.");
       return;
    }
 

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -249,8 +249,8 @@ void _check_files()
    if( access( "ruby_video_proc", R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " ruby_video_proc"); }
 
-   if( access( VIDEO_PLAYER_PIPE, R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
+   if( access( VIDEO_PLAYER_SM, R_OK ) == -1 )
+      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_SM); }
    if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
    #endif
@@ -275,6 +275,10 @@ void _check_files()
       printf("Ruby: Checked files consistency: ok.\n");
 }
 
+void _check_update_drivers_on_update()
+{
+   hardware_install_drivers(1);
+}
 
 bool _check_for_update_from_boot()
 {
@@ -839,14 +843,16 @@ int _step_check_file_system()
 
       sprintf(szComm, "mkdir -p %s", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod -p %s", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "chmod 777 %s", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "rm -rf %s*", FOLDER_RUBY_TEMP);
-      hw_execute_bash_command_silent(szComm, NULL);
-      
+      if ( 0 < strlen(FOLDER_RUBY_TEMP) )
+      {
+         sprintf(szComm, "rm -rf %s*", FOLDER_RUBY_TEMP);
+         hw_execute_bash_command_silent(szComm, NULL);
+      }
       sprintf(szComm, "mkdir -p %sruby", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
-      sprintf(szComm, "chmod -p %sruby", FOLDER_RUBY_TEMP);
+      sprintf(szComm, "chmod 777 %sruby", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
       sprintf(szComm, "rm -rf %sruby/*", FOLDER_RUBY_TEMP);
       hw_execute_bash_command_silent(szComm, NULL);
@@ -1000,7 +1006,7 @@ void _step_load_init_devices()
    hw_execute_bash_command("modprobe i2c-dev", NULL);
    #endif
 
-   char szOutput[2048];
+   char szOutput[4096];
    hw_execute_bash_command_raw("lsusb", szOutput);
    strcat(szOutput, "\n*END*\n");
    log_line("USB Devices:");
@@ -1013,6 +1019,7 @@ void _step_load_init_devices()
       
    #ifdef HW_CAPABILITY_I2C
    hw_execute_bash_command_raw("i2cdetect -l", szOutput);
+   strcat(szOutput, "\n*END*\n");
    log_line("I2C buses:");
    log_line(szOutput);      
    #endif
@@ -1022,11 +1029,14 @@ void _step_load_init_devices()
    char szComm[256];
    u32 board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
 
+   #if defined HW_PLATFORM_RASPBERRY
    // Initialize I2C bus 0 for different boards types
-  
    log_line("Initialize I2C busses...");
    sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
-   hw_execute_bash_command(szComm, NULL);
+   hw_execute_bash_command(szComm, szOutput);
+   strcat(szOutput, "\n*END*\n");
+   log_line("I2C config output:");
+   log_line(szOutput);
    if ( (board_type == BOARD_TYPE_PI3APLUS) || (board_type == BOARD_TYPE_PI3B) || (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) )
    {
       log_line("Initializing I2C busses for Pi 3/4...");
@@ -1041,7 +1051,7 @@ void _step_load_init_devices()
       hardware_sleep_ms(200);
       log_line("Done initializing I2C busses for Pi 3/4.");
    }
-
+   #endif
 
    log_line("Ruby: Finding external I2C devices add-ons...");
    printf("Ruby: Finding external I2C devices add-ons...\n");
@@ -1069,11 +1079,14 @@ void _step_load_init_devices()
 
    fflush(stdout);
 
-   printf("Ruby: Finding serial ports...\n");
    log_line("Ruby: Finding serial ports...");
+   printf("Ruby: Finding serial ports...\n");
    fflush(stdout);
 
-   hardware_init_serial_ports();
+   int iCount = hardware_init_serial_ports();
+   log_line("Ruby: Initialized %d serial ports.", iCount);
+   printf("Ruby: Initialized %d serial ports\n", iCount);
+   fflush(stdout);
 }
 
 radio_hw_info_t sRadioInfoPrev[MAX_RADIO_INTERFACES];
@@ -1092,7 +1105,7 @@ void  _step_load_init_radios()
 
    char szComm[256];
    char szBuff[256];
-   char szOutput[2048];
+   char szOutput[4096];
    int iCount = 0;
    bool bWiFiDetected = false;
    int iMaxWifiCardsToDetect = 4;
@@ -1502,7 +1515,9 @@ int main(int argc, char *argv[])
       char szOutput[4096];
       sprintf(szComm, "ls -al %sruby_update* 2>/dev/null", FOLDER_BINARIES);
       hw_execute_bash_command_raw(szComm, szOutput);
-      log_line("Update files: [%s]", szOutput);
+      strcat(szOutput, "***END***");
+      log_line("Update files:");
+      log_line(szOutput);
 
       strcpy(szFile, FOLDER_BINARIES);
       strcat(szFile, "ruby_update_vehicle");
@@ -1538,6 +1553,7 @@ int main(int argc, char *argv[])
          printf("Ruby: Executing post update changes on vehicle. Done.\n");
          log_line("Executing post update changes on vehicle. Done.");
 
+         _check_update_drivers_on_update();
          strcpy(szFile, FOLDER_CONFIG);
          strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
          if ( ! modelVehicle.loadFromFile(szFile, true) )

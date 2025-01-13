@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -68,7 +68,6 @@ VideoRxPacketsBuffer::VideoRxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
       }
    }
    m_uMaxVideoBlockIndexInBuffer = 0;
-   m_bEndOfFirstIFrameDetected = false;
    m_uMaxVideoBlockIndexReceived = 0;
    m_uMaxVideoBlockPacketIndexReceived = 0;
 }
@@ -153,7 +152,6 @@ void VideoRxPacketsBuffer::_empty_block_buffer_packet_index(int iBufferIndex, in
 {
    m_VideoBlocks[iBufferIndex].packets[iPacketIndex].uReceivedTime = 0;
    m_VideoBlocks[iBufferIndex].packets[iPacketIndex].uRequestedTime = 0;
-   m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bEndOfFirstIFrameDetected = m_bEndOfFirstIFrameDetected;
    m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bEmpty = true;
    m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bOutputed = false;
 }
@@ -176,8 +174,6 @@ void VideoRxPacketsBuffer::_empty_block_buffer_index(int iBufferIndex)
 
 void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header* pPH, t_packet_header_video_full_98* pPHVF)
 {
-   m_bEndOfFirstIFrameDetected = false;
-   m_bIsInsideIFrame = false;
    m_bFrameEnded = true;
    m_uFrameEndedTime = 0;
 
@@ -194,7 +190,7 @@ void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header*
       log_line("%s (recv video packet [%u/%u] (retransmitted: %s), frame id: %u, stream id/packet index: %u, radio index: %u)",
          szLog, pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex,
          (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED)?"yes":"no",
-         pPHVF->uFrameId,
+         pPHVF->uH264FrameId,
          (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_INDEX) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
          pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->radio_link_packet_index);
    
@@ -222,7 +218,7 @@ void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header*
             m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uCurrentBlockIndex,
             m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uCurrentBlockPacketIndex,
             (m_VideoBlocks[iBufferIndex].packets[0].pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED)?"yes":"no",
-            m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uFrameId,
+            m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uH264FrameId,
             (m_VideoBlocks[iBufferIndex].packets[0].pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_INDEX) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
             m_VideoBlocks[iBufferIndex].packets[0].pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, m_VideoBlocks[iBufferIndex].packets[0].pPH->radio_link_packet_index );
          
@@ -243,7 +239,7 @@ void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header*
             m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uCurrentBlockIndex,
             m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uCurrentBlockPacketIndex,
             (m_VideoBlocks[iBufferIndex].packets[0].pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED)?"yes":"no",
-            m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uFrameId,
+            m_VideoBlocks[iBufferIndex].packets[0].pPHVF->uH264FrameId,
             (m_VideoBlocks[iBufferIndex].packets[0].pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_INDEX) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
             m_VideoBlocks[iBufferIndex].packets[0].pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, m_VideoBlocks[iBufferIndex].packets[0].pPH->radio_link_packet_index );
       }
@@ -380,7 +376,6 @@ void VideoRxPacketsBuffer::_check_do_ec_for_video_block(int iBufferIndex)
       //log_line("DEBUG recover packet index %d", iPacketIndex);
       m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bEmpty = false;
       m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bOutputed = false;
-      m_VideoBlocks[iBufferIndex].packets[iPacketIndex].bEndOfFirstIFrameDetected = m_bEndOfFirstIFrameDetected;
       m_VideoBlocks[iBufferIndex].packets[iPacketIndex].uReceivedTime = g_TimeNow;
       m_VideoBlocks[iBufferIndex].iRecvDataPackets++;
 
@@ -437,7 +432,6 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
    if ( pPHVF->uCurrentBlockPacketIndex == (iBufferIndex%5) )
    {
       log_line("DEBUG test");
-      m_VideoBlocks[iBufferIndex].packets[iBufferIndex%5].bEndOfFirstIFrameDetected = false;
       m_VideoBlocks[iBufferIndex].packets[iBufferIndex%5].bEmpty = true;
       m_VideoBlocks[iBufferIndex].packets[iBufferIndex%5].bOutputed = false;
       m_VideoBlocks[iBufferIndex].packets[iBufferIndex%5].uReceivedTime = 0;
@@ -467,11 +461,6 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
    //  pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex,
    //  pPH->total_length, iPacketLength, iBufferIndex, pPHVF->uCurrentBlockPacketIndex, m_iBufferIndexFirstReceivedBlock, m_iBufferIndexFirstReceivedPacketIndex);
 
-   m_VideoBlocks[iBufferIndex].packets[pPHVF->uCurrentBlockPacketIndex].bEndOfFirstIFrameDetected = m_bEndOfFirstIFrameDetected;
-   if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME )
-   if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
-      m_bEndOfFirstIFrameDetected = true;
-
    // Begin - Update Runtime Stats
 
    g_SMControllerRTInfo.uSliceUpdateTime[g_SMControllerRTInfo.iCurrentIndex] = g_TimeNow;
@@ -480,16 +469,22 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
    else
       g_SMControllerRTInfo.uRecvVideoECPackets[g_SMControllerRTInfo.iCurrentIndex]++;
 
+   // To fix
+   //if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
+   //   g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b01;
+   //else
+   //   g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b10;
+
+   // To fix
+   /*
    if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME )
    {
       if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
-         g_SMControllerRTInfo.uRecvEndOfFrame[g_SMControllerRTInfo.iCurrentIndex] = 2;
+         g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b0100;
       else
-         g_SMControllerRTInfo.uRecvEndOfFrame[g_SMControllerRTInfo.iCurrentIndex] = 1;
+         g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b1000;
    }
-   else if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
-      g_SMControllerRTInfo.uRecvEndOfFrame[g_SMControllerRTInfo.iCurrentIndex] = 3;
-  
+   */
    // End - Update Runtime Stats
 
    m_VideoBlocks[iBufferIndex].packets[pPHVF->uCurrentBlockPacketIndex].bEmpty = false;
@@ -532,13 +527,8 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
    {
       m_uMaxVideoBlockPacketIndexReceived = pPHVF->uCurrentBlockPacketIndex;
 
-      if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_IFRAME )
-         m_bIsInsideIFrame = true;
-      else
-         m_bIsInsideIFrame = false;
-
       m_bFrameEnded = false;
-      if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_END_FRAME )
+      if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_END_OF_TRANSMISSION_FRAME )
       {
          m_bFrameEnded = true;
          m_uFrameEndedTime = g_TimeNow;
@@ -808,9 +798,4 @@ bool VideoRxPacketsBuffer::isFrameEnded()
 u32 VideoRxPacketsBuffer::getLastFrameEndTime()
 {
    return m_uFrameEndedTime;
-}
-
-bool VideoRxPacketsBuffer::isInsideIFrame()
-{
-   return m_bIsInsideIFrame;
 }

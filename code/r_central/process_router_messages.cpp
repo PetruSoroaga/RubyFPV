@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -1124,7 +1124,8 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          pRuntimeInfo->SMVehicleRxStats[countCards].rxRelativeQuality = statsCompact.rxRelativeQuality;
 
          memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsCount, statsCompact.hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsLostCount, statsCompact.hist_rxPacketsLostCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsLostCountVideo, statsCompact.hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsLostCountData, statsCompact.hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
          memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxGapMiliseconds, statsCompact.hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
          memset(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsBadCount, 0, MAX_HISTORY_RADIO_STATS_RECV_SLICES*sizeof(u8));
          
@@ -1343,6 +1344,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          memcpy(&(g_pCurrentModel->relay_params), pPacketBuffer + sizeof(t_packet_header), sizeof(type_relay_parameters));
          memcpy(&(g_pCurrentModel->radioInterfacesParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters), sizeof(type_radio_interfaces_parameters));
          memcpy(&(g_pCurrentModel->radioLinksParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), sizeof(type_radio_links_parameters));
+         g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
          
          warnings_add(pPH->vehicle_id_src, "Radio configuration has changed on the vehicle. Updating controller radio configuration.", g_idIconRadio);
          hardware_load_radio_info();

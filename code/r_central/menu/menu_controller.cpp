@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -173,6 +173,7 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
 
+   log_line("MenuController: Returned from child id: %d, return value: %d", iChildMenuId, returnValue);
    if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
       m_iMustStartUpdate = 1;
@@ -196,6 +197,7 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
 
    if ( 5 == iChildMenuId/1000 ) // Update failed.
    {
+      log_line("Not waiting for user confirmation anymore");
       m_bWaitingForUserFinishUpdateConfirmation = false;
 
       //log_line("Closed message update. Will reboot now.");
@@ -218,6 +220,7 @@ void MenuController::onReturnFromChild(int iChildMenuId, int returnValue)
       return;
    }
 
+   log_line("Add HDMI changed confirmation dialog.");
    char szFile[128];
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_TEMP_HDMI_CHANGED);
@@ -386,23 +389,39 @@ void MenuController::addMessage(const char* szMessage)
 
 void MenuController::updateSoftware()
 {
-   Popup* p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);
+   Popup* p = new Popup("Updating. Please wait...",0.36,0.4, 0.5, 60);
    popups_add_topmost(p);
 
    ruby_processing_loop(true);
    render_all(g_TimeNow);
    ruby_signal_alive();
 
-   if ( ! hardware_try_mount_usb() )
+   int iMountRes = hardware_try_mount_usb();
+   if ( 1 != iMountRes )
    {
       popups_remove(p);
+      ruby_signal_alive();
       ruby_processing_loop(true);
       render_all(g_TimeNow);
       ruby_signal_alive();
 
-      addMessage("No USB memory stick detected. Please insert a USB stick");
-      return;
+      if ( 0 == iMountRes )
+         addMessage("No USB memory stick detected. Please insert a USB stick.");
+      else
+      {
+         if ( -1 == iMountRes )
+            iMountRes = hardware_try_mount_usb();
+         if ( 1 != iMountRes )
+            addMessage("USB memory stick detected but could not be mounted. Please try again.");
+      }
+      ruby_signal_alive();
+      ruby_processing_loop(true);
+      render_all(g_TimeNow);
+      ruby_signal_alive();
+      if ( 1 != iMountRes )
+         return;
    }
+   ruby_signal_alive();
 
    log_line("Starting controller update procedure.");
 
@@ -411,7 +430,7 @@ void MenuController::updateSoftware()
    ruby_pause_watchdog();
    pairing_stop();
    
-   p = new Popup("Updating. Please wait...",0.3,0.4, 0.5, 15);
+   p = new Popup("Updating. Please wait...",0.36,0.4, 0.5, 60);
    popups_add_topmost(p);
 
    // Execute ruby_update_worker twice as the ruby_update_worker might have been updated itself too
@@ -489,7 +508,8 @@ void MenuController::updateSoftware()
             break;
 
       }
-      while ( (iCounter[iCount] < 100) && (! bFinishedProcess) );
+      while ( (iCounter[iCount] < 500) && (! bFinishedProcess) );
+      
       log_line("Done waiting for update worker process (on counter %d).", iCounter[iCount]);
       iResult[iCount] = -10;
       fd = fopen("tmp/tmp_update_result.txt", "rb");
@@ -517,7 +537,7 @@ void MenuController::updateSoftware()
    render_all(g_TimeNow);
    ruby_signal_alive();
 
-   if ( (iCounter[0] >= 100) || (iCounter[1] >= 100) )
+   if ( (iCounter[0] >= 500) || (iCounter[1] >= 500) )
    {
       m_bWaitingForUserFinishUpdateConfirmation = true;
       MenuConfirmation* pMC = new MenuConfirmation("Update Failed", "Update failed.", 5, true);

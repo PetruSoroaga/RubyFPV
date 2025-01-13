@@ -17,4 +17,5 @@ class MenuControllerRecording: public Menu
       int m_IndexRecordIndicator, m_IndexRecordArm, m_IndexRecordDisarm, m_IndexRecordButton, m_IndexRecordLED;
       int m_IndexVideoDestination;
       int m_iIndexStopOnLinkLost;
+      int m_iIndexStopOnLinkLostTime;
 };

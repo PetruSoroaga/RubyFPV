@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -314,7 +314,8 @@ void send_radio_config_to_controller()
    memcpy(packet + sizeof(t_packet_header), (u8*)&(g_pCurrentModel->relay_params), sizeof(type_relay_parameters));
    memcpy(packet + sizeof(t_packet_header) + sizeof(type_relay_parameters), (u8*)&(g_pCurrentModel->radioInterfacesParams), sizeof(type_radio_interfaces_parameters));
    memcpy(packet + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), (u8*)&(g_pCurrentModel->radioLinksParams), sizeof(type_radio_links_parameters));
-   send_packet_to_radio_interfaces(packet, PH.total_length, -1);
+   //send_packet_to_radio_interfaces(packet, PH.total_length, -1);
+   packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 }
 
 void send_radio_reinitialized_message()
@@ -678,9 +679,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferCommandsReply); 
       else
-      {
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferCommandsReply);
-      }
    } 
    if ( maxToRead - maxPacketsToRead > 6 )
       log_line("Read %d messages from commands msgqueue.", maxToRead - maxPacketsToRead);
@@ -693,27 +692,7 @@ void _read_ipc_pipes(u32 uTimeNow)
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
          packets_queue_add_packet(&s_QueueControlPackets, s_BufferTelemetryDownlink); 
       else
-      {
-         if ( get_video_capture_start_program_time() != 0 )
-         if ( g_TimeNow < get_video_capture_start_program_time() + 2000 )
-         {
-            log_line("Skipped telemetry packet as video capture just started.");
-            continue;
-         }
          packets_queue_add_packet(&g_QueueRadioPacketsOut, s_BufferTelemetryDownlink); 
-         /*
-         if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
-         {
-            if ( pPH->packet_type == PACKET_TYPE_TELEMETRY_ALL )
-            {
-               t_packet_header_fc_telemetry* pH = (t_packet_header_fc_telemetry*)(&s_BufferTelemetryDownlink[0] + sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry));
-               log_line("Received from telemetry pipe: %d pitch", pH->pitch/100-180);
-            }
-            //else
-            //   log_line("Received from telemetry pipe: other packet to download, type: %d, size: %d bytes", pPH->packet_type, pPH->total_length);
-         }
-         */
-      }
    }
    if ( maxToRead - maxPacketsToRead > 6 )
       log_line("Read %d messages from telemetry msgqueue.", maxToRead - maxPacketsToRead);
@@ -773,7 +752,7 @@ void process_and_send_packets()
 
       int iPacketLength = -1;
       u8* pPacketBuffer = packets_queue_pop_packet(&g_QueueRadioPacketsOut, &iPacketLength);
-      if ( NULL == pPacketBuffer || -1 == iPacketLength )
+      if ( (NULL == pPacketBuffer) || (-1 == iPacketLength) )
          break;
 
       if ( NULL != g_pProcessStats )
@@ -923,9 +902,14 @@ void cleanUp()
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) )
       vehicle_stop_audio_capture(g_pCurrentModel);
 
-   video_source_csi_close();
-   video_source_majestic_close();
-
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      video_source_majestic_close();
+      video_source_majestic_cleanup();
+   }
+   else
+      video_source_csi_close();
+   
    ruby_close_ipc_channel(s_fIPCRouterToCommands);
    ruby_close_ipc_channel(s_fIPCRouterFromCommands);
    ruby_close_ipc_channel(s_fIPCRouterToTelemetry);
@@ -1296,7 +1280,7 @@ int main(int argc, char *argv[])
       }
 
       if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      if ( video_source_majestic_open(5600) <= 0 )
+      if ( video_source_majestic_open(MAJESTIC_UDP_PORT) <= 0 )
       {
          cleanUp();
          return -1;
@@ -1694,8 +1678,7 @@ void _main_loop()
    {
       int iReadSize = 0;
       u8* pVideoData = NULL;
-      bool bIsInsideIFrame = false;
-      bool bEndOfFrame = false;
+      bool bIsEndOfFrame = false;
 
       // Clear up video pipes on start
       if ( g_TimeNow < g_TimeStart + 2000 )
@@ -1703,7 +1686,7 @@ void _main_loop()
          for( int i=0; i<50; i++ )
          {
             if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-               pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
+               pVideoData = video_source_csi_read(&iReadSize);
             if ( g_pCurrentModel->isActiveCameraOpenIPC() )
                pVideoData = video_source_majestic_read(&iReadSize, true);
          }
@@ -1719,22 +1702,22 @@ void _main_loop()
             iMaxRepeatCount--;
             iReadSize = 0;
             pVideoData = NULL;
-            bIsInsideIFrame = false;
-            bEndOfFrame = false;
 
             if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
             {
-               pVideoData = video_source_csi_read(&iReadSize, &bIsInsideIFrame);
+               pVideoData = video_source_csi_read(&iReadSize);
                if ( iReadSize > 0 )
                {
                   int iBuffSize = video_source_csi_get_buffer_size();
-                  bEndOfFrame = (iReadSize < iBuffSize)?true:false;
-                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
-                  if ( iReadSize < iBuffSize )
+                  bIsEndOfFrame = (iReadSize < iBuffSize)?true:false;
+                  // Concatenate SPS,PSP units to the next I/P unit
+                  if ( iReadSize < 50 )
+                     bIsEndOfFrame = false;
+
+                  g_pVideoTxBuffers->fillVideoPacketsFromCSI(pVideoData, iReadSize, bIsEndOfFrame);
+                  if ( bIsEndOfFrame )
                      iMaxRepeatCount = 0;
                }
-               else
-                  iMaxRepeatCount = 0;
             }
             
             if ( g_pCurrentModel->isActiveCameraOpenIPC() )
@@ -1744,15 +1727,23 @@ void _main_loop()
                {
                   bool bSingle = video_source_majestic_last_read_is_single_nal();
                   bool bEnd = video_source_majestic_last_read_is_end_nal();
-                  bIsInsideIFrame = video_source_majestic_is_inside_iframe();
-                  bEndOfFrame = (bSingle || bEnd);
-                  g_pVideoTxBuffers->fillVideoPackets(pVideoData, iReadSize, bEndOfFrame, bIsInsideIFrame);
+                  u32 uNALType = video_source_majestic_get_last_nal_type();
+                  g_pVideoTxBuffers->fillVideoPacketsFromRTSPPacket(pVideoData, iReadSize, bSingle, bEnd, uNALType);
+               
+                  if ( (uNALType != 7) && (uNALType != 8) )
+                  if ( bEnd || bSingle )
+                  {
+                     bIsEndOfFrame = true;
+                     iMaxRepeatCount = 0;
+                  }
                }
-               else
-                  iMaxRepeatCount = 0;
             }
 
-            adaptive_video_on_new_camera_read(bEndOfFrame, bIsInsideIFrame);
+            if ( iReadSize <= 0 )
+               iMaxRepeatCount = 0;
+
+            if ( (pVideoData != NULL) && (iReadSize > 0) )
+               adaptive_video_on_new_camera_read(bIsEndOfFrame);
 
             // Send telemetry/commands/etc before video data
             if ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
@@ -1762,9 +1753,14 @@ void _main_loop()
             // Intermix video packets and try again to see if we got any new high priority packets
             while ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
             {
+               // To remove
+               u32 uDebugTime = get_current_timestamp_ms();
                int iPending = g_pVideoTxBuffers->hasPendingPacketsToSend();
                int iCountSent = g_pVideoTxBuffers->sendAvailablePackets(10);
                g_TimeNow = get_current_timestamp_ms();
+
+               //log_line("DEBUG sent %d packets (%d pending) in %d ms", iCountSent, iPending, g_TimeNow - uDebugTime);
+
                int iCount2 = 0;
                while ( (iCount2 < 3) && (!g_bQuit) )
                {
@@ -1864,11 +1860,16 @@ void _main_loop()
    _read_ipc_pipes(g_TimeNow);
    _consume_ipc_messages();
 
-   // Send radio packets rightaway if there is no camera (video feed)
+   // Send radio packets right away if there is no camera (video feed) or it is configuring now
    bool bNoVideoData = false;
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-   if ( ! video_source_csi_read_any_data() )
-       bNoVideoData = true;
+   {
+      if ( ! video_source_csi_read_any_data() )
+          bNoVideoData = true;
+   }
+   else if ( video_source_majestic_is_restarting() )
+      bNoVideoData = true;
+
    if ( (! g_pCurrentModel->hasCamera()) || bNoVideoData )
    if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
       process_and_send_packets();
@@ -1892,7 +1893,17 @@ void _main_loop()
       if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
          video_source_csi_periodic_checks();
       if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         video_source_majestic_periodic_checks();
+      {
+         if ( video_source_majestic_periodic_checks() )
+         {
+            log_line("Router is marked for restart. Quit it.");
+            if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
+               process_and_send_packets();
+            log_line("Done sending pending radio packets. Quit now.");
+            g_bQuit = true;
+            return;
+         }
+      }
    }
 
    _check_rx_loop_consistency();

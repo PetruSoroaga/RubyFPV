@@ -9,7 +9,7 @@
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 #define MAX_RX_PACKETS_QUEUE 700
 #else
-#define MAX_RX_PACKETS_QUEUE 400
+#define MAX_RX_PACKETS_QUEUE 100
 #endif
 typedef struct
 {
@@ -71,6 +71,7 @@ typedef struct
 extern "C" {
 #endif
 
+void * _thread_radio_rx(void *argument);
 int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_radio_stats_interfaces_rx_graph* pSMRadioRxGraphs, int iSearchMode, u32 uAcceptedFirmwareType);
 void radio_rx_stop_rx_thread();
 

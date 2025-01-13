@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -451,7 +451,8 @@ void radio_set_frames_flags(u32 frameFlags)
       char szBuff2[128];
       str_get_radio_frame_flags_description(frameFlags, szBuff);
       str_get_radio_frame_flags_description(sRadioFrameFlags, szBuff2);
-      log_line("Radio: Set radio frames flags to 0x%04X: %s (previous was: %s, %u packets sent on it)", frameFlags, szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioFlags);
+      log_line("Radio: Set radio frames flags to 0x%04X: %s (previous was: %s, %u packets sent on it)",
+         frameFlags, szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioFlags);
       if ( s_iLogCount_RadioFlags == 9 )
          log_line("Radio: Too many radio flags changes, pausing log.");
       s_iLogCount_RadioFlags++;
@@ -465,7 +466,7 @@ void radio_set_frames_flags(u32 frameFlags)
 
    sRadioFrameFlags = frameFlagsFiltered;
 
-   if ( (sRadioFrameFlags & RADIO_FLAGS_MCS_MASK) || (sRadioDataRate_bps < 0) )
+   if ( sRadioFrameFlags & RADIO_FLAGS_USE_MCS_DATARATES )
    {
       u8 mcs_flags = 0;
       u8 mcs_known = (IEEE80211_RADIOTAP_MCS_HAVE_MCS | IEEE80211_RADIOTAP_MCS_HAVE_BW | IEEE80211_RADIOTAP_MCS_HAVE_GI | IEEE80211_RADIOTAP_MCS_HAVE_STBC);
@@ -564,7 +565,10 @@ int _radio_open_interface_for_read_with_filter(int interfaceIndex, char* szFilte
       log_softerror_and_alarm("Unable to open [%s]: %s", pRadioHWInfo->szName, szErrbuf);
       return -1;
    }
-   int iLen = 4096;
+
+   log_line("pcap snapshot length: %d bytes", pcap_snapshot(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
+   //int iLen = 4096;
+   int iLen = MAX_PACKET_TOTAL_SIZE*10;
    if ( pcap_set_snaplen(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, iLen) !=0 )
       log_softerror_and_alarm("Error setting [%s] snap buffer length: %s", pRadioHWInfo->szName, pcap_geterr(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
    else
@@ -586,6 +590,8 @@ int _radio_open_interface_for_read_with_filter(int interfaceIndex, char* szFilte
         
    //if ( pcap_setdirection(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, PCAP_D_IN) < 0 )
    //   log_softerror_and_alarm("Error setting [%s] direction", pRadioHWInfo->szName);
+
+   log_line("pcap snapshot length: %d bytes", pcap_snapshot(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap));
 
    int nLinkEncap = pcap_datalink(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap);
 
@@ -928,7 +934,6 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    pRadioPayload = (u8*) pcap_next(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, ppcapPacketHeader); 
    if ( NULL == pRadioPayload )
       return NULL;
-   //memcpy(sPayloadBufferRead, pRadioPayload, ppcapPacketHeader->caplen);
    #ifdef DEBUG_PACKET_RECEIVED
    log_line("RX Buffer: caplen: %d bytes, len: %d", ppcapPacketHeader->caplen, ppcapPacketHeader->len);
    #endif
@@ -1111,7 +1116,9 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
    }
    #endif
 
-   return pRadioPayload;
+   //return pRadioPayload;
+   memcpy(sPayloadBufferRead, pRadioPayload, payloadLength);
+   return sPayloadBufferRead;
 }
 
 // returns 0 for failure, total length of packet for success
@@ -1132,20 +1139,7 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
    }
 
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pPacketBuffer;
-
-   if ( iBufferLength < (int)sizeof(t_packet_header_compressed) )
-   {
-      s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_PACKET_RECEIVED_TOO_SMALL;
-
-      #ifdef DEBUG_PACKET_RECEIVED
-      printf("Received packet to small: packet length: %d bytes, header minimum: %d\n", iBufferLength, (int)sizeof(t_packet_header_compressed));
-      log_line("Received packet to small: packet length: %d bytes, header minimum: %d", iBufferLength, (int)sizeof(t_packet_header_compressed));
-      #endif
-      return 0;
-   }
-
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
+   
    if ( iBufferLength < (int)sizeof(t_packet_header) )
    {
       s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_PACKET_RECEIVED_TOO_SMALL;
@@ -1157,81 +1151,50 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
       return 0;
    }
 
-   int packetLength = 0;
-   u8 uPacketFlags = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      packetLength = pPHC->total_length;
-      uPacketFlags = pPHC->packet_flags;
-      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
-      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
-   }
-   else
-   {
-      packetLength = pPH->total_length;
-      uPacketFlags = pPH->packet_flags;
-   }
 
-   if ( packetLength > iBufferLength )
+   int iPacketLength = pPH->total_length;
+   u8 uPacketFlags = pPH->packet_flags;
+
+   if ( iPacketLength > iBufferLength )
    {
       s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_PACKET_RECEIVED_TOO_SMALL;
 
       #ifdef DEBUG_PACKET_RECEIVED
-      printf("Received packet to small: packet length: %d bytes, buffer length is: %d\n", packetLength, iBufferLength);
-      log_line("Received packet to small: packet length: %d bytes, buffer length is: %d", packetLength, iBufferLength);
+      printf("Received packet to small: packet length: %d bytes, buffer length is: %d\n", iPacketLength, iBufferLength);
+      log_line("Received packet to small: packet length: %d bytes, buffer length is: %d", iPacketLength, iBufferLength);
       #endif
       return 0;
    }
 
    if ( uPacketFlags & PACKET_FLAGS_BIT_HAS_ENCRYPTION )
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    {
       #ifdef DEBUG_PACKET_RECEIVED
       log_line("enc detected");
       #endif
       int dx = sizeof(t_packet_header) - sizeof(u32) - sizeof(u32);
-      int l = packetLength-dx;
+      int l = iPacketLength-dx;
       dpp(pPacketBuffer + dx, l);
    }
 
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      u8 uCRC = base_compute_crc8(pPacketBuffer+sizeof(u8), pPHC->total_length-sizeof(u8));
-
-      if ( uCRC != pPHC->uCRC )
-      {
-         s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
-         #ifdef DEBUG_PACKET_RECEIVED
-         log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPHC->uCRC, (pPHC->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, packetLength);
-         if ( packetLength <= 48 )
-            log_buffer(pPacketBuffer, packetLength);
-         #endif
-         if ( NULL != pbCRCOk )
-            *pbCRCOk = 0;
-         return 0;
-      }
-   }
+   u32 uCRC = 0;
+   if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
+      uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), sizeof(t_packet_header)-sizeof(u32));
    else
-   {
-      u32 uCRC = 0;
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-         uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), sizeof(t_packet_header)-sizeof(u32));
-      else
-         uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), pPH->total_length-sizeof(u32));
+      uCRC = base_compute_crc32(pPacketBuffer+sizeof(u32), pPH->total_length-sizeof(u32));
 
-      if ( (uCRC & 0x00FFFFFF) != (pPH->uCRC & 0x00FFFFFF) )
-      {
-         s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
-         #ifdef DEBUG_PACKET_RECEIVED
-         log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPH->uCRC, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, packetLength);
-         if ( packetLength <= 48 )
-            log_buffer(pPacketBuffer, packetLength);
-         #endif
-         if ( NULL != pbCRCOk )
-            *pbCRCOk = 0;
-         return 0;
-      }
+   if ( (uCRC & 0x00FFFFFF) != (pPH->uCRC & 0x00FFFFFF) )
+   {
+      s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED;
+      #ifdef DEBUG_PACKET_RECEIVED
+      log_line("Received packet bad headers, CRC headers: %u, computed CRC(%s): %u, packet length: %d bytes", pPH->uCRC, (pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC)?"headers only":"full", uCRC, iPacketLength);
+      if ( packetLength <= 48 )
+         log_buffer(pPacketBuffer, iPacketLength);
+      #endif
+      if ( NULL != pbCRCOk )
+         *pbCRCOk = 0;
+      return 0;
    }
+
    if ( NULL != pbCRCOk )
       *pbCRCOk = 1;
 
@@ -1241,7 +1204,7 @@ int packet_process_and_check(int interfaceNb, u8* pPacketBuffer, int iBufferLeng
    //#endif
 
    s_iLastProcessingErrorCode = RADIO_PROCESSING_ERROR_NO_ERROR;
-   return packetLength;     
+   return iPacketLength;     
 }
 
 int get_last_processing_error_code()
@@ -1270,7 +1233,7 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    s_uIEEEHeaderData[23] = (uIEEEE80211SeqNb >> 8) & 0xff;
    uIEEEE80211SeqNb += 16;
    
-   if ( (sRadioFrameFlags & RADIO_FLAGS_MCS_MASK) || (sRadioDataRate_bps < 0) )
+   if ( sRadioFrameFlags & RADIO_FLAGS_USE_MCS_DATARATES )
    {
       memcpy(pRawPacket, s_uRadiotapHeaderMCS, sizeof(s_uRadiotapHeaderMCS));
       pRawPacket += sizeof(s_uRadiotapHeaderMCS);
@@ -1341,35 +1304,22 @@ int radio_build_new_raw_packet(int iLocalRadioLinkId, u8* pRawPacket, u8* pPacke
    {
       nPCount++;
       t_packet_header* pPH = (t_packet_header*)pData;
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-      int nPacketLength = 0;
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      {
-         nPacketLength = pPHC->total_length;
-         if ( bEncrypt )
-            pPHC->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
+      int nPacketLength = pPH->total_length;
+      pPH->radio_link_packet_index = uRadioLinkPacketIndex;
+      if ( bEncrypt )
+         pPH->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
 
-         radio_packet_compressed_compute_crc(pData, nPacketLength);
-      }
+      if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
+         radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
       else
+         radio_packet_compute_crc((u8*)pPH, pPH->total_length);
+
+      if ( bEncrypt )
       {
-         nPacketLength = pPH->total_length;
-         pPH->radio_link_packet_index = uRadioLinkPacketIndex;
-         if ( bEncrypt )
-            pPH->packet_flags |= PACKET_FLAGS_BIT_HAS_ENCRYPTION;
-
-         if ( pPH->packet_flags & PACKET_FLAGS_BIT_HEADERS_ONLY_CRC )
-            radio_packet_compute_crc((u8*)pPH, sizeof(t_packet_header));
-         else
-            radio_packet_compute_crc((u8*)pPH, pPH->total_length);
-
-         if ( bEncrypt )
-         {
-            int dx = sizeof(t_packet_header) - sizeof(u32) - sizeof(u32);
-            epp(pData+dx, pPH->total_length-dx);
-         }
+         int dx = sizeof(t_packet_header) - sizeof(u32) - sizeof(u32);
+         epp(pData+dx, pPH->total_length-dx);
       }
-       
+    
 
       #ifdef DEBUG_PACKET_SENT
       // Add compressed header support:
@@ -1404,13 +1354,64 @@ int radio_write_raw_packet(int interfaceIndex, u8* pData, int dataLength)
    if ( s_bRadioDebugFlag )
    {
       t_packet_header* pPH = (t_packet_header*)&s_uLastPacketBuilt[0];
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
       if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
       {
          s_uLastRadioPingSentTime = get_current_timestamp_ms();
          s_uLastRadioPingId = s_uLastPacketBuilt[sizeof(t_packet_header)];
       }
    }
+
+   // To remove
+   static u32 s_uDebugLastStreamPacketIndexes[8];
+   static u32 s_uDebugLastRadioPacketIndexes[8];
+   
+   t_packet_header* pPH = NULL;
+   if ( pData[2] == 0x0C )
+     pPH = (t_packet_header*)(pData + sizeof(s_uRadiotapHeaderLegacy) + sizeof(s_uIEEEHeaderData));
+   else if ( pData[2] == 0x0D )
+     pPH = (t_packet_header*)(pData + sizeof(s_uRadiotapHeaderMCS) + sizeof(s_uIEEEHeaderData));
+   else
+     pPH = NULL;
+/*
+   if ( NULL == pPH )
+      log_line("DEBUG2 Invalid row packet, unknown IEEE header");
+   else
+   {
+      if ( 0 != s_uDebugLastRadioPacketIndexes[interfaceIndex] )
+      if ( pPH->radio_link_packet_index != (s_uDebugLastRadioPacketIndexes[interfaceIndex]+1) )
+      {
+         log_line("DEBUG invalid radio packet index: %u, last: %u, stream id %d, stream packet index: %u, last stream packet index: %u, length: %d bytes",
+            pPH->radio_link_packet_index, s_uDebugLastRadioPacketIndexes[interfaceIndex],
+            pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
+            (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), (s_uDebugLastStreamPacketIndexes[pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX),
+            pPH->total_length);
+      }
+
+      if ( 0 != s_uDebugLastStreamPacketIndexes[pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX] )
+      if ( (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) != 1+(s_uDebugLastStreamPacketIndexes[pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX) )
+      {
+         log_line("DEBUG invalid stream packet index: %u, last: %u, stream id %d, radio packet index: %u, last radio packet index: %u, type: %s, length: %d bytes",
+            (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX), (s_uDebugLastStreamPacketIndexes[pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX] & PACKET_FLAGS_MASK_STREAM_PACKET_IDX),
+            pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
+            pPH->radio_link_packet_index, s_uDebugLastRadioPacketIndexes[interfaceIndex],
+            str_get_packet_type(pPH->packet_type),
+            pPH->total_length);
+      }
+      s_uDebugLastRadioPacketIndexes[interfaceIndex] = pPH->radio_link_packet_index;
+      s_uDebugLastStreamPacketIndexes[pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX] = pPH->stream_packet_idx;
+      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_VIDEO )
+      {
+         u32 uCRC = base_compute_crc32(((u8*)pPH)+sizeof(u32), pPH->total_length-sizeof(u32));
+         log_line("DEBUG1 sent radio packet index: %u, stream packet index: %u, stream %d, type: %s len: %d bytes, crc: %u / %u",
+            pPH->radio_link_packet_index, (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX),
+            pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
+            str_get_packet_type(pPH->packet_type),
+            pPH->total_length,
+            pPH->uCRC, uCRC);
+      }
+   }
+   */
+   // End to remove
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )

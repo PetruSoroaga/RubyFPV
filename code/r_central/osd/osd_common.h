@@ -59,6 +59,8 @@ float osd_getBarHeight();
 float osd_getSecondBarHeight();
 float osd_getVerticalBarWidth();
 
+float osd_getSetScreenScale(int iOSDScreenSize);
+
 float osd_getFontHeight();
 float osd_getFontHeightBig();
 float osd_getFontHeightSmall();

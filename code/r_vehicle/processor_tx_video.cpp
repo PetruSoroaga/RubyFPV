@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -1348,6 +1348,9 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       _process_command_resend_packets(pPacketBuffer, pPH->packet_type );
 */
 
+   if ( ! g_bReceivedPairingRequest )
+      return false;
+
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
 
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS )
@@ -1413,6 +1416,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
 */
       return true;
    } 
+
    return true;
 }
 

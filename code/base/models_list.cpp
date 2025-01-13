@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -392,6 +392,32 @@ Model* findModelWithId(u32 uVehicleId, u32 uSrcId)
    return NULL;
 }
 
+bool modelIsInControllerList(u32 uVehicleId)
+{
+   if ( ! s_bLoadedAllModels )
+   {
+      log_line("Models not loaded. Loading models first.");
+      loadAllModels();
+   }
+   for( int i=0; i<s_iModelsCount; i++ )
+      if ( s_pModels[i]->uVehicleId == uVehicleId )
+         return true;
+   return false;
+}
+
+bool modelIsInSpectatorList(u32 uVehicleId)
+{
+   if ( ! s_bLoadedAllModels )
+   {
+      log_line("Models not loaded. Loading models first.");
+      loadAllModels();
+   }
+   for( int i=0; i<s_iModelsSpectatorCount; i++ )
+      if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
+         return true;
+   return false;
+}
+
 bool controllerHasModelWithId(u32 uVehicleId)
 {
    if ( ! s_bLoadedAllModels )
@@ -400,14 +426,10 @@ bool controllerHasModelWithId(u32 uVehicleId)
       loadAllModels();
    }
 
-   for( int i=0; i<s_iModelsCount; i++ )
-      if ( s_pModels[i]->uVehicleId == uVehicleId )
-         return true;
-
-   for( int i=0; i<s_iModelsSpectatorCount; i++ )
-      if ( s_pModelsSpectator[i]->uVehicleId == uVehicleId )
-         return true;
-
+   if ( modelIsInControllerList(uVehicleId) )
+      return true;
+   if ( modelIsInSpectatorList(uVehicleId) )
+      return true;
    return false;
 }
 
@@ -443,7 +465,7 @@ Model* deleteModel(Model* pModel)
       if ( s_pModels[pos]->uVehicleId != pModel->uVehicleId )
          continue;
 
-      log_line("Deleting controller model index %d: VID %u, ptr: %X", pos+1, pModel->uVehicleId, pModel);
+      log_line("Deleting controller model index %d: VID %u, ptr: %X", pos, pModel->uVehicleId, pModel);
       
       if ( (NULL != s_pCurrentModel) && (s_pModels[pos]->uVehicleId == s_pCurrentModel->uVehicleId) )
       {
@@ -466,9 +488,11 @@ Model* deleteModel(Model* pModel)
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_CONTROLL);
       sprintf(szFile, szFolderM, s_iModelsCount);
+      log_line("Remove model file: (%s)", szFile);
       unlink(szFile);
       szFile[strlen(szFile)-3] = 0;
       strcat(szFile, "bak");
+      log_line("Remove model file: (%s)", szFile);
       unlink(szFile);
       
       log_line("Saving %d controller models.", s_iModelsCount);
@@ -492,7 +516,7 @@ Model* deleteModel(Model* pModel)
       if ( s_pModelsSpectator[pos]->uVehicleId != pModel->uVehicleId )
          continue;
 
-      log_line("Deleting spectator model index %d: VID %u, ptr: %X", pos+1, pModel->uVehicleId, pModel);
+      log_line("Deleting spectator model index %d: VID %u, ptr: %X", pos, pModel->uVehicleId, pModel);
       
       if ( (NULL != s_pCurrentModel) && (s_pModelsSpectator[pos]->uVehicleId == s_pCurrentModel->uVehicleId) )
       {
@@ -515,9 +539,11 @@ Model* deleteModel(Model* pModel)
       strcpy(szFolderM, FOLDER_CONFIG_MODELS);
       strcat(szFolderM, FILE_VEHICLE_SPECTATOR);
       sprintf(szFile, szFolderM, s_iModelsSpectatorCount);
+      log_line("Remove model file: (%s)", szFile);
       unlink(szFile);
       szFile[strlen(szFile)-3] = 0;
       strcat(szFile, "bak");
+      log_line("Remove model file: (%s)", szFile);
       unlink(szFile);
       
       log_line("Saving %d spectator models.", s_iModelsSpectatorCount);
@@ -547,7 +573,7 @@ void saveControllerModel(Model* pModel)
       if ( s_pModels[i]->uVehicleId == pModel->uVehicleId )
       if ( s_pModels[i]->is_spectator == pModel->is_spectator )
       {
-         log_line("Found matching vehicle in controller's list while saving a model. Save it in controller's models list too.");
+         log_line("Found matching vehicle in controller's list while saving the model VID %u (mode: %s). Save it in controller's models list too.", pModel->uVehicleId, pModel->is_spectator?"spectator mode":"control mode");
          char szFile[MAX_FILE_PATH_SIZE];
          char szFolderM[MAX_FILE_PATH_SIZE];
          strcpy(szFolderM, FOLDER_CONFIG_MODELS);
@@ -622,8 +648,8 @@ void logControllerModels()
       if ( NULL == s_pModels[i] )
          log_error_and_alarm("Controller model %d: is NULL.", i+1);
       else
-         log_line("Controller model %d: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-            i+1, s_pModels[i]->uVehicleId, s_pModels[i], s_pModels[i]->is_spectator?"yes":"no", s_pModels[i]->b_mustSyncFromVehicle?"yes":"no");
+         log_line("Controller model %d: VID %u, ptr: %X, mode: %s, must sync: %s",
+            i+1, s_pModels[i]->uVehicleId, s_pModels[i], s_pModels[i]->is_spectator?"spectator mode":"control mode", s_pModels[i]->b_mustSyncFromVehicle?"yes":"no");
    }
 
    for( int i=0; i<s_iModelsSpectatorCount; i++ )
@@ -631,11 +657,11 @@ void logControllerModels()
       if ( NULL == s_pModels[i] )
          log_error_and_alarm("Spectator model %d: is NULL.", i+1);
       else
-         log_line("Spectator model %d: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-         i+1, s_pModelsSpectator[i]->uVehicleId, s_pModelsSpectator[i], s_pModelsSpectator[i]->is_spectator?"yes":"no", s_pModelsSpectator[i]->b_mustSyncFromVehicle?"yes":"no");
+         log_line("Spectator model %d: VID %u, ptr: %X, mode: %s, must sync: %s",
+         i+1, s_pModelsSpectator[i]->uVehicleId, s_pModelsSpectator[i], s_pModelsSpectator[i]->is_spectator?"spectator mode":"control mode", s_pModelsSpectator[i]->b_mustSyncFromVehicle?"yes":"no");
    }
    
    if ( NULL != s_pCurrentModel )
-      log_line("Current model: VID %u, ptr: %X, is spectator: %s, must sync: %s",
-         s_pCurrentModel->uVehicleId, s_pCurrentModel, s_pCurrentModel->is_spectator?"yes":"no", s_pCurrentModel->b_mustSyncFromVehicle?"yes":"no");
+      log_line("Current model: VID %u, ptr: %X, mode: %s, must sync: %s",
+         s_pCurrentModel->uVehicleId, s_pCurrentModel, s_pCurrentModel->is_spectator?"spectator mode":"control mode", s_pCurrentModel->b_mustSyncFromVehicle?"yes":"no");
 }

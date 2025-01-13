@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -39,7 +39,7 @@
 #include <time.h>
 #include <sys/resource.h>
 
-#define MAX_PACKET_LENGTH_PCAP 2048
+#define MAX_PACKET_LENGTH_PCAP 4096
 
 #define RADIO_PROCESSING_ERROR_NO_ERROR 0x00
 #define RADIO_PROCESSING_ERROR_CODE_INVALID_CRC_RECEIVED 0x01

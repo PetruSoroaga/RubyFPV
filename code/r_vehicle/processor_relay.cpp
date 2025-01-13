@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -78,13 +78,7 @@ void relay_init_and_set_rx_info_stats(type_uplink_rx_info_stats* pUplinkStats)
 void relay_process_received_single_radio_packet_from_controller_to_relayed_vehicle(int iRadioInterfaceIndex, u8* pBufferData, int iBufferLength)
 {
    t_packet_header* pPH = (t_packet_header*)pBufferData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
         
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   if ( pPHC->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
-      s_uLastLocalRadioLinkUsedForPingToRelayedVehicle = (u8) g_pCurrentModel->radioInterfacesParams.interface_link_id[iRadioInterfaceIndex];
-
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_FLAGS_MASK_COMPRESSED_HEADER )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK )
       s_uLastLocalRadioLinkUsedForPingToRelayedVehicle = (u8) g_pCurrentModel->radioInterfacesParams.interface_link_id[iRadioInterfaceIndex];
 
@@ -104,27 +98,11 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
       return;
 
    t_packet_header* pPH = (t_packet_header*)pBufferData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
-   u32 uVehicleIdSrc = 0;
-   int iTotalLength = 0;
-   u8 uPacketType = 0;
-   u8 uPacketFlags = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uVehicleIdSrc = pPHC->vehicle_id_src;
-      iTotalLength = pPHC->total_length;
-      uPacketType = pPHC->packet_type;
-      uPacketFlags = pPHC->packet_flags;
-      uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
-      uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
-   }
-   else
-   {
-      uVehicleIdSrc = pPH->vehicle_id_src;
-      iTotalLength = pPH->total_length;
-      uPacketType = pPH->packet_type;
-      uPacketFlags = pPH->packet_flags;
-   }
+   u32 uVehicleIdSrc = pPH->vehicle_id_src;
+   int iTotalLength = pPH->total_length;
+   u8 uPacketType = pPH->packet_type;
+   u8 uPacketFlags = pPH->packet_flags;
+   
    if ( (uVehicleIdSrc == 0) || (uVehicleIdSrc == MAX_U32) ||
         (g_pCurrentModel->relay_params.uRelayedVehicleId == 0 ) ||
         (g_pCurrentModel->relay_params.uRelayedVehicleId == MAX_U32) ||
@@ -170,24 +148,10 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
    while ( nRemainingLength > 0 )
    {
       pPH = (t_packet_header*)pData;
-      pPHC = (t_packet_header_compressed*)pData;
-
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      {
-         uVehicleIdSrc = pPHC->vehicle_id_src;
-         iTotalLength = pPHC->total_length;
-         uPacketType = pPHC->packet_type;
-         uPacketFlags = pPHC->packet_flags;
-         uPacketFlags &= ~(PACKET_FLAGS_MASK_MODULE);
-         uPacketFlags |= pPHC->uExtraBits & PACKET_FLAGS_MASK_MODULE;
-      }
-      else
-      {
-         uVehicleIdSrc = pPH->vehicle_id_src;
-         iTotalLength = pPH->total_length;
-         uPacketType = pPH->packet_type;
-         uPacketFlags = pPH->packet_flags;
-      }
+      uVehicleIdSrc = pPH->vehicle_id_src;
+      iTotalLength = pPH->total_length;
+      uPacketType = pPH->packet_type;
+      uPacketFlags = pPH->packet_flags;
       int bCRCOk = 0;
       int iPacketLength = packet_process_and_check(iRadioInterfaceIndex, pData, nRemainingLength, &bCRCOk);
 
@@ -399,6 +363,7 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
    int iRemainingLength = iBufferLength;
    u32 uCountChainedPackets = 0;
    int iPacketLength = 0;
+   u8 uPacketType = 0;
    u32 uStreamId = 0;
    u32 uSourceVehicleId = 0;
    bool bContainsPairConfirmation = false;
@@ -406,22 +371,11 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
    while ( iRemainingLength > 0 )
    {
       t_packet_header* pPH = (t_packet_header*)pData;
-      t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pData;
-      u8 uPacketType = 0;
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-      {
-         iPacketLength = pPHC->total_length;
-         uPacketType = pPHC->packet_type;
-         uSourceVehicleId = pPHC->vehicle_id_src;
-         uStreamId = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      }
-      else
-      {
-         iPacketLength = pPH->total_length;
-         uPacketType = pPH->packet_type;
-         uSourceVehicleId = pPH->vehicle_id_src;
-         uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-      }
+      iPacketLength = pPH->total_length;
+      uPacketType = pPH->packet_type;
+      uSourceVehicleId = pPH->vehicle_id_src;
+      uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+      
       if ( uPacketType == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
          bContainsPairConfirmation = true;
 
@@ -518,21 +472,10 @@ void relay_send_single_packet_to_relayed_vehicle(u8* pBufferData, int iBufferLen
       return;
    }
    t_packet_header* pPH = (t_packet_header*)pBufferData;
-   t_packet_header_compressed* pPHC = (t_packet_header_compressed*)pBufferData;
-
-   u32 uRelayedVehicleId = 0;
-   u32 uStreamId = 0;
-   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_FLAGS_MASK_COMPRESSED_HEADER )
-   {
-      uRelayedVehicleId = pPHC->vehicle_id_dest;
-      uStreamId = (pPHC->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-   }
-   else
-   {
-      uRelayedVehicleId = pPH->vehicle_id_dest;
-      uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
-   }
-
+   
+   u32 uRelayedVehicleId = pPH->vehicle_id_dest;
+   u32 uStreamId = (pPH->stream_packet_idx)>>PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
+   
    if ( (uStreamId < 0) || (uStreamId >= MAX_RADIO_STREAMS) )
       uStreamId = 0;
 

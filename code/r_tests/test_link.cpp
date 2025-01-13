@@ -423,7 +423,7 @@ int main(int argc, char *argv[])
    else
       radio_set_out_datarate(g_iDatarate);
 
-   radio_set_frames_flags(RADIO_FLAGS_FRAME_TYPE_DATA);
+   radio_set_frames_flags(RADIO_FLAGS_USE_LEGACY_DATARATES | RADIO_FLAGS_FRAME_TYPE_DATA);
     
    while ( ! g_bQuit )
    {

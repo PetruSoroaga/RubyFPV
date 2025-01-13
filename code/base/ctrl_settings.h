@@ -13,6 +13,8 @@ typedef struct
    int iUseBrokenVideoCRC;
    int iFixedTxPower;
    int iHDMIBoost;
+   int iCoresAdjustment;
+   int iPrioritiesAdjustment;
    int iOverVoltage; // 0 - disabled
    int iFreqARM; // 0 - disabled
    int iFreqGPU; // 0 - disabled

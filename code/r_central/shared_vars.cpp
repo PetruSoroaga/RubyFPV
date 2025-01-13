@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -46,7 +46,7 @@ u32 g_uVideoRecordStartTime = 0;
 bool g_bVideoRecordingStarted = false;
 bool g_bVideoProcessing = false;
 bool g_bVideoPlaying = false;
-u32 g_uVideoPlayingStartTime = 0;
+u32 g_uVideoPlayingTimeMs = 0;
 u32 g_uVideoPlayingLengthSec = 0;
 
 int g_ControllerCPUSpeed = 0;

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -44,7 +44,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <string.h>
-
+#include <pthread.h>
 
 static int s_iScreenshotsCountOnDisk = 0;
 static int s_iVideoCountOnDisk = 0;
@@ -207,6 +207,8 @@ char* media_get_screenshot_filename()
    return s_szMediaCurrentScreenshotFileName;
 }
 
+
+
 char* media_get_video_filename()
 {
    char vehicle_name[MAX_VEHICLE_NAME_LENGTH+1];
@@ -223,13 +225,46 @@ char* media_get_video_filename()
    return s_szMediaCurrentVideoFileInfo;
 }
 
+static char s_szMediaScreenShotFilename[MAX_FILE_PATH_SIZE];
+static bool s_bMediaIsTakingScreenShot = false;
+static pthread_t s_pThreadMediaTakeScreenShot;
+
+void _media_take_screenshot()
+{
+   if ( 0 == s_szMediaCurrentScreenshotFileName[0] )
+      return;
+
+   s_bMediaIsTakingScreenShot = true;
+   char szComm[256];
+   sprintf(szComm, "./raspi2png -p %s", s_szMediaScreenShotFilename);
+   hw_execute_bash_command_nonblock(szComm, NULL);
+   ruby_signal_alive();
+
+   log_line("Media Storage: Took a screenshot to file: %s", s_szMediaScreenShotFilename);
+   s_iScreenshotsCountOnDisk++;
+
+   Popup* p = new Popup("Screenshot taken", 0.1,0.72, 2);
+   popups_add_topmost(p);
+   s_bMediaIsTakingScreenShot = false;
+}
+
+static void * _thread_media_take_screenshot(void *argument)
+{
+   _media_take_screenshot();
+   return NULL;
+}
+
+
 bool media_take_screenshot(bool bIncludeOSD)
 {
+   if ( s_bMediaIsTakingScreenShot )
+      return false;
+
    if ( ! bIncludeOSD )
    {
       g_pRenderEngine->startFrame();
       g_pRenderEngine->endFrame();
-      hardware_sleep_ms(20);
+      hardware_sleep_ms(25);
    }
 
    media_get_screenshot_filename();
@@ -237,23 +272,20 @@ bool media_take_screenshot(bool bIncludeOSD)
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_MEDIA);
    strcat(szFile, s_szMediaCurrentScreenshotFileName);
-   Popup* p = NULL;
+   strncpy(s_szMediaScreenShotFilename, szFile, MAX_FILE_PATH_SIZE);
+
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   log_line("Media Storage: Ttry to take screenshot to file: %s", szFile);
-  
-   p = new Popup("Screenshot capability not available on Radxa board", 0.1,0.72, 2);
+   log_line("Media Storage: Try to take screenshot to file: %s", szFile);
+   Popup* p = new Popup("Screenshot capability not available on Radxa board", 0.1,0.72, 2);
    popups_add_topmost(p);
    return false;
    #endif
 
    ruby_signal_alive();
-   hw_launch_process2("./raspi2png", "-p", szFile);
-   ruby_signal_alive();
 
-   log_line("Media Storage: Took a screenshot to file: %s", szFile);
-   s_iScreenshotsCountOnDisk++;
-
-   p = new Popup("Screenshot taken", 0.1,0.72, 2);
-   popups_add_topmost(p);
+   if ( 0 != pthread_create(&s_pThreadMediaTakeScreenShot, NULL, &_thread_media_take_screenshot, NULL) )
+   {
+      _media_take_screenshot();
+   }
    return true;
 }

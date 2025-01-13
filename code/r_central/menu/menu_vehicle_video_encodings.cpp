@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -43,7 +43,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 {
    m_Width = 0.37;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
-   m_ShowBitrateWarning = false;
+   //m_ShowBitrateWarning = false;
    float fSliderWidth = 0.12;
    char szBuff[256];
    setSubTitle("Change advanced vehicle encoding settings (for expert users)");
@@ -68,6 +68,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 
    addMenuItem(new MenuItemSection("Data & Error Correction Settings"));
 
+   /*
    m_pItemsSelect[16] = new MenuItemSelect("Radio Data Rate for Video", "Actual radio data rate to use for this video profile for video data transmission.");
    m_pItemsSelect[16]->addSelection("Auto (Use Radio Link)");
    for( int i=0; i<getDataRatesCount(); i++ )
@@ -85,6 +86,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    }
    m_pItemsSelect[16]->setIsEditable();
    m_IndexDataRate = addMenuItem(m_pItemsSelect[16]);
+   */
 
    Preferences* p = get_Preferences();
    int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_full_98);
@@ -232,6 +234,7 @@ void MenuVehicleVideoEncodings::valuesToUI()
    if ( -1 != m_IndexH264Profile )
       m_pItemsSelect[4]->setSelectedIndex((g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_ENABLE_LOCAL_HDMI_OUTPUT)?1:0);
 
+   /*
    log_line("MenuVideoEncodings: Current video profile: %d, %s, current video datarate: %u",
       g_pCurrentModel->video_params.user_selected_video_link_profile,
       str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile),
@@ -253,7 +256,7 @@ void MenuVehicleVideoEncodings::valuesToUI()
          selectedIndex = i+getDataRatesCount()+1 - iLowRatesToSkip;
    }
    m_pItemsSelect[16]->setSelection(selectedIndex);
-
+   */
 
    if ( -1 != m_IndexH264Profile )
       m_pItemsSelect[4]->setSelection(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile);
@@ -319,6 +322,8 @@ void MenuVehicleVideoEncodings::valuesToUI()
    //   m_pItemsSelect[12]->setSelectedIndex(0);
    //   m_pItemsSelect[12]->setEnabled(false);
    //}
+
+   /*
    m_ShowBitrateWarning = false;
 
    u32 uRealDataRate = g_pCurrentModel->getLinkRealDataRate(0);
@@ -340,6 +345,7 @@ void MenuVehicleVideoEncodings::valuesToUI()
       pm->m_fAlfaWhenInBackground = 1.0;
       add_menu_to_stack(pm);
    }
+   */
 }
 
 void MenuVehicleVideoEncodings::onShow()
@@ -432,6 +438,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    if ( -1 != m_IndexIPQuantizationDelta )
       pProfile->iIPQuantizationDelta = m_pItemsSlider[18]->getCurrentValue();
 
+   /*
    int index = m_pItemsSelect[16]->getSelectedIndex();
    if ( index == 0 )
       pProfile->radio_datarate_video_bps = 0;
@@ -448,6 +455,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
       else
          pProfile->radio_datarate_video_bps = -1-(index + iLowRatesToSkip - getDataRatesCount());
    }
+   */
 
    if ( pProfile->radio_datarate_video_bps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
    if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length )
@@ -522,8 +530,8 @@ void MenuVehicleVideoEncodings::onSelectItem()
         m_IndexECSchemeSpread == m_SelectedIndex )
       sendVideoLinkProfile();
 
-   if ( m_IndexDataRate == m_SelectedIndex )
-      sendVideoLinkProfile();
+   //if ( m_IndexDataRate == m_SelectedIndex )
+   //   sendVideoLinkProfile();
 
    if ( m_IndexHDMIOutput == m_SelectedIndex )
    {
@@ -584,6 +592,13 @@ void MenuVehicleVideoEncodings::onSelectItem()
 
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
          valuesToUI();
+      else
+      {
+         #if defined HW_PLATFORM_RASPBERRY
+         //if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+            addMessage("Slice units might not work properly when a Raspberry Pi controller is paired with a vehicle running on OpenIPC hardware.");
+         #endif
+      }
       return;
    }
 

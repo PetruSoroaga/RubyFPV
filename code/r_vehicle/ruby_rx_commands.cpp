@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -868,25 +868,49 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_FACTORY_RESET )
    {
-      for( int i=0; i<10; i++ )
+      for( int i=0; i<40; i++ )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
          hardware_sleep_ms(50);
       }
-      hardware_sleep_ms(200);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/logs", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/media", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/config", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/tmp", NULL);
-      hw_execute_bash_command("mkdir -p config", NULL);
-      #if defined(HW_PLATFORM_RASPBERRY)
-      hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
-      #endif
-      char szBuff[128];
-      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
-      hw_execute_bash_command(szBuff, NULL);
+      for( int i=0; i<5; i++ )
+         hardware_sleep_ms(400);
+
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+      char szComm[256];
+      if ( 0 < strlen(FOLDER_CONFIG) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_CONFIG);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      if ( 0 < strlen(FOLDER_MEDIA) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_MEDIA);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      if ( 0 < strlen(FOLDER_UPDATES) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_UPDATES);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "touch %s%s", FOLDER_CONFIG, FILE_CONFIG_FIRST_BOOT);
+      hw_execute_bash_command(szComm, NULL);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
+      hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(50);
+
+      if ( 0 < strlen(FOLDER_LOGS) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_LOGS);
+         hw_execute_bash_command(szComm, NULL);
+      }
       hardware_reboot();
+      #endif
+
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      hw_execute_bash_command("firstboot", NULL);
+      hardware_sleep_ms(500);
+      #endif
       return true;
    }
 
@@ -1053,7 +1077,7 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_GET_MODULES_INFO )
    {
       char szBuffer[2048];
-      char szOutput[1500];
+      char szOutput[4096];
       szBuffer[0] = 0;
 
       if ( 1 == uCommandParam )
@@ -1904,7 +1928,7 @@ bool process_command(u8* pBuffer, int length)
       }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = pPHC->command_param;
-      log_line("Switched camera %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
+      log_line("Switched camera %d from prifile %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, iOldCamProfileIndex, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_CAMERA_PARAMS, 0);
 
@@ -2227,7 +2251,7 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
-      g_pCurrentModel->resetRadioLinkParams(linkIndex);
+      g_pCurrentModel->resetRadioLinkDataRatesAndFlags(linkIndex);
       int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(linkIndex);
       bool bIsAtheros = false;
       if ( iRadioInterfaceId >= 0 )
@@ -2356,35 +2380,69 @@ bool process_command(u8* pBuffer, int length)
 */
    if ( uCommandType == COMMAND_ID_RESET_ALL_TO_DEFAULTS )
    {
-      for( int i=0; i<20; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 10+i);
+      for( int i=0; i<40; i++ )
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 50+i);
       for( int i=0; i<5; i++ )
          hardware_sleep_ms(400);
 
-      hw_execute_bash_command("rm -rf /home/pi/ruby/logs", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/media", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/config", NULL);
-      hw_execute_bash_command("rm -rf /home/pi/ruby/tmp", NULL);
-      hw_execute_bash_command("mkdir -p config", NULL);
-      hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
-      char szBuff[128];
-      sprintf(szBuff, "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
-      hw_execute_bash_command(szBuff, NULL);
+      char szComm[256];
 
-      FILE* fd = fopen("config/reset_info.txt", "wt");
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+      if ( 0 < strlen(FOLDER_CONFIG) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_CONFIG);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      if ( 0 < strlen(FOLDER_MEDIA) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_MEDIA);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      if ( 0 < strlen(FOLDER_UPDATES) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_UPDATES);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "touch %s%s", FOLDER_CONFIG, LOG_USE_PROCESS);
+      hw_execute_bash_command(szComm, NULL);
+      #endif
+
+      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+      if ( 0 < strlen(FOLDER_CONFIG) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_CONFIG);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      #endif
+     
+      char szFileName[MAX_FILE_PATH_SIZE];
+      strcpy(szFileName, FOLDER_CONFIG);
+      strcat(szFileName, "reset_info.txt");
+      FILE* fd = fopen(szFileName, "wt");
       if ( NULL != fd )
       {
          char szName[128];
          strcpy(szName, g_pCurrentModel->vehicle_name);
          if ( 0 == szName[0] )
             strcpy(szName, "*");
-         fprintf(fd, "%u %u %d %d %d %s",
+         for( int i=0; i<(int)strlen(szName); i++ )
+         {
+            if ( szName[i] <= ' ' )
+               szName[i] = '-';
+         }
+         fprintf(fd, "%u %u %d %d %d %s\n",
            g_pCurrentModel->uVehicleId, g_pCurrentModel->uControllerId,
            g_pCurrentModel->radioLinksParams.link_frequency_khz[0],
            g_pCurrentModel->radioLinksParams.link_frequency_khz[1],
            g_pCurrentModel->radioLinksParams.link_frequency_khz[2],
            szName);
          fclose(fd);
+      }
+      
+      if ( 0 < strlen(FOLDER_LOGS) )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_LOGS);
+         hw_execute_bash_command(szComm, NULL);
       }
       hardware_reboot();
       return true;
@@ -3685,6 +3743,7 @@ void _periodic_loop()
          s_bWaitForRadioFlagsChangeConfirmation = false;
 
          memcpy(&(g_pCurrentModel->radioLinksParams), &s_LastGoodRadioLinksParams, sizeof(type_radio_links_parameters));
+         g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
 
          char szBuffR[128];
          str_get_radio_frame_flags_description(g_pCurrentModel->radioLinksParams.link_radio_flags[s_iRadioLinkIdChangeConfirmation], szBuffR); 

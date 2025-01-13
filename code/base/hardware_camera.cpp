@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -219,6 +219,7 @@ u32 _hardware_detect_camera_type()
       {
          szBuff[0] = 0;
          hw_execute_bash_command_raw("vcgencmd get_camera", szBuff);
+         removeTrailingNewLines(szBuff);
          log_line("Camera detection response string: %s", szBuff);
          if ( NULL != strstr(szBuff, "detected=1") || 
               NULL != strstr(szBuff, "detected=2") )
@@ -341,9 +342,9 @@ int hardware_isCameraHDMI()
 }
 
 
-void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameters_t* pCameraParams)
+void hardware_camera_apply_all_majestic_camera_settings(Model* pModel, camera_profile_parameters_t* pCameraParams)
 {
-   if ( NULL == pCameraParams )
+   if ( (NULL == pModel) || (NULL == pCameraParams) )
    {
       log_softerror_and_alarm("Received invalid params to set majestic camera settings.");
       return;
@@ -365,10 +366,7 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    if ( pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_3A_SIGMASTAR )
       hw_execute_bash_command_raw("cli -s .fpv.enabled true", NULL);
    else
-   {
       hw_execute_bash_command_raw("cli -s .fpv.enabled false", NULL);
-      hw_execute_bash_command_raw("cli -d .fpv.enabled", NULL);
-   }
 
    if ( pCameraParams->flip_image )
    {
@@ -398,7 +396,6 @@ void hardware_camera_apply_all_majestic_camera_settings(camera_profile_parameter
    }
 
    hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
-   hardware_camera_set_daylight_off(pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
 }
 
 void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_parameters_t* pCameraParams, int iVideoProfile, video_parameters_t* pVideoParams)
@@ -410,25 +407,17 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    }
    char szComm[128];
 
-   hw_execute_bash_command_raw("cli -s .watchdog.enabled false", NULL);
-   hw_execute_bash_command_raw("cli -s .system.logLevel info", NULL);
-   hw_execute_bash_command_raw("cli -s .rtsp.enabled false", NULL);
-   hw_execute_bash_command_raw("cli -s .video1.enabled false", NULL);
-   hw_execute_bash_command_raw("cli -s .video0.enabled true", NULL);
-   hw_execute_bash_command_raw("cli -s .video0.rcMode cbr", NULL);
-   hw_execute_bash_command_raw("cli -s .isp.slowShutter disabled", NULL);
-
    if ( pVideoParams->iH264Slices <= 1 )
    {
-      hw_execute_bash_command_raw("cli -s .video0.sliceUnits 1", NULL);
-      hw_execute_bash_command_raw("cli -d .video0.sliceUnits", NULL);
+      hw_execute_bash_command_raw("cli -s .video0.sliceUnits 0", NULL);
+      //hw_execute_bash_command_raw("cli -d .video0.sliceUnits", NULL);
    }
    else
    {
       sprintf(szComm, "cli -s .video0.sliceUnits %d", pVideoParams->iH264Slices);
       hw_execute_bash_command_raw(szComm, NULL);
    }
-   
+
    if ( pVideoParams->uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
       hw_execute_bash_command_raw("cli -s .video0.codec h265", NULL);
    else
@@ -450,14 +439,17 @@ void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_p
    int keyframe_ms = pModel->getInitialKeyframeIntervalMs(iVideoProfile);
    fGOP = ((float)keyframe_ms) / 1000.0;
    
-   log_line("Hardware camera: set majestic NAL size to %d bytes (for video profile index: %d)", pModel->video_link_profiles[iVideoProfile].video_data_length, iVideoProfile);
-   sprintf(szComm, "cli -s .outgoing.naluSize %d", pModel->video_link_profiles[iVideoProfile].video_data_length);
+   // Allow room for 2 bytes for data size and 5 bytes for NAL header
+   int iNALSize = pModel->video_link_profiles[iVideoProfile].video_data_length - 7;
+   iNALSize = iNALSize - (iNALSize % 4);
+   log_line("Hardware camera: set majestic NAL size to %d bytes (for video profile index: %d)", iNALSize, iVideoProfile);
+   sprintf(szComm, "cli -s .outgoing.naluSize %d", iNALSize);
    hw_execute_bash_command_raw(szComm, NULL);
 
    sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
    hw_execute_bash_command_raw(szComm, NULL);
 
-   hardware_camera_apply_all_majestic_camera_settings(pCameraParams);
+   hardware_camera_apply_all_majestic_camera_settings(pModel, pCameraParams);
 }
 
 void hardware_camera_set_irfilter_off(int iOff)
@@ -519,9 +511,15 @@ void hardware_camera_set_daylight_off(int iDLOff)
    if ( !hardware_board_is_openipc(hardware_getBoardType()) )
       return;
 
+   static int s_iLastDaylightMode = -5;
+
+   if ( iDLOff == s_iLastDaylightMode )
+      return;
+   s_iLastDaylightMode = iDLOff;
+   
    // Daylight Off? Activate Night Mode
    if (iDLOff)
-      hw_execute_bash_command("curl localhost/night/on", NULL);
+      hw_execute_bash_command_raw("curl -s localhost/night/on", NULL);
    else 
-      hw_execute_bash_command("curl localhost/night/off", NULL);
+      hw_execute_bash_command_raw("curl -s localhost/night/off", NULL);
 }

@@ -42,8 +42,8 @@ typedef struct
    u32 uVideoProfileRequestId;
    u32 uLastTimeSentVideoProfileRequest;
    u32 uLastTimeRecvVideoProfileAck;
-   bool bReceivedKeyframeInfoInVideoStream;
 
+   u32 uPendingKeyFrameToSet;
 } ALIGN_STRUCT_SPEC_INFO type_global_state_vehicle_runtime_info;
 
 

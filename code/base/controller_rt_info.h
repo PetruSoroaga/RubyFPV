@@ -65,7 +65,14 @@ typedef struct
 
    u8 uRecvVideoDataPackets[SYSTEM_RT_INFO_INTERVALS];
    u8 uRecvVideoECPackets[SYSTEM_RT_INFO_INTERVALS];
-   u8 uRecvEndOfFrame[SYSTEM_RT_INFO_INTERVALS];
+   u8 uRecvFramesInfo[SYSTEM_RT_INFO_INTERVALS];
+     // bit 0: is IFrame
+     // bit 1: is PFrame
+     // bit 2: end of IFrame
+     // bit 3: end of PFrame
+     // bit 4: parsed start output of IFrame
+     // bit 5: parsed start output of PFrame
+     // bit 6: parsed start output of other frames
    
    u8 uOutputedVideoPackets[SYSTEM_RT_INFO_INTERVALS];
    u8 uOutputedVideoPacketsRetransmitted[SYSTEM_RT_INFO_INTERVALS];

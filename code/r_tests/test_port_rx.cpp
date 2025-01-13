@@ -105,7 +105,8 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
    {
       iTotalRecv += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsCount[k];
-      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCount[k];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountVideo[k];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountData[k];
       iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsBadCount[k];
       iSlices++;
       uMs += g_SM_RadioStats.graphRefreshIntervalMs;
@@ -195,7 +196,7 @@ void process_packet(int iInterfaceIndex )
       int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, nLength, &bCRCOk);
       if ( bCRCOk == 0 )
          log_softerror_and_alarm("Received packet with invalid CRC.");
-      if ( (nPacketLength != nLength) || (nPacketLength < sizeof(t_packet_header)) )
+      if ( (nPacketLength != nLength) || (nPacketLength < (int)sizeof(t_packet_header)) )
          log_softerror_and_alarm("Received invalid packet size: %d, (total buffer: %d)", nPacketLength, nLength);
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;

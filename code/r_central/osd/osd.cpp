@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -1996,8 +1996,6 @@ void osd_render_elements()
    float height_text_small = osd_getFontHeightSmall();
    float x,y,y0;
 
-   osd_set_colors();
-
    Preferences* p = get_Preferences();
    if ( pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST )
    {
@@ -2023,6 +2021,9 @@ void osd_render_elements()
             s_uTimeStartFlashOSDElements = 0;
       }
    }
+   else
+      s_uTimeStartFlashOSDElements = 0;
+   
    osd_set_colors();
 
    if ( (g_bToglleAllOSDOff || g_bToglleOSDOff) && (!s_bDebugOSDShowAll) )
@@ -2667,10 +2668,14 @@ void _osd_render_msp(Model* pModel)
       if ( uFont == 3 )
          uImgId = g_idImgMSPOSDArdupilot;
    }
-
+   
    int iImgCharWidth = 36;
    int iImgCharHeight = 54;
-
+   if ( g_pRenderEngine->getScreenHeight() <= 800 )
+   {
+      iImgCharWidth = 24;
+      iImgCharHeight = 36;    
+   }
    float fScreenCharWidth = (1.0 - 2.0*osd_getMarginX()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uCols;
    float fScreenCharHeight = (1.0 - 2.0*osd_getMarginY()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uRows;
 
@@ -2685,10 +2690,12 @@ void _osd_render_msp(Model* pModel)
       int iImgSrcX = ((int)(uPage & 0x03)) * iImgCharWidth;
       int iImgSrcY = ((int)(uChar & 0xFF)) * iImgCharHeight;
 
-      g_pRenderEngine->bltImage(osd_getMarginX() + x * fScreenCharWidth,
-                                osd_getMarginY() + y * fScreenCharHeight,
-         fScreenCharWidth, fScreenCharHeight,
+      g_pRenderEngine->bltSprite(osd_getMarginX() + x * fScreenCharWidth, osd_getMarginY() + y * fScreenCharHeight,
          iImgSrcX, iImgSrcY, iImgCharWidth, iImgCharHeight, uImgId);
+      //g_pRenderEngine->bltImage(osd_getMarginX() + x * fScreenCharWidth, osd_getMarginY() + y * fScreenCharHeight,
+      //     fScreenCharWidth, fScreenCharHeight,
+      //     iImgSrcX, iImgSrcY, iImgCharWidth, iImgCharHeight, uImgId);
+
    }
 }
 
@@ -2699,15 +2706,8 @@ void osd_show_monitor()
    if ( NULL == p )
        return;
 
-      float fScreenScale = 1.0;
-      if ( p->iOSDScreenSize == 1 ) fScreenScale = 0.95;
-      if ( p->iOSDScreenSize == 2 ) fScreenScale = 0.92;
-      if ( p->iOSDScreenSize == 3 ) fScreenScale = 0.88;
-      if ( p->iOSDScreenSize == 4 ) fScreenScale = 0.84;
-      if ( p->iOSDScreenSize == 5 ) fScreenScale = 0.80;
-   osd_setMarginX(0.5*(1.0-fScreenScale));
-   osd_setMarginY(0.5*(1.0-fScreenScale)*g_pRenderEngine->getAspectRatio()*0.8);
-
+   osd_getSetScreenScale(p->iOSDScreenSize);
+   
    set_Color_OSDText( p->iColorOSD[0], p->iColorOSD[1], p->iColorOSD[2], ((float)p->iColorOSD[3])/100.0);
    set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
    osd_set_colors();
@@ -2772,19 +2772,10 @@ void osd_render_all()
    scale = (pModel->osd_params.osd_preferences[osd_get_current_layout_index()]>>16) & 0x0F;
    osd_setScaleOSDStats((int)scale);
 
-   if ( NULL == p )
-      log_softerror_and_alarm("Failed to get pointer to preferences structure.");
+   if ( NULL != p )
+      osd_getSetScreenScale(p->iOSDScreenSize);
    else
-   {
-      float fScreenScale = 1.0;
-      if ( p->iOSDScreenSize == 1 ) fScreenScale = 0.95;
-      if ( p->iOSDScreenSize == 2 ) fScreenScale = 0.92;
-      if ( p->iOSDScreenSize == 3 ) fScreenScale = 0.88;
-      if ( p->iOSDScreenSize == 4 ) fScreenScale = 0.84;
-      if ( p->iOSDScreenSize == 5 ) fScreenScale = 0.80;
-      osd_setMarginX(0.5*(1.0-fScreenScale));
-      osd_setMarginY(0.5*(1.0-fScreenScale)*g_pRenderEngine->getAspectRatio()*0.8);
-   }
+      log_softerror_and_alarm("Failed to get pointer to preferences structure.");
 
    if ( g_bIsRouterReady )
       shared_vars_osd_update();
@@ -2868,5 +2859,8 @@ void osd_render_all()
 void osd_start_flash_osd_elements()
 {
    if ( 0 == s_uTimeStartFlashOSDElements )
+   {
+      log_line("Signaled to start flashing OSD elements.");
       s_uTimeStartFlashOSDElements = g_TimeNow;
+   }
 }

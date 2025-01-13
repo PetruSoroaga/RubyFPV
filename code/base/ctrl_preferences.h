@@ -2,6 +2,8 @@
 
 #include "config.h"
 
+#define MAX_PREFERENCES_CHECKBOXES 100
+
 #ifdef __cplusplus
 extern "C" {
 #endif 
@@ -20,6 +22,8 @@ extern "C" {
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY       ((u32)(((u32)0x01)<<13))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_AIR_GAPS            ((u32)(((u32)0x01)<<14))
 
+
+#define ID_DONOT_SHOW_AGAIN_MIXED_PI_OPENIPC_HARDWARE 1
 
 typedef enum
 {
@@ -126,13 +130,18 @@ typedef struct
    int iStopRecordingAfterLinkLostSeconds;
    int iDebugStatsQAButton;
    u32 uDebugStatsFlags;
+   int iLanguage;
+   int iDoNotShowAgainIds[MAX_PREFERENCES_CHECKBOXES];
+   int iDoNotShowAgainValues[MAX_PREFERENCES_CHECKBOXES];
 } Preferences;
 
 int save_Preferences();
 int load_Preferences();
 void reset_Preferences();
 Preferences* get_Preferences();
-
+int getPreferencesDoNotShowAgain(int iUniqueId);
+void setPreferencesDoNotShowAgain(int iUniqueId, int iDoNotShowAgain);
+void removePreferencesDoNotShowAgain(int iUniqueId);
 #ifdef __cplusplus
 }  
 #endif 

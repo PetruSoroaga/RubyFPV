@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -471,7 +471,7 @@ void Menu::onShow()
    if ( 0 == m_uOnShowTime )
       m_uOnShowTime = g_TimeNow;
 
-   if ( m_MenuId == MENU_ID_SIMPLE_MESSAGE )
+   if ( (m_MenuId%1000) == MENU_ID_SIMPLE_MESSAGE )
    {
       removeAllItems();
       addMenuItem(new MenuItem("OK",""));
@@ -1414,7 +1414,8 @@ int Menu::onBack()
 
 void Menu::onSelectItem()
 {
-   if ( m_MenuId == MENU_ID_SIMPLE_MESSAGE ) // simple message menu? just pop it and return.
+   log_line("MenuBase:onSelectItem: menu id: %d, selected item index: %d", m_MenuId, m_SelectedIndex);
+   if ( (m_MenuId%1000) == MENU_ID_SIMPLE_MESSAGE ) // simple message menu? just pop it and return.
    {
       menu_stack_pop(0);
       return;
@@ -2073,9 +2074,11 @@ static void * _thread_generate_upload(void *argument)
       sprintf(szComm, "tar -czf %s -C %s . 2>&1", szFullPathOutputArchive, szPathTempUpload);
    hw_execute_bash_command(szComm, NULL);
    
-   sprintf(szComm, "rm -rf %s*", szPathTempUpload);
-   hw_execute_bash_command(szComm, NULL);
-
+   if ( 0 < strlen(szPathTempUpload) )
+   {
+      sprintf(szComm, "rm -rf %s*", szPathTempUpload);
+      hw_execute_bash_command(szComm, NULL);
+   }
    sprintf(szComm, "chmod 777 %s 2>&1", szFullPathOutputArchive);
    hw_execute_bash_command(szComm, NULL);
 
@@ -2165,7 +2168,7 @@ void Menu::updateOTAStatus(u8 uOTAStatus, u32 uOTACounter)
 
 bool Menu::uploadSoftware()
 {
-   log_line("Menu: Start upload procedure for vehicle software version %d.%d...", ((g_pCurrentModel->sw_version)>>8) & 0xFF, ((g_pCurrentModel->sw_version) & 0xFF));
+   log_line("Menu: Start upload procedure for vehicle software version %d.%d (mode: %s)...", ((g_pCurrentModel->sw_version)>>8) & 0xFF, ((g_pCurrentModel->sw_version) & 0xFF), g_pCurrentModel->is_spectator?"spectator mode":"control mode");
 
    ruby_pause_watchdog();
    render_commands_init();

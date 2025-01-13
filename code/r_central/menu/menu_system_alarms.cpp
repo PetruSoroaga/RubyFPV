@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -54,6 +54,13 @@ MenuSystemAlarms::MenuSystemAlarms(void)
    m_IndexAllAlarms = addMenuItem( m_pItemsSelect[0]);
 
    addSeparator();
+
+   m_pItemsSelect[8] = new MenuItemSelect("Video Stream Alarms", "Turn alarms about video stream output on or off.");
+   m_pItemsSelect[8]->addSelection("Disabled");
+   m_pItemsSelect[8]->addSelection("Enabled");
+   m_pItemsSelect[8]->setUseMultiViewLayout();
+   m_IndexAlarmControllerIOErrors = addMenuItem( m_pItemsSelect[8]);
+
 
    m_pItemsSelect[1] = new MenuItemSelect("Invalid Radio Data", "Turn this alarm on or off.");
    m_pItemsSelect[1]->addSelection("Disabled");
@@ -114,6 +121,9 @@ void MenuSystemAlarms::valuesToUI()
    else
       m_pItemsSelect[0]->setSelectedIndex(2);
 
+   m_pItemsSelect[8]->setEnabled(true);
+   m_pItemsSelect[8]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_CONTROLLER_IO_ERROR)?1:0);
+
    m_pItemsSelect[1]->setEnabled(true);
    m_pItemsSelect[1]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_RECEIVED_INVALID_RADIO_PACKET)?1:0);
 
@@ -144,6 +154,7 @@ void MenuSystemAlarms::valuesToUI()
       m_pItemsSelect[5]->setEnabled(false);
       m_pItemsSelect[6]->setEnabled(false);
       m_pItemsSelect[7]->setEnabled(false);
+      m_pItemsSelect[8]->setEnabled(false);
 
       m_pItemsSelect[1]->setSelectedIndex(0);
       m_pItemsSelect[2]->setSelectedIndex(0);
@@ -152,6 +163,7 @@ void MenuSystemAlarms::valuesToUI()
       m_pItemsSelect[5]->setSelectedIndex(0);
       m_pItemsSelect[6]->setSelectedIndex(0);
       m_pItemsSelect[7]->setSelectedIndex(0);
+      m_pItemsSelect[8]->setSelectedIndex(0);
    }   
 }
 
@@ -191,6 +203,14 @@ void MenuSystemAlarms::onSelectItem()
          pP->uEnabledAlarms = 0xFFFFFFFF;
       else
         s_bMenuSystemAlarmsOnCustomOption = true;
+   }
+
+   if ( m_IndexAlarmControllerIOErrors == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[8]->getSelectedIndex() )
+         pP->uEnabledAlarms &= ~ALARM_ID_CONTROLLER_IO_ERROR;
+      else
+         pP->uEnabledAlarms |= ALARM_ID_CONTROLLER_IO_ERROR;
    }
 
    if ( m_IndexAlarmInvalidRadioPackets == m_SelectedIndex )

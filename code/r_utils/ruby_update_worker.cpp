@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -311,6 +311,13 @@ int _copy_update_binary_files()
    sprintf(szComm, "mkdir -p %sbin/", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
+   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
+   hw_execute_bash_command(szComm, NULL);
+
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sbin/* %sbin 2>/dev/null", g_szUpdateUnpackFolder, FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
@@ -516,9 +523,11 @@ void _step_copy_and_extract_zip()
    hw_execute_bash_command(szComm, NULL);
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s", g_szUpdateUnpackFolder);
    hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s/*", g_szUpdateUnpackFolder);
-   hw_execute_bash_command(szComm, NULL);
-
+   if ( 0 < strlen(g_szUpdateUnpackFolder) )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s/*", g_szUpdateUnpackFolder);
+      hw_execute_bash_command(szComm, NULL);
+   }
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "unzip %s%s -d %s", FOLDER_UPDATES, g_szUpdateZipFileName, g_szUpdateUnpackFolder);
    hw_execute_bash_command(szComm, NULL);
 

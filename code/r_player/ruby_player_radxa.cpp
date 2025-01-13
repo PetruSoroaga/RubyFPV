@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -46,7 +46,7 @@
 #include <linux/if_ether.h>
 #include <linux/random.h>
 #include <inttypes.h>
-
+#include <semaphore.h>
 
 #include "../base/base.h"
 #include "../base/config.h"
@@ -74,15 +74,19 @@ bool g_bTestMode = false;
 bool g_bPlayFile = false;
 bool g_bPlayStreamPipe = false;
 bool g_bPlayStreamUDP = false;
+bool g_bPlayStreamSM = false;
 bool g_bInitUILayerToo = false;
 bool g_bUseH265Decoder = false;
 
 char g_szPlayFileName[MAX_FILE_PATH_SIZE];
+int g_iFileFPS = 30;
+int g_iFileTempSlices = 1;
+int g_iFileDetectedSlices = 1;
 int g_iCustomWidth = 0;
 int g_iCustomHeight = 0;
 int g_iCustomRefresh = 0;
 
-#define PIPE_BUFFER_SIZE 400000
+#define PIPE_BUFFER_SIZE 200000
 u8 g_uPipeBuffer[PIPE_BUFFER_SIZE];
 int g_iPipeBufferWritePos = 0;
 int g_iPipeBufferReadPos = 0;
@@ -183,7 +187,7 @@ void _do_player_mode()
       return;
    }
 
-   log_line("Opened input video file (%s)", g_szPlayFileName);
+   log_line("Opened input video file (%s), has %d FPS", g_szPlayFileName, g_iFileFPS);
    mpp_start_decoding_thread();
 
 
@@ -192,30 +196,69 @@ void _do_player_mode()
    int nRead = 1;
    int iCount =0;
    int iTotalRead = 0;
+
+   u32 uCurrentParseToken = 0x11111111;
+   u32 uNALType = 0;
+   u32 uPrevNALType = 0;
+   u32 uTimeLastFrame = 0;
+
+
    while ( (nRead > 0) && (!g_bQuit) )
    {
       iCount++;
-      int iToRead = 1024;
-      if ( g_bDebug )
-      {
-         //iToRead = 1000 + (rand()%3000);
-         //iToRead = 500;
-         //log_line("Reading %d bytes", iToRead);
-      }
+      int iToRead = 4096;
       nRead = fread(uBuffer, 1, iToRead, fp);
       if ( nRead <= 0 )
          break;
       
+      // Detect end of a NAL
+      u8* pTmp = &(uBuffer[0]);
+      for( int i=0; i<nRead; i++ )
+      {
+         uCurrentParseToken = (uCurrentParseToken << 8) | (*pTmp);
+         pTmp++;
+         if ( uCurrentParseToken == 0x00000001 )
+         if ( i<(nRead-1) )
+         {
+            uNALType = (*pTmp) &0x1F;
+
+            if ( (uPrevNALType == 5) && (uNALType != 5) )
+            {
+               g_iFileDetectedSlices = g_iFileTempSlices;
+            }
+
+            if ( uPrevNALType == uNALType )
+               g_iFileTempSlices++;
+            else
+               g_iFileTempSlices = 1;
+
+            uPrevNALType = uNALType;
+
+
+            if ( (g_iFileTempSlices % g_iFileDetectedSlices) == 0 )
+            if ( (uNALType != 7) && (uNALType != 8) )
+            {
+               u32 uTimeNow = get_current_timestamp_ms();
+
+               long int miliSecs = (1000/g_iFileFPS);
+               miliSecs = miliSecs - (uTimeNow - uTimeLastFrame);
+               uTimeLastFrame = uTimeNow;
+               if ( miliSecs > 0 )
+                  hardware_sleep_ms(miliSecs);
+            }
+         }
+      }
+
+      while ( (access("/tmp/pausedvr", R_OK) != -1) && (!g_bQuit) )
+      {
+         struct timespec to_sleep = { 0, (long int)(100*1000*1000) };
+         nanosleep(&to_sleep, NULL);
+      }
+
+      if ( g_bQuit )
+         break;
       mpp_feed_data_to_decoder(uBuffer, nRead);
       iTotalRead += nRead;
-      if ( g_bDebug )
-      {
-         //u32 uSleep = 10 + (rand()%10);
-         //hardware_sleep_ms(uSleep);
-         //log_line("Sleep %u ms", uSleep);
-         //hardware_sleep_ms(1);
-         usleep(2000);
-      }
       if ( (iCount % 10) == 0 )
       {
          u32 uTime = get_current_timestamp_ms();
@@ -237,7 +280,7 @@ void _do_player_mode()
 
 void* _thread_consume_pipe_buffer(void *param)
 {
-   log_line("[Thread] Created pipe consume thread.");
+   log_line("[Thread] Created consume pipe thread.");
 
    FILE* fpTmp = NULL;
    //fpTmp = fopen("rec2.h264", "wb");
@@ -292,14 +335,13 @@ void _do_stream_mode_pipe()
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
-   hw_increase_current_thread_priority("RubyPlayer", 50);
+   hw_increase_current_thread_priority("RubyPlayer", 60);
 
-   pthread_t pDecodeThread;
-   pthread_create(&pDecodeThread, NULL, _thread_consume_pipe_buffer, NULL);
+   //pthread_t pDecodeThread;
+   //pthread_create(&pDecodeThread, NULL, _thread_consume_pipe_buffer, NULL);
+   //log_line("Created thread to consume pipe input buffer");
 
-   log_line("Created thread to consume pipe input buffer");
-
-   int readfd = open(FIFO_RUBY_STATION_VIDEO_STREAM, O_RDONLY);// | O_NONBLOCK);
+   int readfd = open(FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY, O_RDONLY);// | O_NONBLOCK);
    if( -1 == readfd )
    {
       log_error_and_alarm("Failed to open video stream fifo.");
@@ -308,21 +350,20 @@ void _do_stream_mode_pipe()
       return;
    }
 
-   log_line("Opened input video stream fifo (%s)", FIFO_RUBY_STATION_VIDEO_STREAM);
+   log_line("Opened input video stream fifo (%s)", FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY);
    mpp_start_decoding_thread();
-
-   FILE* fpTmp = NULL;
-   //fpTmp = fopen("rec.h264", "wb");
 
    u32 uTimeLastCheck = get_current_timestamp_ms();
    int nRead = 1;
-   int nReadFailedCounter = 0;
-   u32 uTimeLastReadFailedLog = 0;
+   //int nReadFailedCounter = 0;
+   //u32 uTimeLastReadFailedLog = 0;
    int iCount =0;
    int iTotalRead = 0;
    bool bAnyInputEver = false;
-   fd_set readset;
+   u32 uTimeStartReceivingStream = 0;
+   //fd_set readset;
 
+   /*
    while ( !g_bQuit )
    {
       FD_ZERO(&readset);
@@ -387,9 +428,6 @@ void _do_stream_mode_pipe()
          bAnyInputEver = true;
       }
       
-      if ( NULL != fpTmp )
-         fwrite( &(g_uPipeBuffer[g_iPipeBufferWritePos]), 1, nRead, fpTmp);
-
       int iNewWritePos = g_iPipeBufferWritePos + nRead;
       if ( iNewWritePos >= PIPE_BUFFER_SIZE )
          iNewWritePos = 0;
@@ -407,21 +445,225 @@ void _do_stream_mode_pipe()
          }
       }
    }
+   */
 
-   if ( NULL != fpTmp )
-      fclose(fpTmp);
+   while ( !g_bQuit )
+   {
+      nRead = read(readfd, g_uPipeBuffer, PIPE_BUFFER_SIZE); 
+      if ( (nRead < 0) || g_bQuit )
+      {
+         if ( nRead < 0 )
+         {
+            log_line("Reached end of input stream data. Ending video streaming. errono: %d, (%s)", errno, strerror(errno));
+            g_bQuit = true;
+         }
+         break;
+      }
+      if ( nRead == 0 )
+      {
+         if ( ! bAnyInputEver )
+            usleep(2*1000);
+         else
+            usleep(1*1000);
+         continue;
+      }
+
+      if ( ! bAnyInputEver )
+      {
+         log_line("Start receiving video stream data through pipe (%d bytes)", nRead);
+         bAnyInputEver = true;
+         uTimeStartReceivingStream = get_current_timestamp_ms();
+      }
+
+      iCount++;
+      iTotalRead += nRead;
+      if ( (iCount % 10) == 0 )
+      {
+         u32 uTime = get_current_timestamp_ms();
+         if ( uTime >= uTimeLastCheck + 4000 )
+         {
+            uTimeLastCheck = uTime;
+            log_line("Video player alive, reading %d kbits/sec", iTotalRead*8/4/1000);
+            iTotalRead = 0;
+         }
+      }
+
+      int iRes = mpp_feed_data_to_decoder(g_uPipeBuffer, nRead);
+      if ( iRes > 5 )
+      {
+         log_line("Stalled consuming %d bytes, stall for %d ms. Signaling alarm", nRead, iRes);
+         if ( get_current_timestamp_ms() > uTimeStartReceivingStream + 5000 )
+         {
+            sem_t* ps = sem_open(SEMAPHORE_VIDEO_STREAMER_OVERLOAD, O_CREAT, S_IWUSR | S_IRUSR, 0);
+            sem_post(ps);
+            sem_close(ps);
+         }
+      }
+   }
 
    if ( g_bQuit )
       log_line("Ending video stream play due to quit signal.");
 
    close(readfd);
 
-   log_line("Ending thread to consume pipe input buffer...");
-   pthread_join(pDecodeThread, NULL );
-   log_line("Ended thread to consume pipe input buffer");
+   //log_line("Ending thread to consume pipe input buffer...");
+   //pthread_join(pDecodeThread, NULL );
+   //log_line("Ended thread to consume pipe input buffer");
 
    mpp_mark_end_of_stream();
 
+   ruby_drm_core_uninit();
+   mpp_uninit();
+}
+
+
+
+void _do_stream_mode_sm()
+{
+   if ( mpp_init(g_bUseH265Decoder) != 0 )
+      return;
+
+   hdmi_enum_modes();
+   int iHDMIIndex = hdmi_load_current_mode();
+   if ( iHDMIIndex < 0 )
+      iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
+   ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
+
+   hw_increase_current_thread_priority("RubyPlayer", 60);
+
+   int fdSMem = -1;
+   unsigned char* pSMem = NULL;
+   uint32_t uSharedMemReadPos = 0;
+
+   fdSMem = shm_open(SM_STREAMER_NAME, O_RDONLY, S_IRUSR | S_IWUSR);
+
+   if( fdSMem < 0 )
+   {
+       log_softerror_and_alarm("Failed to open shared memory for read: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+       return;
+   }
+   
+   pSMem = (unsigned char*) mmap(NULL, SM_STREAMER_SIZE, PROT_READ, MAP_SHARED, fdSMem, 0);
+   if ( (pSMem == MAP_FAILED) || (pSMem == NULL) )
+   {
+      log_softerror_and_alarm("Failed to map shared memory: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+      if ( NULL != pSMem )
+      {
+         munmap(pSMem, SM_STREAMER_SIZE);
+         log_line("Unmapped shared mem: %s", SM_STREAMER_NAME);
+      }
+      return;
+   }
+   close(fdSMem); 
+   log_line("Mapped shared mem: %s", SM_STREAMER_NAME);
+
+   mpp_start_decoding_thread();
+
+   u32 uTimeLastCheck = get_current_timestamp_ms();
+   int nRead = 1;
+   int iCount =0;
+   int iTotalRead = 0;
+   bool bAnyInputEver = false;
+   u32 uTimeStartReceivingStream = 0;
+  
+   while ( !g_bQuit )
+   {
+      u32* pTmp1 = (u32*)pSMem;
+      u32* pTmp2 = (u32*)(&(pSMem[sizeof(u32)]));
+      u32 uWritePos1 = 0;
+      u32 uWritePos2 = 0;
+      u32 uBytesToRead = 0;
+
+      while ((uBytesToRead == 0) && (!g_bQuit))
+      {
+         uWritePos1 = *pTmp1;
+         uWritePos2 = *pTmp2;
+         if ( (uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
+         {
+            struct timespec to_sleep = { 0, (long int)(1*1000*1000) };
+            nanosleep(&to_sleep, NULL);
+            continue;
+         }
+         if ( uWritePos1 > uSharedMemReadPos )
+         {
+            uBytesToRead = uWritePos1 - uSharedMemReadPos;
+            if ( uBytesToRead > PIPE_BUFFER_SIZE )
+               uBytesToRead = PIPE_BUFFER_SIZE;
+            memcpy(g_uPipeBuffer, &pSMem[uSharedMemReadPos], uBytesToRead);
+            uSharedMemReadPos += uBytesToRead;
+            if ( uSharedMemReadPos >= SM_STREAMER_SIZE )
+               uSharedMemReadPos = 2*sizeof(u32);
+         }
+         else
+         {
+            uBytesToRead = (SM_STREAMER_SIZE - uSharedMemReadPos);
+            if ( uBytesToRead > PIPE_BUFFER_SIZE )
+               uBytesToRead = PIPE_BUFFER_SIZE;
+            memcpy(g_uPipeBuffer, &pSMem[uSharedMemReadPos], uBytesToRead);
+            uSharedMemReadPos += uBytesToRead;
+            if ( uSharedMemReadPos >= SM_STREAMER_SIZE )
+               uSharedMemReadPos = 2*sizeof(u32);
+            if ( (PIPE_BUFFER_SIZE- uBytesToRead > 0) && (uWritePos1 > 0) )
+            {
+               unsigned char* pTmpB = &(g_uPipeBuffer[0]) + uBytesToRead;
+
+               u32 uBytesToRead2 = uWritePos1 - 2*sizeof(u32);
+               if ( uBytesToRead2 + uBytesToRead > PIPE_BUFFER_SIZE )
+                  uBytesToRead2 = PIPE_BUFFER_SIZE - uBytesToRead;
+               memcpy(pTmpB, &pSMem[uSharedMemReadPos], uBytesToRead2);
+               uSharedMemReadPos += uBytesToRead2;
+               uBytesToRead += uBytesToRead2;
+            }
+         }
+      } 
+      if ( g_bQuit )
+         break;
+
+      if ( ! bAnyInputEver )
+      {
+         log_line("Start receiving video stream data through pipe (%d bytes)", nRead);
+         bAnyInputEver = true;
+         uTimeStartReceivingStream = get_current_timestamp_ms();
+      }
+
+      nRead = uBytesToRead;
+      iCount++;
+      iTotalRead += nRead;
+      if ( (iCount % 10) == 0 )
+      {
+         u32 uTime = get_current_timestamp_ms();
+         if ( uTime >= uTimeLastCheck + 4000 )
+         {
+            uTimeLastCheck = uTime;
+            log_line("Video player alive, reading %d kbits/sec", iTotalRead*8/4/1000);
+            iTotalRead = 0;
+         }
+      }
+
+      int iRes = mpp_feed_data_to_decoder(g_uPipeBuffer, nRead);
+      if ( iRes > 5 )
+      {
+         log_line("Stalled consuming %d bytes, stall for %d ms. Signaling alarm", nRead, iRes);
+         if ( get_current_timestamp_ms() > uTimeStartReceivingStream + 5000 )
+         {
+            sem_t* ps = sem_open(SEMAPHORE_VIDEO_STREAMER_OVERLOAD, O_CREAT, S_IWUSR | S_IRUSR, 0);
+            sem_post(ps);
+            sem_close(ps);
+         }
+      }
+   }
+
+   if ( g_bQuit )
+      log_line("Ending video stream play due to quit signal.");
+
+   mpp_mark_end_of_stream();
+
+   if ( NULL != pSMem )
+   {
+      munmap(pSMem, SM_STREAMER_SIZE);
+      log_line("Unmapped shared mem: %s", SM_STREAMER_NAME);
+   }
    ruby_drm_core_uninit();
    mpp_uninit();
 }
@@ -568,13 +810,18 @@ void _do_stream_mode_udp()
 
 void handle_sigint(int sig) 
 { 
-   log_line("Caught signal to stop: %d\n", sig);
+   log_line("Caught signal to stop: %d", sig);
    g_bQuit = true;
 }
 
 int main(int argc, char *argv[])
 {
-   
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
+   {
+      printf("%d.%d (b%d)", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER);
+      return 0;
+   }
+ 
    signal(SIGINT, handle_sigint);
    signal(SIGTERM, handle_sigint);
    signal(SIGQUIT, handle_sigint);
@@ -589,8 +836,9 @@ int main(int argc, char *argv[])
       printf("-t Test mode\n");
       printf("-p Play the live video stream from pipe\n");
       printf("-u Play the live video stream from UDP socket\n");
+      printf("-sm Play the live video stream from sharedmem\n");
       printf("-h265 use H265 decoder\n");
-      printf("-f [filename] Play H264 file\n");
+      printf("-f [filename] [fps] Play H264 file\n");
       printf("-m [wxh@r] Sets a custom video mode\n");
       printf("-i init UI layer too when playing stream or files\n");
       printf("-d debug output to stdout\n\n");
@@ -608,6 +856,8 @@ int main(int argc, char *argv[])
          g_bPlayStreamPipe = true;
       if ( 0 == strcmp(argv[iParam], "-u") )
          g_bPlayStreamUDP = true;
+      if ( 0 == strcmp(argv[iParam], "-sm") )
+         g_bPlayStreamSM = true;
       if ( 0 == strcmp(argv[iParam], "-i") )
          g_bInitUILayerToo = true;
       if ( 0 == strcmp(argv[iParam], "-h265") )
@@ -624,6 +874,11 @@ int main(int argc, char *argv[])
          strncpy(g_szPlayFileName, argv[iParam], MAX_FILE_PATH_SIZE);
          if ( NULL != strstr(g_szPlayFileName, ".h265") )
             g_bUseH265Decoder = true;
+         iParam++;
+         if ( iParam < argc )
+            g_iFileFPS = atoi(argv[iParam]);
+         if ( (g_iFileFPS < 10) || (g_iFileFPS > 240) )
+            g_iFileFPS = 30;
       }
       if ( 0 == strcmp(argv[iParam], "-m") )
       {
@@ -649,17 +904,19 @@ int main(int argc, char *argv[])
    while (iParam < argc);
 
    if ( g_bPlayFile )
-      log_line("Running mode: play file: [%s]", g_szPlayFileName);
+      log_line("Running mode: play file: [%s] [%d FPS]", g_szPlayFileName, g_iFileFPS);
    if ( g_bPlayStreamPipe )
       log_line("Running mode: stream from pipe");
    if ( g_bPlayStreamUDP )
       log_line("Running mode: stream from UDP");
+   if ( g_bPlayStreamSM )
+      log_line("Running mode: stream from sharedmem");
    if ( g_bTestMode )
       log_line("Running mode: test mode");
    if ( 0 != g_iCustomWidth )
       log_line("Set custom video mode: %dx%d@%d", g_iCustomWidth, g_iCustomHeight, g_iCustomRefresh);
 
-   if ( (!g_bTestMode) && (!g_bPlayFile) && (!g_bPlayStreamPipe) && (!g_bPlayStreamUDP) )
+   if ( (!g_bTestMode) && (!g_bPlayFile) && (!g_bPlayStreamPipe) && (!g_bPlayStreamUDP) && (!g_bPlayStreamSM) )
    {
       log_softerror_and_alarm("Invalid params, no mode specified. Exit.");
       return 0;
@@ -673,6 +930,8 @@ int main(int argc, char *argv[])
       _do_stream_mode_pipe();
    else if ( g_bPlayStreamUDP )
       _do_stream_mode_udp();
+   else if ( g_bPlayStreamSM )
+      _do_stream_mode_sm();
 
    return 0;
 }

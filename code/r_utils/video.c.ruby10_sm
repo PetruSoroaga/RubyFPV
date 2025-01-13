@@ -1,0 +1,439 @@
+/*
+Copyright (c) 2012, Broadcom Europe Ltd
+All rights reserved.
+
+Redistribution and use in source and/or binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the copyright holder nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+// Video deocode demo using OpenMAX IL though the ilcient helper library
+// Build: /opt/vc/src/hello_pi/hello_video
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <asm/termbits.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+   
+#include "bcm_host.h"
+#include "ilclient.h"
+#include "base.h"
+
+int g_bQuit = 0;
+int g_iClockSync = 1;
+int g_fdSMem = -1;
+unsigned char* g_pSMem = NULL;
+uint32_t g_uSharedMemReadPos = 0;
+
+void _onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
+{
+   //log_line("DEBUG2 vsync"); 
+}
+
+u32 s_uPrevToken = 0x11111111;
+u32 s_uCurrentToken = 0x11111111;
+u32 s_uTimeLastNAL = 0;
+u32 s_uNALSize = 0;
+void _parse_stream(unsigned char* pBuffer, int iLength)
+{
+   while ( iLength > 0 )
+   {
+      s_uPrevToken = (s_uPrevToken << 8) | (s_uCurrentToken & 0xFF);
+      s_uCurrentToken = (s_uCurrentToken << 8) | (*pBuffer);
+      pBuffer++;
+      iLength--;
+      s_uNALSize++;
+      if ( s_uPrevToken == 0x00000001 )
+      {
+         unsigned char uNALType = s_uCurrentToken & 0b11111;
+         u32 uTime = get_current_timestamp_ms();
+         log_line("NAL %d, prev %u bytes, %u ms from last", uNALType, s_uNALSize, uTime - s_uTimeLastNAL);
+         s_uTimeLastNAL = uTime;
+         s_uNALSize = 0;
+      }
+   } 
+}
+
+void _open_sm()
+{
+   g_fdSMem = shm_open(SM_STREAMER_NAME, O_RDONLY, S_IRUSR | S_IWUSR);
+
+   if( g_fdSMem < 0 )
+   {
+       log_softerror_and_alarm("Failed to open shared memory for read: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+       return;
+   }
+   
+   g_pSMem = (unsigned char*) mmap(NULL, SM_STREAMER_SIZE, PROT_READ, MAP_SHARED, g_fdSMem, 0);
+   if ( (g_pSMem == MAP_FAILED) || (g_pSMem == NULL) )
+   {
+      log_softerror_and_alarm("Failed to map shared memory: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+      close(g_fdSMem);
+      return;
+   }
+   close(g_fdSMem); 
+   log_line("Mapped shared mem: %s", SM_STREAMER_NAME);
+}
+
+void _close_sm()
+{
+   if ( NULL != g_pSMem )
+   {
+      munmap(g_pSMem, SM_STREAMER_SIZE);
+      g_pSMem = NULL;
+      g_fdSMem = -1;
+      log_line("Unmapped shared mem: %s", SM_STREAMER_NAME);
+   }
+}
+
+static int video_decode()
+{
+   OMX_VIDEO_PARAM_PORTFORMATTYPE format;
+   OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
+   COMPONENT_T *video_decode = NULL, *video_render = NULL, *video_scheduler = NULL, *clock = NULL;
+   COMPONENT_T *list[5];
+   TUNNEL_T tunnel[4];
+   ILCLIENT_T *client;
+   int status = 0;
+   memset(list, 0, sizeof(list));
+   memset(tunnel, 0, sizeof(tunnel));
+
+
+   if((client = ilclient_init()) == NULL)
+   {
+      return -3;
+   }
+
+   if(OMX_Init() != OMX_ErrorNone)
+   {
+      ilclient_destroy(client);
+      return -4;
+   }
+
+   // create video_decode
+   if(ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
+   {
+      status = -14;
+      log_softerror_and_alarm("Failed to create video decoder component.");
+   }
+   list[0] = video_decode;
+
+
+   // create video_render
+   if(status == 0 && ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+   {
+      status = -14;
+      log_softerror_and_alarm("Failed to create video renderer component.");
+   }
+   list[1] = video_render;
+
+   // create clock
+   if ( g_iClockSync )
+   {
+      if ( (status == 0) && ilclient_create_component(client, &clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+         status = -14;
+      list[2] = clock;
+
+      memset(&cstate, 0, sizeof(cstate));
+      cstate.nSize = sizeof(cstate);
+      cstate.nVersion.nVersion = OMX_VERSION;
+      cstate.eState = OMX_TIME_ClockStateWaitingForStartTime;
+      cstate.nWaitMask = 1;
+      if ( (clock != NULL) && OMX_SetParameter(ILC_GET_HANDLE(clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone)
+         status = -13;
+
+      // create video_scheduler
+      if ( (status == 0) && ilclient_create_component(client, &video_scheduler, "video_scheduler", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+         status = -14;
+      list[3] = video_scheduler;
+   }
+
+   if ( g_iClockSync )
+   {
+      set_tunnel(tunnel, video_decode, 131, video_scheduler, 10);
+      set_tunnel(tunnel+1, video_scheduler, 11, video_render, 90);
+      set_tunnel(tunnel+2, clock, 80, video_scheduler, 12);
+   }
+   else
+      set_tunnel(tunnel, video_decode, 131, video_render, 90);
+
+   if ( g_iClockSync )
+   {
+      if( (status == 0) && ilclient_setup_tunnel(tunnel+2, 0, 0) != 0)
+         status = -15;
+      else
+         ilclient_change_component_state(clock, OMX_StateExecuting);
+   }
+   if ( status == 0 )
+      ilclient_change_component_state(video_decode, OMX_StateIdle);
+
+   if ( status != 0 )
+   {
+      log_softerror_and_alarm("Failed to initialize compontens. Aborting.");
+      goto exit;
+   }
+   memset(&format, 0, sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE));
+   format.nSize = sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE);
+   format.nVersion.nVersion = OMX_VERSION;
+   format.nPortIndex = 130;
+   format.eCompressionFormat = OMX_VIDEO_CodingAVC;
+
+   log_line("Initialized components.");
+
+   OMX_BUFFERHEADERTYPE *pOMXBuffer = NULL;
+   int port_settings_changed = 0;
+   int first_packet = 1;
+
+   while ( (g_pSMem == NULL) && (!g_bQuit) )
+   {
+      struct timespec to_sleep = { 0, (long int)(10*1000*1000) };
+      nanosleep(&to_sleep, NULL);
+      _open_sm();
+   }
+
+   if ( ! g_bQuit )
+   {
+      u32* pTmp = (u32*)g_pSMem;
+      g_uSharedMemReadPos = *pTmp;
+      if ( g_uSharedMemReadPos < 2*sizeof(u32) )
+         g_uSharedMemReadPos = 2*sizeof(u32);
+   }   
+   
+   log_line("Entering main loop...");
+   if ( ! g_bQuit )
+   if(status == 0 &&
+      OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
+      ilclient_enable_port_buffers(video_decode, 130, NULL, NULL, NULL) == 0)
+   {
+
+      ilclient_change_component_state(video_decode, OMX_StateExecuting);
+
+      while( (!g_bQuit) && ((pOMXBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) )
+      {
+         u32* pTmp1 = (u32*)g_pSMem;
+         u32* pTmp2 = (u32*)(&(g_pSMem[sizeof(u32)]));
+         u32 uWritePos1 = 0;
+         u32 uWritePos2 = 0;
+         u32 uBytesToRead = 0;
+
+         while ((uBytesToRead == 0) && (!g_bQuit))
+         {
+            uWritePos1 = *pTmp1;
+            uWritePos2 = *pTmp2;
+            if ( (g_uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
+            {
+               struct timespec to_sleep = { 0, (long int)(1*1000*1000) };
+               nanosleep(&to_sleep, NULL);
+               continue;
+            }
+            if ( uWritePos1 > g_uSharedMemReadPos )
+            {
+               uBytesToRead = uWritePos1 - g_uSharedMemReadPos;
+               if ( uBytesToRead > pOMXBuffer->nAllocLen )
+                  uBytesToRead = pOMXBuffer->nAllocLen;
+               memcpy(pOMXBuffer->pBuffer, &g_pSMem[g_uSharedMemReadPos], uBytesToRead);
+               g_uSharedMemReadPos += uBytesToRead;
+               if ( g_uSharedMemReadPos >= SM_STREAMER_SIZE )
+                  g_uSharedMemReadPos = 2*sizeof(u32);
+            }
+            else
+            {
+               uBytesToRead = (SM_STREAMER_SIZE - g_uSharedMemReadPos);
+               if ( uBytesToRead > pOMXBuffer->nAllocLen )
+                  uBytesToRead = pOMXBuffer->nAllocLen;
+               memcpy(pOMXBuffer->pBuffer, &g_pSMem[g_uSharedMemReadPos], uBytesToRead);
+               g_uSharedMemReadPos += uBytesToRead;
+               if ( g_uSharedMemReadPos >= SM_STREAMER_SIZE )
+                  g_uSharedMemReadPos = 2*sizeof(u32);
+               if ( (pOMXBuffer->nAllocLen - uBytesToRead > 0) && (uWritePos1 > 0) )
+               {
+                  unsigned char* pTmpB = pOMXBuffer->pBuffer + uBytesToRead;
+
+                  u32 uBytesToRead2 = uWritePos1 - 2*sizeof(u32);
+                  if ( uBytesToRead2 + uBytesToRead > pOMXBuffer->nAllocLen )
+                     uBytesToRead2 = pOMXBuffer->nAllocLen - uBytesToRead;
+                  memcpy(pTmpB, &g_pSMem[g_uSharedMemReadPos], uBytesToRead2);
+                  g_uSharedMemReadPos += uBytesToRead2;
+                  uBytesToRead += uBytesToRead2;
+               }
+            }
+         } 
+         if ( g_bQuit )
+            break;
+
+         //_parse_stream(pOMXBuffer->pBuffer, uBytesToRead);
+
+         if(port_settings_changed == 0 &&
+            ((uBytesToRead > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+             (uBytesToRead == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+                                                       ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
+         {
+            port_settings_changed = 1;
+            if(ilclient_setup_tunnel(tunnel, 0, 0) != 0)
+            {
+               status = -7;
+               break;
+            }
+
+            if ( g_iClockSync )
+            {
+               ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
+               if ( ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0)
+               {
+                  status = -12;
+                  break;
+               }
+            }
+
+            ilclient_change_component_state(video_render, OMX_StateExecuting);
+         }
+         
+         pOMXBuffer->nFilledLen = uBytesToRead;
+         uBytesToRead = 0;
+
+         pOMXBuffer->nOffset = 0;
+         if(first_packet)
+         {
+            pOMXBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
+            first_packet = 0;
+         }
+         else
+            pOMXBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+
+         if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), pOMXBuffer) != OMX_ErrorNone)
+         {
+            status = -6;
+            break;
+         }
+      }
+
+      log_line("Quiting (port changed: %d, first packet: %d)...", port_settings_changed, first_packet);
+      if ( (NULL != pOMXBuffer) && port_settings_changed && (!first_packet) )
+      {
+         pOMXBuffer->nFilledLen = 0;
+         pOMXBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
+
+         if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), pOMXBuffer) != OMX_ErrorNone)
+            status = -20;
+      }
+
+      // wait for EOS from render
+      if ( port_settings_changed && (!first_packet) )
+      {
+         ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0,
+                              ILCLIENT_BUFFER_FLAG_EOS, -1);
+
+         // need to flush the renderer to allow video_decode to disable its input port
+         ilclient_flush_tunnels(tunnel, 0);
+      }
+
+      log_line("Done rendering cleanup step 1/3...");
+   }
+ 
+   if ( port_settings_changed && (!first_packet) )
+   {
+      ilclient_disable_tunnel(tunnel);
+      if ( g_iClockSync )
+      {
+         ilclient_disable_tunnel(tunnel+1);
+         ilclient_disable_tunnel(tunnel+2);
+      }
+      ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
+      ilclient_teardown_tunnels(tunnel);
+   }
+exit:
+
+   log_line("Done rendering cleanup step 2/3...");
+
+   if ( port_settings_changed && (!first_packet) )
+   {
+      ilclient_state_transition(list, OMX_StateIdle);
+      ilclient_state_transition(list, OMX_StateLoaded);
+
+      ilclient_cleanup_components(list);
+   }
+   OMX_Deinit();
+
+   ilclient_destroy(client);
+   log_line("Done rendering cleanup step 3/3...");
+   return status;
+}
+
+void handle_sigint(int sig) 
+{ 
+   g_bQuit = 1;
+   log_line("Caught signal to stop: %d", sig);
+} 
+
+int main(int argc, char **argv)
+{
+   if ( strcmp(argv[argc-1], "-ver") == 0 )
+   {
+      printf("%d.%d (b%d)", 10,2,258);
+      return 0;
+   }
+
+   log_init("RubyVideoStreamer");
+
+   signal(SIGINT, handle_sigint);
+   signal(SIGTERM, handle_sigint);
+   signal(SIGQUIT, handle_sigint);
+
+   bcm_host_init();
+
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
+   int policy = 0;
+   int ret = 0;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("Failed to get schedule param");
+   else
+      log_line("Current thread policy/priority: %d/%d", policy, params.sched_priority);
+
+   params.sched_priority = 50;
+   ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+   if ( ret != 0 )
+      log_softerror_and_alarm("Failed to set thread schedule class, error: %d, %s", errno, strerror(errno));
+
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("Failed to get schedule param");
+   else
+     log_line("Current new thread policy/priority: %d/%d", policy, params.sched_priority);
+
+
+   //DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open(0);
+   //vc_dispmanx_vsync_callback(display, _onVSync, NULL); 
+   _open_sm();
+   int iRet = video_decode();
+   _close_sm();
+   log_line("Exit now.");
+   return iRet;
+}
+
+

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -149,6 +149,9 @@ ProcessorRxVideo::ProcessorRxVideo(u32 uVehicleId, u8 uVideoStreamIndex)
    m_TimeLastRetransmissionsStatsUpdate = 0;
    m_uLatestVideoPacketReceiveTime = 0;
 
+   m_uLastVideoBlockIndexResolutionChange = 0;
+   m_uLastVideoBlockPacketIndexResolutionChange = 0;
+
    m_bPaused = false;
 
    m_pVideoRxBuffer = new VideoRxPacketsBuffer(uVideoStreamIndex, 0);
@@ -178,6 +181,8 @@ ProcessorRxVideo::ProcessorRxVideo(u32 uVehicleId, u8 uVideoStreamIndex)
    {
       g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].uVehicleId = uVehicleId;
       g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].uVideoStreamIndex = uVideoStreamIndex;
+      g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoWidth = 0;
+      g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoHeight = 0;
    }
 }
 
@@ -364,11 +369,13 @@ void ProcessorRxVideo::resetReceiveBuffersBlock(int rx_buffer_block_index)
    */
 }
 
-void ProcessorRxVideo::resetState()
+void ProcessorRxVideo::resetStateOnVehicleRestart()
 {
-   log_line("[ProcessorRxVideo] VID %d, video stream %u: Reset state, full.", m_uVehicleId, m_uVideoStreamIndex);
+   log_line("[ProcessorRxVideo] VID %d, video stream %u: Reset state, full, due to vehicle restart.", m_uVehicleId, m_uVideoStreamIndex);
    resetReceiveState();
    resetOutputState();
+   m_uLastVideoBlockIndexResolutionChange = 0;
+   m_uLastVideoBlockPacketIndexResolutionChange = 0;
 }
 
 void ProcessorRxVideo::discardRetransmissionsInfo()
@@ -381,17 +388,11 @@ void ProcessorRxVideo::onControllerSettingsChanged()
 {
    log_line("[ProcessorRxVideo] VID %u, video stream %u: Controller params changed. Reinitializing RX video state...", m_uVehicleId, m_uVideoStreamIndex);
 
-   u32 tmp1 = m_uLastHardEncodingsChangeVideoBlockIndex;
-   u32 tmp2 = m_uLastVideoResolutionChangeVideoBlockIndex;
-
    m_uRetryRetransmissionAfterTimeoutMiliseconds = g_pControllerSettings->nRetryRetransmissionAfterTimeoutMS;
    log_line("[ProcessorRxVideo]: Using timers: Retransmission retry after timeout of %d ms; Request retransmission after video silence (no video packets) timeout of %d ms", m_uRetryRetransmissionAfterTimeoutMiliseconds, g_pControllerSettings->nRequestRetransmissionsOnVideoSilenceMs);
    
    resetReceiveState();
    resetOutputState();
-
-   m_uLastHardEncodingsChangeVideoBlockIndex = tmp1;
-   m_uLastVideoResolutionChangeVideoBlockIndex = tmp2;
 }
 
 void ProcessorRxVideo::pauseProcessing()
@@ -666,15 +667,6 @@ u32 ProcessorRxVideo::getLastestVideoPacketReceiveTime()
    return m_uLatestVideoPacketReceiveTime;
 }
 
-int ProcessorRxVideo::getCurrentlyReceivedVideoProfile()
-{
-   return -1;
-   // To fix?
-   //if ( 0 == m_SM_VideoDecodeStats.width )
-   //   return -1;
-   //return (m_SM_VideoDecodeStats.video_link_profile & 0x0F);
-}
-
 int ProcessorRxVideo::getCurrentlyReceivedVideoFPS()
 {
    return -1;
@@ -837,14 +829,15 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    if ( m_bPaused )
       return 1;
 
+   t_packet_header* pPH = (t_packet_header*)pBuffer;
+   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pBuffer+sizeof(t_packet_header));    
+
    #ifdef PROFILE_RX
    //u32 uTimeStart = get_current_timestamp_ms();
    //int iStackIndexStart = m_iRXBlocksStackTopIndex;
    #endif  
 
    #if defined(RUBY_BUILD_HW_PLATFORM_PI)
-   t_packet_header* pPH = (t_packet_header*)pBuffer;
-   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pBuffer+sizeof(t_packet_header));    
    if (((pPHVF->uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
    {
       static u32 s_uTimeLastSendVideoUnsuportedAlarmToCentral = 0;
@@ -856,6 +849,27 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    }
    #endif
 
+   if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
+   {
+      // Discard retransmitted packets that:
+      // * Are from before latest video stream resolution change;
+      // * Are from before a vehicle restart detected;
+      // Retransmitted packets are sent on controller request or automatically (ie on a missing ACK)
+
+      bool bDiscard = false;
+      if ( 0 == m_uLastVideoBlockIndexResolutionChange )
+         bDiscard = true;
+      if ( pPHVF->uCurrentBlockIndex < m_uLastVideoBlockIndexResolutionChange )
+         bDiscard = true;
+      if ( pPHVF->uCurrentBlockIndex == m_uLastVideoBlockIndexResolutionChange )
+      if ( pPHVF->uCurrentBlockPacketIndex < m_uLastVideoBlockPacketIndexResolutionChange )
+         bDiscard = true;
+   
+      if ( bDiscard )
+         return 0;
+   }
+
+
    if ( NULL != m_pVideoRxBuffer )
    {
       bool bNewestOnStream = m_pVideoRxBuffer->checkAddVideoPacket(pBuffer, length);
@@ -865,8 +879,6 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
          m_uLatestVideoPacketReceiveTime = g_TimeNow;
       }
 
-      t_packet_header* pPH = (t_packet_header*)pBuffer;
-      t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pBuffer+sizeof(t_packet_header));    
       if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
       {
          controller_runtime_info_vehicle* pRTInfo = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, pPH->vehicle_id_src);
@@ -893,7 +905,6 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
          type_rx_video_block_info* pVideoBlock = m_pVideoRxBuffer->getFirstVideoBlockInBuffer();
          if ( (NULL != pVideoBlock) && (NULL != pVideoPacket) && (NULL != pVideoPacket->pRawData) )
          if ( ! pVideoPacket->bEmpty )
-         //if ( pVideoPacket->bEndOfFirstIFrameDetected )
          if ( pVideoPacket->pPHVF->uCurrentBlockPacketIndex < pVideoPacket->pPHVF->uCurrentBlockDataPackets )
          if ( NULL != pVideoPacket->pVideoData )
          {
@@ -1037,8 +1048,10 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
 
 void ProcessorRxVideo::updateVideoDecodingStats(u8* pRadioPacket, int iPacketLength)
 {
+   if ( (m_iIndexVideoDecodeStats < 0) || (m_iIndexVideoDecodeStats >= MAX_VIDEO_PROCESSORS) )
+      return;
    t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pRadioPacket+sizeof(t_packet_header));    
-   
+
    if ( g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].PHVF.uCurrentVideoLinkProfile != pPHVF->uCurrentVideoLinkProfile )
    {
       // Video profile changed on the received stream
@@ -1057,8 +1070,16 @@ void ProcessorRxVideo::updateVideoDecodingStats(u8* pRadioPacket, int iPacketLen
    }
 
    memcpy( &(g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].PHVF), pPHVF, sizeof(t_packet_header_video_full_98));
+
    if ( pPHVF->uStreamInfoFlags == VIDEO_STREAM_INFO_FLAG_SIZE )
+   if ( 0 != pPHVF->uCurrentBlockIndex )
    {
+      if ( (g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoWidth != (pPHVF->uStreamInfo & 0xFFFF)) ||
+           (g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoHeight != ((pPHVF->uStreamInfo >> 16) & 0xFFFF)) )
+      {
+          m_uLastVideoBlockIndexResolutionChange = pPHVF->uCurrentBlockIndex;
+          m_uLastVideoBlockPacketIndexResolutionChange = pPHVF->uCurrentBlockPacketIndex;
+      }
       g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoWidth = pPHVF->uStreamInfo & 0xFFFF;
       g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].iCurrentVideoHeight = (pPHVF->uStreamInfo >> 16) & 0xFFFF;
    }
@@ -1147,7 +1168,7 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
 
    checkAndDiscardBlocksTooOld();
 
-   if ( g_bSearching || g_bUpdateInProgress || pModel->is_spectator || (! pRuntimeInfo->bIsPairingDone) )
+   if ( g_bSearching || g_bUpdateInProgress || m_bPaused || pModel->is_spectator || (! pRuntimeInfo->bIsPairingDone) )
       return -1;
    if ( ! m_pVideoRxBuffer->hasIncompleteBlocks() )
       return -1;

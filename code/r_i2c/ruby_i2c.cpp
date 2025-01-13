@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -519,13 +519,11 @@ void _read_RCIn_OldMethod()
    {
       if ( g_TimeNow > g_TimeLastRCInFrameChange + DEFAULT_RC_FAILSAFE_TIME )
       {
-         //log_line("To Remove No ISBUS/SBUS input 3");
          g_pSMRCIn->uFlags &= (~RC_IN_FLAG_HAS_INPUT); // No input
       }
       return;
    }
 
-   //log_line("Frame: %d", iFrameNumber);
    g_pSMRCIn->uFlags |= RC_IN_FLAG_HAS_INPUT; // Has input
    g_TimeLastRCInFrameChange =  g_TimeNow;
 

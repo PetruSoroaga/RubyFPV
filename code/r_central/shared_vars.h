@@ -42,7 +42,7 @@ extern u32 g_uVideoRecordStartTime;
 extern bool g_bVideoRecordingStarted;
 extern bool g_bVideoProcessing;
 extern bool g_bVideoPlaying;
-extern u32 g_uVideoPlayingStartTime;
+extern u32 g_uVideoPlayingTimeMs;
 extern u32 g_uVideoPlayingLengthSec;
 
 extern int g_ControllerCPUSpeed;

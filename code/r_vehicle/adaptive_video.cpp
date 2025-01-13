@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -71,6 +71,11 @@ void adaptive_video_set_kf_for_current_video_profile(u16 uKeyframe)
    s_uPendingKFValue = uKeyframe;
 }
 
+void adaptive_video_set_last_kf_requested_by_controller(u16 uKeyframe)
+{
+   s_uPendingKFValue = uKeyframe;
+}
+
 void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
 {
    s_uLastVideoProfileRequestedByController = iVideoProfile;
@@ -78,8 +83,9 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
    if ( NULL != g_pVideoTxBuffers )
    {
       g_pVideoTxBuffers->updateVideoHeader(g_pCurrentModel);
-      s_uPendingKFValue = g_pCurrentModel->getInitialKeyframeIntervalMs(iVideoProfile);
-      log_line("[AdaptiveVideo] Set new KF ms value requested by controller: %d (current KF ms: %d)", s_uPendingKFValue, s_uCurrentKFValue);
+      // To fix when adaptive kf is working 100%
+      //s_uPendingKFValue = g_pCurrentModel->getInitialKeyframeIntervalMs(iVideoProfile);
+      //log_line("[AdaptiveVideo] Set new KF ms value requested by controller: %d (current KF ms: %d)", s_uPendingKFValue, s_uCurrentKFValue);
    }
 
    // Update capture video bitrate
@@ -187,7 +193,7 @@ void adaptive_video_on_capture_restarted()
    s_iLastIPQuantizationSet = -1000;
 }
 
-void adaptive_video_on_new_camera_read(bool bEndOfFrame, bool bIsInsideIFrame)
+void adaptive_video_on_new_camera_read(bool bIsEndOfFrame)
 {
    if ( 0 != s_uPendingKFValue )
    {
@@ -197,8 +203,7 @@ void adaptive_video_on_new_camera_read(bool bEndOfFrame, bool bIsInsideIFrame)
    if ( s_uPendingKFValue != 0 )
    if ( s_uPendingKFValue != s_uCurrentKFValue )
    if ( NULL != g_pVideoTxBuffers )
-   if ( bEndOfFrame )
-   if ( ! bIsInsideIFrame )
+   if ( bIsEndOfFrame )
    {
       if ( _adaptive_video_send_kf_to_capture_program(s_uPendingKFValue) )
       {

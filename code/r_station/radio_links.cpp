@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -385,7 +385,7 @@ void radio_links_open_rxtx_radio_interfaces()
          int nRateTx = DEFAULT_RADIO_DATARATE_DATA;
          if ( NULL != g_pCurrentModel )
          {
-            nRateTx = compute_packet_uplink_datarate(nVehicleRadioLinkId, i, &(g_pCurrentModel->radioLinksParams));
+            nRateTx = compute_packet_uplink_datarate(nVehicleRadioLinkId, i, &(g_pCurrentModel->radioLinksParams), NULL);
             log_line("Current model uplink radio datarate for vehicle radio link %d (%s): %d, %u, uplink rate type: %d",
                nVehicleRadioLinkId+1, pRadioHWInfo->szName, nRateTx, getRealDataRateFromRadioDataRate(nRateTx, 0),
                g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[nVehicleRadioLinkId]);
@@ -607,8 +607,7 @@ bool radio_links_apply_settings(Model* pModel, int iRadioLink, type_radio_links_
            (pRadioHWInfo->iRadioType != RADIO_TYPE_RALINK) )
          continue;
 
-      //int nRateTx = pRadioLinkParams->uplink_datarate_data_bps[iRadioLink];
-      int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, pRadioLinkParamsNew);
+      int nRateTx = compute_packet_uplink_datarate(iRadioLink, i, pRadioLinkParamsNew, NULL);
       update_atheros_card_datarate(pModel, i, nRateTx, g_pProcessStats);
       g_TimeNow = get_current_timestamp_ms();
    }

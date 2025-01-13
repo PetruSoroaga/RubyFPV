@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -147,7 +147,7 @@ int hardware_radio_sik_reinitialize_serial_ports()
       iCurrentSiKSerialPorts++;
    }
 
-   char szOutput[1024];
+   char szOutput[4096];
    char szDrivers[1024];
    int bTryDefault = 0;
    szDrivers[0] = 0;

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -242,15 +242,9 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_iIndexFlashOSDOnTelemLost == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
-      {
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-            params.osd_flags2[i] &= ~OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
-      }
+         params.osd_flags2[m_nOSDIndex] &= ~OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
       else
-      {
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-            params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
-      }
+         params.osd_flags2[m_nOSDIndex] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
       sendToVehicle = true;
    }
 

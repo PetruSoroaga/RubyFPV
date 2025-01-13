@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -35,7 +35,6 @@
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
 #include "../base/camera_utils.h"
-#include "../base/parser_h264.h"
 #include "../base/utils.h"
 #include "../common/string_utils.h"
 
@@ -57,8 +56,6 @@
 
 #ifdef HW_PLATFORM_RASPBERRY
 
-ParserH264 s_ParserH264_CSICameraOutput;
-
 pthread_t s_pThreadWatchDogVideoCapture;
 bool s_bStopThreadWatchDogVideoCapture = false;
 bool s_bHasThreadWatchDogVideoCapture = false;
@@ -70,7 +67,7 @@ static type_video_link_profile s_LastAppliedVeyeVideoParams;
 int s_fInputVideoStreamCSIPipe = -1;
 char s_szInputVideoStreamCSIPipeName[128];
 bool s_bInputVideoStreamCSIPipeOpenFailed = false;
-u8 s_uInputVideoCSIPipeBuffer[64000];
+u8 s_uInputVideoCSIPipeBuffer[128000];
 
 bool s_bRequestedVideoCSICaptureRestart = false;
 bool s_bVideoCSICaptureProgramStarted = false;
@@ -204,8 +201,6 @@ int video_source_csi_open(const char* szPipeName)
       log_error_and_alarm("[VideoSourceCSI] Tried to open a video input source pipe with an empty name.");
       return s_fInputVideoStreamCSIPipe;
    }
-
-   s_ParserH264_CSICameraOutput.init();
    
    strcpy(s_szInputVideoStreamCSIPipeName, szPipeName);
    log_line("[VideoSourceCSI] Opening video input stream pipe: %s", s_szInputVideoStreamCSIPipeName);
@@ -256,7 +251,7 @@ void video_source_csi_flush_discard()
    for( int i=0; i<50; i++ )
    {
       int iReadSize = 0;
-      video_source_csi_read(&iReadSize, NULL);
+      video_source_csi_read(&iReadSize);
    }
    log_line("[VideoSourceCSI] Flushed video stream input buffer (pipe)");
 }
@@ -267,12 +262,10 @@ int video_source_csi_get_buffer_size()
 }
 
 // Returns the buffer and number of bytes read
-u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame)
+u8* video_source_csi_read(int* piReadSize)
 {
    if ( (NULL == piReadSize) )
       return NULL;
-   if ( NULL != pbIsInsideIFrame )
-      *pbIsInsideIFrame = false;
 
    if ( s_bRequestedVideoCSICaptureRestart )
    {
@@ -351,42 +344,9 @@ u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame)
    s_uDebugCSIInputReads++;
    *piReadSize = iRead;
 
-   bool bHasIFrameData = false;
-   bool bHasPPSFrames = false;
-   int iParsePos = 0;
-   int iSizeLeft = iRead;
-   while ( iSizeLeft > 0 )
-   {
-      int iParsed = s_ParserH264_CSICameraOutput.parseDataUntillStartOfNextNAL(&s_uInputVideoCSIPipeBuffer[iParsePos], iSizeLeft, g_TimeNow);
-      if ( iParsed >= iSizeLeft )
-        break;
-      if ( s_ParserH264_CSICameraOutput.getPreviousFrameType() == 5 )
-         bHasIFrameData = true;
-      if ( s_ParserH264_CSICameraOutput.getCurrentFrameType() == 5 )
-         bHasIFrameData = true;
-
-      if ( (s_ParserH264_CSICameraOutput.getCurrentFrameType() == 7) ||
-           (s_ParserH264_CSICameraOutput.getCurrentFrameType() == 8) )
-         bHasPPSFrames = true;
-      //log_line("DEBUG start %u (%d b) of NAL %d, prev NAL: %d, prev size: %d",
-      //  s_uDebugCSIInputReads, iRead, s_ParserH264_CSICameraOutput.getCurrentFrameType(),
-      //  s_ParserH264_CSICameraOutput.getPreviousFrameType(),
-      //  s_ParserH264_CSICameraOutput.getSizeOfLastCompleteFrameInBytes());
-      iParsePos += iParsed+1;
-      iSizeLeft -= iParsed+1;
-   }
-   if ( NULL != pbIsInsideIFrame )
-      *pbIsInsideIFrame = bHasIFrameData;
-
-   /*
-   static int sssiii = 0;
-   if ( bHasPPSFrames && iRead < 50 )
-   {
-      sssiii++;
-      if ( sssiii > 10 )
-         *piReadSize = 0;
-   }
-   */
+   u32 uStart, uEnd;
+   memcpy(&uStart, s_uInputVideoCSIPipeBuffer, sizeof(u32));
+   memcpy(&uEnd, &(s_uInputVideoCSIPipeBuffer[iRead-4]), sizeof(u32));
    return s_uInputVideoCSIPipeBuffer;
 }
 
@@ -765,7 +725,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
    }
 
    //log_line("Executing video pipeline: [%s]", szBuff);
-   bResult = hw_execute_bash_command(szBuff, NULL);
+   bResult = hw_execute_bash_command_nonblock(szBuff, NULL);
 
    if ( pModel->isActiveCameraVeye() )
    {
@@ -1056,7 +1016,12 @@ void video_source_csi_close() {}
 int video_source_csi_open(const char* szPipeName) {return 0;}
 void video_source_csi_flush_discard() {}
 int video_source_csi_get_buffer_size() {return 0;}
-u8* video_source_csi_read(int* piReadSize, bool* pbIsInsideIFrame) {return NULL;}
+u8* video_source_csi_read(int* piReadSize)
+{
+   if ( NULL != piReadSize )
+      *piReadSize = 0;
+   return NULL;
+}
 void video_source_csi_start_program() {}
 void video_source_csi_stop_program() {}
 bool video_source_csi_is_program_started() {return false;}

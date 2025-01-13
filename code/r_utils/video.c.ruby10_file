@@ -46,13 +46,24 @@ static int s_iFPS = 0;
 static int s_iFPSReads = 0;
 static int s_iFPSSearchTagsFound = 0;
 
-static DISPMANX_DISPLAY_HANDLE_T display;
-uint32_t s_uSearchTag = 0x3333;
-
+int g_bQuit = 0;
 char szFileName[256];
-int iFPS = 0;
+int g_iFPS = 0;
+int g_iClockSync = 1;
+int g_iInputFile = -1;
 
-void onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
+uint32_t g_uCurrentParseTag = 0x11111111;
+//uint32_t g_uPrevParseTag = 0x11111111;
+int g_iDetectedSlices = 4;
+int g_iTempSlices = 1;
+unsigned char g_uPrevNALType = 0;
+
+unsigned char g_uFrameBuffer[200000];
+int g_iFrameBufferLength = 0;
+unsigned char g_uFileBuffer[200000];
+int g_iFileBufferAvailableBytes = 0;
+
+void _onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
 {
    s_iFPS++;
 
@@ -67,17 +78,171 @@ void onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
       s_iFPSSearchTagsFound = 0;
    }
 }
+
+void _onFrameLoop()
+{
+   while ( (access("/tmp/pausedvr", R_OK) != -1) && (!g_bQuit) )
+   {
+      struct timespec to_sleep = { 0, (long int)(100*1000*1000) };
+      nanosleep(&to_sleep, NULL);
+   }
+}
+
+
+//-------------------------------------------
+// Frame format:
+// [00 00 00 01] [NALType] [data x bytes]
+
+void _normalize_stored_frame()
+{
+   return;
+
+   // Add [00 00 00 01] at start if missing;
+   // Remove [00 00 00 01] from end if present;
+
+   if ( g_iFrameBufferLength > 0 )
+   if ( (g_uFrameBuffer[0] != 0) || (g_uFrameBuffer[1] != 0) || (g_uFrameBuffer[2] != 0) || (g_uFrameBuffer[3] != 0x01) )
+   {
+      for( int i=g_iFrameBufferLength-1; i>=0; i-- )
+         g_uFrameBuffer[i+4] = g_uFrameBuffer[i];
+      g_uFrameBuffer[0] = 0;
+      g_uFrameBuffer[1] = 0;
+      g_uFrameBuffer[2] = 0;
+      g_uFrameBuffer[3] = 0x01;
+      g_iFrameBufferLength += 4;
+   }
+
+   if ( g_iFrameBufferLength >= 4 )
+   if ( (g_uFrameBuffer[g_iFrameBufferLength-4] == 0) && (g_uFrameBuffer[g_iFrameBufferLength-3] == 0) && (g_uFrameBuffer[g_iFrameBufferLength-2] == 0) && (g_uFrameBuffer[g_iFrameBufferLength-1] == 0x01) )
+      g_iFrameBufferLength -= 4;
+}
+
+// Returns size of frame in bytes
+
+int _read_next_frame_to_buffer()
+{
+   g_iFrameBufferLength = 0;
+   u8* pTmpFrameBuffer = &(g_uFrameBuffer[0]);
+   while ( ! g_bQuit )
+   {
+      int iPos = 0;
+      u8* pTmpFileBuffer = &(g_uFileBuffer[0]);
+      while ( (iPos < g_iFileBufferAvailableBytes) && (!g_bQuit) )
+      {
+         //g_uPrevParseTag = (g_uPrevParseTag << 8) | (g_uCurrentParseTag & 0xFF);
+         g_uCurrentParseTag = (g_uCurrentParseTag << 8) | (*pTmpFileBuffer);
+         *pTmpFrameBuffer = *pTmpFileBuffer;
+         pTmpFrameBuffer++;
+         pTmpFileBuffer++;
+         iPos++;
+         g_iFrameBufferLength++;
+
+         if ( g_uCurrentParseTag == 0x00000001 )
+         if ( g_iFrameBufferLength > 5 )
+            break;
+      }
+
+      if ( g_bQuit )
+         break;
+      // Shift file buffer
+      if ( iPos < g_iFileBufferAvailableBytes )
+      {
+         for( int i=iPos; i<g_iFileBufferAvailableBytes; i++ )
+            g_uFileBuffer[i-iPos] = g_uFileBuffer[i];
+         g_iFileBufferAvailableBytes -= iPos;
+      }
+      else
+         g_iFileBufferAvailableBytes = 0;      
+
+      // Found the start of the new NAL in buffer? Return the frame
+      if ( g_iFrameBufferLength > 5 )
+      if ( g_uCurrentParseTag == 0x00000001 )
+      {
+         _normalize_stored_frame();
+         return g_iFrameBufferLength;
+      }
+
+      // Read a new segment from file
+      g_iFileBufferAvailableBytes = read(g_iInputFile, &g_uFileBuffer[0], 64000);
+      if ( g_bQuit )
+         break;
+      if ( g_iFileBufferAvailableBytes <= 0 )
+      {
+         struct timespec to_sleep = { 0, (long int)(20*1000*1000) };
+         nanosleep(&to_sleep, NULL);
+         return 0;
+      }
+   }
+   _normalize_stored_frame();
+   return g_iFrameBufferLength;
+}
+
+// Returns number of bytes filled or -1 to exit
+
+int _fillBuffer(unsigned char* pBuffer, int iMaxLength)
+{
+   if ( g_iInputFile <= 0 )
+      return -1;
  
+   static int s_iSkipToFirstNAL = 1;
+   if ( s_iSkipToFirstNAL )
+   {
+      s_iSkipToFirstNAL = 0;
+      _read_next_frame_to_buffer();
+   }
+
+   int iBytes = _read_next_frame_to_buffer();
+
+   if ( (iBytes <= 0) || g_bQuit )
+      return 0;
+
+   //unsigned char uNALType = g_uFrameBuffer[4] & 0x1F;
+   unsigned char uNALType = g_uFrameBuffer[0] & 0x1F;
+   
+   if ( (g_uPrevNALType == 5) && (uNALType != 5) )
+      g_iDetectedSlices = g_iTempSlices;
+
+   if ( g_uPrevNALType == uNALType )
+      g_iTempSlices++;
+   else
+      g_iTempSlices = 1;
+
+   g_uPrevNALType = uNALType;
+
+   if ( iBytes > iMaxLength )
+      return 0;
+
+   memcpy(pBuffer, g_uFrameBuffer, iBytes);
+
+
+   static u32 s_uTimeLastFrame = 0;
+
+   if ( (g_iTempSlices % g_iDetectedSlices) == 0 )
+   if ( (uNALType != 7) && (uNALType != 8) )
+   {
+      u32 uTimeNow = get_current_timestamp_ms();
+
+      long int miliSecs = (1000/g_iFPS);
+      miliSecs = miliSecs - (uTimeNow - s_uTimeLastFrame);
+      s_uTimeLastFrame = uTimeNow;
+      if ( miliSecs > 0 )
+      {
+         struct timespec to_sleep = { 0, (long int)(miliSecs*1000*1000) };
+         nanosleep(&to_sleep, NULL);
+      }
+   }
+   return iBytes;
+}
+
 static int video_decode()
 {
    OMX_VIDEO_PARAM_PORTFORMATTYPE format;
-   COMPONENT_T *video_decode = NULL, *video_render = NULL;
+   OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
+   COMPONENT_T *video_decode = NULL, *video_render = NULL, *video_scheduler = NULL, *clock = NULL;
    COMPONENT_T *list[5];
    TUNNEL_T tunnel[4];
    ILCLIENT_T *client;
    int status = 0;
-   unsigned int uBufferReadSize = 0;
-   int iExit = 0;
    
    memset(list, 0, sizeof(list));
    memset(tunnel, 0, sizeof(tunnel));
@@ -93,32 +258,64 @@ static int video_decode()
       return -4;
    }
 
-   int iPipeRead = -1;
-   iPipeRead = open(szFileName, O_RDONLY);
-   if( -1 == iPipeRead )
+   g_iInputFile = open(szFileName, O_RDONLY);
+   if( -1 == g_iInputFile )
    {
        log_error_and_alarm("Failed to open input file: (%s)", szFileName);
        return EXIT_FAILURE;
    }
 
-   log_line("Opened file: [%s], fd=%d", szFileName, iPipeRead);
+   log_line("Opened file: [%s], fd=%d", szFileName, g_iInputFile);
 
    // create video_decode
-   if(ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
+   if ( ilclient_create_component(client, &video_decode, "video_decode", ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS) != 0)
       status = -14;
    list[0] = video_decode;
 
 
    // create video_render
-   if(status == 0 && ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+   if ( (status == 0) && ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0)
       status = -14;
    list[1] = video_render;
 
+   // create clock
+   if ( g_iClockSync )
+   {
+      if ( (status == 0) && ilclient_create_component(client, &clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+         status = -14;
+      list[2] = clock;
 
-   set_tunnel(tunnel, video_decode, 131, video_render, 90);
+      memset(&cstate, 0, sizeof(cstate));
+      cstate.nSize = sizeof(cstate);
+      cstate.nVersion.nVersion = OMX_VERSION;
+      cstate.eState = OMX_TIME_ClockStateWaitingForStartTime;
+      cstate.nWaitMask = 1;
+      if ( (clock != NULL) && OMX_SetParameter(ILC_GET_HANDLE(clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone)
+         status = -13;
 
+      // create video_scheduler
+      if ( (status == 0) && ilclient_create_component(client, &video_scheduler, "video_scheduler", ILCLIENT_DISABLE_ALL_PORTS) != 0)
+         status = -14;
+      list[3] = video_scheduler;
+   }
 
-   if(status == 0)
+   if ( g_iClockSync )
+   {
+      set_tunnel(tunnel, video_decode, 131, video_scheduler, 10);
+      set_tunnel(tunnel+1, video_scheduler, 11, video_render, 90);
+      set_tunnel(tunnel+2, clock, 80, video_scheduler, 12);
+   }
+   else
+      set_tunnel(tunnel, video_decode, 131, video_render, 90);
+
+   if ( g_iClockSync )
+   {
+      if( (status == 0) && ilclient_setup_tunnel(tunnel+2, 0, 0) != 0)
+         status = -15;
+      else
+         ilclient_change_component_state(clock, OMX_StateExecuting);
+   }
+   if ( status == 0 )
       ilclient_change_component_state(video_decode, OMX_StateIdle);
 
    memset(&format, 0, sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE));
@@ -126,124 +323,120 @@ static int video_decode()
    format.nVersion.nVersion = OMX_VERSION;
    format.nPortIndex = 130;
    format.eCompressionFormat = OMX_VIDEO_CodingAVC;
-   format.xFramerate = iFPS << 16;
+   if ( ! g_iClockSync )
+      format.xFramerate = g_iFPS << 16;
    
-   log_line("FPS: %d", iFPS);
+   log_line("FPS: %d", g_iFPS);
 
-   if(status == 0 &&
+   if ( (status == 0) &&
       OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
       ilclient_enable_port_buffers(video_decode, 130, NULL, NULL, NULL) == 0)
    {
-      OMX_BUFFERHEADERTYPE *buf;
+      OMX_BUFFERHEADERTYPE *pOMXBuffer = NULL;
       int port_settings_changed = 0;
       int first_packet = 1;
 
       ilclient_change_component_state(video_decode, OMX_StateExecuting);
-
-
-      while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
+      int iCountLoops = 0;
+      while ( ! g_bQuit )
       {
-         // feed data and wait until we get port settings changed
-         unsigned char *pBufferRead = buf->pBuffer;
-         uBufferReadSize = 0;
-         while (buf->nAllocLen - uBufferReadSize > 0 )
-         {
-            //int read_count = read(STDIN_FILENO, pBufferRead, buf->nAllocLen-uBufferReadSize);
-            int read_count = read(iPipeRead, pBufferRead, buf->nAllocLen-uBufferReadSize);
-            s_iFPSReads++;
-          
-            if ( read_count < 0 )
-            {
-               iExit = 1;
-               break;
-            }
-            
-            uBufferReadSize += read_count;
-            
-            if ( uBufferReadSize == buf->nAllocLen )
-               break;
-
-            unsigned char *pTmp = pBufferRead;
-            pBufferRead += read_count;
-  
-            while (pTmp != pBufferRead) // search for frame delimiter, break reading on start of frame
-            {
-               s_uSearchTag = (s_uSearchTag << 8) + (*pTmp);
-
-               if ((s_uSearchTag == 0x0121) || (s_uSearchTag == 0x0127))
-                   break;
-               pTmp++;
-            }
-            if (pTmp != pBufferRead)
-            {
-               s_iFPSSearchTagsFound++;
-               break;
-            }
-            
-         } // end of: while (buf->nAllocLen - uBufferReadSize > 0 )
-           
-         
-         if ( iExit )
+         iCountLoops++;
+         if ( (iCountLoops % 5) == 0 )
+            _onFrameLoop();
+         pOMXBuffer = ilclient_get_input_buffer(video_decode, 130, 1);
+         if ( NULL == pOMXBuffer )
             break;
 
-         if(port_settings_changed == 0 &&
-            ((uBufferReadSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-             (uBufferReadSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
-                                                       ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
+         int iFilledBytes = 0;
+         while ( iFilledBytes <= 0 )
+         {
+            iFilledBytes += _fillBuffer(pOMXBuffer->pBuffer + iFilledBytes, pOMXBuffer->nAllocLen - iFilledBytes);
+            if ( iFilledBytes < 0 )
+               break;
+            if ( 0 == iFilledBytes )
+            {
+               struct timespec to_sleep = { 0, (long int)(20*1000*1000) };
+               nanosleep(&to_sleep, NULL);
+            }
+         }
+         if ( iFilledBytes <= 0 )
+         {
+            status = -10;
+            break;
+         }
+         if ( (port_settings_changed == 0) &&
+            (((iFilledBytes > 0) && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+             ((iFilledBytes == 0) && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1, ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
          {
             port_settings_changed = 1;
-
-            if(ilclient_setup_tunnel(tunnel, 0, 0) != 0)
+            if ( ilclient_setup_tunnel(tunnel, 0, 0) != 0)
             {
                status = -7;
                break;
             }
 
+            if ( g_iClockSync )
+            {
+               ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
+               if ( ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0)
+               {
+                  status = -12;
+                  break;
+               }
+            }
             ilclient_change_component_state(video_render, OMX_StateExecuting);
          }
-         
-         buf->nFilledLen = uBufferReadSize;
-         uBufferReadSize = 0;
 
-         buf->nOffset = 0;
-         if(first_packet)
+         pOMXBuffer->nFilledLen = iFilledBytes;
+         pOMXBuffer->nOffset = 0;
+         if ( first_packet )
          {
-            buf->nFlags = OMX_BUFFERFLAG_STARTTIME;
+            pOMXBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
             first_packet = 0;
          }
          else
-            buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+            pOMXBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
 
-         if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), buf) != OMX_ErrorNone)
+         if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), pOMXBuffer) != OMX_ErrorNone)
          {
             status = -6;
             break;
          }
       }
-      // end of: while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
-      
 
-      buf->nFilledLen = 0;
-      buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
+      log_line("Quiting...");
+      if ( NULL != pOMXBuffer )
+      {
+         pOMXBuffer->nFilledLen = 0;
+         pOMXBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
 
-      if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), buf) != OMX_ErrorNone)
-         status = -20;
-
+         if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), pOMXBuffer) != OMX_ErrorNone)
+            status = -20;
+      }
       // wait for EOS from render
       ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0,
                               ILCLIENT_BUFFER_FLAG_EOS, -1);
 
       // need to flush the renderer to allow video_decode to disable its input port
       ilclient_flush_tunnels(tunnel, 0);
-
+      log_line("Done rendering cleanup step 1/3");
    }
 
-   if ( -1 != iPipeRead )
-      close(iPipeRead);
+   if ( -1 != g_iInputFile )
+      close(g_iInputFile);
 
    ilclient_disable_tunnel(tunnel);
+
+   if ( g_iClockSync )
+   {
+      ilclient_disable_tunnel(tunnel+1);
+      ilclient_disable_tunnel(tunnel+2);
+   }
+
    ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
    ilclient_teardown_tunnels(tunnel);
+
+   log_line("Done rendering cleanup step 2/3");
 
    ilclient_state_transition(list, OMX_StateIdle);
    ilclient_state_transition(list, OMX_StateLoaded);
@@ -253,14 +446,22 @@ static int video_decode()
    OMX_Deinit();
 
    ilclient_destroy(client);
+
+   log_line("Done rendering cleanup step 3/3");
    return status;
 }
 
-int main (int argc, char **argv)
+void handle_sigint(int sig) 
+{ 
+   g_bQuit = 1;
+   log_line("Caught signal to stop: %d", sig);
+} 
+
+int main(int argc, char **argv)
 {
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("%d.%d (b%d)", 10,1,252);
+      printf("%d.%d (b%d)", 10,2,258);
       return 0;
    }
 
@@ -269,18 +470,24 @@ int main (int argc, char **argv)
 
    log_init("RubyVideoPlayer");
 
-   iFPS = atoi(argv[argc-1]);
-   if ( iFPS < 10 || iFPS > 120 )
-      iFPS = 30;
+   signal(SIGINT, handle_sigint);
+   signal(SIGTERM, handle_sigint);
+   signal(SIGQUIT, handle_sigint);
+
+   g_iFPS = atoi(argv[argc-1]);
+   if ( (g_iFPS < 10) || (g_iFPS > 240) )
+      g_iFPS = 30;
 
    strcpy(szFileName, argv[argc-2]);
 
    bcm_host_init();
 
 
-   display = vc_dispmanx_display_open( 0 );
-   vc_dispmanx_vsync_callback(display, onVSync, NULL); 
-   return video_decode();
+   //DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open(0);
+   //vc_dispmanx_vsync_callback(display, _onVSync, NULL); 
+   int iRet = video_decode();
+   log_line("Exit now.");
+   return iRet;
 }
 
 

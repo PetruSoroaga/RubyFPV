@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -44,6 +44,7 @@ MenuVehicleAlarms::MenuVehicleAlarms(void)
    m_pItemsSelect[0] = new MenuItemSelect("Enable Voltage Alarm", "Shows an alarm on screen when vehicle battery voltage drops below a value.");  
    m_pItemsSelect[0]->addSelection("No");
    m_pItemsSelect[0]->addSelection("Yes");
+   m_pItemsSelect[0]->setIsEditable();
    addMenuItem(m_pItemsSelect[0]);
 
    m_pItemsRange[0] = new MenuItemRange("Alarm voltage:", "Voltage at which the alarm will trigger.", 2.0, 4.6, g_pCurrentModel->osd_params.voltage_alarm, 0.1 );  
@@ -78,7 +79,15 @@ MenuVehicleAlarms::MenuVehicleAlarms(void)
    m_pItemsSelect[2] = new MenuItemSelect("Controller Link Lost Alarm", "Shows an alarm when the vehicle looses connection with the controller. That is, vehicle does not receive the uplink data for a period of time.");  
    m_pItemsSelect[2]->addSelection("Disabled");
    m_pItemsSelect[2]->addSelection("Enabled");
+   m_pItemsSelect[2]->setIsEditable();
    m_IndexLinkLost = addMenuItem(m_pItemsSelect[2]);
+
+   m_pItemsSelect[4] = new MenuItemSelect("Flash OSD on Telemetry Lost", "Flashes the OSD whenever a telemetry data packet is lost.");
+   m_pItemsSelect[4]->addSelection("No");
+   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4]->addSelection("Only for some OSD screens");
+   m_pItemsSelect[4]->setIsEditable();
+   m_iIndexFlashOSDOnTelemLost = addMenuItem(m_pItemsSelect[4]);
 }
 
 MenuVehicleAlarms::~MenuVehicleAlarms()
@@ -121,6 +130,23 @@ void MenuVehicleAlarms::valuesToUI()
       m_pItemsSelect[3]->setSelectedIndex(7);
    else
       m_pItemsSelect[3]->setSelectedIndex(8);
+
+   bool bHasFlashOn = false;
+   bool bHasFlashOff = false;
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      if ( g_pCurrentModel->osd_params.osd_flags2[i] & OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST )
+         bHasFlashOn = true;
+      else
+         bHasFlashOff = true;
+   }
+
+   if ( bHasFlashOn && bHasFlashOff )
+      m_pItemsSelect[4]->setSelectedIndex(2);
+   else if ( bHasFlashOn )
+      m_pItemsSelect[4]->setSelectedIndex(1);
+   else
+      m_pItemsSelect[4]->setSelectedIndex(0);
 }
 
 void MenuVehicleAlarms::Render()
@@ -140,6 +166,12 @@ void MenuVehicleAlarms::onSelectItem()
 
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
+
+   if ( handle_commands_is_command_in_progress() )
+   {
+      handle_commands_show_popup_progress();
+      return;
+   }
 
    bool sendToVehicle = false;
    osd_parameters_t params;
@@ -234,6 +266,22 @@ void MenuVehicleAlarms::onSelectItem()
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_ALARMS_PARAMS, 0, (u8*)&params, sizeof(type_alarms_parameters)) )
          valuesToUI();
       return;
+   }
+
+   if ( m_iIndexFlashOSDOnTelemLost == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
+      {
+         sendToVehicle = true;
+         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+            params.osd_flags2[i] &= ~OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
+      }
+      else if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
+      {
+         sendToVehicle = true;
+         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+            params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
+      }
    }
 
    if ( sendToVehicle )

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -42,7 +42,7 @@
 #define MAX_DATA_PACKETS_IN_BLOCK 32
 #define MAX_FECS_PACKETS_IN_BLOCK 32
 #else
-#define MAX_RXTX_BLOCKS_BUFFER 80
+#define MAX_RXTX_BLOCKS_BUFFER 70
 #define MAX_TOTAL_PACKETS_IN_BLOCK 32
 #define MAX_DATA_PACKETS_IN_BLOCK 16
 #define MAX_FECS_PACKETS_IN_BLOCK 16
@@ -62,11 +62,10 @@
 #define STREAM_ID_DATA    ((u32)0)
 #define STREAM_ID_TELEMETRY ((u32)1)
 #define STREAM_ID_DATA2    ((u32)2)
-#define STREAM_ID_COMPRESSED ((u32)3)
 #define STREAM_ID_VIDEO_1 ((u32)4)
 
 // Packet flags is a byte and contains flags:
-// bit 0..2 - target module type (video/telem/rc/comm) (3 bits) or 0b111 for a compressed packet header
+// bit 0..2 - target module type (video/telem/rc/comm) (3 bits)
 // bit 3 - header only CRC
 // bit 4 - chained flag: has more radio packets in the same buffer, just after this packet
 // bit 5 - has extra data after the regular packet data
@@ -74,7 +73,6 @@
 // bit 7 - can TX after this one (to be used by the controller when it receives this packet)
 
 #define PACKET_FLAGS_MASK_MODULE 0b0111
-#define PACKET_FLAGS_MASK_COMPRESSED_HEADER 0b0111
 #define PACKET_FLAGS_MASK_STREAM_PACKET_IDX 0x0FFFFFFF
 #define PACKET_FLAGS_MASK_STREAM_INDEX (((u32)0x0F)<<28)
 #define PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX (28)
@@ -135,26 +133,6 @@ typedef struct
 } __attribute__((packed)) t_packet_header;
 
 
-// Compressed packets (t_packet_header_compressed) are sent only on high bandwidth radio links
-// Short packets (t_packet_header_short) are sent only on low bandwidth radio links
-
-typedef struct
-{
-   u8 uCRC; // computed for the entire packet
-   u8 packet_type; // 1...150: components packets types, 150-200: local control controller packets, 200-250: local control vehicle packets
-   u8 total_length; // Total length, including all the header data, including CRC
-   u8 uExtraBits;
-      // bit 0,1,2: component id, as component id in packets_flags below is not valid for this header type
-      // bit 3-7: tbd
-   // packets_flags must be the 5th byte so we can differentiate it from a regular t_packet_header;
-   u8 packet_flags; // first 3 bits are 1 to differentiate it from a regular t_packet_header;
-   u32 stream_packet_idx; // high 4 bits: stream id (0..15), lower 28 bits: stream packet index
-                          // monotonically increassing, to detect missing/lost packets on each stream
-   u32 vehicle_id_src;
-   u32 vehicle_id_dest;
-   u32 uExtraData; // Can be used as a fast short payload
-} __attribute__((packed)) t_packet_header_compressed;
-
 
 // PING packets do not increase stream packet index as they are sent on each radio link separatelly
 #define PACKET_TYPE_RUBY_PING_CLOCK 3
@@ -203,7 +181,7 @@ typedef struct
 // COMPONENT COMMANDS PACKETS
 
 #define PACKET_TYPE_COMMAND 11
-#define PACKET_TYPE_COMMAND_RESPONSE 12 // Command response is send back on the telemetry port
+#define PACKET_TYPE_COMMAND_RESPONSE 12
 
 
 #define COMMAND_TYPE_FLAG_NO_RESPONSE_NEEDED ( (u16) (((u16)0x01)<<15) )
@@ -265,7 +243,6 @@ typedef struct
 //   (u32+u8)*n = each (video block index + video packet index) requested 
 
 #define PACKET_TYPE_VIDEO_ACK 21
-// Sent only as a compressed packet (t_packet_header_compressed)
 // uExtraData in header contains the acknoledged video frame id
 
 #define PACKET_TYPE_VIDEO_DATA_98 22
@@ -293,9 +270,14 @@ typedef struct
       //                  u32 - local timestamp received on radio;
       //                  u32 - local timestamp sent to video processing;
       //                  u32 - local timestamp sent to video output;
-      //    bit 1  - 0/1: is this video packet part of a I-frame
-      //    bit 2  - 1: is on lower video bitrate
-      //    bit 3  - 0/1: is end of current frame
+      //    bit 1  - deprecated in 10.2
+      //    bit 2  - 0/1: is on lower video bitrate
+      //    bit 3  - 0/1: is end of a NAL
+      //    bit 4  - 0/1: is start of a NAL
+      //    bit 5  - 0/1: contains I-NAL data
+      //    bit 6  - 0/1: contains P-NAL data
+      //    bit 7  - 0/1: contains SPS/PPS-NAL data
+
 
    u8 uCurrentVideoLinkProfile;
   
@@ -319,8 +301,8 @@ typedef struct
    u8  uCurrentBlockECPackets;
 
    // Future
-   u16 uFrameId; // H264/H264 frame id (monotonically increasing)
-   u16 uDummy1;
+   u16 uH264FrameId; // H264/H265 frame id (monotonically increasing)
+   u16 uH264SliceId; // H264/H265 slice id (monotonically increasing. a frame can have multiple slices)
    u16 uDummy2;
    u8  uDummy3;
    u32 uDummy4;
@@ -817,10 +799,12 @@ byte 4: command type:
 //
 // u8: uCommand:
 //       1: change video datarate (uParam is an (int) datarate bps or negative mcs)
+//       2: change radio flags (uParam is the new radio flags)
 //       254: end and update (uParam is an (int) datarate bps or negative mcs)
 //       255: end no change (revert to original)
 // u32: uParam
 #define NEGOCIATE_RADIO_STEP_DATA_RATE 1
+#define NEGOCIATE_RADIO_STEP_RADIO_FLAGS 2
 #define NEGOCIATE_RADIO_STEP_END 254
 #define NEGOCIATE_RADIO_STEP_CANCEL 255
 
@@ -848,9 +832,7 @@ extern "C" {
 #endif  
 
 void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 uStreamId);
-void radio_packet_compressed_init(t_packet_header_compressed* pPHC, u8 component, u8 packet_type);
 void radio_packet_compute_crc(u8* pBuffer, int length);
-void radio_packet_compressed_compute_crc(u8* pBuffer, int length);
 int radio_packet_check_crc(u8* pBuffer, int length);
 
 int radio_packet_type_is_high_priority(u8 uPacketType);

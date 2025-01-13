@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -216,7 +216,7 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
 
    pRTInfo->uRecvVideoDataPackets[iIndex] = 0;
    pRTInfo->uRecvVideoECPackets[iIndex] = 0;
-   pRTInfo->uRecvEndOfFrame[iIndex] = 0;
+   pRTInfo->uRecvFramesInfo[iIndex] = 0;
  
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -547,22 +547,43 @@ void _render_video_player(u32 timeNow)
 
    g_pRenderEngine->startFrame();
 
+   double cColor[] = {0,0,0,0.7};
+   g_pRenderEngine->setColors(cColor, 0.9);
+   g_pRenderEngine->drawRoundRect(0.02, 0.03, 0.36, 0.1, 0.02);
+   g_pRenderEngine->setColors(get_Color_MenuText());
+
    g_pRenderEngine->setFill(255,255,255,1);
    g_pRenderEngine->setStroke(0,0,0,1);
    g_pRenderEngine->setStrokeSize(1);
-   u32 t = timeNow;
-   t = t - g_uVideoPlayingStartTime;
-   if ( t/1000 > g_uVideoPlayingLengthSec+1 )
-      sprintf(szBuff, "Finished.");
-   else if ( (t/500)%2 )
-      sprintf(szBuff, "Playing %02d:%02d", ((t/1000)/60), (t/1000)%60);
-   else
-      sprintf(szBuff, "Playing %02d %02d", ((t/1000)/60), (t/1000)%60);
+   float y = 0.046;
 
-   g_pRenderEngine->drawText(0.03, 0.05, g_idFontMenu, szBuff);      
-   sprintf(szBuff, "Press [Menu] or [Back] button to close");
-   g_pRenderEngine->drawText(0.18, 0.042, g_idFontMenu, szBuff);  
-       
+   if ( g_uVideoPlayingTimeMs/1000 > g_uVideoPlayingLengthSec+1 )
+   {
+      sprintf(szBuff, "Finished.");
+      g_pRenderEngine->drawText(0.04, y, g_idFontMenuLarge, szBuff);
+   }
+   else
+   {
+      char szVerb[32];
+      strcpy(szVerb, "Playing");
+      if ( access("/tmp/pausedvr", R_OK) != -1 )
+         strcpy(szVerb, "Paused");
+
+      sprintf(szBuff, "%s %02d", szVerb, ((g_uVideoPlayingTimeMs/1000)/60));
+      float fWidth = g_pRenderEngine->textWidth(g_idFontMenuLarge, szBuff);
+      g_pRenderEngine->drawText(0.04, y, g_idFontMenuLarge, szBuff);
+
+      fWidth += 0.15*g_pRenderEngine->textWidth(g_idFontMenuLarge, "A");
+
+      if ( (g_uVideoPlayingTimeMs/500)%2 )
+         g_pRenderEngine->drawText(0.04 + fWidth, y, g_idFontMenuLarge, ":");
+      fWidth += 0.5*g_pRenderEngine->textWidth(g_idFontMenuLarge, "A");
+      sprintf(szBuff, "%02d / %d:%02d", (g_uVideoPlayingTimeMs/1000)%60, g_uVideoPlayingLengthSec/60, g_uVideoPlayingLengthSec%60);
+      g_pRenderEngine->drawText(0.04 + fWidth, y, g_idFontMenuLarge, szBuff);
+   }
+   sprintf(szBuff, "Press [Menu] for pause/resume or [Back] to stop");
+   g_pRenderEngine->drawText(0.04, 0.084, g_idFontMenu, szBuff);  
+
    g_pRenderEngine->endFrame();
 }
 
@@ -839,7 +860,7 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
 
 void compute_cpu_load(u32 timeNow)
 {
-   if ( timeNow < s_TimeLastCPUCompute + 500 )
+   if ( timeNow < s_TimeLastCPUCompute + 2000 )
       return;
 
    s_TimeLastCPUCompute = timeNow;
@@ -1270,8 +1291,8 @@ void r_check_processes_filesystem()
       { failed = true; strcat(szFilesMissing, " ruby_rx_telemetry"); }
    if( access( "ruby_video_proc", R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " ruby_video_proc"); }
-   if( access( VIDEO_PLAYER_PIPE, R_OK ) == -1 )
-      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_PIPE); }
+   if( access( VIDEO_PLAYER_SM, R_OK ) == -1 )
+      { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_SM); }
    if( access( VIDEO_PLAYER_OFFLINE, R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " "); strcat(szFilesMissing, VIDEO_PLAYER_OFFLINE); }
      
@@ -1456,7 +1477,7 @@ void start_loop()
         {
            Popup* p = new Popup("All radio interfaces are disabled on the controller.", 0.3,0.4, 0.5, 6);
            p->setIconId(g_idIconError, get_Color_IconError());
-           p->addLine("Go to [Menu]->[Radio Configuration] and enable at least one radio interface.");
+           p->addLine("Go to [Menu]->[Controller] -> [Radio Configuration] and enable at least one radio interface.");
            popups_add_topmost(p);
            log_line("Finished executing start up sequence step: %d", s_StartSequence);
            s_StartSequence = START_SEQ_PRE_SYNC_DATA;
@@ -1771,18 +1792,19 @@ void start_loop()
          return;
       }
       onMainVehicleChanged(true);
+
       if ( 0 < hardware_get_radio_interfaces_count() )
          pairing_start_normal();
 
       g_pProcessStatsTelemetry = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_RX);
       if ( NULL == g_pProcessStatsTelemetry )
-         log_softerror_and_alarm("Failed to open shared mem to telemetry rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_TELEMETRY_RX);
+         log_line("Failed to open shared mem to telemetry rx process watchdog stats for reading: %s on start. Will try later.", SHARED_MEM_WATCHDOG_TELEMETRY_RX);
       else
          log_line("Opened shared mem to telemetry rx process watchdog stats for reading.");
 
       g_pProcessStatsRouter = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_ROUTER_RX);
       if ( NULL == g_pProcessStatsRouter )
-         log_softerror_and_alarm("Failed to open shared mem to video rx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_ROUTER_RX);
+         log_line("Failed to open shared mem to video rx process watchdog stats for reading: %s on start. Will try later.", SHARED_MEM_WATCHDOG_ROUTER_RX);
       else
          log_line("Opened shared mem to video rx process watchdog stats for reading.");
 
@@ -1790,7 +1812,7 @@ void start_loop()
       {
          g_pProcessStatsRC = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_TX);
          if ( NULL == g_pProcessStatsRC )
-            log_softerror_and_alarm("Failed to open shared mem to RC tx process watchdog stats for reading: %s", SHARED_MEM_WATCHDOG_RC_TX);
+            log_line("Failed to open shared mem to RC tx process watchdog stats for reading: %s on start. Will try later.", SHARED_MEM_WATCHDOG_RC_TX);
          else
             log_line("Opened shared mem to RC tx process watchdog stats for reading.");
       }
@@ -2147,6 +2169,7 @@ void main_loop_r_central()
    {
       hardware_sleep_ms(5);
       start_loop();
+      log_line("Startup sequence now after executing a step: %d", s_StartSequence);
       render_all(g_TimeNow, false, false);
       if ( NULL != s_pProcessStatsCentral )
          s_pProcessStatsCentral->lastActiveTime = g_TimeNow;
@@ -2235,13 +2258,13 @@ void ruby_pause_watchdog()
    s_iCountRequestsPauseWatchdog++;
    if ( 1 == s_iCountRequestsPauseWatchdog )
    {
-      log_line("Pause watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
+      log_line("[Watchdog] Pause watchdog [%d], signal others.", s_iCountRequestsPauseWatchdog);
       char szComm[128];
       sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
    }
    else
-      log_line("Pause watchdog [%d].", s_iCountRequestsPauseWatchdog);
+      log_line("[Watchdog] Pause watchdog [%d].", s_iCountRequestsPauseWatchdog);
 }
 
 void ruby_resume_watchdog()
@@ -2252,7 +2275,7 @@ void ruby_resume_watchdog()
    if ( 0 == s_iCountRequestsPauseWatchdog )
    {
       hardware_sleep_ms(20);
-      log_line("Resumed watchdog [%d] signal others.", s_iCountRequestsPauseWatchdog);
+      log_line("[Watchdog] Resumed watchdog [%d], signal others.", s_iCountRequestsPauseWatchdog);
       char szComm[128];
       sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_CONTROLLER_PAUSE_WATCHDOG);
       hw_execute_bash_command_silent(szComm, NULL);
@@ -2261,7 +2284,7 @@ void ruby_resume_watchdog()
    {
       if ( s_iCountRequestsPauseWatchdog < 0 )
          s_iCountRequestsPauseWatchdog = 0;
-      log_line("Resumed watchdog [%d].", s_iCountRequestsPauseWatchdog);
+      log_line("[Watchdog] Resumed watchdog [%d].", s_iCountRequestsPauseWatchdog);
    }
 }
 
@@ -2389,7 +2412,8 @@ int main(int argc, char *argv[])
 
    Preferences* p = get_Preferences();
    ControllerSettings* pcs = get_ControllerSettings();
-   hw_set_priority_current_proc(pcs->iNiceCentral); 
+   if ( pcs->iPrioritiesAdjustment )
+      hw_set_priority_current_proc(pcs->iNiceCentral); 
 
 
    #if defined (HW_PLATFORM_RASPBERRY)
@@ -2534,7 +2558,7 @@ void ruby_set_active_model_id(u32 uVehicleId)
      if ( NULL == pModel )
         log_line("Ruby: Set active model vehicle id to %u (no model found on controller for this VID)", g_uActiveControllerModelVID );
      else
-        log_line("Ruby: Set active model vehicle id to %u, %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
+        log_line("Ruby: Set active model vehicle id to %u, mode: %s", g_uActiveControllerModelVID, (pModel->is_spectator)?"spectator mode":"control mode");
    }
    else
       log_line("Ruby: Set active model vehicle id to 0");

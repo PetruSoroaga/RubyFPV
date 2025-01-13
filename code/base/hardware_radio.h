@@ -209,10 +209,10 @@ const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
-int hardware_radio_is_index_wifi_radio(int iRadioIndex);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_index_is_wifi_radio(int iRadioIndex);
 int hardware_radio_index_is_serial_radio(int iHWInterfaceIndex);
 int hardware_radio_index_is_elrs_radio(int iHWInterfaceIndex);
 int hardware_radio_index_is_sik_radio(int iHWInterfaceIndex);

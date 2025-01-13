@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga
+    Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -323,6 +323,25 @@ char* removeTrailingNewLines(char* szBuff)
       iLen--;
    }
    return szBuff;
+}
+
+char* removeLeadingWhiteSpace(char* szBuff)
+{
+   if ( (NULL == szBuff) || (0 == szBuff[0]) )
+      return szBuff;
+   int iLen = strlen(szBuff);
+   int i = 0;
+   char* p = szBuff;
+   while ( i < iLen )
+   {
+      if ( *p <= 32 )
+         *p = ' ';
+      else
+         break;
+      i++;
+      p++;
+   }
+   return p;
 }
 
 int _log_check_for_service_log_access()

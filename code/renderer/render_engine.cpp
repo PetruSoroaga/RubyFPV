@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -651,6 +651,12 @@ void RenderEngine::bltImage(float xPosDest, float yPosDest, float fWidthDest, fl
 {
 
 }
+
+void RenderEngine::bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+
+}
+
 
 void RenderEngine::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId)
 {

@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -43,7 +43,7 @@ RenderEngineRaw::RenderEngineRaw()
 
    m_iRenderWidth = m_pFBG->width;
    m_iRenderHeight = m_pFBG->height;
-   log_line("Initialized graphics to resolution: %d x %d", m_iRenderWidth, m_iRenderHeight);
+   log_line("Initialized graphics to resolution: %d x %d, line width: %d bytes, components: %d, frame buffer size: %d bytes", m_iRenderWidth, m_iRenderHeight, m_pFBG->line_length, m_pFBG->components, m_pFBG->size);
    m_fPixelWidth = 1.0/(float)m_iRenderWidth;
    m_fPixelHeight = 1.0/(float)m_iRenderHeight;
 
@@ -459,6 +459,41 @@ void RenderEngineRaw::bltImage(float xPosDest, float yPosDest, float fWidthDest,
    fbg_imageDraw(m_pFBG, m_pImages[indexImage], xDest,yDest,wDest,hDest, iSrcX, iSrcY, iSrcWidth, iSrcHeight);
   
 }
+
+void RenderEngineRaw::bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
+{
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+  
+   int xDest = xPosDest*m_iRenderWidth;
+   int yDest = yPosDest*m_iRenderHeight;
+   int wDest = iSrcWidth;
+   int hDest = iSrcHeight;
+
+   if ( (xDest < 0) || (yDest < 0) || (xDest+wDest >= m_iRenderWidth) || (yDest+hDest >= m_iRenderHeight) )
+      return;
+
+   m_pFBG->mix_color.r = 255;
+   m_pFBG->mix_color.g = 255;
+   m_pFBG->mix_color.b = 255;
+   m_pFBG->mix_color.a = 255;
+   fbg_imageDraw(m_pFBG, m_pImages[indexImage], xDest,yDest,wDest,hDest, iSrcX, iSrcY, iSrcWidth, iSrcHeight);
+}
+
      
 void RenderEngineRaw::drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId)
 {

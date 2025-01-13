@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -127,12 +127,18 @@ bool _check_update_hardware_one_interface_after_and_before(Model* pModel)
          if ( pModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58 )
             pModel->radioLinksParams.link_frequency_khz[0] = DEFAULT_FREQUENCY58;
 
-         pModel->resetRadioLinkParams(0);
+         pModel->resetRadioLinkDataRatesAndFlags(0);
+         pModel->setDefaultVideoBitrate();
       }
    }
-
-   pModel->radioLinksParams.link_radio_flags[0] = DEFAULT_RADIO_FRAMES_FLAGS;
-
+   else
+   {
+      if ( hardware_radio_index_is_wifi_radio(0) )
+      {
+         pModel->resetRadioLinkDataRatesAndFlags(0);
+         pModel->setDefaultVideoBitrate();
+      }
+   }
    // Populate radio interfaces radio flags and rates from radio links radio flags and rates
 
    pModel->radioInterfacesParams.interface_current_frequency_khz[0] = pModel->radioLinksParams.link_frequency_khz[0];
@@ -222,6 +228,8 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
       pModel->radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
       pModel->radioInterfacesParams.interfaces_count = 1;
 
+      pModel->resetRadioLinkDataRatesAndFlags(0);
+      pModel->setDefaultVideoBitrate();
       log_line("[HW Radio Check] Radio hardware check: Updated radio link and radio interface based on current hardware radio interface. Completed.");
       return true;
    }
@@ -261,6 +269,7 @@ bool _check_update_hardware_one_interface_after_multiple_before(Model* pModel)
    pModel->radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
    pModel->radioInterfacesParams.interfaces_count = 1;
 
+   pModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
    log_line("[HW Radio Check] Radio hardware check: Updated radio links based on current hardware radio interfaces. Completed.");
    return true;
 }
@@ -290,7 +299,8 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
    int iRadioLink = pModel->radioLinksParams.links_count;
    
    pModel->radioLinksParams.link_frequency_khz[iRadioLink] = 0;
-   pModel->resetRadioLinkParams(iRadioLink);
+   pModel->resetRadioLinkDataRatesAndFlags(iRadioLink);
+   pModel->setDefaultVideoBitrate();
 
    if ( 0 == iRadioLink )
    {

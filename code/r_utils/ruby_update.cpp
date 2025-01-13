@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -47,6 +47,7 @@
 #include "../base/ctrl_settings.h"
 #include "../base/ctrl_interfaces.h"
 #include "../base/utils.h"
+#include "../radio/radioflags.h"
 
 
 bool gbQuit = false;
@@ -96,6 +97,77 @@ void update_openipc_cpu(Model* pModel)
    hardware_set_default_sigmastar_cpu_freq();
    if ( NULL != pModel )
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
+}
+
+
+void do_update_to_102()
+{
+   log_line("Doing update to 10.2");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->nLogLevel = 1;
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+ 
+   for( int i=0; i<pModel->radioLinksParams.links_count; i++ )
+   {
+      if ( pModel->radioLinksParams.link_datarate_video_bps[i] < 0 )
+      {
+         pModel->radioLinksParams.link_radio_flags[i] |= RADIO_FLAGS_USE_MCS_DATARATES;
+         pModel->radioLinksParams.link_radio_flags[i] &= ~RADIO_FLAGS_USE_LEGACY_DATARATES;
+      }
+      else
+      {
+         pModel->radioLinksParams.link_radio_flags[i] |= RADIO_FLAGS_USE_LEGACY_DATARATES;
+         pModel->radioLinksParams.link_radio_flags[i] &= ~RADIO_FLAGS_USE_MCS_DATARATES;       
+      }
+
+      pModel->radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+      pModel->radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+   }
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      pModel->osd_params.osd_preferences[i] &= 0xFFFFFF00;
+      pModel->osd_params.osd_preferences[i] |= 2;
+   }   
+
+   if ( hardware_board_is_openipc(hardware_getBoardType()) )
+   {
+      for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+      {
+         for( int k=0; k<MODEL_CAMERA_PROFILES-1; k++ )
+         {
+            pModel->camera_params[i].profiles[k].shutterspeed = 0; // auto
+            if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+               pModel->camera_params[i].profiles[k].shutterspeed = 8; //milisec
+         }
+      }   
+   }
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( ! hardware_board_is_goke(pModel->hwCapabilities.uBoardType) )
+         pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+
+      pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
+      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
+   }
+
+
+   pModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
+   log_line("Updated model VID %u (%s) to v10.2", pModel->uVehicleId, pModel->getLongName());
 }
 
 
@@ -855,7 +927,7 @@ void do_update_to_77()
    if ( s_isVehicle )
    {
       load_VehicleSettings();
-      get_VehicleSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS;
+      get_VehicleSettings()->iDevRxLoopTimeout = DEFAULT_MAX_RX_LOOP_TIMEOUT_MILISECONDS_VEHICLE;
       save_VehicleSettings();
 
       Model* pModel = getCurrentModel();
@@ -1912,6 +1984,9 @@ int main(int argc, char *argv[])
       do_update_to_100();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 1) )
       do_update_to_101();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 2) )
+      do_update_to_102();
+
 
    saveCurrentModel();
    

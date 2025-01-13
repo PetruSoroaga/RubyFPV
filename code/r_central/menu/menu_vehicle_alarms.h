@@ -21,4 +21,5 @@ class MenuVehicleAlarms: public Menu
       int m_IndexOverload;
       int m_IndexLinkLost;
       int m_IndexAlarmMotorCurrent;
+      int m_iIndexFlashOSDOnTelemLost;
 };

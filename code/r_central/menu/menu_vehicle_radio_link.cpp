@@ -1,6 +1,6 @@
 /*
     Ruby Licence
-    Copyright (c) 2024 Petru Soroaga petrusoroaga@yahoo.com
+    Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
     Redistribution and use in source and/or binary forms, with or without
@@ -766,7 +766,7 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
       newRadioLinkParams.link_datarate_video_bps[iRadioLink] = -1-indexRate;
    else if ( indexRate < getDataRatesCount() )
       newRadioLinkParams.link_datarate_video_bps[iRadioLink] = getDataRatesBPS()[indexRate];
-   
+
    if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
       newRadioLinkParams.uDownlinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
    if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
@@ -802,8 +802,15 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
 
    u32 radioFlags = g_pCurrentModel->radioLinksParams.link_radio_flags[iRadioLink];
 
+   // Clear and set datarate type
+   radioFlags &= ~(RADIO_FLAGS_USE_LEGACY_DATARATES | RADIO_FLAGS_USE_MCS_DATARATES);
+   if ( newRadioLinkParams.link_datarate_video_bps[iRadioLink] < 0 )
+      radioFlags |= RADIO_FLAGS_USE_MCS_DATARATES;
+   else
+      radioFlags |= RADIO_FLAGS_USE_LEGACY_DATARATES;
+
    // Clear all MCS flags
-   radioFlags &= 0xFF00FFFF;
+   radioFlags &= ~RADIO_FLAGS_MCS_MASK;
 
    if ( bIsMCSRates )
    {
@@ -845,6 +852,48 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
       log_line("MenuVehicleRadioLink: No change in radio link config. Do not send command.");
       return;
    }
+
+   //------------------------------------------------------
+   // Check video bitrate overflow on new radio datarate
+   if ( NULL != g_pCurrentModel )
+   {
+      bool bShowWarning = false;
+      u32 uMaxRadioDataRate = getRealDataRateFromRadioDataRate(newRadioLinkParams.link_datarate_video_bps[iRadioLink], (radioFlags & RADIO_FLAG_HT40_VEHICLE)?1:0);
+
+      u32 uTotalVideoBitrateBPS = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps;
+
+      int iProfileDataPackets = 0;
+      int iProfileECPackets = 0;
+      g_pCurrentModel->get_video_profile_ec_scheme(g_pCurrentModel->video_params.user_selected_video_link_profile, &iProfileDataPackets, &iProfileECPackets);
+      
+      uTotalVideoBitrateBPS = (uTotalVideoBitrateBPS / (u32)iProfileDataPackets) * ((u32)(iProfileDataPackets + iProfileECPackets) );
+      char szVideoWarning[256];
+      szVideoWarning[0] = 0;
+
+      if ( uTotalVideoBitrateBPS > (uMaxRadioDataRate /100) * DEFAULT_VIDEO_LINK_LOAD_PERCENT )
+      {
+         char szBuff[128];
+         char szBuff2[128];
+         char szBuff3[128];
+         str_format_bitrate(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps, szBuff);
+         str_format_bitrate(uTotalVideoBitrateBPS, szBuff2);
+         str_format_bitrate(uMaxRadioDataRate, szBuff3);
+         log_line("MenuVehicleRadio: Current video profile (%s) set video bitrate (%s) is greater than %d%% of maximum safe allowed radio datarate (%s of max radio datarate of %s). Show warning.",
+            str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile), szBuff, DEFAULT_VIDEO_LINK_LOAD_PERCENT, szBuff2, szBuff3);
+         snprintf(szVideoWarning, sizeof(szVideoWarning)/sizeof(szVideoWarning[0]), "The selected radio datarate is too small for your current video bitrate of %s. Use a bigger radio datarate or decrease video bitrate first.", szBuff);
+         bShowWarning = true;
+      }
+
+      if ( bShowWarning )
+      {
+         addMessageWithTitle(0, "Can't update radio link datarates", szVideoWarning);
+         addMenuItems();
+         return;
+      }
+   }
+   // Check video bitrate overflow on new radio datarate
+   //------------------------------------------------------
+
 
    char szBuff[256];
    str_get_radio_capabilities_description(newRadioLinkParams.link_capabilities_flags[iRadioLink], szBuff);
