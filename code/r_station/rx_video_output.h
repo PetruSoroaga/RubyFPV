@@ -7,6 +7,7 @@ void rx_video_output_uninit();
 
 void rx_video_output_enable_streamer_output();
 void rx_video_output_disable_streamer_output();
+bool rx_video_out_is_stream_output_disabled();
 void rx_video_output_start_video_streamer();
 void rx_video_output_stop_video_streamer();
 void rx_video_output_enable_local_player_udp_output();

@@ -415,6 +415,7 @@ static void * _thread_process_upload(void *argument)
    #endif
    */
    
+   // Drivers are installed after reboot, by the presence of ruby_update_vehicle
    //hardware_install_drivers(0);
    // End check and update drivers
 

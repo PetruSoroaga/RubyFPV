@@ -348,18 +348,18 @@ static int video_decode()
             break;
 
          int iFilledBytes = 0;
-         while ( iFilledBytes <= 0 )
+         while ( (iFilledBytes <= 0) && (! g_bQuit) )
          {
             iFilledBytes += _fillBuffer(pOMXBuffer->pBuffer + iFilledBytes, pOMXBuffer->nAllocLen - iFilledBytes);
             if ( iFilledBytes < 0 )
                break;
-            if ( 0 == iFilledBytes )
+            if ( (0 == iFilledBytes) && (! g_bQuit) )
             {
                struct timespec to_sleep = { 0, (long int)(20*1000*1000) };
                nanosleep(&to_sleep, NULL);
             }
          }
-         if ( iFilledBytes <= 0 )
+         if ( (iFilledBytes <= 0) || g_bQuit )
          {
             status = -10;
             break;

@@ -267,6 +267,9 @@ void ProcessorRxVideo::resetReceiveState()
 
    log_line("[ProcessorRxVideo] Using timers: Retransmission retry after timeout of %d ms; Request retransmission after video silence (no video packets) timeout of %d ms", m_uRetryRetransmissionAfterTimeoutMiliseconds, g_pControllerSettings->nRequestRetransmissionsOnVideoSilenceMs);
    
+   if ( NULL != m_pVideoRxBuffer )
+      m_pVideoRxBuffer->emptyBuffers("Reset receiver state on controller settings changed.");
+
    // Compute how many blocks to buffer
 
    // To fix ?
@@ -1163,6 +1166,8 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    if ( (NULL == pModel) || (NULL == pRuntimeInfo) )
       return -1;
 
+   if ( rx_video_out_is_stream_output_disabled() )
+      return -1;
    int iVideoProfileNow = g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].PHVF.uCurrentVideoLinkProfile;
    m_iMilisecondsMaxRetransmissionWindow = ((pModel->video_link_profiles[iVideoProfileNow].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK) >> 8) * 5;
 

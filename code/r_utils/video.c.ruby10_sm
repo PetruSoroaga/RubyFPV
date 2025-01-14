@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "base.h"
 
 int g_bQuit = 0;
-int g_iClockSync = 1;
+int g_iClockSync = 0;
 int g_fdSMem = -1;
 unsigned char* g_pSMem = NULL;
 uint32_t g_uSharedMemReadPos = 0;
@@ -54,6 +54,7 @@ void _onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
    //log_line("DEBUG2 vsync"); 
 }
 
+// To remove
 u32 s_uPrevToken = 0x11111111;
 u32 s_uCurrentToken = 0x11111111;
 u32 s_uTimeLastNAL = 0;
@@ -215,14 +216,29 @@ static int video_decode()
       _open_sm();
    }
 
-   if ( ! g_bQuit )
+   g_uSharedMemReadPos = 2 * sizeof(u32);
+   
+   log_line("Waiting for SM data...");
+   while ( !g_bQuit )
    {
-      u32* pTmp = (u32*)g_pSMem;
-      g_uSharedMemReadPos = *pTmp;
+      u32* pTmp1 = (u32*)g_pSMem;
+      u32* pTmp2 = (u32*)(&(g_pSMem[sizeof(u32)]));
+      u32 uWritePos1 = *pTmp1;
+      u32 uWritePos2 = *pTmp2;
+
+      if ( (uWritePos1 != uWritePos2) || (uWritePos1 < 2*sizeof(u32)) )
+      {
+         struct timespec to_sleep = { 0, (long int)(1*1000*1000) };
+         nanosleep(&to_sleep, NULL);
+         continue;
+      }
+   
+      g_uSharedMemReadPos = uWritePos1;
       if ( g_uSharedMemReadPos < 2*sizeof(u32) )
          g_uSharedMemReadPos = 2*sizeof(u32);
-   }   
-   
+      break;
+   }
+
    log_line("Entering main loop...");
    if ( ! g_bQuit )
    if(status == 0 &&
@@ -250,6 +266,7 @@ static int video_decode()
                nanosleep(&to_sleep, NULL);
                continue;
             }
+            log_line("DEBUG2 Start reading at pos %u to pos %u", g_uSharedMemReadPos, uWritePos1);
             if ( uWritePos1 > g_uSharedMemReadPos )
             {
                uBytesToRead = uWritePos1 - g_uSharedMemReadPos;
@@ -281,10 +298,12 @@ static int video_decode()
                   uBytesToRead += uBytesToRead2;
                }
             }
+            log_line("DEBUG2 Did read at pos %u, %u bytes", g_uSharedMemReadPos, uBytesToRead);
          } 
          if ( g_bQuit )
             break;
 
+         // To remove
          //_parse_stream(pOMXBuffer->pBuffer, uBytesToRead);
 
          if(port_settings_changed == 0 &&

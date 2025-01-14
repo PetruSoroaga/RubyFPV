@@ -18,6 +18,9 @@ Mobile (vehicles) and/or fixed relay nodes can be inserted in the system for lon
 
 The radio links can be encrypted end to end so that only authorized components can decode the radio data;
 
+Note: Encryption is temporarly disabled due to...[reasons]
+
+
 <B>Live video, telemetry, remote control, auxiliary & custom data streams:</B>
 
 By default Ruby supports all the required data capabilities for UAVs (video, telemetry, control and user defined data streams).

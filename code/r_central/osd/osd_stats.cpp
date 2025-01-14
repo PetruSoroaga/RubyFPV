@@ -782,6 +782,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       fSumECUsed += g_SMControllerRTInfo.uOutputedVideoPacketsMultipleECUsed[iIndex];
       fSumRetransmitted += g_SMControllerRTInfo.uOutputedVideoPacketsRetransmitted[iIndex];
       fSumDropped += g_SMControllerRTInfo.uOutputedVideoPacketsSkippedBlocks[iIndex];
+
       iCountValues++;
       if ( iCountValues < iValuesPerInterval )
          continue;

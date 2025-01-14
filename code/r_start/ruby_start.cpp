@@ -1554,6 +1554,7 @@ int main(int argc, char *argv[])
          log_line("Executing post update changes on vehicle. Done.");
 
          _check_update_drivers_on_update();
+
          strcpy(szFile, FOLDER_CONFIG);
          strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
          if ( ! modelVehicle.loadFromFile(szFile, true) )
@@ -1578,6 +1579,9 @@ int main(int argc, char *argv[])
          fflush(stdout);
          hw_execute_ruby_process_wait(NULL, "ruby_update_controller", NULL, NULL, 1);
          hw_execute_bash_command("rm -f ruby_update_controller", NULL);
+
+         _check_update_drivers_on_update();
+         
          printf("Ruby: Executing post update changes on controller. Done.\n");
          log_line("Executing post update changes on controller. Done.");
       }

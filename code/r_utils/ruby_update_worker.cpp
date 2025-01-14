@@ -449,13 +449,13 @@ int _copy_update_drivers()
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s*", FOLDER_DRIVERS);
    hw_execute_bash_command(szComm, NULL);
 
-   char szOutput[2048];
-   szOutput[0] = 0;
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "find %s.ko 2>/dev/null", szDrivers);
-   hw_execute_bash_command(szComm, szOutput);
- 
-   if ( (0 < strlen(szOutput)) && (NULL != strstr(szOutput, ".ko")) )
-      hardware_install_drivers(0);
+   // Drivers are installed after reboot, by the presence of ruby_update_controller
+   //char szOutput[2048];
+   //szOutput[0] = 0;
+   //snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "find %s.ko 2>/dev/null", szDrivers);
+   //hw_execute_bash_command(szComm, szOutput);
+   //if ( (0 < strlen(szOutput)) && (NULL != strstr(szOutput, ".ko")) )
+   //   hardware_install_drivers(0);
    return 0;
 }
 

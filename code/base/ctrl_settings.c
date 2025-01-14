@@ -111,6 +111,10 @@ void reset_ControllerSettings()
    s_CtrlSettings.iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
    s_CtrlSettings.iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
    s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
+   s_CtrlSettings.iStreamerOutputMode = 0;
+   #if defined (HW_PLATFORM_RASPBERRY)
+   s_CtrlSettings.iStreamerOutputMode = 1;
+   #endif
 
    if ( s_CtrlSettingsLoaded )
       log_line("Reseted controller settings.");
@@ -166,6 +170,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers, s_CtrlSettings.iFixedTxPower);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iCoresAdjustment, s_CtrlSettings.iPrioritiesAdjustment);
+   fprintf(fd, "%d\n", s_CtrlSettings.iStreamerOutputMode);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -286,11 +291,22 @@ int load_ControllerSettings()
    if ( 2 != fscanf(fd, "%d %d", &s_CtrlSettings.iCoresAdjustment, &s_CtrlSettings.iPrioritiesAdjustment) )
       { log_softerror_and_alarm("Load ctrl settings, failed on line 25");
         s_CtrlSettings.iCoresAdjustment = 1; s_CtrlSettings.iPrioritiesAdjustment = 1; }
+
+   if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iStreamerOutputMode) )
+      { log_softerror_and_alarm("Load ctrl settings, failed on line 26");
+        s_CtrlSettings.iStreamerOutputMode = 0; }
    fclose(fd);
 
    //--------------------------------------------------------
    // Validate settings
 
+   if ( (s_CtrlSettings.iStreamerOutputMode < 0) || (s_CtrlSettings.iStreamerOutputMode > 2) )
+   {
+      s_CtrlSettings.iStreamerOutputMode = 0;
+      #if defined (HW_PLATFORM_RASPBERRY)
+      s_CtrlSettings.iStreamerOutputMode = 1;
+      #endif
+   }
    if ( s_CtrlSettings.iMAVLinkSysIdController <= 0 || s_CtrlSettings.iMAVLinkSysIdController > 255 )
       s_CtrlSettings.iMAVLinkSysIdController = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
    if ( s_CtrlSettings.iVideoForwardUSBType < 0 || s_CtrlSettings.iVideoForwardUSBType > 1 || s_CtrlSettings.iVideoForwardUSBPacketSize == 0 || s_CtrlSettings.iVideoForwardUSBPort == 0 )

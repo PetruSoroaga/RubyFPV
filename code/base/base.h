@@ -27,14 +27,14 @@ typedef u32 __le32;
 #define MAX_VEHICLE_NAME_LENGTH 16
 #define MAX_SERVICE_LOG_ENTRY_LENGTH 300
 #define LOGGER_MESSAGE_QUEUE_ID 123
-#define SM_STREAMER_SIZE 1000000
+#define SM_STREAMER_SIZE 512000
 #define SM_STREAMER_NAME "/SSMRVideo"
 
 #define SYSTEM_NAME "Ruby"
 // dword[3...0]: BB.BB.MM.mm  (BB.BB: build number (highest bytes), MM: major ver, mm: minor ver (lowest byte)) 
 #define SYSTEM_SW_VERSION_MAJOR 10
 #define SYSTEM_SW_VERSION_MINOR 20
-#define SYSTEM_SW_BUILD_NUMBER  259
+#define SYSTEM_SW_BUILD_NUMBER  260
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)

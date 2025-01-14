@@ -75,6 +75,10 @@ sem_t* s_pSemaphoreVideoStreamerOverloadAlarm = NULL;
 
 bool s_bRxVideoOutputStreamerThreadMustStop = false;
 bool s_bRxVideoOutputStreamerMustReinitialize = false;
+
+bool s_bRxVideoOutputUsePipe = true;
+bool s_bRxVideoOutputUseSM = false;
+
 int s_iPIDVideoStreamer = -1;
 int s_fPipeVideoOutToStreamer = -1;
 u8* s_pSMVideoStreamerWrite = NULL;
@@ -140,10 +144,6 @@ char s_szOutputVideoStreamerFilename[MAX_FILE_PATH_SIZE];
 
 void rx_video_output_start_video_streamer()
 {
-   #ifdef HW_PLATFORM_RASPBERRY
-
-   strcpy(s_szOutputVideoStreamerFilename, VIDEO_PLAYER_SM);
-   
    log_line("[VideoOutput] Starting video streamer [%s]", s_szOutputVideoStreamerFilename);
    int iPID = hw_process_exists(s_szOutputVideoStreamerFilename);
    if ( iPID > 0 )
@@ -153,47 +153,76 @@ void rx_video_output_start_video_streamer()
    }
 
    ControllerSettings* pcs = get_ControllerSettings();
-   char szStreamer[1024];
+   char szStreamerPrefixes[256];
+   char szStreamerParams[256];
+   szStreamerParams[0] = 0;
+   szStreamerPrefixes[0] = 0;
 
+
+   #if defined(HW_PLATFORM_RASPBERRY)
+   strcpy(szStreamerParams, "2>&1 1>/dev/null");
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   char szCodec[32];
+   szCodec[0] = 0;
+   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+      strcpy(szCodec, "-h265");
+
+   sprintf(szStreamerParams, "%s -sm > /dev/null 2>&1", szCodec);
+   if ( s_bRxVideoOutputUseSM )
+      sprintf(szStreamerParams, "%s -sm > /dev/null 2>&1", szCodec);
+   else if ( s_bRxVideoOutputUsePipe )
+      sprintf(szStreamerParams, "%s -p > /dev/null 2>&1", szCodec);
+   #endif
+
+   szStreamerPrefixes[0] = 0;
    if ( (pcs->iNiceRXVideo >= 0) || (0 == pcs->iPrioritiesAdjustment) )
    {
       // Auto priority
-      sprintf(szStreamer, "./%s 2>&1 1>/dev/null 2>&1 &", s_szOutputVideoStreamerFilename);
-      //sprintf(szStreamer, "%s -z -o hdmi /tmp/ruby/fifovidstream > /dev/null 2>&1 &", s_szOutputVideoStreamerFilename);
    }
    else
    {
       #ifdef HW_CAPABILITY_IONICE
       if ( pcs->ioNiceRXVideo > 0 )
-         sprintf(szStreamer, "ionice -c 1 -n %d nice -n %d ./%s 2>&1 1>/dev/null &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoStreamerFilename);
+         sprintf(szStreamerPrefixes, "ionice -c 1 -n %d nice -n %d", pcs->ioNiceRXVideo, pcs->iNiceRXVideo);
       else
       #endif
-         sprintf(szStreamer, "nice -n %d ./%s 2>&1 1>/dev/null &", pcs->iNiceRXVideo, s_szOutputVideoStreamerFilename);
+         sprintf(szStreamerPrefixes, "nice -n %d", pcs->iNiceRXVideo);
    }
 
-   log_line("Executing video streamer command: %s", szStreamer);
-   system(szStreamer);
+   log_line("Executing video streamer command: %s %s %s &", szStreamerPrefixes, s_szOutputVideoStreamerFilename, szStreamerParams);
+   //hw_execute_bash_command(szStreamer, NULL);
+   hw_execute_ruby_process_wait(szStreamerPrefixes, s_szOutputVideoStreamerFilename, szStreamerParams, NULL, 0);
    log_line("Executed video streamer command.");
 
    char szComm[256];
+   char szComm2[256];
    char szPids[128];
 
    sprintf(szComm, "pidof %s", s_szOutputVideoStreamerFilename);
+   sprintf(szComm2, "ps -aef | grep %s", s_szOutputVideoStreamerFilename);
+
    szPids[0] = 0;
    int count = 0;
+   log_line("[VideoOutput] Waiting for process to start using: [%s]", szComm);
    u32 uTimeStart = get_current_timestamp_ms();
 
-   while ( (strlen(szPids) <= 2) && (count < 1000) && (get_current_timestamp_ms() < uTimeStart+2000) )
+   while ( (strlen(szPids) <= 2) && (count < 1000) && (get_current_timestamp_ms() < uTimeStart+4000) )
    {
       hw_execute_bash_command_silent(szComm, szPids);
       removeTrailingNewLines(szPids);
       if ( strlen(szPids) > 2 )
          break;
-      hardware_sleep_ms(2);
+      hardware_sleep_ms(5);
       szPids[0] = 0;
       count++;
+      char szTmp[256];
+      hw_execute_bash_command(szComm2, szTmp);
+      log_line("[VideoOutput] (%s)", szTmp);
    }
    s_iPIDVideoStreamer = atoi(szPids);
+   log_line("[VideoOutput] Found executed process PID: %d", s_iPIDVideoStreamer);
 
    if ( (strlen(szPids) > 2) && (s_iPIDVideoStreamer > 0) )
    {
@@ -202,67 +231,7 @@ void rx_video_output_start_video_streamer()
       log_line("[VideoOutput] Started video streamer [%s], PID: %s (%d)", s_szOutputVideoStreamerFilename, szPids, s_iPIDVideoStreamer);
    }
    else
-      log_softerror_and_alarm("Failed to launch video streamer");
-   #endif
-
-   #ifdef HW_PLATFORM_RADXA_ZERO3
-
-   strcpy(s_szOutputVideoStreamerFilename, VIDEO_PLAYER_SM);
-   log_line("[VideoOutput] Starting video streamer [%s]", s_szOutputVideoStreamerFilename);
-   int iPID = hw_process_exists(s_szOutputVideoStreamerFilename);
-   if ( iPID > 0 )
-   {
-      log_line("[VideoOutput] Video streamer process already running (PID: %d). Do nothing.", iPID);
-      return;
-   }
-
-   ControllerSettings* pcs = get_ControllerSettings();
-   char szStreamer[1024];
-
-   char szCodec[32];
-   szCodec[0] = 0;
-   if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
-      strcpy(szCodec, " -h265");
-
-   if ( (pcs->iNiceRXVideo >= 0) || (0 == pcs->iPrioritiesAdjustment) )
-   {
-      // Auto priority
-      sprintf(szStreamer, "./%s%s -sm > /dev/null 2>&1&", s_szOutputVideoStreamerFilename, szCodec);
-   }
-   else
-   {
-      #ifdef HW_CAPABILITY_IONICE
-      if ( pcs->ioNiceRXVideo > 0 )
-         sprintf(szStreamer, "ionice -c 1 -n %d nice -n %d ./%s%s -sm > /dev/null 2>&1 &", pcs->ioNiceRXVideo, pcs->iNiceRXVideo, s_szOutputVideoStreamerFilename, szCodec);
-      else
-      #endif
-         sprintf(szStreamer, "nice -n %d ./%s%s -sm > /dev/null 2>&1 &", pcs->iNiceRXVideo, s_szOutputVideoStreamerFilename, szCodec);
-   }
-
-   hw_execute_bash_command(szStreamer, NULL);
-   if ( (pcs->iNiceRXVideo < 0) && (pcs->iPrioritiesAdjustment) )
-      hw_set_proc_priority(s_szOutputVideoStreamerFilename, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
-
-   char szComm[256];
-   char szPids[128];
-
-   sprintf(szComm, "pidof %s", s_szOutputVideoStreamerFilename);
-   szPids[0] = 0;
-   int count = 0;
-   while ( (strlen(szPids) <= 2) && (count < 1000) )
-   {
-      hw_execute_bash_command_silent(szComm, szPids);
-      removeTrailingNewLines(szPids);
-      if ( strlen(szPids) > 2 )
-         break;
-      hardware_sleep_ms(2);
-      szPids[0] = 0;
-      count++;
-   }
-   s_iPIDVideoStreamer = atoi(szPids);
-   log_line("[VideoOutput] Started video streamer [%s], PID: %s (%d)", s_szOutputVideoStreamerFilename, szPids, s_iPIDVideoStreamer);
-
-   #endif
+      log_softerror_and_alarm("[VideoOutput] Failed to launch video streamer");
 }
 
 void rx_video_output_stop_video_streamer()
@@ -289,8 +258,6 @@ void rx_video_output_stop_video_streamer()
 
 void _rx_video_output_check_start_streamer()
 {
-   strcpy(s_szOutputVideoStreamerFilename, VIDEO_PLAYER_SM);
-
    hardware_sleep_ms(200);
    int iPID = hw_process_exists(s_szOutputVideoStreamerFilename);
    if ( iPID < 10 )
@@ -309,15 +276,15 @@ static void * _thread_rx_video_output_streamer_watchdog(void *argument)
    sem_t* pSemaphore = sem_open(SEMAPHORE_RESTART_VIDEO_STREAMER, O_CREAT, S_IWUSR | S_IRUSR, 0);
    if ( NULL == pSemaphore )
    {
-      log_error_and_alarm("[VideoOutputThread] Thread failed to open semaphore: %s", SEMAPHORE_RESTART_VIDEO_STREAMER);
+      log_error_and_alarm("[VideoOutputThread] Failed to open semaphore: %s", SEMAPHORE_RESTART_VIDEO_STREAMER);
       return NULL;
    }
    else
-      log_line("[VideoOutputThread] Thread opened semaphore for signaling video streamer restart");
+      log_line("[VideoOutputThread] Opened semaphore for signaling video streamer restart");
 
    struct timespec tWait = {0, 100*1000*1000}; // 100 ms
    
-   log_line("[VideoOutputThread] Started worker thread for video streamer output");
+   log_line("[VideoOutputThread] Started worker thread for video streamer output. Working state now.");
    
    while ( ! s_bRxVideoOutputStreamerThreadMustStop )
    {
@@ -492,7 +459,33 @@ void _rx_video_output_open_pipe_to_streamer()
 void rx_video_output_init()
 {
    log_line("[VideoOutput] Init start...");
-   s_szOutputVideoStreamerFilename[0] = 0;
+   
+   ControllerSettings* pCS = get_ControllerSettings();
+   log_line("[VideoOutput] Controller streamer output mode: %d", pCS->iStreamerOutputMode);
+   if ( pCS->iStreamerOutputMode == 0 )
+   {
+      s_bRxVideoOutputUseSM = true;
+      s_bRxVideoOutputUsePipe = false;
+   }
+   else
+   {
+      s_bRxVideoOutputUseSM = false;
+      s_bRxVideoOutputUsePipe = true;
+   }
+
+   if ( s_bRxVideoOutputUsePipe )
+   {
+      strcpy(s_szOutputVideoStreamerFilename, VIDEO_PLAYER_PIPE);
+      log_line("[VideoOutput] Use pipe to streamer");
+   }
+   else if ( s_bRxVideoOutputUseSM )
+   {
+      strcpy(s_szOutputVideoStreamerFilename, VIDEO_PLAYER_SM);
+      log_line("[VideoOutput] Use sharedmem to streamer");
+   }
+   else
+      log_softerror_and_alarm("[VideoOutput] No video streamer output method defined.");
+   
    s_fPipeVideoOutToStreamer = -1;
    s_iLocalVideoPlayerUDPSocket = -1;
    s_uLastVideoFrameTime= MAX_U32;
@@ -503,35 +496,43 @@ void rx_video_output_init()
    
    s_uSMVideoStreamWritePosition = 2*sizeof(u32);
    s_pSMVideoStreamerWrite = NULL;
-   int fdSM = shm_open(SM_STREAMER_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 
-   if( fdSM < 0 )
-      log_softerror_and_alarm("[VideoOutput] Failed to open shared memory for write: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
-   else
+   if ( s_bRxVideoOutputUseSM )
    {
-      if ( ftruncate(fdSM, SM_STREAMER_SIZE) == -1 )
-      {
-         log_softerror_and_alarm("[VideoOutput] Failed to init (ftruncate) shared memory: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
-         close(fdSM);
-      }
+      int fdSM = shm_open(SM_STREAMER_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+
+      if( fdSM < 0 )
+         log_softerror_and_alarm("[VideoOutput] Failed to open shared memory for write: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
       else
       {
-         s_pSMVideoStreamerWrite = (u8*) mmap(NULL, SM_STREAMER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fdSM, 0);
-         if ( (s_pSMVideoStreamerWrite == MAP_FAILED) || (s_pSMVideoStreamerWrite == NULL) )
+         if ( ftruncate(fdSM, SM_STREAMER_SIZE) == -1 )
          {
-            log_softerror_and_alarm("[VideoOutput] Failed to map shared memory %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+            log_softerror_and_alarm("[VideoOutput] Failed to init (ftruncate) shared memory: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
             close(fdSM);
-            s_pSMVideoStreamerWrite = NULL;
          }
          else
          {
-            memset(s_pSMVideoStreamerWrite, 0, SM_STREAMER_SIZE);
-            close(fdSM);
-            log_line("[VideoOutput] Successfully opened and cleared shared mem: %s", SM_STREAMER_NAME);
+            s_pSMVideoStreamerWrite = (u8*) mmap(NULL, SM_STREAMER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fdSM, 0);
+            if ( (s_pSMVideoStreamerWrite == MAP_FAILED) || (s_pSMVideoStreamerWrite == NULL) )
+            {
+               log_softerror_and_alarm("[VideoOutput] Failed to map shared memory %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+               close(fdSM);
+               s_pSMVideoStreamerWrite = NULL;
+            }
+            else
+            {
+               memset(s_pSMVideoStreamerWrite, 0, SM_STREAMER_SIZE);
+               close(fdSM);
+               s_uSMVideoStreamWritePosition = 2*sizeof(u32);
+               u32* pTmp1 = (u32*)(&(s_pSMVideoStreamerWrite[0]));
+               u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
+               *pTmp1 = s_uSMVideoStreamWritePosition;
+               *pTmp2 = s_uSMVideoStreamWritePosition;
+               log_line("[VideoOutput] Successfully opened and cleared shared mem: %s", SM_STREAMER_NAME);
+            }
          }
       }
    }
-
    s_pSemaphoreVideoStreamerOverloadAlarm = sem_open(SEMAPHORE_VIDEO_STREAMER_OVERLOAD, O_CREAT, S_IWUSR | S_IRUSR, 0);
    if ( NULL == s_pSemaphoreVideoStreamerOverloadAlarm )
       log_softerror_and_alarm("[VideoOutput] Failed to open semaphore for video streamer to signal alarms: %s; error: %d (%s)", SEMAPHORE_VIDEO_STREAMER_OVERLOAD, errno, strerror(errno));
@@ -612,7 +613,7 @@ void rx_video_output_uninit()
    s_pRxVideoSemaphoreRestartVideoStreamer = NULL;
 
    if ( 0 == sem_unlink(SEMAPHORE_RESTART_VIDEO_STREAMER) )
-      log_line("[VideoOutput] Destroied the semaphore for restarting video streamer.");
+      log_line("[VideoOutput] Destroyed the semaphore for restarting video streamer.");
    else
       log_softerror_and_alarm("[VideoOutput] Failed to destroy the semaphore for restarting video streamer.");
    s_pRxVideoSemaphoreRestartVideoStreamer = NULL;
@@ -666,10 +667,28 @@ void rx_video_output_enable_streamer_output()
 {
    log_line("[VideoOutput] Enable video output to streamer.");
 
+   if ( s_bRxVideoOutputUseSM )
+   {
+      s_uSMVideoStreamWritePosition = 2*sizeof(u32);
+      u32* pTmp1 = (u32*)(&(s_pSMVideoStreamerWrite[0]));
+      u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
+      *pTmp1 = s_uSMVideoStreamWritePosition;
+      *pTmp2 = s_uSMVideoStreamWritePosition;
+   }
+
    _rx_video_output_check_start_streamer();
+
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
+   {
+      if ( NULL == g_pVideoProcessorRxList[i] )
+         break;
+      g_pVideoProcessorRxList[i]->onControllerSettingsChanged();
+   }
+
    s_bEnableVideoStreamerOutput = true;
 
-   //_rx_video_output_open_pipe_to_streamer();
+   if ( s_bRxVideoOutputUsePipe )
+      _rx_video_output_open_pipe_to_streamer();
 }
 
 void rx_video_output_disable_streamer_output()
@@ -684,6 +703,11 @@ void rx_video_output_disable_streamer_output()
    }
    s_fPipeVideoOutToStreamer = -1;
    s_bDidSentAnyDataToVideoStreamerPipe = false;
+}
+
+bool rx_video_out_is_stream_output_disabled()
+{
+   return ! s_bEnableVideoStreamerOutput;
 }
 
 void rx_video_output_enable_local_player_udp_output()
@@ -803,7 +827,7 @@ void _rx_video_output_to_sharedmem(u8* pBuffer, u32 uLength)
    *pTmp2 = s_uSMVideoStreamWritePosition;
 }
 
-void _rx_video_output_to_video_streamer(u8* pBuffer, int length)
+void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
 {
    if ( (NULL == pBuffer) || (length == 0) )
       return;
@@ -1032,11 +1056,11 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
       }
    }
 
-   if ( s_bEnableVideoStreamerOutput )
+   if ( s_bEnableVideoStreamerOutput && s_bRxVideoOutputUseSM )
       _rx_video_output_to_sharedmem(pBuffer, (u32)video_data_length);
 
-   if ( (-1 != s_fPipeVideoOutToStreamer) && s_bEnableVideoStreamerOutput )
-      _rx_video_output_to_video_streamer(pBuffer, video_data_length);
+   if ( (-1 != s_fPipeVideoOutToStreamer) && s_bEnableVideoStreamerOutput && s_bRxVideoOutputUsePipe )
+      _rx_video_output_to_video_streamer_pipe(pBuffer, video_data_length);
 
    if ( -1 != s_iLocalVideoPlayerUDPSocket )
       _rx_video_output_to_local_video_player_udp(pBuffer, video_data_length);

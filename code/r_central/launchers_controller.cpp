@@ -321,11 +321,10 @@ static void * _thread_adjust_affinities(void *argument)
       hw_set_proc_affinity("ruby_central", 2,2);
       hw_set_proc_affinity("ruby_rx_telemetry", 3, 3);
       hw_set_proc_affinity("ruby_tx_rc", 3, 3);
-      #if defined(HW_PLATFORM_RASPBERRY)
-      hw_set_proc_affinity("ruby_player_p", 3, s_iCPUCoresCount);
-      #endif
-      #if defined(HW_PLATFORM_RADXA_ZERO3)
-      hw_set_proc_affinity("ruby_player_radxa", 3, s_iCPUCoresCount);
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, VIDEO_PLAYER_SM);
+      hw_set_proc_affinity(szFile, 3, s_iCPUCoresCount);
       #endif
    }
    else

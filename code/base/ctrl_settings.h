@@ -75,6 +75,7 @@ typedef struct
    int iRadioTxThreadPriority;
    int iRadioTxUsesPPCAP;
    int iRadioBypassSocketBuffers;
+   int iStreamerOutputMode; // 0 - sm, 1 - pipe, 2 - udp
 } ControllerSettings;
 
 int save_ControllerSettings();

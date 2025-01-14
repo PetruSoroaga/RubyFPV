@@ -52,6 +52,7 @@ void _onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
    //log_line("DEBUG2 vsync"); 
 }
 
+// To remove
 u32 s_uPrevToken = 0x11111111;
 u32 s_uCurrentToken = 0x11111111;
 u32 s_uTimeLastNAL = 0;
@@ -207,7 +208,6 @@ static int video_decode()
 
          while ((data_len == 0) && (!g_bQuit))
          {
-            log_line("S");
             //int read_count = read(readfd, dest, pOMXBuffer->nAllocLen-data_len);
             int read_count = read(readfd, dest, (pOMXBuffer->nAllocLen>20000) ? 20000 : pOMXBuffer->nAllocLen);
             if ( (read_count < 0) || g_bQuit )
@@ -233,7 +233,8 @@ static int video_decode()
          if ( g_bQuit )
             break;
 
-         _parse_stream(pOMXBuffer->pBuffer, data_len);
+         // To remove
+         //_parse_stream(pOMXBuffer->pBuffer, data_len);
 
          if(port_settings_changed == 0 &&
             ((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||

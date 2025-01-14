@@ -144,6 +144,14 @@ void MenuControllerDev::addItems()
 
    addMenuItem(new MenuItemSection("Other Settings"));
 
+   m_pItemsSelect[1] = new MenuItemSelect("Local video output mode", "Change the way data is sent to the local video streamer.");
+   m_pItemsSelect[1]->addSelection("Shared Mem");
+   m_pItemsSelect[1]->addSelection("Pipes");
+   m_pItemsSelect[1]->addSelection("UDP");
+   m_pItemsSelect[1]->setIsEditable();
+   m_pItemsSelect[1]->setSelectedIndex(pCS->iStreamerOutputMode);
+   m_IndexStreamerMode = addMenuItem(m_pItemsSelect[1]);
+
    m_IndexVersion = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
    m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
    m_IndexExit = addMenuItem(new MenuItem("Exit to shell", "Closes Ruby and exits to linux shell."));
@@ -371,8 +379,19 @@ void MenuControllerDev::onSelectItem()
       Menu* pm = new MenuConfirmation("Developer Settings Reset", "All developer settings where reset.", 2);
       pm->m_yPos = 0.4;
       add_menu_to_stack(pm);
+      return;
    }
-
+   if ( m_IndexStreamerMode == m_SelectedIndex )
+   {
+      pCS->iStreamerOutputMode = m_pItemsSelect[1]->getSelectedIndex();
+      log_line("Streamer output mode was changed to: %d", pCS->iStreamerOutputMode);
+      save_ControllerSettings();
+      pairing_stop();
+      ruby_signal_alive();
+      pairing_start_normal();
+      return;
+   }
+  
    if ( bUpdatedController )
    {
       save_ControllerSettings();
