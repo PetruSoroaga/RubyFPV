@@ -294,7 +294,11 @@ int load_ControllerSettings()
 
    if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iStreamerOutputMode) )
       { log_softerror_and_alarm("Load ctrl settings, failed on line 26");
-        s_CtrlSettings.iStreamerOutputMode = 0; }
+        s_CtrlSettings.iStreamerOutputMode = 0;
+        #if defined (HW_PLATFORM_RASPBERRY)
+        s_CtrlSettings.iStreamerOutputMode = 1;
+        #endif
+      }
    fclose(fd);
 
    //--------------------------------------------------------

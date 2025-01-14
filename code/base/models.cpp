@@ -1691,7 +1691,7 @@ bool Model::loadVersion10(FILE* fd)
       if ( 2 != fscanf(fd, "%d %d", &tmp1, &tmp2) )
       {
          log_softerror_and_alarm("Load model10: Error on line r5");
-         tmp1 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+         tmp1 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
          tmp2 = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
       }
       radioLinksParams.uUplinkDataDataRateType[i] = tmp1;
@@ -3051,7 +3051,7 @@ void Model::resetRadioLinkDataRatesAndFlags(int iRadioLink)
    radioLinksParams.uplink_datarate_video_bps[iRadioLink] = radioLinksParams.link_datarate_video_bps[iRadioLink];
    radioLinksParams.uplink_datarate_data_bps[iRadioLink] = radioLinksParams.link_datarate_data_bps[iRadioLink];
 
-   radioLinksParams.uUplinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+   radioLinksParams.uUplinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
    radioLinksParams.uDownlinkDataDataRateType[iRadioLink] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
 
    radioLinksParams.uSerialPacketSize[iRadioLink] = DEFAULT_RADIO_SERIAL_AIR_PACKET_SIZE;
@@ -3828,7 +3828,7 @@ bool Model::validate_settings()
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
       if ( (radioLinksParams.uUplinkDataDataRateType[i] <= 0) || (radioLinksParams.uUplinkDataDataRateType[i] > 3) )
-         radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+         radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
       if ( (radioLinksParams.uDownlinkDataDataRateType[i] <= 0) || (radioLinksParams.uDownlinkDataDataRateType[i] > 3) )
          radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
 

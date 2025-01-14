@@ -129,7 +129,7 @@ void do_update_to_102()
          pModel->radioLinksParams.link_radio_flags[i] &= ~RADIO_FLAGS_USE_MCS_DATARATES;       
       }
 
-      pModel->radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
+      pModel->radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST;
       pModel->radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
    }
 
