@@ -29,12 +29,13 @@ typedef u32 __le32;
 #define LOGGER_MESSAGE_QUEUE_ID 123
 #define SM_STREAMER_SIZE 512000
 #define SM_STREAMER_NAME "/SSMRVideo"
+#define RUBY_HW_CLOCK_ID CLOCK_MONOTONIC
 
 #define SYSTEM_NAME "Ruby"
 // dword[3...0]: BB.BB.MM.mm  (BB.BB: build number (highest bytes), MM: major ver, mm: minor ver (lowest byte)) 
 #define SYSTEM_SW_VERSION_MAJOR 10
-#define SYSTEM_SW_VERSION_MINOR 20
-#define SYSTEM_SW_BUILD_NUMBER  260
+#define SYSTEM_SW_VERSION_MINOR 30
+#define SYSTEM_SW_BUILD_NUMBER  266
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)
@@ -78,6 +79,10 @@ void reset_counters(type_u32_couters* pCounters);
 u32 base_compute_crc32(u8 *buf, int length);
 u8 base_compute_crc8(u8* pBuffer, int iLength);
 int base_check_crc32(u8* pBuffer, int iLength);
+
+void hardware_sleep_sec(u32 uSeconds);
+void hardware_sleep_ms(u32 miliSeconds);
+void hardware_sleep_micros(u32 microSeconds);
 
 u32 get_current_timestamp_micros();
 u32 get_current_timestamp_ms();

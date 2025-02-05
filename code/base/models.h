@@ -16,7 +16,6 @@
 #define MODEL_MAX_OSD_PROFILES 5
 
 #define CAMERA_FLAG_FORCE_MODE_1 1
-#define CAMERA_FLAG_AWB_MODE_OLD ((u32)(((u32)0x01)<<1))
 #define CAMERA_FLAG_IR_FILTER_OFF ((u32)(((u32)0x01)<<2))
 #define CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF ((u32)(((u32)0x01) << 3))
 #define CAMERA_FLAG_OPENIPC_3A_SIGMASTAR ((u32)(((u32)0x01) << 4))
@@ -89,8 +88,8 @@ typedef struct
 
 typedef struct
 {
-   u32 flags;
-      // bit x: not used now
+   u32 uProfileFlags;
+      // bit 0.1: 3d noise: 0,1, auto (2)
 
    u32 uProfileEncodingFlags; // same as radio video packet uProfileEncodingFlags
 
@@ -138,7 +137,7 @@ typedef struct
 
 typedef struct
 {
-   int layout;
+   int iCurrentOSDLayout;
    bool voltage_alarm_enabled;
    float voltage_alarm;
    int  battery_show_per_cell;
@@ -407,6 +406,7 @@ typedef struct
 } type_radio_interfaces_parameters;
 
 
+#define FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO 0
 #define FLAG_RADIO_LINK_DATARATE_DATA_TYPE_FIXED 1
 #define FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST 2
 #define FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO 3
@@ -611,6 +611,7 @@ class Model
       bool validate_fps_and_exposure_settings(type_video_link_profile* pVideoLinkProfile, camera_profile_parameters_t* pCameraProfile);
       bool validate_settings();
       bool validate_relay_links_flags();
+      void validate_radio_flags();
       u32 getLinkRealDataRate(int nLinkId);
       int getRadioInterfaceIndexForRadioLink(int iRadioLink);
       bool canSwapEnabledHighCapacityRadioInterfaces();
@@ -642,13 +643,10 @@ class Model
       int getInitialKeyframeIntervalMs(int iVideoProfile);
       void setDefaultVideoBitrate();
       
-      void setAWBMode();
       void getCameraFlags(char* szCameraFlags);
       // To fix
       void getVideoFlags(char* szVideoFlags, int iVideoProfile);//, shared_mem_video_link_overwrites* pVideoOverwrites);
       void populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
-      void populateFromVehicleTelemetryData_v1(t_packet_header_ruby_telemetry_extended_v1* pPHRTE);
-      void populateFromVehicleTelemetryData_v2(t_packet_header_ruby_telemetry_extended_v2* pPHRTE);
       void populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
 
       void copy_video_link_profile(int from, int to);

@@ -38,7 +38,7 @@
 MenuVehicleAlarms::MenuVehicleAlarms(void)
 :Menu(MENU_ID_VEHICLE_ALARMS, "Vehicle Alarms and Warnings Settings", NULL)
 {
-   m_Width = 0.28;
+   m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.20;
 
    m_pItemsSelect[0] = new MenuItemSelect("Enable Voltage Alarm", "Shows an alarm on screen when vehicle battery voltage drops below a value.");  
@@ -76,7 +76,7 @@ MenuVehicleAlarms::MenuVehicleAlarms(void)
    //m_IndexOverload = addMenuItem(m_pItemsSelect[1]);
    m_IndexOverload = -1;
 
-   m_pItemsSelect[2] = new MenuItemSelect("Controller Link Lost Alarm", "Shows an alarm when the vehicle looses connection with the controller. That is, vehicle does not receive the uplink data for a period of time.");  
+   m_pItemsSelect[2] = new MenuItemSelect("Link to Controller Lost Alarm", "Shows an alarm when the vehicle looses connection with the controller. That is, vehicle does not receive the uplink data for a period of time.");  
    m_pItemsSelect[2]->addSelection("Disabled");
    m_pItemsSelect[2]->addSelection("Enabled");
    m_pItemsSelect[2]->setIsEditable();

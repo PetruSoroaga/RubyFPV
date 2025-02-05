@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -183,7 +183,7 @@ void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId)
    warnings_add(uVehicleId, szTitle, iconId, NULL);
 }
 
-void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, double* pColorIcon, int timeout)
+void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, const double* pColorIcon, int timeout)
 {
    if ( (NULL == szTitle) || (0 == szTitle[0]) )
       return;
@@ -256,14 +256,20 @@ void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, double* pColo
    //if ( pP->iPersistentMessages )
    //   p->setNoBackground();
    p->setBackgroundAlpha(0.5);
-   p->setCustomPadding(0.3);
+   p->setCustomPadding(0.6);
 
    if ( 0 != iconId )
    {
-      double* pColor = get_Color_IconNormal();
-      if ( pColorIcon != NULL )
-         pColor = pColorIcon;
-      p->setIconId(iconId, pColor);
+      if ( NULL != pColorIcon )
+         p->setIconId(iconId, pColorIcon);
+      else
+         p->setIconId(iconId, get_Color_IconNormal());
+   }
+
+   if ( (-1 != iRuntimeInfoIndex) && (0 != uVehicleId) && (MAX_U32 != uVehicleId) )
+   if ( NULL != g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel )
+   {
+      p->setIconId2(osd_getVehicleIcon(g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->vehicle_type), get_Color_OSDText() );
    }
 
    popups_add(p);

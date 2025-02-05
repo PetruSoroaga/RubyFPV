@@ -657,6 +657,13 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       {
          pRuntimeInfo->bPairedConfirmed = true;
          log_line("Pairing confirmed for vehicle VID %u", pRuntimeInfo->uVehicleId);
+         if ( g_bSyncModelSettingsOnLinkRecover )
+         {
+            log_line("Must sync model setings on link recover.");
+            g_bSyncModelSettingsOnLinkRecover = false;
+            if ( NULL != g_pCurrentModel )
+               g_pCurrentModel->b_mustSyncFromVehicle = true;
+         }
       }
       return 0;
    }
@@ -1212,15 +1219,20 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       {
          log_line("Received local alarm: %s, alarm index: %u", szBuff, uAlarmIndex);
          alarms_add_from_local(uAlarm, uFlags1, uFlags2);
+
+         if ( uAlarm == ALARM_ID_CONTROLLER_PAIRING_COMPLETED )
+         if ( g_bSyncModelSettingsOnLinkRecover )
+         {
+            log_line("Must sync model setings on link recover.");
+            g_bSyncModelSettingsOnLinkRecover = false;
+            if ( NULL != g_pCurrentModel )
+               g_pCurrentModel->b_mustSyncFromVehicle = true;
+         }
+
       }
       else
       {
          log_line("Received vehicle alarm: %s, alarm index: %u", szBuff, uAlarmIndex);
-
-         if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
-            g_bIsVehicleLinkToControllerLost = true;
-         if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
-            g_bIsVehicleLinkToControllerLost = false;
 
          if ( (uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST) || (uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED) )
          {
@@ -1231,10 +1243,19 @@ int _process_received_message_from_router(u8* pPacketBuffer)
                return 0;
             }
 
-            if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
-               warnings_add_link_to_controller_lost(pPH->vehicle_id_src);
-            else if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
-               warnings_add_link_to_controller_recovered(pPH->vehicle_id_src);
+            bool bShowAlarm = true;
+            t_structure_vehicle_info* pRuntimeInfo = _get_runtime_info_for_packet(pPacketBuffer);
+            if ( (NULL != pRuntimeInfo) && (NULL != pRuntimeInfo->pModel) )
+            if ( ! (pRuntimeInfo->pModel->osd_params.osd_preferences[pRuntimeInfo->pModel->osd_params.iCurrentOSDLayout] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM) )
+               bShowAlarm = false;
+
+            if ( bShowAlarm )
+            {
+               if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
+                  warnings_add_link_to_controller_lost(pPH->vehicle_id_src);
+               else if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
+                  warnings_add_link_to_controller_recovered(pPH->vehicle_id_src);
+            }
          }
          else
             alarms_add_from_vehicle(pPH->vehicle_id_src, uAlarm, uFlags1, uFlags2);

@@ -165,7 +165,7 @@ void PopupCameraParams::Render()
    float height_text = g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float x = m_RenderXPos+POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
    float y = m_RenderYPos+0.8*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall);
-   float dx = m_fIconSize/g_pRenderEngine->getAspectRatio() + 0.8*g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
+   float dx = m_fIconWidth + 0.8*g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
 
    if ( ! m_bHasPendingChanges )
       memcpy(&m_PendingCameraChanges, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
@@ -257,7 +257,7 @@ void PopupCameraParams::Render()
    y += height_text*1.4;
 
    float sliderHeight = 0.4 * height_text;
-   float sliderWidth = m_RenderWidth - m_fIconSize/g_pRenderEngine->getAspectRatio() - 2*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
+   float sliderWidth = m_RenderWidth - m_fIconWidth - 2*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall)/g_pRenderEngine->getAspectRatio();
    float xPosSlider = x + dx;
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStroke(get_Color_MenuText());

@@ -57,6 +57,7 @@ void resetVehicleRuntimeInfo(int iIndex)
       g_State.vehiclesRuntimeInfo[iIndex].uPingRoundtripTimeOnLocalRadioLinks[i] = 0;
    }
 
+   g_State.vehiclesRuntimeInfo[iIndex].bIsVehicleLinkToControllerLostAlarm = false;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeReceivedAckFromVehicle = 0;
    g_State.vehiclesRuntimeInfo[iIndex].iVehicleClockDeltaMilisec = 500000000;
    g_State.vehiclesRuntimeInfo[iIndex].uMinimumPingTimeMilisec = MAX_U32;
@@ -77,23 +78,6 @@ void resetVehicleRuntimeInfo(int iIndex)
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeRecvVideoProfileAck = 0;
 
    g_State.vehiclesRuntimeInfo[iIndex].uPendingKeyFrameToSet = 0;
-   
-   // Reset shared mem adaptive info
-
-   memset(&(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex]), 0, sizeof(shared_mem_controller_adaptive_video_info_vehicle));
-
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uUpdateInterval = CONTROLLER_ADAPTIVE_VIDEO_SAMPLE_INTERVAL;
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uLastUpdateTime = 0;
-
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iCurrentTargetLevelShift = -1; // Wait for video stream to decide the initial value
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastAcknowledgedLevelShift = -1;
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].iLastRequestedLevelShiftRetryCount = 0;
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastAckLevelShift = 0;
-   g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[iIndex].uTimeLastLevelShiftCheckConsistency = g_TimeNow;
-
-   g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[iIndex] = MAX_U32;
-   g_SM_RouterVehiclesRuntimeInfo.uMaxCommandRoundtripMiliseconds[iIndex] = MAX_U32;
-   g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[iIndex] = MAX_U32;
 }
 
 
@@ -106,6 +90,7 @@ void resetPairingStateForVehicleRuntimeInfo(int iIndex)
    g_State.vehiclesRuntimeInfo[iIndex].uPairingRequestId = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uPairingRequestTime = g_TimeNow;
    g_State.vehiclesRuntimeInfo[iIndex].uPairingRequestInterval = 200;
+   g_TimeLastVideoParametersOrProfileChanged = g_TimeNow;
 }
 
 
@@ -118,14 +103,6 @@ void removeVehicleRuntimeInfo(int iIndex)
    for( int i=iIndex; i<MAX_CONCURENT_VEHICLES-1; i++ )
    {
       memcpy(&(g_State.vehiclesRuntimeInfo[i]), &(g_State.vehiclesRuntimeInfo[i+1]), sizeof(type_global_state_vehicle_runtime_info));
-      
-      // Move shared mem vehicles info
-
-      memcpy(&(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i]), &(g_SM_RouterVehiclesRuntimeInfo.vehicles_adaptive_video[i+1]), sizeof(shared_mem_controller_adaptive_video_info_vehicle));
-      g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i] = g_SM_RouterVehiclesRuntimeInfo.uVehiclesIds[i+1];
-      g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[i] = g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[i+1];
-      g_SM_RouterVehiclesRuntimeInfo.uMaxCommandRoundtripMiliseconds[i] = g_SM_RouterVehiclesRuntimeInfo.uMaxCommandRoundtripMiliseconds[i+1];
-      g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[i] = g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[i+1];
    }
    resetVehicleRuntimeInfo(MAX_CONCURENT_VEHICLES-1);
 }
@@ -221,22 +198,9 @@ void addCommandRTTimeToRuntimeInfo(type_global_state_vehicle_runtime_info* pRunt
 
    if ( pRuntimeInfo->uAverageCommandRoundtripMiliseconds < pRuntimeInfo->uMinCommandRoundtripMiliseconds )
       pRuntimeInfo->uMinCommandRoundtripMiliseconds = pRuntimeInfo->uAverageCommandRoundtripMiliseconds;
-
-   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
-   {
-      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == 0 )
-         break;
-      if ( g_State.vehiclesRuntimeInfo[i].uVehicleId != pRuntimeInfo->uVehicleId )
-         continue;
-      g_SM_RouterVehiclesRuntimeInfo.uAverageCommandRoundtripMiliseconds[i] = pRuntimeInfo->uAverageCommandRoundtripMiliseconds;
-      g_SM_RouterVehiclesRuntimeInfo.uMaxCommandRoundtripMiliseconds[i] = pRuntimeInfo->uMaxCommandRoundtripMiliseconds;
-      g_SM_RouterVehiclesRuntimeInfo.uMinCommandRoundtripMiliseconds[i] = pRuntimeInfo->uMinCommandRoundtripMiliseconds;
-      break;
-   }
 }
 
-void 
-adjustLinkClockDeltasForVehicleRuntimeIndex(int iRuntimeInfoIndex, u32 uRoundtripTimeMs, u32 uLocalTimeVehicleMs)
+void adjustLinkClockDeltasForVehicleRuntimeIndex(int iRuntimeInfoIndex, u32 uRoundtripTimeMs, u32 uLocalTimeVehicleMs)
 {
    if ( (iRuntimeInfoIndex < 0) || (iRuntimeInfoIndex >= MAX_CONCURENT_VEHICLES) )
       return;

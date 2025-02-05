@@ -67,6 +67,15 @@ void onModelAdded(u32 uModelId)
 {
    log_line("[Event] Handling event new model added (vehicle UID: %u).", uModelId);
    osd_widgets_on_new_vehicle_added_to_controller(uModelId);
+   Model* pModel = findModelWithId(uModelId, 115);
+   if ( NULL != pModel )
+      log_line("The newly added model controller's id: %u (this controller: %u), has negociated radio? %s",
+         pModel->uControllerId, g_uControllerId, (pModel->radioLinksParams.uGlobalRadioLinksFlags &MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
+
+   if ( NULL != g_pCurrentModel )
+      log_line("Current model (VID: %u) has negocated radio? %s",
+         g_pCurrentModel->uVehicleId, (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
+
    log_line("[Event] Handled event new model added (vehicle UID: %u). Done.", uModelId);
 }
 
@@ -129,17 +138,16 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
    g_uTimeLastRadioLinkOverloadAlarm = 0;
    g_bHasVideoDataOverloadAlarm = false;
    g_bHasVideoTxOverloadAlarm = false;
-   g_bIsVehicleLinkToControllerLost = false;
    g_iVehicleCorePluginsCount = 0;
    g_bChangedOSDStatsFontSize = false;
    g_bFreezeOSD = false;
 
    if ( NULL != g_pCurrentModel )
    {
-      u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout] & 0xFF;
+      u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout] & 0xFF;
       osd_setScaleOSD((int)scale);
    
-      u32 scaleStats = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout]>>16) & 0x0F;
+      u32 scaleStats = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout]>>16) & 0x0F;
       osd_setScaleOSDStats((int)scaleStats);
 
       if ( render_engine_uses_raw_fonts() )
@@ -187,7 +195,7 @@ void onEventBeforePairing()
    notification_add_start_pairing();
 
    if ( NULL != g_pCurrentModel )
-      osd_set_current_layout_index_and_source_model(g_pCurrentModel, g_pCurrentModel->osd_params.layout);
+      osd_set_current_layout_index_and_source_model(g_pCurrentModel, g_pCurrentModel->osd_params.iCurrentOSDLayout);
    else
       osd_set_current_layout_index_and_source_model(NULL, 0);
 
@@ -196,10 +204,10 @@ void onEventBeforePairing()
 
    g_iCurrentActiveVehicleRuntimeInfoIndex = 0;
 
+   g_uTotalLocalAlarmDevRetransmissions = 0;
    g_bHasVideoDataOverloadAlarm = false;
    g_bHasVideoTxOverloadAlarm = false;
-   g_bIsVehicleLinkToControllerLost = false;
-
+   
    g_bGotStatsVideoBitrate = false;
    g_bGotStatsVehicleTx = false;
    g_bFreezeOSD = false;
@@ -253,7 +261,7 @@ void onEventPaired()
    log_line("[Event] Handling event Paired...");
    log_current_runtime_vehicles_info();
    if ( NULL != g_pCurrentModel )
-      osd_set_current_layout_index_and_source_model(g_pCurrentModel, g_pCurrentModel->osd_params.layout);
+      osd_set_current_layout_index_and_source_model(g_pCurrentModel, g_pCurrentModel->osd_params.iCurrentOSDLayout);
    else
       osd_set_current_layout_index_and_source_model(NULL, 0);
 
@@ -355,6 +363,7 @@ void onEventPairingStartReceivingData()
       log_line("[Event] Must sync model settings: %s", g_pCurrentModel->b_mustSyncFromVehicle?"yes":"no");
    if ( g_bSyncModelSettingsOnLinkRecover )
    {
+      log_line("Must sync model setings on link recover.");
       g_bSyncModelSettingsOnLinkRecover = false;
       if ( NULL != g_pCurrentModel )
          g_pCurrentModel->b_mustSyncFromVehicle = true;
@@ -395,16 +404,34 @@ void onEventDisarmed(u32 uVehicleId)
 
 bool _onEventCheck_NegociateRadioLinks(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
 {
+   log_line("Check if we must negociate radio links...");
    g_bMustNegociateRadioLinksFlag = false;
 
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uVehicleId == pCurrentlyStoredModel->uVehicleId) )
+   if ( NULL != pNewReceivedModel )
+   if( pNewReceivedModel->uControllerId != g_uControllerId )
+   {
+      log_line("Vehicle was paired with a different controller: %u (this controller: %u)", pNewReceivedModel->uControllerId, g_uControllerId);
+      g_bMustNegociateRadioLinksFlag = true;
+   }
+
+   if ( NULL != pCurrentlyStoredModel )
    if ( !(pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
       g_bMustNegociateRadioLinksFlag = true;
+
+   if ( (NULL != g_pCurrentModel) && (NULL != pCurrentlyStoredModel) )
+   if ( g_pCurrentModel->uVehicleId == pCurrentlyStoredModel->uVehicleId )
+   if ( !(pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+      g_bMustNegociateRadioLinksFlag = true;
+
+   if ( NULL != pNewReceivedModel )
    if ( !(pNewReceivedModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
       g_bMustNegociateRadioLinksFlag = true;
 
+   if ( (NULL != pCurrentlyStoredModel) && (NULL != pNewReceivedModel) )
    if ( pCurrentlyStoredModel->radioInterfacesParams.interfaces_count != pNewReceivedModel->radioInterfacesParams.interfaces_count )
       g_bMustNegociateRadioLinksFlag = true;
+
+   if ( (NULL != pCurrentlyStoredModel) && (NULL != pNewReceivedModel) )
    for( int i=0; i<pCurrentlyStoredModel->radioInterfacesParams.interfaces_count; i++ )
    {
        if ( pCurrentlyStoredModel->radioInterfacesParams.interface_card_model[i] != pNewReceivedModel->radioInterfacesParams.interface_card_model[i] )
@@ -414,6 +441,8 @@ bool _onEventCheck_NegociateRadioLinks(Model* pCurrentlyStoredModel, Model* pNew
        if ( 0 != strcmp(pCurrentlyStoredModel->radioInterfacesParams.interface_szMAC[i], pNewReceivedModel->radioInterfacesParams.interface_szMAC[i]) )
            g_bMustNegociateRadioLinksFlag = true;
    }
+
+   log_line("Check if we must negociate radio links result: %s", g_bMustNegociateRadioLinksFlag?"yes":"no");
    return g_bMustNegociateRadioLinksFlag;
 }
 
@@ -463,8 +492,10 @@ bool _onEventCheck_RadioChanged(Model* pCurrentlyStoredModel, Model* pNewReceive
 bool _onEventCheckChangesToModel(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
 {
    if ( (NULL == pCurrentlyStoredModel) || (NULL == pNewReceivedModel) )
+   {
+      g_bMustNegociateRadioLinksFlag = _onEventCheck_NegociateRadioLinks(pCurrentlyStoredModel, pNewReceivedModel);
       return false;
-
+   }
    bool bCurrentModelIsInActiveRuntime = false;
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
@@ -586,11 +617,25 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
        snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Your %s generates H265 video but your controller supports only H264. Change the %s video encoder to H264 encoder", szVehicleType, szVehicleType);
        warnings_add(pNewReceivedModel->uVehicleId, szText, g_idIconCamera, get_Color_IconWarning() );
        snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Your %s generates H265 video but your controller supports only H264. Change teh %s video encoder to H264 encoder (from Menu->Vehicle Settings->Video)", szVehicleType, szVehicleType);
-       MenuConfirmation* pMC = new MenuConfirmation("Unsuppoerted video codec", szText, 0, true);
+       MenuConfirmation* pMC = new MenuConfirmation(L("Unsuppoerted video codec"), szText, 0, true);
        pMC->m_yPos = 0.3;
        add_menu_to_stack(pMC);
        g_bMustNegociateRadioLinksFlag = false;
        bTookActions = true;
+   }
+
+   // Check for H264 slices on OpenIPC-Raspberry pair
+   if ( pNewReceivedModel->isRunningOnOpenIPCHardware() )
+   if ( pNewReceivedModel->video_params.iH264Slices > 1 )
+   {
+      char szBuff[256];
+      strcpy(szBuff, L("Your vehicle has H264/H265 slices enabled and Raspberry Pi can't decode slices from OpenIPC hardware. You will have issues."));
+      MenuConfirmation* pMC = new MenuConfirmation(L("Unsuppoerted video slices"), szBuff, 0, true);
+      pMC->addTopLine(L("Set H264/H265 slices to 1, from [Menu]->[Vehicle]->[Video]->[Advanced settings]"));
+      pMC->m_yPos = 0.3;
+      add_menu_to_stack(pMC);
+      g_bMustNegociateRadioLinksFlag = false;
+      bTookActions = true;
    }
    #endif
 
@@ -601,6 +646,7 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
    if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
    if ( ! g_bAskedForNegociateRadioLink )
+   if ( (pNewReceivedModel->sw_version >> 16) > 262 )
    {
       add_menu_to_stack(new MenuNegociateRadio());
       bTookActions = true;
@@ -706,6 +752,17 @@ void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolici
          warnings_add(pModel->uVehicleId, szBuff, g_idIconCamera, get_Color_IconWarning() );
       }
    }
+
+   // Check for H264 slices on OpenIPC-Raspberry pair
+   #if defined HW_PLATFORM_RASPBERRY
+   if ( pModel->isRunningOnOpenIPCHardware() )
+   if ( pModel->video_params.iH264Slices > 1 )
+   {
+      char szBuff[256];
+      strcpy(szBuff, L("Your vehicle has H264/H265 slices enabled and Raspberry Pi can't decode slices from OpenIPC hardware. You will have issues."));
+      warnings_add(pModel->uVehicleId, szBuff, g_idIconCamera, get_Color_IconError());
+   }
+   #endif
 }
 
 bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited)
@@ -824,12 +881,13 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
          receivedModel.radioInterfacesParams.interface_capabilities_flags[i] &= ~(RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
    }
 
-   log_line("Current (before update) local model (VID: %u) mode: %s", pCurrentlyStoredModel->uVehicleId, pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode");
-   log_line("Current (before update) current model (g_pCurrentModel) (VID: %u) mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode");
+   log_line("Current (before update) local model (VID: %u) mode: %s, has negociated radio? %s, controller id: %u", pCurrentlyStoredModel->uVehicleId, pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode", (pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no", pCurrentlyStoredModel->uControllerId);
+   log_line("Current (before update) current model (g_pCurrentModel) (VID: %u) mode: %s, has negociated radio? %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode", (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
 
-   log_line("Currently received temp model (VID: %u) mode: %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode");
+   log_line("Currently received temp model (VID: %u) controller ID: %u", receivedModel.uVehicleId, receivedModel.uControllerId);
+   log_line("Currently received temp model (VID: %u) mode: %s. has negociated radio? %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode", (receivedModel.radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
    log_line("Currently received temp model is in developer mode: %s, total flights: %u", receivedModel.bDeveloperMode?"yes":"no", receivedModel.m_Stats.uTotalFlights);
-   log_line("Currently received temp model osd layout: %d, enabled: %s", receivedModel.osd_params.layout, (receivedModel.osd_params.osd_flags2[receivedModel.osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+   log_line("Currently received temp model osd layout: %d, enabled: %s", receivedModel.osd_params.iCurrentOSDLayout, (receivedModel.osd_params.osd_flags2[receivedModel.osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
    log_line("Currently received temp model developer flags: [%s]", str_get_developer_flags(receivedModel.uDeveloperFlags));
    log_line("Currently received temp model has %d radio links.", receivedModel.radioLinksParams.links_count );
    log_line("Currently received temp model has Ruby base version: %d.%d", (receivedModel.hwCapabilities.uRubyBaseVersion >> 8) & 0xFF, receivedModel.hwCapabilities.uRubyBaseVersion & 0xFF);
@@ -909,7 +967,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
    log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->bDeveloperMode?"yes":"no");
-   log_line("Current model (VID %u) mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode");
+   log_line("Current model (VID %u) mode: %s, has negociated radio? %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode", (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
    log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->uVehicleId, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
    log_line("Received model (VID %u) is in developer mode: %s", receivedModel.uVehicleId, receivedModel.bDeveloperMode?"yes":"no");
    log_line("Received model (VID %u) mode: %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode");
@@ -956,6 +1014,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    }
 
    log_line("[Event] No critical change that requires repairing on the received model settings.");
+   log_line("Currenty stored model has negociated radio? %s", (pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
+   log_line("Received model has negociated radio? %s", (receivedModel.radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
 
    _onEventCheckNewModelForActionsToTake(pCurrentlyStoredModel, &receivedModel);
 

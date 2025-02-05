@@ -547,7 +547,6 @@ u8* handle_commands_get_last_command_response()
 // Merge from Src to Dest
 void merge_osd_params(osd_parameters_t* pParamsVehicleSrc, osd_parameters_t* pParamsCtrlDest)
 {
-   //printf("\n%d, %d\n", pParamsVehicleSrc->layout, (pParamsVehicleSrc->osd_flags2[pParamsVehicleSrc->layout] & OSD_FLAG2_LAYOUT_ENABLED)?1:0);
    if ( NULL == pParamsVehicleSrc || NULL == pParamsCtrlDest )
       return;
          
@@ -878,7 +877,21 @@ bool handle_last_command_result()
                        iIndexEmptySlot = i;
                 }
                 if ( iIndexEmptySlot == -1 )
+                {
                    iIndexEmptySlot = MAX_CONCURENT_VEHICLES-1;
+                   log_softerror_and_alarm("[HandleCommands] No more room in vehicles runtime info structure for new relayed vehicle VID: %u. Reuse last index: %d", g_pCurrentModel->relay_params.uRelayedVehicleId, iIndexEmptySlot);
+                   char szTmp[256];
+                   szTmp[0] = 0;
+                   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+                   {
+                      char szT[32];
+                      sprintf(szT, "%u", g_VehiclesRuntimeInfo[i].uVehicleId);
+                      if ( 0 != i )
+                         strcat(szTmp, ", ");
+                      strcat(szTmp, szT);
+                   }
+                   log_softerror_and_alarm("[HandleCommands] Current vehicles in vehicles runtime info: [%s]", szTmp);                   
+                }
                 log_line("Assign vehicle runtime index %d (currently has VID: %u) to relayed node VID %u",
                     iIndexEmptySlot, g_VehiclesRuntimeInfo[iIndexEmptySlot].uVehicleId, g_pCurrentModel->relay_params.uRelayedVehicleId);
                 g_VehiclesRuntimeInfo[iIndexEmptySlot].uVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
@@ -962,6 +975,12 @@ bool handle_last_command_result()
          {
             log_line("Received confirmation on set board type. Set board type to: %s", str_get_hardware_board_name(s_CommandParam));
             g_pCurrentModel->hwCapabilities.uBoardType = s_CommandParam;
+            if ( (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+            if ( ((g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI )
+            {
+               g_pCurrentModel->radioInterfacesParams.interface_card_model[0] = -CARD_MODEL_RTL8812AU_AF1;
+            }
+
             saveControllerModel(g_pCurrentModel);
             send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
             if ( menu_has_menu(MENU_ID_VEHICLE_BOARD) )
@@ -1052,7 +1071,7 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s (id: %d), software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), g_pCurrentModel->hwCapabilities.uBoardType, ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         sprintf(szBuff, "Board type: %s (id: %d.%d), software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT, ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
@@ -1789,9 +1808,9 @@ bool handle_last_command_result()
             {
                g_bChangedOSDStatsFontSize = false;
                
-               u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout] & 0xFF;
+               u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout] & 0xFF;
                osd_setScaleOSD((int)scale);
-               scale = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout]>>16) & 0x0F;
+               scale = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout]>>16) & 0x0F;
                osd_setScaleOSDStats((int)scale);
                osd_apply_preferences();
                applyFontScaleChanges();

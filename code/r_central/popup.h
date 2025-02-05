@@ -53,9 +53,11 @@ class Popup
    void setBottomMargin(float dymargin);
    float getBottomMargin();
    void setCustomPadding(float fPadding);
-   void setIconId(u32 idIcon, double* pColor);
+   void setIconId(u32 idIcon, const double* pColor);
+   void setIconId2(u32 idIcon2, const double* pColor2);
    float getRenderHeight();
    void setXPos(float xPos);
+   void setYPos(float yPos);
 
    float m_xPos;
    float m_yPos;
@@ -72,8 +74,13 @@ class Popup
       bool m_bSmallLines;
       u32 m_idFont;
       u32 m_idIcon;
+      u32 m_idIcon2;
       double m_ColorIcon[4];
-      float m_fIconSize;
+      double m_ColorIcon2[4];
+      float m_fIconWidth;
+      float m_fIconWidth2;
+      float m_fIconHeight;
+      float m_fIconHeight2;
       float m_fBackgroundAlpha;
       float m_fBottomMargin;
       float m_fPadding; // as percent 0 to 1 of font height
@@ -94,6 +101,7 @@ class Popup
       u32 m_StartTime;
       u32 m_uCreatedTime;
 
+      virtual float computeIconsSizes();
       virtual void computeSize();
 };
 
