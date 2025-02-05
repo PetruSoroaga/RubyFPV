@@ -66,7 +66,7 @@ void _radio_dd_reset_duplication_stats_for_vehicle(int iVehicleIndex, int iReaso
    if ( (iVehicleIndex < 0) || (iVehicleIndex >= MAX_CONCURENT_VEHICLES) )
       return;
 
-   log_line("[RadioRxThread] Reset duplicate detection info for VID %u, buff index %d, reason: %d", s_ListHistoryRxPacketsVehicles[iVehicleIndex].uVehicleId, iVehicleIndex, iReason);
+   log_line("[RadioDuplicateDetection] Reset duplicate detection info for VID %u, buff index %d, reason: %d", s_ListHistoryRxPacketsVehicles[iVehicleIndex].uVehicleId, iVehicleIndex, iReason);
 
    s_ListHistoryRxPacketsVehicles[iVehicleIndex].uVehicleId = 0;
    s_ListHistoryRxPacketsVehicles[iVehicleIndex].iRestartDetected = 0;
@@ -98,7 +98,7 @@ void radio_duplicate_detection_log_info()
       {
          if ( s_ListHistoryRxPacketsVehicles[i].streamsPacketsHistory[k].uLastReceivedPacketIndex == MAX_U32 )
             continue;
-         sprintf(szBuff, "[RadioRxThread] VID %u: Stream %d: Max recv packet: %u, last recv packet: %u (%u ms ago)",
+         sprintf(szBuff, "[RadioDuplicateDetection] VID %u: Stream %d: Max recv packet: %u, last recv packet: %u (%u ms ago)",
             s_ListHistoryRxPacketsVehicles[i].uVehicleId, k,
             s_ListHistoryRxPacketsVehicles[i].streamsPacketsHistory[k].uMaxReceivedPacketIndex,
             s_ListHistoryRxPacketsVehicles[i].streamsPacketsHistory[k].uLastReceivedPacketIndex,
@@ -138,12 +138,14 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBu
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       char szTmp[32];
-      sprintf(szTmp, "%u ", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+      sprintf(szTmp, "%u", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+      if ( 0 != i )
+         strcat(szBuff, ", ");
       strcat(szBuff, szTmp);
    }
    if ( 0 == szBuff[0] )
       strcpy(szBuff, "None");
-   log_line("[RadioDuplicateDetection] Current list of receiving VIDs: %s", szBuff);
+   log_line("[RadioDuplicateDetection] Current list of receiving VIDs: [%s]", szBuff);
 
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
@@ -160,18 +162,19 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBu
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
          char szTmp[32];
-         sprintf(szTmp, "%u ", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+         sprintf(szTmp, "%u", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+         if ( 0 != i )
+            strcat(szBuff, ", ");
          strcat(szBuff, szTmp);
       }
       if ( 0 == szBuff[0] )
          strcpy(szBuff, "None");
 
-      log_softerror_and_alarm("[RadioDuplicateDetection] No more room in vehicles list. Received data from VID %u, list of current VIDs (%d): %s", 
+      log_softerror_and_alarm("[RadioDuplicateDetection] No more room in vehicles list. Received data from VID %u, list of current VIDs (%d): [%s]", 
          uVehicleId, MAX_CONCURENT_VEHICLES, szBuff);
       return -1;
    }
 
-   s_ListHistoryRxPacketsVehicles[iStatsIndex].uVehicleId = uVehicleId;
    _radio_dd_reset_duplication_stats_for_vehicle(iStatsIndex, 1);
    s_ListHistoryRxPacketsVehicles[iStatsIndex].uVehicleId = uVehicleId;
 
@@ -179,12 +182,14 @@ int _radio_dup_detection_get_runtime_index_for_vid(u32 uVehicleId, u8* pPacketBu
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {
       char szTmp[32];
-      sprintf(szTmp, "%u ", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+      sprintf(szTmp, "%u", s_ListHistoryRxPacketsVehicles[i].uVehicleId);
+      if ( 0 != i )
+         strcat(szBuff, ", ");
       strcat(szBuff, szTmp);
    }
    if ( 0 == szBuff[0] )
       strcpy(szBuff, "None");
-   log_line("[RadioDuplicateDetection] Updated list of receiving VIDs: %s", szBuff);
+   log_line("[RadioDuplicateDetection] Updated list of receiving VIDs: [%s]", szBuff);
    return iStatsIndex;
 }
 
@@ -250,10 +255,10 @@ int radio_dup_detection_is_duplicate_on_stream(int iRadioInterfaceIndex, u8* pPa
 
    if ( iStreamRestarted )
    {
-      log_line("[RadioDuplicateDetection] Detected stream restart on the other end of the radio link for VID %u. On stream: %d (%s), received stream packet index: %u, max recv stream packet index: %u, last received packet on this stream was %d ms ago. Reseting duplicate stats info for this VID.",
+      log_line("[RadioDuplicateDetection] Detected stream restart on the other end of the radio link for VID %u. On stream: %d (%s), received stream packet index: %u, max recv stream packet index: %u, last received packet on this stream was %d ms ago. Reseting duplicate stats info for this VID (%u)",
          uVehicleId, uStreamIndex, str_get_radio_stream_name(uStreamIndex),
          uStreamPacketIndex, pDupInfo->streamsPacketsHistory[uStreamIndex].uMaxReceivedPacketIndex,
-         uTimeNow - pDupInfo->streamsPacketsHistory[uStreamIndex].uLastTimeReceivedPacket );
+         uTimeNow - pDupInfo->streamsPacketsHistory[uStreamIndex].uLastTimeReceivedPacket, uVehicleId );
       _radio_dd_reset_duplication_stats_for_vehicle(iStatsIndex, 2);
       pDupInfo->iRestartDetected = 1;
       pDupInfo->uVehicleId = uVehicleId;
@@ -299,6 +304,16 @@ void radio_duplicate_detection_remove_data_for_all_except(u32 uVehicleId)
    }
 }
 
+void radio_duplicate_detection_remove_data_for_vid(u32 uVehicleId)
+{
+   if ( (uVehicleId == 0) || (uVehicleId == MAX_U32) )
+      return;
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( uVehicleId == s_ListHistoryRxPacketsVehicles[i].uVehicleId )
+         _radio_dd_reset_duplication_stats_for_vehicle(i, 7);
+   }
+}
 
 int radio_dup_detection_is_vehicle_restarted(u32 uVehicleId)
 {

@@ -527,23 +527,27 @@ void osd_render_debug_stats()
    float hGraphSmall = height_text * 1.6;
 
    float xPos = 0.03;
-   float yPos = 0.17;
    float width = 0.94;
-   float height = 0.7;
+
+   static float s_fStaticYPosDebugStats = 0.7;
+   static float s_fStaticHeightDebugStats = 0.2;
 
    char szBuff[128];
 
    int iCountGraphs = 0;
 
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
-   g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
+   g_pRenderEngine->drawRoundRect(xPos, s_fStaticYPosDebugStats, width, s_fStaticHeightDebugStats, 1.5*POPUP_ROUND_MARGIN);
    osd_set_colors();
    g_pRenderEngine->setColors(get_Color_Dev());
 
 
+   float yPos = s_fStaticYPosDebugStats;
    xPos += s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
    yPos += s_fOSDStatsMargin*0.7;
+
    width -= 2*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
+   float height = s_fStaticHeightDebugStats;
    height -= s_fOSDStatsMargin*0.7*2.0;
 
    float widthMax = width;
@@ -557,22 +561,28 @@ void osd_render_debug_stats()
    float fWidthBar = (fWidthGraph-dx) / iCountIntervals;
    float fWidthPixel = g_pRenderEngine->getPixelWidth();
 
-   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "Debug Stats");
+   szBuff[0] = 0;
+   Preferences* p = get_Preferences();
+   if ( p->iDebugStatsQAButton > 0 )
+      sprintf(szBuff, "or QA%d button", p->iDebugStatsQAButton );
+   char szTitle[128];
+   snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "Debug Stats  (press [Cancel] %s to exit stats, [Up]/[Down] to zoom, any other [QA] to freeze", szBuff);
+   g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, szTitle);
    
    sprintf(szBuff, "%d %u ms", g_SMControllerRTInfo.iCurrentIndex, g_SMControllerRTInfo.uCurrentSliceStartTime);
    g_pRenderEngine->drawTextLeft(rightMargin, yPos, s_idFontStatsSmall, szBuff);
    float y = yPos;
-   y += height_text*s_OSDStatsLineSpacing;
+   y += 1.5*height_text*s_OSDStatsLineSpacing;
 
    float yTop = y;
 
    g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
    g_pRenderEngine->setStroke(180,180,180, OSD_STRIKE_WIDTH);
 
-   for( float yLine=yPos; yLine<yPos+height; yLine += 0.03 )
+   for( float yLine=yTop; yLine<=yPos+height-0.05; yLine += 0.05 )
    {
       for( float dxLine=0.1; dxLine<1.0; dxLine += 0.1 )
-      g_pRenderEngine->drawLine(fGraphXStart+dx + fWidthGraph*dxLine, yLine, fGraphXStart+dx + fWidthGraph*dxLine, yLine + 0.03);
+         g_pRenderEngine->drawLine(fGraphXStart+dx + fWidthGraph*dxLine, yLine, fGraphXStart+dx + fWidthGraph*dxLine, yLine + 0.03);
    }
    osd_set_colors();
    g_pRenderEngine->setColors(get_Color_Dev());
@@ -630,7 +640,11 @@ void osd_render_debug_stats()
       y += _osd_render_debug_stats_graph_bars(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, uTmp2, uTmp3, iCountIntervals, 1);
       y += height_text_small;
       iCountGraphs++;
+   }
 
+   //--------------------------------------------
+   if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_TX_HIGH_REG_PACKETS )
+   {
       for( int i=0; i<iCountIntervals; i++ )
       {
          uTmp[i] = pCRTInfo->uTxPackets[i+iStartIntervals];
@@ -643,6 +657,7 @@ void osd_render_debug_stats()
       y += height_text_small;
       iCountGraphs++;
    }
+
 
    //--------------------------------------------
    if ( pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_AIR_GAPS )
@@ -1035,10 +1050,13 @@ void osd_render_debug_stats()
    iCountGraphs++;
    }
    
-   float xLine = fGraphXStart + pCRTInfo->iCurrentIndex * fWidthBar;
-   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   float xLine = fGraphXStart + dx + pCRTInfo->iCurrentIndex * fWidthBar;
+   g_pRenderEngine->setStrokeSize(1.0);
    g_pRenderEngine->setStroke(255,255,100, OSD_STRIKE_WIDTH);
    g_pRenderEngine->drawLine(xLine, yPos, xLine, yPos+height);
-   //g_pRenderEngine->drawLine(xLine+g_pRenderEngine->getPixelWidth(), yPos, xLine + g_pRenderEngine->getPixelWidth(), yPos+height);
+   g_pRenderEngine->drawLine(xLine+g_pRenderEngine->getPixelWidth(), yPos, xLine + g_pRenderEngine->getPixelWidth(), yPos+height);
    osd_set_colors();
+
+   s_fStaticHeightDebugStats = y - s_fStaticYPosDebugStats + s_fOSDStatsMargin*0.7;
+   s_fStaticYPosDebugStats = 0.9 - s_fStaticHeightDebugStats;
 }

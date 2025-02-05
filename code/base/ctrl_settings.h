@@ -2,7 +2,7 @@
 
 #include "../base/hardware.h"
 #include "../base/ctrl_preferences.h"
-#define CONTROLLER_SETTINGS_STAMP_ID "v10.1"
+#define CONTROLLER_SETTINGS_STAMP_ID "v10.3"
 
 #ifdef __cplusplus
 extern "C" {

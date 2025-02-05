@@ -106,6 +106,44 @@ void power_leds(int onoff)
    #endif
 }
 
+#if defined HW_PLATFORM_OPENIPC_CAMERA
+static int s_iLogBootStepsOIPC = 0;
+#endif
+
+void _log_oipc_boot_step(const char* szText)
+{
+   #if defined HW_PLATFORM_OPENIPC_CAMERA
+   FILE* fd = fopen(FILE_BOOT_LOG_STEPS, "a+");
+   if ( NULL != fd )
+   {
+      if ( (NULL == szText) || (0 == szText[0]) )
+         fprintf(fd, "%d-%d: [No text]\n", s_iBootCount, s_iLogBootStepsOIPC);
+      else
+         fprintf(fd, "%d-%d: %s\n", s_iBootCount, s_iLogBootStepsOIPC, szText);
+      fflush(fd);
+      fclose(fd);
+      s_iLogBootStepsOIPC++;
+   }
+   #endif
+}
+
+void _log_oipc_boot_rotate()
+{
+   #if defined HW_PLATFORM_OPENIPC_CAMERA
+   char szComm[MAX_FILE_PATH_SIZE];
+   if ( access(FILE_BOOT_LOG_STEPS, R_OK) != -1 )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mv -f %s %s.bak", FILE_BOOT_LOG_STEPS, FILE_BOOT_LOG_STEPS);
+      hw_execute_bash_command_silent(szComm, NULL);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "touch %s", FILE_BOOT_LOG_STEPS);
+      hw_execute_bash_command_silent(szComm, NULL);
+      _log_oipc_boot_step("Rotated boot log file");
+      _log_oipc_boot_step("Boot-Steps:");
+   }
+   #endif
+}
+
+
 void initLogFiles()
 {
    char szComm[256];
@@ -277,7 +315,8 @@ void _check_files()
 
 void _check_update_drivers_on_update()
 {
-   hardware_install_drivers(1);
+   // No need. Only when drivers will be updated with an update
+   //hardware_install_drivers(1);
 }
 
 bool _check_for_update_from_boot()
@@ -387,7 +426,7 @@ bool _init_timestamp_and_boot_count()
 
    static long long lStartTimeStamp_ms;
    struct timespec t;
-   clock_gettime(CLOCK_MONOTONIC, &t);
+   clock_gettime(RUBY_HW_CLOCK_ID, &t);
    lStartTimeStamp_ms = t.tv_sec*1000LL + t.tv_nsec/1000LL/1000LL;
    
    strcpy(szFile, FOLDER_CONFIG);
@@ -530,9 +569,8 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
       //bool bUpdated = false;
       for( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
       {
-         int iDriver = (modelVehicle.radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
          int iCardModel = modelVehicle.radioInterfacesParams.interface_card_model[i];
-         int iMaxPowerRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+         int iMaxPowerRaw = tx_powers_get_max_usable_power_raw_for_card(modelVehicle.hwCapabilities.uBoardType, iCardModel);
 
          if ( modelVehicle.radioInterfacesParams.interface_raw_power[i] > iMaxPowerRaw )
          {
@@ -557,7 +595,7 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
 
          log_line("Checking radio interface %d: type: %s (%s)",
             i+1, str_get_radio_card_model_string(pCRII->cardModel), (pCRII->cardModel > 0)?"autodetected":"user set");
-         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(pRadioHWInfo->iRadioDriver, pCRII->cardModel);
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(0, pCRII->cardModel);
          log_line("Max raw power for radio card %d: %d, current raw power: %d", i+1, iMaxRawPower, pCRII->iRawPowerLevel);
       
          if ( iMaxRawPower < iMaximumRawCanBeSet )
@@ -574,7 +612,7 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
          if ( NULL == pCRII )
             continue;
 
-         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(pRadioHWInfo->iRadioDriver, pCRII->cardModel);
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(0, pCRII->cardModel);
          if ( pCRII->iRawPowerLevel > iMaxRawPower )
          {
             pCRII->iRawPowerLevel = iMaxRawPower;
@@ -885,8 +923,36 @@ int _step_check_file_system()
       sprintf(szComm, "chmod 777 %s*", FOLDER_MEDIA);
       hw_execute_bash_command_silent(szComm, NULL);
 
+      sprintf(szComm, "chmod 777 %s", FOLDER_UPDATES);
+      hw_execute_bash_command_silent(szComm, NULL);
       sprintf(szComm, "chmod 777 %s*", FOLDER_UPDATES);
       hw_execute_bash_command_silent(szComm, NULL);
+
+      sprintf(szComm, "chmod 777 %s%s", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
+      hw_execute_bash_command_silent(szComm, NULL);
+
+      sprintf(szComm, "chmod 777 %s%s", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
+      hw_execute_bash_command_silent(szComm, NULL);
+
+      sprintf(szComm, "chmod 777 %s%s", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
+      hw_execute_bash_command_silent(szComm, NULL);
+
+
+      sprintf(szComm, "chmod 777 %s%s", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
+      hw_execute_bash_command_silent(szComm, NULL);
+      sprintf(szComm, "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
+      hw_execute_bash_command_silent(szComm, NULL);
+
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      sprintf(szComm, "chmod 777 %sres/*", FOLDER_BINARIES);
+      hw_execute_bash_command_silent(szComm, NULL);
+      #endif
 
       sprintf(szComm, "mkdir -p %s", FOLDER_OSD_PLUGINS);
       hw_execute_bash_command_silent(szComm, NULL);
@@ -1218,16 +1284,12 @@ void  _step_load_init_radios()
 
 void _step_enumerate_radios()
 {
-   char szComm[256];
-
    printf("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...\n");
    printf("\n");
    log_line("Ruby: Enumerating supported 2.4/5.8Ghz radio interfaces...");
    fflush(stdout);
 
-   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-
+   hardware_radio_remove_stored_config();
    hardware_enumerate_radio_interfaces_step(0);
 
    //int iCountHighCapacityInterfaces = hardware_get_radio_interfaces_count();
@@ -1309,8 +1371,26 @@ int main(int argc, char *argv[])
    if ( _step_process_cmd_line(argc, argv) )
       return 0;
 
+   char szFile[MAX_FILE_PATH_SIZE];
+
+   _log_oipc_boot_rotate();
+   
+   hardware_sleep_sec(2);
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, "debug");
+   if ( access(szFile, R_OK) != -1 )
+   {
+      _log_oipc_boot_step("Debug wait");
+      for( int i=0; i<10; i++ )
+         hardware_sleep_ms(800);
+      _log_oipc_boot_step("Debug wait done");
+   }
+
    if ( ! _step_find_console() )
       return 0;
+
+   _log_oipc_boot_step("Console found");
+
    log_line_forced_to_file("Found good console. Continuing...");
    log_arguments(argc, argv);
    printf("\nRuby: Start (v %d.%d b.%d) r%d\n", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, s_iBootCount);
@@ -1323,7 +1403,10 @@ int main(int argc, char *argv[])
       #endif
       return 0;
    }
+
+   _log_oipc_boot_step("Done check files.");
    _step_check_binaries_and_processes();
+   _log_oipc_boot_step("Done check binaries.");
 
    char szComm[1204];
    char szOutput[4096];
@@ -1333,7 +1416,21 @@ int main(int argc, char *argv[])
       do_first_boot_pre_initialization();
 
    _step_load_init_devices();
+
+   _log_oipc_boot_step("Done init devices.");
+
    _step_load_init_radios();
+
+   _log_oipc_boot_step("Done init radios.");
+
+   #ifdef HW_PLATFORM_RADXA_ZERO3
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+   sprintf(szComm, "touch %s", szFile);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "./%s -b -f res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
+   hw_execute_bash_command_nonblock(szComm, NULL);
+   #endif
 
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_SYSTEM_TYPE);
    hw_execute_bash_command_silent(szComm, NULL);
@@ -1366,11 +1463,15 @@ int main(int argc, char *argv[])
 
    hardware_release();
 
+   _log_oipc_boot_step("Done hardware detect.");
+
    log_line("Starting Ruby system...");
    fflush(stdout);
    
    _step_enumerate_radios();
    
+   _log_oipc_boot_step("Done enumerate radios.");
+
    // Reenable serial ports that where used for SiK radio and now are just regular serial ports
    
    bool bSerialPortsUpdated = false;
@@ -1392,6 +1493,8 @@ int main(int argc, char *argv[])
       hardware_serial_save_configuration();
    }
 
+   _log_oipc_boot_step("Done enumerate serial.");
+
 #ifdef HW_PLATFORM_RASPBERRY
    log_line("Running on Raspberry Pi hardware");
 #endif
@@ -1400,12 +1503,6 @@ int main(int argc, char *argv[])
 #endif
 #ifdef HW_PLATFORM_OPENIPC_CAMERA
    log_line("Running on OpenIPC hardware");
-#endif
-
-#ifdef FEATURE_CONCATENATE_SMALL_RADIO_PACKETS
-   log_line("Feature to concatenate small radio packets is: On.");
-#else
-   log_line("Feature to concatenate small radio packets is: Off.");
 #endif
 
 #ifdef FEATURE_LOCAL_AUDIO_RECORDING
@@ -1429,7 +1526,6 @@ int main(int argc, char *argv[])
    if ( g_bIsFirstBoot )
       do_first_boot_initialization(s_isVehicle, board_type);
 
-   char szFile[MAX_FILE_PATH_SIZE];   
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
    if ( access( szFile, R_OK) == -1 )
@@ -1462,7 +1558,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-       hw_execute_bash_command("chmod 777 res/*", NULL);
+       // Controller
        #if defined (HW_PLATFORM_RADXA_ZERO3)
        hw_execute_bash_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", szOutput);
        if ( NULL == strstr(szOutput, "performance") )
@@ -1473,7 +1569,33 @@ int main(int argc, char *argv[])
        hw_execute_bash_command("systemctl disable rknpu2.service 2>&1 1>/dev/null", NULL);
        hw_execute_bash_command("systemctl mask rknpu2.service 2>&1 1>/dev/null", NULL);
        #endif
+
+       #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+       bool allDisabled = true;
+       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+       {
+          radio_hw_info_t* pNIC = hardware_get_radio_info(i);
+          u32 flags = controllerGetCardFlags(pNIC->szMAC);
+          if ( ! ( flags & RADIO_HW_CAPABILITY_FLAG_DISABLED ) )
+             allDisabled = false;
+       }
+       if ( allDisabled || (hardware_get_radio_interfaces_count() < 2) )
+       if ( hardware_get_radio_interfaces_count() > 0 )
+       {
+          log_line("There is a single radio card or all are disabled. Enable at least the first card.");
+          radio_hw_info_t* pNIC = hardware_get_radio_info(0);
+          u32 uFlags = controllerGetCardFlags(pNIC->szMAC);
+          uFlags &= ~(RADIO_HW_CAPABILITY_FLAG_DISABLED);
+          uFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
+          uFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+          controllerSetCardFlags(pNIC->szMAC, uFlags);
+          save_ControllerInterfacesSettings();
+          load_ControllerInterfacesSettings();
+       }
+       #endif
    }
+
+   _log_oipc_boot_step("Check processes versions...");
 
    hw_execute_ruby_process_wait(NULL, "ruby_start", "-ver", szOutput, 1);
    log_line("ruby_start: [%s]", szOutput);
@@ -1494,6 +1616,8 @@ int main(int argc, char *argv[])
       hw_execute_ruby_process_wait(NULL, "ruby_central", "-ver", szOutput, 1);
       log_line("ruby_central: [%s]", szOutput);
    }
+
+   _log_oipc_boot_step("Check for update files...");
 
    _check_for_update_from_boot();
 
@@ -1628,6 +1752,7 @@ int main(int argc, char *argv[])
       return 0;
    }
  
+   _log_oipc_boot_step("Check for hw changes...");
    printf("Ruby: Checking for HW changes...");
    log_line("Checking for HW changes...");
    fflush(stdout);
@@ -1649,7 +1774,9 @@ int main(int argc, char *argv[])
    log_line("Checking for HW changes complete.");
    fflush(stdout);
 
+   _log_oipc_boot_step("Init IPC...");
    ruby_init_ipc_channels();
+   _log_oipc_boot_step("Done init IPC.");
    
    if ( s_isVehicle )
    {
@@ -1839,6 +1966,8 @@ int main(int argc, char *argv[])
 
       #endif
    }
+
+   _log_oipc_boot_step("Done started processes.");
    
    printf("Ruby: Started processes. Checking if all ok...\n");
    fflush(stdout);
@@ -1977,6 +2106,8 @@ int main(int argc, char *argv[])
       if ( ! g_bDebug )
          system("clear");
    }
+
+   _log_oipc_boot_step("Done boot sequence.");
 
    if ( NULL != s_pSemaphoreStarted )
       sem_close(s_pSemaphoreStarted);

@@ -155,6 +155,9 @@ int main(int argc, char *argv[])
 
       if ( bMustRestart )
       {
+         for( int i=0; i<10000; i++ )
+            hardware_sleep_ms(500);
+           
          log_line_watchdog("Restarting ruby_central process...");
 
          hw_stop_process("ruby_central");

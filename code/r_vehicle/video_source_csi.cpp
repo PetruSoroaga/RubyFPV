@@ -75,7 +75,9 @@ u32  s_uTimeToRestartVideoCapture = 0;
 u32  s_uRaspiVidStartTimeMs = 0;
 int s_iMsgQueueCSICommands = -1;
 bool s_bDidSentRaspividBitrateRefresh = false;
+u32 s_uLastSetCSIVideoBitrateBPS = 0;
 
+ParserH264 s_ParserH264CSICamera;
 u32 s_uTotalCSICameraReadBytes = 0;
 u32 s_uDebugTimeLastCSIVideoInputCheck = 0;
 u32 s_uDebugCSIInputBytes = 0;
@@ -344,9 +346,6 @@ u8* video_source_csi_read(int* piReadSize)
    s_uDebugCSIInputReads++;
    *piReadSize = iRead;
 
-   u32 uStart, uEnd;
-   memcpy(&uStart, s_uInputVideoCSIPipeBuffer, sizeof(u32));
-   memcpy(&uEnd, &(s_uInputVideoCSIPipeBuffer[iRead-4]), sizeof(u32));
    return s_uInputVideoCSIPipeBuffer;
 }
 
@@ -393,7 +392,7 @@ void video_source_csi_start_program()
        video_source_csi_open(FIFO_RUBY_CAMERA1);
 
    s_bVideoCSICaptureProgramStarted = true;
-
+   s_uLastSetCSIVideoBitrateBPS = 0;
    vehicle_launch_video_capture_csi(g_pCurrentModel);
    vehicle_check_update_processes_affinities(true, g_pCurrentModel->isActiveCameraVeye());
 
@@ -415,6 +414,7 @@ void video_source_csi_stop_program()
 {
    log_line("[VideoSourceCSI] Video capture program stop procedure started...");
    s_bVideoCSICaptureProgramStarted = false;
+   s_uLastSetCSIVideoBitrateBPS = 0;
    s_uRaspiVidStartTimeMs = 0;
 
    if ( s_bHasThreadWatchDogVideoCapture )
@@ -491,14 +491,12 @@ void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2)
 
    if ( parameter == RASPIVID_COMMAND_ID_KEYFRAME )
    {
-      //log_line("DBG set keyframe to %d frames", value);
    }
 
    if ( parameter == RASPIVID_COMMAND_ID_VIDEO_BITRATE )
    {
-      //To fix g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate = ((u32)value) * 100000;
+      s_uLastSetCSIVideoBitrateBPS = ((u32)value1) * 100000; 
       s_bDidSentRaspividBitrateRefresh = true;
-      //log_line("Setting video capture bitrate to: %u", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate );
    }
 
    _video_source_csi_open_commands_msg_queue();
@@ -560,6 +558,12 @@ void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2)
    }
    #endif
 }
+
+u32 video_source_csi_get_last_set_videobitrate()
+{
+   return s_uLastSetCSIVideoBitrateBPS;
+}
+
 
 void video_source_csi_periodic_checks()
 {
@@ -633,6 +637,8 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
       memset((u8*)&s_LastAppliedVeyeCameraParams, 0, sizeof(type_camera_parameters));
       memset((u8*)&s_LastAppliedVeyeVideoParams, 0, sizeof(video_parameters_t));
    }
+
+   s_ParserH264CSICamera.init();
 
    bool bResult = true;
 
@@ -1029,6 +1035,7 @@ u32 video_source_cs_get_program_start_time() { return 0;}
 void video_source_csi_request_restart_program() {}
 bool video_source_csi_is_restart_requested() { return false;}
 void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2) {}
+u32 video_source_csi_get_last_set_videobitrate() { return 0; }
 void video_source_csi_periodic_checks() {}
 bool video_source_csi_read_any_data() { return false; }
 

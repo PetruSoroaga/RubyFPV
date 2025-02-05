@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -216,8 +216,9 @@ void _send_raw_telemetry_packet_to_controller()
 // Returns the file id
 int telemetry_open_serial_port()
 {
-   s_uTimeSerialPortOpened = g_TimeNow;
    telemetry_close_serial_port();
+
+   s_uTimeSerialPortOpened = g_TimeNow;
 
    if ( NULL == g_pCurrentModel )
    {
@@ -265,9 +266,6 @@ int telemetry_open_serial_port()
       telemetry_ltm_on_open_port(s_iTelemetrySerialPortFile);
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       telemetry_msp_on_open_port(s_iTelemetrySerialPortFile);
-
-   if ( g_pCurrentModel->processesPriorities.uProcessesFlags & PROCESSES_FLAGS_BALANCE_INT_CORES )
-      hardware_balance_interupts();
      
    return s_iTelemetrySerialPortFile;
 }
@@ -289,6 +287,8 @@ int telemetry_close_serial_port()
       telemetry_ltm_on_close();
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       telemetry_msp_on_close();
+
+   telemetry_reset_time_last_telemetry_received();
    return 0;
 }
 
@@ -308,6 +308,16 @@ u32 telemetry_time_last_telemetry_received()
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       return telemetry_msp_get_last_command_received_time();
    return 0;
+}
+
+void telemetry_reset_time_last_telemetry_received()
+{
+   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK )
+      set_time_last_mavlink_message_from_fc(0);
+   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM )
+      set_time_last_mavlink_message_from_fc(0);
+   if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+      telemetry_msp_set_last_command_received_time(0);
 }
 
 int telemetry_get_serial_port_file()

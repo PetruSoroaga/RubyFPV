@@ -34,6 +34,7 @@ class MenuControllerExpert: public Menu
       int m_IndexGPUSpeed;
       int m_IndexVoltage;
       int m_IndexReset;
+      int m_IndexVersions;
       int m_IndexReboot;
 
       int m_iDefaultARMFreq;

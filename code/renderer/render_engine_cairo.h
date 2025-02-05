@@ -10,7 +10,7 @@ class RenderEngineCairo: public RenderEngine
      virtual ~RenderEngineCairo();
 
      virtual void* getDrawContext();
-     virtual void setStroke(double* color, float fStrokeSize); 
+     virtual void setStroke(const double* color, float fStrokeSize); 
      virtual void setStrokeSize(float fStrokeSize);
 
      virtual void setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a);
@@ -27,6 +27,7 @@ class RenderEngineCairo: public RenderEngine
      virtual void rotate180();
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 uImageId);
+     virtual void drawImageAlpha(float xPos, float yPos, float fWidth, float fHeight, u32 uImageId, u8 uAlpha);
      virtual void bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 uIconId);

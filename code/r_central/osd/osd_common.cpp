@@ -239,6 +239,17 @@ float _osd_convertMeters(float m)
 }
 
 
+float _osd_convertHeightMeters(float m)
+{
+   Preferences* p = get_Preferences();
+
+   if ( (p->iUnitsHeight == prefUnitsMetric) || (p->iUnitsHeight == prefUnitsMeters) )
+      return m;
+   if ( (p->iUnitsHeight == prefUnitsImperial) || (p->iUnitsHeight == prefUnitsFeets) )
+      return m*3.28084;
+   return m;
+}
+
 bool osd_load_resources()
 {
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
@@ -356,27 +367,27 @@ void osd_set_transparency(int value)
 
 void osd_set_colors()
 {
-   double* pc1 = get_Color_OSDText();
+   const double* pc1 = get_Color_OSDText();
    g_pRenderEngine->setColors(pc1);
-   double* pc = get_Color_OSDTextOutline();
+   const double* pc = get_Color_OSDTextOutline();
    g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], pc[3]);
    g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness);
 }
 
-void osd_set_colors_text(double* pColorText)
+void osd_set_colors_text(const double* pColorText)
 {
    if ( NULL == pColorText )
       return;
    g_pRenderEngine->setColors(pColorText);
-   double* pc = get_Color_OSDTextOutline();
+   const double* pc = get_Color_OSDTextOutline();
    g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], pc[3]);
    g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness); 
 }
 
 void osd_set_colors_alpha(float alpha)
 {
-   double* pC = get_Color_OSDText();
-   double* pCO = get_Color_OSDTextOutline();
+   const double* pC = get_Color_OSDText();
+   const double* pCO = get_Color_OSDTextOutline();
 
    g_pRenderEngine->setFill(pC[0], pC[1], pC[2], pC[3]*alpha);
    g_pRenderEngine->setStroke(pCO[0], pCO[1], pCO[2], pCO[3]*alpha);
@@ -462,9 +473,11 @@ float osd_show_value_sufix(float x, float y, const char* szValue, const char* sz
    float w = 0;
    g_pRenderEngine->drawText(x,y, fontId, szValue);
    w += g_pRenderEngine->textWidth(fontId, szValue);
-   if ( NULL != szSufix && 0 != szSufix[0] )
+   if ( (NULL != szSufix) && (0 != szSufix[0]) )
    {
-      w += height_text_s*0.25;
+      if ( ' ' == *szSufix )
+         szSufix++;
+      w += height_text_s*0.18;
       g_pRenderEngine->drawText(x+w,y+(height_text-height_text_s)*0.6, fontIdSufix, szSufix);
       w += g_pRenderEngine->textWidth(fontIdSufix, szSufix);
    }
@@ -480,9 +493,9 @@ float osd_show_value_sufix_left(float x, float y, const char* szValue, const cha
    float ws = g_pRenderEngine->textWidth(fontIdSufix, szSufix);
 
    g_pRenderEngine->drawText(x-ws,y+(height_text-height_text_s)*0.6, fontIdSufix, szSufix);
-   x -= w + ws + height_text_s*0.25;
+   x -= w + ws + height_text_s*0.18;
    g_pRenderEngine->drawText(x,y, fontId, szValue);
-   return w + ws + height_text_s*0.25;
+   return w + ws + height_text_s*0.18;
 }
 
 float osd_show_value_left(float x, float y, const char* szValue, u32 fontId)
@@ -562,8 +575,8 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
    if ( (NULL == pVDS) || (NULL == pActiveModel) )
       return 0.0;
 
-   strcpy(szBuff, str_get_video_profile_name(pVDS->PHVF.uCurrentVideoLinkProfile));
-   int diffEC = pVDS->PHVF.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVF.uCurrentVideoLinkProfile].block_fecs;
+   strcpy(szBuff, str_get_video_profile_name(pVDS->PHVS.uCurrentVideoLinkProfile));
+   int diffEC = pVDS->PHVS.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVS.uCurrentVideoLinkProfile].block_fecs;
 
    if ( diffEC > 0 )
    {
@@ -572,12 +585,12 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
       strcat(szBuff, szTmp);
    }
 
-   if ( pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
+   if ( pVDS->PHVS.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
       strcat(szBuff, "-");
      
    if ( pVDS->uCurrentVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO )
       strcat(szBuff, "-1Way");
-   if (((pVDS->PHVF.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
+   if (((pVDS->PHVS.uVideoStreamIndexAndType >> 4) & 0x0F) == VIDEO_TYPE_H265 )
       strcat(szBuff, " H265");
      
    fWidth = g_pRenderEngine->textWidth(uFontId, szBuff);
@@ -610,7 +623,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    const char* szTextMain = "Main Vehicle";
    const char* szTextRelay = "Relayed Vehicle";
 
-   double* pc1 = get_Color_OSDText();
+   const double* pc1 = get_Color_OSDText();
    g_pRenderEngine->setColors(pc1);
    g_pRenderEngine->setStroke(pc1[0], pc1[1], pc1[2], pc1[3]);
    g_pRenderEngine->setStrokeSize(sfOSDOutlineThickness);
@@ -754,7 +767,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
       osd_set_colors();
       float fwt = g_pRenderEngine->textWidth(g_idFontOSDSmall, "Online");
       g_pRenderEngine->drawText(xCenter + fPaddingX + 0.5*(fWidthRight - fwt), yPos, g_idFontOSDSmall, "Online");
-      double* pc = get_Color_IconSucces();
+      const double* pc = get_Color_IconSucces();
       g_pRenderEngine->setFill(pc[0], pc[1], pc[2], pc[3]);
       g_pRenderEngine->fillCircle(xCenter + fPaddingX + 0.5*(fWidthRight-fwt) - height_text_small/g_pRenderEngine->getAspectRatio(), yPos + height_text_small*0.5, fRadius);
    
@@ -765,7 +778,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
    {
       float fwt = g_pRenderEngine->textWidth(g_idFontOSDSmall, "Offline");
       g_pRenderEngine->drawText(xCenter + fPaddingX + 0.5*(fWidthRight - fwt), yPos, g_idFontOSDSmall, "Offline");
-      double* pc = get_Color_IconError();
+      const double* pc = get_Color_IconError();
       g_pRenderEngine->setFill(pc[0], pc[1], pc[2], pc[3]);
       g_pRenderEngine->fillCircle(xCenter + fPaddingX + 0.5*(fWidthRight-fwt) - height_text_small/g_pRenderEngine->getAspectRatio(), yPos + height_text_small*0.5, fRadius);
    }

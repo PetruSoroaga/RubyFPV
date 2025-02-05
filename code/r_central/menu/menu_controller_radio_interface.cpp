@@ -66,47 +66,36 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
       return;
    }
 
-   m_pItemsSelect[1] = createMenuItemCardModelSelector("Card Model");
-   m_IndexCardModel = addMenuItem(m_pItemsSelect[1]);
+   m_pItemsSelect[0] = createMenuItemCardModelSelector("Card Model");
+   m_IndexCardModel = addMenuItem(m_pItemsSelect[0]);
 
-   m_pItemsSelect[2] = new MenuItemSelect("Enabled", "Enables or disables this card.");
+   m_pItemsSelect[1] = new MenuItemSelect("Enabled", "Enables or disables this card.");
+   m_pItemsSelect[1]->addSelection("No");
+   m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1]->setIsEditable();
+   m_IndexEnabled = addMenuItem(m_pItemsSelect[1]);
+
+   m_pItemsSelect[2] = new MenuItemSelect("Preferred Uplink Card", "Sets this card as preffered one for uplink.");
    m_pItemsSelect[2]->addSelection("No");
    m_pItemsSelect[2]->addSelection("Yes");
    m_pItemsSelect[2]->setIsEditable();
-   m_IndexEnabled = addMenuItem(m_pItemsSelect[2]);
-
-   m_pItemsSelect[0] = new MenuItemSelect("Preferred Uplink Card", "Sets this card as preffered one for uplink.");
-   m_pItemsSelect[0]->addSelection("No");
-   m_pItemsSelect[0]->addSelection("Yes");
-   m_pItemsSelect[0]->setIsEditable();
-   m_IndexTXPreferred = addMenuItem(m_pItemsSelect[0]);
+   m_IndexTXPreferred = addMenuItem(m_pItemsSelect[2]);
 
    if ( 1 == hardware_get_radio_interfaces_count() )
       addMenuItem(new MenuItemText("You have a single radio interface on this controller. You can not change it's main functionality."));
 
-   /*
-   m_pItemsSelect[3] = new MenuItemSelect("Usage", "Sets what this radio interface is used for.");
-   m_pItemsSelect[3]->addSelection("Video & Data");
-   m_pItemsSelect[3]->addSelection("Video Only");
-   m_pItemsSelect[3]->addSelection("Data Only");
-   //m_pItemsSelect[3]->addSelection("Secondary Controller");
+   m_pItemsSelect[3] = new MenuItemSelect("Capabilities", "Sets the uplink/downlink capabilities of the card. If the card has attached an external LNA or a unidirectional booster, it can't be used for both uplink and downlink, so it must be marked to be used only for uplink or downlink accordingly.");
+   m_pItemsSelect[3]->addSelection("Uplink & Downlink");
+   m_pItemsSelect[3]->addSelection("Downlink Only");
+   m_pItemsSelect[3]->addSelection("Uplink Only");
    m_pItemsSelect[3]->setIsEditable();
-   m_IndexUsage = addMenuItem(m_pItemsSelect[3]);
-   */
-   m_IndexUsage = -1;
+   m_IndexCapabilities = addMenuItem(m_pItemsSelect[3]);
 
-   m_pItemsSelect[4] = new MenuItemSelect("Capabilities", "Sets the uplink/downlink capabilities of the card. If the card has attached an external LNA or a unidirectional booster, it can't be used for both uplink and downlink, so it must be marked to be used only for uplink or downlink accordingly.");
-   m_pItemsSelect[4]->addSelection("Uplink & Downlink");
-   m_pItemsSelect[4]->addSelection("Downlink Only");
-   m_pItemsSelect[4]->addSelection("Uplink Only");
+   m_pItemsSelect[4] = new MenuItemSelect("Card Location", "Marks this card as internal or external.");
+   m_pItemsSelect[4]->addSelection("External");
+   m_pItemsSelect[4]->addSelection("Internal");
    m_pItemsSelect[4]->setIsEditable();
-   m_IndexCapabilities = addMenuItem(m_pItemsSelect[4]);
-
-   m_pItemsSelect[6] = new MenuItemSelect("Card Location", "Marks this card as internal or external.");
-   m_pItemsSelect[6]->addSelection("External");
-   m_pItemsSelect[6]->addSelection("Internal");
-   m_pItemsSelect[6]->setIsEditable();
-   m_IndexInternal = addMenuItem(m_pItemsSelect[6]);
+   m_IndexInternal = addMenuItem(m_pItemsSelect[4]);
 
    m_pItemsEdit[0] = new MenuItemEdit("Custom Name", "Sets a custom name for this unique physical radio interface; This name is to be displayed in the OSD and menus, to easily identify and distinguish each physical radio interface from the others.", "");
    m_pItemsEdit[0]->setMaxLength(48);
@@ -115,7 +104,7 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
 
 void MenuControllerRadioInterface::valuesToUI()
 {
-   if ( 0 == hardware_get_radio_interfaces_count() || m_iInterfaceIndex < 0 || m_iInterfaceIndex >= hardware_get_radio_interfaces_count() )
+   if ( (0 == hardware_get_radio_interfaces_count()) || (m_iInterfaceIndex < 0) || (m_iInterfaceIndex >= hardware_get_radio_interfaces_count()) )
        return;
 
    radio_hw_info_t* pNIC = hardware_get_radio_info(m_iInterfaceIndex);
@@ -126,16 +115,46 @@ void MenuControllerRadioInterface::valuesToUI()
       return;
 
    int iRadioLinkId = g_SM_RadioStats.radio_interfaces[m_iInterfaceIndex].assignedLocalRadioLinkId;
-
    u32 cardFlags = controllerGetCardFlags(pNIC->szMAC);
 
-   m_pItemsSelect[0]->setEnabled(true);
-   m_pItemsSelect[0]->setSelection(0);
-
-   if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_DISABLED) || ( !(cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_TX) ) )
-      m_pItemsSelect[0]->setEnabled(false);
+   if ( pCardInfo->cardModel < 0 )
+   {
+      m_pItemsSelect[0]->setSelection(1-pCardInfo->cardModel);
+      m_pItemsSelect[0]->setEnabled(true);
+   }
    else
    {
+      m_pItemsSelect[0]->setSelection(1+pCardInfo->cardModel);
+      m_pItemsSelect[0]->setEnabled(true);
+   }
+
+   if ( NULL != m_pItemsEdit[0] )
+      m_pItemsEdit[0]->setCurrentValue(controllerGetCardUserDefinedName(pNIC->szMAC));
+
+
+   // Enable/disable
+
+   m_pItemsSelect[1]->setEnabled(true);
+   if ( controllerIsCardDisabled(pNIC->szMAC) )
+       m_pItemsSelect[1]->setSelection(0);
+   else
+       m_pItemsSelect[1]->setSelection(1);
+
+   // Preffered tx card
+
+   if ( 1 == hardware_get_radio_interfaces_count() )
+   {
+      m_pItemsSelect[2]->setEnabled(false);
+      m_pItemsSelect[2]->setSelection(1);
+   }
+   else if ( controllerIsCardDisabled(pNIC->szMAC) || ( !(cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_TX) ) )
+   {
+      m_pItemsSelect[2]->setEnabled(false);
+      m_pItemsSelect[2]->setSelection(0);
+   }
+   else
+   {
+      m_pItemsSelect[2]->setEnabled(true);
       int iCurrentPrefferedIndex = controllerIsCardTXPreferred(pNIC->szMAC);
       log_line("Current card index %d: preffered Tx index: %d, on radio link %d.", m_iInterfaceIndex+1, iCurrentPrefferedIndex, iRadioLinkId+1 );
       int iMinPrefferedIndex = 10000;
@@ -163,104 +182,27 @@ void MenuControllerRadioInterface::valuesToUI()
       if ( iCurrentPrefferedIndex > 0 )
       if ( iMinCardIndex == m_iInterfaceIndex )
       {
-         m_pItemsSelect[0]->setSelectedIndex(1);
+         m_pItemsSelect[2]->setSelectedIndex(1);
          log_line("Current card is preffered Tx card.");
       }
    }
 
-   if ( pCardInfo->cardModel < 0 )
-   {
-      m_pItemsSelect[1]->setSelection(1-pCardInfo->cardModel);
-      m_pItemsSelect[1]->setEnabled(true);
-   }
+   // Capabilities
+
+   if ( controllerIsCardDisabled(pNIC->szMAC) )
+      m_pItemsSelect[3]->setEnabled(false);
    else
-   {
-      m_pItemsSelect[1]->setSelection(1+pCardInfo->cardModel);
-      m_pItemsSelect[1]->setEnabled(true);
-   }
-
-
-   m_pItemsSelect[2]->setSelection(1);
-   m_pItemsSelect[4]->setSelection(0);
-
-   m_pItemsSelect[2]->setEnabled(true);
-   m_pItemsSelect[4]->setEnabled(true);
-
-   if ( -1 != m_IndexUsage )
-   {
-      m_pItemsSelect[3]->setSelection(0);
       m_pItemsSelect[3]->setEnabled(true);
-   }
 
-   if ( 1 == hardware_get_radio_interfaces_count() )
-   {
-      m_pItemsSelect[0]->setEnabled(false);
-
-      if ( controllerIsCardDisabled(pNIC->szMAC) )
-      {
-         m_pItemsSelect[2]->setSelection(0);
-         m_pItemsSelect[2]->setEnabled(true);
-      }
-      else
-      {
-         m_pItemsSelect[2]->setSelection(1);
-         m_pItemsSelect[2]->setEnabled(false);
-      }
-      if ( -1 != m_IndexUsage )
-         m_pItemsSelect[3]->setEnabled(false);
-
-      if ( controllerIsCardDisabled(pNIC->szMAC) )
-      {
-         m_pItemsSelect[4]->setEnabled(false);
-      }
-   }
-   else if ( controllerIsCardDisabled(pNIC->szMAC) )
-   {
-      m_pItemsSelect[0]->setSelectedIndex(0);
-      m_pItemsSelect[0]->setEnabled(false);
-      m_pItemsSelect[2]->setSelection(0);
-      m_pItemsSelect[4]->setEnabled(false);
-      if ( -1 != m_IndexUsage )
-         m_pItemsSelect[3]->setEnabled(false);
-   }
-   else
-   {
-      m_pItemsSelect[0]->setSelectedIndex(0);
-      m_pItemsSelect[0]->setEnabled(false);
-      m_pItemsSelect[2]->setSelection(0);
-      m_pItemsSelect[4]->setEnabled(false);
-      if ( -1 != m_IndexUsage )
-         m_pItemsSelect[3]->setEnabled(false);
-   }
-
+   m_pItemsSelect[3]->setSelection(0);
    if ( controllerIsCardRXOnly(pNIC->szMAC) )
-      m_pItemsSelect[4]->setSelection(1);
+      m_pItemsSelect[3]->setSelection(1);
    if ( controllerIsCardTXOnly(pNIC->szMAC) )
-      m_pItemsSelect[4]->setSelection(2);
+      m_pItemsSelect[3]->setSelection(2);
 
-   if ( 1 == hardware_get_radio_interfaces_count() )
-   if ( ! controllerIsCardDisabled(pNIC->szMAC) )
-   if ( controllerIsCardRXOnly(pNIC->szMAC) || controllerIsCardTXOnly(pNIC->szMAC) )
-      m_pItemsSelect[4]->setEnabled(true);
+   // Card location
 
-   if ( -1 != m_IndexUsage )
-   {
-      if ( (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO) && (cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA) )
-         m_pItemsSelect[3]->setSelection(0);
-      else if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO )
-         m_pItemsSelect[3]->setSelection(1);
-      else if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA )
-         m_pItemsSelect[3]->setSelection(2);
-
-      if ( (g_pCurrentModel->sw_version>>16) >= 45 )
-      if ( cardFlags & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
-         m_pItemsSelect[3]->setSelection(3);
-   }
-
-   m_pItemsSelect[6]->setSelectedIndex(controllerIsCardInternal(pNIC->szMAC));
-
-   if ( NULL != m_pItemsEdit[0] )
-      m_pItemsEdit[0]->setCurrentValue(controllerGetCardUserDefinedName(pNIC->szMAC));
+   m_pItemsSelect[4]->setSelectedIndex(controllerIsCardInternal(pNIC->szMAC));
 }
 
 
@@ -307,25 +249,20 @@ bool MenuControllerRadioInterface::checkFlagsConsistency()
    if ( NULL == pNIC )
       return false;
 
-   int enabled = m_pItemsSelect[2]->getSelectedIndex();
+   int iCountInterfacesNowEnabled = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( ! controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+         iCountInterfacesNowEnabled++;
+   }
+
+   int enabled = m_pItemsSelect[1]->getSelectedIndex();
 
    if ( 0 == enabled )
    {
-      bool anyEnabled = false;
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      if ( i != m_iInterfaceIndex )
-      {
-         radio_hw_info_t* pNIC2 = hardware_get_radio_info(i);
-         if ( NULL == pNIC2 )
-            break;
-         u32 flags = controllerGetCardFlags(pNIC2->szMAC);
-         if ( !(flags & RADIO_HW_CAPABILITY_FLAG_DISABLED) )
-         {
-            anyEnabled = true;
-            break;
-         }
-      }
-      if ( ! anyEnabled )
+      
+      if ( iCountInterfacesNowEnabled < 2 )
       {
          addMessage("You can't disable all the radio interfaces!");
          return false;
@@ -345,7 +282,7 @@ bool MenuControllerRadioInterface::setCardFlags()
 
    u32 cardFlags = controllerGetCardFlags(pNIC->szMAC);
 
-   int enabled = m_pItemsSelect[2]->getSelectedIndex();
+   int enabled = m_pItemsSelect[1]->getSelectedIndex();
    if ( 1 == enabled )
    {
       controllerRemoveCardDisabled(pNIC->szMAC);
@@ -357,7 +294,7 @@ bool MenuControllerRadioInterface::setCardFlags()
       cardFlags |= RADIO_HW_CAPABILITY_FLAG_DISABLED;
    }
 
-   int indexCapabilities = m_pItemsSelect[4]->getSelectedIndex();
+   int indexCapabilities = m_pItemsSelect[3]->getSelectedIndex();
 
    cardFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX;
 
@@ -374,23 +311,9 @@ bool MenuControllerRadioInterface::setCardFlags()
       cardFlags &= (~RADIO_HW_CAPABILITY_FLAG_CAN_RX);
    }
 
-   int indexUsage = 0;
 
-   if ( -1 != m_IndexUsage )
-      indexUsage = m_pItemsSelect[3]->getSelectedIndex();
-
-   cardFlags &= (~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO);
-   cardFlags &= (~RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA);
-   cardFlags &= (~RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY);
-   if ( 0 == indexUsage )
-      cardFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-   if ( 1 == indexUsage )
-      cardFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO;
-   if ( 2 == indexUsage )
-      cardFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
-   //if ( 3 == indexUsage )
-   //   cardFlags |= RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY;
-
+   cardFlags |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+   
    controllerSetCardFlags(pNIC->szMAC, cardFlags);
    save_ControllerInterfacesSettings();
    return true;
@@ -440,12 +363,20 @@ void MenuControllerRadioInterface::onSelectItem()
    if ( NULL == pNIC )
       return;
 
+   int iCountInterfacesNowEnabled = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( ! controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+         iCountInterfacesNowEnabled++;
+   }
+
    if ( m_IndexCardModel == m_SelectedIndex )
    {
       t_ControllerRadioInterfaceInfo* pCardInfo = controllerGetRadioCardInfo(pNIC->szMAC);
       if ( NULL != pCardInfo )
       {
-         if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
+         if ( 0 == m_pItemsSelect[0]->getSelectedIndex() )
          {
             pCardInfo->cardModel = pNIC->iCardModel;
             char szMsg[128];
@@ -454,7 +385,7 @@ void MenuControllerRadioInterface::onSelectItem()
          }
          else
          {
-            pCardInfo->cardModel = m_pItemsSelect[1]->getSelectedIndex()-1;
+            pCardInfo->cardModel = m_pItemsSelect[0]->getSelectedIndex()-1;
             if ( pCardInfo->cardModel > 0 )
                pCardInfo->cardModel = - pCardInfo->cardModel;
          }
@@ -466,6 +397,14 @@ void MenuControllerRadioInterface::onSelectItem()
 
    if ( m_IndexEnabled == m_SelectedIndex )
    {
+      if ( iCountInterfacesNowEnabled < 2 )
+      if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
+      {
+         m_pItemsSelect[1]->setSelectedIndex(1);
+         addMessage("You can't disable the single active radio interface.");
+         return;
+      }
+
       if ( setCardFlags() )
       {
          showProgressInfo();
@@ -480,12 +419,12 @@ void MenuControllerRadioInterface::onSelectItem()
 
    if ( m_IndexCapabilities == m_SelectedIndex )
    {
-      if ( 1 == hardware_get_radio_interfaces_count()  )
+      if ( iCountInterfacesNowEnabled < 2 )
       {
             Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Invalid option",NULL);
             pm->m_xPos = 0.4; pm->m_yPos = 0.4;
             pm->m_Width = 0.36;
-            pm->addTopLine("Can't set the interface as RX or TX only because it's the only interface on the system.");
+            pm->addTopLine("Can't set the interface as RX or TX only because it's the only active interface on the system.");
             add_menu_to_stack(pm);
             valuesToUI();
             return;
@@ -503,24 +442,9 @@ void MenuControllerRadioInterface::onSelectItem()
       return;
    }
 
-   if ( -1 != m_IndexUsage )
-   if ( m_IndexUsage == m_SelectedIndex )
-   {
-      if ( setCardFlags() )
-      {
-         showProgressInfo();
-         pairing_stop();
-         pairing_start_normal();
-         hideProgressInfo();
-      }
-      else
-         valuesToUI();
-      return;
-   }
-
    if ( m_IndexInternal == m_SelectedIndex )
    {
-      controllerSetCardInternal(pNIC->szMAC, (bool)m_pItemsSelect[6]->getSelectedIndex());
+      controllerSetCardInternal(pNIC->szMAC, (bool)m_pItemsSelect[4]->getSelectedIndex());
       save_ControllerInterfacesSettings();
       valuesToUI();
       return;
@@ -528,7 +452,7 @@ void MenuControllerRadioInterface::onSelectItem()
 
    if ( m_IndexTXPreferred == m_SelectedIndex )
    {
-      int index = m_pItemsSelect[0]->getSelectedIndex();
+      int index = m_pItemsSelect[2]->getSelectedIndex();
       if ( 0 == index )
       {
          controllerRemoveCardTXPreferred(pNIC->szMAC);

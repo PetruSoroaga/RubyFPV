@@ -49,6 +49,7 @@
 
 u32 g_uPersistentAllAlarmsVehicle = 0;
 u32 g_uPersistentAllAlarmsLocal = 0;
+u32 g_uTotalLocalAlarmDevRetransmissions = 0;
 
 u32 s_TimeLastVehicleAlarm = 0;
 u16 s_uLastVehicleAlarms = 0;
@@ -534,6 +535,8 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    if ( g_bUpdateInProgress )
       return;
 
+   // Alarm is disabled ?
+
    //if ( uAlarms != ALARM_ID_CONTROLLER_IO_ERROR )
    if ( uAlarms != ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE )
    if ( ! (p->uEnabledAlarms & uAlarms) )
@@ -556,6 +559,20 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    {
       uIconId = g_idIconRadio;
       sprintf(szAlarmText, "Controller radio Rx process had a spike of %d ms (read: %u micros, queue: %u micros)", uFlags1, (uFlags2 & 0xFFFF), (uFlags2>>16));
+   }
+
+   if ( uAlarms & ALARM_ID_DEVELOPER_ALARM )
+   {
+      uIconId = g_idIconController;
+      bLargeFont = true;
+      if ( uFlags1 == ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF )
+      {
+         g_uTotalLocalAlarmDevRetransmissions++;
+         strcpy(szAlarmText, L("Retransmissions are enabled but not requested/received from/to vehicle."));
+         snprintf(szAlarmText2, sizeof(szAlarmText2)/sizeof(szAlarmText2[0]), L("Please notify the developers about this alarm (id %d)"), uFlags1);
+         if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isVideoLinkFixedOneWay() )
+            strcpy(szAlarmText3, L("Vehicle is in one way video link mode."));
+      }
    }
 
    if ( uAlarms & ALARM_ID_GENERIC )

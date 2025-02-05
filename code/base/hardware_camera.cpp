@@ -38,6 +38,7 @@
 #include "../common/string_utils.h"
 
 #include <ctype.h>
+#include <pthread.h>
 
 bool s_bDetectedCameraType = false;
 
@@ -105,6 +106,19 @@ int _hardware_get_camera_hardware_version_from_string(char* szHardwareId)
    int iHWId = (int)strtol(szHWId, NULL, 16);
    log_line("[Hardware] Found camera hardware version: [%s], as int: %d", szHWId, iHWId );
    return iHWId;
+}
+
+static bool s_bThreadToDetectCameraIsRunning = false;
+static char s_szThreadToDetectCameraBuffer[128];
+void* _thread_hardware_camera_detect_on_raspbery(void *argument)
+{
+   s_bThreadToDetectCameraIsRunning = true;
+   log_line("[Hardware] Started thread to detect camera...");
+   hw_execute_bash_command_raw("vcgencmd get_camera", s_szThreadToDetectCameraBuffer);
+   hardware_sleep_ms(10);
+   log_line("[Hardware] Finished thread to detect camera.");
+   s_bThreadToDetectCameraIsRunning = false;
+   return NULL;
 }
 
 u32 _hardware_detect_camera_type()
@@ -218,8 +232,35 @@ u32 _hardware_detect_camera_type()
       if ( 0 == s_bHardwareHasCamera )
       {
          szBuff[0] = 0;
-         hw_execute_bash_command_raw("vcgencmd get_camera", szBuff);
-         removeTrailingNewLines(szBuff);
+         s_szThreadToDetectCameraBuffer[0] = 0;
+         s_bThreadToDetectCameraIsRunning = true;
+         u32 uTimeStart = get_current_timestamp_ms();
+         pthread_t pth;
+         if ( 0 != pthread_create(&pth, NULL, &_thread_hardware_camera_detect_on_raspbery, szBuff) )
+         {
+            log_softerror_and_alarm("[Hardware] Failed to create thread to detect camera. Do it manualy.");
+            s_bThreadToDetectCameraIsRunning = false;
+            hw_execute_bash_command_raw("vcgencmd get_camera", szBuff);
+            removeTrailingNewLines(szBuff);
+         }
+         else
+         {
+            while ( s_bThreadToDetectCameraIsRunning )
+            {
+               hardware_sleep_ms(20);
+               if ( get_current_timestamp_ms() > uTimeStart + 5000 )
+               {
+                  log_error_and_alarm("[Hardware] Thread to detect camera is stuck. Default to no camera.");
+                  pthread_cancel(pth);
+                  s_szThreadToDetectCameraBuffer[0] = 0;
+                  //hardware_reboot();
+               }
+            }
+            strncpy(szBuff, s_szThreadToDetectCameraBuffer, sizeof(szBuff)/sizeof(szBuff[0]) - 1);
+            szBuff[sizeof(szBuff)/sizeof(szBuff[0])-1] = 0;
+            removeTrailingNewLines(szBuff);
+         }
+         
          log_line("Camera detection response string: %s", szBuff);
          if ( NULL != strstr(szBuff, "detected=1") || 
               NULL != strstr(szBuff, "detected=2") )
@@ -339,187 +380,4 @@ int hardware_isCameraHDMI()
    if ( s_uHardwareCameraType == CAMERA_TYPE_HDMI )
       return 1;
    return 0;
-}
-
-
-void hardware_camera_apply_all_majestic_camera_settings(Model* pModel, camera_profile_parameters_t* pCameraParams)
-{
-   if ( (NULL == pModel) || (NULL == pCameraParams) )
-   {
-      log_softerror_and_alarm("Received invalid params to set majestic camera settings.");
-      return;
-   }
-   char szComm[128];
-
-   sprintf(szComm, "cli -s .image.luminance %d", pCameraParams->brightness);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .image.contrast %d", pCameraParams->contrast);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .image.saturation %d", 50 + (pCameraParams->saturation-100)/2);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .image.hue %d", pCameraParams->hue);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   if ( pCameraParams->uFlags & CAMERA_FLAG_OPENIPC_3A_SIGMASTAR )
-      hw_execute_bash_command_raw("cli -s .fpv.enabled true", NULL);
-   else
-      hw_execute_bash_command_raw("cli -s .fpv.enabled false", NULL);
-
-   if ( pCameraParams->flip_image )
-   {
-      hw_execute_bash_command_raw("cli -s .image.flip true", NULL);
-      hw_execute_bash_command_raw("cli -s .image.mirror true", NULL);
-   }
-   else
-   {
-      hw_execute_bash_command_raw("cli -s .image.flip false", NULL);
-      hw_execute_bash_command_raw("cli -s .image.mirror false", NULL);
-   }
-
-   if ( 0 == pCameraParams->shutterspeed )
-   {
-      sprintf(szComm, "cli -d .isp.exposure");
-      hw_execute_bash_command_raw(szComm, NULL);      
-   }
-   else
-   {
-      //if ( hardware_board_is_goke(hardware_getBoardType()) )
-      //   sprintf(szComm, "cli -s .isp.exposure %.2f", (float)pCameraParams->shutterspeed/1000.0);
-
-      // exposure is in milisec for ssc338q
-      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
-         sprintf(szComm, "cli -s .isp.exposure %d", pCameraParams->shutterspeed);
-      hw_execute_bash_command_raw(szComm, NULL);
-   }
-
-   hardware_camera_set_irfilter_off(pCameraParams->uFlags & CAMERA_FLAG_IR_FILTER_OFF);
-}
-
-void hardware_camera_apply_all_majestic_settings(Model* pModel, camera_profile_parameters_t* pCameraParams, int iVideoProfile, video_parameters_t* pVideoParams)
-{
-   if ( (NULL == pCameraParams) || (NULL == pModel) || (iVideoProfile < 0) || (NULL == pVideoParams) )
-   {
-      log_softerror_and_alarm("Received invalid params to set majestic settings.");
-      return;
-   }
-   char szComm[128];
-
-   if ( pVideoParams->iH264Slices <= 1 )
-   {
-      hw_execute_bash_command_raw("cli -s .video0.sliceUnits 0", NULL);
-      //hw_execute_bash_command_raw("cli -d .video0.sliceUnits", NULL);
-   }
-   else
-   {
-      sprintf(szComm, "cli -s .video0.sliceUnits %d", pVideoParams->iH264Slices);
-      hw_execute_bash_command_raw(szComm, NULL);
-   }
-
-   if ( pVideoParams->uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
-      hw_execute_bash_command_raw("cli -s .video0.codec h265", NULL);
-   else
-      hw_execute_bash_command_raw("cli -s .video0.codec h264", NULL);
-
-   sprintf(szComm, "cli -s .video0.fps %d", pModel->video_link_profiles[iVideoProfile].fps);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .video0.bitrate %d", pModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps/1000);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .video0.size %dx%d", pModel->video_link_profiles[iVideoProfile].width, pModel->video_link_profiles[iVideoProfile].height);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .video0.qpDelta %d", pModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   float fGOP = 0.5;
-   int keyframe_ms = pModel->getInitialKeyframeIntervalMs(iVideoProfile);
-   fGOP = ((float)keyframe_ms) / 1000.0;
-   
-   // Allow room for 2 bytes for data size and 5 bytes for NAL header
-   int iNALSize = pModel->video_link_profiles[iVideoProfile].video_data_length - 7;
-   iNALSize = iNALSize - (iNALSize % 4);
-   log_line("Hardware camera: set majestic NAL size to %d bytes (for video profile index: %d)", iNALSize, iVideoProfile);
-   sprintf(szComm, "cli -s .outgoing.naluSize %d", iNALSize);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   sprintf(szComm, "cli -s .video0.gopSize %.1f", fGOP);
-   hw_execute_bash_command_raw(szComm, NULL);
-
-   hardware_camera_apply_all_majestic_camera_settings(pModel, pCameraParams);
-}
-
-void hardware_camera_set_irfilter_off(int iOff)
-{
-   if ( ! hardware_board_is_openipc(hardware_getBoardType()) )
-      return;
-
-   // IR cut filer off?
-   if ( iOff )
-   {
-      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
-      {
-         hw_execute_bash_command("gpio set 23", NULL);
-         hw_execute_bash_command("gpio clear 24", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
-      {
-         hw_execute_bash_command("gpio set 14", NULL);
-         hw_execute_bash_command("gpio clear 15", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
-      {
-         hw_execute_bash_command("gpio set 13", NULL);
-         hw_execute_bash_command("gpio clear 15", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
-      {
-         hw_execute_bash_command("gpio set 10", NULL);
-         hw_execute_bash_command("gpio clear 11", NULL);
-      }
-   }
-   else
-   {
-      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
-      {
-         hw_execute_bash_command("gpio set 24", NULL);
-         hw_execute_bash_command("gpio clear 23", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
-      {
-         hw_execute_bash_command("gpio set 15", NULL);
-         hw_execute_bash_command("gpio clear 14", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE210 )
-      {
-         hw_execute_bash_command("gpio set 15", NULL);
-         hw_execute_bash_command("gpio clear 13", NULL);
-      }
-      if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE300 )
-      {
-         hw_execute_bash_command("gpio set 11", NULL);
-         hw_execute_bash_command("gpio clear 10", NULL);
-      }
-   }
-}
-
-void hardware_camera_set_daylight_off(int iDLOff)
-{
-   if ( !hardware_board_is_openipc(hardware_getBoardType()) )
-      return;
-
-   static int s_iLastDaylightMode = -5;
-
-   if ( iDLOff == s_iLastDaylightMode )
-      return;
-   s_iLastDaylightMode = iDLOff;
-   
-   // Daylight Off? Activate Night Mode
-   if (iDLOff)
-      hw_execute_bash_command_raw("curl -s localhost/night/on", NULL);
-   else 
-      hw_execute_bash_command_raw("curl -s localhost/night/off", NULL);
 }

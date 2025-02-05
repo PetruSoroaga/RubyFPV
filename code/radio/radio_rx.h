@@ -9,7 +9,7 @@
 #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
 #define MAX_RX_PACKETS_QUEUE 700
 #else
-#define MAX_RX_PACKETS_QUEUE 100
+#define MAX_RX_PACKETS_QUEUE 300
 #endif
 typedef struct
 {
@@ -82,7 +82,7 @@ void radio_rx_pause_interface(int iInterfaceIndex, const char* szReason);
 void radio_rx_resume_interface(int iInterfaceIndex);
 void radio_rx_mark_quit();
 void radio_rx_set_dev_mode();
-void radio_rx_set_packet_counter_output(u8* pCounterOutputVideo, u8* pCounterOutputECVideo, u8* pCounterOutputHighPriority, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
+void radio_rx_set_packet_counter_output(u8* pCounterOutputHighPriority, u8* pCounterOutputData, u8* pCounterMissingPackets, u8* pCounterMissingPacketsMaxGap);
 void radio_rx_set_air_gap_track_output(u8* pCounterRxAirgap);
 
 int radio_rx_detect_firmware_type_from_packet(u8* pPacketBuffer, int nPacketLength);

@@ -304,10 +304,10 @@ void MenuControllerTelemetry::onSelectItem()
          uParam |= 0x02;
 
       if ( NULL != g_pCurrentModel && pairing_isStarted() )
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS, uParam, NULL, 0) )
-         valuesToUI();    
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+         handle_commands_send_to_vehicle(COMMAND_ID_SET_CONTROLLER_TELEMETRY_OPTIONS, uParam, NULL, 0);
       valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
 
    if ( m_IndexSerialPort == m_SelectedIndex )
@@ -327,8 +327,8 @@ void MenuControllerTelemetry::onSelectItem()
          save_ControllerSettings();
          save_ControllerInterfacesSettings();
 
+         valuesToUI();
          send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
-         valuesToUI();   
       }
       else
       {
@@ -348,9 +348,10 @@ void MenuControllerTelemetry::onSelectItem()
          save_ControllerSettings();
          save_ControllerInterfacesSettings();
 
-         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
          valuesToUI(); 
+         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       }
+      return;
    }
 
 
@@ -375,8 +376,9 @@ void MenuControllerTelemetry::onSelectItem()
             save_ControllerInterfacesSettings();
          }
       }
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
 
 
@@ -386,29 +388,32 @@ void MenuControllerTelemetry::onSelectItem()
       {
          pCS->iTelemetryForwardUSBType = m_pItemsSelect[3]->getSelectedIndex();
          save_ControllerSettings();
-         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
          invalidate();
          valuesToUI();
+         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
          if ( NULL != g_pCurrentModel )
             g_pCurrentModel->b_mustSyncFromVehicle = true;
       }
+      return;
    }
 
    if ( m_IndexTelemetryUSBPort == m_SelectedIndex )
    {
       pCS->iTelemetryForwardUSBPort = m_pItemsRange[0]->getCurrentValue();
       save_ControllerSettings();
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
    
    if ( m_IndexTelemetryUSBPacket == m_SelectedIndex )
    {
       pCS->iTelemetryForwardUSBPacketSize = m_pItemsRange[1]->getCurrentValue();
       save_ControllerSettings();
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
 }

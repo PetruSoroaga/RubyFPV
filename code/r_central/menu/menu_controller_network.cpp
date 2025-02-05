@@ -169,6 +169,7 @@ void MenuControllerNetwork::onSelectItem()
          hw_execute_bash_command("echo '1' > /boot/nodhcp", NULL);
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);       
+      return;
    }
 
    if ( m_IndexIP == m_SelectedIndex )
@@ -179,6 +180,7 @@ void MenuControllerNetwork::onSelectItem()
       save_ControllerSettings();
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);       
+      return;
    }
 
    if ( m_IndexSSH == m_SelectedIndex )

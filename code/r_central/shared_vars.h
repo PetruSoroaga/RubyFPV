@@ -45,9 +45,10 @@ extern bool g_bVideoPlaying;
 extern u32 g_uVideoPlayingTimeMs;
 extern u32 g_uVideoPlayingLengthSec;
 
-extern int g_ControllerCPUSpeed;
-extern int g_ControllerCPULoad;
-extern int g_ControllerTemp;
+extern int g_iControllerCPUSpeedMhz;
+extern int g_iControllerCPULoad;
+extern int g_iControllerCPUTemp;
+extern u16 g_uControllerCPUFlags;
 
 extern PopupCameraParams* g_pPopupCameraParams;
 extern Popup* g_pPopupLooking;
@@ -59,9 +60,6 @@ extern bool g_bToglleStatsOff;
 extern bool g_bToglleAllOSDOff;
 extern bool g_bFreezeOSD;
 extern bool g_bDidAnUpdate;
-
-extern bool g_bIsRouterPacketsHistoryGraphOn;
-extern bool g_bIsRouterPacketsHistoryGraphPaused;
 
 extern bool g_bMenuPopupUpdateVehicleShown;
 extern type_radio_links_parameters g_LastGoodRadioLinksParams;

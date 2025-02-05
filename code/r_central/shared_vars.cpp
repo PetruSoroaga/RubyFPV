@@ -49,18 +49,16 @@ bool g_bVideoPlaying = false;
 u32 g_uVideoPlayingTimeMs = 0;
 u32 g_uVideoPlayingLengthSec = 0;
 
-int g_ControllerCPUSpeed = 0;
-int g_ControllerCPULoad = 0;
-int g_ControllerTemp = 0;
+int g_iControllerCPUSpeedMhz = 0;
+int g_iControllerCPULoad = 0;
+int g_iControllerCPUTemp = 0;
+u16 g_uControllerCPUFlags = 0;
 
 bool g_bToglleOSDOff = false;
 bool g_bToglleStatsOff = false;
 bool g_bToglleAllOSDOff = false;
 bool g_bFreezeOSD = false;
 bool g_bDidAnUpdate = false;
-
-bool g_bIsRouterPacketsHistoryGraphOn = false;
-bool g_bIsRouterPacketsHistoryGraphPaused = false;
 
 bool g_bMenuPopupUpdateVehicleShown = false;
 type_radio_links_parameters g_LastGoodRadioLinksParams;

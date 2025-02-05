@@ -64,7 +64,7 @@ void _send_data()
    g_uTotalPacketsSentLastSecond++;
    g_TimeNow = get_current_timestamp_ms();
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_DATA_98, STREAM_ID_VIDEO_1);
+   radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_DATA, STREAM_ID_VIDEO_1);
    PH.vehicle_id_src = g_uComponentID;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + g_iPacketSize*sizeof(u8);
@@ -78,8 +78,8 @@ void _send_data()
    memcpy(packet+sizeof(t_packet_header), &g_TimeNow, sizeof(u32));
 
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
-   if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
+   int totalLength = radio_build_new_raw_ieee_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
+   if ( 0 == radio_write_raw_ieee_packet(0, rawPacket, totalLength, 0) )
       log_line("Failed to write video packet to radio interface.\n");
    g_uTotalBPSSentLastSecond += totalLength;
 
@@ -119,9 +119,9 @@ void _send_ping()
    memcpy(packet+sizeof(t_packet_header)+3*sizeof(u8), &uZero, sizeof(u8));
  
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
+   int totalLength = radio_build_new_raw_ieee_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
 
-   if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
+   if ( 0 == radio_write_raw_ieee_packet(0, rawPacket, totalLength, 0) )
       log_line("Failed to write PING to radio interface.\n");
    //else
    //   log_line("Sent PING");
@@ -158,9 +158,9 @@ void _process_rx_packet(u8* pPacketBuffer, int nLength, int iCount)
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &uZero, sizeof(u8));
 
       u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-      int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
+      int totalLength = radio_build_new_raw_ieee_packet(0, rawPacket, packet, PH.total_length, g_iPortTx, 0);
 
-      if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
+      if ( 0 == radio_write_raw_ieee_packet(0, rawPacket, totalLength, 0) )
          log_line("Failed to write PING_REPLY to radio interface.\n");
       //else
       //   log_line("Sent PING_REPLY");
@@ -199,7 +199,7 @@ void _process_rx_packet(u8* pPacketBuffer, int nLength, int iCount)
       return ;
    }
 
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA )
    {
       u32 uRemoteLocalTimeMs = 0;
       memcpy(&uRemoteLocalTimeMs, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
@@ -281,7 +281,6 @@ void _try_receive_packets()
 
    if ( nResult <= 0 )
    {
-      //log_line("DEBUG sleect %d", nResult);
       return;
    }
    int iCount = 0;
@@ -306,23 +305,6 @@ void _try_receive_packets()
       }
    }
    while (true);
-
-   /*
-   if ( iCount > 1 )
-      log_line("Read %d packets", iCount);
-
-   u8 sPayloadBufferRead[MAX_PACKET_LENGTH_PCAP];
-   struct pcap_pkthdr * ppcapPacketHeader = NULL;
-   struct ieee80211_radiotap_iterator rti;
-   u8 *pRadioPayload = sPayloadBufferRead;
-   int payloadLength = 0;
-   int n = 0;
-
-   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(0);
-      
-   int retval = pcap_next_ex(pRadioHWInfo->runtimeInterfaceInfoRx.ppcap, &ppcapPacketHeader, (const u_char**)&pRadioPayload);
-   log_line("DEBUG retval: %d", retval);
-   */
 }
 
 void handle_sigint(int sig) 

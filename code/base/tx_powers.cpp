@@ -89,32 +89,42 @@ static int s_iTxInfoAWUS036ACS[] =
    { 1,   1,   2,    3,   10,   25,   35,   50,   60,   90,  110,    0,    0};
 static int s_iTxInfoArcherT2UP[] =
    { 1,   3,  10,   25,   55,   75,  110,  120,  140,  150,    0,    0,    0};
+static int s_iTxInfoArcherRTL8812AU_AF1[] =
+   { 1,   2,   5,   15,   40,   70,   95,  110,  130,  150,    0,    0,    0}; // measured 16.jan.2025
 
 // { 1,  10,  20,   30,   40,   45,   50,   53,   56,   60,   63,   68,   70};
 //------------------------------------------------------------------------
 static int s_iTxInfoRTL8812EU[] =
    { 6,   7,  15,   45,  110,  160,  230,  270,  320,  380,  430,  500,  550}; // measured 08.dec.2024, ruby 10.1
+
+static int s_iTxInfoRTL8733BU[] =
+   { 1,   1,   1,    4,    8,    12,  20,   22,   30,   60,    0,    0,    0}; // measured 20.jan.2025, ruby 10.3
    
 
 // { 1,  10,  20,   30,   40,   45,   50,   53,   56,   60,   63,   68,   70};
 //------------------------------------------------------------------------
 static int s_iTxInfoOIPCUSight[] = 
- { 550, 600, 650,  670,  0,  0,  0,  0,  0,  0,  0,  0,  0}; // measured 23.dec.2024, ruby 10.1
+ { 550, 600, 650,  670,  0,  0,  0,  0,  0,  0,  0,  0,  0}; // measured 23.dec.2024, ruby 10.3
 
 
 
-bool _tx_powers_is_card_serial_radio(int iDriverType, int iCardModel)
+bool _tx_powers_is_card_serial_radio(u32 uBoardType, int iCardModel)
 {
-   if ( (iDriverType == RADIO_HW_DRIVER_SERIAL_SIK) || (iDriverType == RADIO_HW_DRIVER_SERIAL) )
-      return true;
    if ( (iCardModel == CARD_MODEL_SIK_RADIO) || (iCardModel == CARD_MODEL_SERIAL_RADIO) || (iCardModel == CARD_MODEL_SERIAL_RADIO_ELRS) )
       return true;
    return false;
 }
 
-const int* _tx_powers_get_mw_table_for_card(int iDriverType, int iCardModel)
+const int* _tx_powers_get_mw_table_for_card(u32 uBoardType, int iCardModel)
 {
    int* piMwPowers = s_iTxInfo58Generic;
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+   if ( ((uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI )
+   {
+      piMwPowers = s_iTxInfoArcherRTL8812AU_AF1;
+      return piMwPowers;
+   }
+
    switch (iCardModel)
    {
       case CARD_MODEL_TPLINK722N: piMwPowers = s_iTxInfo722N; break;
@@ -134,7 +144,8 @@ const int* _tx_powers_get_mw_table_for_card(int iDriverType, int iCardModel)
       case CARD_MODEL_ARCHER_T2UPLUS: piMwPowers = s_iTxInfoArcherT2UP; break;
       case CARD_MODEL_RTL8814AU: piMwPowers = s_iTxInfo58Generic; break;
       case CARD_MODEL_RTL8812AU_OIPC_USIGHT: piMwPowers = s_iTxInfoOIPCUSight; break;
-
+      case CARD_MODEL_RTL8812AU_AF1: piMwPowers = s_iTxInfoArcherRTL8812AU_AF1; break;
+      case CARD_MODEL_RTL8733BU: piMwPowers = s_iTxInfoRTL8733BU; break;
       case CARD_MODEL_BLUE_8812EU: piMwPowers = s_iTxInfoRTL8812EU; break;
    }
    return piMwPowers;
@@ -161,20 +172,11 @@ const int* tx_powers_get_raw_measurement_intervals(int* piOutputCount)
    return s_iTxRawPowerLevelMeasurementsValues;
 }
 
-const int* tx_powers_get_mw_measured_values_for_card(int iDriverType, int iCardModel, int* piOutputCount)
+int tx_powers_get_max_usable_power_mw_for_card(u32 uBoardType, int iCardModel)
 {
-   const int* piMwPowers = _tx_powers_get_mw_table_for_card(iDriverType, iCardModel);
-   int iCount = sizeof(s_iTxRawPowerLevelMeasurementsValues)/sizeof(s_iTxRawPowerLevelMeasurementsValues[0]);
-   if ( NULL != piOutputCount )
-      *piOutputCount = iCount;
-   return piMwPowers;
-}
-
-int tx_powers_get_max_usable_power_mw_for_card(int iDriverType, int iCardModel)
-{
-   if ( _tx_powers_is_card_serial_radio(iDriverType, iCardModel) )
+   if ( _tx_powers_is_card_serial_radio(uBoardType, iCardModel) )
       return 100;
-   const int* piMwPowers = _tx_powers_get_mw_table_for_card(iDriverType, iCardModel);
+   const int* piMwPowers = _tx_powers_get_mw_table_for_card(uBoardType, iCardModel);
    int iCount = sizeof(s_iTxRawPowerLevelMeasurementsValues)/sizeof(s_iTxRawPowerLevelMeasurementsValues[0]);
    for( int i=0; i<iCount; i++ )
    {
@@ -184,11 +186,11 @@ int tx_powers_get_max_usable_power_mw_for_card(int iDriverType, int iCardModel)
    return piMwPowers[iCount-1];
 }
 
-int tx_powers_get_max_usable_power_raw_for_card(int iDriverType, int iCardModel)
+int tx_powers_get_max_usable_power_raw_for_card(u32 uBoardType, int iCardModel)
 {
-   if ( _tx_powers_is_card_serial_radio(iDriverType, iCardModel) )
+   if ( _tx_powers_is_card_serial_radio(uBoardType, iCardModel) )
       return 20;
-   const int* piMwPowers = _tx_powers_get_mw_table_for_card(iDriverType, iCardModel);
+   const int* piMwPowers = _tx_powers_get_mw_table_for_card(uBoardType, iCardModel);
    int iCount = sizeof(s_iTxRawPowerLevelMeasurementsValues)/sizeof(s_iTxRawPowerLevelMeasurementsValues[0]);
    for( int i=0; i<iCount; i++ )
    {
@@ -198,11 +200,11 @@ int tx_powers_get_max_usable_power_raw_for_card(int iDriverType, int iCardModel)
    return s_iTxRawPowerLevelMeasurementsValues[iCount-1];
 }
 
-int tx_powers_convert_raw_to_mw(int iDriverType, int iCardModel, int iRawPower)
+int tx_powers_convert_raw_to_mw(u32 uBoardType, int iCardModel, int iRawPower)
 {
-   if ( _tx_powers_is_card_serial_radio(iDriverType, iCardModel) )
+   if ( _tx_powers_is_card_serial_radio(uBoardType, iCardModel) )
       return pow(10.0, ((float)iRawPower)/10.0);
-   const int* piMwPowers = _tx_powers_get_mw_table_for_card(iDriverType, iCardModel);
+   const int* piMwPowers = _tx_powers_get_mw_table_for_card(uBoardType, iCardModel);
    int iCount = sizeof(s_iTxRawPowerLevelMeasurementsValues)/sizeof(s_iTxRawPowerLevelMeasurementsValues[0]);
    
    if ( iRawPower <= s_iTxRawPowerLevelMeasurementsValues[0] )
@@ -222,11 +224,11 @@ int tx_powers_convert_raw_to_mw(int iDriverType, int iCardModel, int iRawPower)
    return piMwPowers[0];
 }
 
-int tx_powers_convert_mw_to_raw(int iDriverType, int iCardModel, int imWPower)
+int tx_powers_convert_mw_to_raw(u32 uBoardType, int iCardModel, int imWPower)
 {
-   if ( _tx_powers_is_card_serial_radio(iDriverType, iCardModel) )
+   if ( _tx_powers_is_card_serial_radio(uBoardType, iCardModel) )
       return 10*log10((float)imWPower);
-   const int* piMwPowers = _tx_powers_get_mw_table_for_card(iDriverType, iCardModel);
+   const int* piMwPowers = _tx_powers_get_mw_table_for_card(uBoardType, iCardModel);
    int iCount = sizeof(s_iTxRawPowerLevelMeasurementsValues)/sizeof(s_iTxRawPowerLevelMeasurementsValues[0]);
    
    if ( imWPower <= piMwPowers[0] )
@@ -259,12 +261,11 @@ int tx_powers_get_max_usable_power_mw_for_model(Model* pModel)
    int iMaxPowerMw = 10;
    for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = pModel->radioInterfacesParams.interface_card_model[i];
-      if ( _tx_powers_is_card_serial_radio(iDriver, iCardModel) )
+      if ( _tx_powers_is_card_serial_radio(pModel->hwCapabilities.uBoardType, iCardModel) )
          continue;
-      int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
-      int iPowerMw = tx_powers_convert_raw_to_mw(iDriver, iCardModel, iPowerMaxRaw);
+      int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(pModel->hwCapabilities.uBoardType, iCardModel);
+      int iPowerMw = tx_powers_convert_raw_to_mw(pModel->hwCapabilities.uBoardType, iCardModel, iPowerMaxRaw);
       if ( iPowerMw > iMaxPowerMw )
          iMaxPowerMw = iPowerMw;
    }
@@ -278,8 +279,7 @@ void tx_power_get_current_mw_powers_for_model(Model* pModel, int* piOutputArray)
 
    for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = pModel->radioInterfacesParams.interface_card_model[i];
-      piOutputArray[i] = tx_powers_convert_raw_to_mw(iDriver, iCardModel, pModel->radioInterfacesParams.interface_raw_power[i]);
+      piOutputArray[i] = tx_powers_convert_raw_to_mw(pModel->hwCapabilities.uBoardType, iCardModel, pModel->radioInterfacesParams.interface_raw_power[i]);
    }
 }

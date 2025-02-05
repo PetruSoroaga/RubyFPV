@@ -90,11 +90,10 @@ void MenuTXRawPower::addItems()
       {
          for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
          {
-            int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
             int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
             int iPowerRaw = g_pCurrentModel->radioInterfacesParams.interface_raw_power[i];
             
-            m_pItemSelectVehicleCards[i] = createItemCard(true, i, iCardModel, iDriver, iPowerRaw);
+            m_pItemSelectVehicleCards[i] = createItemCard(true, g_pCurrentModel->hwCapabilities.uBoardType, i, iCardModel, iPowerRaw);
             if ( NULL != m_pItemSelectVehicleCards[i] )
                m_iIndexVehicleCards[i] = addMenuItem(m_pItemSelectVehicleCards[i]);
          }
@@ -136,7 +135,7 @@ void MenuTXRawPower::addItems()
          if ( NULL == pCRII )
             continue;
 
-         m_pItemSelectControllerCards[i] = createItemCard(false, i, pCRII->cardModel, pRadioHWInfo->iRadioDriver, pCRII->iRawPowerLevel);
+         m_pItemSelectControllerCards[i] = createItemCard(false, 0, i, pCRII->cardModel, pCRII->iRawPowerLevel);
          if ( NULL != m_pItemSelectControllerCards[i] )
          {
             m_iIndexControllerCards[i] = addMenuItem(m_pItemSelectControllerCards[i]);
@@ -152,7 +151,7 @@ void MenuTXRawPower::addItems()
 }
 
 
-MenuItemSelect* MenuTXRawPower::createItemCard(bool bVehicle, int iCardIndex, int iCardModel, int iDriver, int iRawPower)
+MenuItemSelect* MenuTXRawPower::createItemCard(bool bVehicle, u32 uBoardType, int iCardIndex, int iCardModel, int iRawPower)
 {
    char szText[128];
    char szTooltip[256];
@@ -160,7 +159,7 @@ MenuItemSelect* MenuTXRawPower::createItemCard(bool bVehicle, int iCardIndex, in
    sprintf(szTooltip, "Adjust the output tx power of %s's radio interface %d", bVehicle?"vehicle":"controller", iCardIndex+1);
    MenuItemSelect* pItemSelect = new MenuItemSelect(szText, szTooltip);
    
-   int iMaxRawPowerForCard = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+   int iMaxRawPowerForCard = tx_powers_get_max_usable_power_raw_for_card(uBoardType, iCardModel);
    int iIndexSelected = -1;
    int iMinRawDiff = 10000;
 
@@ -173,7 +172,7 @@ MenuItemSelect* MenuTXRawPower::createItemCard(bool bVehicle, int iCardIndex, in
          sprintf(szText, "%d -> !!!", piRawValues[i]);
       else
       {
-         int iMwValue = tx_powers_convert_raw_to_mw(iDriver, iCardModel, piRawValues[i]);
+         int iMwValue = tx_powers_convert_raw_to_mw(uBoardType, iCardModel, piRawValues[i]);
          sprintf(szText, "%d -> %d mW", piRawValues[i], iMwValue);
       }
       pItemSelect->addSelection(szText);
@@ -218,14 +217,13 @@ void MenuTXRawPower::computeSendPowerToVehicle(int iCardIndex)
 
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
       uCommandParams[i+1] = g_pCurrentModel->radioInterfacesParams.interface_raw_power[i];
       if ( i == iCardIndex )
          uCommandParams[i+1] = iRawPowerToSet;
 
-      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
-      int iCardPowerMw = tx_powers_convert_raw_to_mw(iDriver, iCardModel, uCommandParams[i+1]);
+      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
+      int iCardPowerMw = tx_powers_convert_raw_to_mw(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel, uCommandParams[i+1]);
 
       log_line("MenuTXRawPower: Setting tx raw power for card %d from %d to: %d (%d mw, max is %d mw)",
          i+1, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i], uCommandParams[i+1], iCardPowerMw, iCardMaxPowerMw);

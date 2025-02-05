@@ -304,6 +304,7 @@ void MenuControllerVideo::onSelectItem()
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
       
       save_ControllerSettings();
+      return;
    }
 
    if ( m_IndexHDMIRes == m_SelectedIndex )
@@ -311,6 +312,7 @@ void MenuControllerVideo::onSelectItem()
       int index = m_pItemsSelect[0]->getSelectedIndex();
       hdmi_set_current_resolution(hdmi_get_resolution_width(index), hdmi_get_resolution_height(index), hdmi_get_resolution_refresh_rate(index,0));
       valuesToUI();
+      return;
    }
 
    if ( m_IndexHDMIRefreshRate == m_SelectedIndex )
@@ -318,6 +320,7 @@ void MenuControllerVideo::onSelectItem()
       int index = m_pItemsSelect[0]->getSelectedIndex();
       int indexR = m_pItemsSelect[3]->getSelectedIndex();
       hdmi_set_current_resolution(hdmi_get_resolution_width(index), hdmi_get_resolution_height(index), hdmi_get_resolution_refresh_rate(index,indexR));
+      return;
    }
 
    if ( m_IndexHDMIOverscan == m_SelectedIndex )
@@ -333,6 +336,7 @@ void MenuControllerVideo::onSelectItem()
 
       invalidate();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexCalibrateHDMI == m_SelectedIndex )
@@ -345,9 +349,10 @@ void MenuControllerVideo::onSelectItem()
    {
       pCS->iVideoForwardUSBType = m_pItemsSelect[1]->getSelectedIndex();
       save_ControllerSettings();
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
    if ( m_IndexVideoUSBPort == m_SelectedIndex )
    {
@@ -356,6 +361,7 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
    if ( m_IndexVideoUSBPacket == m_SelectedIndex )
    {
@@ -364,6 +370,7 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
 
 
@@ -374,7 +381,9 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
+
    if ( m_IndexVideoETHPort == m_SelectedIndex )
    {
       pCS->nVideoForwardETHPort = m_pItemsRange[10]->getCurrentValue();
@@ -382,7 +391,9 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
+
    if ( m_IndexVideoETHPacket == m_SelectedIndex )
    {
       pCS->nVideoForwardETHPacketSize = m_pItemsRange[11]->getCurrentValue();
@@ -390,6 +401,7 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexAudioOutput == m_SelectedIndex )
@@ -399,6 +411,7 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexAudioVolume == m_SelectedIndex )
@@ -408,5 +421,6 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       invalidate();
       valuesToUI();
+      return;
    }
 }

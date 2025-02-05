@@ -4,6 +4,7 @@
 #include "../radio/radiopackets2.h"
 
 bool test_link_is_in_progress();
+u32  test_link_get_last_finish_time();
 bool test_link_is_applying_radio_params();
 int test_link_get_test_link_index();
 void test_link_send_status_message_to_central(const char* szMsg);

@@ -1128,8 +1128,8 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
 
    if ( NULL != m_pModelOriginal )
    {
-      log_line("Save current original model, vehicle id: %u. Received vehicle id while searching: %u",
-         m_pModelOriginal->uVehicleId,
+      log_line("Save current original model, vehicle id: %u, it's controller id: %u. Received vehicle id while searching: %u",
+         m_pModelOriginal->uVehicleId, m_pModelOriginal->uControllerId,
          g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId );
 
       saveControllerModel(m_pModelOriginal);
@@ -1237,7 +1237,6 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
       }
       pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = false;
-
       set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, m_CurrentSearchFrequencyKhz);
 
       stopSearch();
@@ -1246,6 +1245,7 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
       g_bFirstModelPairingDone = true;
       setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
+
       setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
 

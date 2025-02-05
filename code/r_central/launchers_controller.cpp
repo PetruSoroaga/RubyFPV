@@ -323,7 +323,11 @@ static void * _thread_adjust_affinities(void *argument)
       hw_set_proc_affinity("ruby_tx_rc", 3, 3);
       #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
       char szFile[MAX_FILE_PATH_SIZE];
-      strcpy(szFile, VIDEO_PLAYER_SM);
+      ControllerSettings* pCS = get_ControllerSettings();
+      if ( 0 == pCS->iStreamerOutputMode )
+         strcpy(szFile, VIDEO_PLAYER_SM);
+      else
+         strcpy(szFile, VIDEO_PLAYER_PIPE);
       hw_set_proc_affinity(szFile, 3, s_iCPUCoresCount);
       #endif
    }

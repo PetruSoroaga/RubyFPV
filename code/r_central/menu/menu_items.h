@@ -32,7 +32,7 @@ class MenuItem
      void setCondensedOnly();
      void setExtraHeight(float fExtraHeight);
      float getExtraHeight();
-     void setTextColor(double* pColor);
+     void setTextColor(const double* pColor);
 
      void setIsEditable();
      void setNotEditable();

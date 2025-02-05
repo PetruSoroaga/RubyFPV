@@ -28,7 +28,6 @@ class MenuVehicleVideo: public Menu
       int m_IndexVideoCodec;
       int m_IndexIgnoreTxSpikes;
       int m_IndexExpert;
-      int m_IndexForceCameraMode;
       int m_IndexVideoLinkMode;
       int m_IndexBidirectionalVideoSettings;
       int m_IndexRecording;

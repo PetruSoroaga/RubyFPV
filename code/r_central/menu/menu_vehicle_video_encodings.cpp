@@ -66,6 +66,17 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[1]->setIsEditable();
    m_IndexHDMIOutput = addMenuItem(m_pItemsSelect[1]);
 
+   m_IndexNoise = -1;
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   {
+      m_pItemsSelect[20] = new MenuItemSelect(L("Noise Level"), L("Sets the video noise level. Lower values means better performance but more noise in the live video."));  
+      m_pItemsSelect[20]->addSelection(L("0"));
+      m_pItemsSelect[20]->addSelection(L("1"));
+      m_pItemsSelect[20]->addSelection(L("Auto"));
+      m_pItemsSelect[20]->setIsEditable();
+      m_IndexNoise = addMenuItem(m_pItemsSelect[20]);
+   }
+
    addMenuItem(new MenuItemSection("Data & Error Correction Settings"));
 
    /*
@@ -89,7 +100,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    */
 
    Preferences* p = get_Preferences();
-   int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_full_98);
+   int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_segment);
    iMaxSize = (iMaxSize/10)*10;
    m_pItemsSlider[0] = new MenuItemSlider("Packet size", "How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC packets increase the chance of error correction but also increase the CPU usage.", 100,iMaxSize,iMaxSize/2, fSliderWidth);
    m_pItemsSlider[0]->setStep(10);
@@ -218,6 +229,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 
 void MenuVehicleVideoEncodings::valuesToUI()
 {
+   int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
    m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length);
 
    m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets);
@@ -230,6 +242,9 @@ void MenuVehicleVideoEncodings::valuesToUI()
    u32 uECSpread = uECSpreadLow + (uECSpreadHigh*2);
 
    m_pItemsSelect[19]->setSelectedIndex((int) uECSpread);
+
+   if ( -1 != m_IndexNoise )
+      m_pItemsSelect[20]->setSelectedIndex(g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileFlags & 0x03);
 
    if ( -1 != m_IndexH264Profile )
       m_pItemsSelect[4]->setSelectedIndex((g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_ENABLE_LOCAL_HDMI_OUTPUT)?1:0);
@@ -382,6 +397,13 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
       memcpy(&profiles[i], &(g_pCurrentModel->video_link_profiles[i]), sizeof(type_video_link_profile));
 
    type_video_link_profile* pProfile = &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
+   int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+   if ( -1 != m_IndexNoise )
+   {
+      int iNoise = m_pItemsSelect[20]->getSelectedIndex();
+      pProfile->uProfileFlags &= ~ (u32)0x03;
+      pProfile->uProfileFlags |= (iNoise) & 0x03;
+   }
 
    pProfile->video_data_length = m_pItemsSlider[0]->getCurrentValue();
    pProfile->block_packets = m_pItemsSlider[1]->getCurrentValue();
@@ -457,21 +479,22 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    }
    */
 
-   if ( pProfile->radio_datarate_video_bps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].radio_datarate_video_bps )
-   if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length )
-   if ( pProfile->block_packets == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets )
-   if ( pProfile->block_fecs == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs )
-   if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags )
-   if ( pProfile->h264level == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264level )
-   if ( pProfile->h264profile == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264profile )
-   if ( pProfile->h264refresh == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264refresh )
-   if ( pProfile->h264quantization == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].h264quantization )
-   if ( pProfile->iIPQuantizationDelta == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].iIPQuantizationDelta )
+   if ( pProfile->uProfileFlags == g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileFlags )
+   if ( pProfile->radio_datarate_video_bps == g_pCurrentModel->video_link_profiles[iVideoProfile].radio_datarate_video_bps )
+   if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[iVideoProfile].video_data_length )
+   if ( pProfile->block_packets == g_pCurrentModel->video_link_profiles[iVideoProfile].block_packets )
+   if ( pProfile->block_fecs == g_pCurrentModel->video_link_profiles[iVideoProfile].block_fecs )
+   if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileEncodingFlags )
+   if ( pProfile->h264level == g_pCurrentModel->video_link_profiles[iVideoProfile].h264level )
+   if ( pProfile->h264profile == g_pCurrentModel->video_link_profiles[iVideoProfile].h264profile )
+   if ( pProfile->h264refresh == g_pCurrentModel->video_link_profiles[iVideoProfile].h264refresh )
+   if ( pProfile->h264quantization == g_pCurrentModel->video_link_profiles[iVideoProfile].h264quantization )
+   if ( pProfile->iIPQuantizationDelta == g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta )
       return;
 
    // Propagate changes to lower video profiles
 
-   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
+   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[iVideoProfile], pProfile, &(profiles[0]));
 
    log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
 
@@ -556,6 +579,9 @@ void MenuVehicleVideoEncodings::onSelectItem()
          valuesToUI();
       return;
    }
+
+   if ( (-1 != m_IndexNoise) && (m_IndexNoise == m_SelectedIndex) )
+      sendVideoLinkProfile();
 
    if ( (-1 != m_IndexH264Profile) && (m_IndexH264Profile == m_SelectedIndex) )
       sendVideoLinkProfile();

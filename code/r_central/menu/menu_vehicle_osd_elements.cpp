@@ -47,7 +47,7 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_yPos = 0.12;
 
    char szBuff[256];
-   sprintf(szBuff, "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   sprintf(szBuff, "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDLayout));
    setTitle(szBuff);
    
    setColumnsCount(2);
@@ -326,7 +326,7 @@ void MenuVehicleOSDElements::valuesToUI()
    Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
    
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    m_pItemsSelect[25]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BGBARS)?1:0);
 
@@ -477,8 +477,8 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pItemsSelect[33]->setSelectedIndex(2);
 
 
-   if ( g_pCurrentModel->osd_params.layout == osdLayoutLean ||
-        g_pCurrentModel->osd_params.layout == osdLayoutLeanExtended )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean ||
+        g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLeanExtended )
    {
       for( int i=1; i<50; i++ )
          if ( NULL != m_pItemsSelect[i] )
@@ -519,7 +519,7 @@ void MenuVehicleOSDElements::valuesToUI()
    else
       m_pItemsSelect[31]->setEnabled(false);
 
-   if ( g_pCurrentModel->osd_params.layout == osdLayoutLean )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean )
    {
       m_pItemsSelect[1]->setEnabled(true);
       m_pItemsSelect[3]->setEnabled(true);
@@ -534,7 +534,7 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pItemsSelect[19]->setEnabled(true);
       m_pItemsSelect[33]->setEnabled(true);
    }
-   else if ( g_pCurrentModel->osd_params.layout == osdLayoutLeanExtended )
+   else if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLeanExtended )
    {
       m_pItemsSelect[1]->setEnabled(true);
       m_pItemsSelect[3]->setEnabled(true);
@@ -601,7 +601,7 @@ void MenuVehicleOSDElements::onSelectItem()
    bool sendToVehicle = false;
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();

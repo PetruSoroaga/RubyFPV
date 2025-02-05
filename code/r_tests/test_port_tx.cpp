@@ -62,9 +62,9 @@ int main(int argc, char *argv[])
    memcpy(packet+sizeof(t_packet_header), szMsg, strlen(szMsg)+1);
 
    u8 rawPacket[MAX_PACKET_TOTAL_SIZE];
-   int totalLength = radio_build_new_raw_packet(0, rawPacket, packet, PH.total_length, port, 0);
+   int totalLength = radio_build_new_raw_ieee_packet(0, rawPacket, packet, PH.total_length, port, 0);
 
-   if ( 0 == radio_write_raw_packet(0, rawPacket, totalLength ) )
+   if ( 0 == radio_write_raw_ieee_packet(0, rawPacket, totalLength, 0) )
       printf("Failed to write to radio interface.\n");
 
    hardware_sleep_ms(50);   

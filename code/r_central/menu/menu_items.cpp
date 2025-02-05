@@ -221,7 +221,7 @@ char* MenuItem::getTooltip()
    return m_pszTooltip;
 }
 
-void MenuItem::setTextColor(double* pColor)
+void MenuItem::setTextColor(const double* pColor)
 {
    if ( NULL == pColor )
       return;

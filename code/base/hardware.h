@@ -40,9 +40,11 @@
 #define BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT  ((u32)3)
 #define BOARD_SUBTYPE_OPENIPC_AIO_MARIO       ((u32)4)
 #define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM      ((u32)5)
-#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX        ((u32)6)
-#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER     ((u32)7)
-#define BOARD_SUBTYPE_OPENIPC_LAST            ((u32)8)
+#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI   ((u32)6)
+#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX        ((u32)7)
+#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER     ((u32)8)
+#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER_E   ((u32)9)
+#define BOARD_SUBTYPE_OPENIPC_LAST            ((u32)10)
 
 
 #define BOARD_TYPE_RADXA_ZERO3 60
@@ -148,10 +150,6 @@ char* hardware_get_mounted_usb_name();
 int hardware_is_station();
 int hardware_is_vehicle();
 int hardware_is_running_on_openipc();
-
-void hardware_sleep_sec(u32 uSeconds);
-void hardware_sleep_ms(u32 miliSeconds);
-void hardware_sleep_micros(u32 microSeconds);
 
 void hardware_recording_led_set_off();
 void hardware_recording_led_set_on();

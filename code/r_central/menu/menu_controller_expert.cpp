@@ -160,13 +160,14 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_pItemsSelect[8]->setIsEditable();
    m_IndexEnableRadioThreadsPriority = addMenuItem(m_pItemsSelect[8]);
 
-   m_pItemsSlider[8] = new MenuItemSlider("   Rx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_pItemsSlider[8] = new MenuItemSlider("   Rx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 0,90,10, fSliderWidth);
    m_IndexRadioRxPriority = addMenuItem(m_pItemsSlider[8]);
 
-   m_pItemsSlider[9] = new MenuItemSlider("   Tx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 1,90,10, fSliderWidth);
+   m_pItemsSlider[9] = new MenuItemSlider("   Tx Threads Priority", "Sets the priority for the Ruby radio Rx threads. Higher values means higher priority.", 0,90,10, fSliderWidth);
    m_IndexRadioTxPriority = addMenuItem(m_pItemsSlider[9]);
 
 
+   m_IndexVersions = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
    m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));   
 }
 
@@ -220,10 +221,11 @@ void MenuControllerExpert::valuesToUI()
    if ( (pcs->iRadioRxThreadPriority <= 0) || (pcs->iRadioTxThreadPriority <= 0) )
    {
       m_pItemsSelect[8]->setSelectedIndex(0);
-      m_pItemsSlider[8]->setCurrentValue(1);
+
       m_pItemsSlider[8]->setEnabled(false);
-      m_pItemsSlider[9]->setCurrentValue(1);
       m_pItemsSlider[9]->setEnabled(false);
+      m_pItemsSlider[9]->setCurrentValue(0);
+      m_pItemsSlider[8]->setCurrentValue(0);
    }
    else
    {
@@ -233,9 +235,15 @@ void MenuControllerExpert::valuesToUI()
       if ( pcs->iRadioTxThreadPriority < 1 )
          pcs->iRadioTxThreadPriority = 1;
       m_pItemsSlider[8]->setCurrentValue(pcs->iRadioRxThreadPriority);
-      m_pItemsSlider[8]->setEnabled(true);
       m_pItemsSlider[9]->setCurrentValue(pcs->iRadioTxThreadPriority);
-      m_pItemsSlider[9]->setEnabled(true);
+      if ( ! pcs->iPrioritiesAdjustment )
+      {
+         m_pItemsSlider[9]->setCurrentValue(0);
+         m_pItemsSlider[8]->setCurrentValue(0);       
+      }
+      m_pItemsSlider[8]->setEnabled(pcs->iPrioritiesAdjustment);
+      m_pItemsSlider[9]->setEnabled(pcs->iPrioritiesAdjustment);
+
    }
 
    m_pItemsSlider[0]->setEnabled(pcs->iPrioritiesAdjustment);
@@ -243,9 +251,7 @@ void MenuControllerExpert::valuesToUI()
    m_pItemsSlider[2]->setEnabled(pcs->iPrioritiesAdjustment);
    m_pItemsSlider[3]->setEnabled(pcs->iPrioritiesAdjustment);
    m_pItemsSlider[4]->setEnabled(pcs->iPrioritiesAdjustment);
-   m_pItemsSlider[8]->setEnabled(pcs->iPrioritiesAdjustment);
-   m_pItemsSlider[9]->setEnabled(pcs->iPrioritiesAdjustment);
-
+   
    m_pItemsSelect[0]->setEnabled(pcs->iPrioritiesAdjustment);
    m_pItemsSelect[1]->setEnabled(pcs->iPrioritiesAdjustment);
    m_pItemsSelect[5]->setEnabled(pcs->iPrioritiesAdjustment);
@@ -377,7 +383,7 @@ void MenuControllerExpert::addTopInfo()
    int speed = hardware_get_cpu_speed();
    sprintf(szOutput2, "%d Mhz", speed);
 
-   snprintf(szBuffer, sizeof(szBuffer)/sizeof(szBuffer[0]), "%s, %s CPU Cores, %s Hz", szBoard, szOutput, szOutput2);
+   snprintf(szBuffer, sizeof(szBuffer)/sizeof(szBuffer[0]), "%s, %s CPU Cores, %s", szBoard, szOutput, szOutput2);
    addTopLine(szBuffer);
 
    #if defined(HW_PLATFORM_RASPBERRY)
@@ -664,6 +670,7 @@ void MenuControllerExpert::onSelectItem()
       save_ControllerSettings();
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
    if ( (m_IndexRadioRxPriority == m_SelectedIndex) || (m_IndexRadioTxPriority == m_SelectedIndex) )
    {
@@ -671,7 +678,9 @@ void MenuControllerExpert::onSelectItem()
       pcs->iRadioTxThreadPriority = m_pItemsSlider[9]->getCurrentValue();
       save_ControllerSettings();
       valuesToUI();
+      log_line("MenuControllerCPU: New Radio Rx/Tx priorities: %d/%d", pcs->iRadioRxThreadPriority, pcs->iRadioTxThreadPriority);
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
 
    if ( m_IndexReboot == m_SelectedIndex )
@@ -758,6 +767,89 @@ void MenuControllerExpert::onSelectItem()
       m_iDefaultVoltage = pcs->iOverVoltage;
       valuesToUI();
       bUpdatedConfig = true;
+   }
+
+   if ( m_IndexVersions == m_SelectedIndex )
+   {
+      char szComm[256];
+      char szBuff[1024];
+      char szOutput[1024];
+
+      Menu* pMenu = new Menu(0,"All Modules Versions",NULL);
+      pMenu->m_xPos = 0.32;
+      pMenu->m_yPos = 0.17;
+      pMenu->m_Width = 0.6;
+      
+      hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_start: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_controller -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_controller: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_central -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_central: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rt_station -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_station: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rx_telemetry -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_telemetry: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_tx_rc -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_rc: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_i2c -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_i2c: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_PIPE);
+      hw_execute_bash_command_raw_silent(szComm, szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_PIPE, szOutput);
+      pMenu->addTopLine(szBuff);
+
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_SM);
+      hw_execute_bash_command_raw_silent(szComm, szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_SM, szOutput);
+      pMenu->addTopLine(szBuff);
+
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_OFFLINE);
+      hw_execute_bash_command_raw_silent(szComm, szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_OFFLINE, szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_update_worker -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_update_worker: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_vehicle: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
+      removeTrailingNewLines(szOutput);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_telemetry: %s", szOutput);
+      pMenu->addTopLine(szBuff);
+
+      add_menu_to_stack(pMenu);
+      return;
    }
 
    if ( m_IndexReset == m_SelectedIndex )

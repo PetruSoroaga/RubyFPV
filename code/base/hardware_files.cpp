@@ -33,6 +33,10 @@
 #include "config.h"
 #include "hardware_files.h"
 #include "hw_procs.h"
+#include <pthread.h>
+
+pthread_t s_pThreadGetFreeSpaceAsync;
+static int s_iGetFreeSpaceAsyncResultValueKb = -1;
 
 bool hardware_file_check_and_fix_access(char* szFullFileName)
 {
@@ -103,4 +107,26 @@ int hardware_get_free_space_kb()
    long lb = 0, lu = 0, lf = 0;
    sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lb, &lu, &lf);
    return (int)lf;
+}
+
+void* _thread_get_free_space_async(void *argument)
+{
+   s_iGetFreeSpaceAsyncResultValueKb = -1;
+   int iFreeSpaceKb = hardware_get_free_space_kb();
+   log_line("Done getting free space async");
+   s_iGetFreeSpaceAsyncResultValueKb = iFreeSpaceKb;
+   return NULL;
+}
+
+int hardware_get_free_space_kb_async()
+{
+   s_iGetFreeSpaceAsyncResultValueKb = -1;
+   if ( 0 != pthread_create(&s_pThreadGetFreeSpaceAsync, NULL, &_thread_get_free_space_async, NULL) )
+      return -1;
+   return 0;
+}
+
+int hardware_has_finished_get_free_space_kb_async()
+{
+   return s_iGetFreeSpaceAsyncResultValueKb;
 }

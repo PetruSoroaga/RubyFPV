@@ -45,34 +45,3 @@
 #include "shared_vars.h"
 #include "timers.h"
 
-u32 s_uAlarmIndexToCentral = 0;
-
-void send_alarm_to_central(u32 uAlarm, u32 uFlags1, u32 uFlags2)
-{
-   s_uAlarmIndexToCentral++;
-  
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_RUBY_ALARM, STREAM_ID_DATA);
-   PH.vehicle_id_src = 0;
-   PH.vehicle_id_dest = 0;
-   PH.total_length = sizeof(t_packet_header) + 4*sizeof(u32);
-
-   u8 packet[MAX_PACKET_TOTAL_SIZE];
-   memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-   memcpy(packet+sizeof(t_packet_header), &s_uAlarmIndexToCentral, sizeof(u32));
-   memcpy(packet+sizeof(t_packet_header)+sizeof(u32), &uAlarm, sizeof(u32));
-   memcpy(packet+sizeof(t_packet_header)+2*sizeof(u32), &uFlags1, sizeof(u32));
-   memcpy(packet+sizeof(t_packet_header)+3*sizeof(u32), &uFlags2, sizeof(u32));
-   radio_packet_compute_crc(packet, PH.total_length);
-
-   char szAlarm[256];
-   alarms_to_string(uAlarm, uFlags1, uFlags2, szAlarm);
-
-   if ( ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
-      log_line("Sent local alarm to central: [%s], alarm index: %u;", szAlarm, s_uAlarmIndexToCentral);
-   else
-      log_softerror_and_alarm("Can't send alarm to central, no pipe. Alarm: [%s], alarm index: %u", szAlarm, s_uAlarmIndexToCentral);
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;   
-}

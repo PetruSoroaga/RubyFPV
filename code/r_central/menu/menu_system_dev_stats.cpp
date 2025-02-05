@@ -118,7 +118,7 @@ void MenuSystemDevStats::valuesToUI()
    if ( NULL == g_pCurrentModel )
       return;
 
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    m_pItemsSelect[0]->setSelectedIndex(pP->iDebugShowDevVideoStats);
    m_pItemsSelect[1]->setSelectedIndex(pP->iDebugShowDevRadioStats);
@@ -202,7 +202,7 @@ void MenuSystemDevStats::onSelectItem()
    {
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-      int layoutIndex = g_pCurrentModel->osd_params.layout;
+      int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
       params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_CONTROLLER_ADAPTIVE_VIDEO_INFO;
       if ( 1 == m_pItemsSelect[7]->getSelectedIndex() )
@@ -227,7 +227,7 @@ void MenuSystemDevStats::onSelectItem()
    {
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-      int layoutIndex = g_pCurrentModel->osd_params.layout;
+      int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
       params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_VEHICLE_DEV_STATS;
       if ( 1 == m_pItemsSelect[8]->getSelectedIndex() )
@@ -241,7 +241,7 @@ void MenuSystemDevStats::onSelectItem()
    {
       osd_parameters_t params;
       memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-      int layoutIndex = g_pCurrentModel->osd_params.layout;
+      int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
       params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY;
       if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )

@@ -1699,25 +1699,6 @@ int hardware_is_running_on_openipc()
 }
 
 
-void hardware_sleep_sec(u32 uSeconds)
-{
-   sleep(uSeconds);
-}
-
-void hardware_sleep_ms(u32 miliSeconds)
-{
-   //usleep(miliSeconds*1000);
-   struct timespec to_sleep = { 0, (long int)(miliSeconds*1000*1000) };
-   nanosleep(&to_sleep, NULL);
-}
-
-void hardware_sleep_micros(u32 microSeconds)
-{
-   //usleep(microSeconds);
-   struct timespec to_sleep = { 0, (long int)(microSeconds*1000) };
-   nanosleep(&to_sleep, NULL);
-}
-
 void hardware_recording_led_set_off()
 {
    #ifdef HW_CAPABILITY_GPIO

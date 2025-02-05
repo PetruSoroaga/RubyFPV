@@ -89,81 +89,18 @@ ProcessorRxVideo* _find_create_rx_video_processor(u32 uVehicleId, u32 uVideoStre
    return g_pVideoProcessorRxList[iFirstFreeSlot];
 }
 
-
-void _parse_single_packet_h264_data(u8* pPacketData, bool bIsRelayed)
-{
-   if ( NULL == pPacketData )
-      return;
-/*
-   t_packet_header* pPH = (t_packet_header*)pPacketData;
-   t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacketData+sizeof(t_packet_header));
-   int iVideoDataLength = pPHVF->uCurrentBlockPacketSize;    
-   u8* pData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_98);
-
-   bool bStartOfFrameDetected = s_ParserH264RadioInput.parseData(pData, iVideoDataLength, g_TimeNow);
-   if ( ! bStartOfFrameDetected )
-      return;
-   
-   u32 uLastFrameDuration = s_ParserH264RadioInput.getTimeDurationOfLastCompleteFrame();
-   if ( uLastFrameDuration > 127 )
-      uLastFrameDuration = 127;
-   if ( uLastFrameDuration < 1 )
-      uLastFrameDuration = 1;
-
-   u32 uLastFrameSize = s_ParserH264RadioInput.getSizeOfLastCompleteFrameInBytes();
-   uLastFrameSize /= 1000; // transform to kbytes
-
-   if ( uLastFrameSize > 127 )
-      uLastFrameSize = 127; // kbytes
-
-   g_SM_VideoInfoStatsRadioIn.uLastFrameIndex = (g_SM_VideoInfoStatsRadioIn.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
-   g_SM_VideoInfoStatsRadioIn.uFramesDuration[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] = uLastFrameDuration;
-   g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] = (g_SM_VideoInfoStatsRadioIn.uFramesTypesAndSizes[g_SM_VideoInfoStatsRadioIn.uLastFrameIndex] & 0x80) | ((u8)uLastFrameSize);
- 
-   u32 uNextIndex = (g_SM_VideoInfoStatsRadioIn.uLastFrameIndex+1) % MAX_FRAMES_SAMPLES;
-  
-   g_SM_VideoInfoStatsRadioIn.uDetectedKeyframeIntervalMs = s_ParserH264RadioInput.getCurrentlyDetectedKeyframeIntervalMs();
-   g_SM_VideoInfoStatsRadioIn.uDetectedFPS = s_ParserH264RadioInput.getDetectedFPS();
-   g_SM_VideoInfoStatsRadioIn.uDetectedSlices = (u32) s_ParserH264RadioInput.getDetectedSlices();
-*/
-}
-
 // Returns 1 if end of a video block was reached
 // Returns -1 if the packet is not for this vehicle or was not processed
 int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iPacketLength)
 {
    t_packet_header* pPH = (t_packet_header*)pPacket;
-   //t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
    u32 uVehicleId = pPH->vehicle_id_src;
    Model* pModel = findModelWithId(uVehicleId, 111);
    if ( NULL == pModel )
       return -1;
 
-   /*
-   static u32 s_uTmpDebugLastBlock = 0;
-   static u32 s_uTmpDebugLastPacket =0;
-   int iMissing = 0;
-   if ( pPHVF->uCurrentBlockIndex == s_uTmpDebugLastBlock )
-   if ( pPHVF->uCurrentBlockPacketIndex > s_uTmpDebugLastPacket+1 )
-      iMissing = pPHVF->uCurrentBlockPacketIndex - s_uTmpDebugLastPacket - 1;
-   if ( pPHVF->uCurrentBlockIndex > s_uTmpDebugLastBlock+1 )
-      iMissing = 1;
-   if ( pPHVF->uCurrentBlockIndex == s_uTmpDebugLastBlock+1 )
-   if ( (pPHVF->uCurrentBlockPacketIndex != 0) || (s_uTmpDebugLastPacket != pPHVF->uCurrentBlockDataPackets + pPHVF->uCurrentBlockECPackets -1 ) )
-      iMissing = 1;
-
-   if ( iMissing )
-      log_line("DEBUG recv video [%u/%u] %s%d %d/%d bytes", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex,
-         iMissing?"***":"   ", iMissing, pPHVF->uCurrentBlockPacketSize, pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_video_full_98));
-   
-   s_uTmpDebugLastBlock = pPHVF->uCurrentBlockIndex;
-   s_uTmpDebugLastPacket = pPHVF->uCurrentBlockPacketIndex;
-   */
-
-  // log_line("DEBUG check relay %u", uVehicleId);
    bool bIsRelayedPacket = relay_controller_is_vehicle_id_relayed_vehicle(g_pCurrentModel, uVehicleId);
    u32 uVideoStreamIndex = 0;
-   //log_line("DEBUG find proc %u, %u", uVehicleId, uVideoStreamIndex);
    ProcessorRxVideo* pProcessorVideo = _find_create_rx_video_processor(uVehicleId, uVideoStreamIndex);
 
    if ( NULL == pProcessorVideo )
@@ -171,42 +108,9 @@ int _process_received_video_data_packet(int iInterfaceIndex, u8* pPacket, int iP
 
    pProcessorVideo->handleReceivedVideoPacket(iInterfaceIndex, pPacket, iPacketLength);
 
-   /*
-   t_packet_header_video_full_98 * pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
-   if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( pPHVF->uCurrentBlockPacketIndex < pPHVF->uCurrentBlockDataPackets )
-   if ( (pPHVF->uVideoStreamIndexAndType >> 4) == VIDEO_TYPE_H264 )
-   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO )
-   //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
-      _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
-   */
 
-   // Did we received a new video stream? Add info for it.
 // To fix
      /*
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pPacket+sizeof(t_packet_header));
-   u8 uVideoStreamIndexAndType = pPHVF->video_stream_and_type;
-   u8 uVideoStreamIndex = (uVideoStreamIndexAndType & 0x0F);
-   u8 uVideoStreamType = ((uVideoStreamIndexAndType & 0xF0) >> 4);
-
-   
-   if ( ! ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( pPHVF->video_block_packet_index < pPHVF->block_packets )
-   if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( pModel->osd_params.osd_flags[pModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO )
-   if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
-      _parse_single_packet_h264_data(pPacket, bIsRelayedPacket);
-
-   if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( pPHVF->uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-   if ( pPHVF->video_block_packet_index < pPHVF->block_packets)
-   {
-      u8* pExtraData = pPacket + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77) + pPHVF->video_data_length;
-      u32* pExtraDataU32 = (u32*)pExtraData;
-      pExtraDataU32[5] = get_current_timestamp_ms();
-   }
-
-   int nRet = 0;
 
    if ( bIsRelayedPacket )
    {
@@ -239,14 +143,8 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
 
    int nRet = 0;
   
-   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA_98 )
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA )
    {
-      //if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-      //{
-      //    t_packet_header_video_full_98* pPHVF = (t_packet_header_video_full_98*) (pPacket+sizeof(t_packet_header));
-      //    log_line("DEBUG recv retr video [%u/%u]", pPHVF->uCurrentBlockIndex, pPHVF->uCurrentBlockPacketIndex);
-      //}
-
       nRet = _process_received_video_data_packet(iInterfaceIndex, pPacket, iPacketLength);
    }
 

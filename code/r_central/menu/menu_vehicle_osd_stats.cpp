@@ -46,7 +46,7 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.22;
 
    char szBuff[256];
-   sprintf(szBuff, "OSD Statistics Panels (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   sprintf(szBuff, "OSD Statistics Panels (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDLayout));
    setTitle(szBuff);
    
    m_IndexDevStatsVideo = -1;
@@ -359,7 +359,7 @@ MenuVehicleOSDStats::~MenuVehicleOSDStats()
 
 void MenuVehicleOSDStats::valuesToUI()
 {
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();
 
@@ -617,7 +617,7 @@ void MenuVehicleOSDStats::onSelectItem()
    bool sendToVehicle = false;
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    g_bChangedOSDStatsFontSize = false;
    
@@ -626,12 +626,6 @@ void MenuVehicleOSDStats::onSelectItem()
       params.osd_preferences[layoutIndex] &= ~(0x0F0000);
       params.osd_preferences[layoutIndex] |= ((u32)m_pItemsSelect[0]->getSelectedIndex())<<16;
       sendToVehicle = true;
-
-      //u32 scale = (params.osd_preferences[layoutIndex]>>16) & 0x0F;
-      //osd_setScaleOSDStats((int)scale);
-      //if ( render_engine_uses_raw_fonts() )
-      //   ruby_reload_osd_fonts();
-
       g_bChangedOSDStatsFontSize = true;
    }
 
@@ -641,7 +635,6 @@ void MenuVehicleOSDStats::onSelectItem()
       params.osd_preferences[layoutIndex] |= ((u32)m_pItemsSelect[21]->getSelectedIndex())<<20;
       sendToVehicle = true;
    }
-
 
    if ( m_IndexPanelsDirection == m_SelectedIndex )
    {
@@ -755,6 +748,7 @@ void MenuVehicleOSDStats::onSelectItem()
       }
       save_ControllerSettings();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexRadioRxHistoryVehicleBig == m_SelectedIndex )
@@ -771,6 +765,7 @@ void MenuVehicleOSDStats::onSelectItem()
       
       save_ControllerSettings();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexRadioRxGraphController == m_SelectedIndex )
@@ -860,6 +855,7 @@ void MenuVehicleOSDStats::onSelectItem()
       save_Preferences();
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      return;
    }
 
    if ( m_IndexSnapshotTimeout == m_SelectedIndex )
@@ -868,6 +864,7 @@ void MenuVehicleOSDStats::onSelectItem()
       save_ControllerSettings();
       invalidate();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexStatsEff == m_SelectedIndex )
@@ -911,6 +908,7 @@ void MenuVehicleOSDStats::onSelectItem()
       pP->iDebugShowDevVideoStats = m_pItemsSelect[10]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexShowControllerAdaptiveInfoStats == m_SelectedIndex )
@@ -990,6 +988,7 @@ void MenuVehicleOSDStats::onSelectItem()
       pP->iDebugShowDevRadioStats = m_pItemsSelect[11]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexDevFullRXStats == m_SelectedIndex )
@@ -997,6 +996,7 @@ void MenuVehicleOSDStats::onSelectItem()
       pP->iDebugShowFullRXStats = m_pItemsSelect[12]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
+      return;
    }
 
    if ( m_IndexDevStatsVehicleVideo == m_SelectedIndex )
@@ -1006,6 +1006,7 @@ void MenuVehicleOSDStats::onSelectItem()
       valuesToUI();
       if ( NULL != g_pCurrentModel )
          g_pCurrentModel->b_mustSyncFromVehicle = true;
+      return;
    }
    
    if ( m_IndexDevStatsVehicleVideoGraphs == m_SelectedIndex )
@@ -1015,6 +1016,7 @@ void MenuVehicleOSDStats::onSelectItem()
       valuesToUI();
       if ( NULL != g_pCurrentModel )
          g_pCurrentModel->b_mustSyncFromVehicle = true;
+      return;
    }
 
    if ( g_pCurrentModel->is_spectator )
@@ -1026,9 +1028,6 @@ void MenuVehicleOSDStats::onSelectItem()
    else if ( sendToVehicle )
    {
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t)) )
-      {
          valuesToUI();
-      }
-      return;
    }
 }

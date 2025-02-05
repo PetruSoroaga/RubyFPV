@@ -97,8 +97,7 @@ void osd_widget_builtin_altitude_render(type_osd_widget* pWidgetInfo, type_osd_w
    g_pRenderEngine->setStrokeSize(2.0);
    g_pRenderEngine->drawRect(pDisplayInfo->fXPos, pDisplayInfo->fYPos, pDisplayInfo->fWidth, pDisplayInfo->fHeight);
 
-   double* pc1 = get_Color_OSDText();
-   g_pRenderEngine->setColors(pc1);
+   g_pRenderEngine->setColors(get_Color_OSDText());
 
    g_pRenderEngine->drawLine(pDisplayInfo->fXPos + 0.5*pDisplayInfo->fWidth, pDisplayInfo->fYPos, pDisplayInfo->fXPos + 0.5*pDisplayInfo->fWidth, pDisplayInfo->fYPos + pDisplayInfo->fHeight);
    g_pRenderEngine->drawLine(pDisplayInfo->fXPos + 0.5*pDisplayInfo->fWidth, pDisplayInfo->fYPos, pDisplayInfo->fXPos , pDisplayInfo->fYPos + pDisplayInfo->fHeight);

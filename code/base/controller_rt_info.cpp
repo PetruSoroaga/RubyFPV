@@ -93,6 +93,8 @@ void controller_rt_info_init(controller_runtime_info* pRTInfo)
    pRTInfo->uUpdateIntervalMs = SYSTEM_RT_INFO_UPDATE_INTERVAL_MS;
    pRTInfo->uCurrentSliceStartTime = 0;
    pRTInfo->iCurrentIndex = 0;
+   pRTInfo->iCurrentIndex2 = 0;
+   pRTInfo->iCurrentIndex3 = 0;
 
    for( int i=0; i<SYSTEM_RT_INFO_INTERVALS; i++ )
    {
@@ -103,6 +105,8 @@ void controller_rt_info_init(controller_runtime_info* pRTInfo)
       }
       _controller_runtime_info_reset_dbm_slice(pRTInfo, i);
    }
+
+   pRTInfo->uTotalCountOutputSkippedBlocks = 0;
 }
 
 controller_runtime_info_vehicle* controller_rt_info_get_vehicle_info(controller_runtime_info* pRTInfo, u32 uVehicleId)
@@ -192,6 +196,8 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
    pRTInfo->iCurrentIndex++;
    if ( pRTInfo->iCurrentIndex >= SYSTEM_RT_INFO_INTERVALS )
       pRTInfo->iCurrentIndex = 0;
+   pRTInfo->iCurrentIndex2 = pRTInfo->iCurrentIndex;
+   pRTInfo->iCurrentIndex3 = pRTInfo->iCurrentIndex;
 
    // ---------------------------------------------------
    // Reset the new slice

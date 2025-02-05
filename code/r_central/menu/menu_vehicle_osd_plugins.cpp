@@ -48,7 +48,7 @@ MenuVehicleOSDPlugins::MenuVehicleOSDPlugins(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
 
    char szBuff[128];
-   sprintf(szBuff, "OSD Plugins Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.layout));
+   sprintf(szBuff, "OSD Plugins Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDLayout));
    setTitle(szBuff);
    
    for( int i=0; i<MAX_OSD_CUSTOM_PLUGINS; i++ )
@@ -80,7 +80,7 @@ MenuVehicleOSDPlugins::~MenuVehicleOSDPlugins()
 
 void MenuVehicleOSDPlugins::valuesToUI()
 {
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    //log_dword("start: osd flags", g_pCurrentModel->osd_params.osd_flags[layoutIndex]);
    //log_dword("start: instruments flags", g_pCurrentModel->osd_params.instruments_flags[layoutIndex]);
@@ -131,7 +131,7 @@ void MenuVehicleOSDPlugins::onSelectItem()
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    bool sendToVehicle = false;
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    for( int i=0; i<osd_plugins_get_count(); i++ )
    {

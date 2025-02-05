@@ -66,19 +66,19 @@ class RenderEngine
      virtual void highlightFirstWordOfLine(bool bHighlight);
      virtual bool drawBackgroundBoundingBoxes(bool bEnable);
 
-     virtual void setColors(double* color);
-     virtual void setColors(double* color, float fAlfaScale);
+     virtual void setColors(const double* color);
+     virtual void setColors(const double* color, float fAlfaScale);
      virtual void setFill(double* pColor);
      virtual void setFill(float r, float g, float b, float a);
-     virtual void setStroke(double* color);
-     virtual void setStroke(double* color, float fStrokeSize); 
+     virtual void setStroke(const double* color);
+     virtual void setStroke(const double* color, float fStrokeSize); 
      virtual void setStroke(float r, float g, float b, float a);
      virtual float getStrokeSize();
      virtual void setStrokeSize(float fStrokeSize);
      virtual void setFontColor(u32 fontId, double* color);
      virtual void enableFontScaling(bool bEnable);
-     virtual void setFontBackgroundBoundingBoxFillColor(double* color);
-     virtual void setFontBackgroundBoundingBoxStrikeColor(double* color);
+     virtual void setFontBackgroundBoundingBoxFillColor(const double* color);
+     virtual void setFontBackgroundBoundingBoxStrikeColor(const double* color);
      virtual void clearFontBackgroundBoundingBoxStrikeColor();
      virtual void setBackgroundBoundingBoxPadding(float fPadding);
      virtual void setFontBackgroundBoundingBoxSameTextColor(bool bSameColor);
@@ -102,6 +102,7 @@ class RenderEngine
      virtual void rotate180();
 
      virtual void drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId);
+     virtual void drawImageAlpha(float xPos, float yPos, float fWidth, float fHeight, u32 imageId, u8 uAlpha);
      virtual void bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void bltSprite(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId);
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 iconId);

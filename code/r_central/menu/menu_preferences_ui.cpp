@@ -52,6 +52,7 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_IndexMenuStacked = -1;
 
    m_IndexUnits = -1;
+   m_IndexUnitsHeight = -1;
    m_IndexPersistentMessages = -1;
    m_IndexLogWindow = -1;
    m_IndexMonitor = -1;
@@ -173,6 +174,14 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
       m_pItemsSelect[15]->setIsEditable();
       m_IndexUnits = addMenuItem(m_pItemsSelect[15]);
 
+      m_pItemsSelect[4] = new MenuItemSelect("Display Units (Heights)", "Changes how the OSD displays heights: in metric system or imperial system.");  
+      //m_pItemsSelect[4]->addSelection("Metric (km)");
+      m_pItemsSelect[4]->addSelection("Metric (m)");
+      //m_pItemsSelect[4]->addSelection("Imperial (mi)");
+      m_pItemsSelect[4]->addSelection("Imperial (ft)");
+      m_pItemsSelect[4]->setIsEditable();
+      m_IndexUnitsHeight = addMenuItem(m_pItemsSelect[4]);
+
       m_pItemsSelect[16] = new MenuItemSelect("Persist Messages Longer", "Keep the various messages and warnings longer on the screen.");  
       m_pItemsSelect[16]->addSelection("No");
       m_pItemsSelect[16]->addSelection("Yes");
@@ -230,6 +239,15 @@ void MenuPreferencesUI::valuesToUI()
          m_pItemsSelect[15]->setSelection(2);
       if ( p->iUnits == prefUnitsFeets )
          m_pItemsSelect[15]->setSelection(3);
+
+      if ( p->iUnitsHeight == prefUnitsMetric )
+         m_pItemsSelect[4]->setSelection(0);
+      if ( p->iUnitsHeight == prefUnitsMeters )
+         m_pItemsSelect[4]->setSelection(0);
+      if ( p->iUnitsHeight == prefUnitsImperial )
+         m_pItemsSelect[4]->setSelection(1);
+      if ( p->iUnitsHeight == prefUnitsFeets )
+         m_pItemsSelect[4]->setSelection(1);
 
       m_pItemsSelect[16]->setSelection(p->iPersistentMessages);
       m_pItemsSelect[17]->setSelection(p->iShowLogWindow);
@@ -354,7 +372,7 @@ void MenuPreferencesUI::onSelectItem()
       return;
 
    if ( ! m_bShowOnlyOSD )
-   if ( m_IndexScaleMenu == m_SelectedIndex )
+   if ( (-1 != m_IndexScaleMenu) && (m_IndexScaleMenu == m_SelectedIndex) )
    {
       p->iScaleMenus = m_pItemsSelect[0]->getSelectedIndex()-2;
       if ( render_engine_uses_raw_fonts() )
@@ -367,7 +385,7 @@ void MenuPreferencesUI::onSelectItem()
    }
 
    if ( ! m_bShowOnlyOSD )
-   if ( m_IndexMenuStacked == m_SelectedIndex )
+   if ( (-1 != m_IndexMenuStacked) && (m_IndexMenuStacked == m_SelectedIndex) )
    {
       int iIndex = m_pItemsSelect[1]->getSelectedIndex();
       if ( 2 == iIndex )
@@ -445,7 +463,7 @@ void MenuPreferencesUI::onSelectItem()
       return;
    }
 
-   if ( m_IndexUnits == m_SelectedIndex )
+   if ( (-1 != m_IndexUnits) && (m_IndexUnits == m_SelectedIndex) )
    {
       int nSel = m_pItemsSelect[15]->getSelectedIndex();
       if ( 0 == nSel )
@@ -458,10 +476,19 @@ void MenuPreferencesUI::onSelectItem()
          p->iUnits = prefUnitsFeets;
    }
 
-   if ( m_IndexPersistentMessages == m_SelectedIndex )
+   if ( (-1 != m_IndexUnitsHeight) && (m_IndexUnitsHeight == m_SelectedIndex) )
+   {
+      int nSel = m_pItemsSelect[4]->getSelectedIndex();
+      if ( 0 == nSel )
+         p->iUnitsHeight = prefUnitsMeters;
+      if ( 1 == nSel )
+         p->iUnitsHeight = prefUnitsFeets;
+   }
+
+   if ( (-1 != m_IndexPersistentMessages) && (m_IndexPersistentMessages == m_SelectedIndex) )
       p->iPersistentMessages = m_pItemsSelect[16]->getSelectedIndex();
 
-   if ( m_IndexLogWindow == m_SelectedIndex )
+   if ( (-1 != m_IndexLogWindow) && (m_IndexLogWindow == m_SelectedIndex) )
    {
       p->iShowLogWindow = m_pItemsSelect[17]->getSelectedIndex();
       popup_log_set_show_flag(p->iShowLogWindow);

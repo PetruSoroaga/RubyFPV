@@ -1201,6 +1201,11 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
          str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataD);
       if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
          str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataU);
+
+      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO )
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataD);
+      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO )
+         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataU);
    }
 
    szAuto[0] = 0;
@@ -1423,8 +1428,6 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       if ( bIsLinkActive )
          m_bTmpHasDataStreamsEnabled = true;
    }
-   g_pRenderEngine->setColors(get_Color_MenuText());
-   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
 
    if ( bIsRelayLink )
        sprintf(szBuff, "RELAY Link-%d  %s", iVehicleRadioLink+1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[iVehicleRadioLink]));
@@ -1441,6 +1444,9 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
 
    if ( (iCurrentMenuItemCommand == MRC_ID_CONFIGURE_RADIO_LINK) && (iCurrentMenuItemExtraParam == iVehicleRadioLink) )
       bBBox = g_pRenderEngine->drawBackgroundBoundingBoxes(true);
+
+   g_pRenderEngine->setColors(get_Color_MenuText());
+   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
 
    if ( bShowLinkRed )
    {

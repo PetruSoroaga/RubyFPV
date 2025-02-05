@@ -201,7 +201,7 @@ bool RenderEngine::getFontBackgroundBoundingBoxSameTextColor()
    return m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor;
 }
 
-void RenderEngine::setFontBackgroundBoundingBoxStrikeColor(double* color)
+void RenderEngine::setFontBackgroundBoundingBoxStrikeColor(const double* color)
 {
    memcpy(m_ColorTextBackgroundBoundingBoxStrike, color, 4*sizeof(double));
    m_bDrawStrikeOnTextBackgroundBoundingBoxes = true;
@@ -257,12 +257,12 @@ void RenderEngine::setClearBufferByte(u8 uClearByte)
    m_uClearBufferByte = uClearByte;
 }
 
-void RenderEngine::setColors(double* color)
+void RenderEngine::setColors(const double* color)
 {
    setColors(color, 1.0);
 }
 
-void RenderEngine::setColors(double* color, float fAlfaScale)
+void RenderEngine::setColors(const double* color, float fAlfaScale)
 {
    m_ColorFill[0] = color[0];
    m_ColorFill[1] = color[1];
@@ -323,12 +323,12 @@ void RenderEngine::setFill(float r, float g, float b, float a)
    m_uTextFontMixColor[3] = 255 * fAlpha;
 }
 
-void RenderEngine::setStroke(double* color)
+void RenderEngine::setStroke(const double* color)
 {
    setStroke(color, 1.0);
 }
 
-void RenderEngine::setStroke(double* color, float fStrokeSize)
+void RenderEngine::setStroke(const double* color, float fStrokeSize)
 {
    m_ColorStroke[0] = color[0];
    m_ColorStroke[1] = color[1];
@@ -381,7 +381,7 @@ void RenderEngine::setFontColor(u32 fontId, double* color)
 {
 }
 
-void RenderEngine::setFontBackgroundBoundingBoxFillColor(double* color)
+void RenderEngine::setFontBackgroundBoundingBoxFillColor(const double* color)
 {
    m_ColorTextBoundingBoxBgFill[0] = color[0];
    m_ColorTextBoundingBoxBgFill[1] = color[1];
@@ -645,6 +645,11 @@ void RenderEngine::rotate180()
 
 void RenderEngine::drawImage(float xPos, float yPos, float fWidth, float fHeight, u32 imageId)
 {
+}
+
+void RenderEngine::drawImageAlpha(float xPos, float yPos, float fWidth, float fHeight, u32 imageId, u8 uAlpha)
+{
+ 
 }
 
 void RenderEngine::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)

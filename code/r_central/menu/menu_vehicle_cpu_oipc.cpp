@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -115,7 +115,7 @@ MenuVehicleCPU_OIPC::MenuVehicleCPU_OIPC(void)
 
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
-      m_pItemsSelect[6] = new MenuItemSelect("Balance CPU Cores", "Tries to balance the load on the CPU cores.");
+      m_pItemsSelect[6] = new MenuItemSelect("Balance CPU Interrupts", "Tries to balance the load on the CPU cores interrupts.");
       m_pItemsSelect[6]->addSelection("Off");
       m_pItemsSelect[6]->addSelection("On");
       m_pItemsSelect[6]->setIsEditable();

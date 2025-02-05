@@ -250,6 +250,7 @@ void send_model_settings_to_controller()
 
    log_line("Queueing to router to send to controller all model settings. Compressed size: %d bytes", s_bufferModelSettingsLength); 
    log_line("Queueing to router to send to controller tar model file. Total on time: %dm:%02ds, total mAh: %d", g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uCurrentTotalCurrent);
+   log_line("Send radio messages, from VID %u to VID %u (%u)", g_pCurrentModel->uVehicleId, g_pCurrentModel->uControllerId, g_uControllerId);
 
    static u32 s_uCommandsSettingsParamsUniqueCounter = 0;
    s_uCommandsSettingsParamsUniqueCounter++;
@@ -259,6 +260,7 @@ void send_model_settings_to_controller()
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_MODEL_SETTINGS, STREAM_ID_DATA);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = g_pCurrentModel->uControllerId;
    PH.total_length = sizeof(t_packet_header) + s_bufferModelSettingsLength + 2*sizeof(u32) + sizeof(u8);
 
    u8 packet[MAX_PACKET_TOTAL_SIZE];
@@ -299,6 +301,7 @@ void send_model_settings_to_controller()
 
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_MODEL_SETTINGS, STREAM_ID_DATA);
       PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      PH.vehicle_id_dest = g_pCurrentModel->uControllerId;
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32) + sizeof(u8) + 3*sizeof(u8) + iSize;
    
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -372,37 +375,6 @@ void signalReloadModel(u32 uChangeType, u8 uExtraParam)
       g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
 }
 
-void signalTXVideoEncodingChanged()
-{
-   log_line("Signaling router that video encodings changed");
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS;
-   PH.total_length = sizeof(t_packet_header);
-
-   ruby_ipc_channel_send_message(s_fIPCToRouter, (u8*)&PH, PH.total_length);
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-}
-
-void signalUserSelectedVideoProfileChanged()
-{
-   log_line("Signaling router that user selected video profile changed");
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED, STREAM_ID_DATA);
-   PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS;
-   PH.total_length = sizeof(t_packet_header);
-
-   ruby_ipc_channel_send_message(s_fIPCToRouter, (u8*)&PH, PH.total_length);
-
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-}
 void signalReboot()
 {
    t_packet_header PH;
@@ -414,25 +386,24 @@ void signalReboot()
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-
-   hardware_sleep_ms(500);
-   log_line("Process will exit now. Reboot is launched.");
-   exit(0);
 }
 
 
-void _signalCameraParameterChange(u8 param, u16 value)
+void _signalCameraParametersChanged(u8 uCameraIndex)
 {
    //log_line("Sending camera param %d, value: %d", param, value);
 
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM, STREAM_ID_DATA);
-   PH.stream_packet_idx = ((u32)param) | (((u32)value)<<8);
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAMS, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS;
    PH.vehicle_id_dest = PACKET_COMPONENT_RUBY;
-   PH.total_length = sizeof(t_packet_header);
+   PH.total_length = sizeof(t_packet_header) + sizeof(u8) + sizeof(type_camera_parameters);
 
-   ruby_ipc_channel_send_message(s_fIPCToRouter, (u8*)&PH, PH.total_length);
+   u8 buffer[MAX_PACKET_TOTAL_SIZE];
+   memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
+   memcpy(&buffer[sizeof(t_packet_header)], &uCameraIndex, sizeof(u8));
+   memcpy(&buffer[sizeof(t_packet_header) + sizeof(u8)], (u8*)&(g_pCurrentModel->camera_params[uCameraIndex]), sizeof(type_camera_parameters));
+   ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
 
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
@@ -1153,10 +1124,12 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, "#");
          strcat(szBuffer, "Stored board type: ");
          strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
+         char szTemp[1024];
+         sprintf(szTemp, " (%d.%d)", (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT);
+         strcat(szBuffer, szTemp);
          strcat(szBuffer, "#");
 
          hw_execute_bash_command_raw("free -m  | grep Mem", szOutput);
-         char szTemp[1024];
          long lt, lu, lf;
          sscanf(szOutput, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
          sprintf(szOutput, "%ld Mb Total, %ld Mb Used, %ld Mb Free", lt, lu, lf);
@@ -1783,6 +1756,11 @@ bool process_command(u8* pBuffer, int length)
    {
       g_pCurrentModel->hwCapabilities.uBoardType &= ~(u32)BOARD_SUBTYPE_MASK;
       g_pCurrentModel->hwCapabilities.uBoardType |= pPHC->command_param & BOARD_SUBTYPE_MASK;
+      if ( (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+      if ( ((g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI )
+      {
+         g_pCurrentModel->radioInterfacesParams.interface_card_model[0] = -CARD_MODEL_RTL8812AU_AF1;
+      }
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_GENERIC, 0);
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
@@ -1811,211 +1789,57 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PARAMETERS )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+
       int nCamera = uCommandParam;
-      type_camera_parameters* pcpt = (type_camera_parameters*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       if ( (nCamera < 0) || (nCamera >= g_pCurrentModel->iCameraCount) )
          return true;
-      if ( !hardware_hasCamera() )
-         return true;
-        
-      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags;
-      camera_profile_parameters_t oldParams;
-      memcpy(&oldParams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
 
+      type_camera_parameters* pcpt = (type_camera_parameters*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       memcpy(&(g_pCurrentModel->camera_params[nCamera]), pcpt, sizeof(type_camera_parameters));
       saveCurrentModel();
-      signalReloadModel(MODEL_CHANGED_CAMERA_PARAMS, 0);
 
-      if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
-      {
-         u32 uNewFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags;
-         if ( (oldFlags & CAMERA_FLAG_IR_FILTER_OFF) != (uNewFlags & CAMERA_FLAG_IR_FILTER_OFF) )
-         {
-            hardware_camera_set_irfilter_off(uNewFlags & CAMERA_FLAG_IR_FILTER_OFF);
-            return true;
-         }
-         if ( (oldFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) != (uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF) )
-         {
-            hardware_camera_set_daylight_off(uNewFlags & CAMERA_FLAG_OPENIPC_DAYLIGHT_OFF);
-            return true;
-         }
-      }
-
-      bool bSentUsingPipe = false;
-      camera_profile_parameters_t* pCamParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() )
-      {
-         if ( oldParams.brightness != pCamParams->brightness )
-         {
-            bSentUsingPipe = true;
-            _signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
-         }
-         if ( oldParams.contrast != pCamParams->contrast )
-         {
-            bSentUsingPipe = true;
-            _signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
-         }
-         if ( oldParams.saturation != pCamParams->saturation )
-         {
-            bSentUsingPipe = true;
-            _signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
-         }
-         if ( oldParams.sharpness != pCamParams->sharpness )
-         {
-            bSentUsingPipe = true;
-            _signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
-         }
-      }
-      //log_line("Board type: %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
-      if ( hardware_is_running_on_openipc() )
-      if ( ! hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
-      {
-         if ( oldParams.brightness != pCamParams->brightness )
-         {
-            bSentUsingPipe = true;
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_BRIGHTNESS | (pCamParams->brightness << 16));
-         }
-         if ( oldParams.contrast != pCamParams->contrast )
-         {
-            bSentUsingPipe = true;
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_CONTRAST | (pCamParams->contrast << 16));
-         }
-         if ( oldParams.saturation != pCamParams->saturation )
-         {
-            bSentUsingPipe = true;
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_SATURATION | (pCamParams->saturation << 16));
-         }
-         if ( oldParams.hue != pCamParams->hue )
-         {
-            bSentUsingPipe = true;
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_HUE | (pCamParams->hue << 16));
-         }
-      }
-      
-      if ( bSentUsingPipe )
-      {
-         log_line("Sent using pipes");
+      if ( !hardware_hasCamera() )
          return true;
-      }
-      if ( g_pCurrentModel->isActiveCameraVeye307() && (fabs(oldParams.hue - pCamParams->hue) > 0.1 ) )
-         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
-      else if ( g_pCurrentModel->isActiveCameraVeye327290() )
-         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
-      else if ( g_pCurrentModel->isActiveCameraVeye307() )
-         vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
-      else if ( g_pCurrentModel->hasCamera() )
-      {
-         if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != ((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile].uFlags) & CAMERA_FLAG_AWB_MODE_OLD) )
-            g_pCurrentModel->setAWBMode();
 
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
-      }
+      _signalCameraParametersChanged(nCamera);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PROFILE )
    {
-      int iOldCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
-      u32 oldFlags = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iOldCamProfileIndex].uFlags;
-      camera_profile_parameters_t oldCamParams;
-      camera_profile_parameters_t oldCamParamsCheck;
-      memcpy(&oldCamParams, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
-      memcpy(&oldCamParamsCheck, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]), sizeof(camera_profile_parameters_t));
       if ( (pPHC->command_param < 0) || (pPHC->command_param >= MODEL_CAMERA_PROFILES) )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      int iOldCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
       g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile = pPHC->command_param;
-      log_line("Switched camera %d from prifile %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, iOldCamProfileIndex, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
+      log_line("Switched camera %d from profile %d to profile %d.", g_pCurrentModel->iCurrentCamera+1, iOldCamProfileIndex, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
       saveCurrentModel();
-      signalReloadModel(MODEL_CHANGED_CAMERA_PARAMS, 0);
-
       if ( ! g_pCurrentModel->hasCamera() )
          return true;
-
-      if ( ! g_pCurrentModel->isActiveCameraCSICompatible() )
-      if ( ! g_pCurrentModel->isActiveCameraVeye() )
-      {
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
-         return true;
-      }
-
-      int iNewCamProfileIndex = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
-      camera_profile_parameters_t* pCamParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iNewCamProfileIndex]);
-
-      g_pCurrentModel->log_camera_profiles_differences(&oldCamParams, pCamParams, iOldCamProfileIndex, iNewCamProfileIndex);
-
-      if ( (oldFlags & CAMERA_FLAG_AWB_MODE_OLD) != (pCamParams->uFlags & CAMERA_FLAG_AWB_MODE_OLD) )
-         g_pCurrentModel->setAWBMode();
-
-      bool bSentUsingPipe = false;
-      oldCamParamsCheck.uFlags = pCamParams->uFlags;
-      oldCamParamsCheck.brightness = pCamParams->brightness;
-      oldCamParamsCheck.contrast = pCamParams->contrast;
-      oldCamParamsCheck.saturation = pCamParams->saturation;
-      oldCamParamsCheck.sharpness = pCamParams->sharpness;
-      for( int i=0; i<(int)sizeof(oldCamParamsCheck.dummyCamP)/(int)sizeof(oldCamParamsCheck.dummyCamP[0]); i++ )
-         oldCamParamsCheck.dummyCamP[i] = pCamParams->dummyCamP[i];
-      oldCamParamsCheck.fovV = pCamParams->fovV;
-      oldCamParamsCheck.fovH = pCamParams->fovH;
-      if ( 0 == memcmp(&oldCamParamsCheck, pCamParams, sizeof(camera_profile_parameters_t)) )
-      {
-         log_line("Send commands to camera directly");
-
-         if ( g_pCurrentModel->isActiveCameraVeye() )
-         {
-            vehicle_update_camera_params_csi(g_pCurrentModel, g_pCurrentModel->iCurrentCamera);
-            bSentUsingPipe = true;
-         }
-         else
-         {
-            if ( oldCamParams.brightness != pCamParams->brightness )
-            {
-               bSentUsingPipe = true;
-               _signalCameraParameterChange(RASPIVID_COMMAND_ID_BRIGHTNESS, pCamParams->brightness);
-            }
-            if ( oldCamParams.contrast != pCamParams->contrast )
-            {
-               bSentUsingPipe = true;
-               _signalCameraParameterChange(RASPIVID_COMMAND_ID_CONTRAST, pCamParams->contrast);
-            }
-            if ( oldCamParams.saturation != pCamParams->saturation )
-            {
-               bSentUsingPipe = true;
-               _signalCameraParameterChange(RASPIVID_COMMAND_ID_SATURATION, pCamParams->saturation);
-            }
-            if ( oldCamParams.sharpness != pCamParams->sharpness )
-            {
-               bSentUsingPipe = true;
-               _signalCameraParameterChange(RASPIVID_COMMAND_ID_SHARPNESS, pCamParams->sharpness);
-            }
-         }
-      }
-      if ( ! bSentUsingPipe )
-      {
-         log_line("Send command to restart video stream");
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
-      }
+      
+      _signalCameraParametersChanged(g_pCurrentModel->iCurrentCamera);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_CURRENT_CAMERA )
    {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       int iCam = (int)pPHC->command_param;
-      if ( iCam >= 0 && iCam < g_pCurrentModel->iCameraCount )
+      if ( (iCam < 0) || (iCam >= g_pCurrentModel->iCameraCount ) )
       {
-         g_pCurrentModel->iCurrentCamera = iCam;
-         saveCurrentModel();
-         signalReloadModel(0, 0);
-
-         if ( g_pCurrentModel->hasCamera() )
-            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_CAMERA_PARAMS);
-      }
-      else
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         return true;         
+      }
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+
+      g_pCurrentModel->iCurrentCamera = iCam;
+      saveCurrentModel();
+      if ( !hardware_hasCamera() )
+         return true;
+      _signalCameraParametersChanged(iCam);
+     
       return true;
    }
 
@@ -2510,21 +2334,24 @@ bool process_command(u8* pBuffer, int length)
       if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
          log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
       
-      bool bMustSignalTXVideo = false;
       bool bVideoResolutionChanged = false;
       bool bMustRestartCapture = false;
+      bool bSelectedVideoProfileChanged = false;
 
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].width = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].height = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].video_data_length = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length;
          
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].width = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].height = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height;
       g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+      g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].video_data_length = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length;
 
       if ( g_pCurrentModel->video_params.user_selected_video_link_profile != oldParams.user_selected_video_link_profile )
       {
+         bSelectedVideoProfileChanged = true;
          g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
          g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
          g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
@@ -2593,14 +2420,14 @@ bool process_command(u8* pBuffer, int length)
       if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
          bMustRestartCapture = true;
 
-      if ( (! bVideoResolutionChanged) && (! bMustRestartCapture) )
+      if ( (! bVideoResolutionChanged) && (! bMustRestartCapture) && (! bSelectedVideoProfileChanged) )
       if ( g_pCurrentModel->video_params.uMaxAutoKeyframeIntervalMs != oldParams.uMaxAutoKeyframeIntervalMs )
       {
          signalReloadModel(MODEL_CHANGED_DEFAULT_MAX_ADATIVE_KEYFRAME, 0);
          return true;
       }
 
-      if ( (g_pCurrentModel->hasCamera()) && ( g_pCurrentModel->video_params.user_selected_video_link_profile != oldParams.user_selected_video_link_profile ) )
+      if ( (g_pCurrentModel->hasCamera()) && bSelectedVideoProfileChanged )
          signalReloadModel(MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE, 0);
       else
          signalReloadModel(0, 0);
@@ -2617,11 +2444,9 @@ bool process_command(u8* pBuffer, int length)
                sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
          }
       }
-      if ( bMustSignalTXVideo )
-      {
-         signalTXVideoEncodingChanged();
-         signalUserSelectedVideoProfileChanged();
-      }
+      else if ( bSelectedVideoProfileChanged )
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE);
+
       log_line("Finished processing COMMAND_ID_SET_VIDEO_PARAMS");
       return true;
    }
@@ -2631,7 +2456,8 @@ bool process_command(u8* pBuffer, int length)
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->resetVideoLinkProfiles(g_pCurrentModel->video_params.user_selected_video_link_profile);
       saveCurrentModel();
-      signalTXVideoEncodingChanged();
+      signalReloadModel(0, 0);
+      sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE);
       return true;
    }
    
@@ -2798,19 +2624,15 @@ bool process_command(u8* pBuffer, int length)
            g_pCurrentModel->video_link_profiles[oldVideoParams.user_selected_video_link_profile].height != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
          bVideoResolutionChanged = true;
 
-      if ( true )
-      {   
-         if ( g_pCurrentModel->hasCamera() )
-         {
-            if ( bVideoResolutionChanged )
-               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
-            else
-               sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, 0);
-         }
-         signalReloadModel(0, 0);
+      
+      signalReloadModel(0, 0);
+      if ( g_pCurrentModel->hasCamera() )
+      {
+         if ( bVideoResolutionChanged )
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
+         else
+            sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE);
       }
-      if ( true )
-         signalTXVideoEncodingChanged();
 
       return true;
    }
@@ -2841,7 +2663,7 @@ bool process_command(u8* pBuffer, int length)
       osd_parameters_t* params = (osd_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       //log_line("Received osd params %d bytes, expected %d bytes", iParamsLength, sizeof(osd_parameters_t));
       memcpy(&g_pCurrentModel->osd_params, params, sizeof(osd_parameters_t));
-      int nOSDIndex = g_pCurrentModel->osd_params.layout;
+      int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
       if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
          nOSDIndex = 0;
 
@@ -2878,7 +2700,7 @@ bool process_command(u8* pBuffer, int length)
       int nOSDIndex = pPHC->command_param;
       if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
          nOSDIndex = 0;
-      g_pCurrentModel->osd_params.layout = nOSDIndex;
+      g_pCurrentModel->osd_params.iCurrentOSDLayout = nOSDIndex;
       saveCurrentModel();
       log_line("Saved received new active OSD layout layout: %d, enabled: %s", nOSDIndex, (g_pCurrentModel->osd_params.osd_flags2[nOSDIndex] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       signalReloadModel(MODEL_CHANGED_OSD_PARAMS, 0);
@@ -3271,6 +3093,7 @@ bool process_command(u8* pBuffer, int length)
          restartVideo = true;
          bSave = true;
          bNotifyChanged = true;
+         g_uControllerId = pPH->vehicle_id_src;
          g_pCurrentModel->uControllerId = pPH->vehicle_id_src;
          char szFile[128];
          strcpy(szFile, FOLDER_CONFIG);
@@ -3298,7 +3121,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bTelemetryIn != g_pCurrentModel->telemetry_params.bControllerHasInputTelemetry )
          bTelemetryChanged = true;
 
-      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.layout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDLayout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       log_line("Current on time: %02d:%02d, current flights: %d", g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
 
       log_line("Received flags: telemetry in: %d, telemetry out: %d", bTelemetryIn, bTelemetryOut );
@@ -3332,7 +3155,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bTelemetryChanged || bNotifyChanged || bSave )
          signalReloadModel(0, 0);
 
-      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.layout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDLayout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       log_line("Current on time: %02d:%02d, current flights: %d", g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
 
       if ( bNewZIPCommand )
@@ -3380,7 +3203,7 @@ bool process_command(u8* pBuffer, int length)
       }
 
       setCommandReplyBuffer(s_ZIPParams_Model_Buffer, s_ZIPParams_Model_BufferLength);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 20);
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 10);
       log_line("Sent back to router all model settings in one single command response. Total compressed size: %d bytes", s_ZIPParams_Model_BufferLength);
       
       if ( bSendBackSmallSegments )
@@ -3407,7 +3230,7 @@ bool process_command(u8* pBuffer, int length)
             uSegment[3] = iSize;
             memcpy( &(uSegment[4]), s_ZIPParams_Model_Buffer + iPos, iSize);
             setCommandReplyBuffer(uSegment, iSize+4);
-            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 20);
+            sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 10);
             log_line("Sent back to router model settings command response as small segment (%d of %d) size: %d bytes",
                iSegment+1, iCountSegments, iSize);             
             iSegment++;
@@ -3415,7 +3238,7 @@ bool process_command(u8* pBuffer, int length)
          }
       } 
 
-      hardware_sleep_ms(20);
+      hardware_sleep_ms(10);
       _signalRouterSendVehicleSettings();
 
       if ( restartVideo )
@@ -3700,7 +3523,8 @@ void on_received_command(u8* pBuffer, int length)
    {
       if ( pPHC->command_resend_counter > lastRecvCommandResendCounter )
       {
-         log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+         log_line_commands("Received command nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d",
+            pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
          if ( ! (((pPHC->command_type) & COMMAND_TYPE_MASK) & COMMAND_TYPE_FLAG_NO_RESPONSE_NEEDED) )
          {
             log_line("Resending command response, for command id: %d", lastRecvCommandNumber);
@@ -3715,7 +3539,7 @@ void on_received_command(u8* pBuffer, int length)
          return;
    }
 
-   log_line_commands("Received command (current vehicle UID: %u) nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
+   log_line_commands("Received command nb.%d, retry count: %d, command type: %d: %s, command param: %u, extra info size: %d", pPHC->command_counter, pPHC->command_resend_counter, pPHC->command_type & COMMAND_TYPE_MASK, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
    lastRecvSourceControllerId = pPH->vehicle_id_src;
    lastRecvCommandNumber = pPHC->command_counter;
@@ -3724,8 +3548,6 @@ void on_received_command(u8* pBuffer, int length)
    lastRecvCommandTime = g_TimeNow;
    lastRecvCommandResponseFlags = 0;
    lastRecvCommandReplyBufferLength = 0;
-
-   //log_line_commands("Received command (current vehicle UID: %u) nb.%d, command type: %s, command param: %u, extra info size: %d", g_pCurrentModel->uVehicleId, pPHC->command_counter, commands_get_description(((pPHC->command_type) & COMMAND_TYPE_MASK)), pPHC->command_param, length-sizeof(t_packet_header)-sizeof(t_packet_header_command));
 
    if ( ! process_command(pBuffer, length) )
       sendCommandReply(COMMAND_RESPONSE_FLAGS_UNKNOWN_COMMAND, 0, 0); 
@@ -3798,6 +3620,7 @@ int r_start_commands_rx(int argc, char* argv[])
    if ( s_fIPCToRouter < 0 )
       return -1;
  
+   g_uControllerId = vehicle_utils_getControllerId();
    load_VehicleSettings();
    hardware_reload_serial_ports_settings();
    hardware_enumerate_radio_interfaces();
@@ -3835,7 +3658,7 @@ int r_start_commands_rx(int argc, char* argv[])
 
    char szFileStop[MAX_FILE_PATH_SIZE];
    strcpy(szFileStop, FOLDER_RUBY_TEMP);
-   strcat(szFileStop, "cmdstop.txt");
+   strcat(szFileStop, FILE_TEMP_STOP);
 
    g_TimeNow = get_current_timestamp_ms();
    g_TimeStart = get_current_timestamp_ms();
@@ -3873,11 +3696,12 @@ int r_start_commands_rx(int argc, char* argv[])
       {
          g_TimeLastPeriodicCheck = g_TimeNow;
          _periodic_loop();
+
          if ( access(szFileStop, R_OK) != -1 )
          {
             log_line("File to stop is present. Stopping...");
             char szComm[256];
-            sprintf(szComm, "rm -rf %s", szFileStop);
+            snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFileStop);
             hw_execute_bash_command(szComm, NULL);
             g_bQuit = true;
             break;
@@ -3905,6 +3729,9 @@ int r_start_commands_rx(int argc, char* argv[])
             log_line("Received pairing request from router (received retry counter: %u). CID: %u, VID: %u. Updating local model.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
             if ( NULL != g_pCurrentModel )
             {
+               if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
+                  g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &= ~(MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS);
+               g_uControllerId = pPH->vehicle_id_src;
                g_pCurrentModel->uControllerId = pPH->vehicle_id_src;
                if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
                if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )

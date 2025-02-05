@@ -980,7 +980,7 @@ float Menu::RenderFrameAndTitle()
       if ( yButton + fScrollButtonHeight > m_fRenderItemsStopYPos )
          yButton = m_fRenderItemsStopYPos - fScrollButtonHeight;
 
-      double* pC = get_Color_MenuText();
+      const double* pC = get_Color_MenuText();
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
       g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.18);
@@ -1108,7 +1108,7 @@ float Menu::RenderFrameAndTitleSticky()
       if ( yButton + fScrollButtonHeight > m_fRenderItemsStopYPos )
          yButton = m_fRenderItemsStopYPos - fScrollButtonHeight;
 
-      double* pC = get_Color_MenuText();
+      const double* pC = get_Color_MenuText();
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
       g_pRenderEngine->setFill(pC[0], pC[1], pC[2], 0.18);
@@ -1192,6 +1192,8 @@ float Menu::RenderItem(int index, float yPos, float dx)
          return fTotalHeight;
    }
    */
+
+   g_pRenderEngine->setColors(get_Color_MenuText());
 
    if ( s_bDebugMenuBoundingBoxes )
    {
@@ -2326,6 +2328,7 @@ bool Menu::uploadSoftware()
       }
       g_pCurrentModel->b_mustSyncFromVehicle = true;
       g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
+      g_bSyncModelSettingsOnLinkRecover = true;
       saveControllerModel(g_pCurrentModel);
    }
 

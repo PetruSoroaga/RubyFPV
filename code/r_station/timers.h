@@ -17,3 +17,5 @@ extern u32 g_TimeLastJoystickCheck;
 extern u32 g_TimeLastControllerLinkStatsSent;
 extern u32 g_TimeLastSetRadioFlagsCommandSent;
 
+extern u32 g_TimeLastVideoParametersOrProfileChanged;
+extern u32 g_uTimeEndedNegiciateRadioLink;

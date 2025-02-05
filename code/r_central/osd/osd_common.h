@@ -75,7 +75,7 @@ float osd_getSpacingV();
 
 void osd_set_transparency(int value);
 void osd_set_colors();
-void osd_set_colors_text(double* pColorText);
+void osd_set_colors_text(const double* pColorText);
 
 void osd_set_colors_alpha(float alpha);
 void osd_set_colors_background_fill();
@@ -88,6 +88,7 @@ float osd_show_value_centered(float x, float y, const char* szValue, u32 fontId)
 
 float _osd_convertKm(float km);
 float _osd_convertMeters(float m);
+float _osd_convertHeightMeters(float m);
 float osd_convertTemperature(float c);
 
 float osd_course_to(double lat1, double long1, double lat2, double long2);

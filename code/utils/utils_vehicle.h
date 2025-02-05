@@ -4,6 +4,7 @@
 #include "../base/shared_mem.h"
 #include "../base/models.h"
 
+u32 vehicle_utils_getControllerId();
 
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile);
 bool videoLinkProfileIsOnlyBitrateChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile);

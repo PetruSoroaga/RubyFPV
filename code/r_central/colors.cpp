@@ -82,12 +82,12 @@ double COLOR_OSD_INV_HIGH_WARNING[4] = {255,0,0,0.9};
 double COLOR_OSD_CHANED_VALUE[4] = { 120,180,120, 0.95 };
 double COLOR_OSD_CHANED_VALUE_INV[4] = { 180,250,180, 0.95 };
 
-double* get_Color_Dev()
+const double* get_Color_Dev()
 {
    return COLOR_DEV;
 }
 
-double* get_Color_OSDBackground()
+const double* get_Color_OSDBackground()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -96,7 +96,7 @@ double* get_Color_OSDBackground()
       return COLOR_OSD_BACKGROUND;
 }
 
-double* get_Color_OSDText()
+const double* get_Color_OSDText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -105,7 +105,7 @@ double* get_Color_OSDText()
       return COLOR_OSD_TEXT;
 }
 
-double* get_Color_OSDTextOutline()
+const double* get_Color_OSDTextOutline()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -115,7 +115,7 @@ double* get_Color_OSDTextOutline()
 
 }
 
-double* get_Color_OSDWarning()
+const double* get_Color_OSDWarning()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -124,7 +124,7 @@ double* get_Color_OSDWarning()
       return COLOR_OSD_HIGH_WARNING;
 }
 
-double* get_Color_OSDChangedValue()
+const double* get_Color_OSDChangedValue()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -133,7 +133,7 @@ double* get_Color_OSDChangedValue()
       return COLOR_OSD_CHANED_VALUE;
 }
 
-double* get_Color_PopupBg()
+const double* get_Color_PopupBg()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -142,7 +142,7 @@ double* get_Color_PopupBg()
       return COLOR_POPUP_BG;
 }
 
-double* get_Color_PopupBorder()
+const double* get_Color_PopupBorder()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -151,7 +151,7 @@ double* get_Color_PopupBorder()
       return COLOR_POPUP_BORDER;
 }
 
-double* get_Color_PopupText()
+const double* get_Color_PopupText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -160,7 +160,7 @@ double* get_Color_PopupText()
       return COLOR_POPUP_TEXT;
 }
 
-double* get_Color_MenuBg()
+const double* get_Color_MenuBg()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -169,18 +169,18 @@ double* get_Color_MenuBg()
       return COLOR_MENU_BG;
 }
 
-double* get_Color_MenuBgTitle()
+const double* get_Color_MenuBgTitle()
 {
    return COLOR_MENU_BG_TITLE; 
 }
 
-double* get_Color_MenuBgTooltip()
+const double* get_Color_MenuBgTooltip()
 {
    return COLOR_MENU_BG_TOOLTIP; 
 }
 
 
-double* get_Color_MenuBorder()
+const double* get_Color_MenuBorder()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -188,7 +188,8 @@ double* get_Color_MenuBorder()
    else
       return COLOR_MENU_BORDER;
 }
-double* get_Color_MenuText()
+
+const double* get_Color_MenuText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -197,7 +198,7 @@ double* get_Color_MenuText()
       return COLOR_MENU_TEXT;
 }
 
-double* get_Color_MenuItemSelectedBg()
+const double* get_Color_MenuItemSelectedBg()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -205,7 +206,8 @@ double* get_Color_MenuItemSelectedBg()
    else
       return COLOR_MENU_ITEM_BG_SELECTED;
 }
-double* get_Color_MenuItemSelectedText()
+
+const double* get_Color_MenuItemSelectedText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -213,7 +215,8 @@ double* get_Color_MenuItemSelectedText()
    else
       return COLOR_MENU_ITEM_TEXT_SELECTED;
 }
-double* get_Color_MenuItemDisabledText()
+
+const double* get_Color_MenuItemDisabledText()
 {
    Preferences* p = get_Preferences();
    if ( p->iInvertColorsOSD )
@@ -222,12 +225,12 @@ double* get_Color_MenuItemDisabledText()
       return COLOR_MENU_ITEM_TEXT_DISABLED;
 }
 
-double* get_Color_IconNormal() { return COLOR_ICON_NORMAL; }
-double* get_Color_IconWarning() { return COLOR_ICON_WARNING; }
-double* get_Color_IconError() { return COLOR_ICON_ERROR; }
-double* get_Color_IconSucces() { return COLOR_ICON_SUCCES; }
+const double* get_Color_IconNormal() { return COLOR_ICON_NORMAL; }
+const double* get_Color_IconWarning() { return COLOR_ICON_WARNING; }
+const double* get_Color_IconError() { return COLOR_ICON_ERROR; }
+const double* get_Color_IconSucces() { return COLOR_ICON_SUCCES; }
 
-double* get_Color_OSDElementChanged() { return COLOR_OSD_ELEMENT_CHANGED; }
+const double* get_Color_OSDElementChanged() { return COLOR_OSD_ELEMENT_CHANGED; }
 
 
 void set_Color_OSDText(float r, float g, float b, float a)

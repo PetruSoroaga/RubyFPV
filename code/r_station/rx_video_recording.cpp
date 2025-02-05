@@ -64,7 +64,6 @@
 #include "shared_vars.h"
 #include "rx_video_recording.h"
 #include "packets_utils.h"
-#include "links_utils.h"
 #include "timers.h"
 
 sem_t* s_pSemaphoreStartRecord = NULL; 

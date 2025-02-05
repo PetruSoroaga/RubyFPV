@@ -6,6 +6,7 @@
 
 extern u32 g_uPersistentAllAlarmsVehicle;
 extern u32 g_uPersistentAllAlarmsLocal;
+extern u32 g_uTotalLocalAlarmDevRetransmissions;
 
 void alarms_reset();
 void alarms_reset_vehicle();

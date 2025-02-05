@@ -152,7 +152,6 @@ void MenuControllerDev::addItems()
    m_pItemsSelect[1]->setSelectedIndex(pCS->iStreamerOutputMode);
    m_IndexStreamerMode = addMenuItem(m_pItemsSelect[1]);
 
-   m_IndexVersion = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
    m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
    m_IndexExit = addMenuItem(new MenuItem("Exit to shell", "Closes Ruby and exits to linux shell."));
 
@@ -288,89 +287,6 @@ void MenuControllerDev::onSelectItem()
       pCS->iFreezeOSD = m_pItemsSelect[14]->getSelectedIndex();
       save_ControllerSettings();
       valuesToUI();
-      return;
-   }
-
-   if ( m_IndexVersion == m_SelectedIndex )
-   {
-      char szComm[256];
-      char szBuff[1024];
-      char szOutput[1024];
-
-      Menu* pMenu = new Menu(0,"All Modules Versions",NULL);
-      pMenu->m_xPos = 0.32;
-      pMenu->m_yPos = 0.17;
-      pMenu->m_Width = 0.6;
-      
-      hw_execute_bash_command_raw_silent("./ruby_start -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_start: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_controller -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_controller: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_central -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_central: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_rt_station -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_station: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_rx_telemetry -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rx_telemetry: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_tx_rc -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_rc: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_i2c -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_i2c: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_PIPE);
-      hw_execute_bash_command_raw_silent(szComm, szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_PIPE, szOutput);
-      pMenu->addTopLine(szBuff);
-
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_SM);
-      hw_execute_bash_command_raw_silent(szComm, szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_SM, szOutput);
-      pMenu->addTopLine(szBuff);
-
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "./%s -ver", VIDEO_PLAYER_OFFLINE);
-      hw_execute_bash_command_raw_silent(szComm, szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s: %s", VIDEO_PLAYER_OFFLINE, szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_update_worker -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_update_worker: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_rt_vehicle -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_rt_vehicle: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      hw_execute_bash_command_raw_silent("./ruby_tx_telemetry -ver", szOutput);
-      removeTrailingNewLines(szOutput);
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ruby_tx_telemetry: %s", szOutput);
-      pMenu->addTopLine(szBuff);
-
-      add_menu_to_stack(pMenu);
       return;
    }
 

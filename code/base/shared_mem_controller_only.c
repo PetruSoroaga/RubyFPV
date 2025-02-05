@@ -37,139 +37,6 @@
 #include "shared_mem_controller_only.h"
 #include "../radio/radiopackets2.h"
 
-
-shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_read()
-{
-   void *retVal =  open_shared_mem(SHARED_MEM_ROUTER_PACKETS_STATS_HISTORY, sizeof(shared_mem_router_packets_stats_history), 1);
-   shared_mem_router_packets_stats_history *tretval = (shared_mem_router_packets_stats_history*)retVal;
-   return tretval;
-}
-
-shared_mem_router_packets_stats_history* shared_mem_router_packets_stats_history_open_write()
-{
-   void *retVal =  open_shared_mem(SHARED_MEM_ROUTER_PACKETS_STATS_HISTORY, sizeof(shared_mem_router_packets_stats_history), 0);
-   shared_mem_router_packets_stats_history *tretval = (shared_mem_router_packets_stats_history*)retVal;
-   return tretval;
-}
-
-void shared_mem_router_packets_stats_history_close(shared_mem_router_packets_stats_history* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_router_packets_stats_history));
-   //shm_unlink(SHARED_MEM_ROUTER_PACKETS_STATS_HISTORY);
-}
-
-
-void add_detailed_history_rx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countVideo, int countRetransmited, int countTelemetry, int countRC, int countPing, int countOther, int dataRateBPSMCS)
-{
-   if ( NULL == pSMRPSH )
-      return;
-
-   while( pSMRPSH->lastMilisecond != timeNowMs )
-   {
-      pSMRPSH->lastMilisecond++;
-      if ( pSMRPSH->lastMilisecond == 1000 )
-         pSMRPSH->lastMilisecond = 0;
-      pSMRPSH->rxHistoryPackets[pSMRPSH->lastMilisecond] = 0;
-      pSMRPSH->txHistoryPackets[pSMRPSH->lastMilisecond] = 0;
-   }
-
-   u16 val = pSMRPSH->rxHistoryPackets[pSMRPSH->lastMilisecond];
-   if ( countVideo > 0 )
-   if ( (val & 0x07) != 0x07 )
-      val = (val & (~0x07)) | ((val & 0x07)+1);
-
-   if ( countRetransmited > 0 )
-   if ( ((val>>3) & 0x07) != 0x07 )
-      val = (val & (~(0x07<<3))) | ((((val>>3) & 0x07)+1)<<3);
-
-   if ( countPing > 0 )
-   if ( ((val>>6) & 0x01) != 0x01 )
-      val = (val & (~(0x01<<6))) | ((((val>>6) & 0x01)+1)<<6);
-
-   if ( countTelemetry > 0 )
-   if ( ((val>>7) & 0x03) != 0x03 )
-      val = (val & (~(0x03<<7))) | ((((val>>7) & 0x03)+1)<<7);
-
-   if ( countRC > 0 )
-   if ( ((val>>9) & 0x03) != 0x03 )
-      val = (val & (~(0x03<<9))) | ((((val>>9) & 0x03)+1)<<9);
-
-   if ( countOther > 0 )
-   if ( ((val>>11) & 0x03) != 0x03 )
-      val = (val & (~(0x03<<11))) | ((((val>>11) & 0x03)+1)<<11);
-
-   if ( countRetransmited > 0 && dataRateBPSMCS > 0 )
-   {
-      u32 nRateIndex = 7;
-      int *pRates = getDataRatesBPS();
-      for ( int i=0; i<getDataRatesCount(); i++ )
-      if ( pRates[i] == dataRateBPSMCS )
-      {
-         nRateIndex = (u32)i;
-         break;
-      }
-      if ( nRateIndex > 7 )
-         nRateIndex = 7;
-      val = (val & (~(0x07<<13))) | (nRateIndex<<13);
-   }
-
-   pSMRPSH->rxHistoryPackets[pSMRPSH->lastMilisecond] = val;
-}
-
-void add_detailed_history_tx_packets(shared_mem_router_packets_stats_history* pSMRPSH, int timeNowMs, int countRetransmited, int countComands, int countPing, int countRC, int countOther, int dataRateBPSMCS)
-{
-   if ( NULL == pSMRPSH )
-      return;
-
-   while( pSMRPSH->lastMilisecond != timeNowMs )
-   {
-      pSMRPSH->lastMilisecond++;
-      if ( pSMRPSH->lastMilisecond == 1000 )
-         pSMRPSH->lastMilisecond = 0;
-      pSMRPSH->rxHistoryPackets[pSMRPSH->lastMilisecond] = 0;
-      pSMRPSH->txHistoryPackets[pSMRPSH->lastMilisecond] = 0;
-   }
-      
-   u16 val = pSMRPSH->txHistoryPackets[pSMRPSH->lastMilisecond];
-   if ( countRetransmited > 0 )
-   if ( (val & 0x07) != 0x07 )
-      val++;
-
-   if ( countComands > 0 )
-   if ( ((val>>3) & 0x07) != 0x07 )
-      val = (val & (~(0x07<<3))) | ((((val>>3) & 0x07)+1)<<3);
-
-   if ( countPing > 0 )
-   if ( ((val>>6) & 0x03) != 0x03 )
-      val = (val & (~(0x03<<6))) | ((((val>>6) & 0x03)+1)<<6);
-
-   if ( countRC > 0 )
-   if ( ((val>>8) & 0x07) != 0x07 )
-      val = (val & (~(0x07<<8))) | ((((val>>8) & 0x07)+1)<<8);
-
-   if ( countOther > 0 )
-   if ( ((val>>11) & 0x03) != 0x03 )
-      val = (val & (~(0x04<<11))) | ((((val>>11) & 0x03)+1)<<11);
-
-   if ( countRetransmited > 0 && dataRateBPSMCS > 0 )
-   {
-      u32 nRateIndex = 7;
-      int *pRates = getDataRatesBPS();
-      for ( int i=0; i<getDataRatesCount(); i++ )
-         if ( pRates[i] == dataRateBPSMCS )
-         {
-            nRateIndex = (u32)i;
-            break;
-         }
-      if ( nRateIndex > 7 )
-         nRateIndex = 7;
-      val = (val & (~(0x07<<13))) | (nRateIndex<<13);
-   }
-   pSMRPSH->txHistoryPackets[pSMRPSH->lastMilisecond] = val;
-}
-
-
 shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read()
 {
    void *retVal = open_shared_mem_for_read(SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
@@ -262,13 +129,13 @@ void shared_mem_controller_audio_decode_stats_close(shared_mem_audio_decode_stat
 
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_read()
 {
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_CONTROLLER_ADAPTIVE_VIDEO_INFO, sizeof(shared_mem_router_vehicles_runtime_info));
+   void *retVal = open_shared_mem_for_read(SHARED_MEM_CONTROLLER_ROUTER_VEHICLES_INFO, sizeof(shared_mem_router_vehicles_runtime_info));
    return (shared_mem_router_vehicles_runtime_info*)retVal;
 }
 
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_write()
 {
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_CONTROLLER_ADAPTIVE_VIDEO_INFO, sizeof(shared_mem_router_vehicles_runtime_info));
+   void *retVal = open_shared_mem_for_write(SHARED_MEM_CONTROLLER_ROUTER_VEHICLES_INFO, sizeof(shared_mem_router_vehicles_runtime_info));
    return (shared_mem_router_vehicles_runtime_info*)retVal;
 }
 

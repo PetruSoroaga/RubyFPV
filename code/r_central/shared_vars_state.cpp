@@ -63,7 +63,6 @@ bool g_bUpdateInProgress = false;
 int g_nFailedOTAUpdates = 0;
 int g_nSucceededOTAUpdates = 0;
 
-bool g_bIsVehicleLinkToControllerLost = false;
 bool g_bSyncModelSettingsOnLinkRecover = false;
 int g_nTotalControllerCPUSpikes = 0;
 

@@ -33,7 +33,6 @@ class MenuControllerRadioInterface: public Menu
       int m_IndexTXPreferred;
       int m_IndexCardModel;
       int m_IndexEnabled;
-      int m_IndexUsage;
       int m_IndexCapabilities;
       int m_IndexName;
       int m_IndexInternal;

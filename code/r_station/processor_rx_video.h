@@ -111,7 +111,7 @@ class ProcessorRxVideo
       void resetReceiveBuffers(int iToMaxIndex);
       void resetReceiveBuffersBlock(int iBlockIndex);
 
-      void updateVideoDecodingStats(u8* pRadioPacket, int iPacketLength);
+      void updateControllerRTInfoAndVideoDecodingStats(u8* pRadioPacket, int iPacketLength);
       
       void reconstructBlock(int rx_buffer_block_index);
 

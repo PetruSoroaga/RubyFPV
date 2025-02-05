@@ -52,8 +52,12 @@
 #include "test_link_params.h"
 #include "packets_utils.h"
 #include "processor_relay.h"
+#include "process_cam_params.h"
 #include "launchers_vehicle.h"
 #include "video_source_csi.h"
+#include "adaptive_video.h"
+
+extern u32 s_uTemporaryVideoBitrateBeforeNegociateRadio;
 
 u32 s_LoopCounter = 0;
 u32 s_debugFramesCount = 0;
@@ -277,70 +281,94 @@ void _check_for_debug_raspi_messages()
    */
 }
 
-
-void _check_free_storage_space()
+void _trigger_alarm_free_space(int iFreeSpaceKb)
 {
-   static u32 sl_uCountMemoryChecks = 0;
-   static u32 sl_uTimeLastMemoryCheck = 0;
-
-   if ( (0 == sl_uCountMemoryChecks && (g_TimeNow > g_TimeStart+2000)) || (g_TimeNow > sl_uTimeLastMemoryCheck + 60000) )
+   char szComm[128];
+   char szOutput[2048];
+   szOutput[0] = 0;
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "du -h %s", FOLDER_LOGS);
+   hw_execute_bash_command_raw(szComm, szOutput);
+   for( int i=0; i<(int)strlen(szOutput); i++ )
    {
-      sl_uCountMemoryChecks++;
-      sl_uTimeLastMemoryCheck = g_TimeNow;
-      
-      int iFreeSpaceKb = hardware_get_free_space_kb();
-      int iMinFreeKb = 100*1000;
-      #ifdef HW_PLATFORM_OPENIPC_CAMERA
-      iMinFreeKb = 100;
-      #endif
-      if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+     if ( isspace(szOutput[i]) )
+     {
+        szOutput[i] = 0;
+        break;
+     }
+   }
+   u32 uLogSize = 0;
+   int iSize = strlen(szOutput)-1;
+   if ( (iSize > 0) && (! isdigit(szOutput[iSize])) )
+   {
+      if ( szOutput[iSize] == 'M' || szOutput[iSize] == 'm' )
       {
-         char szComm[128];
-         char szOutput[2048];
-         szOutput[0] = 0;
-         sprintf(szComm, "du -h %s", FOLDER_LOGS );
-         hw_execute_bash_command_raw(szComm, szOutput);
          for( int i=0; i<(int)strlen(szOutput); i++ )
          {
-           if ( isspace(szOutput[i]) )
+           if ( isspace(szOutput[i]) || szOutput[i] == '.' )
            {
               szOutput[i] = 0;
               break;
            }
          }
-         u32 uLogSize = 0;
-         int iSize = strlen(szOutput)-1;
-         if ( (iSize > 0) && (! isdigit(szOutput[iSize])) )
+         sscanf(szOutput, "%u", &uLogSize);
+         uLogSize *= 1000 * 1000;
+      }
+      if ( szOutput[iSize] == 'K' || szOutput[iSize] == 'k' )
+      {
+         for( int i=0; i<(int)strlen(szOutput); i++ )
          {
-            if ( szOutput[iSize] == 'M' || szOutput[iSize] == 'm' )
-            {
-               for( int i=0; i<(int)strlen(szOutput); i++ )
-               {
-                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
-                 {
-                    szOutput[i] = 0;
-                    break;
-                 }
-               }
-               sscanf(szOutput, "%u", &uLogSize);
-               uLogSize *= 1000 * 1000;
-            }
-            if ( szOutput[iSize] == 'K' || szOutput[iSize] == 'k' )
-            {
-               for( int i=0; i<(int)strlen(szOutput); i++ )
-               {
-                 if ( isspace(szOutput[i]) || szOutput[i] == '.' )
-                 {
-                    szOutput[i] = 0;
-                    break;
-                 }
-               }
-               sscanf(szOutput, "%u", &uLogSize);
-               uLogSize *= 1000;
-            }
+           if ( isspace(szOutput[i]) || szOutput[i] == '.' )
+           {
+              szOutput[i] = 0;
+              break;
+           }
          }
-         log_line("Device is running out of free space. Free space: %d kb, logs use %d kb", iFreeSpaceKb, uLogSize);
-         send_alarm_to_controller(ALARM_ID_VEHICLE_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, uLogSize/1000, 5);
+         sscanf(szOutput, "%u", &uLogSize);
+         uLogSize *= 1000;
+      }
+   }
+   log_line("Device is running out of free space. Free space: %d kb, logs use %d kb", iFreeSpaceKb, uLogSize);
+   send_alarm_to_controller(ALARM_ID_VEHICLE_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, uLogSize/1000, 5);
+}
+
+void _check_free_storage_space()
+{
+   static u32 sl_uCountFreeSpaceChecks = 0;
+   static u32 sl_uTimeLastFreeSpaceCheck = 0;
+   static bool s_bWaitingForFreeSpaceyAsync = false;
+
+   int iMinFreeKb = 100*1000;
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   iMinFreeKb = 100;
+   #endif
+
+   if ( ! s_bWaitingForFreeSpaceyAsync )
+   if ( (0 == sl_uCountFreeSpaceChecks && (g_TimeNow > g_TimeStart+5000)) || (g_TimeNow > sl_uTimeLastFreeSpaceCheck + 60000) )
+   {
+      sl_uCountFreeSpaceChecks++;
+      sl_uTimeLastFreeSpaceCheck = g_TimeNow;
+      
+      int iFreeSpaceKb = hardware_get_free_space_kb_async();
+      if ( iFreeSpaceKb < 0 )
+      {
+         s_bWaitingForFreeSpaceyAsync = false;
+         int iFreeSpaceKb = hardware_get_free_space_kb();
+         if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+            _trigger_alarm_free_space(iFreeSpaceKb);
+      }
+      else
+         s_bWaitingForFreeSpaceyAsync = true;
+   }
+
+   if ( s_bWaitingForFreeSpaceyAsync )
+   {
+      int iFreeSpaceKb = hardware_has_finished_get_free_space_kb_async();
+      if ( iFreeSpaceKb >= 0 )
+      {
+         log_line("Free space: %d kb", iFreeSpaceKb);
+         s_bWaitingForFreeSpaceyAsync = false;
+         if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+            _trigger_alarm_free_space(iFreeSpaceKb);
       }
    }
 }
@@ -403,6 +431,9 @@ void _send_radio_stats_to_controller()
    {
       g_SM_RadioStats.radio_interfaces[i].timeNow = g_TimeNow;
    }
+
+   if ( (0 == g_uControllerId) || (!g_bReceivedPairingRequest) )
+      return;
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS, STREAM_ID_TELEMETRY);
@@ -481,7 +512,6 @@ void _send_radio_stats_to_controller()
       
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
    }
-
 }
 
 void _periodic_loop_check_ping()
@@ -565,7 +595,7 @@ void _update_videobitrate_history_data()
 {
    if ( g_bVideoPaused )
       return;
-   if ( ! (g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.layout] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY) )
+   if ( ! (g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY) )
       return;
 
    g_SM_DevVideoBitrateHistory.uGraphSliceInterval = g_pCurrentModel->telemetry_params.iVideoBitrateHistoryGraphSampleInterval;
@@ -623,6 +653,7 @@ void _check_send_initial_vehicle_settings()
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SEND_MODEL_SETTINGS, STREAM_ID_DATA);
       PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+      PH.vehicle_id_dest = g_uControllerId;
       PH.total_length = sizeof(t_packet_header);
 
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)&PH, PH.total_length);
@@ -636,29 +667,6 @@ void _check_send_initial_vehicle_settings()
    }
 }
 
-void _check_save_updated_camera_params()
-{
-   // Save lastest camera params to flash (on camera)
-   if ( 0 != g_uTimeToSaveCameraParams )
-   if ( g_TimeNow > g_uTimeToSaveCameraParams )
-   {
-      #ifdef HW_PLATFORM_RASPBERRY
-      if ( g_pCurrentModel->isActiveCameraVeye() )
-      {
-         log_line("Saving Veye camera parameters to flash memory.");
-         int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
-         char szComm[256];
-         if ( g_pCurrentModel->isActiveCameraVeye307() )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f paramsave -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
-         else if ( g_pCurrentModel->isActiveCameraVeye() )
-            sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f paramsave -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
-         hw_execute_bash_command(szComm, NULL);
-      }
-      #endif
-      g_uTimeToSaveCameraParams = 0;
-   }
-}
-
 void _periodic_update_radio_stats()
 {
    if ( radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow) )
@@ -666,7 +674,7 @@ void _periodic_update_radio_stats()
       // Send them to controller if needed
       bool bSend = false;
       if ( g_pCurrentModel )
-      if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS )
+      if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS )
           bSend = true;
       //if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
       //    bSend = true;
@@ -728,22 +736,25 @@ void _update_tx_out_stats()
          else
             strcpy(szBuff, "Failed to get SiK configuration from device.");
 
-         t_packet_header PH;
-         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
-         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-         PH.vehicle_id_dest = g_uControllerId;
-         PH.total_length = sizeof(t_packet_header) + strlen(szBuff)+3*sizeof(u8);
+         if ( (0 != g_uControllerId) && g_bReceivedPairingRequest )
+         {
+            t_packet_header PH;
+            radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_SIK_CONFIG, STREAM_ID_DATA);
+            PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+            PH.vehicle_id_dest = g_uControllerId;
+            PH.total_length = sizeof(t_packet_header) + strlen(szBuff)+3*sizeof(u8);
 
-         u8 uCommandId = 0;
+            u8 uCommandId = 0;
 
-         u8 packet[MAX_PACKET_TOTAL_SIZE];
-         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-         memcpy(packet+sizeof(t_packet_header), &g_uGetSiKConfigAsyncVehicleLinkIndex, sizeof(u8));
-         memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
-         memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
-         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+            u8 packet[MAX_PACKET_TOTAL_SIZE];
+            memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+            memcpy(packet+sizeof(t_packet_header), &g_uGetSiKConfigAsyncVehicleLinkIndex, sizeof(u8));
+            memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uCommandId, sizeof(u8));
+            memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
+            packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
 
-         log_line("Send back to radio Sik current config for vehicle radio link %d", (int)g_uGetSiKConfigAsyncVehicleLinkIndex+1);
+            log_line("Send back to radio Sik current config for vehicle radio link %d", (int)g_uGetSiKConfigAsyncVehicleLinkIndex+1);
+         }
          g_iGetSiKConfigAsyncResult = 0;
       }
    }
@@ -902,14 +913,15 @@ int periodicLoop()
       test_link_loop();
 
    _check_send_initial_vehicle_settings();
-   _check_save_updated_camera_params();
+   process_camera_periodic_loop();
 
    _periodic_update_radio_stats();
    
 
    if ( g_bNegociatingRadioLinks )
-   if ( (g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*1000) || (g_TimeNow > g_uTimeLastNegociateRadioLinksCommand + 4000) )
+   if ( (g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*2*1000) || (g_TimeNow > g_uTimeLastNegociateRadioLinksCommand + 8000) )
    {
+      adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
       g_uTimeStartNegociatingRadioLinks = 0;
       g_bNegociatingRadioLinks = false;
    }
@@ -951,6 +963,22 @@ int periodicLoop()
    {
       relay_on_relay_params_changed();
       g_TimeLastNotificationRelayParamsChanged = 0;
+   }
+
+
+   // Watchdog: do reboot here if tx-telemetry does not do it
+   if ( 0 != g_uTimeRequestedReboot )
+   if ( g_TimeNow > g_uTimeRequestedReboot + 10000 )
+   {
+      log_line("Reboot watchdog triggered. Do reboot here as tx-telemetry did not.");
+
+      vehicle_stop_rx_commands();
+      vehicle_stop_tx_telemetry();
+      vehicle_stop_rx_rc();
+      g_bQuit = true;
+      hardware_sleep_ms(200);
+      log_line("Will reboot now.");
+      hardware_reboot();
    }
 
    return 0;

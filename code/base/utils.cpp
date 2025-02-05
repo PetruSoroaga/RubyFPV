@@ -744,9 +744,14 @@ int utils_get_video_profile_mq_radio_datarate(Model* pModel)
    }
 
    // For MCS data rates, return a lower MCS data rate
+   //iDataRate = iMaxRadioDataRate;
+   //if ( iDataRate < -1 )
+   //   iDataRate++;
+
+   // MCS-1
    iDataRate = iMaxRadioDataRate;
-   if ( iDataRate < -1 )
-      iDataRate++;
+   if ( iDataRate <= -2 )
+      iDataRate = -2;
    return iDataRate;
 }
 
@@ -1011,6 +1016,9 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          }
          hw_execute_bash_command_raw(cmd, szOutput);
 
+         if ( 5 < strlen(szOutput) )
+            log_softerror_and_alarm("Received a response from set freq command: [%s]", szOutput);
+           
          if ( NULL != strstr( szOutput, "Invalid argument" ) )
          if ( bUsedHT40 )
          if ( pRadioInfo->isHighCapacityInterface )
@@ -1031,7 +1039,13 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             hw_execute_bash_command_raw(cmd, szOutput);
          }
 
-         if ( NULL != strstr( szOutput, "failed" ) )
+         if ( (NULL != strstr(szOutput, "busy")) || (NULL != strstr(szOutput, "such device")) )
+         {
+             hardware_initialize_radio_interface(i, delayMs);
+             hardware_sleep_ms(delayMs);
+             hw_execute_bash_command_raw(cmd, szOutput);
+         }
+         if ( NULL != strstr(szOutput, "failed") )
          {
             pRadioInfo->lastFrequencySetFailed = 1;
             pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;

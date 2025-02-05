@@ -55,6 +55,8 @@
 #define RADIO_PORT_ROUTER_UPLINK 0x0E     // from controller to vehicle
 #define RADIO_PORT_ROUTER_DOWNLINK 0x0F   // from vehicle to controller
 
+#define BROADCAST_VEHICLE_ID 1111111111
+
 #define MAX_RADIO_STREAMS 8
 #define MAX_VIDEO_STREAMS 4
 // (must be less than max radio streams - id of first video stream value below)
@@ -245,7 +247,7 @@ typedef struct
 #define PACKET_TYPE_VIDEO_ACK 21
 // uExtraData in header contains the acknoledged video frame id
 
-#define PACKET_TYPE_VIDEO_DATA_98 22
+#define PACKET_TYPE_VIDEO_DATA 22
 
 #define VIDEO_STREAM_INFO_FLAG_NONE 0
 #define VIDEO_STREAM_INFO_FLAG_SIZE 1
@@ -254,6 +256,10 @@ typedef struct
 #define VIDEO_STREAM_INFO_FLAG_VIDEO_PROFILE_FLAGS 4
 #define VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID 5
 
+//  [packet header][video segment header][video seg header important][video debug][video data][000]
+//  | pPH          | pPHVS               | pPHVSImp                  |pHVSDebug   |pActualVideoData
+//                                       [             <- video block packet size ->              ]
+//                                                                                [-vid size-]
 typedef struct
 {
    u8 uVideoStreamIndexAndType;
@@ -279,8 +285,6 @@ typedef struct
       //    bit 7  - 0/1: contains SPS/PPS-NAL data
 
 
-   u8 uCurrentVideoLinkProfile;
-  
    u8 uStreamInfoFlags;
    // See enum above
    //  0: none;
@@ -292,6 +296,7 @@ typedef struct
    
    u32 uStreamInfo; // value dependent on uStreamInfoFlags;
 
+   u8  uCurrentVideoLinkProfile;
    u16 uCurrentVideoKeyframeIntervalMs;
 
    u32 uCurrentBlockIndex;
@@ -300,15 +305,25 @@ typedef struct
    u8  uCurrentBlockDataPackets;
    u8  uCurrentBlockECPackets;
 
+   u16 uH264FrameIndex; // H264/H265 frame index (monotonically increasing)
+   u16 uH264NALIndex; // H264/H265 nal index (monotonically increasing. a frame can have multiple NALs)
+
    // Future
-   u16 uH264FrameId; // H264/H265 frame id (monotonically increasing)
-   u16 uH264SliceId; // H264/H265 slice id (monotonically increasing. a frame can have multiple slices)
-   u16 uDummy2;
-   u8  uDummy3;
-   u32 uDummy4;
-   u32 uExtraData; // not used, for future
-   // After video header, first two bites are the size of actual video data, part of error reconstruction as video data
-} __attribute__((packed)) t_packet_header_video_full_98;
+   u16 uDummy1;
+   u32 uDummy2;
+   // After video header comes the importad video header, part of error reconstruction as video data
+} __attribute__((packed)) t_packet_header_video_segment;
+
+typedef struct
+{
+   u16 uVideoDataLength;
+   u8  uFrameAndNALFlags;
+      // bit 0,1  how many packets untill endofframe
+      // bit 2  end of frame
+      // bit 3  has P nal
+      // bit 4  has I nal
+      // bit 5  has other nal   
+} __attribute__((packed)) t_packet_header_video_segment_important;
 
 typedef struct
 {
@@ -318,8 +333,7 @@ typedef struct
    u32 uTime4;
    u32 uTime5;
    u32 uTime6;
-   u32 uVideoCRC;
-} __attribute__((packed)) t_packet_header_video_full_98_debug_info;
+} __attribute__((packed)) t_packet_header_video_segment_debug_info; // Also part of error correction, if present, after header important
 
 
 //---------------------------------------
@@ -778,8 +792,16 @@ byte 4: command type:
 // u32 - request id
 // u8 - adaptive video level switched to (video profile): HQ,MQ,LQ etc, or 0xFF if not changed
 
-#define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE 64 // From controller to vehicle. Contains the deisred keyframe milisec value as an u32 and then u8 video stream index
-#define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK 65 // From vehicle to controller. Contains the acknowledge keyframe milisec value as an u32
+#define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE 64
+// From controller to vehicle.
+// u8 request id, monotonically increasing
+// u32 deisred keyframe milisec value
+// u8 video stream index
+
+#define PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK 65
+// From vehicle to controller.
+// u8 request id
+// u32 new milisec value
 
 #define PACKET_TYPE_SIK_CONFIG 70
 //
@@ -798,13 +820,12 @@ byte 4: command type:
 //       1: confirmation from vehicle
 //
 // u8: uCommand:
-//       1: change video datarate (uParam is an (int) datarate bps or negative mcs)
-//       2: change radio flags (uParam is the new radio flags)
-//       254: end and update (uParam is an (int) datarate bps or negative mcs)
+//       1: change video datarate (uParam1 is an (int) datarate bps or negative mcs; uParam2 are radio flags)
+//       254: end and update (uParam1 is an (int) datarate bps or negative mcs, uParam2 are radio flags)
 //       255: end no change (revert to original)
-// u32: uParam
+// u32: uParam1
+// u32: uParam2
 #define NEGOCIATE_RADIO_STEP_DATA_RATE 1
-#define NEGOCIATE_RADIO_STEP_RADIO_FLAGS 2
 #define NEGOCIATE_RADIO_STEP_END 254
 #define NEGOCIATE_RADIO_STEP_CANCEL 255
 
@@ -835,7 +856,7 @@ void radio_packet_init(t_packet_header* pPH, u8 component, u8 packet_type, u32 u
 void radio_packet_compute_crc(u8* pBuffer, int length);
 int radio_packet_check_crc(u8* pBuffer, int length);
 
-int radio_packet_type_is_high_priority(u8 uPacketType);
+int radio_packet_type_is_high_priority(u8 uPacketFlags, u8 uPacketType);
 
 void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v1* pV1);
 void radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(t_packet_header_ruby_telemetry_extended_v3* pV3, t_packet_header_ruby_telemetry_extended_v2* pV2);

@@ -43,13 +43,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ilclient.h"
 #include "base.h"
 
+
+typedef struct
+{
+   u32 lastActiveTime;
+   u32 uInBlockingOperation;
+} shared_mem_player_process_stats;
+shared_mem_player_process_stats* g_pSMProcessStats = NULL;
+
 int g_bQuit = 0;
 int g_fdSMem = -1;
 unsigned char* g_pSMem = NULL;
 
 void _onVSync(DISPMANX_UPDATE_HANDLE_T u, void* arg)
 {
-   //log_line("DEBUG2 vsync"); 
 }
 
 // To remove
@@ -148,8 +155,7 @@ static int video_decode()
            if ( iRetries <= 0 )
               return EXIT_FAILURE;
        }
-       struct timespec to_sleep = { 0, (long int)(20*1000*1000) };
-       nanosleep(&to_sleep, NULL);       
+       hardware_sleep_ms(10);
     }
     log_line("Opened fifo: [%s], fd=%d", szFIFOName, readfd);
    
@@ -208,8 +214,12 @@ static int video_decode()
 
          while ((data_len == 0) && (!g_bQuit))
          {
+            g_pSMProcessStats->lastActiveTime = get_current_timestamp_ms();
+            g_pSMProcessStats->uInBlockingOperation = 1;
             //int read_count = read(readfd, dest, pOMXBuffer->nAllocLen-data_len);
             int read_count = read(readfd, dest, (pOMXBuffer->nAllocLen>20000) ? 20000 : pOMXBuffer->nAllocLen);
+   
+            g_pSMProcessStats->uInBlockingOperation = 0;
             if ( (read_count < 0) || g_bQuit )
             {
                if ( read_count < 0 )
@@ -220,14 +230,9 @@ static int video_decode()
                break;
             }
             if ( (read_count == 0) && (!g_bQuit) )
-            {
-               struct timespec to_sleep = { 0, (long int)(2*1000*1000) };
-               nanosleep(&to_sleep, NULL);
-            }
+               hardware_sleep_ms(2);
             else
-            {
                data_len += read_count;
-            }
          } 
 
          if ( g_bQuit )
@@ -333,7 +338,7 @@ int main(int argc, char **argv)
 {
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("%d.%d (b%d)", 10,2,258);
+      printf("%d.%d (b%d)", 10,3,263);
       return 0;
    }
 
@@ -345,7 +350,6 @@ int main(int argc, char **argv)
 
    bcm_host_init();
 
-   /*
    pthread_t this_thread = pthread_self();
    struct sched_param params;
    int policy = 0;
@@ -355,7 +359,7 @@ int main(int argc, char **argv)
       log_softerror_and_alarm("Failed to get schedule param");
    else
       log_line("Current thread policy/priority: %d/%d", policy, params.sched_priority);
-
+   /*
    params.sched_priority = 60;
    ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
    if ( ret != 0 )
@@ -372,8 +376,36 @@ int main(int argc, char **argv)
    //DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open(0);
    //vc_dispmanx_vsync_callback(display, _onVSync, NULL); 
    _open_sm();
+
+   int fd = shm_open("RUBY_PLAYER_SM_STATS", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+   if ( fd < 0 )
+       log_softerror_and_alarm("Failed to open shared memory for player: %d, error: %s", errno, strerror(errno));
+   else
+   {
+      if (ftruncate(fd, sizeof(shared_mem_player_process_stats)) == -1)
+          log_softerror_and_alarm("Failed to init (ftruncate) shared memory for writing");
+      else
+      {
+         void* retval = mmap(NULL, sizeof(shared_mem_player_process_stats), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+         if (retval == MAP_FAILED)
+            log_softerror_and_alarm("Failed to map shared memory");
+         else
+            g_pSMProcessStats = (shared_mem_player_process_stats*)retval;
+      }
+      close(fd);
+   }
+
+   if ( NULL != g_pSMProcessStats )
+   {
+      memset(g_pSMProcessStats, 0, sizeof(shared_mem_player_process_stats));
+      g_pSMProcessStats->lastActiveTime = get_current_timestamp_ms();
+   }
+
    int iRet = video_decode();
+
    _close_sm();
+   if ( NULL != g_pSMProcessStats )
+      munmap(g_pSMProcessStats, sizeof(shared_mem_player_process_stats));   
    log_line("Exit now.");
    return iRet;
 }

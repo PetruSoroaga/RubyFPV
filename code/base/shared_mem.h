@@ -54,15 +54,23 @@ typedef struct
    u32 lastIPCIncomingTime;
    u32 lastIPCOutgoingTime;
    u32 timeLastReceivedPacket;
+   u32 uInBlockingOperation;
    u32 alarmFlags;
    u32 alarmTime;
    u32 alarmParam[4];
    u32 uLoopCounter;
+   u32 uLoopSubStep;
    u32 uTotalLoopTime;
    u32 uAverageLoopTimeMs;
    u32 uMaxLoopTimeMs;
 } ALIGN_STRUCT_SPEC_INFO shared_mem_process_stats;
 
+
+typedef struct
+{
+   u32 lastActiveTime;
+   u32 uInBlockingOperation;
+} shared_mem_player_process_stats;
 
 #define MAX_INTERVALS_VIDEO_LINK_SWITCHES 50
 #define MAX_INTERVALS_VIDEO_LINK_STATS 24
@@ -128,7 +136,7 @@ typedef struct
 typedef struct
 {
    u32 uLastTimeStatsUpdate; // Last time statistics where updated
-   u32 uLastFrameIndex; // Increases on each video frame de tected
+   u32 uLastFrameIndex; // Increases on each video frame detected
    u32 uLastFrameTime;
    u8 uFramesTypesAndDuration[MAX_FRAMES_SAMPLES];
      // highest 2 bits: 0-pframe, 1-iframe, 2-other frame
@@ -145,13 +153,6 @@ typedef struct
    u32 uAverageIFrameSizeBytes;
    u32 uAveragePFrameSizeBytes;
 
-   // Computed on OSD side
-   u32 uAverageFPS;
-   u32 uAverageFrameTime;
-   u32 uMaxFrameDeltaTime;
-   u32 uExtraValue1;
-   u32 uExtraValue2;
-   
 } ALIGN_STRUCT_SPEC_INFO shared_mem_video_frames_stats;
 
 #define MAX_RADIO_TX_TIMES_HISTORY_INTERVALS 50

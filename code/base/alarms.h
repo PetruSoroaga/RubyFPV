@@ -39,6 +39,7 @@
 #define ALARM_ID_FIRMWARE_OLD ((u32)(((u32)0x01)<<25))
 #define ALARM_ID_CPU_RX_LOOP_OVERLOAD ((u32)(((u32)0x01)<<26)) // param: loop miliseconds spike
 #define ALARM_ID_UNSUPPORTED_VIDEO_TYPE ((u32)(((u32)0x01)<<27))  // flags1: vehicle id, flags2: video type
+#define ALARM_ID_DEVELOPER_ALARM ((u32)(((u32)0x01)<<28))
 
 //-----------------------------------------------
 // Generic alarm
@@ -73,6 +74,8 @@
 #define ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_TRUNCATED ((u32)(((u32)0x01)<<5))
 #define ALARM_FLAG_IO_ERROR_VIDEO_USB_OUTPUT_WOULD_BLOCK ((u32)(((u32)0x01)<<6))
 #define ALARM_FLAG_IO_ERROR_VIDEO_MPP_DECODER_STALLED ((u32)(((u32)0x01)<<7))
+
+#define ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF 1
 
 #ifdef __cplusplus
 extern "C" {

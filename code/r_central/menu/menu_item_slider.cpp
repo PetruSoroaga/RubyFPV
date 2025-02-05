@@ -128,8 +128,6 @@ void MenuItemSlider::endEdit(bool bCanceled)
 
 void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidthSelection)
 {
-   RenderBaseTitle(xPos, yPos, bSelected, fWidthSelection);
-
    char szValue[64];
    sprintf(szValue, "%d", m_ValueCurrent);
    if ( m_HalfStepsEnabled )
@@ -166,6 +164,13 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       if ( sliderWidth < fMinSliderWidth )
          sliderWidth = fMinSliderWidth;
    }
+
+   if ( fWidthSelection + sliderWidth + valueWidth + valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
+      fWidthSelection = m_pMenu->getUsableWidth() - m_fMarginX - sliderWidth - valueWidth - valueMargin - Menu::getMenuPaddingX();
+
+   RenderBaseTitle(xPos, yPos, bSelected, fWidthSelection);
+
+
    float fSizeSelectorH = 0.8 * fHeightEdit;// 0.8 * m_RenderTitleHeight;
    float fSizeSelectorW = fSizeSelectorH*0.4;
 

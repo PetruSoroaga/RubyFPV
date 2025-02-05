@@ -71,6 +71,7 @@ void reset_Preferences()
    s_Preferences.iAHIStrokeSize = 0;
 
    s_Preferences.iUnits = prefUnitsMetric;
+   s_Preferences.iUnitsHeight = prefUnitsMetric;
 
    s_Preferences.iColorOSD[0] = 255;
    s_Preferences.iColorOSD[1] = 250;
@@ -196,6 +197,7 @@ int save_Preferences()
          fprintf(fd, "\n");
    }
    fprintf(fd, "\n");
+   fprintf(fd, "%d \n", s_Preferences.iUnitsHeight);
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
    return 1;
@@ -396,6 +398,12 @@ int load_Preferences()
          fscanf(fd, "%d %d", &s_Preferences.iDoNotShowAgainIds[i], &s_Preferences.iDoNotShowAgainValues[i]);
       }
    }
+
+   if ( bOk && (1 != fscanf(fd, "%d", &s_Preferences.iUnitsHeight)) )
+   {
+      s_Preferences.iUnitsHeight = prefUnitsMetric;
+   }
+   
    // ----------------------------------------------------
    // End reading file;
    // Validate settings

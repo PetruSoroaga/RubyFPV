@@ -88,9 +88,6 @@ void power_leds(int onoff)
 
 void _check_cpu_watchdog(u32 uTimeNow, int iCounter)
 {
-   //if ( (iCounter%3) == 0 )
-   //   log_line("DEBUG Alive %d", iCounter);
-
    static u32 s_uLastTimeWatchDog = 0;
 
    if ( 0 == s_uLastTimeWatchDog )

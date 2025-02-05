@@ -51,6 +51,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/resource.h>
+#include <pthread.h>
 
 #include "ruby_central.h"
 #include "../radio/radiolink.h"
@@ -115,8 +116,13 @@
 #include "process_router_messages.h"
 #include "quickactions.h"
 
-u32 s_idBgImage = 0;
-u32 s_idBgImageMenu = 0;
+u32 s_idBgImage[3];
+u32 s_idBgImageMenu[3];
+int s_iBgImageIndexPrev = 0;
+int s_iBgImageIndex = 0;
+u32 s_uTimeLastChangeBgImage = 0;
+
+bool g_bPlayIntro = true;
 
 bool g_bMarkedHDMIReinit = false;
 bool g_bIsReinit = false;
@@ -132,12 +138,9 @@ static u32 s_iMicroTimeMenuRender = 0;
 static u32 s_iMicroTimeOSDRender = 0;
 
 static u32 s_TimeLastRender = 0;
-static u32 s_TimeLastCPUCompute = 0;
-static u32 s_TimeLastCPUSpeed = 0;
 
 static u32 s_TimeCentralInitializationComplete = 0;
 static u32 s_TimeLastMenuInput = 0;
-static u32 s_PacketsScopeGraphZoomLevel = 1; // 0,1,2
 static u32 s_TimeLastRecordingStop = 0;
 
 static bool s_bFreezeOSD = false;
@@ -169,34 +172,78 @@ void load_resources()
 {
    loadAllFonts(true);
 
-   if ( access("res/custom_bg.png", R_OK) != -1 )
-   {
-      s_idBgImage = g_pRenderEngine->loadImage("res/custom_bg.png");
-      s_idBgImageMenu = g_pRenderEngine->loadImage("res/custom_bg.png");
-   }
+   srand(get_current_timestamp_ms());
+   s_iBgImageIndexPrev = -1;
+   s_iBgImageIndex = rand()%3;
+   if ( (s_iBgImageIndex < 0) || (s_iBgImageIndex > 2) )
+      s_iBgImageIndex = 0;
+
+   if ( access("res/ruby_bg1.png", R_OK) != -1 )
+      s_idBgImage[0] = g_pRenderEngine->loadImage("res/ruby_bg1.png");
+
+   if ( access("res/ruby_bg1_blr.png", R_OK) != -1 )
+      s_idBgImageMenu[0] = g_pRenderEngine->loadImage("res/ruby_bg1_blr.png");
    else
-   {
-      if ( (access("res/ruby_bg4.png", R_OK) != -1) &&  (access("res/ruby_bg5.png", R_OK) != -1) )
-      {
-         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg4.png");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg5.png");
-      }
-      else
-      {
-         s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
-         s_idBgImageMenu = g_pRenderEngine->loadImage("res/ruby_bg3.png");
-      }
-   }
+      s_idBgImageMenu[0] = s_idBgImage[0];
+
+
+   if ( access("res/ruby_bg2.png", R_OK) != -1 )
+      s_idBgImage[1] = g_pRenderEngine->loadImage("res/ruby_bg2.png");
+
+   if ( access("res/ruby_bg2_blr.png", R_OK) != -1 )
+      s_idBgImageMenu[1] = g_pRenderEngine->loadImage("res/ruby_bg2_blr.png");
+   else
+      s_idBgImageMenu[1] = s_idBgImage[1];
+
+
+   if ( access("res/ruby_bg3.png", R_OK) != -1 )
+      s_idBgImage[2] = g_pRenderEngine->loadImage("res/ruby_bg3.png");
+
+   if ( access("res/ruby_bg3_blr.png", R_OK) != -1 )
+      s_idBgImageMenu[2] = g_pRenderEngine->loadImage("res/ruby_bg3_blr.png");
+   else
+      s_idBgImageMenu[2] = s_idBgImage[2];
+
 
    osd_load_resources();
 }
 
 void _draw_background()
 {
+   if ( g_TimeNow > s_uTimeLastChangeBgImage + 20000 )
+   {
+      s_uTimeLastChangeBgImage = g_TimeNow;
+      int iIndex = s_iBgImageIndex;
+      while ( iIndex == s_iBgImageIndex )
+      {
+         iIndex = rand()%3;
+      }
+      s_iBgImageIndexPrev = s_iBgImageIndex;
+      s_iBgImageIndex = iIndex;
+      
+   }
+
+   int iImageId = s_idBgImage[s_iBgImageIndex];
+   int iImageIdPrev = s_idBgImage[s_iBgImageIndexPrev];
+   
    if ( isMenuOn() )
-      g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImageMenu);
+   {
+      iImageId = s_idBgImageMenu[s_iBgImageIndex];
+      iImageIdPrev = s_idBgImageMenu[s_iBgImageIndexPrev];
+   }
+
+   if ( (g_TimeNow >= s_uTimeLastChangeBgImage) && (g_TimeNow < s_uTimeLastChangeBgImage + 3000) )
+   {
+      int iAlpha = ((s_uTimeLastChangeBgImage+3000) - g_TimeNow)/12;
+      if ( iAlpha < 0 )
+         iAlpha = 0;
+      if ( iAlpha > 255 )
+         iAlpha = 255;
+      g_pRenderEngine->drawImage(0, 0, 1,1, iImageIdPrev);
+      g_pRenderEngine->drawImageAlpha(0, 0, 1,1, iImageId, 255-iAlpha);
+   }
    else
-      g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImage);
+      g_pRenderEngine->drawImage(0, 0, 1,1, iImageId);
 
    double cc[4] = { 80,30,40,1.0 };
 
@@ -247,299 +294,6 @@ void _draw_background()
    }
 }
 
-void render_graph_bg()
-{
-   float marginX = 10.0/g_pRenderEngine->getScreenWidth();
-   float marginTop = 80.0/g_pRenderEngine->getScreenHeight();
-   float marginBottom = 80.0/g_pRenderEngine->getScreenHeight();
-   float paddingLeft = 60.0/g_pRenderEngine->getScreenWidth();
-   float paddingRight = 20.0/g_pRenderEngine->getScreenWidth();
-   float paddingTop = 30.0/g_pRenderEngine->getScreenHeight();
-   float paddingBottom = 60.0/g_pRenderEngine->getScreenHeight();
-   float width = 1.0-2.0*marginX;
-   float height = 1.0-marginTop-marginBottom;
-
-   float startX = marginX + paddingLeft;
-   float endX = marginX + width - paddingRight;
-   float startY = marginTop + paddingTop;
-   float endY = marginTop + height - paddingBottom;
-   double c[4] = {0,0,0,0.9};
-   g_pRenderEngine->setFill(c[0],c[1],c[2],c[3]);
-   g_pRenderEngine->setStroke(c[0],c[1],c[2],c[3]);
-   g_pRenderEngine->setStrokeSize(0);
-   g_pRenderEngine->drawRect(marginX, marginTop, width, height);
-      
-   double cc[4] = { 80,30,40,0.88 };
-   char szBuff[256];
-
-   g_pRenderEngine->setColors(cc);
-   float height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
-
-   g_pRenderEngine->setFill(255,255,255,1);
-   g_pRenderEngine->setStroke(255,255,255,1);
-   g_pRenderEngine->setStrokeSize(1);
-
-   g_pRenderEngine->drawLine(startX-2.0*g_pRenderEngine->getPixelWidth(), endY-16.0*g_pRenderEngine->getPixelHeight(), endX, endY-16.0*g_pRenderEngine->getPixelHeight());
-   g_pRenderEngine->drawLine(startX-2.0*g_pRenderEngine->getPixelWidth(), endY-16.0*g_pRenderEngine->getPixelHeight(), startX-2.0*g_pRenderEngine->getPixelWidth(), startY);
-
-   g_pRenderEngine->drawText(startX+(endX-startX)/2.0-50.0/g_pRenderEngine->getScreenWidth(), endY-height_text*4.2-24.0/g_pRenderEngine->getScreenHeight(), g_idFontMenu, "ms");
-
-   int milisec = 100;
-   if ( s_PacketsScopeGraphZoomLevel == 1 )
-      milisec = 50;
-   if ( s_PacketsScopeGraphZoomLevel == 2 )
-      milisec = 25;
-
-   for( int i=0; i<=10; i++ )
-   {
-      sprintf(szBuff, "%d", i*milisec);
-      
-      float width_text = g_pRenderEngine->textRawWidth(g_idFontMenu, szBuff);   
-      int x = startX + (endX-startX)*i/10.0;
-      g_pRenderEngine->drawText(x-width_text*0.5, endY-24.0*g_pRenderEngine->getPixelHeight() - height_text*2.6, g_idFontMenu, szBuff);
-      g_pRenderEngine->drawLine(x, endY-16.0*g_pRenderEngine->getPixelHeight(), x, endY-32.0*g_pRenderEngine->getPixelHeight());
-      if ( i != 10 )
-         g_pRenderEngine->drawLine(x+(endX-startX)/20.0,endY-16.0*g_pRenderEngine->getPixelWidth(), x+(endX-startX)/20.0, endY-26.0*g_pRenderEngine->getPixelWidth());
-   }
-   
-
-   int slices = 8;
-   if ( s_PacketsScopeGraphZoomLevel == 1 )
-      slices = 16;
-   if ( s_PacketsScopeGraphZoomLevel == 2 )
-      slices = 32;
-
-   for( int i=0; i<=slices+2; i++ )
-   {
-      sprintf(szBuff, "%d", i-2);
-      if ( i < 2 )
-         sprintf(szBuff, "%d", 2-i);
-      float y = startY + (endY-startY )*i/(slices+2);
-      g_pRenderEngine->drawTextLeft(startX-22.0*g_pRenderEngine->getPixelWidth(), y-height_text*0.4, g_idFontMenu, szBuff);
-      g_pRenderEngine->drawLine(startX-10.0*g_pRenderEngine->getPixelWidth(), y, startX, y);
-   }
-}
-
-
-void render_router_pachets_history()
-{
-   float marginX = 10.0/g_pRenderEngine->getScreenWidth();
-   float marginTop = 80.0/g_pRenderEngine->getScreenHeight();
-   float marginBottom = 80.0/g_pRenderEngine->getScreenHeight();
-   float paddingLeft = 60.0/g_pRenderEngine->getScreenWidth();
-   float paddingRight = 20.0/g_pRenderEngine->getScreenWidth();
-   float paddingTop = 30.0/g_pRenderEngine->getScreenHeight();
-   float paddingBottom = 60.0/g_pRenderEngine->getScreenHeight();
-   float width = 1.0-2.0*marginX;
-   float height = 1.0-marginTop-marginBottom;
-   float contentHeight = height - paddingTop - paddingBottom;
-
-   render_graph_bg();
-   if ( NULL == g_pDebugSMRPST )
-      return;
-
-   int totalCountRC = 0;
-   int totalCountRCIn = 0;
-   int totalCountPing = 0;
-   int totalCountTelemetry = 0;
-
-   int slicesH = 1000;
-   int slicesVert = 8;
-   int bands = 1;
-   float bandHeight = contentHeight;
-   if ( s_PacketsScopeGraphZoomLevel == 1 )
-   {
-      slicesH = 500;
-      slicesVert = 16;
-      bands = 2;
-      bandHeight = contentHeight/2.0;
-   }
-   if ( s_PacketsScopeGraphZoomLevel == 2 )
-   {
-      slicesH = 250;
-      slicesVert = 32;
-      bands = 4;
-      bandHeight = contentHeight/4;
-   }
-
-   float sliceWidth = ((float)(width-paddingLeft-paddingRight))/(float)slicesH;
-   float sliceHeight = (height - paddingTop - paddingBottom)/(slicesVert+2);
-
-   int miliSec = g_pDebugSMRPST->lastMilisecond;
-   float lineHeight = bandHeight-2*sliceHeight;
-
-   int sliceStart = 0;
-
-
-   double colorVideo[4] = {180,180,180,0.4};
-   double colorRetr1[4] = {0,0,255,0.8};
-   double colorPing[4] = {250,0,0,0.9};
-   double colorTelem[4] = {250,255,0,0.7};
-   double colorRC[4] = {240,0,160,0.9};
-
-   float height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
-
-   float yLeg = marginBottom+paddingBottom+contentHeight;
-   float xLeg = marginX+paddingLeft + 150.0/g_pRenderEngine->getScreenWidth();
-
-   g_pRenderEngine->setStroke(255,255,255,1);
-   g_pRenderEngine->setStrokeSize(0.2);
-   g_pRenderEngine->setFill(colorPing[0], colorPing[1], colorPing[2], colorPing[3]);
-   g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "ping");
-   xLeg += 70.0/g_pRenderEngine->getScreenWidth();
-
-   g_pRenderEngine->setFill(colorTelem[0], colorTelem[1], colorTelem[2], colorTelem[3]);
-   g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "telem");
-   xLeg += 70.0/g_pRenderEngine->getScreenWidth();
-
-   g_pRenderEngine->setFill(colorRC[0], colorRC[1], colorRC[2], colorRC[3]);
-   g_pRenderEngine->drawRect(xLeg, yLeg, 20.0/g_pRenderEngine->getScreenWidth(), 10.0/g_pRenderEngine->getScreenHeight() );
-   g_pRenderEngine->drawText(xLeg+24.0/g_pRenderEngine->getScreenWidth(), yLeg, g_idFontMenu, "rc");
-   xLeg += 70.0/g_pRenderEngine->getScreenWidth();
-
-   for( int band=0; band<bands; band++ )
-   {
-      float xPos = marginX + paddingLeft;
-      float yPos = marginBottom + paddingBottom + (bands-band-1)*bandHeight + 2*sliceHeight;
-
-      g_pRenderEngine->setStroke(200,200,200,0.6);
-      g_pRenderEngine->setFill(200,200,200,0.6);
-      g_pRenderEngine->setStrokeSize(1);
-
-      g_pRenderEngine->drawLine(xPos, yPos-1.0*g_pRenderEngine->getPixelHeight(), xPos+(width-paddingLeft-paddingRight), yPos-1.0*g_pRenderEngine->getPixelHeight());
-      
-      g_pRenderEngine->setStrokeSize(0);
-
-      float y = yPos;
-      for( int i=sliceStart; i<slicesH+sliceStart; i++ )
-      {
-         u16 val = g_pDebugSMRPST->txHistoryPackets[i];
-         u16 countRe = val & 0x07;
-         u16 countPing = (val>>6) & 0x03;
-         //u16 countCom = (val>>3) & 0x07;
-         u16 countRc = (val>>8) & 0x07;
-         //u16 cRateTx = (val>>13) & 0x07;
-
-         totalCountRC += countRc;
-         totalCountPing += countPing;
-
-         y = yPos;
-         if ( countRe > 0 )
-         {
-            float h = countRe*sliceHeight*0.8;
-            g_pRenderEngine->setFill(colorRetr1[0], colorRetr1[1], colorRetr1[2], colorRetr1[3]);
-            g_pRenderEngine->setStroke(colorRetr1[0], colorRetr1[1], colorRetr1[2], 0.4);
-            g_pRenderEngine->setStrokeSize(0.2);
-
-            //if ( cRateTx > 0 && pRates[cRateTx] != pCS->iDataRate )
-            //{
-            //   g_pRenderEngine->setFill(colorRetr2[0], colorRetr2[1], colorRetr2[2], colorRetr2[3]);
-            //   g_pRenderEngine->setStroke(colorRetr2[0], colorRetr2[1], colorRetr2[2], 0.4);
-            //}
-            g_pRenderEngine->drawRect(xPos, y-h, sliceWidth, h);
-            g_pRenderEngine->setStrokeSize(0);
-
-            y -= h;
-         }
-         if ( countPing > 0  )
-         {
-            float h = countPing*sliceHeight*0.8;
-            g_pRenderEngine->setFill(colorPing[0], colorPing[1], colorPing[2], colorPing[3]);
-            g_pRenderEngine->setStroke(colorPing[0], colorPing[1], colorPing[2], 0.4);
-            g_pRenderEngine->setStrokeSize(0.2);
-            g_pRenderEngine->drawRect(xPos, y-h, sliceWidth, h);
-            y -= h;
-         }
-
-         if ( countRc > 0  )
-         {
-            float h = countRc*sliceHeight*0.8;
-            g_pRenderEngine->setFill(colorRC[0], colorRC[1], colorRC[2], colorRC[3]);
-            g_pRenderEngine->setStroke(colorRC[0], colorRC[1], colorRC[2], 0.6);
-            g_pRenderEngine->setStrokeSize(0.2);
-            g_pRenderEngine->drawRect(xPos, y-h, sliceWidth, h);
-            y -= h;
-         }
-
-      y = yPos;
-      val = g_pDebugSMRPST->rxHistoryPackets[i];
-      u8 cVideo = val & 0x07;
-      u8 cRetr = (val>>3) & 0x07;
-      u8 cPing  = (val>>6) & 0x01;
-      u8 cTelem = (val>>7) & 0x03;
-      u8 cRC = (val>>9) & 0x03;
-      totalCountTelemetry += cTelem;
-      totalCountRCIn += cRC;
-      if ( cVideo > 0 )
-      {
-         float h = sliceHeight * cVideo;
-         g_pRenderEngine->setFill(colorVideo[0], colorVideo[1], colorVideo[2], colorVideo[3]);
-         g_pRenderEngine->setStroke(colorVideo[0], colorVideo[1], colorVideo[2], 0.4);
-         g_pRenderEngine->setStrokeSize(0.0);
-         g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
-         g_pRenderEngine->setStrokeSize(0);
-         y += h;
-      }
-      if ( cRetr > 0 )
-      {
-         float h = sliceHeight * cRetr;
-         g_pRenderEngine->setFill(colorRetr1[0], colorRetr1[1], colorRetr1[2], colorRetr1[3]);
-         g_pRenderEngine->setStroke(colorRetr1[0], colorRetr1[1], colorRetr1[2], 0.4);
-         g_pRenderEngine->setStrokeSize(0.2);
-         g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
-         g_pRenderEngine->setStrokeSize(0);
-         y += h;
-      }
-      if ( cRC > 0 )
-      {
-         float h = sliceHeight * cRC;
-         g_pRenderEngine->setFill(colorRC[0], colorRC[1], colorRC[2], colorRC[3]);
-         g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
-         y += h;
-      }
-      if ( cTelem > 0 )
-      {
-         float h = sliceHeight * cTelem;
-         g_pRenderEngine->setFill(colorTelem[0], colorTelem[1], colorTelem[2], colorTelem[3]);
-         g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
-         y += h;
-      }
-      if ( cPing > 0 )
-      {
-         float h = sliceHeight * cPing;
-         g_pRenderEngine->setFill(colorPing[0], colorPing[1], colorPing[2], colorPing[3]);
-         g_pRenderEngine->drawRect(xPos, y, sliceWidth, h);
-         y += h;
-      }
-
-      xPos += sliceWidth;
-      }
-
-      if ( miliSec >= sliceStart && miliSec < sliceStart+slicesH )
-      {
-         g_pRenderEngine->setFill(150,150,150, 0.7);
-         g_pRenderEngine->setStroke(150,150,150, 0.7);
-         g_pRenderEngine->setStrokeSize(1);
-         g_pRenderEngine->drawLine(marginX+paddingLeft+width*(miliSec-sliceStart)/slicesH, yPos, marginX+paddingLeft+width*(miliSec-sliceStart)/slicesH, yPos + lineHeight);
-      }
-      sliceStart += slicesH;
-   }
-
-   g_pRenderEngine->setFill(255,255,255,1);
-   g_pRenderEngine->setStroke(255,255,255,1);
-   g_pRenderEngine->setStrokeSize(0.2);
-   height_text = g_pRenderEngine->textRawHeight(g_idFontMenu);
-
-   char szBuff[128];
-   sprintf(szBuff, "Telemetry: %d/sec", totalCountTelemetry);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop, g_idFontMenu, szBuff);
-   sprintf(szBuff, "RC (Out/In): %d/%d/sec", totalCountRC, totalCountRCIn);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*1.3, g_idFontMenu, szBuff);
-   sprintf(szBuff, "Ping: %d/sec", totalCountPing);
-   g_pRenderEngine->drawText(marginX+paddingLeft+5.0/g_pRenderEngine->getScreenWidth(), marginBottom+height-paddingTop-height_text*2.6, g_idFontMenu, szBuff);
-}
 
 void _render_video_player(u32 timeNow)
 {
@@ -589,18 +343,24 @@ void _render_video_player(u32 timeNow)
 
 void _render_video_background()
 {
+   if ( g_bPlayIntro )
+      return;
+
    u32 uVehicleIdFullVideo = 0;
+   u32 uVehicleSoftwareVersion = 0;
    bool bVehicleHasCamera = true;
    bool bDisplayingRelayedVideo = false;
 
    if ( NULL != g_pCurrentModel )
    {
       uVehicleIdFullVideo = g_pCurrentModel->uVehicleId;
+      uVehicleSoftwareVersion = g_pCurrentModel->sw_version;
       Model* pModel = relay_controller_get_relayed_vehicle_model(g_pCurrentModel);
       if ( NULL != pModel )
       if ( relay_controller_must_display_remote_video(pModel) )
       {
          uVehicleIdFullVideo = pModel->uVehicleId;
+         uVehicleSoftwareVersion = pModel->sw_version;
          bDisplayingRelayedVideo = true;
       }
    }
@@ -664,10 +424,28 @@ void _render_video_background()
    float width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
+
+   if ( (uVehicleSoftwareVersion >>16)  < 262 )
+   {
+      float fHeight = 1.5*g_pRenderEngine->textHeight(g_idFontOSDBig);
+      width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
+      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
+      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
+   }
 }
 
 void _render_background_and_paddings(bool bForceBackground)
-{ 
+{
+   if ( g_bPlayIntro )
+   {
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+      if ( access(szFile, R_OK) != -1 )
+         return;
+      g_bPlayIntro = false;
+   }
+
    bool showBg = true;
 
    if ( ! g_bSearching )
@@ -684,7 +462,16 @@ void _render_background_and_paddings(bool bForceBackground)
 
    if ( ! pairing_isStarted() )
       showBg = true;
-
+   if ( link_has_received_main_vehicle_ruby_telemetry() && (g_TimeNow < pairing_getStartTime() + 2000) )
+   {
+      bForceBackground = true;
+      showBg = true;
+   }
+   if ( (!link_has_received_main_vehicle_ruby_telemetry()) && (g_TimeNow < pairing_getStartTime() + 4000) )
+   {
+      bForceBackground = true;
+      showBg = true;
+   }
    if ( ! g_bFirstModelPairingDone )
       bForceBackground = true;
 
@@ -693,7 +480,7 @@ void _render_background_and_paddings(bool bForceBackground)
 
    if ( showBg || bForceBackground || (! link_has_received_videostream(0)) )
    {
-      if ( bForceBackground || (! pairing_isStarted()) )
+      if ( bForceBackground || (! pairing_isStarted()) || (g_TimeNow < pairing_getStartTime() + 2000) )
          _draw_background();
       else
          _render_video_background();
@@ -770,7 +557,13 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
          alarms_render();
    }
 
-   if ( NULL != pCS && (0 != pCS->iDeveloperMode) )
+   bool bDevMode = false;
+   if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
+      bDevMode = true;
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+      bDevMode = true;
+
+   if ( bDevMode )
    //if ( ! bForceBackground )
    if ( (! g_bToglleAllOSDOff) && (!g_bToglleStatsOff) )
    if ( ! p->iDebugShowFullRXStats )
@@ -778,8 +571,8 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
    //if ( g_bIsRouterReady )
    {
       char szBuff[64];
-      float yPos = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.014*osd_getScaleOSD();
-      float xPos = osd_getMarginX() + 0.01*osd_getScaleOSD();
+      float yPos = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.01*osd_getScaleOSD();
+      float xPos = osd_getMarginX() + 0.02*osd_getScaleOSD();
       if ( NULL != g_pCurrentModel && osd_get_current_layout_index() >= 0 && osd_get_current_layout_index() < MODEL_MAX_OSD_PROFILES )
       if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
       {
@@ -795,9 +588,20 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
          g_pRenderEngine->disableRectBlending();
          g_pRenderEngine->drawRect(xPos, yPos-0.003, 0.46, 0.03);
       }
-      osd_set_colors_text(get_Color_Dev());
-      osd_show_value( xPos, yPos, "[D]", g_idFontOSD );
 
+      osd_set_colors_text(get_Color_Dev());
+      if ( (g_TimeNow/500) % 2 )
+      {
+         float fHeight = g_pRenderEngine->textHeight(g_idFontOSDBig);
+         float fWidth = fHeight/g_pRenderEngine->getAspectRatio();
+         g_pRenderEngine->setFill(0,0,0,0.5);
+         g_pRenderEngine->setStroke(0,0,0,0);
+         g_pRenderEngine->disableRectBlending();
+         g_pRenderEngine->drawRect(xPos, yPos, fWidth*3, fHeight*2.4);
+         osd_set_colors_text(get_Color_Dev());
+         float fTWidth = g_pRenderEngine->textWidth(g_idFontOSDBig, "[D]");
+         osd_show_value( xPos+fWidth*1.5-fTWidth*0.5, yPos+fHeight*0.6, "[D]", g_idFontOSDBig );
+      }
       if ( p->iShowCPULoad )
       {
          xPos += 0.02*osd_getScaleOSD();
@@ -839,13 +643,8 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
       s_iRubyFPS = s_iFPSCount;
       s_iFPSCount = 0;
       s_iFPSLastTimeCheck = timeNow;
-      //printf("%u %d\n", s_iFPSLastTimeCheck, s_iRubyFPS);
-      //log_line("%u %d\n", s_iFPSLastTimeCheck, s_iRubyFPS);
    }
    
-   if ( g_bIsRouterPacketsHistoryGraphOn )
-      render_router_pachets_history();
-
    if ( NULL != p && p->iOSDFlipVertical )
       g_pRenderEngine->rotate180();
 
@@ -858,60 +657,69 @@ void render_all(u32 timeNow, bool bForceBackground, bool bDoInputLoop)
 }
 
 
-void compute_cpu_load(u32 timeNow)
+void* _thread_check_controller_cpu_state(void *argument)
 {
-   if ( timeNow < s_TimeLastCPUCompute + 2000 )
-      return;
-
-   s_TimeLastCPUCompute = timeNow;
-
-   FILE* fd = NULL;
-   static unsigned long long valgcpu[4] = {0,0,0,0};
-   unsigned long long tmp[4];
-   unsigned long long total;
-
-   fd = fopen("/proc/stat", "r");
-   if ( NULL != fd )
-   {
-      fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
-      fclose(fd);
-      fd = NULL;
-   }
-   else
-   {
-       tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0;
-   }
-   //printf("\n%llu, %llu, %llu, %llu", tmp[0], tmp[1], tmp[2], tmp[3] );
-   
-   if ( tmp[0] < valgcpu[0] || tmp[1] < valgcpu[1] || tmp[2] < valgcpu[2] || tmp[3] < valgcpu[3] )
-         g_ControllerCPULoad = 0;
-   else
-   {
-      total = (tmp[0] - valgcpu[0]) + (tmp[1] - valgcpu[1]) + (tmp[2] - valgcpu[2]);
-      if ( (total + (tmp[3] - valgcpu[3])) != 0 )
-         g_ControllerCPULoad = (total * 100) / (total + (tmp[3] - valgcpu[3]));
-   }
-      
-   valgcpu[0] = tmp[0]; valgcpu[1] = tmp[1]; valgcpu[2] = tmp[2]; valgcpu[3] = tmp[3]; 
-   //printf("\nCPU: %d %%\n", pDPVT->cpu_load);
-
-
-   if ( timeNow < s_TimeLastCPUSpeed + 5000 )
-      return;
-   
-   s_TimeLastCPUSpeed = timeNow;
+   log_line("Started thread to check CPU state...");
+   g_uControllerCPUFlags = hardware_get_flags();
+   g_iControllerCPUSpeedMhz = hardware_get_cpu_speed();
 
    int temp = 0;
-   fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
+   FILE* fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
    if ( NULL != fd )
    {
       fscanf(fd, "%d", &temp);
       fclose(fd);
       fd = NULL;
    }
-   g_ControllerTemp = temp/1000;
+   g_iControllerCPUTemp = temp/1000;
+   log_line("Finished thread to check CPU state.");
+   return NULL;
+}
 
-   g_ControllerCPUSpeed = hardware_get_cpu_speed();
+void compute_cpu_state()
+{
+   static u32 s_TimeLastCPUComputeLoad = 0;
+   static u32 s_TimeLastCPUComputeState = 0;
+
+   if ( g_TimeNow > s_TimeLastCPUComputeLoad + 1000 )
+   {
+      s_TimeLastCPUComputeLoad = g_TimeNow;
+
+      FILE* fd = NULL;
+      static unsigned long long valgcpu[4] = {0,0,0,0};
+      unsigned long long tmp[4];
+      unsigned long long total;
+
+      fd = fopen("/proc/stat", "r");
+      if ( NULL != fd )
+      {
+         fscanf(fd, "%*s %llu %llu %llu %llu", &tmp[0], &tmp[1], &tmp[2], &tmp[3] );
+         fclose(fd);
+         fd = NULL;
+      }
+      else
+      {
+          tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0;
+      }
+      
+      if ( tmp[0] < valgcpu[0] || tmp[1] < valgcpu[1] || tmp[2] < valgcpu[2] || tmp[3] < valgcpu[3] )
+            g_iControllerCPULoad = 0;
+      else
+      {
+         total = (tmp[0] - valgcpu[0]) + (tmp[1] - valgcpu[1]) + (tmp[2] - valgcpu[2]);
+         if ( (total + (tmp[3] - valgcpu[3])) != 0 )
+            g_iControllerCPULoad = (total * 100) / (total + (tmp[3] - valgcpu[3]));
+      }
+         
+      valgcpu[0] = tmp[0]; valgcpu[1] = tmp[1]; valgcpu[2] = tmp[2]; valgcpu[3] = tmp[3]; 
+   }
+
+   if ( g_TimeNow > s_TimeLastCPUComputeState + 10000 )
+   {
+      s_TimeLastCPUComputeState = g_TimeNow;
+      pthread_t pth;
+      pthread_create(&pth, NULL, &_thread_check_controller_cpu_state, NULL);
+   }
 }
 
 int ruby_start_recording()
@@ -1043,6 +851,67 @@ int ruby_stop_recording()
    return 0;
 }
 
+int exectuteActionsInputDebugStats()
+{
+   Preferences* p = get_Preferences();
+   if ( NULL == p )
+      return 0;
+   if ( g_bIsReinit || g_bSearching )
+      return 0;
+   if ( (!pairing_isStarted()) || (! g_bIsRouterReady) )
+      return 0;
+
+   int iRet = 0;
+
+   if ( p->iDebugStatsQAButton == 1 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1 )
+   {
+      g_bDebugStats = ! g_bDebugStats;
+      iRet = 1;
+   }
+
+   if ( p->iDebugStatsQAButton == 2 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2 )
+   {
+      g_bDebugStats = ! g_bDebugStats;
+      iRet = 1;
+   }
+
+   if ( p->iDebugStatsQAButton == 3 )
+   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3 )
+   {
+      g_bDebugStats = ! g_bDebugStats;
+      iRet = 1;
+   }
+
+   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK) )
+   if ( ! isMenuOn() )
+   {
+      g_bDebugStats = false;
+      iRet = 1;
+   }
+
+   if ( g_bDebugStats )
+   if ( ! isMenuOn() )
+   if ( ((p->iDebugStatsQAButton != 1) && (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1)) ||
+        ((p->iDebugStatsQAButton != 2) && (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2)) ||
+        ((p->iDebugStatsQAButton != 3) && (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3)) )
+   {
+      osd_debug_stats_toggle_freeze();
+      iRet = 1;
+   }
+
+   if ( g_bDebugStats )
+   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS) ||
+        (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_PLUS) )
+   if ( ! isMenuOn() )
+   {
+      osd_debug_stats_toggle_zoom();
+      iRet = 1;
+   }
+   return iRet;
+}
+
 void executeQuickActions()
 {
    ControllerSettings* pCS = get_ControllerSettings();
@@ -1074,30 +943,6 @@ void executeQuickActions()
       warnings_add(0, "Please connect to a vehicle first, to execute Quick Actions.");
       return;
    }
-
-   if ( g_bDebugStats )
-   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) )
-   {
-      osd_debug_stats_toggle_freeze();
-      return;
-   }
-   if ( g_bDebugStats )
-   if ( (keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) )
-   {
-      osd_debug_stats_toggle_zoom();
-      return;
-   }
-
-   if ( p->iDebugStatsQAButton == 1 )
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1 )
-      g_bDebugStats = ! g_bDebugStats;
-   if ( p->iDebugStatsQAButton == 2 )
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2 )
-      g_bDebugStats = ! g_bDebugStats;
-   if ( p->iDebugStatsQAButton == 3 )
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3 )
-      g_bDebugStats = ! g_bDebugStats;
-
 
    if ( pCS->iDevSwitchVideoProfileUsingQAButton >= 0 && pCS->iDevSwitchVideoProfileUsingQAButton < 3 )
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && (pCS->iDevSwitchVideoProfileUsingQAButton==0)) ||
@@ -1817,24 +1662,6 @@ void start_loop()
             log_line("Opened shared mem to RC tx process watchdog stats for reading.");
       }
 
-      /*
-      if ( g_bDebugState )
-      {
-         s_StartSequence = START_SEQ_COMPLETED;
-         g_bIsRouterPacketsHistoryGraphOn = true;
-         t_packet_header PH;
-         radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_START, STREAM_ID_DATA);
-         handle_commands_send_ruby_message(&PH, NULL, 0);
-         hardware_sleep_ms(500);
-         g_pDebugSMRPST = shared_mem_router_packets_stats_history_open_read();
-         if ( NULL == g_pDebugSMRPST )
-         {
-            log_softerror_and_alarm("Failed to open shared mem for read for router packets stats history.");
-            return;
-         } 
-      }
-      */
-      
       s_StartSequence = START_SEQ_COMPLETED;
       log_line("Start sequence: COMPLETED.");
       log_line("System Configured. Start sequence done.");
@@ -1886,54 +1713,6 @@ void start_loop()
    }
 }
 
-void packets_scope_input_loop()
-{
-   hardware_sleep_ms(20);
-
-   t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, 0, STREAM_ID_DATA);
-
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_PLUS )
-   {
-      s_PacketsScopeGraphZoomLevel++;
-      if ( s_PacketsScopeGraphZoomLevel > 2 )
-         s_PacketsScopeGraphZoomLevel = 0;
-   }
-
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MINUS )
-   {
-      s_PacketsScopeGraphZoomLevel--;
-      if ( s_PacketsScopeGraphZoomLevel > 2 )
-         s_PacketsScopeGraphZoomLevel = 2;
-   }
-
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_MENU )
-   {
-      g_bIsRouterPacketsHistoryGraphPaused = ! g_bIsRouterPacketsHistoryGraphPaused;
-
-         if ( g_bIsRouterPacketsHistoryGraphPaused )
-         {
-            PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-            PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_PAUSE;
-            handle_commands_send_ruby_message(&PH, NULL, 0);
-         }
-         else
-         {
-            PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-            PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_RESUME;
-            handle_commands_send_ruby_message(&PH, NULL, 0);
-         }
-   }
-
-   if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
-   {
-         PH.packet_flags = PACKET_COMPONENT_LOCAL_CONTROL;
-         PH.packet_type = PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_STOP;
-         handle_commands_send_ruby_message(&PH, NULL, 0);
-         g_bIsRouterPacketsHistoryGraphPaused = false;
-         g_bIsRouterPacketsHistoryGraphOn = false;
-   }
-}
 
 void clear_shared_mems()
 {
@@ -2026,8 +1805,15 @@ void synchronize_shared_mems()
          log_line("Opened shared mem to controller runtime info for reading.");
    }
    if ( NULL != g_pSMControllerRTInfo )
+   {
       memcpy((u8*)&g_SMControllerRTInfo, g_pSMControllerRTInfo, sizeof(controller_runtime_info));
-
+      if ( (g_SMControllerRTInfo.iCurrentIndex != g_SMControllerRTInfo.iCurrentIndex2) ||
+           (g_SMControllerRTInfo.iCurrentIndex2 != g_SMControllerRTInfo.iCurrentIndex3) )
+      {
+         if ( g_SMControllerRTInfo.iCurrentIndex2 == g_SMControllerRTInfo.iCurrentIndex3 )
+            g_SMControllerRTInfo.iCurrentIndex = g_SMControllerRTInfo.iCurrentIndex2;
+      }
+   }
    if ( NULL == g_pSMVehicleRTInfo )
    {
       g_pSMVehicleRTInfo = vehicle_rt_info_open_for_read();
@@ -2068,7 +1854,7 @@ void synchronize_shared_mems()
    
    if ( NULL != g_pCurrentModel )
    if ( g_pCurrentModel->bDeveloperMode )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       if ( NULL != g_pSM_VideoFramesStatsOutput )
       if ( g_TimeNow >= g_SM_VideoFramesStatsOutput.uLastTimeStatsUpdate + 200 )
@@ -2100,7 +1886,11 @@ void ruby_processing_loop(bool bNoKeys)
 
    hardware_sleep_ms(10);
 
+   u32 uTimeStart = get_current_timestamp_ms();
+
    try_read_messages_from_router(7);
+
+   u32 uTime1 = get_current_timestamp_ms();
 
    keyboard_consume_input_events();
    u32 uSumEvent = keyboard_get_triggered_input_events();
@@ -2109,34 +1899,38 @@ void ruby_processing_loop(bool bNoKeys)
       warnings_add_input_device_unknown_key((int)((uSumEvent >> 16) & 0xFF));
    handle_commands_loop();
 
+   u32 uTime2 = get_current_timestamp_ms();
+
    pairing_loop();
    
+   u32 uTime3 = get_current_timestamp_ms();
+
    synchronize_shared_mems();
 
-   if ( g_bIsRouterPacketsHistoryGraphOn )
-      packets_scope_input_loop();
-   else
-   {
-       if ( pCS->iFreezeOSD )
-       if ( pCS->iDeveloperMode )
-       if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
-       if ( ! isMenuOn() )
-       if ( g_TimeNow > s_uTimeFreezeOSD + 200 )
-       {
-          s_uTimeFreezeOSD = g_TimeNow;
-          s_bFreezeOSD = ! s_bFreezeOSD;
-       }
+   u32 uTime4 = get_current_timestamp_ms();
 
-       s_TimeLastMenuInput = g_TimeNow;
-       if ( ! bNoKeys )
-       {
-          menu_loop();
-          //if ( keyboard_has_long_press_flag() )
-          //   menu_loop_parse_input_events();
-          if ( keyboard_get_triggered_input_events() & (INPUT_EVENT_PRESS_QA1 | INPUT_EVENT_PRESS_QA2 | INPUT_EVENT_PRESS_QA3) )
-             executeQuickActions();
-       }
-   }
+    if ( pCS->iFreezeOSD )
+    if ( pCS->iDeveloperMode )
+    if ( keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_BACK )
+    if ( ! isMenuOn() )
+    if ( g_TimeNow > s_uTimeFreezeOSD + 200 )
+    {
+       s_uTimeFreezeOSD = g_TimeNow;
+       s_bFreezeOSD = ! s_bFreezeOSD;
+    }
+
+    s_TimeLastMenuInput = g_TimeNow;
+    if ( ! bNoKeys )
+    {
+       menu_loop();
+       //if ( keyboard_has_long_press_flag() )
+       //   menu_loop_parse_input_events();
+       if ( ! exectuteActionsInputDebugStats() )
+       if ( keyboard_get_triggered_input_events() & (INPUT_EVENT_PRESS_QA1 | INPUT_EVENT_PRESS_QA2 | INPUT_EVENT_PRESS_QA3) )
+          executeQuickActions();
+    }
+
+   u32 uTime5 = get_current_timestamp_ms();
 
    if ( g_iMustSendCurrentActiveOSDLayoutCounter > 0 )
    if ( g_TimeNow >= g_TimeLastSentCurrentActiveOSDLayout+200 )
@@ -2145,16 +1939,33 @@ void ruby_processing_loop(bool bNoKeys)
       g_iMustSendCurrentActiveOSDLayoutCounter--;
       g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
       handle_commands_decrement_command_counter();
-      handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.layout, NULL, 0);
+      handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.iCurrentOSDLayout, NULL, 0);
    }
+   // To remove
+   u32 uTime6 = get_current_timestamp_ms();
+   u32 uTime7 = get_current_timestamp_ms();
+   u32 uTime8 = get_current_timestamp_ms();
+   u32 uTime9 = get_current_timestamp_ms();
 
    if ( g_bIsRouterReady )
    {
       local_stats_update_loop();
+      uTime7 = get_current_timestamp_ms();
       forward_streams_loop();
+      uTime8 = get_current_timestamp_ms();
       link_watch_loop();
       warnings_periodic_loop();
+      uTime9 = get_current_timestamp_ms();
    }
+
+   u32 uTime10 = get_current_timestamp_ms();
+   u32 dTime = uTime10 - uTimeStart;
+   if ( dTime > 200 )
+   if ( (s_StartSequence == START_SEQ_COMPLETED) || (s_StartSequence == START_SEQ_FAILED) )
+      log_softerror_and_alarm("Main processing loop took too long (%u ms: %u %u %u %u %u %u %u %u %u %u).", dTime,
+          uTime1 - uTimeStart, uTime2-uTime1, uTime3-uTime2, uTime4-uTime3,
+          uTime5-uTime4, uTime6-uTime5, uTime7-uTime6, uTime8-uTime7,
+          uTime9-uTime8, uTime10-uTime9);
 }
 
 void main_loop_r_central()
@@ -2162,7 +1973,7 @@ void main_loop_r_central()
    ControllerSettings* pCS = get_ControllerSettings();
 
    hardware_sleep_ms(2);
-   
+
    ruby_processing_loop(false);
 
    if ( s_StartSequence != START_SEQ_COMPLETED && s_StartSequence != START_SEQ_FAILED )
@@ -2173,6 +1984,7 @@ void main_loop_r_central()
       render_all(g_TimeNow, false, false);
       if ( NULL != s_pProcessStatsCentral )
          s_pProcessStatsCentral->lastActiveTime = g_TimeNow;
+      log_line("Startup sequence now after rendering a step: %d", s_StartSequence);
       return;
    }
 
@@ -2186,7 +1998,7 @@ void main_loop_r_central()
       ruby_reinit_hdmi_display();
    }
 
-   compute_cpu_load(g_TimeNow);
+   compute_cpu_state();
 
    int dt = 1000/15;
    if ( 0 != pCS->iRenderFPS )
@@ -2332,11 +2144,18 @@ int main(int argc, char *argv[])
    
    setlocale(LC_ALL, "en_GB.UTF-8");
 
+   s_idBgImage[0] = 0;
+   s_idBgImage[1] = 0;
+   s_idBgImage[2] = 0;
+   s_idBgImageMenu[0] = 0;
+   s_idBgImageMenu[1] = 0;
+   s_idBgImageMenu[2] = 0;
+
    log_init("Central");
 
    check_licences();
    
-   char szFile[128];
+   char szFile[MAX_FILE_PATH_SIZE];
 
    g_uControllerId = controller_utils_getControllerId();
    log_line("Controller UID: %u", g_uControllerId);
@@ -2345,31 +2164,6 @@ int main(int argc, char *argv[])
    {
       log_line("Ruby Central crashed last time, reinitializing graphics engine...");
       g_bIsReinit = true;
-      /*
-      g_pRenderEngine = render_init_engine();
-      s_idBgImage = g_pRenderEngine->loadImage("res/ruby_bg2.png");
-
-      char szComm[256];
-      sprintf(szComm, "rm -rf %s", FILE_TMP_CONTROLLER_CENTRAL_CRASHED);
-      hw_execute_bash_command(szComm, NULL);         
-
-      g_TimeNow = get_current_timestamp_ms();
-
-      g_pRenderEngine->startFrame();
-      g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImage);
-      g_pRenderEngine->endFrame();
-
-      while ( get_current_timestamp_ms() < g_TimeNow+5000 )
-      {
-         hardware_sleep_ms(5);
-         g_pRenderEngine->startFrame();
-         g_pRenderEngine->drawImage(0, 0, 1,1, s_idBgImage);
-         g_pRenderEngine->endFrame();
-      }
-      
-      log_line("Done reinitializing graphics engine. Exit now.");
-      return 0;
-      */
    }
 
    strcpy(s_szFileHDMIChanged, FOLDER_CONFIG);
@@ -2382,20 +2176,6 @@ int main(int argc, char *argv[])
    log_line("Ruby UI starting");
 
    init_hardware();
-   hardware_init_serial_ports();
-
-   clear_shared_mems();   
-   ruby_clear_all_ipc_channels();
-
-   s_pProcessStatsCentral = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_CENTRAL);
-   if ( NULL == s_pProcessStatsCentral )
-      log_softerror_and_alarm("Failed to open shared mem for ruby_central process watchdog for writing: %s", SHARED_MEM_WATCHDOG_CENTRAL);
-   else
-      log_line("Opened shared mem for ruby_centrall process watchdog for writing.");
- 
-   ruby_pause_watchdog();
-
-   controller_compute_cpu_info();
 
    if ( ! load_Preferences() )
       save_Preferences();
@@ -2403,19 +2183,12 @@ int main(int argc, char *argv[])
    if ( ! load_ControllerSettings() )
       save_ControllerSettings();
 
-   hardware_i2c_load_device_settings();
-
-   if ( ! load_ControllerInterfacesSettings() )
-      save_ControllerInterfacesSettings();
-      
-   save_ControllerInterfacesSettings();
-
    Preferences* p = get_Preferences();
+   if ( p->nLogLevel != 0 )
+      log_only_errors();
+
    ControllerSettings* pcs = get_ControllerSettings();
-   if ( pcs->iPrioritiesAdjustment )
-      hw_set_priority_current_proc(pcs->iNiceCentral); 
-
-
+   
    #if defined (HW_PLATFORM_RASPBERRY)
    hdmi_enum_modes();
    #endif
@@ -2431,25 +2204,78 @@ int main(int argc, char *argv[])
    ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
    #endif
 
-   Menu::setRenderMode(p->iMenuStyle);
-
-   if ( p->nLogLevel != 0 )
-      log_only_errors();
-
    g_pRenderEngine = render_init_engine();
-
    log_line("Render Engine was initialized.");
-   
+
+   if ( g_bPlayIntro )
+   {
+      if ( g_bIsReinit )
+         g_bPlayIntro = false;
+      else
+      {
+         #ifdef HW_PLATFORM_RASPBERRY
+         char szComm[256];
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+         sprintf(szComm, "touch %s", szFile);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "./%s res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
+         hw_execute_bash_command_nonblock(szComm, NULL);
+         #endif
+         #ifdef HW_PLATFORM_RADXA_ZERO3
+         //for( int i=0; i<25; i++ )
+         //   hardware_sleep_ms(100);
+         //sprintf(szComm, "./%s -f res/intro.h264 20 -endexit&", VIDEO_PLAYER_OFFLINE);
+         //hw_execute_bash_command_nonblock(szComm, NULL);
+         #endif
+      }
+   }
+
    load_resources();
    osd_apply_preferences();
    menu_init();
+   Menu::setRenderMode(p->iMenuStyle);
    hardware_swap_buttons(p->iSwapUpDownButtons);
-
    warnings_remove_all();
+
+   hardware_init_serial_ports();
+
+   clear_shared_mems();   
+   ruby_clear_all_ipc_channels();
+
+   s_pProcessStatsCentral = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_CENTRAL);
+   if ( NULL == s_pProcessStatsCentral )
+      log_softerror_and_alarm("Failed to open shared mem for ruby_central process watchdog for writing: %s", SHARED_MEM_WATCHDOG_CENTRAL);
+   else
+      log_line("Opened shared mem for ruby_centrall process watchdog for writing.");
+ 
+   ruby_pause_watchdog();
+
+   controller_compute_cpu_info();
+
+   hardware_i2c_load_device_settings();
+
+   if ( ! load_ControllerInterfacesSettings() )
+      save_ControllerInterfacesSettings();
+      
+   save_ControllerInterfacesSettings();
+
+   if ( pcs->iPrioritiesAdjustment )
+      hw_set_priority_current_proc(pcs->iNiceCentral); 
+
+
+   g_TimeNow = get_current_timestamp_ms();
+   s_uTimeLastChangeBgImage = g_TimeNow;
 
    log_line("Started.");
 
    popupStartup.setFont(g_idFontMenu);
+   if ( g_bPlayIntro )
+   {
+      popupStartup.setBackgroundAlpha(0.3);
+      popupStartup.setXPos(0.03);
+      popupStartup.setYPos(0.05);
+   }
    popupNoModel.setFont(g_idFontMenu);
    popups_add(&popupStartup);
 
@@ -2507,12 +2333,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-         u32 uTimeStart = get_current_timestamp_ms();
          main_loop_r_central();
-         u32 dTime = get_current_timestamp_ms() - uTimeStart;
-         if ( dTime > 400 )
-         if ( s_StartSequence == START_SEQ_COMPLETED || s_StartSequence == START_SEQ_FAILED )
-            log_softerror_and_alarm("Main processing loop took too long (%u ms).", dTime);
       }
    }
    

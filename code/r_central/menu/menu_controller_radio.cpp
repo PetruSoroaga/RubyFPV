@@ -88,9 +88,8 @@ void MenuControllerRadio::valuesToUI()
       t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
       if ( NULL == pCRII )
          continue;
-      int iDriver = pRadioHWInfo->iRadioDriver;
       int iCardModel = pCRII->cardModel;
-      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(iDriver, iCardModel, pCRII->iRawPowerLevel);
+      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
       log_line("MenuControllerRadio: Current radio interface %d tx raw power: %d (%d mW, index %d)", i+1, pCRII->iRawPowerLevel, iMwPowers[iCountPowers], iCountPowers);
       
       iCountPowers++;
@@ -261,14 +260,13 @@ void MenuControllerRadio::onSelectItem()
             if ( NULL == pCRII )
                continue;
 
-            int iDriver = pRadioHWInfo->iRadioDriver;
             int iCardModel = pCRII->cardModel;
 
-            int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+            int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
             int iCardNewPowerMw = iPowerMwToSet;
             if ( iCardNewPowerMw > iCardMaxPowerMw )
                iCardNewPowerMw = iCardMaxPowerMw;
-            int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(iDriver, iCardModel, iCardNewPowerMw);
+            int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(0, iCardModel, iCardNewPowerMw);
             log_line("MenuControllerRadio: Setting tx raw power for card %d from %d to: %d (%d mw out of max %d mw for this card)",
                i+1, pCRII->iRawPowerLevel, iTxPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
             pCRII->iRawPowerLevel = iTxPowerRawToSet;

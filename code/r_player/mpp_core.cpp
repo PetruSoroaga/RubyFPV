@@ -32,7 +32,7 @@
 #include "mpp_core.h"
 
 #define READ_VIDEO_BUF_SIZE (2*1024*1024) // SZ_1M https://github.com/rockchip-linux/mpp/blob/ed377c99a733e2cdbcc457a6aa3f0fcd438a9dff/osal/inc/mpp_common.h#L179
-#define MAX_VIDEO_FRAMES 12  // min 16 and 20+ recommended (mpp/readme.txt)
+#define MAX_VIDEO_FRAMES 64  // min 16 and 20+ recommended (mpp/readme.txt)
 #define CODEC_ALIGN(x, a)   (((x)+(a)-1)&~((a)-1))
 
 typedef struct
@@ -81,7 +81,7 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
     mpp_packet_set_length(g_MPPInputPacket, iLength);
 
     struct timespec spec;
-    clock_gettime(1, &spec);
+    clock_gettime(RUBY_HW_CLOCK_ID, &spec);
     uint64_t tTime = spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
     mpp_packet_set_pts(g_MPPInputPacket,(RK_S64) tTime);
 
@@ -91,7 +91,7 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
     while ( (!g_bQuit) && (MPP_OK != g_pMPPApi->decode_put_packet(g_MPPCtx, g_MPPInputPacket)) )
     {
         iStallCount++;
-        clock_gettime(1, &spec);
+        clock_gettime(RUBY_HW_CLOCK_ID, &spec);
         uint64_t tTimeNow = spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
         iElapsed = (int)(tTimeNow - tTimeStart);
         if ( iElapsed > 200 )
@@ -99,7 +99,7 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
             log_softerror_and_alarm("[MPP] Failed to feed data to MPP decoder, stalled for %d ms, stall counter: %d", iElapsed, iStallCount);
             return iElapsed;
         }
-        usleep(2000);
+        hardware_sleep_micros(2000);
     }
     if ( (iStallCount > 0) && (iElapsed > 20) )
        log_softerror_and_alarm("[MPP] Stalled feeding data for %d ms, stall count: %d", iElapsed, iStallCount);
@@ -242,7 +242,7 @@ void* _mpp_thread_update_display(void *param)
 void* _mpp_thread_frame_decode(void *param)
 {
    log_line("[MPPThreadDecoder] Started.");
-   hw_increase_current_thread_priority("MPPFrameDecode", 40);
+   hw_increase_current_thread_priority("MPPFrameDecode", 10);
 
    MppFrame pFrame  = NULL;
 
@@ -457,7 +457,7 @@ int mpp_mark_end_of_stream()
    mpp_packet_set_length(g_MPPInputPacket, 0);
    while ( MPP_OK != g_pMPPApi->decode_put_packet(g_MPPCtx, g_MPPInputPacket) )
    {
-      usleep(10000);
+      hardware_sleep_micros(10000);
    }
    pthread_join(g_MPPDecodeThread, NULL );
    pthread_join(g_MPPUpdateDisplayThread, NULL );

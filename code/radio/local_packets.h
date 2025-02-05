@@ -11,17 +11,12 @@
 #define PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO 152
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM 153
 #define PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED 154  // vehicle_id_src is the component id that triggered the change (first byte) and the type of change (second byte)
-#define PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED 156 // video encodings have changed and tx video must update.
 #define PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED 157  // vehicle_id_src is the component id that triggered the change
 #define PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM 158
 #define PACKET_TYPE_LOCAL_CONTROL_REBOOT 160  // vehicle_id_src is the component id that triggered the change
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATE_STARTED 161
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED 162
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATE_FINISHED 163
-#define PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_START 165
-#define PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_STOP 166
-#define PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_PAUSE 167
-#define PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_RESUME 168
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATED_VIDEO_LINK_OVERWRITES 170 // sent by vehicle to other components locally to tell them the updated video link overwrites (a shared_mem_video_link_overwrites structure after header)
 
 #define PACKET_TYPE_LOCAL_CONTROL_RELAY_MODE_SWITCHED 171 // vehicle_id_src is the new relay mode
@@ -35,7 +30,6 @@
 #define PACKET_TYPE_LOCAL_CONTROL_REINITIALIZE_RADIO_LINKS 177
 #define PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT 180 // Same as a PACKET_TYPE_RUBY_LOG_FILE_SEGMENT
 #define PACKET_TYPE_LOCAL_CONTROL_PAUSE_LOCAL_VIDEO_DISPLAY 181 // vehicle_id_dest or src: 0: resume, 1: pause
-#define PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED 183
 #define PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED 184
 #define PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH 185 // vehicle id src is search freq in Khz
 
@@ -46,7 +40,10 @@
 #define PACKET_TYPE_LOCAL_CONTROL_FORCE_VIDEO_PROFILE 194 // vehicle_id_dest contains the new video profile to force and keep, or 0xFF to reset it
 
 
-#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM 201 // packet_index u32: first byte: param to change, second-third byte: value to change to
+#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAMS 201
+// u8 camera index
+// 1..N camera  params (type_camera_parameters struct)
+
 #define PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS 205 // contains a type_vehicle_stats_info structure
 
 #define PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED 206 // used when changed the search frequency on the controller // vehicle_dest_src is the new frequency to search on

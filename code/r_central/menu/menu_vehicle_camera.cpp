@@ -80,7 +80,6 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexProfile = -1;
    m_IndexBrightness = m_IndexContrast = m_IndexSaturation = m_IndexSharpness = -1;
    m_IndexHue = -1;
-   m_IndexAWBMode = -1;
    m_IndexEV = m_IndexEVValue = -1;
    m_IndexAGC = -1;
    m_IndexExposureMode = m_IndexExposureValue = m_IndexWhiteBalance = -1;
@@ -252,13 +251,6 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[14]->setMargin(fMargin);
       m_IndexWDR = addMenuItem(m_pItemsSelect[14]);
    }
-
-   //m_pItemsSelect[10] = new MenuItemSelect("AWB Mode");
-   //m_pItemsSelect[10]->addSelection("Mode 1");
-   //m_pItemsSelect[10]->addSelection("Mode 2");
-   //m_pItemsSelect[10]->setIsEditable();
-   //m_IndexAWBMode = addMenuItem(m_pItemsSelect[10]);
-
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() )
    {
@@ -619,9 +611,6 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
       else
          m_pItemsSelect[21]->setSelectedIndex(0);
    }
-
-   //if ( m_IndexAWBMode != -1 )
-   //   m_pItemsSelect[10]->setSelection((g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCameraProfileIndex].flags & CAMERA_FLAG_AWB_MODE_OLD)?0:1);
 }
 
 void MenuVehicleCamera::valuesToUI()
@@ -782,14 +771,6 @@ void MenuVehicleCamera::sendCameraParams(int itemIndex, bool bQuick)
 
    if ( m_IndexWhiteBalance != -1 )
       cparams.profiles[iProfile].whitebalance = m_pItemsSelect[3]->getSelectedIndex();
-
-   if ( m_IndexAWBMode != -1 )
-   {
-      if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
-         cparams.profiles[iProfile].uFlags |= CAMERA_FLAG_AWB_MODE_OLD;
-      else
-         cparams.profiles[iProfile].uFlags &= ~CAMERA_FLAG_AWB_MODE_OLD;
-   }
 
    if ( (m_IndexAGC != -1) && (m_pItemsSlider[7] != NULL) )
    {
@@ -996,10 +977,6 @@ void MenuVehicleCamera::onSelectItem()
       sendCameraParams(-1, false);
 
    if ( m_IndexWhiteBalance == m_SelectedIndex )
-      sendCameraParams(-1, false);
-
-
-   if ( m_IndexAWBMode == m_SelectedIndex )
       sendCameraParams(-1, false);
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() )

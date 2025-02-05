@@ -31,8 +31,8 @@ int hw_process_exists(const char* szProcName)
          return 0;
       if ( 1 != sscanf(p, "%d", &iPID) )
          return 0;
-      if ( iPID < 10 )
-         return 1;
+      if ( iPID < 100 )
+         return 0;
       return iPID;
    }
 
@@ -40,8 +40,8 @@ int hw_process_exists(const char* szProcName)
       return 0;
    if ( 1 != sscanf(p, "%d", &iPID) )
       return 0;
-   if ( iPID < 10 )
-      return 1;
+   if ( iPID < 100 )
+      return 0;
    return iPID;
 }
 
@@ -129,6 +129,7 @@ int hw_kill_process(const char* szProcName, int iSignal)
       hw_execute_bash_command_raw(szCommStop, NULL);
       szPids[0] = 0;
       hw_execute_bash_command_raw(szComm, szPids);
+      removeTrailingNewLines(szPids);
       if ( strlen(szPids) < 3 )
          return 1;
       log_line("Process still exists (%d), %s pid is: %s", retryCount, szProcName, szPids);
@@ -426,7 +427,7 @@ int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, 
    }
    if ( uTimeoutMs == 0 )
       uTimeoutMs = 5;
-   char szBuff[1024];
+   char szBuff[2048];
    u32 uTimeStart = get_current_timestamp_ms();
    int iCountRead = 0;
    int iRead = 0;
@@ -440,7 +441,7 @@ int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, 
       if ( iRead > 0 )
       {
          iCountRead += iRead;
-         if ( NULL != pOut )
+         if ( (NULL != pOut) && (iCountRead < 4094) )
          {
             szBuff[iRead] = 0;
             memcpy(pOut, szBuff, iRead+1);
@@ -558,6 +559,12 @@ int hw_execute_bash_command_raw(const char* command, char* outBuffer)
    return _hw_execute_bash_command(command, outBuffer, 0, 3000);
 }
 
+int hw_execute_bash_command_raw_timeout(const char* command, char* outBuffer, u32 uTimeoutMs)
+{
+   log_line("Executing command raw timeout %u ms: %s", uTimeoutMs, command);
+   return _hw_execute_bash_command(command, outBuffer, 0, uTimeoutMs); 
+}
+
 int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer)
 {
    return _hw_execute_bash_command(command, outBuffer, 1, 3000);
@@ -642,6 +649,32 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       log_softerror_and_alarm("Failed to launch and confirm Ruby process: [%s]", szCommand);
    else
       log_line("Launched Ruby process: [%s]", szCommand);
+}
+
+// Returns current priority
+int hw_get_current_thread_priority(const char* szLogPrefix)
+{
+   char szTmp[2];
+   szTmp[0] = 0;
+   char* szPrefix = szTmp;
+   if ( (NULL != szLogPrefix) && (0 != szLogPrefix[0]) )
+     szPrefix = (char*)szLogPrefix;
+
+   pthread_t this_thread = pthread_self();
+   struct sched_param params;
+   int policy = 0;
+   int iRetValue = -1;
+   int ret = 0;
+   ret = pthread_getschedparam(this_thread, &policy, &params);
+   if ( ret != 0 )
+     log_softerror_and_alarm("%s Failed to get schedule param", szPrefix);
+   else
+   {
+      iRetValue = params.sched_priority;
+      log_line("%s Current thread policy/priority: %d/%d", szPrefix, policy, params.sched_priority);
+   }
+   
+   return iRetValue;
 }
 
 // Returns previous priority or -1 for error

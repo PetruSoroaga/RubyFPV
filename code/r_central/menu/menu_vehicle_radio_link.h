@@ -45,6 +45,7 @@ class MenuVehicleRadioLink: public Menu
       int m_IndexDataRateTypeUplink;
       int m_IndexDataRateDataDownlink;
       int m_IndexDataRateDataUplink;
+      int m_IndexAutoTelemetryRates;
       int m_IndexHT;
       int m_IndexLDPC;
       int m_IndexSGI;

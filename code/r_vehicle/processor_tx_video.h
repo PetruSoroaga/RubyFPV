@@ -73,7 +73,6 @@ bool process_data_tx_is_on_iframe();
 int process_data_tx_video_has_packets_ready_to_send();
 int process_data_tx_video_send_packets_ready_to_send(int howMany);
 
-void process_data_tx_video_signal_encoding_changed();
 void process_data_tx_video_signal_model_changed();
 
 void process_data_tx_video_pause_tx();

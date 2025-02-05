@@ -227,6 +227,7 @@ typedef struct
    u32 all_downlinks_tx_time_per_sec;
    u32 tmp_all_downlinks_tx_time_per_sec;
    u32 timeLastRxPacket;
+   u32 timeLastTxPacket;
    u32 uLastTimeReceivedAckFromAVehicle;
    
    int iMaxRxQuality;

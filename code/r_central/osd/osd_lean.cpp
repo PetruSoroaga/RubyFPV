@@ -98,18 +98,16 @@ void render_osd_layout_lean()
 
    xCell += xCellWidth;
    
-   double* pC = get_Color_OSDText();
+   double pC[4];
+   memcpy(pC, get_Color_OSDText(), 4*sizeof(double));
+
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bWarningBatteryVoltage )
    {
-      pC = get_Color_OSDWarning();
-      float fA = pC[3];
+      memcpy(pC, get_Color_OSDWarning(), 4*sizeof(double));
       if ( (( g_TimeNow / 300 ) % 3) == 0 )
          pC[3] = 0.0;
-      g_pRenderEngine->setColors(pC);
-      pC[3] = fA;
    }
-   else
-      g_pRenderEngine->setColors(pC);
+   g_pRenderEngine->setColors(pC);
 
    strcpy(szBuff, "BATT (V) 0");
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
@@ -345,7 +343,7 @@ void render_osd_layout_lean()
       float alt = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude_abs/100.0f-1000.0;
       if ( NULL != g_pCurrentModel && g_pCurrentModel->osd_params.altitude_relative && 0 != g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude)
          alt = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude/100.0f-1000.0;
-      alt = _osd_convertMeters(alt);
+      alt = _osd_convertHeightMeters(alt);
       if ( fabs(alt) < 10.0 )
       {
          if ( fabs(alt) < 0.1 )
@@ -358,7 +356,7 @@ void render_osd_layout_lean()
          sprintf(szBuff, "0");
 
       osd_show_value_centered(xCell+xCellWidth/2, yBig, szBuff,  g_idFontOSDBig);
-      if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
+      if ( (pP->iUnitsHeight == prefUnitsImperial) || (pP->iUnitsHeight == prefUnitsFeets) )
          osd_show_value_centered(xCell+xCellWidth/2, yText, "ALTITUDE (ft)", g_idFontOSDSmall);
       else
          osd_show_value_centered(xCell+xCellWidth/2, yText, "ALTITUDE (m)", g_idFontOSDSmall);
@@ -582,7 +580,7 @@ void render_osd_layout_lean_extended()
          float alt = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude_abs/100.0f-1000.0;
          if ( NULL != g_pCurrentModel && g_pCurrentModel->osd_params.altitude_relative && 0 != g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude)
             alt = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.altitude/100.0f-1000.0;
-         alt = _osd_convertMeters(alt);
+         alt = _osd_convertHeightMeters(alt);
          if ( fabs(alt) < 10.0 )
          {
             if ( fabs(alt) < 0.1 )
@@ -595,7 +593,7 @@ void render_osd_layout_lean_extended()
             sprintf(szBuff, "0");
 
          osd_show_value_centered(xCell+xCellWidth/2, yLine1, szBuff,  fontLine1);
-         if ( pP->iUnits == prefUnitsImperial || pP->iUnits == prefUnitsFeets )
+         if ( (pP->iUnitsHeight == prefUnitsImperial) || (pP->iUnitsHeight == prefUnitsFeets) )
             osd_show_value_centered(xCell+xCellWidth/2, yLine2, "ALT (ft)", fontLine2);
          else
             osd_show_value_centered(xCell+xCellWidth/2, yLine2, "ALT (m)", fontLine2);
@@ -642,18 +640,15 @@ void render_osd_layout_lean_extended()
       xCell += xCellWidth;
    }
 
-   double* pC = get_Color_OSDText();
+   double pC[4];
+   memcpy(pC, get_Color_OSDText(), 4*sizeof(double));
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bWarningBatteryVoltage )
    {
-      pC = get_Color_OSDWarning();
-      float fA = pC[3];
+      memcpy(pC, get_Color_OSDWarning(), 4*sizeof(double));
       if ( (( g_TimeNow / 300 ) % 3) == 0 )
          pC[3] = 0.0;
-      g_pRenderEngine->setColors(pC);
-      pC[3] = fA;
    }
-   else
-      g_pRenderEngine->setColors(pC);
+   g_pRenderEngine->setColors(pC);
 
    strcpy(szBuff, "0");
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )

@@ -46,7 +46,7 @@
 #include "../utils/utils_controller.h"
 
 #include "packets_utils.h"
-#include "links_utils.h"
+#include "ruby_rt_station.h"
 
 int s_iFailedInitRadioInterface = -1;
 u32 s_uTimeLastCheckedAuxiliaryLinks = 0;
@@ -67,9 +67,8 @@ void radio_links_reinit_radio_interfaces()
    
    send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURING_RADIO_INTERFACE, 0);
 
-   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
-
+   hardware_radio_remove_stored_config();
+   
    hw_execute_bash_command("/etc/init.d/udev restart", NULL);
    hardware_sleep_ms(200);
    hw_execute_bash_command("sudo systemctl restart networking", NULL);
@@ -106,8 +105,7 @@ void radio_links_reinit_radio_interfaces()
    }
 
    log_line("Reinitializing radio interfaces: found interfaces on ip link: [%s]", szOutput);
-   sprintf(szComm, "rm -rf %s%s", FOLDER_CONFIG, FILE_CONFIG_CURRENT_RADIO_HW_CONFIG);
-   hw_execute_bash_command(szComm, NULL);
+   hardware_radio_remove_stored_config();
    
    //hw_execute_bash_command("ifconfig wlan0 down", NULL);
    //hw_execute_bash_command("ifconfig wlan1 down", NULL);
@@ -658,7 +656,7 @@ void radio_links_set_monitor_mode()
    }
 }
 
-u32 radio_linkgs_get_last_set_monitor_time()
+u32 radio_links_get_last_set_monitor_time()
 {
    return s_uTimeLastSetRadioLinksMonitorMode;
 }

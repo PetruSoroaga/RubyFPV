@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -66,12 +66,11 @@ MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
 
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
-      int iPowerRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
-      int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
-      log_line("[MenuVehicleRadio] Max power for radio interface %d (%s, %s): raw: %d, mw: %d, current raw power: %d",
-         i+1, str_get_radio_card_model_string(iCardModel), str_get_radio_driver_description(iDriver), iPowerRaw, iPowerMw, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
+      int iPowerRaw = tx_powers_get_max_usable_power_raw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
+      int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
+      log_line("[MenuVehicleRadio] Max power for radio interface %d (%s): raw: %d, mw: %d, current raw power: %d",
+         i+1, str_get_radio_card_model_string(iCardModel), iPowerRaw, iPowerMw, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
    }
 
    valuesToUI();
@@ -470,13 +469,12 @@ void MenuVehicleRadioConfig::computeSendPowerToVehicle()
    bool bDifferent = false;
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
-      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
       int iCardNewPowerMw = iPowerMwToSet;
       if ( iCardNewPowerMw > iCardMaxPowerMw )
          iCardNewPowerMw = iCardMaxPowerMw;
-      int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(iDriver, iCardModel, iCardNewPowerMw);
+      int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel, iCardNewPowerMw);
       uCommandParams[i+1] = iTxPowerRawToSet;
       log_line("MenuVehicleRadio: Setting tx raw power for card %d from %d to: %d (%d mw)",
          i+1, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i], uCommandParams[i+1], iCardNewPowerMw);
@@ -685,6 +683,11 @@ void MenuVehicleRadioConfig::onSelectItem()
 
    if ( m_IndexOptimizeLinks == m_SelectedIndex )
    {
+      if ( (NULL != g_pCurrentModel) && ((g_pCurrentModel->sw_version >> 16) < 264) )
+      {
+         addMessage(0, L("You must update your vehicle first."));
+         return;
+      }
       add_menu_to_stack(new MenuNegociateRadio());
       return;
    }

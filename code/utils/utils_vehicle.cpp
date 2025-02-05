@@ -42,6 +42,36 @@
 #include "../radio/radioflags.h"
 
 
+u32 vehicle_utils_getControllerId()
+{
+   bool bControllerIdOk = false;
+   u32 uControllerId = 0;
+
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_CONTROLLER_ID);
+   FILE* fd = fopen(szFile, "r");
+   if ( NULL != fd )
+   {
+      if ( 1 != fscanf(fd, "%u", &uControllerId) )
+         bControllerIdOk = false;
+      else
+         bControllerIdOk = true;
+      fclose(fd);
+   }
+
+   if ( 0 == uControllerId || MAX_U32 == uControllerId )
+      bControllerIdOk = false;
+
+   if ( bControllerIdOk )
+   {
+      log_line("Loaded current controller id: %u", uControllerId);
+      return uControllerId;
+   }
+   log_line("No current controller id stored on file.");
+   return 0;
+}
+
 bool videoLinkProfileIsOnlyVideoKeyframeChanged(type_video_link_profile* pOldProfile, type_video_link_profile* pNewProfile)
 {
    if ( NULL == pOldProfile || NULL == pNewProfile )
@@ -100,12 +130,10 @@ bool videoLinkProfileIsOnlyECSchemeChanged(type_video_link_profile* pOldProfile,
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
    tmp.block_packets = pOldProfile->block_packets;
    tmp.block_fecs = pOldProfile->block_fecs;
-   tmp.video_data_length = pOldProfile->video_data_length;
-
+ 
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
    if ( (pOldProfile->block_packets != pNewProfile->block_packets) ||
-        (pOldProfile->block_fecs != pNewProfile->block_fecs) ||
-        (pOldProfile->video_data_length != pNewProfile->video_data_length) )
+        (pOldProfile->block_fecs != pNewProfile->block_fecs) )
       return true;
    return false;
 }
@@ -324,6 +352,8 @@ void apply_vehicle_tx_power_levels(Model* pModel)
          hardware_radio_set_txpower_raw_rtl8812au(i, pModel->radioInterfacesParams.interface_raw_power[i]);
       if ( hardware_radio_driver_is_rtl8812eu_card(pRadioHWInfo->iRadioDriver) )
          hardware_radio_set_txpower_raw_rtl8812eu(i, pModel->radioInterfacesParams.interface_raw_power[i]);
+      if ( hardware_radio_driver_is_rtl8733bu_card(pRadioHWInfo->iRadioDriver) )
+         hardware_radio_set_txpower_raw_rtl8733bu(i, pModel->radioInterfacesParams.interface_raw_power[i]);
       if ( hardware_radio_driver_is_atheros_card(pRadioHWInfo->iRadioDriver) )
          hardware_radio_set_txpower_raw_atheros(i, pModel->radioInterfacesParams.interface_raw_power[i]);
    }

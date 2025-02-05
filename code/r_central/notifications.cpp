@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -54,7 +54,7 @@ void notification_add_armed(u32 uVehicleId)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 
@@ -79,7 +79,7 @@ void notification_add_disarmed(u32 uVehicleId)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 
@@ -106,7 +106,7 @@ void notification_add_flight_mode(u32 uVehicleId, u32 flightMode)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.layout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 

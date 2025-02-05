@@ -419,8 +419,8 @@ static void * _thread_process_upload(void *argument)
    //hardware_install_drivers(0);
    // End check and update drivers
 
-   signalReboot();
    s_bProcessUploadInProgress = false;
+   signalReboot();
    return NULL;
 }
 

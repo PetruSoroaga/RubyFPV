@@ -72,7 +72,7 @@ void _mark_link_from_controller_present()
       g_bHasLinkToController = true;
       log_line("[Router] Link to controller recovered (received packets from controller).");
 
-      if ( g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.layout] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM )
+      if ( g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM )
          send_alarm_to_controller(ALARM_ID_LINK_TO_CONTROLLER_RECOVERED, 0, 0, 10);
    }
 }
@@ -459,53 +459,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    }
 
    if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO )
-   {      
-      if ( uPacketType == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
-      if ( g_bReceivedPairingRequest )
-      {
-         if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
-            return;
-         if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
-            return;
-
-         // Discard requests if we are on fixed keyframe
-         //if ( !(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
-         //   return true;
-         
-         u32 uNewKeyframeValueMs = 0;
-         u8 uVideoStreamIndex = 0;
-         memcpy( &uNewKeyframeValueMs, pData + sizeof(t_packet_header), sizeof(u32));
-         if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
-            memcpy( &uVideoStreamIndex, pData + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
-
-         //log_line("DEBUG [KeyFrame] Recv request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
-
-// To fix 
-/*         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
-            log_line("[KeyFrame] Recv request from controller for keyframe: %u ms (previous requested was: %u ms)", uNewKeyframeValueMs, g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs);
-         else
-            log_line("[KeyFrame] Recv again request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
-  */       
-         // If video is not sent from this vehicle to controller, then we must reply back with acknowledgment
-         if ( ! relay_current_vehicle_must_send_own_video_feeds() )
-         {
-            t_packet_header PH;
-            radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK, STREAM_ID_DATA);
-            PH.packet_flags = PACKET_COMPONENT_VIDEO;
-            PH.packet_type =  PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK;
-            PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-            PH.vehicle_id_dest = uVehicleIdSrc;
-            PH.total_length = sizeof(t_packet_header) + sizeof(u32);
-            u8 packet[MAX_PACKET_TOTAL_SIZE];
-            memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-            memcpy(packet+sizeof(t_packet_header), &uNewKeyframeValueMs, sizeof(u32));
-            packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
-         }
-
-         adaptive_video_set_last_kf_requested_by_controller(uNewKeyframeValueMs);
-         return;
-      }
-
+   {
       if ( g_pCurrentModel->hasCamera() )
          process_data_tx_video_command(iRadioInterface, pData);
    }

@@ -35,6 +35,7 @@
 #include "../base/shared_mem.h"
 #include "../base/ruby_ipc.h"
 #include "../base/hw_procs.h"
+#include "../base/hardware_cam_maj.h"
 #include "../base/hardware_radio.h"
 #include "../base/hardware_radio_sik.h"
 #include "../base/hardware_serial.h"
@@ -61,6 +62,7 @@
 #include "radio_links.h"
 #include "processor_tx_video.h"
 #include "processor_relay.h"
+#include "process_cam_params.h"
 #include "events.h"
 #include "adaptive_video.h"
 #include "video_source_csi.h"
@@ -322,7 +324,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( changeType == MODEL_CHANGED_CAMERA_PARAMS )
    {
       log_line("Received local notification that camera parameters have changed.");
-      g_uTimeToSaveCameraParams = g_TimeNow + 5000;
    }
 
 
@@ -813,7 +814,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       {
          if ( g_pCurrentModel->hasCamera() )
          if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            video_source_majestic_set_qpdelta_value(iIPQuantizationDeltaNew);
+            hardware_camera_maj_set_qpdelta(iIPQuantizationDeltaNew);
       }
    }
 
@@ -974,7 +975,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       
          if ( g_pCurrentModel->hasCamera() )
          if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            video_source_majestic_set_videobitrate_value(uBitrateBPS);
+            hardware_camera_maj_set_bitrate(uBitrateBPS);
 
          if ( NULL != g_pProcessorTxVideo )
             g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(uBitrateBPS, false, 11);
@@ -998,7 +999,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       {
          if ( g_pCurrentModel->hasCamera() )
          if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            video_source_majestic_set_qpdelta_value(iIPQuantizationDeltaNew);
+            hardware_camera_maj_set_qpdelta(iIPQuantizationDeltaNew);
       }
       return;
    }
@@ -1158,6 +1159,7 @@ void process_local_control_packet(t_packet_header* pPH)
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SEND_MODEL_SETTINGS, STREAM_ID_DATA);
       PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
+      PH.vehicle_id_dest = g_uControllerId;
       PH.total_length = sizeof(t_packet_header);
 
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)&PH, PH.total_length);
@@ -1268,14 +1270,6 @@ void process_local_control_packet(t_packet_header* pPH)
       return;
    }
 
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SIGNAL_USER_SELECTED_VIDEO_PROFILE_CHANGED )
-   {
-      log_line("Router received message that user selected video link profile was changed.");
-      //To fix video_stats_overwrites_init();
-      process_data_tx_video_signal_encoding_changed();
-      return;
-   }
-
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_REINITIALIZE_RADIO_LINKS )
    {
       log_line("Received local request to reinitialize radio interfaces from a controller command...");
@@ -1321,50 +1315,27 @@ void process_local_control_packet(t_packet_header* pPH)
       {
          log_line("Received reboot request from RX Commands. Sending it to telemetry.");
          ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
-
-         // Watchdog: do reboot here if txtelemetry does not do it
-         u32 uTimeStart = get_current_timestamp_ms();
-
-         while ( true )
-         {
-            hardware_sleep_ms(500);
-            if ( get_current_timestamp_ms() > uTimeStart + 10000 )
-            {
-               log_line("Reboot watchdog triggered. Do reboot here.");
-               vehicle_stop_tx_router();
-               vehicle_stop_rx_commands();
-               vehicle_stop_rx_rc();
-               hardware_sleep_ms(100);
-               log_line("Will reboot now.");
-               hardware_reboot();
-            }
-         }
+         g_uTimeRequestedReboot = g_TimeNow;
       }
       else
-         log_line("Received reboot request.");
+         log_line("Received reboot request. Do nothing.");
 
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
    }
 
-
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_SIGNAL_VIDEO_ENCODINGS_CHANGED )
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAMS )
    {
-      char szFile[128];
-      strcpy(szFile, FOLDER_CONFIG);
-      strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-      if ( ! g_pCurrentModel->loadFromFile(szFile, false) )
-         log_error_and_alarm("Can't load current model vehicle.");
-      process_data_tx_video_signal_encoding_changed();
-      s_InputBufferVideoBytesRead = 0;
-   }
+      log_line("Router received message to update camera params.");
+      process_camera_params_changed((u8*)pPH, pPH->total_length);
+      
+      ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+      if ( NULL != g_pProcessStats )
+         g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAM )
-   {
-      log_line("Router received message to change camera params.");
-      if ( g_pCurrentModel->hasCamera() )
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         video_source_csi_send_control_message( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFFFF), 0 );
+      //if ( g_pCurrentModel->hasCamera() )
+      //if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      //   video_source_csi_send_control_message( (pPH->stream_packet_idx) & 0xFF, (((pPH->stream_packet_idx)>>8) & 0xFFFF), 0 );
       return;
    }
 

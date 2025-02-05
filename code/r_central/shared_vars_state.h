@@ -160,7 +160,6 @@ extern bool g_bUpdateInProgress;
 extern int g_nFailedOTAUpdates;
 extern int g_nSucceededOTAUpdates;
 
-extern bool g_bIsVehicleLinkToControllerLost;
 extern bool g_bSyncModelSettingsOnLinkRecover;
 
 extern int g_nTotalControllerCPUSpikes;

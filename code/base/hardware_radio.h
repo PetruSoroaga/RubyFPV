@@ -24,6 +24,7 @@
 #define RADIO_HW_DRIVER_SERIAL_SIK 8
 #define RADIO_HW_DRIVER_SERIAL 9
 #define RADIO_HW_DRIVER_REALTEK_8812EU 10          // 88x2eu
+#define RADIO_HW_DRIVER_REALTEK_8733BU 15          // 88733bu
 
 
 // 0 is generic card model
@@ -36,7 +37,7 @@
 #define CARD_MODEL_RTL8812AU_DUAL_ANTENNA 7
 #define CARD_MODEL_NETGEAR_A6100    8
 #define CARD_MODEL_TENDA_U12        9
-#define CARD_MODEL_RTL8812AU_LOW_POWER 10
+#define CARD_MODEL_RTL8812AU_AF1   10
 #define CARD_MODEL_ZIPRAY 11
 #define CARD_MODEL_ARCHER_T2UPLUS 12
 #define CARD_MODEL_RTL8814AU      13
@@ -46,6 +47,7 @@
 #define CARD_MODEL_RTL8812AU_GENERIC 17
 #define CARD_MODEL_RTL8812AU_OIPC_USIGHT 18
 #define CARD_MODEL_RTL8812AU_OIPC_USIGHT2 19
+#define CARD_MODEL_RTL8733BU    20
 
 #define CARD_MODEL_SIK_RADIO 100
 #define CARD_MODEL_SERIAL_RADIO 101
@@ -75,9 +77,6 @@
 #define RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W ((u32)(((u32)0x01)<<14))
 
 #define RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD ((u32)(((u32)0x01)))
-
-extern int g_ArrayTestRadioRates[];
-extern int g_ArrayTestRadioRatesCount;
 
 #ifdef __cplusplus
 extern "C" {
@@ -177,17 +176,22 @@ void hardware_save_radio_info();
 int hardware_load_radio_info();
 int hardware_load_radio_info_into_buffers(int* piOutputTotalCount, int* piOutputSupportedCount, radio_hw_info_t* pRadioInfoArray);
 void hardware_log_radio_info(radio_hw_info_t* pRadioInfo, int iCount);
+void hardware_radio_remove_stored_config();
 
 void hardware_reset_radio_enumerated_flag();
 int hardware_enumerate_radio_interfaces();
 int hardware_enumerate_radio_interfaces_step(int iStep);
+int hardware_radio_get_class_net_adapters_count();
 
 int hardware_load_driver_rtl8812au();
 int hardware_load_driver_rtl8812eu();
+int hardware_load_driver_rtl8733bu();
 int hardware_radio_load_radio_modules(int iEchoToConsole);
 int hardware_install_driver_rtl8812au(int iEchoToConsole);
 int hardware_install_driver_rtl8812eu(int iEchoToConsole);
+int hardware_install_driver_rtl8733bu(int iEchoToConsole);
 void hardware_install_drivers(int iEchoToConsole);
+int hardware_initialize_radio_interface(int iInterfaceIndex, u32 uDelayMS);
 
 int hardware_radio_get_driver_id_for_product_id(const char* szProdId);
 
@@ -200,14 +204,17 @@ int hardware_get_radio_index_from_mac(const char* szMAC);
 int hardware_radio_has_low_capacity_links();
 int hardware_radio_has_rtl8812au_cards();
 int hardware_radio_has_rtl8812eu_cards();
+int hardware_radio_has_rtl8733bu_cards();
 int hardware_radio_has_atheros_cards();
 int hardware_radio_driver_is_rtl8812au_card(int iDriver);
 int hardware_radio_driver_is_rtl8812eu_card(int iDriver);
+int hardware_radio_driver_is_rtl8733bu_card(int iDriver);
 int hardware_radio_driver_is_atheros_card(int iDriver);
 
 const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
+int hardware_radio_type_is_ieee(int iRadioType);
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);

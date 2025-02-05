@@ -33,6 +33,7 @@
 #include "shared_vars.h"
 #include "../base/models_list.h"
 #include "../base/ruby_ipc.h"
+#include "../base/hardware_cam_maj.h"
 #include "../base/hardware_radio_sik.h"
 #include "../common/radio_stats.h"
 #include "../common/string_utils.h"
@@ -49,9 +50,11 @@
 #include "test_link_params.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
+#include "adaptive_video.h"
 #include "ruby_rt_vehicle.h"
 
 u32 s_uResendPairingConfirmationCounter = 0;
+u32 s_uTemporaryVideoBitrateBeforeNegociateRadio = 0;
 
 int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
 {
@@ -84,7 +87,7 @@ int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
       memcpy(packet+sizeof(t_packet_header)+sizeof(u8)+sizeof(u32), &uSenderLocalRadioLinkId, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8)+sizeof(u32), &uLocalRadioLinkId, sizeof(u8));
 
-      if ( radio_packet_type_is_high_priority(PH.packet_type) )
+      if ( radio_packet_type_is_high_priority(PH.packet_flags, PH.packet_type) )
          send_packet_to_radio_interfaces(packet, PH.total_length, -1);
       else
          packets_queue_inject_packet_first(&g_QueueRadioPacketsOut, packet);
@@ -124,10 +127,12 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
 
       log_line("Received pairing request from controller (received resend count: %u). CID: %u, VID: %u.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
       
-      if (g_uControllerId != pPH->vehicle_id_src )
+      if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
       {
+         u32 uOldControllerId = g_uControllerId;
          g_uControllerId = pPH->vehicle_id_src;
          g_pCurrentModel->uControllerId = g_uControllerId;
+         g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &= ~(MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS);
          saveCurrentModel();
          char szFile[128];
          strcpy(szFile, FOLDER_CONFIG);
@@ -139,7 +144,8 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
             fclose(fd);
          }
 
-         radio_duplicate_detection_init();
+         radio_duplicate_detection_remove_data_for_vid(uOldControllerId);
+
          /*
          u32 uRefreshIntervalMs = 100;
          switch ( g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )
@@ -152,7 +158,7 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
             case 5: uRefreshIntervalMs = 500; break;
          }
          */
-         radio_stats_reset_received_info(&g_SM_RadioStats);
+         radio_stats_remove_received_info_for_vid(&g_SM_RadioStats, uOldControllerId);
          process_data_tx_video_reset_retransmissions_history_info();
       }
 
@@ -303,23 +309,31 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
    {
       u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
-      u32 uParam = 0;
-      int iParam = 0;
-      memcpy(&uParam, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8), sizeof(u32));
-      memcpy(&iParam, &uParam, sizeof(int));
-      log_line("Received negociate radio link, command %d, param: %d", uCommand, iParam);
+      u32 uParam1 = 0;
+      u32 uParam2 = 0;
+      int iParam1 = 0;
+      memcpy(&uParam1, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8), sizeof(u32));
+      memcpy(&uParam2, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32), sizeof(u32));
+      memcpy(&iParam1, &uParam1, sizeof(int));
+      log_line("Received negociate radio link, command %d, datarate: %d, radio flags: %u (%s)", uCommand, iParam1, uParam2, str_get_radio_frame_flags_description2(uParam2));
       g_uTimeLastNegociateRadioLinksCommand = g_TimeNow;
       
       if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
       {
+         if ( g_bNegociatingRadioLinks )
+            adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
+
          g_bNegociatingRadioLinks = false;
          g_uTimeStartNegociatingRadioLinks = 0;
          packet_utils_set_adaptive_video_datarate(0);
+         radio_remove_temporary_frames_flags();
 
          if ( uCommand == NEGOCIATE_RADIO_STEP_END )
          {
-            g_pCurrentModel->resetVideoLinkProfilesToDataRates(iParam, iParam);
+            g_pCurrentModel->resetVideoLinkProfilesToDataRates(iParam1, iParam1);
+            g_pCurrentModel->radioLinksParams.link_radio_flags[0] = uParam2;
             g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags |= MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS;
+            g_pCurrentModel->validate_radio_flags();
             saveCurrentModel();
             t_packet_header PH;
             radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
@@ -342,34 +356,29 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
          if ( ! g_bNegociatingRadioLinks )
          {
             g_uTimeStartNegociatingRadioLinks = g_TimeNow;
-            u32 uBitrateBPS = 2000000;
-            if ( g_pCurrentModel->hasCamera() )
-            if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-               video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-      
-            if ( g_pCurrentModel->hasCamera() )
-            if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-               video_source_majestic_set_videobitrate_value(uBitrateBPS);
+            s_uTemporaryVideoBitrateBeforeNegociateRadio = adaptive_video_set_temporary_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
          }
          g_bNegociatingRadioLinks = true;
       }
 
       if ( uCommand == NEGOCIATE_RADIO_STEP_DATA_RATE )
       {
-         log_line("Negociate radio link: Set datarate: %d", iParam);
-         packet_utils_set_adaptive_video_datarate(iParam);
+         log_line("Negociate radio link: Set datarate: %d, radio flags: %u (%s)", iParam1, uParam2, str_get_radio_frame_flags_description2(uParam2));
+         packet_utils_set_adaptive_video_datarate(iParam1);
+         radio_set_temporary_frames_flags(uParam2);
       }
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_NEGOCIATE_RADIO_LINKS, STREAM_ID_DATA);
       PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       PH.vehicle_id_dest = g_uControllerId;
-      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32);
+      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + 2*sizeof(u32);
 
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       packet[sizeof(t_packet_header)] = 1;
       packet[sizeof(t_packet_header)+sizeof(u8)] = uCommand;
-      memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), &uParam, sizeof(u32));
+      memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), &uParam1, sizeof(u32));
+      memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8)+sizeof(u32), &uParam2, sizeof(u32));
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
       return 0;
    }

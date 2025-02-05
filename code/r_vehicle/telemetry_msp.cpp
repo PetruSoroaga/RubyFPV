@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -134,14 +134,19 @@ u32 telemetry_msp_get_last_command_received_time()
    return s_uLastMSPCommandReceivedTime;
 }
 
+void telemetry_msp_set_last_command_received_time(u32 uTime)
+{
+   s_uLastMSPCommandReceivedTime = uTime;
+}
+
 void _send_msp_telemetry_packet_to_controller()
 {
    if ( s_iMSPOutputBufferFilledBytes <= 0 )
       return;
-
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_TELEMETRY_MSP, STREAM_ID_TELEMETRY);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(t_packet_header_telemetry_msp) + s_iMSPOutputBufferFilledBytes;
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, &PH, sizeof(t_packet_header));

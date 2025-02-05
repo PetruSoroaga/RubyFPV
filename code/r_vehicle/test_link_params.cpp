@@ -33,6 +33,7 @@
 #include "../base/models_list.h"
 #include "../base/ruby_ipc.h"
 #include "../base/radio_utils.h"
+#include "../base/hardware_camera.h"
 #include "../radio/radiopackets2.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
@@ -40,6 +41,9 @@
 #include "shared_vars.h"
 #include "timers.h"
 #include "radio_links.h"
+#include "adaptive_video.h"
+#include "video_source_csi.h"
+#include "video_source_majestic.h"
 
 int s_iTestLinkState = TEST_LINK_STATE_NONE;
 int s_iTestLinkIndex = -1;
@@ -65,7 +69,8 @@ bool s_bMustReopenRadioInterfacesForRead[MAX_RADIO_INTERFACES];
 bool s_bMustReopenRadioInterfacesForWrite[MAX_RADIO_INTERFACES];
 
 u32 s_uTestLinkCountPingsReceived = 0;
-
+bool s_bSwitchedToTemporaryVideoBitrateOnTest = false;
+u32 s_uTemporaryVideoBitrateBeforeTestLink = 0;
 
 bool test_link_is_in_progress()
 {
@@ -91,10 +96,14 @@ void _test_link_end_and_notify()
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       log_line("Radio interface %d raw power level: %d", i+1, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
       
-   log_line("Current radio interfaces count: RTL8812AU: %d, RTL8812EU: %d, Atheros: %d",
-      hardware_radio_has_rtl8812au_cards(), hardware_radio_has_rtl8812eu_cards(), hardware_radio_has_atheros_cards());
+   log_line("Current radio interfaces count: RTL8812AU: %d, RTL8812EU: %d, RTL8733BU: %d, Atheros: %d",
+      hardware_radio_has_rtl8812au_cards(), hardware_radio_has_rtl8812eu_cards(), hardware_radio_has_rtl8733bu_cards(), hardware_radio_has_atheros_cards());
 
    saveCurrentModel();
+
+   if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
+      adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+   s_bSwitchedToTemporaryVideoBitrateOnTest = false;
 
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
@@ -298,6 +307,12 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
    {
       s_bTestLinkCurrentTestSucceeded = false;
       s_uTimeLastUpdateCurrentState = g_TimeNow-100;
+
+      if ( !s_bSwitchedToTemporaryVideoBitrateOnTest )
+      {
+         s_bSwitchedToTemporaryVideoBitrateOnTest = true;
+         s_uTemporaryVideoBitrateBeforeTestLink = adaptive_video_set_temporary_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
+      }
       return;
    }
 
@@ -365,8 +380,20 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
       return;
    }
 
+   if ( s_iTestLinkState == TEST_LINK_STATE_END )
+   {
+      if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
+         adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+      s_bSwitchedToTemporaryVideoBitrateOnTest = false;
+      return;
+   }
+
    if ( s_iTestLinkState == TEST_LINK_STATE_ENDED )
    {
+      if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
+         adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+      s_bSwitchedToTemporaryVideoBitrateOnTest = false;
+
       s_iTestLinkState = TEST_LINK_STATE_NONE;
       return;
    }

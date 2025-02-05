@@ -42,7 +42,7 @@
 #include "../base/models_list.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
-
+#include "../utils/utils_vehicle.h"
 #include "timers.h"
 #include "shared_vars.h"
 
@@ -142,6 +142,8 @@ int r_start_rx_rc(int argc, char *argv[])
    s_fIPC_FromRouter = ruby_open_ipc_channel_read_endpoint(IPC_CHANNEL_TYPE_ROUTER_TO_RC);
    if ( s_fIPC_FromRouter < 0 )
       return -1;
+
+   g_uControllerId = vehicle_utils_getControllerId();
 
    char szFile[128];
    strcpy(szFile, FOLDER_CONFIG);
@@ -296,6 +298,7 @@ int r_start_rx_rc(int argc, char *argv[])
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
          if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
          {
+            g_uControllerId = pPH->vehicle_id_src;
             log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
             sModelVehicle.uControllerId = pPH->vehicle_id_src;
             if ( sModelVehicle.relay_params.isRelayEnabledOnRadioLinkId >= 0 )

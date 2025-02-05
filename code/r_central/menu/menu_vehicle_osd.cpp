@@ -151,7 +151,7 @@ MenuVehicleOSD::~MenuVehicleOSD()
 
 void MenuVehicleOSD::valuesToUI()
 {
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    
    m_pItemsSelect[0]->setSelectedIndex(layoutIndex);
    m_pItemsSelect[2]->setSelectedIndex(g_pCurrentModel->osd_params.osd_preferences[layoutIndex] & 0xFF);
@@ -305,14 +305,14 @@ void MenuVehicleOSD::onSelectItem()
    bool sendToVehicle = false;
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-   int layoutIndex = g_pCurrentModel->osd_params.layout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
    if ( m_IndexOSDLayout == m_SelectedIndex )
    {
-      params.layout = m_pItemsSelect[0]->getSelectedIndex();
+      params.iCurrentOSDLayout = m_pItemsSelect[0]->getSelectedIndex();
       sendToVehicle = true;
 
-      u32 scale = params.osd_preferences[params.layout] & 0xFF;
+      u32 scale = params.osd_preferences[params.iCurrentOSDLayout] & 0xFF;
       osd_setScaleOSD((int)scale);
       osd_apply_preferences();
       applyFontScaleChanges();

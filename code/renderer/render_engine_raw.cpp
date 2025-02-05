@@ -424,6 +424,36 @@ void RenderEngineRaw::drawImage(float xPos, float yPos, float fWidth, float fHei
    fbg_imageDraw(m_pFBG, m_pImages[indexImage], x,y,w,h, 0, 0, m_pImages[indexImage]->width, m_pImages[indexImage]->height);
 }
 
+void RenderEngineRaw::drawImageAlpha(float xPos, float yPos, float fWidth, float fHeight, u32 imageId, u8 uAlpha)
+{
+   if ( imageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+      if ( m_ImageIds[i] == imageId )
+      {
+         indexImage = i;
+         break;
+      }
+   if ( -1 == indexImage )
+      return;
+   int x = xPos*m_iRenderWidth;
+   int y = yPos*m_iRenderHeight;
+   int w = fWidth*m_iRenderWidth;
+   int h = fHeight*m_iRenderHeight;
+
+   if ( x < 0 || y < 0 || x+w > m_iRenderWidth || y+h > m_iRenderHeight )
+      return;
+
+   m_pFBG->mix_color.r = 255;
+   m_pFBG->mix_color.g = 255;
+   m_pFBG->mix_color.b = 255;
+   m_pFBG->mix_color.a = uAlpha;
+
+   fbg_imageDrawAlpha(m_pFBG, m_pImages[indexImage], x,y,w,h, 0, 0, m_pImages[indexImage]->width, m_pImages[indexImage]->height);
+}
+
 void RenderEngineRaw::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
 {
    if ( uImageId < 1 )

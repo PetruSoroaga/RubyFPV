@@ -46,7 +46,6 @@ extern int s_fIPCRouterFromRC;
 extern int s_fInputVideoStream;
 
 extern bool g_bVideoPaused;
-extern int s_InputBufferVideoBytesRead;
 
 extern u16 s_countTXVideoPacketsOutTemp;
 extern u16 s_countTXDataPacketsOutTemp;

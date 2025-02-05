@@ -102,16 +102,6 @@ void MenuItemSection::Render(float xPos, float yPos, bool bSelected, float fWidt
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(0);
 
-/*
-   if ( ! m_bEnabled )
-   {
-      double* pC = get_Color_MenuText();
-      double color[4];
-      memcpy((u8*)&color[0], (u8*)pC, 4 * sizeof(double));
-      color[3] = 0.3;
-      g_pRenderEngine->setColors(&color[0]);
-   }
-   */
    g_pRenderEngine->drawText(xPos+dx+dxp2*0.7, yMid-0.5*height_text, g_idFontMenu, m_pszTitle);
 
    if ( ! m_bEnabled )

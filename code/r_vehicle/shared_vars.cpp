@@ -19,7 +19,6 @@ int s_fIPCRouterFromRC = -1;
 int s_fInputVideoStream = -1;
 
 bool g_bVideoPaused = false;
-int s_InputBufferVideoBytesRead = 0;
 
 u16 s_countTXVideoPacketsOutTemp = 0;
 u16 s_countTXDataPacketsOutTemp = 0;

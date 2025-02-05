@@ -376,6 +376,37 @@ void _add_new_radio_link_for_hw_radio_interface(int iInterfaceIndex, Model* pMod
       iInterfaceIndex+1, pRadioHWInfo->szMAC, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[pModel->radioLinksParams.links_count-1]));
 }
 
+bool recheck_disabled_radio_interfaces(Model* pModel)
+{
+   log_line("[HW Radio Check] Recheck disabled radio interfaces...");
+   bool bUpdated = false;
+   if ( 1 == hardware_get_supported_radio_interfaces_count() )
+   {
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( NULL == pRadioHWInfo )
+            continue;
+
+         if ( pRadioHWInfo->isSupported )
+         if ( pModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
+         {
+            pModel->radioInterfacesParams.interface_capabilities_flags[i] &= ~RADIO_HW_CAPABILITY_FLAG_DISABLED;
+            bUpdated = true;
+         }
+
+         if ( pRadioHWInfo->isSupported )
+         if ( 0xFF0000 != (pModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF0000) )
+         {
+            pModel->radioInterfacesParams.interface_radiotype_and_driver[i] |= 0xFF0000;
+            bUpdated = true;
+         }
+      }
+   }
+   log_line("[HW Radio Check] Done recheck disabled radio interfaces.");
+   return bUpdated;
+}
+
 bool check_update_hardware_nics_vehicle(Model* pModel)
 {
    log_line("[HW Radio Check] Checking for Radio interfaces hardware change...");
@@ -439,7 +470,7 @@ bool check_update_hardware_nics_vehicle(Model* pModel)
       return true;
    }
    */
-   
+
    int iRadioHWInterfacesCount = hardware_get_radio_interfaces_count();
 
    // Handle the case with a single radio interface before and after ( 1 interface before and 1 interface now)

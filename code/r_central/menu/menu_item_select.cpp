@@ -245,15 +245,14 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
       else
       {
          g_pRenderEngine->setGlobalAlfa(fAlphaOrg);
-         double* pC = get_Color_MenuItemSelectedBg();
-         float f = pC[3];
+         double pC[4];
+         memcpy(pC, get_Color_MenuItemSelectedBg(), 4*sizeof(double));
          if ( ! m_bEnabled )
             pC[3] = 0.2;
          g_pRenderEngine->setColors(pC);
          g_pRenderEngine->drawRoundRect(xEnd-width_text-2*dxPaddings, yPos-dyPaddings, width_text+2*dxPaddings, m_RenderHeight+2*dyPaddings, 0.05*Menu::getMenuPaddingY());
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawTextLeft(xEnd-dxPaddings, yPos+dyText, g_idFontMenu, m_szSelections[i]);
-         pC[3] = f;
       }
 
       xEnd -= width_text+2*dxPaddings;
@@ -352,13 +351,12 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
    if ( yTopSelections < 0.01 )
       yTopSelections = 0.01;
 
-   double* pColor = get_Color_MenuBg();
-   float fA = pColor[3];
+   double pColor[4];
+   memcpy(pColor, get_Color_MenuBg(), 4*sizeof(double));
    pColor[3] = 0.9;
    g_pRenderEngine->setColors(pColor, 1.5);
    g_pRenderEngine->setStroke(get_Color_MenuBorder());
    g_pRenderEngine->drawRoundRect(xValues, yTopSelections, totalWidth, heightPopup, 0.2*Menu::getMenuPaddingY());
-   pColor[3] = fA;
 
    if ( m_bCustomTextColor )
       g_pRenderEngine->setColors(&m_TextColor[0]);
@@ -409,5 +407,6 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
             break;
          }
    }
+   g_pRenderEngine->setColors(get_Color_MenuText());
 }
 

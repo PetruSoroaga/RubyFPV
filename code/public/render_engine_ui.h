@@ -28,10 +28,10 @@ class RenderEngineUI
      unsigned int getFontIdBig();
      unsigned int loadFontSize(float fSize);
 
-     double* getColorOSDText(); // returns 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
-     double* getColorOSDInstruments();
-     double* getColorOSDOutline();
-     double* getColorOSDWarning();
+     const double* getColorOSDText(); // returns 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
+     const double* getColorOSDInstruments();
+     const double* getColorOSDOutline();
+     const double* getColorOSDWarning();
 
      unsigned int loadImage(const char* szFile); // supports PNG files
      void freeImage(unsigned int idImage);
@@ -41,11 +41,11 @@ class RenderEngineUI
      void highlightFirstWordOfLine(bool bHighlight);
      bool drawBackgroundBoundingBoxes(bool bEnable);
 
-     void setColors(double* color); // parameter is an array with 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
-     void setColors(double* color, float fAlfaScale);
+     void setColors(const double* color); // parameter is an array with 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
+     void setColors(const double* color, float fAlfaScale);
      void setFill(float r, float g, float b, float a);
-     void setStroke(double* color);
-     void setStroke(double* color, float fStrokeSize); 
+     void setStroke(const double* color);
+     void setStroke(const double* color, float fStrokeSize); 
      void setStroke(float r, float g, float b, float a);
      float getStrokeSize();
      void setStrokeSize(float fStrokeSize);

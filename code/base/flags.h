@@ -108,12 +108,6 @@
 #define MODEL_CHANGED_RESET_RADIO_LINK 57
 #define MODEL_CHANGED_THREADS_PRIORITIES 58
 
-#define MODEL_CHANGED_CAMERA_BRIGHTNESS 128
-#define MODEL_CHANGED_CAMERA_CONTRAST 129
-#define MODEL_CHANGED_CAMERA_SATURATION 130
-#define MODEL_CHANGED_CAMERA_HUE 131
-
-
 //----------------------------------------------------
 // Model & developer flags
 

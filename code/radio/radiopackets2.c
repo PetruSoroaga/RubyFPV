@@ -72,13 +72,14 @@ int radio_packet_check_crc(u8* pBuffer, int length)
    return 1;
 }
 
-int radio_packet_type_is_high_priority(u8 uPacketType)
+int radio_packet_type_is_high_priority(u8 uPacketFlags, u8 uPacketType)
 {
+   if ( uPacketFlags & PACKET_FLAGS_BIT_RETRANSMITED )
+      return 1;
    switch(uPacketType)
    {
       case PACKET_TYPE_RUBY_PING_CLOCK:
       case PACKET_TYPE_RUBY_PING_CLOCK_REPLY:
-      //case PACKET_TYPE_VIDEO_DATA_98:
       case PACKET_TYPE_VIDEO_ACK:
       case PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS:
       case PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL:

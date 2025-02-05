@@ -65,8 +65,8 @@
 #include "rx_video_output.h"
 #include "rx_video_recording.h"
 #include "packets_utils.h"
-#include "links_utils.h"
 #include "timers.h"
+#include "ruby_rt_station.h"
 
 
 pthread_t s_pThreadRxVideoOutputStreamer;
@@ -85,7 +85,7 @@ u8* s_pSMVideoStreamerWrite = NULL;
 u32 s_uSMVideoStreamWritePosition = 0;
 bool s_bEnableVideoStreamerOutput = false;
 bool s_bDidSentAnyDataToVideoStreamerPipe = false;
-
+u8 s_uCurrentReceivedVideoStreamType = 0;
 ParserH264 s_ParserH264StreamOutput;
 ParserH264 s_ParserH264VideoOutput;
 bool s_bEnableVideoOutputStreamParsing = false;
@@ -145,6 +145,24 @@ char s_szOutputVideoStreamerFilename[MAX_FILE_PATH_SIZE];
 void rx_video_output_start_video_streamer()
 {
    log_line("[VideoOutput] Starting video streamer [%s]", s_szOutputVideoStreamerFilename);
+
+   char szComm[256];
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+
+   static bool s_bCheckForIntroVideo = true;
+   if ( s_bCheckForIntroVideo )
+   {
+      s_bCheckForIntroVideo = false;
+      if ( access(szFile, R_OK) != -1 )
+      {
+         log_line("[VideoOutput] Intro video is playing. Stopping it...");
+         hw_stop_process(VIDEO_PLAYER_OFFLINE);
+         sprintf(szComm, "rm -rf %s", szFile);
+      }
+   }
+
    int iPID = hw_process_exists(s_szOutputVideoStreamerFilename);
    if ( iPID > 0 )
    {
@@ -158,6 +176,8 @@ void rx_video_output_start_video_streamer()
    szStreamerParams[0] = 0;
    szStreamerPrefixes[0] = 0;
 
+   if ( 0 == s_uCurrentReceivedVideoStreamType )
+      s_uCurrentReceivedVideoStreamType = VIDEO_TYPE_H264;
 
    #if defined(HW_PLATFORM_RASPBERRY)
    strcpy(szStreamerParams, "2>&1 1>/dev/null");
@@ -167,8 +187,10 @@ void rx_video_output_start_video_streamer()
    char szCodec[32];
    szCodec[0] = 0;
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
+   {
       strcpy(szCodec, "-h265");
-
+      s_uCurrentReceivedVideoStreamType = VIDEO_TYPE_H265;
+   }
    sprintf(szStreamerParams, "%s -sm > /dev/null 2>&1", szCodec);
    if ( s_bRxVideoOutputUseSM )
       sprintf(szStreamerParams, "%s -sm > /dev/null 2>&1", szCodec);
@@ -196,7 +218,6 @@ void rx_video_output_start_video_streamer()
    hw_execute_ruby_process_wait(szStreamerPrefixes, s_szOutputVideoStreamerFilename, szStreamerParams, NULL, 0);
    log_line("Executed video streamer command.");
 
-   char szComm[256];
    char szComm2[256];
    char szPids[128];
 
@@ -241,8 +262,13 @@ void rx_video_output_stop_video_streamer()
       
    if ( s_iPIDVideoStreamer > 0 )
    {
-      log_line("[VideoOutput] Stopping video streamer by signaling exiting streamer (PID %d)...", s_iPIDVideoStreamer);
-      hw_stop_process(VIDEO_PLAYER_SM);
+      log_line("[VideoOutput] Stopping video streamer by signaling existing streamer (PID %d)...", s_iPIDVideoStreamer);
+      if ( s_bRxVideoOutputUsePipe )
+         hw_stop_process(VIDEO_PLAYER_PIPE);
+      else if ( s_bRxVideoOutputUseSM )
+         hw_stop_process(VIDEO_PLAYER_SM);
+      else
+         log_softerror_and_alarm("[VideoOutput] No video streamer output method defined, so can't stop.");
    }
    else if ( 0 != s_szOutputVideoStreamerFilename[0] )
    {
@@ -758,23 +784,17 @@ void _rx_video_output_parse_h264_stream(u32 uVehicleId, u8* pBuffer, int iLength
 {
    while ( iLength > 0 )
    {
-      int iBytesParsed = s_ParserH264StreamOutput.parseDataUntilStartOfNextNAL(pBuffer, iLength, g_TimeNow);
+      int iBytesParsed = s_ParserH264StreamOutput.parseDataUntilStartOfNextNALOrLimit(pBuffer, iLength, iLength+1, g_TimeNow);
       if ( iBytesParsed >= iLength )
          break;
-      //log_line("DEBUG parse %d of %d", iBytesParsed, iLength);
 
-      u32 uNewNALType = s_ParserH264StreamOutput.getCurrentFrameType();
-      //log_line("DEBUG 1 detected start of NAL %d (prev NAL was: %d)", uNewNALType, s_ParserH264StreamOutput.getPreviousFrameType());
+      u32 uNewNALType = s_ParserH264StreamOutput.getCurrentNALType();
       if ( uNewNALType == 1 )
          g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b100000;
       else if ( uNewNALType == 5 )
          g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b10000;
       else
          g_SMControllerRTInfo.uRecvFramesInfo[g_SMControllerRTInfo.iCurrentIndex] |= 0b1000000;
-
-      //log_line("DEBUG %d", iStartOfFramesDetected);   
-      //log_line("DEBUG o last frame size: %d bytes",  s_ParserH264StreamOutput.getSizeOfLastCompleteFrameInBytes());
-      //log_line("DEBUG o detected start of %sframe", s_ParserH264StreamOutput.IsInsideIFrame()?"I":"P");
 
       // To fix
       /*
@@ -840,7 +860,10 @@ void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
       s_bDidSentAnyDataToVideoStreamerPipe = true;
    }
    
+   g_pProcessStats->uInBlockingOperation = 1;
    int iRes = write(s_fPipeVideoOutToStreamer, pBuffer, length);
+   g_pProcessStats->uInBlockingOperation = 0;
+
    if ( iRes == length )
    {
       s_uOutputBitrateToLocalVideoStreamerPipe += iRes*8;
@@ -1014,7 +1037,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
 
    if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
       bParseStream = true;
 
@@ -1032,7 +1055,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
       _rx_video_output_parse_h264_stream(uVehicleId, pBuffer, video_data_length);
 
 
-   // Check for video resolution changes
+   // Check for video resolution changes or codec changes
    static int s_iRxVideoForwardLastWidth = 0;
    static int s_iRxVideoForwardLastHeight = 0;
 
@@ -1050,6 +1073,16 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
             uVehicleId, s_iRxVideoForwardLastWidth, s_iRxVideoForwardLastHeight, width, height);
          s_iRxVideoForwardLastWidth = width;
          s_iRxVideoForwardLastHeight = height;
+         rx_video_output_signal_restart_streamer();
+         log_line("[VideoOutput] Signaled restart of streamer");
+         return;
+      }
+
+      if ( s_uCurrentReceivedVideoStreamType != uVideoStreamType )
+      {
+         log_line("[VideoOutput] Video stream codec changed at VID %u (From %d to %d). Signal reload of the video streamer.",
+            uVehicleId, s_uCurrentReceivedVideoStreamType, uVideoStreamType);
+         s_uCurrentReceivedVideoStreamType = uVideoStreamType;
          rx_video_output_signal_restart_streamer();
          log_line("[VideoOutput] Signaled restart of streamer");
          return;
@@ -1135,6 +1168,11 @@ void rx_video_output_on_controller_settings_changed()
 
 void rx_video_output_signal_restart_streamer()
 {
+   if ( s_bRxVideoOutputStreamerMustReinitialize )
+   {
+      log_line("[VideoOutput] Video streamer must be signaled for restart, but it's already signaled.");    
+      return;
+   }
    if ( NULL == s_pRxVideoSemaphoreRestartVideoStreamer )
    {
       log_error_and_alarm("[VideoOutput] Can't signal video streamer to restart. No signal.");

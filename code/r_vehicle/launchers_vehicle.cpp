@@ -100,9 +100,11 @@ void vehicle_launch_rx_commands(Model* pModel)
 
 void vehicle_stop_rx_commands()
 {
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_STOP);
+   hw_execute_bash_command(szComm, NULL);
+
    char szFile[MAX_FILE_PATH_SIZE];
-   sprintf(szFile, "touch %scmdstop.txt", FOLDER_RUBY_TEMP);
-   hw_execute_bash_command(szFile, NULL);
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, "cmdstop.txt");
    int iCounter = 0;

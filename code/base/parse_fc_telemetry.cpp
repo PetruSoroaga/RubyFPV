@@ -36,8 +36,6 @@
 #include "../base/models.h"
 #include "../radio/radiopackets2.h"
 
-//#define DEBUG_MAV 1
-
 bool s_bHasReceivedGPSInfo = false;
 bool s_bHasReceivedGPSPos = false;
 bool s_bHasReceivedHeartbeat = false;
@@ -312,36 +310,21 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
    if ( (msgMav.sysid != s_vehicleMavId) && (msgMav.sysid != 0) )
       return;
 
-   #ifdef DEBUG_MAV
-   log_line("MAV Msg id: %d", msgMav.msgid);
-   printf("MAV Msg id: %d\n", msgMav.msgid);
-   #endif
-
    switch (msgMav.msgid)
    { 
       case MAVLINK_MSG_ID_STATUSTEXT:
          mavlink_msg_statustext_get_text(&msgMav, szBuff);
          if ( _check_add_fc_message(szBuff) )
             log_line("MAV status text: %s", szBuff);
-         #ifdef DEBUG_MAV
-         printf("MAV status text: %s\n", szBuff);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_STATUSTEXT_LONG:
          mavlink_msg_statustext_long_get_text(&msgMav, szBuff);
          if ( _check_add_fc_message(szBuff) )
             log_line("MAV status text long: %s", szBuff);
-         #ifdef DEBUG_MAV
-         printf("MAV status text long: %s\n", szBuff);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_HEARTBEAT:
-         #ifdef DEBUG_MAV
-         log_line("MAV Heart Beat, type: %d, autopilot: %d", mavlink_msg_heartbeat_get_type(&msgMav), mavlink_msg_heartbeat_get_autopilot(&msgMav));
-         printf("MAV Heart Beat, type: %d, autopilot: %d\n", mavlink_msg_heartbeat_get_type(&msgMav), mavlink_msg_heartbeat_get_autopilot(&msgMav));
-         #endif
          tmp32 = mavlink_msg_heartbeat_get_custom_mode(&msgMav);
          tmp8 = mavlink_msg_heartbeat_get_base_mode(&msgMav);
          pdpfct->flight_mode = 0;
@@ -453,20 +436,12 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
       case MAVLINK_MSG_ID_BATTERY_STATUS:
          imah = mavlink_msg_battery_status_get_current_consumed(&msgMav);
          pdpfct->mah = (imah<0)?0:imah;
-         #ifdef DEBUG_MAV
-         log_line("MAV battery status: mah: %d, %u", imah, pdpfct->mah);
-         printf("MAV battery status: mah: %d, %u\n", imah, pdpfct->mah);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_SYS_STATUS:
          imah = mavlink_msg_sys_status_get_current_battery(&msgMav);
          pdpfct->voltage = mavlink_msg_sys_status_get_voltage_battery(&msgMav);
          pdpfct->current = (imah<0)?0:(imah*10U);
-         #ifdef DEBUG_MAV
-         log_line("MAV Sys Status: volt: %f, amps: %f", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
-         printf("MAV Sys Status: volt: %f, amps: %f\n", pdpfct->voltage/100.0f, pdpfct->current/100.0f);
-         #endif
          s_iSystemMsgCount++;
          break;
       
@@ -503,10 +478,6 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          pdpfct->latitude = mavlink_msg_global_position_int_get_lat(&msgMav);
          pdpfct->longitude = mavlink_msg_global_position_int_get_lon(&msgMav);
          s_bHasReceivedGPSPos = true;
-         #ifdef DEBUG_MAV
-         log_line("MAV Pos Int: alt absolute: %f", pdpfct->altitude_abs/10.0f);
-         printf("MAV Pos Int: alt absolute: %f\n", pdpfct->altitude_abs/10.0f);
-         #endif
          break;
 
      case MAVLINK_MSG_ID_GPS_RAW_INT:
@@ -520,10 +491,6 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          //   pdpfct->altitude_abs = uTmp32;
 
          s_bHasReceivedGPSInfo = true;
-         #ifdef DEBUG_MAV
-         log_line("MAV GPS Raw: satelites: %d, fix type: %d, hdop: %f, %.7f, %.7f", pdpfct->satelites, pdpfct->gps_fix_type, pdpfct->hdop/100.0f, pdpfct->longitude/10000000.0f, pdpfct->latitude/10000000.0f);
-         printf("MAV GPS Raw: satelites: %d, fix type: %d, hdop: %f\n", pdpfct->satelites, pdpfct->gps_fix_type, pdpfct->hdop/100.0f);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_GPS2_RAW:
@@ -551,20 +518,12 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
 
          tmp32= mavlink_msg_vfr_hud_get_airspeed(&msgMav) * 100.0f + 100000;
          pdpfct->aspeed = tmp32;
-         #ifdef DEBUG_MAV
-         log_line("MAV HUD: alt: %f, vspeed: %f", pdpfct->altitude/100.0f, pdpfct->vspeed/100.0f);
-         printf("MAV HUD: alt: %f, vspeed: %f\n", pdpfct->altitude/100.0f, pdpfct->vspeed/100.0f);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_ATTITUDE: 
          pdpfct->flags = pdpfct->flags | FC_TELE_FLAGS_HAS_ATTITUDE;
          pdpfct->roll = (mavlink_msg_attitude_get_roll(&msgMav) + 3.141592653589793)*5700.2958;
          pdpfct->pitch = (mavlink_msg_attitude_get_pitch(&msgMav) + 3.141592653589793)*5700.2958;
-         #ifdef DEBUG_MAV
-         log_line("MAV attitude: pitch: %.1f, roll: %.1f", pdpfct->pitch/100.0f, pdpfct->roll/100.0f);
-         printf("MAV attitude: pitch: %.1f, roll: %.1f\n", pdpfct->pitch/100.0f, pdpfct->roll/100.0f);
-         #endif
          break;
 
       case MAVLINK_MSG_ID_RC_CHANNELS_RAW:

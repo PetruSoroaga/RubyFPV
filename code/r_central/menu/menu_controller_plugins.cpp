@@ -471,7 +471,7 @@ void MenuControllerPlugins::importFromUSB()
             break;
          if ( NULL == g_pCurrentModel )
             break;
-         int layoutIndex = g_pCurrentModel->osd_params.layout;
+         int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
          g_pCurrentModel->osd_params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
       }
 

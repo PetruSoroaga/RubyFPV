@@ -16,7 +16,7 @@
 
 // Define this to get profile logs about receiving and processing rx packets times
 #define PROFILE_RX 1
-#define PROFILE_RX_MAX_TIME 15
+#define PROFILE_RX_MAX_TIME 5
 
 extern bool g_bQuit;
 extern bool g_bDebugState;
@@ -31,9 +31,6 @@ extern u32  g_uSearchFrequency;
 extern u32  g_uAcceptedFirmwareType;
 extern bool g_bUpdateInProgress;
 extern bool g_bNegociatingRadioLinks;
-
-extern bool g_bDebugIsPacketsHistoryGraphOn;
-extern bool g_bDebugIsPacketsHistoryGraphPaused;
 
 // Router
 
@@ -71,7 +68,6 @@ extern shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfacesRxG
 // To fix
 //extern shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats;
 extern shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs;
-extern shared_mem_router_packets_stats_history* g_pDebug_SM_RouterPacketsStatsHistory;
 extern shared_mem_process_stats* g_pProcessStats;
 extern t_packet_data_controller_link_stats g_PD_ControllerLinkStats;
 
@@ -90,9 +86,6 @@ extern bool g_bFirstModelPairingDone;
 extern u32 g_uLastInterceptedCommandCounterToSetRadioFlags;
 extern u32 g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand;
 extern int g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand;
-
-extern bool g_bIsVehicleLinkToControllerLost;
-extern bool g_bIsControllerLinkToVehicleLost;
 
 extern int g_iDebugShowKeyFramesAfterRelaySwitch;
 

@@ -14,4 +14,5 @@ u32 g_TimeLastJoystickCheck = 0;
 u32 g_TimeLastControllerLinkStatsSent = 0;
 
 u32 g_TimeLastSetRadioFlagsCommandSent = 0;
-
+u32 g_TimeLastVideoParametersOrProfileChanged = 0;
+u32 g_uTimeEndedNegiciateRadioLink = 0;

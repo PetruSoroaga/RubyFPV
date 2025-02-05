@@ -19,7 +19,7 @@ class MenuTXRawPower: public Menu
       
    protected:
       void addItems();
-      MenuItemSelect* createItemCard(bool bVehicle, int iCardIndex, int iCardModel, int iDriver, int iRawPower);
+      MenuItemSelect* createItemCard(bool bVehicle, u32 uBoardType, int iCardIndex, int iCardModel, int iRawPower);
       void computeSendPowerToVehicle(int iCardIndex);
       void computeApplyControllerPower(int iCardIndex);
 

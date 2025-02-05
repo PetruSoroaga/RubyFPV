@@ -133,7 +133,6 @@ int save_ControllerSettings()
    }
    fprintf(fd, "%s\n", CONTROLLER_SETTINGS_STAMP_ID);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iDeveloperMode, s_CtrlSettings.iUseBrokenVideoCRC, s_CtrlSettings.iHDMIBoost);
-   
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iOverVoltage, s_CtrlSettings.iFreqARM, s_CtrlSettings.iFreqGPU);
 
    fprintf(fd, "%d %d %d\n%d %d\n", s_CtrlSettings.iNiceRouter, s_CtrlSettings.iNiceCentral, s_CtrlSettings.iNiceRXVideo, s_CtrlSettings.ioNiceRouter, s_CtrlSettings.ioNiceRXVideo);
@@ -200,13 +199,11 @@ int load_ControllerSettings()
    szBuff[0] = 0;
    if ( 1 != fscanf(fd, "%s", szBuff) )
       failed = 1;
-   if ( 0 != strcmp(szBuff, CONTROLLER_SETTINGS_STAMP_ID) )
-      failed = 2;
 
    if ( failed )
    {
       fclose(fd);
-      log_softerror_and_alarm("Failed to load controller settings from file: %s (invalid config file version)", szFile);
+      log_softerror_and_alarm("Failed to load controller settings from file: %s (can't read config file version)", szFile);
       reset_ControllerSettings();
       save_ControllerSettings();
       return 0;
@@ -365,9 +362,10 @@ u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVid
       ping_interval_ms = 1000/s_CtrlSettings.nPingClockSyncFrequency;
 
    if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
-      ping_interval_ms /= 2;
+      ping_interval_ms = (ping_interval_ms * 80) / 100;
 
    #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
+   // Send more frequent pings so that vehicle can compute uplink link quality from controller
    if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
    if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
    {

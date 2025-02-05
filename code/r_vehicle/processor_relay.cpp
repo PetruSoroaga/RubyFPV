@@ -10,9 +10,9 @@
         * Redistributions in binary form must reproduce the above copyright
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -130,7 +130,7 @@ void relay_process_received_radio_packet_from_relayed_vehicle(int iRadioLink, in
 
    if ( ((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO) ||
         ((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_AUDIO) )
-   if ( (uPacketType == PACKET_TYPE_VIDEO_DATA_98) ||
+   if ( (uPacketType == PACKET_TYPE_VIDEO_DATA) ||
         (uPacketType == PACKET_TYPE_AUDIO_SEGMENT) )
    if ( ! relay_vehicle_must_forward_video_from_relayed_vehicle(g_pCurrentModel, uVehicleIdSrc) )
       return;
@@ -435,9 +435,9 @@ void relay_send_packet_to_controller(u8* pBufferData, int iBufferLength)
       u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
       radio_set_frames_flags(radioFlags);
 
-      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_DOWNLINK, 0);
+      int totalLength = radio_build_new_raw_ieee_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_DOWNLINK, 0);
 
-      if ( (totalLength >0) && radio_write_raw_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength) )
+      if ( (totalLength >0) && radio_write_raw_ieee_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength, 0) )
       {           
          bPacketSent = true;
          g_SM_RadioStats.radio_links[iRadioLinkId].totalTxPackets++;
@@ -523,9 +523,9 @@ void relay_send_single_packet_to_relayed_vehicle(u8* pBufferData, int iBufferLen
       u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
       radio_set_frames_flags(radioFlags);
 
-      int totalLength = radio_build_new_raw_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_UPLINK, 0);
+      int totalLength = radio_build_new_raw_ieee_packet(iRadioLinkId, s_RadioRawPacketRelayed, pBufferData, iBufferLength, RADIO_PORT_ROUTER_UPLINK, 0);
 
-      if ( (totalLength>0) && radio_write_raw_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength) )
+      if ( (totalLength>0) && radio_write_raw_ieee_packet(iRadioInterfaceIndex, s_RadioRawPacketRelayed, totalLength, 0) )
       {           
          bPacketSent = true;
          g_SM_RadioStats.radio_links[iRadioLinkId].totalTxPackets++;

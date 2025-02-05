@@ -24,6 +24,7 @@ class MenuPreferencesUI: public Menu
       int m_IndexOSDFont;
       int m_IndexMonitor;
       int m_IndexUnits;
+      int m_IndexUnitsHeight;
       int m_IndexPersistentMessages;
       int m_IndexLogWindow;
       int m_IndexMSPOSDFont;

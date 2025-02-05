@@ -105,7 +105,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Set_Developer_Flags"); break;
       case COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Reset_All_Developer_Flags"); break;
       case COMMAND_ID_ENABLE_DEBUG: strcpy(szCommandDesc, "Enable_Debug"); break;
-      case COMMAND_ID_DEBUG_GET_TOP: strcpy(szCommandDesc, "Dbg_Get_TOP"); break;
+      case COMMAND_ID_DEBUG_GET_TOP: strcpy(szCommandDesc, "Debug_Get_TOP"); break;
       case COMMAND_ID_SET_ENCRYPTION_PARAMS: strcpy(szCommandDesc, "Set Encryption Params"); break;
       case COMMAND_ID_DOWNLOAD_FILE: strcpy(szCommandDesc, "Download_File"); break;
       case COMMAND_ID_DOWNLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Download_File_Segment"); break;

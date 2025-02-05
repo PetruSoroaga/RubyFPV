@@ -80,7 +80,8 @@
 #define FILE_TEMP_SIK_CONFIG_FINISHED "sik_config_complete"
 #define FILE_TEMP_AUDIO_RECORDING "audio.wav"
 #define FILE_TEMP_RADIOS_CONFIGURED "radio_configured"
-
+#define FILE_TEMP_INTRO_PLAYING "intro_playing"
+#define FILE_TEMP_STOP "cmdstop"
 #define SUBFOLDER_UPDATES_PI    "bin/pi/"
 #define SUBFOLDER_UPDATES_RADXA "bin/radxaz3/"
 #define SUBFOLDER_UPDATES_OIPC  "bin/ssc338q/"
@@ -117,6 +118,7 @@
 #define FILE_FORCE_CONTROLLER "/boot/forcecontroller"
 #define FILE_FORCE_ROUTER "/boot/forcerouter"
 #define FILE_FORCE_RESET "/boot/forcereset"
+#define FILE_BOOT_LOG_STEPS "/boot/bootstepslog.txt"
 
 //#define VIDEO_RECORDER_COMMAND "raspivid"
 //#define VIDEO_RECORDER_COMMAND_VEYE "/usr/local/bin/veye_raspivid"
@@ -162,6 +164,7 @@
 #define FILE_FORCE_CONTROLLER "/config/forcecontroller"
 #define FILE_FORCE_ROUTER "/config/forcerouter"
 #define FILE_FORCE_RESET "/config/forcereset"
+#define FILE_BOOT_LOG_STEPS "/config/bootstepslog.txt"
 
 #define VIDEO_PLAYER_PIPE "ruby_player_radxa"
 #define VIDEO_PLAYER_SM "ruby_player_radxa"
@@ -196,6 +199,7 @@
 #define FILE_FORCE_CONTROLLER "/root/forcecontroller"
 #define FILE_FORCE_ROUTER "/root/forcerouter"
 #define FILE_FORCE_RESET "/root/forcereset"
+#define FILE_BOOT_LOG_STEPS "/root/ruby/bootstepslog.txt"
 
 #define VIDEO_RECORDER_COMMAND "majestic"
 

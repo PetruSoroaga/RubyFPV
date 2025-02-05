@@ -54,7 +54,6 @@
 #include "../utils/utils_controller.h"
 
 #include "shared_vars.h"
-#include "links_utils.h"
 #include "radio_links.h"
 #include "ruby_rt_station.h"
 #include "processor_rx_audio.h"
@@ -396,6 +395,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
 
          int nRateTx = DEFAULT_RADIO_DATARATE_LOWEST;
          if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
+            nRateTx = DEFAULT_RADIO_DATARATE_LOWEST;
+         if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO )
             nRateTx = DEFAULT_RADIO_DATARATE_LOWEST;
          if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_FIXED )
             nRateTx = g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink];
@@ -852,7 +853,6 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED )
    {
       log_line("Received control packet to reload controller settings.");
-
       g_pControllerSettings = get_ControllerSettings();
       int iOldTxMode = g_pControllerSettings->iRadioTxUsesPPCAP;
       int iOldSocketBuffers = g_pControllerSettings->iRadioBypassSocketBuffers;
@@ -940,6 +940,8 @@ void process_local_control_packet(t_packet_header* pPH)
          }
       }
 
+      g_TimeNow = get_current_timestamp_ms();
+
       if ( NULL != g_pControllerSettings )
          radio_stats_set_graph_refresh_interval(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
       radio_stats_interfaces_rx_graph_reset(&g_SM_RadioStatsInterfacesRxGraph, 10);
@@ -975,6 +977,9 @@ void process_local_control_packet(t_packet_header* pPH)
          if ( -1 != g_fIPCToRC )
             ruby_ipc_channel_send_message(g_fIPCToRC, (u8*)pPH, pPH->total_length);
       }
+
+      g_TimeNow = get_current_timestamp_ms();
+      g_TimeLastVideoParametersOrProfileChanged = g_TimeNow;
       return;
    }
 
@@ -993,36 +998,5 @@ void process_local_control_packet(t_packet_header* pPH)
            pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_UPDATE_FINISHED )
          g_bUpdateInProgress = false;
       return;
-   }
-
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_START )
-   {
-      log_line("Starting debug router packets history graph");
-      g_bDebugIsPacketsHistoryGraphOn = true;
-      g_bDebugIsPacketsHistoryGraphPaused = false;
-      g_pDebug_SM_RouterPacketsStatsHistory = shared_mem_router_packets_stats_history_open_write();
-      if ( NULL == g_pDebug_SM_RouterPacketsStatsHistory )
-      {
-         log_softerror_and_alarm("Failed to open shared mem for write for router packets stats history.");
-         g_bDebugIsPacketsHistoryGraphOn = false;
-         g_bDebugIsPacketsHistoryGraphPaused = true;
-      }
-      return;
-   }
-
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_STOP )
-   {
-      g_bDebugIsPacketsHistoryGraphOn = false;
-      g_bDebugIsPacketsHistoryGraphPaused = true;
-      shared_mem_router_packets_stats_history_close(g_pDebug_SM_RouterPacketsStatsHistory);
-      return;
-   }
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_PAUSE )
-   {
-      g_bDebugIsPacketsHistoryGraphPaused = true;
-   }
-   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_DEBUG_SCOPE_RESUME )
-   {
-      g_bDebugIsPacketsHistoryGraphPaused = false;
    }
 }

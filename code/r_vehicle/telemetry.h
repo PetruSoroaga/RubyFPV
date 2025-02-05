@@ -10,6 +10,7 @@ int telemetry_open_serial_port();
 int telemetry_close_serial_port();
 u32 telemetry_last_time_opened();
 u32 telemetry_time_last_telemetry_received();
+void telemetry_reset_time_last_telemetry_received();
 int telemetry_get_serial_port_file();
 
 int telemetry_try_read_serial_port();

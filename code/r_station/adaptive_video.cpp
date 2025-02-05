@@ -38,6 +38,7 @@
 #include "../radio/radiopacketsqueue.h"
 
 #include "adaptive_video.h"
+#include "test_link_params.h"
 #include "shared_vars.h"
 #include "shared_vars_state.h"
 #include "timers.h"
@@ -132,8 +133,9 @@ void _adaptive_video_send_video_profile_to_vehicle(int iVideoProfile, u32 uVehic
    memcpy(packet+sizeof(t_packet_header), (u8*)&(pRuntimeInfo->uVideoProfileRequestId), sizeof(u32));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32), (u8*)&uVideoProfile, sizeof(u8));
    memcpy(packet+sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), (u8*)&uVideoStreamIndex, sizeof(u8));
-   for( int i=0; i<3; i++ )
-      packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
+   packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
+   log_line("[AdaptiveVideo] Requested new video profile from vehicle %u (req id: %u): %d (%s)",
+      uVehicleId, pRuntimeInfo->uVideoProfileRequestId, iVideoProfile, str_get_video_profile_name(iVideoProfile));
 }
 
 void adaptive_video_switch_to_video_profile(int iVideoProfile, u32 uVehicleId)
@@ -162,6 +164,9 @@ void adaptive_video_received_video_profile_switch_confirmation(u32 uRequestId, u
       pRuntimeInfo->uLastTimeRecvVideoProfileAck = g_TimeNow;
    }
 
+   log_line("[AdaptiveVideo] Received video profile change ack from VID %u, req id: %u, new video profile: %d (%s)",
+      uVehicleId, uRequestId, uVideoProfile, str_get_video_profile_name(uVideoProfile));
+   
    g_SMControllerRTInfo.uFlagsAdaptiveVideo[g_SMControllerRTInfo.iCurrentIndex] |= CTRL_RT_INFO_FLAG_RECV_ACK;
 
    if ( pRuntimeInfo->uVideoProfileRequestId == uRequestId )
@@ -183,7 +188,7 @@ bool _adaptive_video_should_switch_lower(Model* pModel, type_global_state_vehicl
       iIntervalsToCheck = SYSTEM_RT_INFO_INTERVALS - 1;
    int iRTInfoIndex = g_SMControllerRTInfo.iCurrentIndex;
    
-   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile].block_fecs;
+   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].block_fecs;
    
    if ( iECScheme > 0 )
    {
@@ -215,7 +220,6 @@ bool _adaptive_video_should_switch_lower(Model* pModel, type_global_state_vehicl
       }
       if ( iECCountThreshold > (10-pModel->video_params.videoAdjustmentStrength)/2 )
       {
-         //log_line("DEBUG should switch lower");
          return true;
       }
    }
@@ -234,7 +238,7 @@ bool _adaptive_video_should_switch_higher(Model* pModel, type_global_state_vehic
       iIntervalsToCheck = SYSTEM_RT_INFO_INTERVALS - 1;
    int iRTInfoIndex = g_SMControllerRTInfo.iCurrentIndex;
    
-   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile].block_fecs;
+   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].block_fecs;
    if ( iECScheme > 0 )
    {
       int iECThreshold = iECScheme-1;
@@ -260,7 +264,6 @@ bool _adaptive_video_should_switch_higher(Model* pModel, type_global_state_vehic
 
       if ( iECCountThreshold < (10-pModel->video_params.videoAdjustmentStrength)/3 + 1 )
       {
-         //log_line("DEBUG should switch higher");
          return true; 
       }
    }
@@ -280,25 +283,25 @@ void _adaptive_video_check_vehicle(Model* pModel, type_global_state_vehicle_runt
    if ( (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO )
       iLowestProfile = VIDEO_PROFILE_MQ;
 
-   if ( pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile != iLowestProfile )
+   if ( pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile != iLowestProfile )
    if ( pRuntimeInfo->uPendingVideoProfileToSet != iLowestProfile )
    if ( pRuntimeInfo->uLastTimeSentVideoProfileRequest < g_TimeNow - 30 )
    if ( _adaptive_video_should_switch_lower(pModel, pRuntimeInfo, pSMVideoStreamInfo) )
    {
-      int iVideoProfile = _adaptive_video_get_lower_video_profile(pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile);
+      int iVideoProfile = _adaptive_video_get_lower_video_profile(pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile);
       pRuntimeInfo->uPendingVideoProfileToSet = iVideoProfile;
       pRuntimeInfo->uPendingVideoProfileToSetRequestedBy = CTRL_RT_INFO_FLAG_VIDEO_PROF_SWITCH_REQ_BY_ADAPTIVE_LOWER;
       _adaptive_video_send_video_profile_to_vehicle(iVideoProfile, pModel->uVehicleId);
    }
 
    u32 uMinTimeToSwitchHigher = 3000 + (10 - pModel->video_params.videoAdjustmentStrength) * 400;
-   if ( pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile != pModel->video_params.user_selected_video_link_profile )
+   if ( pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile != pModel->video_params.user_selected_video_link_profile )
    if ( pRuntimeInfo->uPendingVideoProfileToSet != pModel->video_params.user_selected_video_link_profile )
    if ( g_TimeNow > g_TimeStart + uMinTimeToSwitchHigher )
    if ( pRuntimeInfo->uLastTimeSentVideoProfileRequest < g_TimeNow - uMinTimeToSwitchHigher )
    if ( _adaptive_video_should_switch_higher(pModel, pRuntimeInfo, pSMVideoStreamInfo) )
    {
-      int iVideoProfile = _adaptive_video_get_higher_video_profile(pModel, pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile);
+      int iVideoProfile = _adaptive_video_get_higher_video_profile(pModel, pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile);
       pRuntimeInfo->uPendingVideoProfileToSet = iVideoProfile;
       pRuntimeInfo->uPendingVideoProfileToSetRequestedBy = CTRL_RT_INFO_FLAG_VIDEO_PROF_SWITCH_REQ_BY_ADAPTIVE_HIGHER;
       _adaptive_video_send_video_profile_to_vehicle(iVideoProfile, pModel->uVehicleId);
@@ -313,33 +316,36 @@ void _adaptive_keyframe_check_vehicle(Model* pModel, type_global_state_vehicle_r
    if ( pRuntimeInfo->uPendingKeyFrameToSet == 0 )
       return;
 
-   if ( pSMVideoStreamInfo->PHVF.uCurrentVideoKeyframeIntervalMs == pRuntimeInfo->uPendingKeyFrameToSet )
+   if ( pSMVideoStreamInfo->PHVS.uCurrentVideoKeyframeIntervalMs == pRuntimeInfo->uPendingKeyFrameToSet )
    {
       pRuntimeInfo->uPendingKeyFrameToSet = 0;
       return;
    }
 
-   //log_line("DEBUG [AdaptiveVideo] sent to vehicle kf %d ms", pRuntimeInfo->uPendingVideoProfileToSet);
-
+   pRuntimeInfo->uVideoKeyframeRequestId++;
+   
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
    PH.vehicle_id_dest = pModel->uVehicleId;
-   PH.total_length = sizeof(t_packet_header) + sizeof(u32) + sizeof(u8);
+   PH.total_length = sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8);
 
    u32 uKeyframeMs = pRuntimeInfo->uPendingKeyFrameToSet;
    u8 uVideoStreamIndex = 0;
+
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-   memcpy(packet+sizeof(t_packet_header), (u8*)&uKeyframeMs, sizeof(u32));
-   memcpy(packet+sizeof(t_packet_header) + sizeof(u32), (u8*)&uVideoStreamIndex, sizeof(u8));
-   for( int i=0; i<3; i++ )
-      packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
+   memcpy(packet+sizeof(t_packet_header), (u8*)&(pRuntimeInfo->uVideoKeyframeRequestId), sizeof(u8));
+   memcpy(packet+sizeof(t_packet_header) + sizeof(u8), (u8*)&uKeyframeMs, sizeof(u32));
+   memcpy(packet+sizeof(t_packet_header) + sizeof(u8) + sizeof(u32), (u8*)&uVideoStreamIndex, sizeof(u8));
+   packets_queue_inject_packet_first(&s_QueueRadioPacketsHighPrio, packet);
+   log_line("[AdaptiveVideo] Requested new video keyframe from vehicle %u (req id: %u): %u ms",
+      pModel->uVehicleId, pRuntimeInfo->uVideoKeyframeRequestId, uKeyframeMs);
 }
 
 void adaptive_video_periodic_loop(bool bForceSyncNow)
 {
-   if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks )
+   if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks || test_link_is_in_progress() )
       return;
 
    if ( 0 != s_uTimePauseAdaptiveVideoUntil )
@@ -375,7 +381,7 @@ void adaptive_video_periodic_loop(bool bForceSyncNow)
       if ( (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
          _adaptive_keyframe_check_vehicle(pModel, pRuntimeInfo, pSMVideoStreamInfo);
 
-      if ( pSMVideoStreamInfo->PHVF.uCurrentVideoLinkProfile == pRuntimeInfo->uPendingVideoProfileToSet )
+      if ( pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile == pRuntimeInfo->uPendingVideoProfileToSet )
          pRuntimeInfo->uPendingVideoProfileToSet = 0xFF;
 
       if ( pRuntimeInfo->uPendingVideoProfileToSet == 0xFF )

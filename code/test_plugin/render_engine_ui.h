@@ -28,10 +28,10 @@ class RenderEngineUI
      unsigned int getFontIdBig();
      unsigned int loadFontSize(float fSize);
 
-     double* getColorOSDText(); // returns 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
-     double* getColorOSDInstruments();
-     double* getColorOSDOutline();
-     double* getColorOSDWarning();
+     const double* getColorOSDText(); // returns 4 double values: r,g,b,a.  r,g,b=0...255, a=0...1
+     const double* getColorOSDInstruments();
+     const double* getColorOSDOutline();
+     const double* getColorOSDWarning();
 
      unsigned int loadImage(const char* szFile); // supports PNG files
      void freeImage(unsigned int idImage);

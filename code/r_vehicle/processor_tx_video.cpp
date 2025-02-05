@@ -677,7 +677,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    if ( (! isRetransmitted) && (! isDuplicationPacket) )
    if ( packetIndex < s_BlocksTxBuffers[bufferIndex].block_packets )
    if ( NULL != g_pCurrentModel )
-   if ( (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO) ||
+   if ( (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO) ||
         (g_iDebugShowKeyFramesAfterRelaySwitch > 0) )
    {
       u8* pVideoData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);
@@ -926,7 +926,6 @@ bool _onNewCompletePacketReadFromInput()
       s_CurrentPHVF.uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_IS_IFRAME;
    else
       s_CurrentPHVF.uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_IS_IFRAME;
-   s_CurrentPHVF.uExtraData = g_TimeNow;
    
 
    s_CurrentPHVF.uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE;
@@ -1355,6 +1354,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS )
    {
+      static u32 s_uLastRecvRetransmissionId = 0;
       u8 uCount = pPacketBuffer[sizeof(t_packet_header) + sizeof(u32) + sizeof(u8)];
       u32 uRetrId = 0;
       memcpy(&uRetrId, &pPacketBuffer[sizeof(t_packet_header)], sizeof(u32));
@@ -1369,7 +1369,10 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
          iPacketIndex = (int) *pDataPackets;
          pDataPackets++;
          g_pVideoTxBuffers->resendVideoPacket(uRetrId, uBlockId, iPacketIndex);
+         if ( (s_uLastRecvRetransmissionId != uRetrId) && (uCount < 4) )
+            g_pVideoTxBuffers->resendVideoPacket(uRetrId, uBlockId, iPacketIndex);
       }
+      s_uLastRecvRetransmissionId = uRetrId;
    }
 
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL )
@@ -1384,6 +1387,9 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       memcpy( &uVideoProfile, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
       memcpy( &uVideoStreamIndex, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), sizeof(u8));
    
+      log_line("ProcessorTxVideo: Received req id %u from CID %u to switch video level to: %d (%s)",
+          uRequestId, pPH->vehicle_id_src, uVideoProfile, str_get_video_profile_name(uVideoProfile));
+
       t_packet_header PH;
       radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL_ACK, STREAM_ID_VIDEO_1);
       PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
@@ -1393,7 +1399,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet+sizeof(t_packet_header), &uRequestId, sizeof(u32));
       memcpy(packet+sizeof(t_packet_header) + sizeof(u32), &uVideoProfile, sizeof(u8));
-      if ( radio_packet_type_is_high_priority(PH.packet_type) )
+      if ( radio_packet_type_is_high_priority(PH.packet_flags, PH.packet_type) )
          send_packet_to_radio_interfaces(packet, PH.total_length, -1);
       else
          packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
@@ -1417,7 +1423,56 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       return true;
    } 
 
-   return true;
+   if ( pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE )
+   {
+      if ( pPH->total_length < sizeof(t_packet_header) + sizeof(u32) )
+         return true;
+      if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8) )
+         return true;
+
+      // Discard requests if we are on fixed keyframe
+      //if ( !(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME) )
+      //   return true;
+      
+      u8 uRequestId = 0;
+      u32 uNewKeyframeValueMs = 0;
+      u8 uVideoStreamIndex = 0;
+      memcpy( &uRequestId, pPacketBuffer + sizeof(t_packet_header), sizeof(u8));
+      memcpy( &uNewKeyframeValueMs, pPacketBuffer + sizeof(t_packet_header) + sizeof(u8), sizeof(u32));
+      if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
+         memcpy( &uVideoStreamIndex, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), sizeof(u8));
+
+      log_line("ProcessorTxVideo: Received req id %u from CID %u to switch video keyframe to: %d ms",
+          uRequestId, pPH->vehicle_id_src, uNewKeyframeValueMs);
+
+// To fix 
+/*         if ( g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs != uNewKeyframeValueMs )
+         log_line("[KeyFrame] Recv request from controller for keyframe: %u ms (previous requested was: %u ms)", uNewKeyframeValueMs, g_SM_VideoLinkStats.overwrites.uCurrentControllerRequestedKeyframeMs);
+      else
+         log_line("[KeyFrame] Recv again request from controller for keyframe: %u ms", uNewKeyframeValueMs);          
+*/       
+      // If video is not sent from this vehicle to controller, then we must reply back with acknowledgment
+      if ( ! relay_current_vehicle_must_send_own_video_feeds() )
+      {
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK, STREAM_ID_DATA);
+         PH.packet_flags = PACKET_COMPONENT_VIDEO;
+         PH.packet_type =  PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK;
+         PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+         PH.vehicle_id_dest = pPH->vehicle_id_src;
+         PH.total_length = sizeof(t_packet_header) + sizeof(u32) + sizeof(u8);
+         u8 packet[MAX_PACKET_TOTAL_SIZE];
+         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+         memcpy(packet+sizeof(t_packet_header), &uRequestId, sizeof(u8));
+         memcpy(packet+sizeof(t_packet_header) + sizeof(u8), &uNewKeyframeValueMs, sizeof(u32));
+         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+      }
+
+      adaptive_video_set_last_kf_requested_by_controller(uNewKeyframeValueMs);
+      return true;
+   }
+
+   return false;
 }
 
 bool process_data_tx_video_loop()
@@ -1579,7 +1634,7 @@ void _parse_camera_source_h264_data(u8* pData, int iDataSize)
    {
       float fGOP = 1.0;
       fGOP = ((float)g_SM_VideoLinkStats.overwrites.uCurrentActiveKeyframeMs)/1000.0;
-      video_source_majestic_set_keyframe_value(fGOP);                
+      hardware_camera_maj_set_keyframe(fGOP);                
    }
    */
 }
@@ -1624,12 +1679,6 @@ bool process_data_tx_video_on_new_data(u8* pData, int iDataSize)
    return bCompleteBlock;
    */
  return false;
-}
-
-void process_data_tx_video_signal_encoding_changed()
-{
-   //log_line("TXVideo: Received request to update local encode parameters.");
-   //s_bPendingEncodingSwitch = true;
 }
 
 void process_data_tx_video_signal_model_changed()

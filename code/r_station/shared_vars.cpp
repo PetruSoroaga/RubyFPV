@@ -46,10 +46,6 @@ u32  g_uAcceptedFirmwareType = MODEL_FIRMWARE_TYPE_RUBY;
 bool g_bUpdateInProgress = false;
 bool g_bNegociatingRadioLinks = false;
 
-bool g_bDebugIsPacketsHistoryGraphOn = false;
-bool g_bDebugIsPacketsHistoryGraphPaused = false;
-
-
 // Router
 
 ProcessorRxVideo* g_pVideoProcessorRxList[MAX_VIDEO_PROCESSORS];
@@ -86,7 +82,6 @@ shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfacesRxGraph = 
 // To fix
 //shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats = NULL;
 shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs = NULL;
-shared_mem_router_packets_stats_history* g_pDebug_SM_RouterPacketsStatsHistory = NULL;
 shared_mem_process_stats* g_pProcessStats = NULL;
 
 t_packet_data_controller_link_stats g_PD_ControllerLinkStats;
@@ -105,9 +100,6 @@ bool g_bFirstModelPairingDone = false;
 u32 g_uLastInterceptedCommandCounterToSetRadioFlags = MAX_U32;
 u32 g_uLastRadioLinkIndexForSentSetRadioLinkFlagsCommand = MAX_U32;
 int g_iLastRadioLinkDataRateSentForSetRadioLinkFlagsCommand = 0;
-
-bool g_bIsVehicleLinkToControllerLost = false;
-bool g_bIsControllerLinkToVehicleLost = false;
 
 int g_iDebugShowKeyFramesAfterRelaySwitch = 0;
 int g_iGetSiKConfigAsyncResult = 0;

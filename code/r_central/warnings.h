@@ -10,7 +10,7 @@ void warnings_replace(const char* szSource, const char* szDest);
 
 void warnings_add(u32 uVehicleId, const char* szTitle);
 void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId);
-void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, double* pColorIcon, int timeout=8);
+void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, const double* pColorIcon, int timeout=8);
 
 void warnings_add_error_null_model(int code);
 void warnings_add_radio_reinitialized();

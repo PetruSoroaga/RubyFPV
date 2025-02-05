@@ -21,6 +21,7 @@ extern "C" {
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_RETRANSMISSIONS  ((u32)(((u32)0x01)<<12))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_ACK_TIME_HISTORY       ((u32)(((u32)0x01)<<13))
 #define CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_AIR_GAPS            ((u32)(((u32)0x01)<<14))
+#define CTRL_RT_DEBUG_INFO_FLAG_SHOW_TX_HIGH_REG_PACKETS    ((u32)(((u32)0x01)<<15))
 
 
 #define ID_DONOT_SHOW_AGAIN_MIXED_PI_OPENIPC_HARDWARE 1
@@ -133,6 +134,7 @@ typedef struct
    int iLanguage;
    int iDoNotShowAgainIds[MAX_PREFERENCES_CHECKBOXES];
    int iDoNotShowAgainValues[MAX_PREFERENCES_CHECKBOXES];
+   int iUnitsHeight;
 } Preferences;
 
 int save_Preferences();

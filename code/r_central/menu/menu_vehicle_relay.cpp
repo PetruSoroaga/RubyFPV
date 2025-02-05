@@ -919,6 +919,7 @@ void MenuVehicleRelay::onSelectItem()
       
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RELAY_PARAMETERS, 0, (u8*)&params, sizeof(type_relay_parameters)) )
          valuesToUI();
+      return;
    }
 
    if ( m_IndexOSDMerge == m_SelectedIndex )
@@ -932,5 +933,6 @@ void MenuVehicleRelay::onSelectItem()
       
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RELAY_PARAMETERS, 0, (u8*)&params, sizeof(type_relay_parameters)) )
          valuesToUI();
+      return;
    }
 }

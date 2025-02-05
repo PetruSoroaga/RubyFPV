@@ -67,6 +67,8 @@ u32 controller_utils_getControllerId()
    log_line("Generating a new unique controller ID...");
 
    uControllerId = rand();
+   if ( BROADCAST_VEHICLE_ID == uControllerId )
+      uControllerId = rand();
    fd = fopen("/sys/firmware/devicetree/base/serial-number", "r");
    if ( NULL != fd )
    {
@@ -476,6 +478,16 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
       pAllProfiles[VIDEO_PROFILE_MQ].h264refresh = pUpdatedProfile->h264refresh;
       pAllProfiles[VIDEO_PROFILE_LQ].h264refresh = pUpdatedProfile->h264refresh;
    }
+
+   pAllProfiles[VIDEO_PROFILE_LQ].video_data_length = pUpdatedProfile->video_data_length;
+   pAllProfiles[VIDEO_PROFILE_MQ].video_data_length = pUpdatedProfile->video_data_length;
+
+   u32 uNoiseLevel = pUpdatedProfile->uProfileFlags & 0x03;
+
+   pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags &= ~ (u32)0x03;
+   pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags |= uNoiseLevel;
+   pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags &= ~ (u32)0x03;
+   pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags |= uNoiseLevel;
 }
 
 int tx_powers_get_max_usable_power_mw_for_controller()
@@ -497,11 +509,10 @@ int tx_powers_get_max_usable_power_mw_for_controller()
       if ( NULL == pCRII )
          continue;
 
-      int iDriver = pRadioHWInfo->iRadioDriver;
       int iCardModel = pCRII->cardModel;
 
-      int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
-      int iPowerMw = tx_powers_convert_raw_to_mw(iDriver, iCardModel, iPowerMaxRaw);
+      int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(0, iCardModel);
+      int iPowerMw = tx_powers_convert_raw_to_mw(0, iCardModel, iPowerMaxRaw);
       if ( iPowerMw > iMaxPowerMw )
          iMaxPowerMw = iPowerMw;
    }
@@ -550,17 +561,16 @@ int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComp
       if ( NULL == pCRII )
          continue;
 
-      int iDriver = pRadioHWInfo->iRadioDriver;
       int iCardModel = pCRII->cardModel;
       int iPowerRawToSet = pCRII->iRawPowerLevel;
 
       if ( 0 != iPowerMwToOverwrite )
       {
-         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(iDriver, iCardModel);
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
          int iCardNewPowerMw = iPowerMwToOverwrite;
          if ( iCardNewPowerMw > iCardMaxPowerMw )
             iCardNewPowerMw = iCardMaxPowerMw;
-         iPowerRawToSet = tx_powers_convert_mw_to_raw(iDriver, iCardModel, iCardNewPowerMw);
+         iPowerRawToSet = tx_powers_convert_mw_to_raw(0, iCardModel, iCardNewPowerMw);
          pCRII->iRawPowerLevel = iPowerRawToSet;
          log_line("Set radio interface %d raw tx power to: %d (%d mw of %d mw max for this card)", i+1, iPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
       }
@@ -576,7 +586,7 @@ int apply_controller_radio_tx_powers(Model* pModel, bool bFixedPower, bool bComp
             hardware_radio_set_txpower_raw_atheros(i, iPowerRawToSet);
       }
       
-      int iPowerMwSet = tx_powers_convert_raw_to_mw(iDriver, iCardModel, iPowerRawToSet);
+      int iPowerMwSet = tx_powers_convert_raw_to_mw(0, iCardModel, iPowerRawToSet);
       if ( iPowerMwSet > iMaxPowerMwSet )
          iMaxPowerMwSet = iPowerMwSet;
    }

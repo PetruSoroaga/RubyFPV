@@ -27,6 +27,7 @@ class MenuVehicleVideoEncodings: public Menu
       int m_IndexEnableAdaptiveQuantization;
       int m_IndexAdaptiveH264QuantizationStrength;
       int m_IndexHDMIOutput;
+      int m_IndexNoise;
 
       //bool m_ShowBitrateWarning;
       MenuItemSlider* m_pItemsSlider[25];

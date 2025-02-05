@@ -26,6 +26,7 @@ class MenuControllerDevStatsConfig: public Menu
       int m_IndexShowRxMissingPackets;
       int m_IndexShowRxMissingPacketsMaxGap;
       int m_IndexShowRxConsumedPackets;
+      int m_IndexShowTxHighRegPackets;
       int m_IndexShowMinMaxAckTime;
       int m_IndexShowAckTimeHist;
       int m_IndexShowRxMaxECUsed;

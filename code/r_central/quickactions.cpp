@@ -163,21 +163,21 @@ void executeQuickActionCycleOSD()
    Model* pModel = osd_get_current_layout_source_model();
    if ( NULL == pModel )
       return;
-   log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->uVehicleId, pModel->getShortName(), pModel->osd_params.layout);
+   log_line("Execute quick action to switch OSD screen for VID %u (%s): from layout %d to next one", pModel->uVehicleId, pModel->getShortName(), pModel->osd_params.iCurrentOSDLayout);
 
-   int curentLayout = pModel->osd_params.layout;
+   int curentLayout = pModel->osd_params.iCurrentOSDLayout;
    int k=0; 
    while ( k < 10 )
    {
       k++;
-      pModel->osd_params.layout++;
-      if ( pModel->osd_params.layout >= osdLayoutLast )
-         pModel->osd_params.layout = osdLayout1;
-      if ( pModel->osd_params.osd_flags2[pModel->osd_params.layout] & OSD_FLAG2_LAYOUT_ENABLED )
+      pModel->osd_params.iCurrentOSDLayout++;
+      if ( pModel->osd_params.iCurrentOSDLayout >= osdLayoutLast )
+         pModel->osd_params.iCurrentOSDLayout = osdLayout1;
+      if ( pModel->osd_params.osd_flags2[pModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED )
          break; 
    }
 
-   if ( curentLayout == pModel->osd_params.layout )
+   if ( curentLayout == pModel->osd_params.iCurrentOSDLayout )
    {
       char szBuff[128];
       sprintf(szBuff, "You have a single OSD screen enabled on %s. Enable more to be able to switch them.", pModel->getLongName());
@@ -188,11 +188,11 @@ void executeQuickActionCycleOSD()
       return;
    }
 
-   osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
+   osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.iCurrentOSDLayout);
 
-   u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
+   u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.iCurrentOSDLayout] & 0xFF;
    osd_setScaleOSD((int)scale);
-   scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
+   scale = (pModel->osd_params.osd_preferences[pModel->osd_params.iCurrentOSDLayout]>>16) & 0x0F;
    osd_setScaleOSDStats((int)scale);
    osd_apply_preferences();
    applyFontScaleChanges();
@@ -200,15 +200,15 @@ void executeQuickActionCycleOSD()
    saveControllerModel(pModel);
    save_Preferences();
 
-   if ( pModel->osd_params.layout == 0 )
+   if ( pModel->osd_params.iCurrentOSDLayout == 0 )
       warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 1");
-   if ( pModel->osd_params.layout == 1 )
+   if ( pModel->osd_params.iCurrentOSDLayout == 1 )
       warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 2");
-   if ( pModel->osd_params.layout == 2 )
+   if ( pModel->osd_params.iCurrentOSDLayout == 2 )
       warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen 3");
-   if ( pModel->osd_params.layout == 3 )
+   if ( pModel->osd_params.iCurrentOSDLayout == 3 )
       warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen Lean");
-   if ( pModel->osd_params.layout == 4 )
+   if ( pModel->osd_params.iCurrentOSDLayout == 4 )
       warnings_add(pModel->uVehicleId, "OSD Screen changed to Screen Lean Extended");
 
    if ( pModel->is_spectator )
@@ -218,7 +218,7 @@ void executeQuickActionCycleOSD()
    //memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    handle_commands_abandon_command();
    //handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t));
-   handle_commands_send_single_oneway_command_to_vehicle(pModel->uVehicleId, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.layout, NULL, 0, 0);
+   handle_commands_send_single_oneway_command_to_vehicle(pModel->uVehicleId, 1, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)pModel->osd_params.iCurrentOSDLayout, NULL, 0, 0);
    g_iMustSendCurrentActiveOSDLayoutCounter = 10; // send it 10 times, every 200 ms
    g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
 
@@ -306,10 +306,10 @@ void executeQuickActionRelaySwitch()
         
       if ( NULL != pModel )
       {
-         osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.layout);
-         u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.layout] & 0xFF;
+         osd_set_current_layout_index_and_source_model(pModel, pModel->osd_params.iCurrentOSDLayout);
+         u32 scale = pModel->osd_params.osd_preferences[pModel->osd_params.iCurrentOSDLayout] & 0xFF;
          osd_setScaleOSD((int)scale);
-         scale = (pModel->osd_params.osd_preferences[pModel->osd_params.layout]>>16) & 0x0F;
+         scale = (pModel->osd_params.osd_preferences[pModel->osd_params.iCurrentOSDLayout]>>16) & 0x0F;
          osd_setScaleOSDStats((int)scale);
          if ( render_engine_uses_raw_fonts() )
             applyFontScaleChanges();
@@ -390,8 +390,21 @@ void executeQuickActionSwitchFavoriteVehicle()
       }
    }
    if ( -1 == iIndexRuntime )
+   {
       iIndexRuntime = MAX_CONCURENT_VEHICLES-1;
-
+      log_softerror_and_alarm("QuickAction: No more room in vehicles runtime info structure for new vehicle VID %u. Reuse last index: %d", g_pCurrentModel->uVehicleId, iIndexRuntime);
+      char szTmp[256];
+      szTmp[0] = 0;
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         char szT[32];
+         sprintf(szT, "%u", g_VehiclesRuntimeInfo[i].uVehicleId);
+         if ( 0 != i )
+            strcat(szTmp, ", ");
+         strcat(szTmp, szT);
+      }
+      log_softerror_and_alarm("QuickAction: Current vehicles in vehicles runtime info: [%s]", szTmp);
+   }
    reset_vehicle_runtime_info(&(g_VehiclesRuntimeInfo[iIndexRuntime]));
    g_VehiclesRuntimeInfo[iIndexRuntime].uVehicleId = g_pCurrentModel->uVehicleId;
    g_VehiclesRuntimeInfo[iIndexRuntime].pModel = g_pCurrentModel;

@@ -294,62 +294,6 @@ void update_shared_mem_video_frames_stats(shared_mem_video_frames_stats* pSMVISt
       return;
     
    pSMVIStats->uLastTimeStatsUpdate = uTimeNow;
-
-   u32 uMinFrameTime = MAX_U32;
-   u32 uMaxFrameTime = 0;
-
-   for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
-   {
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) > uMaxFrameTime )
-         uMaxFrameTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) < uMinFrameTime )
-         uMinFrameTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
-   }
-
-   pSMVIStats->uAverageFPS = 0;
-   pSMVIStats->uAverageFrameTime = 0;
-
-   u32 uSumTime = 0;
-   u32 uSumSizes = 0;
-   u32 uSumSizesP = 0;
-   u32 uSumFramesCount = 0;
-   u32 uSumFramesPCount = 0;
-   for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
-   {
-      // Ignore non P frames
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0xC0) != 0 )
-         continue;
-      
-      if ( pSMVIStats->uFramesSizes[i] == 0 )
-         continue;
-
-      uSumSizesP += ((u32)(pSMVIStats->uFramesSizes[i]) * 8000);
-      uSumFramesPCount++;
-
-      uSumTime += (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F);
-      uSumSizes += ((u32)(pSMVIStats->uFramesSizes[i]) * 8000);
-      uSumFramesCount++;
-   }
-
-   if ( (0 < uSumFramesCount) && (0 < uSumTime) )
-   {
-      pSMVIStats->uAverageFPS = uSumFramesCount * 1000 / uSumTime;
-      pSMVIStats->uAverageFrameTime = uSumTime / uSumFramesCount;
-   }
-
-   
-   pSMVIStats->uMaxFrameDeltaTime = 0;
-   for( int i=0; i<MAX_FRAMES_SAMPLES; i++ )
-   {
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) == 0 )
-         continue;
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) > pSMVIStats->uAverageFrameTime )
-      if ( (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) - pSMVIStats->uAverageFrameTime > pSMVIStats->uMaxFrameDeltaTime )
-         pSMVIStats->uMaxFrameDeltaTime = (pSMVIStats->uFramesTypesAndDuration[i] & 0x3F) - pSMVIStats->uAverageFrameTime;
-      //if ( pSMVIStats->uFramesTimes[i] < pSMVIStats->uAverageFrameTime )
-      //if ( pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i] > pSMVIStats->uMaxFrameDeltaTime )
-      //   pSMVIStats->uMaxFrameDeltaTime = pSMVIStats->uAverageFrameTime - pSMVIStats->uFramesTimes[i];
-   }
 }
 
 void update_shared_mem_video_frames_stats_on_new_frame(shared_mem_video_frames_stats* pSMVFStats, u32 uLastFrameSizeBytes, int iFrameType, int iDetectedSlices, int iDetectedFPS, u32 uTimeNow)

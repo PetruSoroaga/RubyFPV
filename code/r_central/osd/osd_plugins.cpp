@@ -230,7 +230,7 @@ SinglePluginSettings* osd_get_settings_for_plugin_for_model(const char* szPlugin
          if ( NULL == pPluginSettings2 )
             continue;
    
-         int osdLayoutIndex = g_pCurrentModel->osd_params.layout;
+         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
 
          if ( g_pRenderEngine->rectIntersect( x, y, w,h, pPluginSettings2->fXPos[iModelSettingsIndex][osdLayoutIndex],  pPluginSettings2->fYPos[iModelSettingsIndex][osdLayoutIndex], pPluginSettings2->fWidth[iModelSettingsIndex][osdLayoutIndex], pPluginSettings2->fHeight[iModelSettingsIndex][osdLayoutIndex] ) )
          {
@@ -481,7 +481,7 @@ void osd_plugins_render()
          continue;
 
       int iModelSettingsIndex = getPluginModelSettingsIndex(pPlugin, pModel);
-      int osdLayoutIndex = pModel->osd_params.layout;
+      int osdLayoutIndex = pModel->osd_params.iCurrentOSDLayout;
 
 
       vehicle_and_telemetry_info_t telemetry_info;

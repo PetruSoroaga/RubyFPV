@@ -40,7 +40,7 @@
 #include "../common/radio_stats.h"
 #include "../radio/radio_rx.h"
 #include "../radio/radio_tx.h"
-#include "links_utils.h"
+#include "ruby_rt_station.h"
 
 void radio_links_close_and_mark_sik_interfaces_to_reopen()
 {

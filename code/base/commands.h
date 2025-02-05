@@ -95,11 +95,11 @@ typedef struct
 // parameter is the sik packet size
 
 #define COMMAND_ID_SET_CAMERA_PARAMETERS 30
-// Has a camera profile index and a camera_parameters_t struct as input
+// Has camera index as param and a camera_parameters_t struct as input data
 // Has no particular response structure
 
 #define COMMAND_ID_SET_CAMERA_PROFILE 31
-// Have no particular input/response structure:
+// param is the new profile index
 
 #define COMMAND_ID_SET_CURRENT_CAMERA 32
 // param: camera index

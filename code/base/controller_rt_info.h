@@ -48,6 +48,8 @@ typedef struct
    u32 uUpdateIntervalMs;
    u32 uCurrentSliceStartTime;
    int iCurrentIndex;
+   int iCurrentIndex2;
+   int iCurrentIndex3;
    int iDeltaIndexFromVehicle;
    u32 uSliceUpdateTime[SYSTEM_RT_INFO_INTERVALS];
    u8 uRxVideoPackets[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
@@ -87,6 +89,7 @@ typedef struct
    u8 uRadioLinkQuality[SYSTEM_RT_INFO_INTERVALS];
 
    u32 uFlagsAdaptiveVideo[SYSTEM_RT_INFO_INTERVALS];
+   u32 uTotalCountOutputSkippedBlocks;
 
    controller_runtime_info_vehicle vehicles[MAX_CONCURENT_VEHICLES];
 } ALIGN_STRUCT_SPEC_INFO controller_runtime_info;

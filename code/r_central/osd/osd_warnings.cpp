@@ -31,6 +31,7 @@
 
 #include "../../base/base.h"
 #include "../../base/config.h"
+#include "../../base/ctrl_settings.h"
 
 #include "osd_common.h"
 #include "osd_warnings.h"
@@ -74,7 +75,7 @@ void osd_warnings_render()
    //   return;
 
    if ( g_bHasVideoDataOverloadAlarm )
-   if ( !(pVDS->PHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
+   if ( !(pVDS->PHVS.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE) )
    {
       g_bHasVideoDataOverloadAlarm = false;
       if ( NULL != g_pPopupVideoOverloadAlarm )
@@ -323,6 +324,25 @@ void osd_warnings_render()
          }
          yAlarmsMiddle -= height_text_big + 2.0*height_text;
       }
+   }
+
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( ((g_uControllerCPUFlags != 0) && (g_uControllerCPUFlags != 0xFFFF)) ||
+        ((g_iControllerCPUSpeedMhz != 0) && (g_iControllerCPUSpeedMhz < pCS->iFreqARM-100)) )
+   {
+      if ( (( (g_TimeNow+250) / 300 ) % 3) )
+      {
+         g_pRenderEngine->setColors(get_Color_IconError());
+         float sizeIcon = height_text_big*1.2;
+         yAlarm = yAlarmsMiddle;
+         xAlarm = 0.14 + osd_getMarginX() + sizeIcon*1.6;
+         
+         g_pRenderEngine->drawIcon(xAlarm-sizeIcon/g_pRenderEngine->getAspectRatio(), yAlarm - height_text*0.6 - height_text_big*0.1, sizeIcon/g_pRenderEngine->getAspectRatio(), sizeIcon, g_idIconCPU);
+         osd_set_colors();
+         g_pRenderEngine->drawText(xAlarm+0.01, yAlarm-height_text, g_idFontOSDBig, "Your controller is throttled. You will experience lower performance.");
+         g_pRenderEngine->drawText(xAlarm+0.01, yAlarm + height_text*0.2, g_idFontOSD, "Reduce temperature!");
+      }
+      yAlarmsMiddle -= height_text_big*1.1 + height_text;
    }
    g_pRenderEngine->setGlobalAlfa(fAlfaOrg);
 }

@@ -18,6 +18,7 @@ void video_source_csi_request_restart_program();
 bool video_source_csi_is_restart_requested();
 
 void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2);
+u32 video_source_csi_get_last_set_videobitrate();
 void video_source_csi_periodic_checks();
 
 bool vehicle_launch_video_capture_csi(Model* pModel);

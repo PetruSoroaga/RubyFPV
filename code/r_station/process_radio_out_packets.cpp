@@ -68,6 +68,7 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
       if ( pPH->packet_type == PACKET_TYPE_COMMAND )
       {
          t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketBuffer + sizeof(t_packet_header));
+         /*
          if ( (pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_CAMERA_PARAMETERS )
          {
             type_camera_parameters* pPHCamP = (type_camera_parameters*)(pPacketBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
@@ -84,11 +85,14 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
                (int)pPHCamP->profiles[iProfile].shutterspeed,
                (int)pPHCamP->profiles[iProfile].drc );
          }
+         */
          if ( ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_VIDEO_PARAMS) ||
               ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES) ||
-              ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_RESET_VIDEO_LINK_PROFILE ) )
+              ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_RESET_VIDEO_LINK_PROFILE) ||
+              ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_GET_CORE_PLUGINS_INFO)||
+              ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_GET_ALL_PARAMS_ZIP) )
          {
-            log_line("Reset H264 stream detected profile and level for VID %u", pPH->vehicle_id_dest);
+            log_line("Send command. Reset H264 stream detected profile and level for VID %u", pPH->vehicle_id_dest);
             shared_mem_video_stream_stats* pSMVideoStreamInfo = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, pPH->vehicle_id_dest); 
             if ( NULL != pSMVideoStreamInfo )
             {
@@ -96,6 +100,7 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
                pSMVideoStreamInfo->uDetectedH264ProfileConstrains = 0;
                pSMVideoStreamInfo->uDetectedH264Level = 0;
             }
+            g_TimeLastVideoParametersOrProfileChanged = g_TimeNow;
          }
       }
    }
@@ -104,7 +109,10 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
    {
       u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
       if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
+      {
          g_bNegociatingRadioLinks = false;
+         g_uTimeEndedNegiciateRadioLink = g_TimeNow;
+      }
       else
          g_bNegociatingRadioLinks = true;
    }

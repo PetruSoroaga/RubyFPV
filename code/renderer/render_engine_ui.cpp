@@ -166,12 +166,12 @@ unsigned int RenderEngineUI::loadFontSize(float fSize)
    return s_uRenderEngineUIFontsListSizes[nSize];
 }
 
-double* RenderEngineUI::getColorOSDText()
+const double* RenderEngineUI::getColorOSDText()
 {
    return get_Color_OSDText();
 }
 
-double* RenderEngineUI::getColorOSDInstruments()
+const double* RenderEngineUI::getColorOSDInstruments()
 {
    Preferences* pP = get_Preferences();
    if ( NULL == pP )
@@ -186,13 +186,13 @@ double* RenderEngineUI::getColorOSDInstruments()
    return &s_ColorRenderUIInstruments[0];
 }
 
-double* RenderEngineUI::getColorOSDOutline()
+const double* RenderEngineUI::getColorOSDOutline()
 {
    static double s_ColorRenderUIOutline[4] = { 0,0,0, 0.4 };
    return &s_ColorRenderUIOutline[0];
 }
 
-double* RenderEngineUI::getColorOSDWarning()
+const double* RenderEngineUI::getColorOSDWarning()
 {
    return get_Color_IconError();
 }
@@ -240,14 +240,14 @@ bool RenderEngineUI::drawBackgroundBoundingBoxes(bool bEnable)
    return s_pRenderEngineUI->drawBackgroundBoundingBoxes(bEnable);
 }
 
-void RenderEngineUI::setColors(double* color)
+void RenderEngineUI::setColors(const double* color)
 {
    if ( NULL == s_pRenderEngineUI )
       return ;
    s_pRenderEngineUI->setColors(color);
 }
 
-void RenderEngineUI::setColors(double* color, float fAlfaScale)
+void RenderEngineUI::setColors(const double* color, float fAlfaScale)
 {
    if ( NULL == s_pRenderEngineUI )
       return;
@@ -261,14 +261,14 @@ void RenderEngineUI::setFill(float r, float g, float b, float a)
    s_pRenderEngineUI->setFill(r,g,b,a);
 }
 
-void RenderEngineUI::setStroke(double* color)
+void RenderEngineUI::setStroke(const double* color)
 {
    if ( NULL == s_pRenderEngineUI )
       return;
    s_pRenderEngineUI->setStroke(color);
 }
 
-void RenderEngineUI::setStroke(double* color, float fStrokeSize)
+void RenderEngineUI::setStroke(const double* color, float fStrokeSize)
 {
    if ( NULL == s_pRenderEngineUI )
       return;

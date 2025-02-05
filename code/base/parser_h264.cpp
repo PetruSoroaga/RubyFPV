@@ -48,7 +48,6 @@ void ParserH264::init()
    m_iDetectedISlices = 1;
    m_iConsecutiveSlicesForCurrentNALU = 1;
    m_uTotalParsedBytes = 0;
-   m_uLocalParsedBytes = 0;
    m_uStreamCurrentParsedToken = 0x11111111;
    m_uStreamPrevParsedToken = 0x11111111;
    m_uCurrentNALUType = 0;
@@ -58,15 +57,12 @@ void ParserH264::init()
    m_iFramesSinceLastKeyframe = 0;
    m_iDetectedKeyframeIntervalInFrames = 1;
 
-   m_uSegmentCurrentParsedToken = 0x11111111;
-   m_uSegmentCurrentNALHeaderByte = 0;
-   m_uSegmentCurrentNALType = 0;
-
    m_uTimeLastNALStart = 0;
    m_uTimeLastFPSCompute = 0;
    m_iFramesSinceLastFPSCompute = 0;
    m_iDetectedFPS = 0;
 
+   m_bLastParseDetectedNALStart = false;
    m_iReadH264ProfileAfterBytes = -1;
    m_iReadH264ProfileConstrainsAfterBytes = -1;
    m_iReadH264LevelAfterBytes = -1;
@@ -85,55 +81,19 @@ void ParserH264::setPrefix(const char* szPrefix)
    strncpy(m_szPrefix, szPrefix, sizeof(m_szPrefix)/sizeof(m_szPrefix[0]));
 }
 
-
-// A NAL is: [00 00 00 01] [NAL type] [data]
-// NAL delimitator is used here at the start of the NAL, not at the end
-// So it parses untill [00 00 00 01] is detected (but it's not included, will be included in the next parsing as the start of the NAL)
-
-// Returns number of bytes parsed from input until start of NAL detected or end of segment
-int ParserH264::parseSingleSegmentDataUntilStartOfNextNALOrLimit(u8* pData, int iDataLength, int iMaxBytes)
-{
-   m_uSegmentCurrentParsedToken = 0x11111111;
-   if ( (NULL == pData) || (iDataLength <= 0) )
-      return -1;
-
-   int iCountParsed = 0;
-   while ( iDataLength > 0 )
-   {
-      m_uSegmentCurrentParsedToken = (m_uSegmentCurrentParsedToken<<8) | (*pData);
-      pData++;
-      iDataLength--;
-      iCountParsed++;
-      if ( m_uSegmentCurrentParsedToken == 0x00000001 )
-      {
-          if ( (iCountParsed == 4) && (iDataLength > 0) )
-          {
-             m_uSegmentCurrentNALHeaderByte = *pData;
-             m_uSegmentCurrentNALType = (*pData) & 0b11111;
-          }
-          if ( iCountParsed > 4 )
-             return iCountParsed-4;
-      }
-      if ( iCountParsed >= iMaxBytes )
-         break;
-   }
-   return iCountParsed;
-}
-
 // Returns the number of bytes parsed from input
-int ParserH264::parseDataUntilStartOfNextNAL(u8* pData, int iDataLength, u32 uTimeNow)
+int ParserH264::parseDataUntilStartOfNextNALOrLimit(u8* pData, int iDataLength, int iMaxToParse, u32 uTimeNow)
 {
    if ( (NULL == pData) || (iDataLength <= 0) )
       return 0;
 
-   m_uLocalParsedBytes = 0;
+   m_bLastParseDetectedNALStart = false;
    int iBytesParsed = 0;
-   while ( iDataLength > 0 )
+   while ( (iDataLength > 0) && (iBytesParsed < iMaxToParse) )
    {
       m_uStreamPrevParsedToken = (m_uStreamPrevParsedToken << 8) | (m_uStreamCurrentParsedToken & 0xFF);
       m_uStreamCurrentParsedToken = (m_uStreamCurrentParsedToken<<8) | (*pData);
       m_uTotalParsedBytes++;
-      m_uLocalParsedBytes++;
       iBytesParsed++;
       pData++;
       iDataLength--;
@@ -166,12 +126,13 @@ int ParserH264::parseDataUntilStartOfNextNAL(u8* pData, int iDataLength, u32 uTi
             log_line("Detected H264 stream level: %d (0x%02X)", m_iDetectedH264Level, (u8)m_iDetectedH264Level);
          }
       }
-
-      if ( m_uStreamPrevParsedToken == 0x00000001 )
+      if ( m_uStreamCurrentParsedToken == 0x00000001 )
       {
-         _parseDetectedStartOfNALUnit(uTimeNow);
+         m_bLastParseDetectedNALStart = true;
          return iBytesParsed;
       }
+      if ( m_uStreamPrevParsedToken == 0x00000001 )
+         _parseDetectedStartOfNALUnit(uTimeNow);
    }
 
    return iBytesParsed;
@@ -183,11 +144,6 @@ void ParserH264::_parseDetectedStartOfNALUnit(u32 uTimeNow)
    m_uCurrentNALUType = m_uStreamCurrentParsedToken & 0b11111;
    m_uSizeLastFrame = m_uSizeCurrentFrame;
    
-   //log_line("DEBUG %s NAL %d, @pos %u, (consec: %d), lastNAL %d, lastNAL %d bytes, curr token 0x%08X, delta: %u ms",
-   //   m_szPrefix, m_uCurrentNALUType, m_uLocalParsedBytes, m_iConsecutiveSlicesForCurrentNALU,
-   //   m_uLastNALUType, m_uSizeLastFrame, m_uStreamCurrentParsedToken,
-   //   uTimeNow - m_uTimeLastNALStart);
-   
    m_uTimeLastNALStart = uTimeNow;
    m_uSizeCurrentFrame = 0;
 
@@ -196,12 +152,11 @@ void ParserH264::_parseDetectedStartOfNALUnit(u32 uTimeNow)
       m_iConsecutiveSlicesForCurrentNALU++;
    else
    {
-      if ( m_uLastNALUType == 5 )
+      if ( (m_uLastNALUType != 1) && (m_uLastNALUType != 7) && (m_uLastNALUType != 8) )
       {
          m_iDetectedISlices = m_iConsecutiveSlicesForCurrentNALU;
          m_iDetectedKeyframeIntervalInFrames = m_iFramesSinceLastKeyframe/m_iDetectedISlices;
          m_iFramesSinceLastKeyframe = 0;
-         //log_line("DEBUG detected slices: %d, detected keyframe interval in frames: %d", m_iDetectedISlices, m_iDetectedKeyframeIntervalInFrames);
       }
       m_iConsecutiveSlicesForCurrentNALU = 1;
    }
@@ -231,26 +186,22 @@ void ParserH264::_parseDetectedStartOfNALUnit(u32 uTimeNow)
    }
 }
 
+bool ParserH264::lastParseDetectedNALStart()
+{
+   return m_bLastParseDetectedNALStart;
+}
+
 bool ParserH264::IsInsideIFrame()
 {
    return (m_uCurrentNALUType == 5)?true:false;
 }
 
-u32 ParserH264::getCurrentSegmentNALHeader()
-{
-   return m_uSegmentCurrentNALHeaderByte;
-}
-u32 ParserH264::getCurrentSegmentNALType()
-{
-   return m_uSegmentCurrentNALType;
-}
-
-u32 ParserH264::getCurrentFrameType()
+u32 ParserH264::getCurrentNALType()
 {
    return m_uCurrentNALUType;
 }
 
-u32 ParserH264::getPreviousFrameType()
+u32 ParserH264::getPreviousNALType()
 {
    return m_uLastNALUType;
 }
@@ -266,6 +217,10 @@ int ParserH264::getDetectedSlices()
    return m_iDetectedISlices;
 }
 
+int ParserH264::getCurrentFrameSlices()
+{
+   return m_iConsecutiveSlicesForCurrentNALU;
+}
 
 int ParserH264::getDetectedFPS()
 {

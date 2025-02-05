@@ -182,7 +182,7 @@ bool _check_radio_config(Model* pModel)
    log_line("[HW Radio Check] Full radio configuration before doing any changes:");
    log_full_current_radio_configuration(pModel);
    
-   if ( check_update_hardware_nics_vehicle(pModel) )
+   if ( check_update_hardware_nics_vehicle(pModel) || recheck_disabled_radio_interfaces(pModel) )
    {
       log_line("[HW Radio Check] Hardware radio interfaces configuration check complete and configuration was changed. This is the new hardware radio interfaces and radio links configuration:");
       log_full_current_radio_configuration(pModel);
@@ -194,9 +194,8 @@ bool _check_radio_config(Model* pModel)
 
    for( int i=0; i<modelVehicle.radioInterfacesParams.interfaces_count; i++ )
    {
-      int iDriver = (modelVehicle.radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF;
       int iCardModel = modelVehicle.radioInterfacesParams.interface_card_model[i];
-      int iMaxPowerRaw = tx_powers_get_max_usable_power_raw_for_card(iDriver, iCardModel);
+      int iMaxPowerRaw = tx_powers_get_max_usable_power_raw_for_card(modelVehicle.hwCapabilities.uBoardType, iCardModel);
 
       if ( modelVehicle.radioInterfacesParams.interface_raw_power[i] > iMaxPowerRaw )
       {
@@ -490,6 +489,13 @@ int r_start_vehicle(int argc, char *argv[])
       bMustSave = true;
    }
 
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+   if ( ((modelVehicle.hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_UNKNOWN )
+   if ( hardware_radio_has_rtl8733bu_cards() )
+   {
+      modelVehicle.hwCapabilities.uBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q | (BOARD_SUBTYPE_OPENIPC_AIO_THINKER << BOARD_SUBTYPE_SHIFT);
+      bMustSave = true;
+   }
    u32 alarmsOriginal = modelVehicle.alarms;
 
    // Check the file system for write access
@@ -597,8 +603,6 @@ int r_start_vehicle(int argc, char *argv[])
          bMustSave = true;
       }
    }
-
-   modelVehicle.setAWBMode();
 
    bMustSave |= _check_radio_config(&modelVehicle);
 
@@ -807,6 +811,7 @@ int r_start_vehicle(int argc, char *argv[])
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
                log_softerror_and_alarm("Router pipeline watchdog check failed: router process (PID [%s]) has crashed! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
             }
+            log_softerror_and_alarm("Router is blocked on substep: %d, %u ms ago", s_pProcessStatsRouter->uLoopSubStep, g_TimeNow - s_pProcessStatsRouter->lastActiveTime);
 
             if ( modelVehicle.hasCamera() )
             if ( modelVehicle.isActiveCameraOpenIPC() )
@@ -913,8 +918,9 @@ int r_start_vehicle(int argc, char *argv[])
 
       if ( bMustRestart )
       {
-         log_softerror_and_alarm("Restarting processes...");
+         log_error_and_alarm("Restarting processes...");
          iRestartCount++;
+
          vehicle_stop_tx_router();
          
          if ( modelVehicle.hasCamera() )

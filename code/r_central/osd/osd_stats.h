@@ -8,8 +8,9 @@ void osd_stats_init();
 
 void _osd_stats_draw_line(float xLeft, float xRight, float y, u32 uFontId, const char* szTextLeft, const char* szTextRight);
 
-float osd_render_stats_video_decode_get_height(float scale);
-float osd_render_stats_video_decode(float xPos, float yPos, float scale);
+float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, float scale);
+float osd_render_stats_video_decode_get_width(int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, float scale);
+float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, bool bIsSnapshot, shared_mem_radio_stats* pSM_RadioStats, shared_mem_video_stream_stats_rx_processors* pSM_VideoStats, float scale);
 
 float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos);
 

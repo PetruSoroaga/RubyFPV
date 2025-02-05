@@ -294,7 +294,7 @@ void MenuVehicleRC::valuesToUI()
    Preferences* p = get_Preferences();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
-   int nOSDIndex = g_pCurrentModel->osd_params.layout;
+   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
       nOSDIndex = 0;
 
@@ -997,7 +997,7 @@ void MenuVehicleRC::onSelectItem()
 
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    Preferences* p = get_Preferences();
-   int nOSDIndex = g_pCurrentModel->osd_params.layout;
+   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
       nOSDIndex = 0;
 

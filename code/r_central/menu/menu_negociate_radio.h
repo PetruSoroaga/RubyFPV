@@ -2,6 +2,18 @@
 #include "menu_objects.h"
 #include "menu_item_select.h"
 
+#define MAX_NEGOCIATE_TESTS 100
+
+typedef struct
+{
+   int iDataRateToTest;
+   u32 uFlagsToTest;
+   int iRadioInterfacesRXPackets[MAX_RADIO_INTERFACES];
+   int iRadioInterfacesRxLostPackets[MAX_RADIO_INTERFACES];
+   float fQualityCards[MAX_RADIO_INTERFACES];
+   float fComputedQuality;
+} type_negociate_radio_step;
+
 class MenuNegociateRadio: public Menu
 {
    public:
@@ -18,28 +30,33 @@ class MenuNegociateRadio: public Menu
 
    private:
       void _computeQualities();
+      float _getComputedQualityForDatarate(int iDatarate, int* pTestIndex);
       void _send_command_to_vehicle();
       void _switch_to_step(int iStep);
       void _advance_to_next_step();
+      void _compute_datarate_settings_to_apply();
       void _apply_new_settings();
       void _onCancel();
       MenuItemSelect* m_pItemsSelect[10];
       int m_MenuIndexCancel;
       char m_szStatusMessage[256];
-      int m_iCounter;
+      char m_szStatusMessage2[256];
+      int m_iLoopCounter;
       u32 m_uShowTime;
       u32 m_uStepStartTime;
       u32 m_uLastTimeSendCommandToVehicle;
       bool m_bWaitingVehicleConfirmation;
       bool m_bWaitingCancelConfirmationFromUser;
       int m_iStep;
-      int m_iDataRateIndex;
-      int m_iDataRateTestCount;
+      float m_fQualityOfDataRateToApply;
+      int m_iIndexTestDataRateToApply;
       int m_iDataRateToApply;
+      u32 m_uRadioFlagsToApply;
       int m_iCountSucceededSteps;
       int m_iCountFailedSteps;
 
-      int m_iRXPackets[20][MAX_RADIO_INTERFACES][3];
-      int m_iRxLostPackets[20][MAX_RADIO_INTERFACES][3];
-      float m_fQualities[20];
+      type_negociate_radio_step m_TestStepsInfo[MAX_NEGOCIATE_TESTS];
+      int m_iTestsCount;
+      int m_iIndexFirstRadioFlagsTest;
+      int m_iCurrentTestIndex;
 };

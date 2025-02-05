@@ -146,7 +146,7 @@ void RenderEngineCairo::endFrame()
 }
 
 
-void RenderEngineCairo::setStroke(double* color, float fStrokeSize)
+void RenderEngineCairo::setStroke(const double* color, float fStrokeSize)
 {
    RenderEngine::setStroke(color, fStrokeSize);
    if ( m_fStrokeSize > 0.5 )
@@ -425,6 +425,46 @@ void RenderEngineCairo::drawImage(float xPos, float yPos, float fWidth, float fH
    cairo_scale(m_pCairoCtx, scaleX, scaleY);
 }
 
+void RenderEngineCairo::drawImageAlpha(float xPos, float yPos, float fWidth, float fHeight, u32 uImageId, u8 uAlpha)
+{
+   // uAlpha is 0..255
+
+   if ( uImageId < 1 )
+      return;
+
+   int indexImage = -1;
+   for( int i=0; i<m_iCountImages; i++ )
+   {
+      if ( m_ImageIds[i] == uImageId )
+      {
+         indexImage = i;
+         break;
+      }
+   }
+   if ( -1 == indexImage )
+      return;
+   if ( NULL == m_pImages[indexImage] )
+      return;
+ 
+   //if ( uAlpha == 255 )
+      drawImage(xPos, yPos, fWidth, fHeight, uImageId);
+   /*
+   else
+   {
+      int iSrcWidth = cairo_image_surface_get_width(m_pImages[indexImage]);
+      int iSrcHeight = cairo_image_surface_get_height(m_pImages[indexImage]);
+      u8 uTmp[4];
+      memcpy(uTmp, m_ColorFill, 4*sizeof(u8));
+      m_ColorFill[0] = 255;
+      m_ColorFill[1] = 255;
+      m_ColorFill[2] = 255;
+      m_ColorFill[3] = uAlpha;
+      bltImage(xPos, yPos, fWidth, fHeight, 0,0, iSrcWidth, iSrcHeight, uImageId);
+      memcpy(m_ColorFill, uTmp, 4*sizeof(u8));
+   }
+   */
+}
+
 void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDest, float fHeightDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uImageId)
 {
    if ( uImageId < 1 )
@@ -449,7 +489,7 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
    int wDest = fWidthDest*m_iRenderWidth;
    int hDest = fHeightDest*m_iRenderHeight;
 
-   if ( (xDest < 0) || (yDest < 0) || (xDest+wDest >= m_iRenderWidth) || (yDest+hDest >= m_iRenderHeight) )
+   if ( (xDest < 0) || (yDest < 0) || (xDest+wDest > m_iRenderWidth) || (yDest+hDest > m_iRenderHeight) )
       return;
 
    type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
@@ -473,27 +513,38 @@ void RenderEngineCairo::bltImage(float xPosDest, float yPosDest, float fWidthDes
       float fIconX = iSrcX;
       for( int sx=0; sx<wDest; sx++ )
       {
-         u8* pIconData = pSrcImageData + ((int)(fIconY)) * iSrcImageStride + ((int)fIconX) * 4;
+         u8* pSrcPixel = pSrcImageData + ((int)(fIconY)) * iSrcImageStride + ((int)fIconX) * 4;
    
          // Output surface format order is: BGRA
          
-         b = *pIconData;
-         g = *(pIconData+1);
-         r = *(pIconData+2);
-         a = *(pIconData+3);
+         b = *pSrcPixel;
+         g = *(pSrcPixel+1);
+         r = *(pSrcPixel+2);
+         a = *(pSrcPixel+3);
 
          if ( a > 4 )
          {
+            /*
             b = (b*m_ColorFill[2])>>8;
             *pDestPixel++ = b;
-
             g = (g*m_ColorFill[1])>>8;
             *pDestPixel++ = g;
-
             r = (r*m_ColorFill[0])>>8;
             *pDestPixel++ = r;
-
             a = (a*m_ColorFill[3])>>8;
+            *pDestPixel++ = a;
+            */
+            
+            b = (((b*m_ColorFill[2])>>8) * (255-m_ColorFill[3]) + ((*pDestPixel)*m_ColorFill[3]))>>8;
+            *pDestPixel++ = b;
+
+            g = (((g*m_ColorFill[1])>>8) * (255-m_ColorFill[3]) + ((*pDestPixel)*m_ColorFill[3]))>>8;
+            *pDestPixel++ = g;
+
+            r = (((r*m_ColorFill[0])>>8) * (255-m_ColorFill[3]) + ((*pDestPixel)*m_ColorFill[3]))>>8;
+            *pDestPixel++ = r;
+
+            a = (((a*m_ColorFill[3])>>8) * (255-m_ColorFill[3]) + ((*pDestPixel)*m_ColorFill[3]))>>8;
             *pDestPixel++ = a;
          }
          else
@@ -537,8 +588,6 @@ void RenderEngineCairo::bltSprite(float xPosDest, float yPosDest, int iSrcX, int
 
    // Input, output surface format order is: BGRA
    u8 r = 255, g = 255, b = 255, a = 255;
-
-   float fIconY = iSrcY;
 
    u8* pDestPixel = (u8*)&(pOutputBufferInfo->pData[yDest*pOutputBufferInfo->uStride + xDest*4]);
    u8* pSrcPixel = pSrcImageData + iSrcY * iSrcImageStride + iSrcX * 4;
@@ -1284,13 +1333,25 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
    cairo_set_font_size (m_pCairoCtx, pFont->lineHeight*0.8);
    cairo_text_extents_t cte;
    cairo_text_extents(m_pCairoCtx, szText, &cte);
-   //cairo_set_source_rgba (m_pCairoCtx, 0.2, 0, 0, 1);
 
+   float fColor[4];
    if ( m_bDrawBackgroundBoundingBoxes && m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor )
-      cairo_set_source_rgba(m_pCairoCtx, m_ColorTextBackgroundBoundingBoxStrike[0]/255.0, m_ColorTextBackgroundBoundingBoxStrike[1]/255.0, m_ColorTextBackgroundBoundingBoxStrike[2]/255.0, m_ColorTextBackgroundBoundingBoxStrike[3]/255.0);
+   {
+      fColor[0] = m_ColorTextBackgroundBoundingBoxStrike[0]/255.0;
+      fColor[1] = m_ColorTextBackgroundBoundingBoxStrike[1]/255.0;
+      fColor[2] = m_ColorTextBackgroundBoundingBoxStrike[2]/255.0;
+      fColor[3] = m_ColorTextBackgroundBoundingBoxStrike[3]/255.0;
+   }
    else
-      cairo_set_source_rgba(m_pCairoCtx, m_ColorFill[0]/255.0, m_ColorFill[1]/255.0, m_ColorFill[2]/255.0, m_ColorFill[3]/255.0);
-   //cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + cte.height);
+   {
+      fColor[0] = m_ColorFill[0]/255.0;
+      fColor[1] = m_ColorFill[1]/255.0;
+      fColor[2] = m_ColorFill[2]/255.0;
+      fColor[3] = m_ColorFill[3]/255.0;
+   }
+   if ( (fColor[3] < 0.1) || (fColor[3] >= 1.0) )
+      fColor[3] = 1.0;
+   cairo_set_source_rgba(m_pCairoCtx, fColor[0], fColor[1], fColor[2], fColor[3]);
    cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
    cairo_show_text (m_pCairoCtx, szText);
    

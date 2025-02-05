@@ -78,7 +78,8 @@ void MenuSystemAllParams::Render()
    float width = m_RenderWidth-2*m_sfMenuPaddingX;
    float height = m_RenderHeight-2*m_sfMenuPaddingY;
 
-   sprintf(szFile, "%s/board.txt", FOLDER_CONFIG);
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_CONFIG_BOARD_TYPE);
    fd = fopen(szFile,"r");
    if ( NULL != fd )
    {
@@ -236,7 +237,7 @@ float MenuSystemAllParams::renderVehicleRC(float xPos, float yPos, float width, 
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
    bool bSI = false;
-   if ( g_pCurrentModel->osd_params.show_stats_rc || (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_HID_IN_OSD) )
+   if ( g_pCurrentModel->osd_params.show_stats_rc || (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) )
       bSI = true;
    sprintf(szBuff, "RC: send info back: %s, show on OSD: %d/%d", bSI?"Yes":"No", g_pCurrentModel->osd_params.show_stats_rc, (g_pCurrentModel->osd_params.osd_flags[0] & OSD_FLAG_SHOW_HID_IN_OSD));
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
@@ -413,15 +414,6 @@ float MenuSystemAllParams::renderDataRates(float xPos, float yPos, float width, 
       return 0.0;
 
    sprintf(szBuff, "Vehicle TX power (RTL8812AU): %d", g_pCurrentModel->radioInterfacesParams.interface_raw_power[0]);
-
-   yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
-   yPos += MENU_TEXTLINE_SPACING * height_text;
-
-   //sprintf(szBuff, "Vehicle adaptive video link: %s", (g_pCurrentModel->video_params.uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_SWITCH_VIDEO_LINK_QUALITY)?"yes":"no");
-   //yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
-   //yPos += 0.4 * m_sfMenuPaddingY*MENU_FONT_SIZE_TOPLINE*(1+MENU_TEXTLINE_SPACING)*fScale;
-
-   sprintf(szBuff, "Vehicle radio CTS: %s", (g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[0] & RADIO_FLAGS_FRAME_TYPE_RTS)?"Off":"On");
 
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);
    yPos += MENU_TEXTLINE_SPACING * height_text;

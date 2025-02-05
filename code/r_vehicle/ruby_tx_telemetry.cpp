@@ -12,7 +12,7 @@
         documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -71,6 +71,7 @@
 #include "telemetry_mavlink.h"
 #include "telemetry_ltm.h"
 #include "telemetry_msp.h"
+#include "../utils/utils_vehicle.h"
 
 int s_fIPCToRouter = -1;
 int s_fIPCFromRouter = -1;
@@ -125,6 +126,7 @@ bool s_bSendRCInfoBack = false;
 static u32 s_uTimeLastCheckForRadioReinit = 0;
 static bool s_bRadioInterfacesReinitIsInProgress = false;
 
+u32 s_uTimeToAdjustBalanceInterupts = 0;
 
 bool isRadioLinksInitInProgress()
 {
@@ -526,9 +528,13 @@ void save_model()
 
    saveCurrentModel();
 
+   if ( g_bQuit )
+      return;
+
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_TELEMETRY | (MODEL_CHANGED_STATS<<8);
+   PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header);
 
    if ( g_bRouterReady )
@@ -568,8 +574,8 @@ void reload_model(u8 changeType)
 
    s_bSendRCInfoBack = false;
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
       )
       s_bSendRCInfoBack = true;
    log_line("Sending RC info back to controller: %s", s_bSendRCInfoBack?"yes":"no");
@@ -596,10 +602,12 @@ void reload_model(u8 changeType)
    telemetry_close_serial_port();
 
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE )
+   {
       telemetry_open_serial_port();
-
+      s_uTimeToAdjustBalanceInterupts = g_TimeNow + 2000;
+   }
    bool bLocalVSpeed = false;
-   int li = g_pCurrentModel->osd_params.layout;
+   int li = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
    if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
       bLocalVSpeed = true;
@@ -622,10 +630,10 @@ void onRebootRequest()
    _store_reboot_info_cache();
    save_model();
 
-   vehicle_stop_tx_router();
    vehicle_stop_rx_commands();
    vehicle_stop_rx_rc();
-   hardware_sleep_ms(100);
+   vehicle_stop_tx_router();
+   hardware_sleep_ms(200);
    log_line("Will reboot now.");
    hardware_reboot();
 }
@@ -641,6 +649,19 @@ bool try_read_messages_from_router()
 
    t_packet_header* pPH = (t_packet_header*)&s_BufferMessageFromRouter[0];
 
+   if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_CAMERA_PARAMS )
+   {
+      log_line("Received message to update camera params.");
+      // Do not save model. Saved by rx_comands. Just update to the new values.
+      u8 uCameraChangedIndex = 0;
+      type_camera_parameters newCamParams;
+
+      memcpy(&uCameraChangedIndex, &s_BufferMessageFromRouter[0] + sizeof(t_packet_header), sizeof(u8));
+      memcpy((u8*)&newCamParams, &s_BufferMessageFromRouter[0] + sizeof(t_packet_header) + sizeof(u8), sizeof(type_camera_parameters));
+      memcpy(&(g_pCurrentModel->camera_params[uCameraChangedIndex]), (u8*)&newCamParams, sizeof(type_camera_parameters));
+   }
+   
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_LOCAL_CONTROL )
    if ( pPH->packet_type == PACKET_TYPE_EVENT )
    {
@@ -694,6 +715,9 @@ bool try_read_messages_from_router()
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
    {
       log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
+      if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
+         g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &= ~(MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS);
+      g_uControllerId = pPH->vehicle_id_src;
       if ( NULL != g_pCurrentModel )
       {
          g_pCurrentModel->uControllerId = pPH->vehicle_id_src;
@@ -1003,6 +1027,7 @@ void check_send_telemetry_to_controller()
 
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_EXTENDED, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.vehicle_id_dest = 0;
       sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) + sPHRTE.extraSize;
       
       int dx = 0;
@@ -1035,6 +1060,7 @@ void check_send_telemetry_to_controller()
          s_uTimeDebugSentLastDebugInfoPacket = g_TimeNow;
          radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_DEBUG_INFO, STREAM_ID_TELEMETRY);
          sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+         sPH.vehicle_id_dest = 0;
          sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(type_u32_couters) + (u16)sizeof(type_radio_tx_timers);
       
          type_u32_couters dummyCounters; // gets populated by router
@@ -1089,6 +1115,7 @@ void check_send_telemetry_to_controller()
       }
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_SHORT, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.vehicle_id_dest = 0;
       sPH.packet_flags_extended |= PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY;
       sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_ruby_telemetry_short);
       
@@ -1126,7 +1153,7 @@ void check_send_telemetry_to_controller()
    static u32 s_uTimeLastSentRadioRxHistory = 0;
    static u32 s_uLastRadioRxHistorySentInterface = 0;
 
-   if ( g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.layout] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_VEHICLE)
+   if ( g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_VEHICLE)
    if ( (g_TimeNow < s_uTimeLastSentRadioRxHistory) || (g_TimeNow >= s_uTimeLastSentRadioRxHistory + 433/g_pCurrentModel->radioInterfacesParams.interfaces_count) )
    {
       s_uTimeLastSentRadioRxHistory = g_TimeNow;
@@ -1147,6 +1174,7 @@ void check_send_telemetry_to_controller()
       {
          radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY, STREAM_ID_TELEMETRY);
          sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+         sPH.vehicle_id_dest = 0;
          sPH.total_length = (u16)sizeof(t_packet_header) + sizeof(u32) + (u16)sizeof(shared_mem_radio_stats_interface_rx_hist);
 
          memcpy(buffer, &sPH, sizeof(t_packet_header));
@@ -1193,10 +1221,11 @@ void check_send_telemetry_to_controller()
    }
    
    if ( (NULL != g_pCurrentModel) && (NULL != s_pSM_VideoInfoStats) && (NULL != s_pSM_VideoInfoStatsRadioOut) )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.vehicle_id_dest = 0;
       sPH.total_length = (u16)sizeof(t_packet_header) + 2*(u16)sizeof(shared_mem_video_frames_stats);
 
       memcpy(buffer, &sPH, sizeof(t_packet_header));
@@ -1222,13 +1251,14 @@ void check_send_telemetry_to_controller()
    // Send FC RC Channels
 
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
       )
    if ( g_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
    {
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_RC_CHANNELS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.vehicle_id_dest = 0;
       sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_fc_rc_channels);
 
       t_packet_header_fc_rc_channels PHFCRCChannels;
@@ -1275,6 +1305,7 @@ void check_send_telemetry_to_controller()
    {
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RC_TELEMETRY, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+      sPH.vehicle_id_dest = 0;
       sPH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_rc_info_downstream);
 
       memcpy(buffer, &sPH, sizeof(t_packet_header));
@@ -1377,7 +1408,7 @@ void _init_telemetry_structures()
 {
    sPH.stream_packet_idx = STREAM_ID_DATA << PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
    sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-   sPH.vehicle_id_dest = g_pCurrentModel->uVehicleId;
+   sPH.vehicle_id_dest = 0;
    _populate_ruby_telemetry_data(&sPHRTE);
 
    sPHRTE.version = ((SYSTEM_SW_VERSION_MAJOR<<4) | SYSTEM_SW_VERSION_MINOR);
@@ -1440,6 +1471,7 @@ int main(int argc, char *argv[])
    if ( g_bDebug )
       log_enable_stdout();
 
+   g_uControllerId = vehicle_utils_getControllerId();
    load_VehicleSettings();
    loadAllModels();
    g_pCurrentModel = getCurrentModel();
@@ -1462,7 +1494,7 @@ int main(int argc, char *argv[])
    hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceTelemetry);
 
    bool bLocalVSpeed = false;
-   int li = g_pCurrentModel->osd_params.layout;
+   int li = g_pCurrentModel->osd_params.iCurrentOSDLayout;
    if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
    if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
       bLocalVSpeed = true;
@@ -1473,8 +1505,8 @@ int main(int argc, char *argv[])
 
    s_bSendRCInfoBack = false;
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.layout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.layout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
       )
       s_bSendRCInfoBack = true;
 
@@ -1520,6 +1552,7 @@ int main(int argc, char *argv[])
       while ( g_TimeNow < g_TimeStart+4000 );
 
       telemetry_open_serial_port();
+      s_uTimeToAdjustBalanceInterupts = g_TimeNow + 2000;
    }
    
    check_open_datalink_serial_port();
@@ -1593,17 +1626,26 @@ void _main_loop()
       else
       {
          if ( telemetry_get_serial_port_file() > 0 )
-         if ( telemetry_last_time_opened() + 4000 < g_TimeNow )
-         if ( telemetry_time_last_telemetry_received() + 4000 < g_TimeNow )
+         if ( g_TimeNow > telemetry_last_time_opened() + 4000 )
+         if ( g_TimeNow > telemetry_time_last_telemetry_received() + 4000 )
          {
             log_line("Flight controller telemetry is enabled and no telemetry received from flight controller in the last few seconds. Reinitialize serial telemetry...");
             telemetry_close_serial_port();
             telemetry_open_serial_port();
+            s_uTimeToAdjustBalanceInterupts = g_TimeNow + 2000;
          }
          iSleepTime = 15;
          if ( telemetry_try_read_serial_port() > 0 )
             iSleepTime = 5;
          telemetry_periodic_loop();
+
+         if ( g_TimeNow > s_uTimeToAdjustBalanceInterupts )
+         if ( telemetry_time_last_telemetry_received() != 0 )
+         {
+            s_uTimeToAdjustBalanceInterupts = 0;
+            if ( g_pCurrentModel->processesPriorities.uProcessesFlags & PROCESSES_FLAGS_BALANCE_INT_CORES )
+               hardware_balance_interupts();
+         }
       }
       
       try_read_serial_datalink();

@@ -64,14 +64,16 @@
 #endif
 
 #include "../renderer/drm_core.h"
+#include "../renderer/render_engine.h"
 #include "../renderer/render_engine_cairo.h"
 #include "mpp_core.h"
 
 
 bool g_bQuit = false;
 bool g_bDebug = false;
-bool g_bTestMode = false;
 bool g_bPlayFile = false;
+bool g_bPlayingIntro = false;
+bool g_bExitOnEnd = false;
 bool g_bPlayStreamPipe = false;
 bool g_bPlayStreamUDP = false;
 bool g_bPlayStreamSM = false;
@@ -91,74 +93,6 @@ u8 g_uPipeBuffer[PIPE_BUFFER_SIZE];
 int g_iPipeBufferWritePos = 0;
 int g_iPipeBufferReadPos = 0;
 
-void _do_test_mode()
-{
-   ruby_drm_core_init(0, DRM_FORMAT_ARGB8888, g_iCustomWidth, g_iCustomHeight, g_iCustomRefresh);
-   RenderEngine* g_pRenderEngine = render_init_engine();
-
-   //double pColorBg[4] = {255,0,0,1.0};
-   double pColorFg[4] = {255,255,0,1.0};
-
-   //cairo_surface_t *image = cairo_image_surface_create_from_png ("res/ruby_bg4.png");
-   u32 uImg = g_pRenderEngine->loadImage("res/ruby_bg4.png");
-   u32 uIcon = g_pRenderEngine->loadIcon("res/icon_v_plane.png");
-   int iFont = g_pRenderEngine->loadRawFont("res/font_ariobold_32.dsc");
-
-   u32 uLastTimeFPS = 0;
-   u32 uFPS = 0;
-
-   float fTmpX = 0.4;
-   float fTmp1 = 0.1;
-   while ( ! g_bQuit )
-   {
-      g_pRenderEngine->startFrame();
-
-      
-         g_pRenderEngine->drawImage(0,0,1.0,1.0, uImg);
-
-         
-         g_pRenderEngine->setColors(pColorFg);
-         g_pRenderEngine->drawRoundRect(0.1, 0.1, 0.5, 0.5, 0.1);
-         g_pRenderEngine->setStroke(255.0, 0, 0, 1.0);
-         g_pRenderEngine->setFill(0,0,0,0);
-         g_pRenderEngine->drawRoundRect(0.2, 0.2, 0.5, 0.5, 0.1);
-
-         g_pRenderEngine->setColors(pColorFg);
-         g_pRenderEngine->drawLine(0.4,0.1, 0.5, 0.8);
-         g_pRenderEngine->drawTriangle(0.2,0.2, 0.22, 0.3, 0.3, 0.35);     
-         g_pRenderEngine->fillTriangle(0.82,0.82, 0.92, 0.53, 0.83, 0.95);     
-  
-         g_pRenderEngine->setColors(pColorFg);
-         g_pRenderEngine->drawText(0.05, 0.8, (u32)iFont, "Text1");
-
-         g_pRenderEngine->drawIcon(0.5, 0.2, 0.2, 0.2, uIcon);
-         
-         g_pRenderEngine->bltIcon(fTmpX, 0.5, 20, 20, 60, 60, uIcon);
-     
-      g_pRenderEngine->endFrame();
-      
-      //hardware_sleep_ms(900);
-      //hardware_sleep_ms(900);
-      uFPS++;
-      if ( get_current_timestamp_ms() > uLastTimeFPS+1000 )
-      {
-         uLastTimeFPS = get_current_timestamp_ms();
-         uFPS = 0;
-      }
-
-      fTmpX += 0.01;
-      if ( fTmpX > 0.7 )
-         fTmpX = 0.4;
-
-      fTmp1 += 0.002;
-      if ( fTmp1 > 0.75 )
-         fTmp1 = 0.1;
-   }
-
-   render_free_engine();
-   ruby_drm_core_uninit();
-}
-
 
 void _do_player_mode()
 {
@@ -171,12 +105,31 @@ void _do_player_mode()
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
 
-   if ( g_bInitUILayerToo )
+   RenderEngine* pRenderEngine = NULL;
+   if ( g_bInitUILayerToo || g_bPlayingIntro )
    {
       ruby_drm_core_init(0, DRM_FORMAT_ARGB8888,  hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
-      ruby_drm_swap_mainback_buffers();
+      //ruby_drm_swap_mainback_buffers();
+      ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
+
+      if ( ! g_bPlayingIntro )
+      {
+         pRenderEngine = render_init_engine();
+
+         pRenderEngine->startFrame();
+         pRenderEngine->setFill(250,0,0,0.5);
+         pRenderEngine->setStroke(0,0,0,0);
+         pRenderEngine->drawRect(0.0, 0.0, 0.01, 0.01);
+         pRenderEngine->endFrame();
+      }
    }
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
+
+   if ( g_bPlayingIntro )
+   {
+      for( int i=0; i<26; i++ )
+         hardware_sleep_ms(100);
+   }
 
    FILE* fp = fopen(g_szPlayFileName,"rb");
    if ( NULL == fp )
@@ -241,22 +194,28 @@ void _do_player_mode()
                u32 uTimeNow = get_current_timestamp_ms();
 
                long int miliSecs = (1000/g_iFileFPS);
+               // OpenIPC generates faster FPS as IFrames are not part of computation
+               miliSecs = (1000/(g_iFileFPS-4));
                miliSecs = miliSecs - (uTimeNow - uTimeLastFrame);
                uTimeLastFrame = uTimeNow;
+
                if ( miliSecs > 0 )
+               {
                   hardware_sleep_ms(miliSecs);
+               }
             }
          }
       }
 
       while ( (access("/tmp/pausedvr", R_OK) != -1) && (!g_bQuit) )
       {
-         struct timespec to_sleep = { 0, (long int)(100*1000*1000) };
-         nanosleep(&to_sleep, NULL);
+         struct timespec to_sleep = { 0, (long int)(50*1000*1000) };
+         clock_nanosleep(RUBY_HW_CLOCK_ID, 0, &to_sleep, NULL);
       }
 
       if ( g_bQuit )
          break;
+
       mpp_feed_data_to_decoder(uBuffer, nRead);
       iTotalRead += nRead;
       if ( (iCount % 10) == 0 )
@@ -272,9 +231,18 @@ void _do_player_mode()
    }
    fclose(fp);
    log_line("Playback of file finished. End of file (%s).", g_szPlayFileName);
+
+   if ( g_bExitOnEnd )
+   {
+      log_line("Exit on End.");
+      system("rm -rf tmp/intro_playing");
+   }
    mpp_mark_end_of_stream();
 
-   ruby_drm_core_uninit();
+   if ( g_bInitUILayerToo )
+      render_free_engine();
+   if ( ! g_bPlayingIntro )
+      ruby_drm_core_uninit();
    mpp_uninit();
 }
 
@@ -335,7 +303,7 @@ void _do_stream_mode_pipe()
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
-   hw_increase_current_thread_priority("RubyPlayer", 60);
+   hw_increase_current_thread_priority("RubyPlayer", 10);
 
    //pthread_t pDecodeThread;
    //pthread_create(&pDecodeThread, NULL, _thread_consume_pipe_buffer, NULL);
@@ -395,7 +363,7 @@ void _do_stream_mode_pipe()
       {
          if ( ! bAnyInputEver )
          {
-            usleep(2*1000);
+            hardware_sleep_micros(2*1000);
             u32 uTime = get_current_timestamp_ms();
             if ( uTime > uTimeLastCheck + 3000 )
             {
@@ -462,9 +430,9 @@ void _do_stream_mode_pipe()
       if ( nRead == 0 )
       {
          if ( ! bAnyInputEver )
-            usleep(2*1000);
+            hardware_sleep_micros(2*1000);
          else
-            usleep(1*1000);
+            hardware_sleep_micros(1*1000);
          continue;
       }
 
@@ -530,7 +498,7 @@ void _do_stream_mode_sm()
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
-   hw_increase_current_thread_priority("RubyPlayer", 60);
+   hw_increase_current_thread_priority("RubyPlayer", 10);
 
    int fdSMem = -1;
    unsigned char* pSMem = NULL;
@@ -582,7 +550,7 @@ void _do_stream_mode_sm()
          if ( (uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
          {
             struct timespec to_sleep = { 0, (long int)(1*1000*1000) };
-            nanosleep(&to_sleep, NULL);
+            clock_nanosleep(RUBY_HW_CLOCK_ID, 0, &to_sleep, NULL);
             continue;
          }
          if ( uWritePos1 > uSharedMemReadPos )
@@ -759,7 +727,7 @@ void _do_stream_mode_udp()
       {
          if ( ! bAnyInputEver )
          {
-            usleep(2*1000);
+            hardware_sleep_micros(2*1000);
             u32 uTime = get_current_timestamp_ms();
             if ( uTime > uTimeLastCheck + 3000 )
             {
@@ -785,7 +753,7 @@ void _do_stream_mode_udp()
       }
       mpp_feed_data_to_decoder(uBuffer, iRecv);
       iTotalRead += iRecv;
-      usleep(2*1000);
+      hardware_sleep_micros(2*1000);
       if ( (iCount % 10) == 0 )
       {
          u32 uTime = get_current_timestamp_ms();
@@ -833,13 +801,13 @@ int main(int argc, char *argv[])
    if ( argc < 2 )
    {
       printf("\nUsage: ruby_player_raxa [params]\nParams:\n\n");
-      printf("-t Test mode\n");
       printf("-p Play the live video stream from pipe\n");
       printf("-u Play the live video stream from UDP socket\n");
       printf("-sm Play the live video stream from sharedmem\n");
       printf("-h265 use H265 decoder\n");
       printf("-f [filename] [fps] Play H264 file\n");
       printf("-m [wxh@r] Sets a custom video mode\n");
+      printf("-b playing intro\n");
       printf("-i init UI layer too when playing stream or files\n");
       printf("-d debug output to stdout\n\n");
       return 0;
@@ -850,8 +818,6 @@ int main(int argc, char *argv[])
 
    do
    {
-      if ( 0 == strcmp(argv[iParam], "-t") )
-         g_bTestMode = true;
       if ( 0 == strcmp(argv[iParam], "-p") )
          g_bPlayStreamPipe = true;
       if ( 0 == strcmp(argv[iParam], "-u") )
@@ -860,6 +826,8 @@ int main(int argc, char *argv[])
          g_bPlayStreamSM = true;
       if ( 0 == strcmp(argv[iParam], "-i") )
          g_bInitUILayerToo = true;
+      if ( 0 == strcmp(argv[iParam], "-b") )
+         g_bPlayingIntro = true;
       if ( 0 == strcmp(argv[iParam], "-h265") )
          g_bUseH265Decoder = true;
       if ( 0 == strcmp(argv[iParam], "-d") )
@@ -879,6 +847,12 @@ int main(int argc, char *argv[])
             g_iFileFPS = atoi(argv[iParam]);
          if ( (g_iFileFPS < 10) || (g_iFileFPS > 240) )
             g_iFileFPS = 30;
+         iParam++;
+         if ( iParam < argc )
+         if ( 0 == strcmp(argv[iParam], "-endexit") )
+            g_bExitOnEnd = true;
+
+         continue;
       }
       if ( 0 == strcmp(argv[iParam], "-m") )
       {
@@ -896,34 +870,31 @@ int main(int argc, char *argv[])
          {
             g_iCustomWidth = 0;
             g_iCustomHeight = 0;
-            g_iCustomRefresh = 0;            
+            g_iCustomRefresh = 0;
          }
+         continue;
       }
       iParam++;
    }
    while (iParam < argc);
 
    if ( g_bPlayFile )
-      log_line("Running mode: play file: [%s] [%d FPS]", g_szPlayFileName, g_iFileFPS);
+      log_line("Running mode: play file: [%s] [%d FPS] [exit on end: %s] [playing intro: %s]", g_szPlayFileName, g_iFileFPS, g_bExitOnEnd?"yes":"no", g_bPlayingIntro?"yes":"no");
    if ( g_bPlayStreamPipe )
       log_line("Running mode: stream from pipe");
    if ( g_bPlayStreamUDP )
       log_line("Running mode: stream from UDP");
    if ( g_bPlayStreamSM )
       log_line("Running mode: stream from sharedmem");
-   if ( g_bTestMode )
-      log_line("Running mode: test mode");
    if ( 0 != g_iCustomWidth )
       log_line("Set custom video mode: %dx%d@%d", g_iCustomWidth, g_iCustomHeight, g_iCustomRefresh);
 
-   if ( (!g_bTestMode) && (!g_bPlayFile) && (!g_bPlayStreamPipe) && (!g_bPlayStreamUDP) && (!g_bPlayStreamSM) )
+   if ( (!g_bPlayFile) && (!g_bPlayStreamPipe) && (!g_bPlayStreamUDP) && (!g_bPlayStreamSM) )
    {
       log_softerror_and_alarm("Invalid params, no mode specified. Exit.");
       return 0;
    }
 
-   if ( g_bTestMode )
-      _do_test_mode();
    else if ( g_bPlayFile )
       _do_player_mode();
    else if ( g_bPlayStreamPipe )

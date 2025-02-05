@@ -12,6 +12,8 @@ extern "C" {
 void hardware_mount_root();
 void hardware_mount_boot();
 int hardware_get_free_space_kb();
+int hardware_get_free_space_kb_async();
+int hardware_has_finished_get_free_space_kb_async();
 #ifdef __cplusplus
 }  
 #endif 

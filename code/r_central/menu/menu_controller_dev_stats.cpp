@@ -79,7 +79,7 @@ void MenuControllerDevStatsConfig::addItems()
    m_pItemsSelect[1]->setSelectedIndex( (pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_TX_PACKETS)?1:0);
    m_IndexShowRXTXPackets = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSelect[13] = new MenuItemSelect("Show Rx air gaps", "");
+   m_pItemsSelect[13] = new MenuItemSelect("Show RX air gaps", "");
    m_pItemsSelect[13]->addSelection("No");
    m_pItemsSelect[13]->addSelection("Yes");
    m_pItemsSelect[13]->setUseMultiViewLayout();
@@ -121,6 +121,13 @@ void MenuControllerDevStatsConfig::addItems()
    m_pItemsSelect[6]->setSelectedIndex( (pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_CONSUMED_PACKETS)?1:0);
    m_IndexShowRxConsumedPackets = addMenuItem(m_pItemsSelect[6]);
 
+   m_pItemsSelect[14] = new MenuItemSelect("Show TX High/Reg priority packets", "");
+   m_pItemsSelect[14]->addSelection("No");
+   m_pItemsSelect[14]->addSelection("Yes");
+   m_pItemsSelect[14]->setUseMultiViewLayout();
+   m_pItemsSelect[14]->setSelectedIndex( (pP->uDebugStatsFlags & CTRL_RT_DEBUG_INFO_FLAG_SHOW_TX_HIGH_REG_PACKETS)?1:0);
+   m_IndexShowTxHighRegPackets = addMenuItem(m_pItemsSelect[14]);
+  
    m_pItemsSelect[7] = new MenuItemSelect("Show Min/Max Ack time", "");
    m_pItemsSelect[7]->addSelection("No");
    m_pItemsSelect[7]->addSelection("Yes");
@@ -266,6 +273,15 @@ void MenuControllerDevStatsConfig::onSelectItem()
       else
          pP->uDebugStatsFlags &= ~CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_CONSUMED_PACKETS;
    }
+
+   if ( m_IndexShowTxHighRegPackets == m_SelectedIndex )
+   {
+      if ( m_pItemsSelect[14]->getSelectedIndex() != 0 )
+         pP->uDebugStatsFlags |= CTRL_RT_DEBUG_INFO_FLAG_SHOW_TX_HIGH_REG_PACKETS;
+      else
+         pP->uDebugStatsFlags &= ~CTRL_RT_DEBUG_INFO_FLAG_SHOW_TX_HIGH_REG_PACKETS;
+   }
+
 
    if ( m_IndexShowMinMaxAckTime == m_SelectedIndex )
    {

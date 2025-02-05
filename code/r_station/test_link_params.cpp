@@ -57,6 +57,7 @@ bool s_bTestLinkCurrentTestSucceeded = false;
 int s_iTestLinkCurrentStepSendCount = 0;
 u32 s_uTimeLastUpdateCurrentState = 0;
 u32 s_uTimeEndCurrentStep = 0;
+u32 s_uTimeLastTestLinkFinished = 0;
 
 pthread_t s_pThreadTestLinkWorker;
 bool s_bApplyRadioParamsInProgress = false;
@@ -71,6 +72,11 @@ u32 s_uTestLinkCountPingsReceived = 0;
 bool test_link_is_in_progress()
 {
    return (s_iTestLinkState != TEST_LINK_STATE_NONE);
+}
+
+u32  test_link_get_last_finish_time()
+{
+   return s_uTimeLastTestLinkFinished;
 }
 
 bool test_link_is_applying_radio_params()
@@ -99,7 +105,7 @@ void _test_link_end_and_notify()
  
    test_link_send_end_message_to_central(s_bTestLinkCurrentTestSucceeded);
    s_iTestLinkState = TEST_LINK_STATE_NONE;
-   
+   s_uTimeLastTestLinkFinished = g_TimeNow;
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 }
@@ -332,7 +338,7 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
          _test_link_switch_to_state(TEST_LINK_STATE_REVERT_RADIO_PARAMS, TIMEOUT_TEST_LINK_STATE_APPLY_RADIO_PARAMS);
          return;
       }
-
+      s_uTimeLastTestLinkFinished = g_TimeNow;
       s_uTimeLastUpdateCurrentState = g_TimeNow-100;
       return;
    }
@@ -375,6 +381,7 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
    {
       test_link_send_end_message_to_central(s_bTestLinkCurrentTestSucceeded);
       s_iTestLinkState = TEST_LINK_STATE_NONE;
+      s_uTimeLastTestLinkFinished = g_TimeNow;
       return;
    }
 }
