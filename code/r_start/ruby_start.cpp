@@ -315,8 +315,23 @@ void _check_files()
 
 void _check_update_drivers_on_update()
 {
-   // No need. Only when drivers will be updated with an update
-   //hardware_install_drivers(1);
+   #if defined (HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   char szOutput[4098];
+   bool bNeedsInstall = false;
+   hw_execute_bash_command("lsmod | grep 88XXau", szOutput);
+   if ( strlen(szOutput) < 6 )
+      bNeedsInstall = true;
+   hw_execute_bash_command("lsmod | grep 8812eu", szOutput);
+   if ( strlen(szOutput) < 6 )
+      bNeedsInstall = true;
+   if ( bNeedsInstall )
+   {
+      log_line("Updating drivers. Please wait...");
+      printf("Ruby: Updating drivers. Please wait...\n");
+      fflush(stdout);
+      hardware_install_drivers(1);
+   }
+   #endif
 }
 
 bool _check_for_update_from_boot()
@@ -1059,6 +1074,39 @@ void _step_check_binaries_and_processes()
 
    log_line("Ruby: Base version is %d.%d", iMajor, iMinor);
    printf("Ruby: Base version is %d.%d\n", iMajor, iMinor);
+
+   char szInfo[256];
+   char szOutput[1024];
+   strcpy(szInfo, "Ruby: Platform: ");
+   #if defined(HW_PLATFORM_RASPBERRY)
+   strcat(szInfo, "Raspberry");
+   #endif
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   strcat(szInfo, "Radxa");
+   #endif
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   strcat(szInfo, "OpenIPC");
+   #endif
+
+   u32 uBoardType = hardware_getOnlyBoardType();
+   strcat(szInfo, ", Board: ");
+   strcat(szInfo, str_get_hardware_board_name(uBoardType));
+
+   #if defined(HW_PLATFORM_RASPBERRY)
+   hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szOutput);
+   removeTrailingNewLines(szOutput);
+   strcat(szInfo, ", Board id: ");
+   strcat(szInfo, szOutput);
+   #endif
+
+   hw_execute_bash_command_raw("uname -rn", szOutput);
+   removeTrailingNewLines(szOutput);
+   strcat(szInfo, ", ");
+   strcat(szInfo, szOutput);   
+
+   log_line(szInfo);
+   printf(szInfo);
+   printf("\n");
    fflush(stdout);
 }
 
@@ -1375,7 +1423,13 @@ int main(int argc, char *argv[])
 
    _log_oipc_boot_rotate();
    
-   hardware_sleep_sec(2);
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   for( int i=0; i<10; i++ )
+   {
+      hardware_sleep_ms(500);
+      _log_oipc_boot_step("Boot start delay");
+   }
+   #endif
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, "debug");
    if ( access(szFile, R_OK) != -1 )
@@ -1419,6 +1473,8 @@ int main(int argc, char *argv[])
 
    _log_oipc_boot_step("Done init devices.");
 
+   if ( ! g_bIsFirstBoot )
+      _check_update_drivers_on_update();
    _step_load_init_radios();
 
    _log_oipc_boot_step("Done init radios.");
@@ -1583,6 +1639,7 @@ int main(int argc, char *argv[])
        if ( hardware_get_radio_interfaces_count() > 0 )
        {
           log_line("There is a single radio card or all are disabled. Enable at least the first card.");
+          load_ControllerInterfacesSettings();
           radio_hw_info_t* pNIC = hardware_get_radio_info(0);
           u32 uFlags = controllerGetCardFlags(pNIC->szMAC);
           uFlags &= ~(RADIO_HW_CAPABILITY_FLAG_DISABLED);
@@ -1676,7 +1733,7 @@ int main(int argc, char *argv[])
          hw_execute_bash_command(szComm, NULL);
          printf("Ruby: Executing post update changes on vehicle. Done.\n");
          log_line("Executing post update changes on vehicle. Done.");
-
+         fflush(stdout);
          _check_update_drivers_on_update();
 
          strcpy(szFile, FOLDER_CONFIG);
@@ -1703,6 +1760,9 @@ int main(int argc, char *argv[])
          fflush(stdout);
          hw_execute_ruby_process_wait(NULL, "ruby_update_controller", NULL, NULL, 1);
          hw_execute_bash_command("rm -f ruby_update_controller", NULL);
+         printf("Ruby: Executing post update changes on vehicle. Done.\n");
+         log_line("Executing post update changes on vehicle. Done.");
+         fflush(stdout);
 
          _check_update_drivers_on_update();
          

@@ -8,6 +8,7 @@ int radio_links_has_failed_interfaces();
 
 void radio_links_reinit_radio_interfaces();
 
+void radio_links_compute_set_tx_powers();
 void radio_links_close_rxtx_radio_interfaces();
 void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq );
 void radio_links_open_rxtx_radio_interfaces();

@@ -3,7 +3,6 @@
 #include "config.h"
 
 #define SHARED_MEM_CONTROLLER_ROUTER_VEHICLES_INFO "R_SHARED_MEM_CONTROLLER_ROUTER_VEHICLE_INFO"
-#define SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS "R_SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS"
 #define SHARED_MEM_AUDIO_DECODE_STATS "/SYSTEM_SHARED_MEM_AUDIO_DECODE_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS"
 #define SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS "/SYSTEM_SHARED_MEM_RADIO_RX_QUEUE_STATS"
@@ -80,10 +79,6 @@ typedef struct
    u8 uCurrentIndex;
 } ALIGN_STRUCT_SPEC_INFO shared_mem_radio_rx_queue_info;
 
-
-shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();
-shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_write();
-void shared_mem_controller_radio_stats_interfaces_rx_graphs_close(shared_mem_radio_stats_interfaces_rx_graph* pAddress);
 
 shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_read();
 shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_write();

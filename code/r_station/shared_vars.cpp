@@ -76,9 +76,6 @@ shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
 shared_mem_radio_stats g_SM_RadioStats;
 shared_mem_radio_stats* g_pSM_RadioStats = NULL;
 
-shared_mem_radio_stats_interfaces_rx_graph g_SM_RadioStatsInterfacesRxGraph;
-shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfacesRxGraph = NULL;
-
 // To fix
 //shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats = NULL;
 shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs = NULL;

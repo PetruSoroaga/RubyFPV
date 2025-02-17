@@ -22,11 +22,8 @@ class MenuVehicleVideo: public Menu
       int m_iVideoResolutionsCount;
       int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
       int m_IndexVideoBitrate;
-      int m_IndexVideoConstantBitrate;
-      int m_IndexVideoOverloadCheck;
       int m_IndexVideoProfile;
       int m_IndexVideoCodec;
-      int m_IndexIgnoreTxSpikes;
       int m_IndexExpert;
       int m_IndexVideoLinkMode;
       int m_IndexBidirectionalVideoSettings;

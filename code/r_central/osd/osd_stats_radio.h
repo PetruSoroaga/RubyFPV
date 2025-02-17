@@ -16,11 +16,6 @@ float osd_render_stats_local_radio_links_get_height(shared_mem_radio_stats* pSta
 float osd_render_stats_local_radio_links_get_width(shared_mem_radio_stats* pStats, float scale);
 float osd_render_stats_local_radio_links( float xPos, float yPos, const char* szTitle, shared_mem_radio_stats* pStats, float scale);
 
-float osd_render_stats_radio_rx_history_get_height(bool bVehicle);
-float osd_render_stats_radio_rx_history_get_width(bool bVehicle);
-float osd_render_stats_radio_rx_history( float xPos, float yPos, bool bVehicle);
-
-
-float osd_render_stats_radio_interfaces_graph_get_height(shared_mem_radio_stats* pStats);
-float osd_render_stats_radio_interfaces_graph_get_width(shared_mem_radio_stats* pStats);
-float osd_render_stats_radio_interfaces_graph( float xPos, float yPos, shared_mem_radio_stats_interfaces_rx_graph* pStats);
+float osd_render_stats_radio_rx_type_history_get_height(bool bVehicle);
+float osd_render_stats_radio_rx_type_history_get_width(bool bVehicle);
+float osd_render_stats_radio_rx_type_history( float xPos, float yPos, bool bVehicle);

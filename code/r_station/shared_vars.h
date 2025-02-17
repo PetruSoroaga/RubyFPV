@@ -62,8 +62,6 @@ extern shared_mem_radio_rx_queue_info g_SM_RadioRxQueueInfo;
 
 extern shared_mem_radio_stats g_SM_RadioStats;
 extern shared_mem_radio_stats* g_pSM_RadioStats;
-extern shared_mem_radio_stats_interfaces_rx_graph g_SM_RadioStatsInterfacesRxGraph;
-extern shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfacesRxGraph;
 
 // To fix
 //extern shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats;

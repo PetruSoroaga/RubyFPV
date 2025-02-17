@@ -12,7 +12,7 @@
         documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-      * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permited.
@@ -139,10 +139,34 @@ Popup* _get_next_available_alarm_popup(const char* szTitle, int timeout)
    return pNew;
 }
 
+bool _alarms_must_skip(u32 uVehicleId, u32 uAlarms)
+{
+   Preferences* pP = get_Preferences();
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( g_bUpdateInProgress )
+      return true;
+  
+   if ( pP->iDebugShowFullRXStats )
+      return true;
+
+   if ( ! (uAlarms & ALARM_ID_VEHICLE_LOW_STORAGE_SPACE) )
+   if ( ! (pP->uEnabledAlarms & uAlarms) )
+   {
+      return true;
+   }
+
+   if ( uAlarms & ALARM_ID_DEVELOPER_ALARM )
+   if ( ! pCS->iDeveloperMode )
+      return false;
+
+   return false;
+}
+
 void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlags2)
 {
    g_uPersistentAllAlarmsVehicle |= uAlarms;
 
+   ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
    if ( p->iDebugShowFullRXStats )
       return;
@@ -179,14 +203,10 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
    szAlarmText2[0] = 0;
    szAlarmText3[0] = 0;
 
-   if ( g_bUpdateInProgress )
-      return;
-  
-   if ( ! (uAlarms & ALARM_ID_VEHICLE_LOW_STORAGE_SPACE) )
-   if ( ! (p->uEnabledAlarms & uAlarms) )
+   if ( _alarms_must_skip(uVehicleId, uAlarms) )
    {
       log_line(szAlarmText);
-      log_line("This alarm is disabled. Do not show it in UI.");
+      log_line("This alarm from vehicle must be skipped. Do not show it in UI.");
       return;
    }
 
@@ -228,6 +248,29 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
          strcpy(szAlarmText2, "Update the SiK radio firmware to version 2.2");
    }
 
+   if ( uAlarms & ALARM_ID_DEVELOPER_ALARM )
+   {
+      uIconId = g_idIconController;
+      if ( (uFlags1 & 0xFF) == ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF )
+      {
+         g_uTotalLocalAlarmDevRetransmissions++;
+         strcpy(szAlarmText, L("Retransmissions are enabled but not requested/received from/to vehicle."));
+         snprintf(szAlarmText2, sizeof(szAlarmText2)/sizeof(szAlarmText2[0]), L("Please notify the developers about this alarm (id %d)"), uFlags1);
+         if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isVideoLinkFixedOneWay() )
+            strcpy(szAlarmText3, L("Vehicle is in one way video link mode."));
+      }
+      else if ( (uFlags1 & 0xFF) == ALARM_FLAG_DEVELOPER_ALARM_UDP_SKIPPED )
+      {
+         uIconId = g_idIconCamera;
+         u32 uSkipped = (uFlags1 >> 8) & 0xFF;
+         u32 uDelta1 = uFlags2 & 0xFF;
+         u32 uDelta2 = (uFlags2 >> 8) & 0xFF;
+         u32 uDelta3 = (uFlags2 >> 16) & 0xFF;
+         sprintf(szAlarmText, "Video capture process skipped %u packets from H264/H265 encoder.", uSkipped);
+         sprintf(szAlarmText2, "Please contact Ruby developers. Delta times: %u ms, %u ms, %u ms", uDelta1, uDelta2, uDelta3);
+         bShowAsWarning = true;
+      }
+   }
    if ( uAlarms & ALARM_ID_VIDEO_CAPTURE_MALFUNCTION )
    {
       static u32 s_uTimeLastCaptureMalfunctionAlarm = 0;
@@ -247,16 +290,6 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
       {
          strcpy(szAlarmText, "Video capture process on vehicle is not responding.");
          strcpy(szAlarmText2, "Vehicle will restart now...");
-      }
-      else if ( 2 == (uFlags1 & 0xFF) )
-      {
-         u32 uSkipped = (uFlags1 >> 8) & 0xFF;
-         u32 uDelta1 = uFlags2 & 0xFF;
-         u32 uDelta2 = (uFlags2 >> 8) & 0xFF;
-         u32 uDelta3 = (uFlags2 >> 16) & 0xFF;
-         sprintf(szAlarmText, "Video capture process skipped %u packets from H264/H265 encoder.", uSkipped);
-         sprintf(szAlarmText2, "Please contact Ruby developers. Delta times: %u ms, %u ms, %u ms", uDelta1, uDelta2, uDelta3);
-         bShowAsWarning = true;
       }
       else
       {
@@ -438,7 +471,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
    if ( !g_bUpdateInProgress )
    {
       bool bShow = false;
-      if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+      if ( pCS->iDeveloperMode )
          bShow = true;
       else
       {
@@ -512,10 +545,6 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
 {
    g_uPersistentAllAlarmsLocal |= uAlarms;
 
-   Preferences* p = get_Preferences();
-   if ( p->iDebugShowFullRXStats )
-      return;
-
    if ( (uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD) || (uAlarms & ALARM_ID_CONTROLLER_IO_ERROR) )
       g_nTotalControllerCPUSpikes++;
 
@@ -532,19 +561,13 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    szAlarmText2[0] = 0;
    szAlarmText3[0] = 0;
 
-   if ( g_bUpdateInProgress )
-      return;
-
-   // Alarm is disabled ?
-
-   //if ( uAlarms != ALARM_ID_CONTROLLER_IO_ERROR )
-   if ( uAlarms != ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE )
-   if ( ! (p->uEnabledAlarms & uAlarms) )
+   if ( _alarms_must_skip(0, uAlarms) )
    {
       log_line(szAlarmText);
-      log_line("This alarm is disabled. Do not show it in UI.");
+      log_line("This local alarm must be skipped. Do not show it in UI.");
       return;
    }
+
 
    if ( uAlarms & ALARM_ID_FIRMWARE_OLD )
    {
@@ -564,14 +587,25 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    if ( uAlarms & ALARM_ID_DEVELOPER_ALARM )
    {
       uIconId = g_idIconController;
-      bLargeFont = true;
-      if ( uFlags1 == ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF )
+      if ( (uFlags1 & 0xFF) == ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF )
       {
+         bLargeFont = true;
          g_uTotalLocalAlarmDevRetransmissions++;
          strcpy(szAlarmText, L("Retransmissions are enabled but not requested/received from/to vehicle."));
          snprintf(szAlarmText2, sizeof(szAlarmText2)/sizeof(szAlarmText2[0]), L("Please notify the developers about this alarm (id %d)"), uFlags1);
          if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isVideoLinkFixedOneWay() )
             strcpy(szAlarmText3, L("Vehicle is in one way video link mode."));
+      }
+      else if ( (uFlags1 & 0xFF) == ALARM_FLAG_DEVELOPER_ALARM_UDP_SKIPPED )
+      {
+         uIconId = g_idIconCamera;
+         u32 uSkipped = (uFlags1 >> 8) & 0xFF;
+         u32 uDelta1 = uFlags2 & 0xFF;
+         u32 uDelta2 = (uFlags2 >> 8) & 0xFF;
+         u32 uDelta3 = (uFlags2 >> 16) & 0xFF;
+         sprintf(szAlarmText, "Video capture process skipped %u packets from H264/H265 encoder.", uSkipped);
+         sprintf(szAlarmText2, "Please contact Ruby developers. Delta times: %u ms, %u ms, %u ms", uDelta1, uDelta2, uDelta3);
+         bShowAsWarning = true;
       }
    }
 
@@ -640,6 +674,11 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
              sprintf(szAlarmText, "Radio interface %u (%s) on the controller is not working.", uFlags1+1, szCardName);
           else
              sprintf(szAlarmText, "Radio interface %u (generic) on the controller is not working.", uFlags1+1);
+       }
+       else if ( uFlags1 == 0xFF )
+       {
+          strcpy(szAlarmText, L("Some radio interfaces have broken."));
+          strcpy(szAlarmText2, L("Will reinitialize radio interfaces..."));
        }
        else
           strcpy(szAlarmText, "A radio interface on the controller is not working.");     

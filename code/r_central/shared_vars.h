@@ -59,7 +59,6 @@ extern bool g_bToglleOSDOff;
 extern bool g_bToglleStatsOff;
 extern bool g_bToglleAllOSDOff;
 extern bool g_bFreezeOSD;
-extern bool g_bDidAnUpdate;
 
 extern bool g_bMenuPopupUpdateVehicleShown;
 extern type_radio_links_parameters g_LastGoodRadioLinksParams;

@@ -37,6 +37,7 @@ typedef struct
    u32 uVehicleId;
    u8 uMinAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uMaxAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
+   u8 uCountReqRetrPackets[SYSTEM_RT_INFO_INTERVALS];
    u8 uCountReqRetransmissions[SYSTEM_RT_INFO_INTERVALS];
    u8 uCountAckRetransmissions[SYSTEM_RT_INFO_INTERVALS];
    u8 uAckTimes[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];

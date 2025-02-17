@@ -343,11 +343,11 @@ void _check_free_storage_space()
    #endif
 
    if ( ! s_bWaitingForFreeSpaceyAsync )
-   if ( (0 == sl_uCountFreeSpaceChecks && (g_TimeNow > g_TimeStart+5000)) || (g_TimeNow > sl_uTimeLastFreeSpaceCheck + 60000) )
+   if ( (0 == sl_uCountFreeSpaceChecks && (g_TimeNow > g_TimeStart+7000)) || (g_TimeNow > sl_uTimeLastFreeSpaceCheck + 2*60000) )
    {
       sl_uCountFreeSpaceChecks++;
       sl_uTimeLastFreeSpaceCheck = g_TimeNow;
-      
+      s_bWaitingForFreeSpaceyAsync = true;
       int iFreeSpaceKb = hardware_get_free_space_kb_async();
       if ( iFreeSpaceKb < 0 )
       {
@@ -356,8 +356,6 @@ void _check_free_storage_space()
          if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
             _trigger_alarm_free_space(iFreeSpaceKb);
       }
-      else
-         s_bWaitingForFreeSpaceyAsync = true;
    }
 
    if ( s_bWaitingForFreeSpaceyAsync )
@@ -403,6 +401,40 @@ void _check_write_filesystem()
    }      
 }
 
+void _fill_in_radio_rx_stats_compact(shared_mem_radio_stats_radio_interface_compact* pRadioStatsCompact, u8 uCardIndex)
+{
+   if ( (NULL == pRadioStatsCompact) || (uCardIndex >= g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+      return;
+   //statsCompact.lastDbm = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbm;
+   //statsCompact.lastDbmVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmVideo;
+   //statsCompact.lastDbmData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmData;
+   memcpy( &(pRadioStatsCompact->signalInfo), &(g_SM_RadioStats.radio_interfaces[uCardIndex].signalInfo), sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
+   pRadioStatsCompact->lastRecvDataRate = g_SM_RadioStats.radio_interfaces[uCardIndex].lastRecvDataRate;
+   pRadioStatsCompact->lastRecvDataRateVideo = g_SM_RadioStats.radio_interfaces[uCardIndex].lastRecvDataRateVideo;
+   pRadioStatsCompact->lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[uCardIndex].lastRecvDataRateData;
+
+   pRadioStatsCompact->totalRxBytes = g_SM_RadioStats.radio_interfaces[uCardIndex].totalRxBytes;
+   pRadioStatsCompact->totalTxBytes = g_SM_RadioStats.radio_interfaces[uCardIndex].totalTxBytes;
+   pRadioStatsCompact->rxBytesPerSec = g_SM_RadioStats.radio_interfaces[uCardIndex].rxBytesPerSec;
+   pRadioStatsCompact->txBytesPerSec = g_SM_RadioStats.radio_interfaces[uCardIndex].txBytesPerSec;
+   pRadioStatsCompact->totalRxPackets = g_SM_RadioStats.radio_interfaces[uCardIndex].totalRxPackets;
+   pRadioStatsCompact->totalRxPacketsBad = g_SM_RadioStats.radio_interfaces[uCardIndex].totalRxPacketsBad;
+   pRadioStatsCompact->totalRxPacketsLost = g_SM_RadioStats.radio_interfaces[uCardIndex].totalRxPacketsLost;
+   pRadioStatsCompact->totalTxPackets = g_SM_RadioStats.radio_interfaces[uCardIndex].totalTxPackets;
+   pRadioStatsCompact->rxPacketsPerSec = g_SM_RadioStats.radio_interfaces[uCardIndex].rxPacketsPerSec;
+   pRadioStatsCompact->txPacketsPerSec = g_SM_RadioStats.radio_interfaces[uCardIndex].txPacketsPerSec;
+   pRadioStatsCompact->timeLastRxPacket = g_SM_RadioStats.radio_interfaces[uCardIndex].timeLastRxPacket;
+   pRadioStatsCompact->timeLastTxPacket = g_SM_RadioStats.radio_interfaces[uCardIndex].timeLastTxPacket;
+   pRadioStatsCompact->timeNow = g_SM_RadioStats.radio_interfaces[uCardIndex].timeNow;
+   pRadioStatsCompact->rxQuality = g_SM_RadioStats.radio_interfaces[uCardIndex].rxQuality;
+   pRadioStatsCompact->rxRelativeQuality = g_SM_RadioStats.radio_interfaces[uCardIndex].rxRelativeQuality;
+
+   pRadioStatsCompact->hist_rxPacketsCurrentIndex = g_SM_RadioStats.radio_interfaces[uCardIndex].hist_rxPacketsCurrentIndex;
+   memcpy(pRadioStatsCompact->hist_rxPacketsCount, g_SM_RadioStats.radio_interfaces[uCardIndex].hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+   memcpy(pRadioStatsCompact->hist_rxPacketsLostCountVideo, g_SM_RadioStats.radio_interfaces[uCardIndex].hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+   memcpy(pRadioStatsCompact->hist_rxPacketsLostCountData, g_SM_RadioStats.radio_interfaces[uCardIndex].hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+   memcpy(pRadioStatsCompact->hist_rxGapMiliseconds, g_SM_RadioStats.radio_interfaces[uCardIndex].hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+}
 
 void _send_radio_stats_to_controller()
 {
@@ -441,19 +473,22 @@ void _send_radio_stats_to_controller()
    PH.vehicle_id_dest = g_uControllerId;
    
    u8 packet[MAX_PACKET_TOTAL_SIZE];
-   u8* pData = packet + sizeof(t_packet_header) + sizeof(u8);
-   
+   u8* pData = packet + sizeof(t_packet_header) + 2*sizeof(u8);
+   u8 uType = 0;
+   u8 uCardIndex = 0;
+
    // Send all in single packet
    
    PH.packet_flags_extended |= PACKET_FLAGS_EXTENDED_BIT_SEND_ON_HIGH_CAPACITY_LINK_ONLY;
    PH.packet_flags_extended &= (~PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY);
-   PH.total_length = sizeof(t_packet_header) + sizeof(u8) + g_pCurrentModel->radioInterfacesParams.interfaces_count * sizeof(shared_mem_radio_stats_radio_interface);
-
    if ( PH.total_length <= MAX_PACKET_PAYLOAD )
    {
-      u8 count = g_pCurrentModel->radioInterfacesParams.interfaces_count;
+      uType = 0xFF;
+      uCardIndex = g_pCurrentModel->radioInterfacesParams.interfaces_count;
+      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + g_pCurrentModel->radioInterfacesParams.interfaces_count * sizeof(shared_mem_radio_stats_radio_interface);
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-      memcpy(packet + sizeof(t_packet_header), (u8*)&count, sizeof(u8));
+      memcpy(packet + sizeof(t_packet_header), (u8*)&uType, sizeof(u8));
+      memcpy(packet + sizeof(t_packet_header)+sizeof(u8), (u8*)&uCardIndex, sizeof(u8));
       for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
       {
          memcpy(pData, &(g_SM_RadioStats.radio_interfaces[i]), sizeof(shared_mem_radio_stats_radio_interface));
@@ -461,55 +496,46 @@ void _send_radio_stats_to_controller()
       }
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
    }
+   else
+   {
+      for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+      {
+         // Send as single shared_mem_radio_stats_radio_interface
+         uType = 0xF0;
+         uCardIndex = i;
+         PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface);
+         
+         memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
+         memcpy(packet + sizeof(t_packet_header), (u8*)&uType, sizeof(u8));
+         memcpy(packet + sizeof(t_packet_header)+sizeof(u8), (u8*)&uCardIndex, sizeof(u8));
+         memcpy(pData, &(g_SM_RadioStats.radio_interfaces[i]), sizeof(shared_mem_radio_stats_radio_interface));
+         packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
+      }
+   }
 
    // Send rx stats, for each radio interface in individual single packets (to fit in small SiK packets)
    // Send shared_mem_radio_stats_radio_interface_compact
    if ( hardware_radio_has_low_capacity_links() )
    {
+      static u8 uCardIndexRxStatsToSendSlow = 0;
+      uCardIndexRxStatsToSendSlow++;
+      if ( uCardIndexRxStatsToSendSlow >= g_pCurrentModel->radioInterfacesParams.interfaces_count )
+         uCardIndexRxStatsToSendSlow = 0;
+
       PH.packet_flags_extended |= PACKET_FLAGS_EXTENDED_BIT_SEND_ON_LOW_CAPACITY_LINK_ONLY;
       PH.packet_flags_extended &= (~PACKET_FLAGS_EXTENDED_BIT_SEND_ON_HIGH_CAPACITY_LINK_ONLY);
-      PH.total_length = sizeof(t_packet_header) + sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact);
-      
-      static u8 uCardIndexRxStatsToSend = 0;
-      uCardIndexRxStatsToSend++;
-      if ( uCardIndexRxStatsToSend >= g_pCurrentModel->radioInterfacesParams.interfaces_count )
-         uCardIndexRxStatsToSend = 0;
 
+      uType = 0x0F;
+      uCardIndex = uCardIndexRxStatsToSendSlow;
+      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact);
+      
       shared_mem_radio_stats_radio_interface_compact statsCompact;
-      
-      //statsCompact.lastDbm = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbm;
-      //statsCompact.lastDbmVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmVideo;
-      //statsCompact.lastDbmData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastDbmData;
-      memcpy( &statsCompact.signalInfo, &(g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].signalInfo), sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
-      statsCompact.lastRecvDataRate = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRate;
-      statsCompact.lastRecvDataRateVideo = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateVideo;
-      statsCompact.lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].lastRecvDataRateData;
-
-      statsCompact.totalRxBytes = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalRxBytes;
-      statsCompact.totalTxBytes = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalTxBytes;
-      statsCompact.rxBytesPerSec = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].rxBytesPerSec;
-      statsCompact.txBytesPerSec = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].txBytesPerSec;
-      statsCompact.totalRxPackets = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalRxPackets;
-      statsCompact.totalRxPacketsBad = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalRxPacketsBad;
-      statsCompact.totalRxPacketsLost = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalRxPacketsLost;
-      statsCompact.totalTxPackets = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].totalTxPackets;
-      statsCompact.rxPacketsPerSec = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].rxPacketsPerSec;
-      statsCompact.txPacketsPerSec = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].txPacketsPerSec;
-      statsCompact.timeLastRxPacket = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].timeLastRxPacket;
-      statsCompact.timeLastTxPacket = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].timeLastTxPacket;
-      statsCompact.timeNow = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].timeNow;
-      statsCompact.rxQuality = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].rxQuality;
-      statsCompact.rxRelativeQuality = g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].rxRelativeQuality;
-
-      memcpy(statsCompact.hist_rxPacketsCount, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-      memcpy(statsCompact.hist_rxPacketsLostCountVideo, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-      memcpy(statsCompact.hist_rxPacketsLostCountData, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-      memcpy(statsCompact.hist_rxGapMiliseconds, g_SM_RadioStats.radio_interfaces[uCardIndexRxStatsToSend].hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+      _fill_in_radio_rx_stats_compact(&statsCompact, uCardIndexRxStatsToSendSlow);
 
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-      memcpy(packet + sizeof(t_packet_header), (u8*)&uCardIndexRxStatsToSend, sizeof(u8));
-      memcpy(packet + sizeof(t_packet_header) + sizeof(u8), &(statsCompact), sizeof(shared_mem_radio_stats_radio_interface_compact));
-      
+      memcpy(packet + sizeof(t_packet_header), (u8*)&uType, sizeof(u8));
+      memcpy(packet + sizeof(t_packet_header)+sizeof(u8), (u8*)&uCardIndex, sizeof(u8));
+      memcpy(pData, &(statsCompact), sizeof(shared_mem_radio_stats_radio_interface_compact));
       packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
    }
 }
@@ -669,15 +695,13 @@ void _check_send_initial_vehicle_settings()
 
 void _periodic_update_radio_stats()
 {
-   if ( radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow) )
+   if ( radio_stats_periodic_update(&g_SM_RadioStats, g_TimeNow) )
    {
       // Send them to controller if needed
       bool bSend = false;
-      if ( g_pCurrentModel )
+      if ( NULL != g_pCurrentModel )
       if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS )
           bSend = true;
-      //if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
-      //    bSend = true;
 
       static u32 sl_uLastTimeSentRadioInterfacesStats = 0;
       u32 uSendInterval = g_SM_RadioStats.refreshIntervalMs;
@@ -781,7 +805,7 @@ void _update_tx_out_stats()
         
 
       if ( ! g_bVideoPaused )
-      if ( g_pCurrentModel->bDeveloperMode )
+      if ( g_bDeveloperMode )
       if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP )
       {
          t_packet_header PH;
@@ -798,7 +822,7 @@ void _update_tx_out_stats()
          packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
       }
 
-      for( int i=MAX_HISTORY_RADIO_STATS_RECV_SLICES-1; i>0; i-- )
+      for( int i=MAX_HISTORY_VEHICLE_TX_STATS_SLICES-1; i>0; i-- )
       {
          g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMaxMiliseconds[i-1];
          g_PHVehicleTxStats.historyTxGapMinMiliseconds[i] = g_PHVehicleTxStats.historyTxGapMinMiliseconds[i-1];

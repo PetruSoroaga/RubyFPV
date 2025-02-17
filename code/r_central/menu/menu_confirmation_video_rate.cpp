@@ -36,49 +36,34 @@
 #include "../local_stats.h"
 
 #include "menu.h"
-#include "menu_confirmation_delete_logs.h"
+#include "menu_confirmation_video_rate.h"
 #include "../ruby_central.h"
 #include "../events.h"
 
-MenuConfirmationDeleteLogs::MenuConfirmationDeleteLogs(u32 uFreeSpaceMb, u32 uLogsSizeBytes)
-:Menu(MENU_ID_CONFIRMATION_DELETE_LOGS, "Delete vehicle logs", NULL)
+MenuConfirmationVideoRate::MenuConfirmationVideoRate(int iNewDataRate)
+:Menu(MENU_ID_CONFIRMATION_VIDEO_RATE, "Video Bitrate Adjustment", NULL)
 {
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.3;
 
-   m_uFreeSpaceMb = uFreeSpaceMb;
-   m_uLogSizeBytes = uLogsSizeBytes;
-
-   char szBuff[256];
-   sprintf(szBuff, "Vehicle is running out of free storage space. %u Mb free storage available.", m_uFreeSpaceMb);
-   addTopLine(szBuff);
-   
-   if ( m_uLogSizeBytes >= 1000000 )
-      sprintf(szBuff, "Vehicle logs take up %u Mb of storage.", m_uLogSizeBytes/1000/1000);
-   else
-      sprintf(szBuff, "Vehicle logs take up %u bytes of storage.", m_uLogSizeBytes);
-   addTopLine(szBuff);
-
-   addTopLine("Do you want to delete the logs?");
-   addMenuItem(new MenuItem("No"));
-   addMenuItem(new MenuItem("Yes"));
+   m_iNewDataRate = iNewDataRate;
    m_SelectedIndex = 1;
 }
 
-MenuConfirmationDeleteLogs::~MenuConfirmationDeleteLogs()
+MenuConfirmationVideoRate::~MenuConfirmationVideoRate()
 {
-   log_line("Closed MenuConfirmationDeleteLogs.");
+   log_line("Closed MenuConfirmationVideoRate.");
 }
 
-void MenuConfirmationDeleteLogs::onShow()
+void MenuConfirmationVideoRate::onShow()
 {
    Menu::onShow();
    m_SelectedIndex = 1;
 }
 
-void MenuConfirmationDeleteLogs::onSelectItem()
+void MenuConfirmationVideoRate::onSelectItem()
 {
-   log_line("MenuConfirmationDeleteLogs: selected item: %d", m_SelectedIndex);
+   log_line("MenuConfirmationVideoRate: selected item: %d", m_SelectedIndex);
 
    if ( 0 == m_SelectedIndex )
    {

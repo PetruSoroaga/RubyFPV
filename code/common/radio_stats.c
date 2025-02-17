@@ -156,19 +156,6 @@ void shared_mem_radio_stats_rx_hist_update(shared_mem_radio_stats_rx_hist* pStat
    pStats->interfaces_history[iInterfaceIndex].uTimeLastUpdate = uTimeNow;
 }
 
-
-void radio_stats_interfaces_rx_graph_reset(shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, int iGraphSliceDuration)
-{
-   if ( NULL == pSMRXStats )
-      return;
-
-   memset((u8*)pSMRXStats, 0, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
-
-   pSMRXStats->iCurrentSlice = 0;
-   pSMRXStats->uTimeSliceDurationMs = iGraphSliceDuration;
-   pSMRXStats->uTimeStartCurrentSlice = 0;
-}
-
 void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
 {
    if ( NULL == pSMRS )
@@ -225,7 +212,7 @@ void radio_stats_reset(shared_mem_radio_stats* pSMRS, int graphRefreshInterval)
       pSMRS->radio_interfaces[i].rxQuality = 0;
       pSMRS->radio_interfaces[i].rxRelativeQuality = 0;
 
-      pSMRS->radio_interfaces[i].uSlicesUpdated = 0;
+      pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex = 0;
       for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
       {
          pSMRS->radio_interfaces[i].hist_rxPacketsCount[k] = 0;
@@ -343,7 +330,7 @@ void radio_stats_reset_received_info(shared_mem_radio_stats* pSMRS)
       pSMRS->radio_interfaces[i].rxQuality = 0;
       pSMRS->radio_interfaces[i].rxRelativeQuality = 0;
 
-      pSMRS->radio_interfaces[i].uSlicesUpdated = 0;
+      pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex = 0;
       for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
       {
          pSMRS->radio_interfaces[i].hist_rxPacketsCount[k] = 0;
@@ -497,6 +484,7 @@ void radio_stats_reset_interfaces_rx_info(shared_mem_radio_stats* pSMRS)
       pSMRS->radio_interfaces[i].tmpRxBytes = 0;
       pSMRS->radio_interfaces[i].tmpRxPackets = 0;
 
+      pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex = 0;
       for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
       {
          pSMRS->radio_interfaces[i].hist_rxPacketsCount[k] = 0;
@@ -755,7 +743,7 @@ void _radio_stats_update_kbps_values_radio_links(shared_mem_radio_stats* pSMRS, 
 
 // returns 1 if it was updated, 0 if unchanged
 
-int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow)
+int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, u32 timeNow)
 {
    if ( NULL == pSMRS )
       return 0;
@@ -803,12 +791,17 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
          u32 totalRecv = 0;
          u32 totalRecvBad = 0;
          u32 totalRecvLost = 0;
+         int iIndex = pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex;
          for( int k=0; k<iIntervalsToUse; k++ )
          {
-            totalRecv += pSMRS->radio_interfaces[i].hist_rxPacketsCount[k];
-            totalRecvBad += pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[k];
-            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[k];
-            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[k];
+            totalRecv += pSMRS->radio_interfaces[i].hist_rxPacketsCount[iIndex];
+            totalRecvBad += pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[iIndex];
+            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[iIndex];
+            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[iIndex];
+
+            iIndex--;
+            if ( iIndex < 0 )
+               iIndex = MAX_HISTORY_RADIO_STATS_RECV_SLICES-1;
          }
          if ( 0 == totalRecv )
             pSMRS->radio_interfaces[i].rxQuality = 0;
@@ -824,21 +817,20 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
       {
          pSMRS->radio_interfaces[i].signalInfo.iDbmBest = 1000;
          pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest = 1000;
-         for( int k=1; k<pSMRS->radio_interfaces[i].signalInfo.iAntennaCount; k++ )
+         for( int iAnt=0; iAnt<pSMRS->radio_interfaces[i].signalInfo.iAntennaCount; iAnt++ )
          {
-            if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k] < 500 )
+            if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[iAnt] < 500 )
             {
                if ( pSMRS->radio_interfaces[i].signalInfo.iDbmBest > 500 )
-                  pSMRS->radio_interfaces[i].signalInfo.iDbmBest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k];
-               else if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k] > pSMRS->radio_interfaces[i].signalInfo.iDbmBest )
-                  pSMRS->radio_interfaces[i].signalInfo.iDbmBest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k];
-            }
-            if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k] < 500 )
-            {
-               if ( pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest > 500 )
-                  pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k];
-               else if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k] < pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest )
-                  pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k];
+               {
+                  pSMRS->radio_interfaces[i].signalInfo.iDbmBest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[iAnt];
+                  pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[iAnt];
+               }
+               else if ( pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[iAnt] > pSMRS->radio_interfaces[i].signalInfo.iDbmBest )
+               {
+                  pSMRS->radio_interfaces[i].signalInfo.iDbmBest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[iAnt];
+                  pSMRS->radio_interfaces[i].signalInfo.iDbmNoiseLowest = pSMRS->radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[iAnt];
+               }
             }
          }
       }
@@ -849,12 +841,16 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
          u32 totalRecv = 0;
          u32 totalRecvBad = 0;
          u32 totalRecvLost = 0;
+         int iIndex = pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex;
          for( int i=0; i<iIntervalsToUse; i++ )
          {
-            totalRecv += pSMRS->radio_interfaces[i].hist_rxPacketsCount[i];
-            totalRecvBad += pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[i];
-            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[i];
-            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[i];
+            totalRecv += pSMRS->radio_interfaces[i].hist_rxPacketsCount[iIndex];
+            totalRecvBad += pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[iIndex];
+            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[iIndex];
+            totalRecvLost += pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[iIndex];
+            iIndex--;
+            if ( iIndex < 0 )
+               iIndex = MAX_HISTORY_RADIO_STATS_RECV_SLICES-1;
          }
 
          totalRecv += pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount;
@@ -887,37 +883,32 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
 
       for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
       {
-         pSMRS->radio_interfaces[i].uSlicesUpdated++;
-         for( int k=MAX_HISTORY_RADIO_STATS_RECV_SLICES-1; k>0; k-- )
-         {
-            pSMRS->radio_interfaces[i].hist_rxPacketsCount[k] = pSMRS->radio_interfaces[i].hist_rxPacketsCount[k-1];
-            pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[k] = pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[k-1];
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[k] = pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[k-1];
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[k] = pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[k-1];
-            pSMRS->radio_interfaces[i].hist_rxGapMiliseconds[k] = pSMRS->radio_interfaces[i].hist_rxGapMiliseconds[k-1];
-         }
+         pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex++;
+         if ( pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex >= MAX_HISTORY_RADIO_STATS_RECV_SLICES )
+            pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex = 0;
+         int iIndex = pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex;
 
          if ( pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount < 255 )
-            pSMRS->radio_interfaces[i].hist_rxPacketsCount[0] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount;
+            pSMRS->radio_interfaces[i].hist_rxPacketsCount[iIndex] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount;
          else
-            pSMRS->radio_interfaces[i].hist_rxPacketsCount[0] = 0xFF;
+            pSMRS->radio_interfaces[i].hist_rxPacketsCount[iIndex] = 0xFF;
 
          if ( pSMRS->radio_interfaces[i].hist_tmp_rxPacketsBadCount < 255 )
-            pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[0] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsBadCount;
+            pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[iIndex] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsBadCount;
          else
-            pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[0] = 0xFF;
+            pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[iIndex] = 0xFF;
 
          if ( pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountVideo < 255 )
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[0] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountVideo;
+            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[iIndex] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountVideo;
          else
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[0] = 0xFF;
+            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountVideo[iIndex] = 0xFF;
 
          if ( pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountData < 255 )
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[0] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountData;
+            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[iIndex] = pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountData;
          else
-            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[0] = 0xFF;
+            pSMRS->radio_interfaces[i].hist_rxPacketsLostCountData[iIndex] = 0xFF;
 
-         pSMRS->radio_interfaces[i].hist_rxGapMiliseconds[0] = 0xFF;
+         pSMRS->radio_interfaces[i].hist_rxGapMiliseconds[iIndex] = 0xFF;
          pSMRS->radio_interfaces[i].hist_tmp_rxPacketsCount = 0;
          pSMRS->radio_interfaces[i].hist_tmp_rxPacketsBadCount = 0;
          pSMRS->radio_interfaces[i].hist_tmp_rxPacketsLostCountVideo = 0;
@@ -926,43 +917,7 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, shared_mem_radio_
    }
 
 
-   // Update rx graphs controller
-
-   if ( NULL != pSMRXStats )
-   if ( (timeNow >= pSMRXStats->uTimeStartCurrentSlice + pSMRXStats->uTimeSliceDurationMs) || (timeNow < pSMRXStats->uTimeStartCurrentSlice) )
-   {
-      pSMRXStats->uTimeStartCurrentSlice = timeNow;
-      iReturn = 1;
-
-      for( int i=0; i<pSMRS->countLocalRadioInterfaces; i++ )
-      {
-         if ( pSMRXStats->interfaces[i].tmp_rxPackets < 255 )
-            pSMRXStats->interfaces[i].rxPackets[pSMRXStats->iCurrentSlice] = pSMRXStats->interfaces[i].tmp_rxPackets;
-         else
-            pSMRXStats->interfaces[i].rxPackets[pSMRXStats->iCurrentSlice] = 0xFF;
-
-         if ( pSMRXStats->interfaces[i].tmp_rxPacketsBad < 255 )
-            pSMRXStats->interfaces[i].rxPacketsBad[pSMRXStats->iCurrentSlice] = pSMRXStats->interfaces[i].tmp_rxPacketsBad;
-         else
-            pSMRXStats->interfaces[i].rxPacketsBad[pSMRXStats->iCurrentSlice] = 0xFF;
-
-         if ( pSMRXStats->interfaces[i].tmp_rxPacketsLost < 255 )
-            pSMRXStats->interfaces[i].rxPacketsLost[pSMRXStats->iCurrentSlice] = pSMRXStats->interfaces[i].tmp_rxPacketsLost;
-         else
-            pSMRXStats->interfaces[i].rxPacketsLost[pSMRXStats->iCurrentSlice] = 0xFF;
-
-         pSMRXStats->interfaces[i].rxGapMiliseconds[pSMRXStats->iCurrentSlice] = 0xFF;
-         pSMRXStats->interfaces[i].tmp_rxPackets = 0;
-         pSMRXStats->interfaces[i].tmp_rxPacketsBad = 0;
-         pSMRXStats->interfaces[i].tmp_rxPacketsLost = 0;
-      }
-
-      pSMRXStats->iCurrentSlice++;
-      if ( pSMRXStats->iCurrentSlice >= MAX_RX_GRAPH_SLICES )
-         pSMRXStats->iCurrentSlice = 0;
-
-   }
-
+   
    if ( iReturn == 1 )
    {
       static int s_iLogRadioRxTxThroughput = 0;
@@ -1023,7 +978,7 @@ void radio_stats_set_card_current_frequency(shared_mem_radio_stats* pSMRS, int i
    pSMRS->radio_interfaces[iRadioInterface].uCurrentFrequencyKhz = freqKhz;
 }
 
-void radio_stats_set_bad_data_on_current_rx_interval(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, int iRadioInterface)
+void radio_stats_set_bad_data_on_current_rx_interval(shared_mem_radio_stats* pSMRS, int iRadioInterface)
 {
    if ( NULL == pSMRS )
       return;
@@ -1036,14 +991,6 @@ void radio_stats_set_bad_data_on_current_rx_interval(shared_mem_radio_stats* pSM
       pSMRS->radio_interfaces[iRadioInterface].hist_tmp_rxPacketsLostCountData = 1;
    if ( 0 == s_uControllerLinkStats_tmpRecvLost[iRadioInterface] )
       s_uControllerLinkStats_tmpRecvLost[iRadioInterface] = 1;
-
-   if ( NULL != pSMRXStats )
-   {
-      if ( 0 == pSMRXStats->interfaces[iRadioInterface].tmp_rxPacketsBad )
-         pSMRXStats->interfaces[iRadioInterface].tmp_rxPacketsBad = 1;
-      if ( 0 == pSMRXStats->interfaces[iRadioInterface].tmp_rxPacketsLost )
-         pSMRXStats->interfaces[iRadioInterface].tmp_rxPacketsLost = 1;
-   }
 }
 
 // Returns 1 if ok, -1 for error
@@ -1062,10 +1009,15 @@ void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_ra
       if ( piDbmLast[i] < 500 )
       {
          if ( pTargetDBMValues->iDbmAvg[i] > 500 )
+         {
             pTargetDBMValues->iDbmAvg[i] = piDbmLast[i];
+            pTargetDBMValues->iDbmNoiseAvg[i] = piDbmNoiseLast[i];
+         }
          else
+         {
             pTargetDBMValues->iDbmAvg[i] = ((pTargetDBMValues->iDbmAvg[i] * 80) + (20 * piDbmLast[i]))/100;
-
+            pTargetDBMValues->iDbmNoiseAvg[i] = ((pTargetDBMValues->iDbmNoiseAvg[i] * 80) + (20 * piDbmNoiseLast[i]))/100;
+         }
          if ( pTargetDBMValues->iDbmMin[i] > 500 )
             pTargetDBMValues->iDbmMin[i] = piDbmLast[i];
          else if ( piDbmLast[i] < pTargetDBMValues->iDbmMin[i] )
@@ -1078,11 +1030,6 @@ void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_ra
       }
       if ( piDbmNoiseLast[i] < 500 )
       {
-         if ( pTargetDBMValues->iDbmNoiseAvg[i] > 500 )
-            pTargetDBMValues->iDbmNoiseAvg[i] = piDbmNoiseLast[i];
-         else
-            pTargetDBMValues->iDbmNoiseAvg[i] = ((pTargetDBMValues->iDbmNoiseAvg[i] * 80) + (20 * piDbmNoiseLast[i]))/100;
-
          if ( pTargetDBMValues->iDbmNoiseMin[i] > 500 )
             pTargetDBMValues->iDbmNoiseMin[i] = piDbmNoiseLast[i];
          else if ( piDbmNoiseLast[i] < pTargetDBMValues->iDbmNoiseMin[i] )
@@ -1109,7 +1056,7 @@ void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_ra
    }
 }
 
-int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsShortPacket, int iDataIsOk)
+int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMRS, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength, int iIsShortPacket, int iDataIsOk)
 {
    if ( NULL == pSMRS )
       return -1;
@@ -1154,10 +1101,10 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
       uTimeGap = 0;
    if ( uTimeGap > 254 )
       uTimeGap = 254;
-   if ( pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] == 0xFF )
-      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] = uTimeGap;
-   else if ( uTimeGap > pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] )
-      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[0] = uTimeGap;
+   if ( pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[pSMRS->radio_interfaces[iInterfaceIndex].hist_rxPacketsCurrentIndex] == 0xFF )
+      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[pSMRS->radio_interfaces[iInterfaceIndex].hist_rxPacketsCurrentIndex] = uTimeGap;
+   else if ( uTimeGap > pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[pSMRS->radio_interfaces[iInterfaceIndex].hist_rxPacketsCurrentIndex] )
+      pSMRS->radio_interfaces[iInterfaceIndex].hist_rxGapMiliseconds[pSMRS->radio_interfaces[iInterfaceIndex].hist_rxPacketsCurrentIndex] = uTimeGap;
      
    pSMRS->radio_interfaces[iInterfaceIndex].timeLastRxPacket = timeNow;
    
@@ -1178,16 +1125,11 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
    // Begin - Update history and good/bad/lost packets for interface 
 
    pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsCount++;
-   if ( NULL != pSMRXStats )
-      pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPackets++;
-
    s_uControllerLinkStats_tmpRecv[iInterfaceIndex]++;
 
    if ( (0 == iDataIsOk) || (iPacketLength <= 0) )
    {
       pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsBadCount++;
-      if ( NULL != pSMRXStats )
-         pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsBad++;
       s_uControllerLinkStats_tmpRecvBad[iInterfaceIndex]++;
    }
 
@@ -1204,8 +1146,6 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
                uLost = pPHS->packet_id + 255 - uNext;
             pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsLostCountData += uLost;
             pSMRS->radio_interfaces[iInterfaceIndex].totalRxPacketsLost += uLost;
-            if ( NULL != pSMRXStats )
-               pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsLost += uLost;
             s_uControllerLinkStats_tmpRecvLost[iInterfaceIndex] += uLost;
          }
 
@@ -1226,8 +1166,6 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
             else
                pSMRS->radio_interfaces[iInterfaceIndex].hist_tmp_rxPacketsLostCountData += uLost;
             pSMRS->radio_interfaces[iInterfaceIndex].totalRxPacketsLost += uLost;
-            if ( NULL != pSMRXStats )
-               pSMRXStats->interfaces[iInterfaceIndex].tmp_rxPacketsLost += uLost;
             s_uControllerLinkStats_tmpRecvLost[iInterfaceIndex] += uLost;
          }
 
@@ -1253,7 +1191,7 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
 
 // Returns 1 if ok, -1 for error
 
-int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, shared_mem_radio_stats_interfaces_rx_graph* pSMRXStats, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength)
+int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, u32 timeNow, int iInterfaceIndex, u8* pPacketBuffer, int iPacketLength)
 {
    if ( NULL == pSMRS )
       return -1;

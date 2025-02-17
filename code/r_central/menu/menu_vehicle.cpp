@@ -77,6 +77,8 @@ MenuVehicle::~MenuVehicle()
 
 void MenuVehicle::onShow()
 {
+   int iTmp = getSelectedMenuItemIndex();
+
    m_Height = 0.0;
    addTopDescription();
    removeAllItems();
@@ -165,14 +167,21 @@ void MenuVehicle::onShow()
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexManagement]->setEnabled(false);
 
+   ControllerSettings* pCS = get_ControllerSettings();
    m_IndexDeveloper = -1;
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   if ( (NULL != g_pCurrentModel) && (! g_pCurrentModel->is_spectator) && pCS->iDeveloperMode )
    {
       m_IndexDeveloper = addMenuItem( new MenuItem("Developer Settings") );
       m_pMenuItems[m_IndexDeveloper]->showArrow();
       m_pMenuItems[m_IndexDeveloper]->setTextColor(get_Color_Dev());
    }
    Menu::onShow();
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex < 0 )
+      m_SelectedIndex = 0;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
 }
 
 void MenuVehicle::addTopDescription()

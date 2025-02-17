@@ -59,7 +59,9 @@ bool g_bFirstModelPairingDone = false;
 bool g_bIsFirstConnectionToCurrentVehicle = true;
 bool g_bVideoLost = false;
 
+bool g_bDidAnUpdate = false;
 bool g_bUpdateInProgress = false;
+bool g_bLinkWizardAfterUpdate = false;
 int g_nFailedOTAUpdates = 0;
 int g_nSucceededOTAUpdates = 0;
 
@@ -124,7 +126,7 @@ void reset_vehicle_runtime_info(t_structure_vehicle_info* pInfo)
    reset_counters(&(pInfo->vehicleDebugRouterCounters));
    reset_radio_tx_timers(&(pInfo->vehicleDebugRadioTxTimers));
 
-   memset( &(pInfo->headerRubyTelemetryExtended), 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
+   memset( &(pInfo->headerRubyTelemetryExtended), 0, sizeof(t_packet_header_ruby_telemetry_extended_v4));
    memset( &(pInfo->headerRubyTelemetryExtraInfo), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
    memset( &(pInfo->headerRubyTelemetryExtraInfoRetransmissions), 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
    memset( &(pInfo->headerRubyTelemetryShort), 0, sizeof(t_packet_header_ruby_telemetry_short));
@@ -254,7 +256,7 @@ t_structure_vehicle_info* get_vehicle_runtime_info_for_vehicle_id(u32 uVehicleId
    return NULL;
 }
 
-t_packet_header_ruby_telemetry_extended_v3* get_received_relayed_vehicle_telemetry_info()
+t_packet_header_ruby_telemetry_extended_v4* get_received_relayed_vehicle_telemetry_info()
 {
    for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
    {

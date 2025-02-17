@@ -179,6 +179,18 @@ void radio_links_reinit_radio_interfaces()
    send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_RECONFIGURED_RADIO_INTERFACE, 0);
 }
 
+void radio_links_compute_set_tx_powers()
+{
+   load_ControllerSettings();
+   load_ControllerInterfacesSettings();
+
+   if ( g_bSearching )
+      apply_controller_radio_tx_powers(NULL, NULL);
+   else
+      apply_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
+   save_ControllerInterfacesSettings();
+}
+
 void radio_links_close_rxtx_radio_interfaces()
 {
    log_line("Closing all radio interfaces (rx/tx).");
@@ -229,6 +241,7 @@ void radio_links_open_rxtx_radio_interfaces_for_search( u32 uSearchFreq )
    }
 
    radio_links_set_monitor_mode();
+   radio_links_compute_set_tx_powers();
 
    s_iFailedInitRadioInterface = -1;
 
@@ -339,6 +352,7 @@ void radio_links_open_rxtx_radio_interfaces()
    }
 
    radio_links_set_monitor_mode();
+   radio_links_compute_set_tx_powers();
 
    log_line("Opening RX/TX radio interfaces for current vehicle (firmware: %s)...", str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
 
@@ -543,10 +557,6 @@ void radio_links_open_rxtx_radio_interfaces()
    log_line("Finished opening RX/TX radio interfaces.");
 
    radio_links_set_monitor_mode();
-   load_ControllerSettings();
-   load_ControllerInterfacesSettings();
-   apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
-
    log_line("OPEN RADIO INTERFACES END ===========================================================");
    log_line("");
 }

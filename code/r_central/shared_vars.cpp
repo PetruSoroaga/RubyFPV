@@ -58,7 +58,6 @@ bool g_bToglleOSDOff = false;
 bool g_bToglleStatsOff = false;
 bool g_bToglleAllOSDOff = false;
 bool g_bFreezeOSD = false;
-bool g_bDidAnUpdate = false;
 
 bool g_bMenuPopupUpdateVehicleShown = false;
 type_radio_links_parameters g_LastGoodRadioLinksParams;

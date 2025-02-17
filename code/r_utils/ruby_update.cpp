@@ -99,6 +99,80 @@ void update_openipc_cpu(Model* pModel)
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
 }
 
+void do_update_to_104()
+{
+   log_line("Doing update to 10.4");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+
+      pCS->iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pCS->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+      pCS->iNiceCentral = DEFAULT_PRIORITY_PROCESS_CENTRAL;
+      pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      pCS->ioNiceRXVideo = DEFAULT_IO_PRIORITY_VIDEO_RX;
+
+      pCS->iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      pCS->iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+      pModel->osd_params.osd_flags3[i] &= ~((u32)(((u32)0x01)<<12));
+
+
+   pModel->osd_params.uFlags &= ~(OSD_BIT_FLAGS_SHOW_TEMPS_F);
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
+
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
+      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
+           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
+      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+         pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
+   }
+
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
+   
+   pModel->video_params.videoAdjustmentStrength = 6;
+   pModel->validate_radio_flags();
+
+   pModel->processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_RX;
+   pModel->processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_TX;
+   pModel->processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_VEHICLE_THREAD_ROUTER;
+
+   pModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
+   pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   pModel->processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY_OIPC;
+   pModel->processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER_OPIC;
+   #endif
+
+   log_line("Updated model VID %u (%s) to v10.4", pModel->uVehicleId, pModel->getLongName());
+}
+
 
 void do_update_to_103()
 {
@@ -582,7 +656,6 @@ void do_update_to_96()
    else
       pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
 
-   pModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
    pModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE;
 
    if ( DEFAULT_BYPASS_SOCKET_BUFFERS )
@@ -629,7 +702,6 @@ void do_update_to_95()
    update_openipc_cpu(pModel);
    #endif
 
-   pModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
       pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_GO_LOWER_ON_LINK_LOST;   
@@ -1062,6 +1134,8 @@ int main(int argc, char *argv[])
       do_update_to_102();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 3) )
       do_update_to_103();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 4) )
+      do_update_to_104();
 
 
    saveCurrentModel();

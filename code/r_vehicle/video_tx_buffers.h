@@ -70,6 +70,8 @@ class VideoTxPacketsBuffer
       t_packet_header m_PacketHeader;
       t_packet_header_video_segment m_PacketHeaderVideo;
       t_packet_header_video_segment_important m_PacketHeaderVideoImportant;
+      t_packet_header_video_segment* m_pLastPacketHeaderVideoFilldedIn;
+      t_packet_header_video_segment_important* m_pLastPacketHeaderVideoImportantFilledIn;
       int m_iUsableRawVideoDataSize;
 
       int m_iNextBufferIndexToFill;

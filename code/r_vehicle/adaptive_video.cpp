@@ -74,6 +74,7 @@ void adaptive_video_set_kf_for_current_video_profile(u16 uKeyframe)
 
 void adaptive_video_set_last_kf_requested_by_controller(u16 uKeyframe)
 {
+   log_line("[AdaptiveVideo] Set last requested kf by controller: %d ms", uKeyframe);
    s_uPendingKFValue = uKeyframe;
 }
 
@@ -268,9 +269,13 @@ void adaptive_video_periodic_loop()
       return;
    
    s_uTimeLastTimeAdaptivePeriodicLoop = g_TimeNow;
+   u32 uDeltaTime = DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS;
+   #if defined HW_PLATFORM_RASPBERRY
+   uDeltaTime *= 2;
+   #endif
 
    if ( (0 != s_iPendingAdaptiveRadioDataRate) && (0 != s_uTimeSetPendingAdaptiveRadioDataRate) )
-   if ( g_TimeNow >= s_uTimeSetPendingAdaptiveRadioDataRate + DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS )
+   if ( g_TimeNow >= s_uTimeSetPendingAdaptiveRadioDataRate + uDeltaTime )
    {
       packet_utils_set_adaptive_video_datarate(s_iPendingAdaptiveRadioDataRate);
       s_iPendingAdaptiveRadioDataRate = 0;

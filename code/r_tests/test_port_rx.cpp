@@ -46,7 +46,7 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    
    t_packet_header* pPH = (t_packet_header*)pBuffer;
 
-   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, 1);
+   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, 1);
        
    u32 packetIndex = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
    u32 uStreamId = pPH->stream_packet_idx >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX;
@@ -99,13 +99,17 @@ void process_packet_summary( int iInterfaceIndex, u8* pBuffer, int iBufferLength
    int iTotalLostBad = 0;
    int iSlices = 0;
    u32 uMs = 0;
+   int iIndex = g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsCurrentIndex;
    for( int k=0; k<MAX_HISTORY_RADIO_STATS_RECV_SLICES; k++ )
    {
-      iTotalRecv += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsCount[k];
-      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountVideo[k];
-      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountData[k];
-      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsBadCount[k];
+      iTotalRecv += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsCount[iIndex];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountVideo[iIndex];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsLostCountData[iIndex];
+      iTotalLostBad += g_SM_RadioStats.radio_interfaces[0].hist_rxPacketsBadCount[iIndex];
       iSlices++;
+      iIndex--;
+      if ( iIndex < 0 )
+         iIndex = MAX_HISTORY_RADIO_STATS_RECV_SLICES-1;
       uMs += g_SM_RadioStats.graphRefreshIntervalMs;
       if ( uMs >= 1000 )
          break;
@@ -128,7 +132,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
    t_packet_header* pPH = (t_packet_header*)pBuffer;
    int bCRCOk = 0;   
    int nPacketLength = packet_process_and_check(iInterfaceIndex, pBuffer, iBufferLength, &bCRCOk);
-   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, NULL, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, 1);
+   radio_stats_update_on_new_radio_packet_received(&g_SM_RadioStats, g_TimeNow, iInterfaceIndex, pBuffer, nPacketLength, 0, 1);
 
    t_packet_header_video_segment* pPHVS = NULL;
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA )
@@ -353,7 +357,7 @@ int main(int argc, char *argv[])
    while (!quit)
    {
       g_TimeNow = get_current_timestamp_ms();
-      radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow);
+      radio_stats_periodic_update(&g_SM_RadioStats, g_TimeNow);
 
       int nResult = try_read_packets(iInterfaceIndex);
 

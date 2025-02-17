@@ -208,11 +208,12 @@ void MenuVehicleDev::onSelectItem()
    
    if ( m_IndexPCAPRadioTx == m_SelectedIndex )
    {
+      ControllerSettings* pCS = get_ControllerSettings();
       if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();
       return;
    }
@@ -240,11 +241,12 @@ void MenuVehicleDev::onSelectItem()
 
    if ( m_IndexRadioSilence == m_SelectedIndex )
    {
+      ControllerSettings* pCS = get_ControllerSettings();
       if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();
       return;
    }
@@ -257,28 +259,30 @@ void MenuVehicleDev::onSelectItem()
       valuesToUI();
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
       
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI(); 
       return;
    }
 
    if ( m_IndexInjectVideoFaults == m_SelectedIndex )
    {
+      ControllerSettings* pCS = get_ControllerSettings();
       if ( 0 == m_pItemsSelect[12]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_INJECT_VIDEO_FAULTS);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_INJECT_VIDEO_FAULTS;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
    }
 
    if ( m_IndexInjectMinorVideoFaults == m_SelectedIndex )
    {
+      ControllerSettings* pCS = get_ControllerSettings();
       if ( 0 == m_pItemsSelect[15]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_INJECT_RECOVERABLE_VIDEO_FAULTS);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_INJECT_RECOVERABLE_VIDEO_FAULTS;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
    }
 

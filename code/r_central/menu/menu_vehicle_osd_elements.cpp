@@ -256,8 +256,8 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_IndexRadioLinks = addMenuItem(m_pItemsSelect[19]);
 
    m_pItemsSelect[20] = new MenuItemSelect("   Radio Links Info", "What info to show about the radio links (uplinks and downlinks) in the OSD.");
-   m_pItemsSelect[20]->addSelection("Link Quality Bars");
-   m_pItemsSelect[20]->addSelection("Link Quality %");
+   m_pItemsSelect[20]->addSelection("Quality Bars");
+   m_pItemsSelect[20]->addSelection("Quality Numbers");
    m_pItemsSelect[20]->addSelection("Both");
    m_pItemsSelect[20]->setIsEditable();
    m_IndexRadioLinkBars = addMenuItem(m_pItemsSelect[20]);
@@ -413,7 +413,7 @@ void MenuVehicleOSDElements::valuesToUI()
 
    
    if ( (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS) &&
-        (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE) )
+        (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS) )
       m_pItemsSelect[20]->setSelectedIndex(2);
    else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
       m_pItemsSelect[20]->setSelectedIndex(0);
@@ -872,13 +872,13 @@ void MenuVehicleOSDElements::onSelectItem()
    
    if ( m_IndexRadioLinkBars == m_SelectedIndex )
    {
-      params.osd_flags2[layoutIndex] &= ~(OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE);
+      params.osd_flags2[layoutIndex] &= ~(OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS);
       if ( 0 == m_pItemsSelect[20]->getSelectedIndex() )
          params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
       else if ( 1 == m_pItemsSelect[20]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE;
+         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE;
+         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       
       sendToVehicle = true;
    }

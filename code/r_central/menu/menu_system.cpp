@@ -83,21 +83,14 @@ MenuSystem::MenuSystem(void)
    m_IndexReset = addMenuItem(new MenuItem("Factory Reset", "Resets all the settings an files on the controller, as they where when the image was flashed."));
    m_IndexAbout = addMenuItem(new MenuItem("About", "Get info about Ruby system."));
 
-   m_pItemsSelect[0] = new MenuItemSelect("Enable Vehicle Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
+   m_pItemsSelect[0] = new MenuItemSelect("Enable Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
    m_pItemsSelect[0]->addSelection("Off");
    m_pItemsSelect[0]->addSelection("On");
    m_pItemsSelect[0]->setUseMultiViewLayout();
-   m_IndexDeveloperVehicle = addMenuItem(m_pItemsSelect[0]);
+   m_IndexDeveloper = addMenuItem(m_pItemsSelect[0]);
 
    m_IndexDevOptionsVehicle = addMenuItem( new MenuItem("Vehicle Developer Settings") );
    m_pMenuItems[m_IndexDevOptionsVehicle]->showArrow();
-
-
-   m_pItemsSelect[2] = new MenuItemSelect("Enable Controller Developer Mode", "Used to debug issues and test experimental features. Disables fail safe checks, parameters consistency checks and other options. It's recommended to leave this [Off] as it will degrade your system performance.");
-   m_pItemsSelect[2]->addSelection("Off");
-   m_pItemsSelect[2]->addSelection("On");
-   m_pItemsSelect[2]->setUseMultiViewLayout();
-   m_IndexDeveloperController = addMenuItem(m_pItemsSelect[2]);
 
    m_IndexDevOptionsController = addMenuItem( new MenuItem("Controller Developer Settings") );
    m_pMenuItems[m_IndexDevOptionsController]->showArrow();
@@ -111,18 +104,12 @@ void MenuSystem::valuesToUI()
    m_pItemsSelect[1]->setSelectedIndex(pP->iAutoExportSettings);
 
    m_pItemsSelect[0]->setSelection(0);
+   m_pMenuItems[m_IndexDevOptionsController]->setEnabled(false);
    m_pMenuItems[m_IndexDevOptionsVehicle]->setEnabled(false);
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
    {
       m_pItemsSelect[0]->setSelection(1);
       m_pMenuItems[m_IndexDevOptionsVehicle]->setEnabled(true);
-   }
-
-   m_pItemsSelect[2]->setSelection(0);
-   m_pMenuItems[m_IndexDevOptionsController]->setEnabled(false);
-   if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
-   {
-      m_pItemsSelect[2]->setSelection(1);
       m_pMenuItems[m_IndexDevOptionsController]->setEnabled(true);
    }
 }
@@ -324,53 +311,23 @@ void MenuSystem::onSelectItem()
       save_Preferences();
    }
 
-   if ( (m_IndexDeveloperVehicle == m_SelectedIndex) && (! m_pMenuItems[m_IndexDeveloperVehicle]->isEditing()) )
+   if ( (m_IndexDeveloper == m_SelectedIndex) && (! m_pMenuItems[m_IndexDeveloper]->isEditing()) )
    {
-      if ( NULL == g_pCurrentModel )
-      {
-         addMessage("You must be connected to a vehicle to enable vehicle developer mode.");
-         valuesToUI();
-         return;
-      }
-
-      if ( g_pCurrentModel->is_spectator )
-      {
-         addMessage("You must be connected to a vehicle in controll mode to enable developer mode, not in spectator mode.");
-         valuesToUI();
-         return;
-      }
-      if ( (!pairing_isStarted()) || (!link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
-      {
-         addMessage("You must be connected to a vehicle to enable vehicle developer mode.");
-         valuesToUI();
-         return;
-      }
-
       int val = m_pItemsSelect[0]->getSelectedIndex();
-
-      if ( val != (int)g_pCurrentModel->bDeveloperMode )
-      {
-         log_line("MenuSystem: Changed vehicle developer mode flag to: %s", val?"true":"false");
-         g_pCurrentModel->bDeveloperMode = (bool)val;
-         g_pCurrentModel->b_mustSyncFromVehicle = true;
-         valuesToUI();
-      }
-      return;
-   }
-
-   if ( (m_IndexDeveloperController == m_SelectedIndex) && (! m_pMenuItems[m_IndexDeveloperController]->isEditing()) )
-   {
-      int val = m_pItemsSelect[2]->getSelectedIndex();
       ControllerSettings* pCS = get_ControllerSettings();
 
-      if ( val != pCS->iDeveloperMode )
-      {
-         log_line("MenuSystem: Changed controller developer mode flag to: %s", val?"true":"false");
-         pCS->iDeveloperMode = val;
-         save_ControllerSettings();
-         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
-         valuesToUI();
-      }
+      if ( val == pCS->iDeveloperMode )
+         return;
+
+      log_line("MenuSystem: Changed controller developer mode flag to: %s", val?"true":"false");
+      pCS->iDeveloperMode = val;
+      save_ControllerSettings();
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
+      valuesToUI();
+
+      if ( (NULL != g_pCurrentModel) && (! g_pCurrentModel->is_spectator) )
+      if ( pairing_isStarted() && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
+         g_pCurrentModel->b_mustSyncFromVehicle = true;
       return;
    }
 

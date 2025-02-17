@@ -25,4 +25,5 @@ class MenuVehicleRadioInterface: public Menu
 
       int m_IndexCardModel;
       int m_IndexName;
+      int m_iIndexBoostMode;
 };

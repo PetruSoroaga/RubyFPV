@@ -87,7 +87,18 @@ float MenuItemLegend::getItemHeight(float maxWidth)
       getValueWidth(0);
    float h = 0.0;
    if ( (NULL != m_pszTooltip) && (0 != m_pszTooltip[0]) )
-      h = g_pRenderEngine->getMessageHeight(m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+   {
+      //h = g_pRenderEngine->getMessageHeight(m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+
+      char szTokens[256];
+      strncpy(szTokens, m_pszTooltip, sizeof(szTokens)/sizeof(szTokens[0]));
+      char* pToken = strtok(szTokens, "\n");
+      while ( NULL != pToken )
+      {
+         h += g_pRenderEngine->getMessageHeight(pToken, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+         pToken = strtok(NULL, "\n");
+      }
+   }
    if ( h > m_RenderHeight )
       m_RenderHeight = h;
 
@@ -119,7 +130,11 @@ float MenuItemLegend::getTitleWidth(float maxWidth)
 
 float MenuItemLegend::getValueWidth(float maxWidth)
 {
-   m_RenderValueWidth = maxWidth;
+   int iFont = g_idFontMenu;
+   if ( m_bSmall )
+      iFont = g_idFontMenuSmall;
+   m_RenderTitleWidth = g_pRenderEngine->textWidth(iFont, m_pszTitle);
+   m_RenderValueWidth = maxWidth - m_RenderTitleWidth;
    return m_RenderValueWidth;
 }
 
@@ -137,9 +152,22 @@ void MenuItemLegend::Render(float xPos, float yPos, bool bSelected, float fWidth
 
    g_pRenderEngine->drawText(xPos, yPos, iFont, m_pszTitle); 
    //g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTitle, MENU_TEXTLINE_SPACING, m_RenderTitleWidth, iFont);
+      
+   m_RenderTitleWidth = g_pRenderEngine->textWidth(iFont, m_pszTitle);
 
    xPos += m_RenderTitleWidth + Menu::getMenuPaddingX();
 
    if ( (NULL != m_pszTooltip) && (0 != m_pszTooltip[0]) )
-      g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+   {
+      //g_pRenderEngine->drawMessageLines(xPos, yPos, m_pszTooltip, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+      char szTokens[256];
+      strncpy(szTokens, m_pszTooltip, sizeof(szTokens)/sizeof(szTokens[0]));
+      char* pToken = strtok(szTokens, "\n");
+      while ( NULL != pToken )
+      {
+         float h = g_pRenderEngine->drawMessageLines(xPos, yPos, pToken, MENU_TEXTLINE_SPACING, m_RenderValueWidth, iFont);
+         yPos += h;
+         pToken = strtok(NULL, "\n");
+      }
+   }
 }

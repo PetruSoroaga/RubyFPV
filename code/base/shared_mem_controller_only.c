@@ -37,25 +37,6 @@
 #include "shared_mem_controller_only.h"
 #include "../radio/radiopackets2.h"
 
-shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read()
-{
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
-   return (shared_mem_radio_stats_interfaces_rx_graph*)retVal;
-}
-
-shared_mem_radio_stats_interfaces_rx_graph* shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_write()
-{
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_CONTROLLER_RADIO_INTERFACES_RX_GRAPHS, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
-   return (shared_mem_radio_stats_interfaces_rx_graph*)retVal;
-}
-
-void shared_mem_controller_radio_stats_interfaces_rx_graphs_close(shared_mem_radio_stats_interfaces_rx_graph* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
-}
-
-
 shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_read()
 {
    void *retVal =  open_shared_mem(SHARED_MEM_VIDEO_STREAM_STATS, sizeof(shared_mem_video_stream_stats_rx_processors), 1);

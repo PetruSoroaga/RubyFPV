@@ -26,6 +26,7 @@ u16 s_countTXCompactedPacketsOutTemp = 0;
 
 // Router
 
+bool g_bDeveloperMode = false;
 type_u32_couters g_CoutersMainLoop;
 
 u32 s_debugVideoBlocksInCount = 0;

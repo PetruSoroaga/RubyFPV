@@ -388,7 +388,7 @@ void adaptive_video_periodic_loop(bool bForceSyncNow)
          continue;
 
       // Use last rx time to back off on link lost
-      if ( bForceSyncNow || (g_TimeNow >= pRuntimeInfo->uLastTimeSentVideoProfileRequest+20) )
+      if ( bForceSyncNow || (g_TimeNow >= pRuntimeInfo->uLastTimeSentVideoProfileRequest+10) )
       {
          _adaptive_video_send_video_profile_to_vehicle(pRuntimeInfo->uPendingVideoProfileToSet, pRuntimeInfo->uVehicleId);
       }

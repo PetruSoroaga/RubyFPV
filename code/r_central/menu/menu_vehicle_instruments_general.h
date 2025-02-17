@@ -28,6 +28,7 @@ class MenuVehicleInstrumentsGeneral: public Menu
       int m_IndexRevertRoll, m_IndexRevertPitch;
       int m_IndexAHIShowAirSpeed;
       int m_IndexUnits, m_IndexUnitsHeight;
+      int m_IndexTemp;
       int m_IndexBatteryCells;
       int m_iIndexFlashOSDOnTelemLost;
       int m_IndexFlightEndStats;

@@ -101,6 +101,9 @@ MenuRadioConfig::~MenuRadioConfig()
 
 void MenuRadioConfig::onShow()
 {
+   int iTmp = getSelectedMenuItemIndex();
+   int iTmpCurItem = m_iIndexCurrentItem;
+
    m_Height = 0.0;
    m_bComputedHeights = false;
    log_line("Entering menu radio config...");
@@ -172,6 +175,19 @@ void MenuRadioConfig::onShow()
          menu_stack_pop(0);
       }
    }
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex < 0 )
+      m_SelectedIndex = 0;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
+
+   m_iIndexCurrentItem = iTmpCurItem;
+   if ( m_iIndexCurrentItem < 0 )
+      m_iIndexCurrentItem =0;
+   if ( m_iIndexCurrentItem >= m_iIndexMaxItem )
+      m_iIndexCurrentItem = 0;
+
    log_line("Entered menu radio config.");
 }
 
@@ -241,9 +257,10 @@ void MenuRadioConfig::computeMenuItems()
    }
 
    // Check if swap vehicle radio interfaces is possible
+   ControllerSettings* pCS = get_ControllerSettings();
    m_bHasSwapInterfacesCommand = false;
    if ( (NULL != g_pCurrentModel) && g_bFirstModelPairingDone && (!m_bShowOnlyControllerUnusedInterfaces) )  
-   if ( g_pCurrentModel->bDeveloperMode )
+   if ( pCS->iDeveloperMode )
    if ( g_pCurrentModel->canSwapEnabledHighCapacityRadioInterfaces() )
        m_bHasSwapInterfacesCommand = true;
 

@@ -4,27 +4,6 @@
 
 #define MAX_HISTORY_RADIO_STATS_RECV_SLICES 50
 #define MAX_RADIO_STATS_INTERFACE_RX_HISTORY_SLICES 100
-#define MAX_RX_GRAPH_SLICES 300
-
-typedef struct
-{
-   u8 rxPackets[MAX_RX_GRAPH_SLICES];
-   u8 rxPacketsBad[MAX_RX_GRAPH_SLICES];
-   u8 rxPacketsLost[MAX_RX_GRAPH_SLICES];
-   u8 rxGapMiliseconds[MAX_RX_GRAPH_SLICES];
-   u32 tmp_rxPackets;
-   u32 tmp_rxPacketsBad;
-   u32 tmp_rxPacketsLost;
-} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_interface_rx_graph;
-
-typedef struct
-{
-   int iCurrentSlice;
-   u32 uTimeSliceDurationMs;
-   u32 uTimeStartCurrentSlice;
-   shared_mem_radio_stats_interface_rx_graph interfaces[MAX_RADIO_INTERFACES];
-} ALIGN_STRUCT_SPEC_INFO shared_mem_radio_stats_interfaces_rx_graph;
-
 
 typedef struct
 {
@@ -132,7 +111,7 @@ typedef struct
    int rxQuality; // 0...100%
    int rxRelativeQuality; // higher value means better link; it's relative to the other radio interfaces
 
-   u8 uSlicesUpdated;
+   u8 hist_rxPacketsCurrentIndex;
    u8 hist_rxPacketsCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxPacketsBadCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxPacketsLostCountVideo[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
@@ -171,6 +150,7 @@ typedef struct
    int rxQuality; // 0...100%
    int rxRelativeQuality; // higher value means better link; it's relative to the other radio interfaces
 
+   u8 hist_rxPacketsCurrentIndex;
    u8 hist_rxPacketsCount[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxPacketsLostCountVideo[MAX_HISTORY_RADIO_STATS_RECV_SLICES];
    u8 hist_rxPacketsLostCountData[MAX_HISTORY_RADIO_STATS_RECV_SLICES];

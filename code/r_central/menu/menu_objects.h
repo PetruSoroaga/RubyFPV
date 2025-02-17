@@ -110,6 +110,7 @@
 #define MENU_ID_NEGOCIATE_RADIO 122
 #define MENU_ID_ABOUT 123
 #define MENU_ID_CONTROLLER_RADIO 124
+#define MENU_ID_CONFIRMATION_VIDEO_RATE 125
 
 
 #define MAX_MENU_ITEMS 150
@@ -248,8 +249,8 @@ class Menu
      bool checkCancelUpload();
 
      MenuItemSelect* createMenuItemCardModelSelector(const char* szTitle);
-     MenuItemSelect* createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw);
-     void selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw);
+     MenuItemSelect* createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, bool bBooster2W, bool bBooster4W, int iMaxUsablePowerMw);
+     void selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, bool bBooster2W, bool bBooster4W, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw);
 
      static int m_siRenderMode;
      static float m_sfMenuPaddingX;

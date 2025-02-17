@@ -51,63 +51,22 @@ MenuControllerRadio::MenuControllerRadio(void)
 {
    m_Width = 0.38;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
-   m_iMaxPowerMw = 0;
 }
 
 void MenuControllerRadio::onShow()
 {
    int iTmp = getSelectedMenuItemIndex();
-
-   valuesToUI();
    Menu::onShow();
+   addItems();
    invalidate();
 
    m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex < 0 )
+      m_SelectedIndex = 0;
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = m_ItemsCount-1;
 }
 
-void MenuControllerRadio::valuesToUI()
-{
-   ControllerSettings* pCS = get_ControllerSettings();
-
-   addItems();
-
-   int iMwPowers[MAX_RADIO_INTERFACES];
-   int iCountPowers = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( ! hardware_radio_index_is_wifi_radio(i) )
-         continue;
-      if ( hardware_radio_index_is_sik_radio(i) )
-         continue;
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
-         continue;
-
-      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-      if ( NULL == pCRII )
-         continue;
-      int iCardModel = pCRII->cardModel;
-      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
-      log_line("MenuControllerRadio: Current radio interface %d tx raw power: %d (%d mW, index %d)", i+1, pCRII->iRawPowerLevel, iMwPowers[iCountPowers], iCountPowers);
-      
-      iCountPowers++;
-   }
-
-   m_pItemsSelect[0]->setSelectedIndex(1-pCS->iFixedTxPower);
-   
-   if ( pCS->iFixedTxPower )
-   {
-      m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_controller();
-      selectMenuItemTxPowersValue(m_pItemsSelect[1], false, &(iMwPowers[0]), iCountPowers, m_iMaxPowerMw);
-   }
-   else
-   {
-      m_pItemsSelect[1]->setSelectedIndex(0);
-      m_pItemsSelect[1]->setEnabled(false);
-   }
-}
 
 void MenuControllerRadio::addItems()
 {
@@ -116,6 +75,23 @@ void MenuControllerRadio::addItems()
 
    ControllerSettings* pCS = get_ControllerSettings();
 
+   m_IndexTxPowerSingle = -1;
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      m_IndexTxPowerRadioLinks[i] = -1;
+
+   m_pItemsSelect[0] = new MenuItemSelect(L("Controller Tx Power Mode"), L("Sets the radio transmission power mode selector for the controller side: custom fixed power or auto computed for each radio link based on vechile radio links tx powers."));
+   m_pItemsSelect[0]->addSelection(L("Fixed uplink Tx power"));
+   m_pItemsSelect[0]->addSelection(L("Match current vehicle"));
+   m_pItemsSelect[0]->setIsEditable();
+   m_pItemsSelect[0]->setSelectedIndex(1-pCS->iFixedTxPower);
+   m_pItemsSelect[0]->setExtraHeight(0.2*g_pRenderEngine->textHeight(g_idFontMenu));
+   m_IndexTxPowerMode = addMenuItem(m_pItemsSelect[0]);
+   
+   if ( pCS->iFixedTxPower )
+      addItemsFixedPower();
+   else
+      addItemsVehiclePower();
+    /*
    int iMwPowers[MAX_RADIO_INTERFACES];
    int iCountPowers = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -136,14 +112,8 @@ void MenuControllerRadio::addItems()
       iCountPowers++;
    }
 
-   m_pItemsSelect[0] = new MenuItemSelect("Controller Power Model", "Sets the transmission power mode for the controller side.");
-   m_pItemsSelect[0]->addSelection("Always use fixed power");
-   m_pItemsSelect[0]->addSelection("Match current vehicle");
-   m_pItemsSelect[0]->setIsEditable();
-   m_IndexTxPowerMode = addMenuItem(m_pItemsSelect[0]);
-
    m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_controller();
-   m_pItemsSelect[1] = createMenuItemTxPowers("Radio Tx Power (mW)", pCS->iFixedTxPower?false:true, &(iMwPowers[0]), iCountPowers, m_iMaxPowerMw);
+   m_pItemsSelect[1] = createMenuItemTxPowers("Radio Tx Power (mW)", pCS->iFixedTxPower?false:true, false, false, &(iMwPowers[0]), iCountPowers, m_iMaxPowerMw);
    m_IndexTxPower = addMenuItem(m_pItemsSelect[1]);
 
    if ( (! pCS->iFixedTxPower) && (NULL != g_pCurrentModel) )
@@ -155,20 +125,172 @@ void MenuControllerRadio::addItems()
    }
 
    MenuItemLegend* pLegend = NULL;
+   char szText[256];
    if ( pCS->iFixedTxPower )
-      pLegend = new MenuItemLegend("Note", "Maximum selectable Tx power is computed based on detected radio interfaces on the controller.", 0, true);
+      strcpy(szText, L("Maximum selectable controller Tx power is computed based on detected radio interfaces on the controller."));
    else
-      pLegend = new MenuItemLegend("Note", "Maximum selectable Tx power is computed based on detected radio interfaces on the vehicle and controller.", 0, true);
+      strcpy(szText, L("Controller Tx power is computed automatically for each radio link based on vehicle's radio links Tx power and the Tx capabilities of the controller's radio interfaces."));
+
+   char szBuff[255];
+   szBuff[0] = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( NULL == pRadioHWInfo )
+         continue;
+      if ( 0 != szBuff[0] )
+         strcat(szBuff, ", ");
+      //str_get_radio_driver_description(pRadioHWInfo->iRadioDriver);
+      strcat(szBuff, str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel));
+   }
+   strcat(szText, " (");
+   strcat(szText, L("Controller"));
+   strcat(szText, ": ");
+   strcat(szText, szBuff);
+   strcat(szText, ")");
+   pLegend = new MenuItemLegend(L("Note"), szText, 0);
    
    pLegend->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
    addMenuItem(pLegend);
 
-   m_IndexRadioConfig = addMenuItem(new MenuItem("Radio Links Config", "Full radio configuration"));
+   */
+
+   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
+
+   m_IndexRadioConfig = addMenuItem(new MenuItem(L("Full Radio Config"), L("Full radio configuration")));
    m_pMenuItems[m_IndexRadioConfig]->showArrow();
 
    m_SelectedIndex = iTmp;
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = m_ItemsCount-1;
+}
+
+void MenuControllerRadio::addItemsFixedPower()
+{
+   MenuItemLegend* pLegend = NULL;
+   char szText[256];
+   strcpy(szText, L("Controller Tx power is set to fixed values."));
+   pLegend = new MenuItemLegend(L("Mode"), szText, 0);
+   pLegend->setExtraHeight(0.2*g_pRenderEngine->textHeight(g_idFontMenu));
+   addMenuItem(pLegend);
+
+
+   int iMwPowers[MAX_RADIO_INTERFACES];
+   int iCountPowers = 0;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+
+      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(0, pCRII->cardModel, pCRII->iRawPowerLevel);
+      iCountPowers++;
+   }
+
+   int iMaxPower = tx_powers_get_max_usable_power_mw_for_controller();
+   m_pItemsSelect[1] = createMenuItemTxPowers("Radio Tx Power (mW)", false, false, false, iMaxPower);
+
+   selectMenuItemTxPowersValue(m_pItemsSelect[1], false, false, false, &(iMwPowers[0]), iCountPowers, iMaxPower);
+
+   m_IndexTxPowerSingle = addMenuItem(m_pItemsSelect[1]);
+}
+
+void MenuControllerRadio::addItemsVehiclePower()
+{
+   MenuItemLegend* pLegend = NULL;
+   char szText[256];
+   strcpy(szText, L("Controller Tx power is computed automatically for each radio link based on vehicle's radio links Tx power and the Tx capabilities of the controller's radio interfaces."));
+   pLegend = new MenuItemLegend(L("Mode"), szText, 0);
+   pLegend->setExtraHeight(0.2*g_pRenderEngine->textHeight(g_idFontMenu));
+   addMenuItem(pLegend);
+
+
+   if ( (NULL == g_pCurrentModel) || (! pairing_isStarted()) )
+   {
+      pLegend = new MenuItemLegend(L("No vehicle"), L("You are not connected to any vehicles. The Tx power is set automatically to a low value."), 0);
+      addMenuItem(pLegend);
+      return;
+   }
+
+   for( int iLink=0; iLink<g_pCurrentModel->radioLinksParams.links_count; iLink++ )
+   {
+      char szTitle[64];
+      strcpy(szTitle, L("Radio Uplink"));
+      if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
+         sprintf(szTitle, L("Radio Uplink %d"), iLink+1);
+   
+      int iCountInterfacesForLink = 0;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != iLink )
+            continue;
+         if ( ! hardware_radio_index_is_wifi_radio(i) )
+            continue;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+            continue;
+
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
+         iCountInterfacesForLink++;
+      }
+
+      szText[0] = 0;
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+      {
+         if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != iLink )
+            continue;
+         if ( ! hardware_radio_index_is_wifi_radio(i) )
+            continue;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+            continue;
+
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
+
+         int iCardModel = pCRII->cardModel;
+         int iCardPowerMwNow = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
+         char szBuff[128];
+         if ( iCountInterfacesForLink < 2 )
+         {
+            if ( iCardPowerMwNow >= 1000 )
+               sprintf(szBuff, "Radio Interface %s: %.1f W", str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel), (float)iCardPowerMwNow/1000.0);
+            else
+               sprintf(szBuff, "Radio Interface %s: %d mW", str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel), iCardPowerMwNow);
+         }
+         else
+         {
+            if ( iCardPowerMwNow >= 1000 )
+               sprintf(szBuff, "Radio Interface %d (%s): %.1f W", i+1, str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel), (float)iCardPowerMwNow/1000.0);
+            else
+               sprintf(szBuff, "Radio Interface %d (%s): %d mW", i+1, str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel), iCardPowerMwNow);
+         }
+         if ( 0 != szText[0] )
+            strcat(szText, "\n");
+         strcat(szText, szBuff);
+      }
+
+      pLegend = new MenuItemLegend(szTitle, szText, 0);
+      addMenuItem(pLegend);
+   }
+}
+
+void MenuControllerRadio::valuesToUI()
+{
+   addItems();
 }
 
 void MenuControllerRadio::Render()
@@ -219,15 +341,14 @@ void MenuControllerRadio::onSelectItem()
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->iFixedTxPower = 1 - m_pItemsSelect[0]->getSelectedIndex();
       save_ControllerSettings();
-      save_ControllerInterfacesSettings();
-      apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, false);
-      save_ControllerInterfacesSettings();
-      valuesToUI();
+      compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
       send_model_changed_message_to_router(MODEL_CHANGED_RADIO_POWERS, 0);
+      valuesToUI();
       return;
    }
 
-   if ( m_IndexTxPower == m_SelectedIndex )
+  
+   if ( (-1 != m_IndexTxPowerSingle) && (m_IndexTxPowerSingle == m_SelectedIndex) )
    {
       ControllerSettings* pCS = get_ControllerSettings();
       int iIndex = m_pItemsSelect[1]->getSelectedIndex();
@@ -238,46 +359,43 @@ void MenuControllerRadio::onSelectItem()
          add_menu_to_stack(pMenu);
          return;
       }
-      else
+      
+      pCS->iFixedTxPower = 1;
+
+      int iPowerLevelsCount = 0;
+      const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
+      int iPowerMwToSet = piPowerLevelsMw[iIndex];
+      log_line("MenuControllerRadio: Setting all cards mw tx power to: %d mw", iPowerMwToSet);
+      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
-         pCS->iFixedTxPower = 1;
+         if ( ! hardware_radio_index_is_wifi_radio(i) )
+            continue;
+         if ( hardware_radio_index_is_sik_radio(i) )
+            continue;
+         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+         if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+            continue;
 
-         int iPowerLevelsCount = 0;
-         const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
-         int iPowerMwToSet = piPowerLevelsMw[iIndex];
-         log_line("MenuControllerRadio: Setting all cards mw tx power to: %d mw", iPowerMwToSet);
-         for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-         {
-            if ( ! hardware_radio_index_is_wifi_radio(i) )
-               continue;
-            if ( hardware_radio_index_is_sik_radio(i) )
-               continue;
-            radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-            if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
-               continue;
+         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+         if ( NULL == pCRII )
+            continue;
 
-            t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-            if ( NULL == pCRII )
-               continue;
+         int iCardModel = pCRII->cardModel;
 
-            int iCardModel = pCRII->cardModel;
-
-            int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
-            int iCardNewPowerMw = iPowerMwToSet;
-            if ( iCardNewPowerMw > iCardMaxPowerMw )
-               iCardNewPowerMw = iCardMaxPowerMw;
-            int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(0, iCardModel, iCardNewPowerMw);
-            log_line("MenuControllerRadio: Setting tx raw power for card %d from %d to: %d (%d mw out of max %d mw for this card)",
-               i+1, pCRII->iRawPowerLevel, iTxPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
-            pCRII->iRawPowerLevel = iTxPowerRawToSet;
-         }
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+         int iCardNewPowerMw = iPowerMwToSet;
+         if ( iCardNewPowerMw > iCardMaxPowerMw )
+            iCardNewPowerMw = iCardMaxPowerMw;
+         int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(0, iCardModel, iCardNewPowerMw);
+         log_line("MenuControllerRadio: Setting tx raw power for card %d from %d to: %d (%d mw out of max %d mw for this card)",
+            i+1, pCRII->iRawPowerLevel, iTxPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
+         pCRII->iRawPowerLevel = iTxPowerRawToSet;
       }
       save_ControllerSettings();
       save_ControllerInterfacesSettings();
-      apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, false);
-      save_ControllerInterfacesSettings();
-      valuesToUI();
+      compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
       send_model_changed_message_to_router(MODEL_CHANGED_RADIO_POWERS, 0);
+      valuesToUI();
       return;
    }
 }

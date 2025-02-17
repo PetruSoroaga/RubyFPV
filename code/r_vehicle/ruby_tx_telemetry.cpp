@@ -99,7 +99,7 @@ u32 s_uDataLinkLastReceivedUploadedSegmentIndex = MAX_U32;
 u32 s_uRawTelemetryLastReceivedUploadedSegmentIndex = MAX_U32;
 
 t_packet_header sPH;
-t_packet_header_ruby_telemetry_extended_v3 sPHRTE;
+t_packet_header_ruby_telemetry_extended_v4 sPHRTE;
 
 
 u32 s_SendIntervalMiliSec_FCTelemetry = 0;
@@ -239,7 +239,7 @@ void broadcast_vehicle_stats()
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow; 
 }
 
-void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* pPHRTE )
+void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v4* pPHRTE )
 {
    static unsigned long long s_val_cpu[4] = {0,0,0,0};
    static int counter_tx_telemetry_info = 0;
@@ -323,7 +323,7 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v3* p
    pPHRTE->cpu_mhz = (u16) hardware_get_cpu_speed();
 }
 
-void _populate_ruby_telemetry_data(t_packet_header_ruby_telemetry_extended_v3* pPHRTE)
+void _populate_ruby_telemetry_data(t_packet_header_ruby_telemetry_extended_v4* pPHRTE)
 {
    u32 vMaj = SYSTEM_SW_VERSION_MAJOR;
    u32 vMin = SYSTEM_SW_VERSION_MINOR/10;
@@ -332,14 +332,15 @@ void _populate_ruby_telemetry_data(t_packet_header_ruby_telemetry_extended_v3* p
    if ( vMin > 15 )
       vMin = 15;
 
-   pPHRTE->version = ((vMaj<<4) | vMin);
+   pPHRTE->rubyVersion = ((vMaj<<4) | vMin);
 
+   _add_hardware_telemetry_info(pPHRTE);
+   g_pCurrentModel->populateVehicleTelemetryData_v4(pPHRTE);
+
+   // link stats get populated by router before sending it out
    pPHRTE->downlink_tx_video_bitrate_bps = 0;
    pPHRTE->downlink_tx_video_all_bitrate_bps = 0;
    pPHRTE->downlink_tx_data_bitrate_bps = 0;
-
-   _add_hardware_telemetry_info(pPHRTE);
-   g_pCurrentModel->populateVehicleTelemetryData_v3(pPHRTE);
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {
@@ -714,7 +715,14 @@ bool try_read_messages_from_router()
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
    {
-      log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
+      if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u32) )
+      {
+         u32 uDeveloperMode = 0;
+         memcpy(&uDeveloperMode, &(s_BufferMessageFromRouter[sizeof(t_packet_header) + sizeof(u32)]), sizeof(u32));
+         g_bDeveloperMode = (bool)uDeveloperMode;
+      }
+      log_line("Received pairing request from router. CID: %u, VID: %u. Developer mode? %s. Updating local model.",
+         pPH->vehicle_id_src, pPH->vehicle_id_dest, g_bDeveloperMode?"yes":"no");
       if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
          g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &= ~(MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS);
       g_uControllerId = pPH->vehicle_id_src;
@@ -734,7 +742,17 @@ bool try_read_messages_from_router()
       {
          u8 changeType = (pPH->vehicle_id_src >> 8 ) & 0xFF;      
          log_line("Received request from router to reload model (change type: %d (%s)).", (int)changeType, str_get_model_change_type((int)changeType));
-         reload_model(changeType);
+         
+         if ( changeType == MODEL_CHANGED_DEBUG_MODE )
+         {
+            u8 uExtraParam = (pPH->vehicle_id_src >> 16 ) & 0xFF;
+            log_line("Received notification that developer mode changed from %s to %s",
+              g_bDeveloperMode?"yes":"no",
+              uExtraParam?"yes":"no");
+            g_bDeveloperMode = (bool)uExtraParam;
+         }
+         else
+            reload_model(changeType);
          return true;
       }
       if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_LINK_FREQUENCY_CHANGED )
@@ -1028,13 +1046,13 @@ void check_send_telemetry_to_controller()
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_EXTENDED, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
       sPH.vehicle_id_dest = 0;
-      sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) + sPHRTE.extraSize;
+      sPH.total_length = (u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v4) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) + sPHRTE.extraSize;
       
       int dx = 0;
       memcpy(buffer, &sPH, sizeof(t_packet_header));
       dx += sizeof(t_packet_header);
-      memcpy(buffer+dx, &sPHRTE, sizeof(t_packet_header_ruby_telemetry_extended_v3));
-      dx += sizeof(t_packet_header_ruby_telemetry_extended_v3);
+      memcpy(buffer+dx, &sPHRTE, sizeof(t_packet_header_ruby_telemetry_extended_v4));
+      dx += sizeof(t_packet_header_ruby_telemetry_extended_v4);
       memcpy(buffer+dx , &PHTExtraInfo, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
       dx += sizeof(t_packet_header_ruby_telemetry_extended_extra_info);
       memcpy(buffer+dx , &ph_extra_info, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
@@ -1054,7 +1072,7 @@ void check_send_telemetry_to_controller()
       // Send debug info
       static u32 s_uTimeDebugSentLastDebugInfoPacket = 0;
 
-      if ( g_pCurrentModel->bDeveloperMode )
+      if ( g_bDeveloperMode )
       if ( g_TimeNow > s_uTimeDebugSentLastDebugInfoPacket + 1000 )
       {
          s_uTimeDebugSentLastDebugInfoPacket = g_TimeNow;
@@ -1090,7 +1108,7 @@ void check_send_telemetry_to_controller()
       t_packet_header_ruby_telemetry_short PHRTShort;
 
       PHRTShort.uFlags = sPHRTE.flags;
-      PHRTShort.version = sPHRTE.version;
+      PHRTShort.rubyVersion = sPHRTE.rubyVersion;
       PHRTShort.radio_links_count = sPHRTE.radio_links_count;
       if ( PHRTShort.radio_links_count > 3 )
          PHRTShort.radio_links_count = 3;
@@ -1411,7 +1429,7 @@ void _init_telemetry_structures()
    sPH.vehicle_id_dest = 0;
    _populate_ruby_telemetry_data(&sPHRTE);
 
-   sPHRTE.version = ((SYSTEM_SW_VERSION_MAJOR<<4) | SYSTEM_SW_VERSION_MINOR);
+   sPHRTE.rubyVersion = ((SYSTEM_SW_VERSION_MAJOR<<4) | SYSTEM_SW_VERSION_MINOR);
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE )
       sPHRTE.flags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
    else

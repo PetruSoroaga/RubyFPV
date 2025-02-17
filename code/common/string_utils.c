@@ -313,6 +313,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED"); break;
       case PACKET_TYPE_LOCAL_CONTROL_RECEIVED_MODEL_SETTING:         strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RECEIVED_MODEL_SETTING"); break;
       case PACKET_TYPE_LOCAL_CONTROL_REINITIALIZE_RADIO_LINKS:       strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_REINITIALIZE_RADIO_LINKS"); break;
+      case PACKET_TYPE_LOCAL_CONTROL_UPDATED_RADIO_TX_POWERS:        strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_UPDATED_RADIO_TX_POWERS"); break;
       case PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT:   strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RECEIVED_VEHICLE_LOG_SEGMENT"); break;
       case PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED:      strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PASSPHRASE_CHANGED"); break;
       case PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH"); break;
@@ -1383,10 +1384,6 @@ char* str_get_developer_flags(u32 uDeveloperFlags)
       strcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_STATS");
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS)
       strcat(s_szDeveloperFlagsDesc, " VIDEO_LINK_GRAPHS");
-   //if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_VIDEO_BITRATE_HISTORY)
-   //   strcat(s_szDeveloperFlagsDesc, " VIDEO_BITRATE_HISTORY");
-   if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK)
-      strcat(s_szDeveloperFlagsDesc, " VIDEO_OVERLOAD_CHECK");
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP)
       strcat(s_szDeveloperFlagsDesc, " SEND_VEHICLE_TX_GAP");
    if ( uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_VIDEO_FAULTS)
@@ -1448,6 +1445,8 @@ char* str_get_model_change_type(int iModelChangeType)
 
    if ( iModelChangeType == MODEL_CHANGED_GENERIC )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_GENERIC");
+   else if ( iModelChangeType == MODEL_CHANGED_DEBUG_MODE )
+      strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_DEBUG_MODE");
    else if ( iModelChangeType == MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS )
       strcpy(s_szModelChangeTypeString, "MODEL_CHANGED_RADIO_LINK_FRAMES_FLAGS");
    else if ( iModelChangeType == MODEL_CHANGED_FREQUENCY )

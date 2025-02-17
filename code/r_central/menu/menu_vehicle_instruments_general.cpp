@@ -60,6 +60,12 @@ MenuVehicleInstrumentsGeneral::MenuVehicleInstrumentsGeneral(void)
    m_pItemsSelect[12]->setIsEditable();
    m_IndexUnitsHeight = addMenuItem(m_pItemsSelect[12]);
 
+   m_pItemsSelect[13] = new MenuItemSelect(L("Temperature Display"), L("Changes how the OSD displays temperatures: in F or C."));
+   m_pItemsSelect[13]->addSelection("C");
+   m_pItemsSelect[13]->addSelection("F");
+   m_pItemsSelect[13]->setIsEditable();
+   m_IndexTemp = addMenuItem(m_pItemsSelect[13]);
+
 
    m_pItemsSelect[1] = new MenuItemSelect("Instruments Size", "Increase/decrease instruments sizes.");  
    m_pItemsSelect[1]->addSelection("Smallest");
@@ -186,6 +192,7 @@ void MenuVehicleInstrumentsGeneral::valuesToUI()
    m_pItemsSelect[8]->setSelection(g_pCurrentModel->osd_params.battery_cell_count);
 
    m_pItemsSelect[11]->setSelection((g_pCurrentModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS)?1:0);
+   m_pItemsSelect[13]->setSelection((g_pCurrentModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F)?1:0);
 }
 
 
@@ -344,6 +351,15 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexBatteryCells == m_SelectedIndex )
    {
       params.battery_cell_count = m_pItemsSelect[8]->getSelectedIndex();
+      sendToVehicle = true;
+   }
+
+   if ( m_IndexTemp == m_SelectedIndex )
+   {
+      if ( 1 == m_pItemsSelect[13]->getSelectedIndex() )
+         params.uFlags |= OSD_BIT_FLAGS_SHOW_TEMPS_F;
+      else
+         params.uFlags &= ~OSD_BIT_FLAGS_SHOW_TEMPS_F;
       sendToVehicle = true;
    }
 

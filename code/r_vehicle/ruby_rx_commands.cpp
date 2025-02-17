@@ -1744,16 +1744,17 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_VEHICLE_TYPE )
    {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->vehicle_type &= MODEL_FIRMWARE_MASK;
       g_pCurrentModel->vehicle_type |= pPHC->command_param & MODEL_TYPE_MASK;
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_GENERIC, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_VEHICLE_BOARD_TYPE )
    {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->hwCapabilities.uBoardType &= ~(u32)BOARD_SUBTYPE_MASK;
       g_pCurrentModel->hwCapabilities.uBoardType |= pPHC->command_param & BOARD_SUBTYPE_MASK;
       if ( (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
@@ -1763,26 +1764,31 @@ bool process_command(u8* pBuffer, int length)
       }
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_GENERIC, 0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      return true;
+   }
+
+   if ( uCommandType == COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES )
+   {
+      int iInterface = (int)(pPHC->command_param & 0xFF);
+      if ( (iInterface >= 0) && (iInterface < g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+      {
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+         g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iInterface] &= 0xFF000000;
+         g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[iInterface] |= ((pPHC->command_param >> 8) & 0xFFFFFF);
+         saveCurrentModel();
+         signalReloadModel(MODEL_CHANGED_GENERIC,0);
+         return true;
+      }
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
       return true;
    }
 
    if ( uCommandType == COMMAND_ID_SET_RADIO_LINKS_FLAGS )
    {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags = pPHC->command_param;
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_GENERIC,0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      return true;
-   }
-
-   if ( uCommandType == COMMAND_ID_SET_AUTO_TX_POWERS )
-   {
-      g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = (int)((pPHC->command_param >> 8) & 0xFF);
-      saveCurrentModel();
-      signalReloadModel(MODEL_CHANGED_GENERIC,0);
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      apply_vehicle_tx_power_levels(g_pCurrentModel);
       return true;
    }
 
@@ -2172,36 +2178,34 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
-// TO DO
-   /*
    if ( uCommandType == COMMAND_ID_SET_RADIO_LINK_DATARATES )
    {
-      if ( iParamsLength != (int)(sizeof(type_radio_links_parameters)) )
+      int iRadioLink = pPHC->command_param;
+      u8* pData = (u8*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
+      if ( (iRadioLink < 0) || (iRadioLink >= g_pCurrentModel->radioLinksParams.links_count) )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED_INVALID_PARAMS, 0, 0);
          return true;
       }
-      int iRadioLink = pPHC->command_param;
-      u32* pData = (u32*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-      log_line("Received command that radio datarates have been modified for radio link %d.", iRadioLink+1);
-      memcpy(&g_pCurrentModel->radioLinksParams, pData, sizeof(type_radio_links_parameters));
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
-      log_line("Received new radio data rates for link %d: v: %d, d: %d/%d, u: %d/%d",
-            iRadioLink+1, g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink],
-            g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iRadioLink],
-            g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iRadioLink],
-            g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iRadioLink],
-            g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink]);
+      memcpy(&g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink], pData, sizeof(int));
+      memcpy(&g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iRadioLink], pData + sizeof(int), sizeof(int));
+      memcpy(&g_pCurrentModel->radioLinksParams.uplink_datarate_video_bps[iRadioLink], pData + 2*sizeof(int), sizeof(int));
+      memcpy(&g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink], pData + 3*sizeof(int), sizeof(int));
 
-      // Populate radio interfaces radio flags and rates from radio links radio flags and rates
-      g_pCurrentModel->updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+      log_line("Received new radio data rates for link %d: v: %d, d: %d, up v/d: %d/%d",
+            iRadioLink+1,
+            g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iRadioLink],
+            g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iRadioLink],
+            g_pCurrentModel->radioLinksParams.uplink_datarate_video_bps[iRadioLink],
+            g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iRadioLink]);
 
       saveCurrentModel();
       signalReloadModel(MODEL_CHANGED_RADIO_DATARATES, iRadioLink);
       return true;
    }
-*/
+
    if ( uCommandType == COMMAND_ID_RESET_ALL_TO_DEFAULTS )
    {
       for( int i=0; i<40; i++ )
@@ -2919,7 +2923,6 @@ bool process_command(u8* pBuffer, int length)
       u32 vid = g_pCurrentModel->uVehicleId;
       u32 ctrlId = g_pCurrentModel->uControllerId;
       int boardType = g_pCurrentModel->hwCapabilities.uBoardType;
-      bool bDev = g_pCurrentModel->bDeveloperMode;
       u8 cameraType = g_pCurrentModel->camera_type;
 
       bool bHasAudioDevice = g_pCurrentModel->audio_params.has_audio_device;
@@ -2956,7 +2959,6 @@ bool process_command(u8* pBuffer, int length)
       g_pCurrentModel->uVehicleId = vid;
       g_pCurrentModel->uControllerId = ctrlId;
       g_pCurrentModel->hwCapabilities.uBoardType = boardType;
-      g_pCurrentModel->bDeveloperMode = bDev;
       g_pCurrentModel->camera_type = cameraType;
 
       g_pCurrentModel->audio_params.has_audio_device = bHasAudioDevice;
@@ -2998,15 +3000,17 @@ bool process_command(u8* pBuffer, int length)
       log_line("Received command to get all params as zip file.");
       
       bool devMode = (pPHC->command_param & 0x01)? true:false;
-      if ( devMode != g_pCurrentModel->bDeveloperMode )
+      if ( devMode != g_bDeveloperMode )
       {
-         log_line("Developer Mode value changed to: %s. Updated model.", devMode?"Enabled":"Disabled");
-         g_pCurrentModel->bDeveloperMode = devMode;
+         g_bDeveloperMode = devMode;
+         log_line("Developer Mode value changed to: %s", devMode?"yes":"no");
          log_line("Needs restart of video.");
          restartVideo = true;
-         bSave = true;
          bNotifyChanged = true;
+         signalReloadModel(MODEL_CHANGED_DEBUG_MODE, g_bDeveloperMode);
       }
+      else
+         log_line("Developer Mode value is unchanged (devmode: %s)", g_bDeveloperMode?"yes":"no");
 
       int iGraphRefreshInterval = (int)((pPHC->command_param >> 24) & 0x0F);
 
@@ -3398,24 +3402,23 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
-   if ( uCommandType == COMMAND_ID_ENABLE_DEBUG )
-   {
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      g_pCurrentModel->bDeveloperMode = (bool)(pPHC->command_param);
-      saveCurrentModel();
-      hardware_sleep_ms(50);
-      vehicle_stop_tx_telemetry();
-      vehicle_launch_tx_telemetry(g_pCurrentModel);
-      return true;
-   }
-
    if ( uCommandType == COMMAND_ID_SET_DEVELOPER_FLAGS )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+
+      bool bRestartVideo = false;
       u8* pData = pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command);
       u32 uTmp = 0;
       memcpy((u8*)&uTmp, pData, sizeof(u32));
-      g_pCurrentModel->bDeveloperMode = (bool) uTmp;
+      if ( g_bDeveloperMode != (bool)uTmp )
+      {
+         g_bDeveloperMode = (bool)uTmp;
+         log_line("Developer Mode value changed to: %s", g_bDeveloperMode?"yes":"no");
+         log_line("Needs restart of video.");
+         bRestartVideo = true;
+         signalReloadModel(MODEL_CHANGED_DEBUG_MODE, g_bDeveloperMode);
+      }
+
       memcpy((u8*)&uTmp, pData + sizeof(u32), sizeof(u32));
       g_pCurrentModel->uDeveloperFlags = uTmp;
 
@@ -3430,10 +3433,14 @@ bool process_command(u8* pBuffer, int length)
             save_VehicleSettings();
          }
       }
-      log_line("[Commands] Received new vehicle development mode: %d", (int)g_pCurrentModel->bDeveloperMode);
+      log_line("[Commands] Received new vehicle development mode is on: %s", g_bDeveloperMode?"yes":"no");
       log_line("[Commands] Received new vehicle new development flags: %u (%s)", g_pCurrentModel->uDeveloperFlags, str_get_developer_flags(g_pCurrentModel->uDeveloperFlags));
       saveCurrentModel();
       signalReloadModel(0, 0);
+
+      if ( bRestartVideo )
+      if ( g_pCurrentModel->hasCamera() )
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM, MODEL_CHANGED_VIDEO_RESOLUTION);
       return true;
    }
 
@@ -3724,9 +3731,16 @@ int r_start_commands_rx(int argc, char* argv[])
          if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
          {
             u32 uResendCount = 0;
+            u32 uDeveloperMode = 0;
             if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) )
                memcpy(&uResendCount, &(s_BufferCommands[sizeof(t_packet_header)]), sizeof(u32));
-            log_line("Received pairing request from router (received retry counter: %u). CID: %u, VID: %u. Updating local model.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
+            if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u32) )
+            {
+               memcpy(&uDeveloperMode, &(s_BufferCommands[sizeof(t_packet_header) + sizeof(u32)]), sizeof(u32));
+               g_bDeveloperMode = (bool)uDeveloperMode;
+            }
+            log_line("Received pairing request from router (received retry counter: %u). CID: %u, VID: %u. Developer mode: %s. Updating local model.",
+                uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest, g_bDeveloperMode?"yes":"no");
             if ( NULL != g_pCurrentModel )
             {
                if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )

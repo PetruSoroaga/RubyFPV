@@ -210,7 +210,7 @@ void load_resources()
 
 void _draw_background()
 {
-   if ( g_TimeNow > s_uTimeLastChangeBgImage + 20000 )
+   if ( g_TimeNow > s_uTimeLastChangeBgImage + 40000 )
    {
       s_uTimeLastChangeBgImage = g_TimeNow;
       int iIndex = s_iBgImageIndex;
@@ -220,7 +220,6 @@ void _draw_background()
       }
       s_iBgImageIndexPrev = s_iBgImageIndex;
       s_iBgImageIndex = iIndex;
-      
    }
 
    int iImageId = s_idBgImage[s_iBgImageIndex];
@@ -560,9 +559,7 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
    bool bDevMode = false;
    if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
       bDevMode = true;
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
-      bDevMode = true;
-
+  
    if ( bDevMode )
    //if ( ! bForceBackground )
    if ( (! g_bToglleAllOSDOff) && (!g_bToglleStatsOff) )
@@ -597,11 +594,12 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
          g_pRenderEngine->setFill(0,0,0,0.5);
          g_pRenderEngine->setStroke(0,0,0,0);
          g_pRenderEngine->disableRectBlending();
-         g_pRenderEngine->drawRect(xPos, yPos, fWidth*3, fHeight*2.4);
+         g_pRenderEngine->drawRect(xPos, yPos, fWidth*2, fHeight*1.6);
          osd_set_colors_text(get_Color_Dev());
          float fTWidth = g_pRenderEngine->textWidth(g_idFontOSDBig, "[D]");
-         osd_show_value( xPos+fWidth*1.5-fTWidth*0.5, yPos+fHeight*0.6, "[D]", g_idFontOSDBig );
+         osd_show_value( xPos+fWidth-fTWidth*0.5, yPos+fHeight*0.2, "[D]", g_idFontOSDBig );
       }
+
       if ( p->iShowCPULoad )
       {
          xPos += 0.02*osd_getScaleOSD();
@@ -1215,6 +1213,21 @@ void ruby_load_models()
       szFreq1, szFreq2, szFreq3);
 }
 
+void _on_start_completed()
+{
+   char szComm[256];
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+
+   if ( access(szFile, R_OK) != -1 )
+   {
+      log_line("Intro video is playing. Stopping it...");
+      hw_stop_process(VIDEO_PLAYER_OFFLINE);
+      sprintf(szComm, "rm -rf %s", szFile);
+   }
+   g_bPlayIntro = false;
+}
 
 void start_loop()
 {
@@ -1634,6 +1647,7 @@ void start_loop()
          popupStartup.setTimeout(4);
          popupStartup.resetTimer();
          s_TimeCentralInitializationComplete = g_TimeNow;
+         _on_start_completed();
          return;
       }
       onMainVehicleChanged(true);
@@ -1674,7 +1688,7 @@ void start_loop()
       popupStartup.resetTimer();
 
       s_TimeCentralInitializationComplete = g_TimeNow;
-
+      _on_start_completed();
       if ( g_bIsHDMIConfirmation )
       {
          s_pMenuConfirmHDMI = new MenuConfirmationHDMI("HDMI Output Configuration Updated","Does the HDMI output looks ok? Select [Yes] to keep the canges or select [No] to revert to the old HDMI configuration.", 0);
@@ -1730,7 +1744,6 @@ void clear_shared_mems()
    memset(&g_SM_DownstreamInfoRC, 0, sizeof(t_packet_header_rc_info_downstream));
    memset(&g_SM_RouterVehiclesRuntimeInfo, 0, sizeof(shared_mem_router_vehicles_runtime_info));
    memset(&g_SM_RadioStats, 0, sizeof(shared_mem_radio_stats));
-   memset(&g_SM_RadioStatsInterfaceRxGraph, 0, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
    memset(&g_SM_RadioRxQueueInfo, 0, sizeof(shared_mem_radio_rx_queue_info));
    memset(&g_SM_VideoLinkGraphs, 0, sizeof(shared_mem_video_link_graphs));
    memset(&g_SM_DevVideoBitrateHistory, 0, sizeof(shared_mem_dev_video_bitrate_history));
@@ -1750,6 +1763,7 @@ void synchronize_shared_mems()
 
    s_uTimeLastSyncSharedMems = g_TimeNow;
 
+   ControllerSettings* pCS = get_ControllerSettings();
 
    if ( (NULL != g_pCurrentModel) && (!g_bSearching) )
    {
@@ -1786,13 +1800,6 @@ void synchronize_shared_mems()
          g_pSM_HistoryRxStats = shared_mem_radio_stats_rx_hist_open_for_read();
          if ( NULL == g_pSM_HistoryRxStats )
             log_softerror_and_alarm("Failed to open history radio rx stats shared memory for read.");
-      }
-
-      if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
-      {
-         g_pSM_RadioStatsInterfaceRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();
-         if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
-            log_softerror_and_alarm("Failed to open controller radio interfaces rx graphs shared memory for read.");
       }
    }
 
@@ -1843,17 +1850,14 @@ void synchronize_shared_mems()
       memcpy((u8*)&g_SM_RouterVehiclesRuntimeInfo, g_pSM_RouterVehiclesRuntimeInfo, sizeof(shared_mem_router_vehicles_runtime_info));
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)&g_SM_RadioStats, g_pSM_RadioStats, sizeof(shared_mem_radio_stats));
-
-   if ( NULL != g_pSM_RadioStatsInterfaceRxGraph )
-      memcpy((u8*)&g_SM_RadioStatsInterfaceRxGraph, g_pSM_RadioStatsInterfaceRxGraph, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
    
    if ( NULL != g_pSM_HistoryRxStats )
       memcpy((u8*)&g_SM_HistoryRxStats, g_pSM_HistoryRxStats, sizeof(shared_mem_radio_stats_rx_hist));
    if ( NULL != g_pSM_AudioDecodeStats )
       memcpy((u8*)&g_SM_AudioDecodeStats, g_pSM_AudioDecodeStats, sizeof(shared_mem_audio_decode_stats));
    
+   if ( pCS->iDeveloperMode )
    if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->bDeveloperMode )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       if ( NULL != g_pSM_VideoFramesStatsOutput )

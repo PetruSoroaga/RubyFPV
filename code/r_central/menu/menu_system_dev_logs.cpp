@@ -367,6 +367,7 @@ void MenuSystemDevLogs::onSelectItem()
    {
       if ( NULL == g_pCurrentModel )
          return;
+      ControllerSettings* pCS = get_ControllerSettings();
       int iLogNow = 0;
       if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS )
          iLogNow = 1;
@@ -376,7 +377,7 @@ void MenuSystemDevLogs::onSelectItem()
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
 
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();
       else
       {

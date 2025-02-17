@@ -847,7 +847,7 @@ void reasign_radio_links(bool bSilent)
    links_set_cards_frequencies_and_params(-1);
    radio_links_open_rxtx_radio_interfaces();
 
-   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching, g_uAcceptedFirmwareType);
+   radio_rx_start_rx_thread(&g_SM_RadioStats, (int)g_bSearching, g_uAcceptedFirmwareType);
 
    if ( ! bSilent )
       send_alarm_to_central(ALARM_ID_GENERIC_STATUS_UPDATE, ALARM_FLAG_GENERIC_STATUS_REASIGNING_RADIO_LINKS_END, 0);
@@ -858,10 +858,16 @@ void reasign_radio_links(bool bSilent)
 
 void broadcast_router_ready()
 {
+   send_message_to_central(PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY, 0, true);
+   log_line("Broadcasted that router is ready.");
+}
+
+void send_message_to_central(u32 uPacketType, u32 uParam, bool bTelemetryToo)
+{
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY, STREAM_ID_DATA);
+   radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, uPacketType, STREAM_ID_DATA);
    PH.vehicle_id_src = PACKET_COMPONENT_RUBY;
-   PH.vehicle_id_dest = 0;
+   PH.vehicle_id_dest = uParam;
    PH.total_length = sizeof(t_packet_header);
 
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
@@ -873,11 +879,11 @@ void broadcast_router_ready()
 
    if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, buffer, PH.total_length) )
       log_softerror_and_alarm("No pipe to central to broadcast router ready to.");
-
+   else
+      log_line("Sent message %s to central.", str_get_packet_type(uPacketType));
+   if ( bTelemetryToo )
    if ( -1 != g_fIPCToTelemetry )
       ruby_ipc_channel_send_message(g_fIPCToTelemetry, buffer, PH.total_length);
-
-   log_line("Broadcasted that router is ready.");
 }
 
 void _check_for_atheros_datarate_change_command_to_vehicle(u8* pPacketBuffer)
@@ -957,8 +963,20 @@ void _process_and_send_packet(u8* pPacketBuffer, int iPacketLength)
       }
    }
 
+   static int s_iTxErrorsCount = 0;
    for( int i=0; i<send_count; i++ )
-      send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1, send_count-1, 11);
+   {
+      if ( send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1, send_count-1, 11) < 0 )
+          s_iTxErrorsCount++;
+      else
+          s_iTxErrorsCount = 0;
+   }
+   if ( s_iTxErrorsCount > 10 )
+   {
+      send_alarm_to_central(ALARM_ID_RADIO_INTERFACE_DOWN, 0xFF, 0);
+      radio_links_reinit_radio_interfaces();
+      s_iTxErrorsCount = 0;
+   }
 }
 
 void _process_and_send_packets_individually(t_packet_queue* pRadioQueue)
@@ -1044,8 +1062,7 @@ void _read_ipc_pipes(u32 uTimeNow)
 void init_shared_memory_objects()
 {
    g_TimeNow = get_current_timestamp_ms();
-   radio_stats_interfaces_rx_graph_reset(&g_SM_RadioStatsInterfacesRxGraph, 10);
-
+   
    g_pSMControllerRTInfo = controller_rt_info_open_for_write();
    if ( NULL == g_pSMControllerRTInfo )
       log_softerror_and_alarm("Failed to open shared mem to controller runtime info for writing: %s", SHARED_MEM_CONTROLLER_RUNTIME_INFO);
@@ -1063,15 +1080,6 @@ void init_shared_memory_objects()
 
    if ( NULL != g_pSMVehicleRTInfo )
       memcpy((u8*)g_pSMVehicleRTInfo, (u8*)&g_SMVehicleRTInfo, sizeof(vehicle_runtime_info));
-
-   g_pSM_RadioStatsInterfacesRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_write();
-   if ( NULL == g_pSM_RadioStatsInterfacesRxGraph )
-      log_softerror_and_alarm("Failed to open controller radio interfaces rx graphs shared memory for write.");
-   else
-      log_line("Opened controller radio interfaces rx graphs shared memory for write: success.");
-
-   if ( NULL != g_pSM_RadioStatsInterfacesRxGraph )
-      memcpy((u8*)g_pSM_RadioStatsInterfacesRxGraph, (u8*)&g_SM_RadioStatsInterfacesRxGraph, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
 
    g_pSM_RadioStats = shared_mem_radio_stats_open_for_write();
    if ( NULL == g_pSM_RadioStats )
@@ -1177,7 +1185,6 @@ void init_shared_memory_objects()
    {
       g_pProcessStats->alarmFlags = 0;
       g_pProcessStats->alarmTime = 0;
-      g_pProcessStats->alarmParam[0] = g_pProcessStats->alarmParam[1] = g_pProcessStats->alarmParam[2] = g_pProcessStats->alarmParam[3] = 0;
    }
 }
 
@@ -1221,8 +1228,9 @@ int open_pipes()
    return 0;
 }
      
-void _consume_ipc_messages()
+int _consume_ipc_messages()
 {
+   int iConsumed = 0;
    int iMaxToConsume = 20;
    u32 uTimeStart = get_current_timestamp_ms();
 
@@ -1239,16 +1247,9 @@ void _consume_ipc_messages()
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
       process_local_control_packet(pPH);
+      iConsumed++;
    }
-
-   u32 uTime = get_current_timestamp_ms();
-   static int s_iCounterLogErrorConsumeIPC = 0;
-   if ( uTime > uTimeStart+500 )
-   {
-      if ( 0 == (s_iCounterLogErrorConsumeIPC%10) )
-         log_softerror_and_alarm("Consuming %d IPC messages took too long: %d ms", 20 - iMaxToConsume, uTime - uTimeStart);
-      s_iCounterLogErrorConsumeIPC++;
-   }
+   return iConsumed;
 }
 
 
@@ -1418,7 +1419,7 @@ int main(int argc, char *argv[])
    //   hw_set_priority_current_proc(g_pControllerSettings->iNiceRouter);
  
    if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->bDeveloperMode )
+   if ( g_pControllerSettings->iDeveloperMode )
    {
       radio_tx_set_dev_mode();
       radio_rx_set_dev_mode();
@@ -1534,7 +1535,7 @@ int main(int argc, char *argv[])
    load_CorePlugins(0);
 
    radio_duplicate_detection_init();
-   radio_rx_start_rx_thread(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, (int)g_bSearching, g_uAcceptedFirmwareType);
+   radio_rx_start_rx_thread(&g_SM_RadioStats, (int)g_bSearching, g_uAcceptedFirmwareType);
    
    log_line("Broadcasting that router is ready.");
    broadcast_router_ready();
@@ -1569,16 +1570,31 @@ int main(int argc, char *argv[])
       log_line("Running main loop for searching");
    else
       log_line("Running main loop for sync type: %d", g_pCurrentModel->rxtx_sync_type);
+
+   int iLoopTimeErrorsCount = 0;
+   u32 uLastLoopTime = g_TimeNow;
+   g_pProcessStats->uLoopTimer1 = g_pProcessStats->uLoopTimer2 = g_TimeNow;
+
    while ( !g_bQuit )
    {
-      g_TimeNow = get_current_timestamp_ms();
-      if ( NULL != g_pProcessStats )
-      {
-         g_pProcessStats->uLoopCounter++;
-         g_pProcessStats->lastActiveTime = g_TimeNow;
-      }
-
       hardware_sleep_micros(100);
+      g_TimeNow = get_current_timestamp_ms();
+      g_pProcessStats->lastActiveTime = g_TimeNow;
+      g_pProcessStats->uLoopCounter++;
+      g_pProcessStats->uLoopSubStep = 0;
+
+      if ( g_TimeNow - uLastLoopTime > 5 )
+      {
+         iLoopTimeErrorsCount++;
+         log_softerror_and_alarm("Main loop took too long: %u ms (%u + %u + %u) cnt2: %u, cnt3: %u",
+            g_TimeNow - uLastLoopTime,
+            g_pProcessStats->uLoopTimer1 - uLastLoopTime,
+            g_pProcessStats->uLoopTimer2 - g_pProcessStats->uLoopTimer1,
+            g_TimeNow - g_pProcessStats->uLoopTimer2,
+            g_pProcessStats->uLoopCounter2, g_pProcessStats->uLoopCounter3);
+      }
+  
+      uLastLoopTime = g_TimeNow;
       
       if ( g_bSearching )
          _main_loop_searching();
@@ -1611,7 +1627,6 @@ int main(int argc, char *argv[])
    vehicle_rt_info_close(g_pSMVehicleRTInfo);
    
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
-   shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfacesRxGraph);
    shared_mem_controller_audio_decode_stats_close(g_pSM_AudioDecodeStats);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_RX, g_pProcessStats);
    shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
@@ -1744,8 +1759,6 @@ void _main_loop_try_recevive_video_data()
 
 void _main_loop_searching()
 {
-   g_TimeNow = get_current_timestamp_ms();
-
    _main_loop_try_recevive_video_data();
 
    router_periodic_loop();
@@ -1767,11 +1780,11 @@ void _main_loop_searching()
 
 void _main_loop_simple(bool bDoBasicTxSync)
 {
-   g_TimeNow = get_current_timestamp_ms();
    u32 tTime0 = g_TimeNow;
 
    _main_loop_try_recevive_video_data();
    
+   g_TimeNow = g_pProcessStats->uLoopTimer1 = get_current_timestamp_ms();
    u32 tTime1 = g_TimeNow;
 
    for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
@@ -1792,7 +1805,7 @@ void _main_loop_simple(bool bDoBasicTxSync)
    if ( (NULL != g_pCurrentModel) && g_pCurrentModel->hasCamera() )
       rx_video_output_periodic_loop();
 
-   g_TimeNow = get_current_timestamp_ms();
+   g_TimeNow = g_pProcessStats->uLoopTimer2 = get_current_timestamp_ms();
    u32 tTime2 = g_TimeNow;
 
    if ( controller_rt_info_will_advance_index(&g_SMControllerRTInfo, g_TimeNow) )
@@ -1809,6 +1822,10 @@ void _main_loop_simple(bool bDoBasicTxSync)
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmAvg[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmAvg[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMin[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMax[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseLast[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseLast[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMax[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseAvg[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseAvg[k];
          }
          radio_stats_reset_signal_info_for_card(&g_SM_RadioStats, i);
       }
@@ -1886,7 +1903,6 @@ void _main_loop_simple(bool bDoBasicTxSync)
 
 void _main_loop_adv_sync()
 {
-   g_TimeNow = get_current_timestamp_ms();
    u32 tTime0 = g_TimeNow;
 
    _main_loop_try_recevive_video_data();
@@ -1964,6 +1980,10 @@ void _main_loop_adv_sync()
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmAvg[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmAvg[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMin[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmChangeSpeedMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmChangeSpeedMax[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseLast[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseLast[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMin[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseMax[k];
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmNoiseAvg[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmNoiseAvg[k];
          }
          radio_stats_reset_signal_info_for_card(&g_SM_RadioStats, i);
       }

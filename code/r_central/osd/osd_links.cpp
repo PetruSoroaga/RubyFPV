@@ -216,9 +216,9 @@ float _osd_get_radio_link_new_height()
 }
 
 
-float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMaxRxQuality, int dbm, int iDataRateBps, bool bShowBars, bool bShowPercentages, bool bUplink, bool bHorizontal, bool bDraw, bool bDatarateChanged)
+float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMaxRxQuality, int dbm, int iSNR, int iDataRateBps, bool bShowBars, bool bShowNumbers, bool bUplink, bool bHorizontal, bool bDraw, bool bDatarateChanged)
 {
-   if ( ! bShowPercentages )
+   if ( ! bShowNumbers )
    if ( ! bShowBars )
       return 0.0;
 
@@ -278,34 +278,33 @@ float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMa
    xPos += fIconWidth*1.1;
    fTotalWidth += fIconWidth*1.1;
 
-   char szDBM[32];
-   if ( dbm < -110 )
-      strcpy(szDBM, "--- dBm");
-   else
-      sprintf(szDBM, "%d dBm", dbm);
-
-   if ( bShowPercentages )
+   if ( bShowNumbers )
    {
-      char szBuff[32];
-      sprintf(szBuff, "%d%%", iMaxRxQuality);
+      char szLine1[64];
+      char szLine2[64];
+
+      //sprintf(szLine1, "%d%%", iMaxRxQuality);
+      if ( dbm < -120 )
+         strcpy(szLine1, "--- dBm");
+      else
+         sprintf(szLine1, "%d dBm", dbm);
       
-      /*char szBuffDR[32];
-      str_format_bitrate(iDataRateBps, szBuffDR);
-      if ( strlen(szBuffDR) > 4 )
-      if ( szBuffDR[strlen(szBuffDR)-2] == 'p' )
-         szBuffDR[strlen(szBuffDR)-2] = 0;
-      */
-      float fWidthPercentage = g_pRenderEngine->textWidth(g_idFontOSDSmall, "1999%");
-      float fWidthDBM = g_pRenderEngine->textWidth(g_idFontOSDSmall, "-110 dBm");
-      if ( fWidthDBM > fWidthPercentage )
-         fWidthPercentage = fWidthDBM;
+      if ( iSNR <= 0 )
+         strcpy(szLine2, "SNR: ---");
+      else
+         sprintf(szLine2, "SNR: %d", iSNR);
+
+      float fWidthLine1 = g_pRenderEngine->textWidth(g_idFontOSDSmall, "-110 dBm");
+      float fWidthLine2 = g_pRenderEngine->textWidth(g_idFontOSDSmall, "SNR: -100");
+      if ( fWidthLine2 > fWidthLine1 )
+         fWidthLine1 = fWidthLine2;
+
       if ( bDraw )
       {
-         if ( iMaxRxQuality >= 0 )
-            g_pRenderEngine->drawText(xPos, yPos, g_idFontOSDSmall, szBuff);
-         g_pRenderEngine->drawText(xPos, yPos+height_text_small, g_idFontOSDSmall, szDBM);
+         g_pRenderEngine->drawText(xPos + g_pRenderEngine->getPixelWidth()*3.0, yPos, g_idFontOSDSmall, szLine1);
+         g_pRenderEngine->drawText(xPos + g_pRenderEngine->getPixelWidth()*3.0, yPos+height_text_small, g_idFontOSDSmall, szLine2);
       }
-      fTotalWidth += fWidthPercentage;
+      fTotalWidth += fWidthLine1 + g_pRenderEngine->getPixelWidth()*3.0;
    }
    if ( bHorizontal )
       return fTotalWidth;
@@ -367,7 +366,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
    bool bShowVehicleSide = false;
    bool bShowControllerSide = false;
    bool bShowBars = false;
-   bool bShowPercentages = false;
+   bool bShowNumbers = false;
 
    bool bShowSummary = true;
    bool bShowInterfaces = false;
@@ -382,8 +381,8 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
    if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
       bShowBars = true;
 
-   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE )
-      bShowPercentages = true;
+   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS )
+      bShowNumbers = true;
 
    if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
    {
@@ -436,6 +435,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
       int iDataRateUplinkBPS = 0;
       u32 uLastRxTime = 0;
       int dbm = -200;
+      int iSNR = -200;
       
       for( int i=0; i<pModelToUse->radioInterfacesParams.interfaces_count; i++ )
       {
@@ -450,7 +450,11 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
 
          if ( ! pModelToUse->radioLinkIsSiKRadio(iVehicleRadioLinkId) )
          if ( (g_VehiclesRuntimeInfo[iRuntimeInfoToUse].headerRubyTelemetryExtended.uplink_rssi_dbm[i]-200) > dbm )
+         {
             dbm = g_VehiclesRuntimeInfo[iRuntimeInfoToUse].headerRubyTelemetryExtended.uplink_rssi_dbm[i]-200;
+            if ( g_VehiclesRuntimeInfo[iRuntimeInfoToUse].headerRubyTelemetryExtended.uplink_noise_dbm[i] > 0 )
+               iSNR = dbm + g_VehiclesRuntimeInfo[iRuntimeInfoToUse].headerRubyTelemetryExtended.uplink_noise_dbm[i];
+         }
       }
 
       int iVehicleRadioCard = -1;
@@ -473,7 +477,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          bool bAsUplink = true;
          if ( pModelToUse->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
             bAsUplink = false;
-         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iDataRateUplinkBPS, bShowBars, bShowPercentages, bAsUplink, bHorizontal, false, false);
+         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, false, false);
          if ( bHorizontal )
          {
             xPos -= fSize;
@@ -483,7 +487,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             fTotalWidthLink = fSize;
 
          if ( bRender )
-            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iDataRateUplinkBPS, bShowBars, bShowPercentages, bAsUplink, bHorizontal, true, false);
+            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, true, false);
          if ( ! bHorizontal )
          {
              yPos += fSize;
@@ -555,12 +559,12 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
-            if ( (pModelToUse->bDeveloperMode && (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                  pCS->iDeveloperMode )
             if ( g_TimeNow < s_uLastOSDVehRadioLinkInterfacesRecvDataratesChangeTimes[iVehicleRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
 
-            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iDataRateUplinkBPS, bShowBars, bShowPercentages, bAsUplink, bHorizontal, false, false);
+            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, false, false);
             if ( bHorizontal )
             {
                xPos -= fSize;
@@ -570,7 +574,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                fTotalWidthLink = fSize;
 
             if ( bRender )
-               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iDataRateUplinkBPS, bShowBars, bShowPercentages, bAsUplink, bHorizontal, true, false);
+               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, true, false);
             if ( ! bHorizontal )
             {
                 yPos += fSize;
@@ -593,7 +597,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                g_pRenderEngine->setColors(get_Color_IconError());
 
             if ( bDRChanged && g_bOSDElementChangeNotification )
-            if ( (pModelToUse->bDeveloperMode && (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS))
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)
                  || pCS->iDeveloperMode )
                osd_set_colors_text(get_Color_OSDElementChanged());
 
@@ -664,6 +668,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
       int iRecvDataRateData = 0;
       u32 uLastRxTime = 0;
       int dbm = -200;
+      int iSNR = -200;
       for( int i=0; i<g_SM_RadioStats.countLocalRadioInterfaces; i++ )
       {
          if ( g_SM_RadioStats.radio_interfaces[i].assignedLocalRadioLinkId != iLocalRadioLinkId )
@@ -681,6 +686,8 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
 
          if ( g_fOSDDbm[i] > dbm )
             dbm = g_fOSDDbm[i];
+         if ( g_fOSDSNR[i] > iSNR )
+            iSNR = g_fOSDSNR[i];
       }
 
       if ( 0 == iRecvDataRateVideo )
@@ -694,7 +701,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
       
       if ( bShowSummary )
       {
-         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iRecvDataRateVideo, bShowBars, bShowPercentages, false, bHorizontal, false, false);
+         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, false, false);
          if ( bHorizontal )
          {
             xPos -= fSize;
@@ -704,7 +711,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             fTotalWidthLink = fSize;
 
          if ( bRender )
-            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iRecvDataRateVideo, bShowBars, bShowPercentages, false, bHorizontal, true, true);
+            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, true, true);
          if ( ! bHorizontal )
          {
              yPos += fSize;
@@ -749,7 +756,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
 
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
-            if ( (pModelToUse->bDeveloperMode &&  (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                  pCS->iDeveloperMode )
             if ( g_TimeNow < s_uLastOSDRadioLinkInterfacesRecvDataratesChangeTimes[iLocalRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
@@ -771,7 +778,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                   fTotalHeightLink += osd_getSpacingV()*0.5;
                }
             }
-            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], iRecvDataRateVideo, bShowBars, bShowPercentages, false, bHorizontal, false, false);
+            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, false, false);
             if ( bHorizontal )
             {
                xPos -= fSize;
@@ -781,7 +788,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                fTotalWidthLink = fSize;
 
             if ( bRender )
-               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], iRecvDataRateVideo, bShowBars, bShowPercentages, false, bHorizontal, true, true);
+               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, true, true);
             
             if ( bIsTxCard && (1<iCountInterfacesForCurrentLink) )
             if ( bRender )
@@ -823,7 +830,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                g_pRenderEngine->setColors(get_Color_IconError());
 
             if ( bDRChanged && g_bOSDElementChangeNotification )
-            if ( (pModelToUse->bDeveloperMode && (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                 pCS->iDeveloperMode )
                osd_set_colors_text(get_Color_OSDElementChanged());
 

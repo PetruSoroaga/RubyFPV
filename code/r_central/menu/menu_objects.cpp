@@ -2356,22 +2356,15 @@ MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szTitle)
    return pItem;
 }
 
-MenuItemSelect* Menu::createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw)
+MenuItemSelect* Menu::createMenuItemTxPowers(const char* szTitle, bool bAddAutoOption, bool bBooster2W, bool bBooster4W, int iMaxUsablePowerMw)
 {
    int iPowerLevelsCount = 0;
-   const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
+   const int* piPowerLevelsUIMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
 
    MenuItemSelect* pItem = new MenuItemSelect(szTitle, "Sets the radio Tx power level.");
    
    char szText[128];
    szText[0] = 0;
-   /*
-   if ( NULL == piCardsCurrentPowerLevelsMw )
-      strcpy(szText, "Custom");
-   else
-      strcpy(szText, "Custom");
-   pItem->addSelection(szText);
-   */
 
    if ( bAddAutoOption )
       pItem->addSelection("Auto");
@@ -2379,21 +2372,42 @@ MenuItemSelect* Menu::createMenuItemTxPowers(const char* szTitle, bool bAddAutoO
    int iPrevValue = 0;
    for( int i=0; i<iPowerLevelsCount; i++ )
    {
-      if ( piPowerLevelsMw[i] > (iMaxUsablePowerMw * (100 + MAX_TX_POWER_UI_DEVIATION_FROM_STANDARD)) / 100 )
+      if ( piPowerLevelsUIMw[i] > (iMaxUsablePowerMw * (100 + MAX_TX_POWER_UI_DEVIATION_FROM_STANDARD)) / 100 )
          break;
-      if ( (piPowerLevelsMw[i] >= 100) && (iPrevValue < 100) )
+      if ( (piPowerLevelsUIMw[i] >= 100) && (iPrevValue < 100) )
          pItem->addSeparator();
-      sprintf(szText, "%d mW", piPowerLevelsMw[i]);
+      sprintf(szText, "%d mW", piPowerLevelsUIMw[i]);
+      if ( bBooster2W || bBooster4W )
+      {
+         if ( piPowerLevelsUIMw[i] < MIN_BOOST_INPUT_SIGNAL )
+            sprintf(szText, "%d mW -> 0!", piPowerLevelsUIMw[i]);
+         else if ( piPowerLevelsUIMw[i] > MAX_BOOST_INPUT_SIGNAL )
+            sprintf(szText, "%d mW -> !!!", piPowerLevelsUIMw[i]);
+         else if ( bBooster2W )
+         {
+            if ( tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 1, 0) >= 1000 )
+               sprintf(szText, "%d -> %.1f W", piPowerLevelsUIMw[i], (float)tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 1, 0)/(float)1000.0);
+            else
+               sprintf(szText, "%d -> %d mW", piPowerLevelsUIMw[i], tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 1, 0));
+         }
+         else if ( bBooster4W )
+         {
+            if ( tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 1, 0) >= 1000 )
+               sprintf(szText, "%d -> %.1f W", piPowerLevelsUIMw[i], (float)tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 0, 1)/(float)1000.0);
+            else
+               sprintf(szText, "%d -> %d mW", piPowerLevelsUIMw[i], tx_powers_get_mw_boosted_value_from_mw(piPowerLevelsUIMw[i], 0, 1));
+         }
+      }
       pItem->addSelection(szText);
 
-      iPrevValue = piPowerLevelsMw[i];
+      iPrevValue = piPowerLevelsUIMw[i];
    }
    pItem->addSelection("Custom");
    pItem->setIsEditable();
    return pItem;
 }
 
-void Menu::selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw)
+void Menu::selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoOption, bool bBooster2W, bool bBooster4W, int* piCardsCurrentPowerLevelsMw, int iNumCards, int iMaxUsablePowerMw)
 {
    if ( (NULL == pMenuItem) || (NULL == piCardsCurrentPowerLevelsMw) || (0 == iNumCards) )
       return;
@@ -2409,7 +2423,7 @@ void Menu::selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoO
    }
    if ( iMaxCurrentPowerMw > iMaxUsablePowerMw )
       iMaxCurrentPowerMw = iMaxUsablePowerMw;
-   log_line("Menu: Current controller max set tx power for all cards: %d mw", iMaxCurrentPowerMw);
+   log_line("Menu: Select txpower item: Current max set tx power for all input cards: %d mw", iMaxCurrentPowerMw);
    
    int iMinDiffMw = 10000;
    int iMinDiffMwIndexUI = -1;
@@ -2452,6 +2466,20 @@ void Menu::selectMenuItemTxPowersValue(MenuItemSelect* pMenuItem, bool bHasAutoO
       int iIndex = pMenuItem->getSelectionsCount()-1;
       char szText[128];
       sprintf(szText, "Custom (%d mW)", iMaxCurrentPowerMw);
+      if ( bBooster2W )
+      {
+         if ( tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 1, 0) >= 1000 )
+            sprintf(szText, "Custom (%d mW -> %.1f W)", iMaxCurrentPowerMw, (float)tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 1, 0)/(float)1000.0);
+         else
+            sprintf(szText, "Custom (%d mW -> %d mW)", iMaxCurrentPowerMw, tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 1, 0));
+      }
+      if ( bBooster4W )
+      {
+         if ( tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 1, 0) >= 1000 )
+            sprintf(szText, "Custom (%d mW -> %.1f W)", iMaxCurrentPowerMw, (float)tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 0, 1)/(float)1000.0);
+         else
+            sprintf(szText, "Custom (%d mW -> %d mW)", iMaxCurrentPowerMw, tx_powers_get_mw_boosted_value_from_mw(iMaxCurrentPowerMw, 0, 1));
+      }
       pMenuItem->updateSelectionText(iIndex, szText);
       pMenuItem->setSelectedIndex(iIndex);
    }

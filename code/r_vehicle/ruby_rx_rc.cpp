@@ -298,8 +298,15 @@ int r_start_rx_rc(int argc, char *argv[])
          if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY )
          if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
          {
+            if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u32) )
+            {
+               u32 uDeveloperMode = 0;
+               memcpy(&uDeveloperMode, &(s_BufferRCFromRouter[sizeof(t_packet_header) + sizeof(u32)]), sizeof(u32));
+               g_bDeveloperMode = (bool)uDeveloperMode;
+            }
             g_uControllerId = pPH->vehicle_id_src;
-            log_line("Received pairing request from router. CID: %u, VID: %u. Updating local model.", pPH->vehicle_id_src, pPH->vehicle_id_dest);
+            log_line("Received pairing request from router. CID: %u, VID: %u. Developer mode: %s. Updating local model.",
+               pPH->vehicle_id_src, pPH->vehicle_id_dest, g_bDeveloperMode?"yes":"no");
             sModelVehicle.uControllerId = pPH->vehicle_id_src;
             if ( sModelVehicle.relay_params.isRelayEnabledOnRadioLinkId >= 0 )
             if ( sModelVehicle.relay_params.uRelayedVehicleId != 0 )
@@ -310,7 +317,16 @@ int r_start_rx_rc(int argc, char *argv[])
          if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED )
          {
             u8 changeType = (pPH->vehicle_id_src >> 8 ) & 0xFF;
-            if ( changeType == MODEL_CHANGED_GENERIC ||
+
+            if ( (changeType == MODEL_CHANGED_DEBUG_MODE) )
+            {
+               u8 uExtraParam = (pPH->vehicle_id_src >> 16 ) & 0xFF;
+               log_line("Received notification that developer mode changed from %s to %s",
+                 g_bDeveloperMode?"yes":"no",
+                 uExtraParam?"yes":"no");
+               g_bDeveloperMode = (bool)uExtraParam;
+            }
+            else if ( changeType == MODEL_CHANGED_GENERIC ||
                  changeType == MODEL_CHANGED_SWAPED_RADIO_INTERFACES )
             {
                log_line("Received request from router to reload model.");

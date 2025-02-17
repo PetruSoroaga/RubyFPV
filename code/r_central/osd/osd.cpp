@@ -370,7 +370,7 @@ float osd_show_flight_mode(float x, float y)
    g_pRenderEngine->drawRect(x, y, w, osd_getBarHeight() );
 
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( (pCS->iDeveloperMode || ((g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].pModel != NULL) && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].pModel->bDeveloperMode)) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-70) )
+   if ( pCS->iDeveloperMode && ((g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].pModel != NULL) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry > g_TimeNow-70)) )
       g_pRenderEngine->setColors(get_Color_Dev());
    else
       osd_set_colors();
@@ -789,6 +789,8 @@ float osd_show_cpus(float xPos, float yPos, float fScale )
    if ( NULL != g_pCurrentModel && (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT) )
       bMultiLine = true;
 
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+
    osd_set_colors();
 
    // Vehicle side
@@ -798,11 +800,13 @@ float osd_show_cpus(float xPos, float yPos, float fScale )
    {
       if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
       {
-         Preferences* p = get_Preferences();
-         if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%d F",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature)));
+         bool bF = false;
+         if ( (NULL != pActiveModel) && (pActiveModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F) )
+            bF = true;
+         if ( bF )
+            sprintf(szBuff, "%d F",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature), true));
          else
-            sprintf(szBuff, "%d C",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature)));
+            sprintf(szBuff, "%d C",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature), false));
          if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature >= 70 )
          if ( (g_TimeNow/500)%2 )
             g_pRenderEngine->setColors(get_Color_IconWarning());
@@ -875,11 +879,13 @@ float osd_show_cpus(float xPos, float yPos, float fScale )
          xPos = x0;
       }
 
-      Preferences* p = get_Preferences();
-      if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
-         sprintf(szBuff, "%d F",  (int)osd_convertTemperature(g_iControllerCPUTemp));
+      bool bF = false;
+      if ( (NULL != pActiveModel) && (pActiveModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F) )
+         bF = true;
+      if ( bF )
+         sprintf(szBuff, "%d F",  (int)osd_convertTemperature(g_iControllerCPUTemp, true));
       else
-         sprintf(szBuff, "%d C",  (int)osd_convertTemperature(g_iControllerCPUTemp));
+         sprintf(szBuff, "%d C",  (int)osd_convertTemperature(g_iControllerCPUTemp, false));
 
       if ( g_iControllerCPUTemp >= 70 )
       if ( (g_TimeNow/500)%2 )
@@ -2454,10 +2460,11 @@ void osd_render_elements()
          strcpy(szBuff, "N/A");
       else
       {
-         if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
-            sprintf(szBuff, "%d F", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0));
+         //if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
+         if ( (NULL != pActiveModel) && (pActiveModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F) )
+            sprintf(szBuff, "%d F", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0, true));
          else
-            sprintf(szBuff, "%d C", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0));
+            sprintf(szBuff, "%d C", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0, false));
       }
       xEnd3 -= osd_show_value_left(xStart,yTemp, szBuff, g_idFontOSD);
       xEnd3 -= height_text*0.15;

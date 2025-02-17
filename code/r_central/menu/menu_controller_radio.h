@@ -16,13 +16,14 @@ class MenuControllerRadio: public Menu
 
    private:
       void addItems();
+      void addItemsFixedPower();
+      void addItemsVehiclePower();
       MenuItemSelect* m_pItemsSelect[15];
       MenuItemSlider* m_pItemsSlider[10];
 
-      int m_iMaxPowerMw;
-
       int m_IndexTxPowerMode;
-      int m_IndexTxPower;
+      int m_IndexTxPowerSingle;
+      int m_IndexTxPowerRadioLinks[MAX_RADIO_INTERFACES];
       int m_IndexRadioConfig;
       
 };

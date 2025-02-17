@@ -62,7 +62,13 @@ MenuController::MenuController(void)
    m_bShownHDMIChangeNotif = false;
    m_bWaitingForUserFinishUpdateConfirmation = false;
    m_iMustStartUpdate = 0;
-      
+}
+
+void MenuController::onShow()
+{
+   int iTmp = getSelectedMenuItemIndex();
+   removeAllItems();
+
    m_IndexVideo = addMenuItem(new MenuItem("Audio & Video Output", "Change Audio and Video Output Settings (HDMI, USB Tethering, Audio output device)"));
    //m_pMenuItems[m_IndexVideo]->showArrow();
 
@@ -120,6 +126,14 @@ MenuController::MenuController(void)
    m_IndexPlugins = addMenuItem(new MenuItem("Manage Plugins", "Configure, add and remove controller software plugins."));
    m_IndexUpdate = addMenuItem(new MenuItem("Update Software", "Updates software on this controller using a USB memory stick."));
    m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));
+   
+   Menu::onShow();
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex < 0 )
+      m_SelectedIndex = 0;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
 }
 
 void MenuController::valuesToUI()

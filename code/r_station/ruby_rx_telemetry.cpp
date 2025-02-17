@@ -239,44 +239,6 @@ void _process_data_rc_telemetry(u8* pBuffer, int length)
       g_pProcessStats->timeLastReceivedPacket = g_TimeNow;
 }
 
-void _process_data_video_link_stats(u8* pBuffer, int length)
-{
-   if ( NULL != g_pProcessStats )
-      g_pProcessStats->timeLastReceivedPacket = g_TimeNow;
-}
-
-void _process_packet_vehicle_tx_history(u8* pBuffer, int length)
-{
-   t_packet_header* pPH = (t_packet_header*)pBuffer;
-   //t_packet_header_vehicle_tx_history* pPHVTX = (t_packet_header_vehicle_tx_history*)(pBuffer + sizeof(t_packet_header));
-   
-   if ( pPH->total_length != sizeof(t_packet_header) + sizeof(t_packet_header_vehicle_tx_history) )
-   {
-      // Different version maybe (different size)
-      return;
-   }
-
-   //pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
-   //pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
-   //ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
-}
-
-void _process_packet_vehicle_rx_stats(u8* pBuffer, int length)
-{
-   t_packet_header* pPH = (t_packet_header*)pBuffer;
-   
-   u8 countCards = pBuffer[sizeof(t_packet_header)];
-   if ( pPH->total_length != sizeof(t_packet_header) + sizeof(u8) + countCards * sizeof(shared_mem_radio_stats_radio_interface) )
-   {
-      // Different version maybe (different size)
-      return;
-   }
-   //pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
-   //pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
-   //ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);
-}
-
-
 void upload_telemetry_packet()
 {
    if ( NULL == g_pCurrentModel || g_pCurrentModel->is_spectator )
@@ -552,12 +514,6 @@ void try_read_messages_from_router()
          process_data_telemetry_raw_download(s_BufferTelemetryDownlink, pPH->total_length);
       else if ( pPH->packet_type == PACKET_TYPE_RC_TELEMETRY )
          _process_data_rc_telemetry(s_BufferTelemetryDownlink, pPH->total_length);
-      else if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_STATS )
-         _process_data_video_link_stats(s_BufferTelemetryDownlink, pPH->total_length);
-      else if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_TX_HISTORY )
-         _process_packet_vehicle_tx_history(s_BufferTelemetryDownlink, pPH->total_length);
-      else if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_VEHICLE_RX_CARDS_STATS )
-         _process_packet_vehicle_rx_stats(s_BufferTelemetryDownlink, pPH->total_length);
    }
 }
 

@@ -35,4 +35,4 @@ bool handle_commands_has_received_vehicle_core_plugins_info();
 
 void handle_commands_initiate_file_upload(u32 uFileId, const char* szFileName);
 
-bool handle_commands_send_developer_flags(bool bEnableDevMode, u32 uDevFlags);
+bool handle_commands_send_developer_flags(int iEnableDevMode, u32 uDevFlags);

@@ -214,11 +214,12 @@ void MenuSystemDevStats::onSelectItem()
    
    if ( m_IndexDevStatsVehicleTx == m_SelectedIndex )
    {
+      ControllerSettings* pCS = get_ControllerSettings();
       if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
       return;    
    }

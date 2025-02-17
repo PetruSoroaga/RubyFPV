@@ -37,7 +37,7 @@
 #include "menu_item_legend.h"
 #include "../process_router_messages.h"
 
-int s_ArrayTestRadioRates[] = {6000000, 18000000, 24000000, 36000000, 48000000, -1, -2, -3, -4, -5};
+int s_ArrayTestRadioRates[] = {6000000, 12000000, 18000000, 24000000, 36000000, 48000000, -1, -2, -3, -4, -5};
 
 
 MenuNegociateRadio::MenuNegociateRadio(void)
@@ -264,6 +264,27 @@ float MenuNegociateRadio::_getComputedQualityForDatarate(int iDatarate, int* pTe
    return fQuality;
 }
 
+
+float MenuNegociateRadio::_getMinComputedQualityForDatarate(int iDatarate, int* pTestIndex)
+{
+   float fQuality = 100.0;
+   for( int iTest=0; iTest<m_iIndexFirstRadioFlagsTest; iTest++ )
+   {
+      if ( iTest > m_iCurrentTestIndex )
+         break;
+      if ( m_TestStepsInfo[iTest].iDataRateToTest != iDatarate )
+         continue;
+
+      if ( m_TestStepsInfo[iTest].fComputedQuality < fQuality )
+      {
+         fQuality = m_TestStepsInfo[iTest].fComputedQuality;
+         if ( NULL != pTestIndex )
+            *pTestIndex = iTest;
+      }
+   }
+   return fQuality;
+}
+
 void MenuNegociateRadio::_send_command_to_vehicle()
 {
    t_packet_header PH;
@@ -351,6 +372,13 @@ void MenuNegociateRadio::_advance_to_next_step()
       for( int i=m_iCurrentTestIndex; i<m_iTestsCount; i++ )
          m_TestStepsInfo[m_iTestsCount].iDataRateToTest = m_iDataRateToApply;
       strcpy(m_szStatusMessage2, L("Testing modulation schemes parameters"));
+
+      if ( m_iDataRateToApply > 0 )
+      {
+         m_iCurrentTestIndex = m_iTestsCount-1;
+         _switch_to_step(NEGOCIATE_RADIO_STEP_END);
+         return;
+      }
    }
    _switch_to_step(m_iStep);
 }
@@ -362,8 +390,9 @@ void MenuNegociateRadio::_compute_datarate_settings_to_apply()
    m_iIndexTestDataRateToApply = -1;
    _computeQualities();
 
-   int iTest6, iTest18, iTest24, iTest48, iTestMCS0, iTestMCS1, iTestMCS2, iTestMCS3, iTestMCS4;
+   int iTest6, iTest12, iTest18, iTest24, iTest48, iTestMCS0, iTestMCS1, iTestMCS2, iTestMCS3, iTestMCS4;
    float fQuality6 = _getComputedQualityForDatarate(6000000, &iTest6);
+   float fQuality12 = _getComputedQualityForDatarate(12000000, &iTest12);
    float fQuality18 = _getComputedQualityForDatarate(18000000, &iTest18);
    float fQuality24 = _getComputedQualityForDatarate(24000000, &iTest24);
    float fQuality48 = _getComputedQualityForDatarate(48000000, &iTest48);
@@ -373,6 +402,18 @@ void MenuNegociateRadio::_compute_datarate_settings_to_apply()
    float fQualityMCS3 = _getComputedQualityForDatarate(-4, &iTestMCS3);
    float fQualityMCS4 = _getComputedQualityForDatarate(-5, &iTestMCS4);
    
+   float fQualityMin6 = _getMinComputedQualityForDatarate(6000000, &iTest6);
+   float fQualityMin12 = _getMinComputedQualityForDatarate(12000000, &iTest12);
+   float fQualityMin18 = _getMinComputedQualityForDatarate(18000000, &iTest18);
+   float fQualityMin24 = _getMinComputedQualityForDatarate(24000000, &iTest24);
+   float fQualityMin48 = _getMinComputedQualityForDatarate(48000000, &iTest48);
+   float fQualityMinMCS0 = _getMinComputedQualityForDatarate(-1, &iTestMCS0);
+   float fQualityMinMCS1 = _getMinComputedQualityForDatarate(-2, &iTestMCS1);
+   float fQualityMinMCS2 = _getMinComputedQualityForDatarate(-3, &iTestMCS2);
+   float fQualityMinMCS3 = _getMinComputedQualityForDatarate(-4, &iTestMCS3);
+   float fQualityMinMCS4 = _getMinComputedQualityForDatarate(-5, &iTestMCS4);
+
+   /*
    if ( fQualityMCS4 > 0.99 )
    {
       m_fQualityOfDataRateToApply = fQualityMCS4;
@@ -385,12 +426,15 @@ void MenuNegociateRadio::_compute_datarate_settings_to_apply()
       m_iIndexTestDataRateToApply = iTestMCS3;
       m_iDataRateToApply = -4;
    }
-   else if ( fQualityMCS2 > fQuality18 )
+   else 
+   */
+   if ( (fQualityMinMCS2 > 0.9) && (fQualityMCS2 >= fQuality18*0.98) )
    {
       m_fQualityOfDataRateToApply = fQualityMCS2;
       m_iIndexTestDataRateToApply = iTestMCS2;
       m_iDataRateToApply = -3;
    }
+   /*
    else if ( fQuality48 > 0.99 )
    {
       m_fQualityOfDataRateToApply = fQuality48;
@@ -403,6 +447,7 @@ void MenuNegociateRadio::_compute_datarate_settings_to_apply()
       m_iIndexTestDataRateToApply = iTest24;
       m_iDataRateToApply = 24000000;
    }
+   */
    else
    {
       m_fQualityOfDataRateToApply = fQuality18;
@@ -434,20 +479,26 @@ void MenuNegociateRadio::_apply_new_settings()
 
    float fBestFlagsQuality = 0.0;
 
-   for( int i=m_iIndexFirstRadioFlagsTest; i<m_iTestsCount; i++ )
+   if ( m_iDataRateToApply < 0 )
    {
-      float fQuality = m_TestStepsInfo[i].fComputedQuality;
-      log_line("Quality of radio flags (%s): %.3f", str_get_radio_frame_flags_description2(m_TestStepsInfo[i].uFlagsToTest), fQuality);
-      if ( fQuality > 0.5 )
-      if ( fQuality > fBestFlagsQuality )
+      for( int i=m_iIndexFirstRadioFlagsTest; i<m_iTestsCount; i++ )
       {
-         fBestFlagsQuality = fQuality;
-         if ( fQuality >= m_fQualityOfDataRateToApply*0.92 )
+         float fQuality = m_TestStepsInfo[i].fComputedQuality;
+         log_line("Quality of radio flags (%s): %.3f", str_get_radio_frame_flags_description2(m_TestStepsInfo[i].uFlagsToTest), fQuality);
+         if ( fQuality > 0.5 )
+         if ( fQuality > fBestFlagsQuality )
          {
-            log_line("New greater radio flags quality: %.3f", fQuality);
-            m_fQualityOfDataRateToApply = fQuality;
-            m_uRadioFlagsToApply &= ~(RADIO_FLAG_STBC_VEHICLE | RADIO_FLAG_LDPC_VEHICLE);
-            m_uRadioFlagsToApply |= m_TestStepsInfo[i].uFlagsToTest;
+            fBestFlagsQuality = fQuality;
+            if ( fQuality >= m_fQualityOfDataRateToApply*0.92 )
+            {
+               log_line("New greater radio flags quality: %.3f", fQuality);
+               m_fQualityOfDataRateToApply = fQuality;
+               m_uRadioFlagsToApply &= ~(RADIO_FLAG_STBC_VEHICLE | RADIO_FLAG_LDPC_VEHICLE);
+               m_uRadioFlagsToApply |= m_TestStepsInfo[i].uFlagsToTest;
+               if ( m_uRadioFlagsToApply & RADIO_FLAG_LDPC_VEHICLE )
+               if ( !(m_uRadioFlagsToApply & RADIO_FLAG_STBC_VEHICLE) )
+                  m_uRadioFlagsToApply &= ~(RADIO_FLAG_LDPC_VEHICLE);
+            }
          }
       }
    }

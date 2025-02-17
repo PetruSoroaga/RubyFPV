@@ -20,7 +20,6 @@ class MenuVehicleOSDStats: public Menu
       int m_IndexRadioRxHistoryControllerBig;
       int m_IndexRadioRxHistoryVehicle;
       int m_IndexRadioRxHistoryVehicleBig;
-      int m_IndexRadioRxGraphController;
       int m_IndexAudioDecodeStats;
       int m_IndexVehicleDevStats;
       int m_IndexRadioRefreshInterval, m_IndexVideoRefreshInterval, m_IndexSnapshot, m_IndexSnapshotTimeout;

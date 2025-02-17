@@ -106,7 +106,7 @@ void _synchronize_shared_mems()
    }
    //---------------------------------------------
    
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   if ( (NULL != g_pCurrentModel) && g_pControllerSettings->iDeveloperMode )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    if ( g_TimeNow >= g_SM_VideoFramesStatsOutput.uLastTimeStatsUpdate + 200 )
    {
@@ -236,10 +236,15 @@ void _check_send_pairing_requests()
       radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_RUBY_PAIRING_REQUEST, STREAM_ID_DATA);
       PH.vehicle_id_src = g_uControllerId;
       PH.vehicle_id_dest = pModel->uVehicleId;
-      PH.total_length = sizeof(t_packet_header) + sizeof(u32);
+      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u32);
+      u32 uDeveloperMode = 0;
+      if ( (NULL != g_pControllerSettings) && g_pControllerSettings->iDeveloperMode )
+         uDeveloperMode = 1;
       u8 packet[MAX_PACKET_TOTAL_SIZE];
       memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
       memcpy(packet + sizeof(t_packet_header), &(g_State.vehiclesRuntimeInfo[i].uPairingRequestId), sizeof(u32));
+      memcpy(packet + sizeof(t_packet_header) + sizeof(u32), &uDeveloperMode, sizeof(u32));
+      
       if ( 0 == send_packet_to_radio_interfaces(packet, PH.total_length, -1, 1, 500) )
       {
          if ( g_State.vehiclesRuntimeInfo[i].uPairingRequestId < 2 )
@@ -490,7 +495,7 @@ void router_periodic_loop()
       radio_links_set_monitor_mode();
    */
 
-   if ( radio_stats_periodic_update(&g_SM_RadioStats, &g_SM_RadioStatsInterfacesRxGraph, g_TimeNow) )
+   if ( radio_stats_periodic_update(&g_SM_RadioStats, g_TimeNow) )
    {
       for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
@@ -514,8 +519,6 @@ void router_periodic_loop()
          s_uTimeLastRadioStatsSharedMemSync = g_TimeNow;
          if ( NULL != g_pSM_RadioStats )
             memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
-         if ( NULL != g_pSM_RadioStatsInterfacesRxGraph )
-            memcpy((u8*)g_pSM_RadioStatsInterfacesRxGraph, (u8*)&g_SM_RadioStatsInterfacesRxGraph, sizeof(shared_mem_radio_stats_interfaces_rx_graph));
       }
 
       bool bHasRecentRxData = false;
@@ -629,10 +632,12 @@ void router_periodic_loop()
 
    static u32 s_uTimeLastCheckForRetransmissionsDevAlarm = 0;
 
+   if ( g_pControllerSettings->iDeveloperMode )
    if ( (NULL != g_pCurrentModel) && (!g_bSearching) && (!g_bUpdateInProgress) )
    if ( ! g_pCurrentModel->is_spectator )
    if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
    if ( ! test_link_is_in_progress() )
+   if ( g_TimeNow > g_TimeStart + 10000 )
    if ( g_TimeNow > test_link_get_last_finish_time() + 4000 )
    if ( ! g_bNegociatingRadioLinks )
    if ( g_TimeNow > g_uTimeEndedNegiciateRadioLink + 4000 )

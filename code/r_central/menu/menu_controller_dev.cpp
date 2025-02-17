@@ -262,7 +262,7 @@ void MenuControllerDev::onSelectItem()
       if ( NULL != g_pCurrentModel )
       if ( ! g_pCurrentModel->is_spectator )
       if ( pairing_isStarted() && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI(); 
    }
 

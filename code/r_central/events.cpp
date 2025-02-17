@@ -37,6 +37,7 @@
 #include "../radio/radiolink.h"
 #include "../common/string_utils.h"
 #include "../common/strings_table.h"
+#include "../utils/utils_controller.h"
 #include "events.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -208,6 +209,10 @@ void onEventBeforePairing()
    g_bHasVideoDataOverloadAlarm = false;
    g_bHasVideoTxOverloadAlarm = false;
    
+   g_bDidAnUpdate = false;
+   g_nSucceededOTAUpdates = 0;
+   g_bLinkWizardAfterUpdate = false;
+
    g_bGotStatsVideoBitrate = false;
    g_bGotStatsVehicleTx = false;
    g_bFreezeOSD = false;
@@ -250,6 +255,7 @@ void onEventBeforePairing()
       ControllerSettings* pCS = get_ControllerSettings();
       hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
    }
+   compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
 
    log_current_runtime_vehicles_info();
    log_line("[Event] Current VID for vehicle runtime info[0] is (if any): %u", g_VehiclesRuntimeInfo[0].uVehicleId);
@@ -441,6 +447,12 @@ bool _onEventCheck_NegociateRadioLinks(Model* pCurrentlyStoredModel, Model* pNew
        if ( 0 != strcmp(pCurrentlyStoredModel->radioInterfacesParams.interface_szMAC[i], pNewReceivedModel->radioInterfacesParams.interface_szMAC[i]) )
            g_bMustNegociateRadioLinksFlag = true;
    }
+
+   if ( g_bLinkWizardAfterUpdate )
+      g_bMustNegociateRadioLinksFlag = true;
+   
+   if ( g_bDidAnUpdate )
+      g_bMustNegociateRadioLinksFlag = false;
 
    log_line("Check if we must negociate radio links result: %s", g_bMustNegociateRadioLinksFlag?"yes":"no");
    return g_bMustNegociateRadioLinksFlag;
@@ -642,7 +654,6 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
    if ( ! bTookActions )
    if ( pNewReceivedModel->hasCamera() )
    if ( g_bMustNegociateRadioLinksFlag )
-   if ( ! g_bDidAnUpdate )
    if ( ! menu_has_menu(MENU_ID_NEGOCIATE_RADIO) )
    if ( ! menu_has_menu(MENU_ID_VEHICLE_BOARD) )
    if ( ! g_bAskedForNegociateRadioLink )
@@ -886,7 +897,6 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    log_line("Currently received temp model (VID: %u) controller ID: %u", receivedModel.uVehicleId, receivedModel.uControllerId);
    log_line("Currently received temp model (VID: %u) mode: %s. has negociated radio? %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode", (receivedModel.radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
-   log_line("Currently received temp model is in developer mode: %s, total flights: %u", receivedModel.bDeveloperMode?"yes":"no", receivedModel.m_Stats.uTotalFlights);
    log_line("Currently received temp model osd layout: %d, enabled: %s", receivedModel.osd_params.iCurrentOSDLayout, (receivedModel.osd_params.osd_flags2[receivedModel.osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
    log_line("Currently received temp model developer flags: [%s]", str_get_developer_flags(receivedModel.uDeveloperFlags));
    log_line("Currently received temp model has %d radio links.", receivedModel.radioLinksParams.links_count );
@@ -966,10 +976,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
       memcpy((u8*)&(pCurrentlyStoredModel->osd_params), (u8*)&oldOSDParams, sizeof(osd_parameters_t));
    }
 
-   log_line("Current model (VID %u) is in developer mode: %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->bDeveloperMode?"yes":"no");
    log_line("Current model (VID %u) mode: %s, has negociated radio? %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode", (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
    log_line("Current model (VID %u) on time: %02d:%02d, total flights: %u", g_pCurrentModel->uVehicleId, g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
-   log_line("Received model (VID %u) is in developer mode: %s", receivedModel.uVehicleId, receivedModel.bDeveloperMode?"yes":"no");
    log_line("Received model (VID %u) mode: %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode");
    log_line("Received model (VID %u) on time: %02d:%02d, flight time: %02d:%02d, total flights: %u", receivedModel.uVehicleId, receivedModel.m_Stats.uCurrentOnTime/60, receivedModel.m_Stats.uCurrentOnTime%60, receivedModel.m_Stats.uCurrentFlightTime/60, receivedModel.m_Stats.uCurrentFlightTime%60, receivedModel.m_Stats.uTotalFlights);
    

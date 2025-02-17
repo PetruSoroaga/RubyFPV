@@ -13,7 +13,7 @@ class MenuSystemAlarms: public Menu
       virtual void onSelectItem();
 
    private:
-      MenuItemSelect* m_pItemsSelect[10];
+      MenuItemSelect* m_pItemsSelect[15];
       MenuItemSlider* m_pItemsSlider[10];
 
       int m_IndexAllAlarms;
@@ -25,4 +25,5 @@ class MenuSystemAlarms: public Menu
       int m_IndexAlarmVehicleRxTimeout;
       int m_IndexAlarmControllerCPUOverload;
       int m_IndexAlarmControllerRxTimeout;
+      int m_IndexAlarmsDev;
 };

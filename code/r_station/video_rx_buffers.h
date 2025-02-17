@@ -54,7 +54,10 @@ class VideoRxPacketsBuffer
       // Returns true if the packet has the highest video block/packet index received (in order)
       bool checkAddVideoPacket(u8* pPacket, int iPacketLength);
 
+      u32 getMaxReceivedVideoBlockIndex();
+      u32 getMaxReceivedVideoBlockPacketIndex();
       u32 getMaxReceivedVideoBlockIndexPresentInBuffer();
+      u32 getMaxReceivedVideoBlockPacketIndexPresentInBuffer();
       bool hasFirstVideoPacketInBuffer();
       u32 getFirstVideoBlockIndexPresentInBuffer();
 
@@ -98,5 +101,6 @@ class VideoRxPacketsBuffer
       u32 m_uMaxVideoBlockIndexReceived;
       u32 m_uMaxVideoBlockPacketIndexReceived;
       u32 m_uMaxVideoBlockIndexPresentInBuffer;
+      u32 m_uMaxVideoBlockPacketIndexPresentInBuffer;
 };
 

@@ -149,6 +149,141 @@ bool _switch_to_vehicle_radio_link(int iVehicleRadioLinkId)
    return true;
 }
 
+void _compute_set_tx_power_settings()
+{
+   load_ControllerSettings();
+   load_ControllerInterfacesSettings();
+   if ( ! reloadCurrentModel() )
+      log_softerror_and_alarm("Failed to load current model.");
+ 
+   ControllerSettings* pCS = get_ControllerSettings();
+   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
+   ControllerInterfacesSettings oldCIS;
+   memcpy(&oldCIS, pCIS, sizeof(ControllerInterfacesSettings));
+     
+   int iCurrentRawPowers[MAX_RADIO_INTERFACES];
+   for(int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+      iCurrentRawPowers[i] = pCRII->iRawPowerLevel;
+   }
+
+   if ( g_bSearching )
+      compute_controller_radio_tx_powers(NULL, NULL);
+   else
+      compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
+
+   bool bChangedPowers = false;
+   for(int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      if ( ! hardware_radio_index_is_wifi_radio(i) )
+         continue;
+      if ( hardware_radio_index_is_sik_radio(i) )
+         continue;
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+      if ( iCurrentRawPowers[i] != pCRII->iRawPowerLevel )
+      {
+         bChangedPowers = true;
+         break;
+      }
+   }
+
+   if ( bChangedPowers )
+   {
+      log_line("Controller raw tx powers have been recomputed. Apply changes.");
+      save_ControllerInterfacesSettings();
+      apply_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
+      send_message_to_central(PACKET_TYPE_LOCAL_CONTROL_UPDATED_RADIO_TX_POWERS, 0, false);
+   }
+   else
+      log_line("Controller raw tx powers have not changed.");
+
+   int iSikRadioIndexToUpdate = -1;
+   int iSikOldPower = -1;
+   int iSikNewPower = -1;
+   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
+      if ( ! pRadioHWInfo->isConfigurable )
+         continue;
+      if ( !hardware_radio_index_is_sik_radio(i) )
+         continue;
+
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      if ( NULL == pCRII )
+         continue;
+
+      for( int k=0; k<oldCIS.radioInterfacesCount; k++ )
+      {
+         if ( 0 == strncmp(pRadioHWInfo->szMAC, oldCIS.listRadioInterfaces[k].szMAC, MAX_MAC_LENGTH) )
+         if ( pCRII->iRawPowerLevel != oldCIS.listRadioInterfaces[k].iRawPowerLevel )
+         {
+            iSikOldPower = oldCIS.listRadioInterfaces[k].iRawPowerLevel;
+            iSikRadioIndexToUpdate = i;
+            break;
+         }
+      }
+   }
+
+   if ( iSikRadioIndexToUpdate != -1 )
+   {
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iSikRadioIndexToUpdate);
+      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
+      iSikNewPower = pCRII->iRawPowerLevel;
+      if ( (iSikNewPower < 0) || (iSikNewPower > 20) )
+         iSikNewPower = 20;
+      log_line("SiK Tx power changed on radio interface %d from %d to %d. Updating SiK radio interface params...",
+         iSikRadioIndexToUpdate, iSikOldPower, iSikNewPower);
+      if ( g_SiKRadiosState.bConfiguringToolInProgress )
+      {
+         log_softerror_and_alarm("Another SiK configuration is in progress. Ignoring this one.");
+         return;
+      }
+
+      if ( g_SiKRadiosState.bConfiguringSiKThreadWorking )
+      {
+         log_softerror_and_alarm("SiK reinitialization thread is in progress. Ignoring this notification.");
+         return;
+      }
+
+      if ( g_SiKRadiosState.bMustReinitSiKInterfaces )
+      {
+         log_softerror_and_alarm("SiK reinitialization is already flagged. Ignoring this notification.");
+         return;
+      }
+
+      radio_links_close_and_mark_sik_interfaces_to_reopen();
+      g_SiKRadiosState.bConfiguringToolInProgress = true;
+      g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
+         
+      char szCommand[128];
+      sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
+      hw_execute_bash_command(szCommand, NULL);
+
+      sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", iSikNewPower);
+      hw_execute_bash_command(szCommand, NULL);
+
+      // Do not need to notify other components. Just return.
+      return;
+   }
+}
+
 bool _switch_to_vehicle(Model* pTmp)
 {
    video_processors_cleanup();
@@ -193,79 +328,8 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    if ( uChangeType == MODEL_CHANGED_RADIO_POWERS )
    {
       log_line("Received local notification that radio powers have changed.");
-      load_ControllerSettings();
-      load_ControllerInterfacesSettings();
-      
-      apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, false);
-
-      int iSikRadioIndexToUpdate = -1;
-      int iSikOldPower = -1;
-      int iSikNewPower = -1;
-      for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-         if ( ! pRadioHWInfo->isConfigurable )
-            continue;
-         if ( !hardware_radio_index_is_sik_radio(i) )
-            continue;
-
-         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-         if ( NULL == pCRII )
-            continue;
-
-         for( int k=0; k<oldCIS.radioInterfacesCount; k++ )
-         {
-            if ( 0 == strncmp(pRadioHWInfo->szMAC, oldCIS.listRadioInterfaces[k].szMAC, MAX_MAC_LENGTH) )
-            if ( pCRII->iRawPowerLevel != oldCIS.listRadioInterfaces[k].iRawPowerLevel )
-            {
-               iSikOldPower = oldCIS.listRadioInterfaces[k].iRawPowerLevel;
-               iSikRadioIndexToUpdate = i;
-               break;
-            }
-         }
-      }
-
-      if ( iSikRadioIndexToUpdate != -1 )
-      {
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iSikRadioIndexToUpdate);
-         t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-         iSikNewPower = pCRII->iRawPowerLevel;
-         if ( (iSikNewPower < 0) || (iSikNewPower > 20) )
-            iSikNewPower = 20;
-         log_line("SiK Tx power changed on radio interface %d from %d to %d. Updating SiK radio interface params...",
-            iSikRadioIndexToUpdate, iSikOldPower, iSikNewPower);
-         if ( g_SiKRadiosState.bConfiguringToolInProgress )
-         {
-            log_softerror_and_alarm("Another SiK configuration is in progress. Ignoring this one.");
-            return;
-         }
-
-         if ( g_SiKRadiosState.bConfiguringSiKThreadWorking )
-         {
-            log_softerror_and_alarm("SiK reinitialization thread is in progress. Ignoring this notification.");
-            return;
-         }
-
-         if ( g_SiKRadiosState.bMustReinitSiKInterfaces )
-         {
-            log_softerror_and_alarm("SiK reinitialization is already flagged. Ignoring this notification.");
-            return;
-         }
-
-         radio_links_close_and_mark_sik_interfaces_to_reopen();
-         g_SiKRadiosState.bConfiguringToolInProgress = true;
-         g_SiKRadiosState.uTimeStartConfiguring = g_TimeNow;
-            
-         char szCommand[128];
-         sprintf(szCommand, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_SIK_CONFIG_FINISHED);
-         hw_execute_bash_command(szCommand, NULL);
-
-         sprintf(szCommand, "./ruby_sik_config none 0 -power %d &", iSikNewPower);
-         hw_execute_bash_command(szCommand, NULL);
-
-         // Do not need to notify other components. Just return.
-         return;
-      }
+      _compute_set_tx_power_settings();
+      return;
    }
 
    // Reload new model state
@@ -605,18 +669,7 @@ void process_local_control_packet(t_packet_header* pPH)
       }
 
       _switch_to_vehicle(pTmp);
-
-      t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE, STREAM_ID_DATA);
-      PH.vehicle_id_src = pPH->vehicle_id_dest;
-      PH.vehicle_id_dest = pPH->vehicle_id_dest;
-      PH.total_length = sizeof(t_packet_header);
-
-      u8 packet[MAX_PACKET_TOTAL_SIZE];
-      memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-      radio_packet_compute_crc(packet, PH.total_length);
-      if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
-         log_softerror_and_alarm("No pipe to central to send message to.");
+      send_message_to_central(PACKET_TYPE_LOCAL_CONTROL_SWITCH_FAVORIVE_VEHICLE, pPH->vehicle_id_dest, false);
       return;
    }
 
@@ -726,6 +779,7 @@ void process_local_control_packet(t_packet_header* pPH)
          radio_rx_pause_interface(i, "Controller search freq changed");
       links_set_cards_frequencies_for_search((int)pPH->vehicle_id_dest, false, -1,-1,-1,-1 );
       hardware_save_radio_info();
+      g_uSearchFrequency = pPH->vehicle_id_dest;
       log_line("Switched search frequency to %s. Broadcasting that router is ready.", str_format_frequency(pPH->vehicle_id_dest));
       broadcast_router_ready();
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -944,8 +998,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
       if ( NULL != g_pControllerSettings )
          radio_stats_set_graph_refresh_interval(&g_SM_RadioStats, g_pControllerSettings->nGraphRadioRefreshInterval);
-      radio_stats_interfaces_rx_graph_reset(&g_SM_RadioStatsInterfacesRxGraph, 10);
-
+      
       if ( NULL != g_pControllerSettings )
       {
          log_line("Set new radio rx/tx threads priorities: %d/%d (adjustments enabled: %d)", g_pControllerSettings->iRadioRxThreadPriority, g_pControllerSettings->iRadioTxThreadPriority, g_pControllerSettings->iPrioritiesAdjustment);

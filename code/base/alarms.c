@@ -146,6 +146,7 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       switch ( uFlags1 )
       {
          case ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF: strcpy(szFlags1, "ALARM_FLAG_DEVELOPER_ALARM_RETRANSMISSIONS_OFF"); break;
+         case ALARM_FLAG_DEVELOPER_ALARM_UDP_SKIPPED: strcpy(szFlags1, "ALARM_FLAG_DEVELOPER_ALARM_UDP_SKIPPED"); break;
          default: sprintf(szFlags1, "Unknown (%d)", uFlags1);
 
       }

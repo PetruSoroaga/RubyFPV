@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
    while (!quit)
    {
       g_TimeNow = get_current_timestamp_ms();
-      radio_stats_periodic_update(&g_SM_RadioStats, NULL, g_TimeNow);
+      radio_stats_periodic_update(&g_SM_RadioStats, g_TimeNow);
 
       int nResult = try_read_packets(iInterfaceIndex);
 

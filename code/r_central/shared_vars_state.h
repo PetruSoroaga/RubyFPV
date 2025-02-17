@@ -70,7 +70,7 @@ typedef struct
    type_u32_couters vehicleDebugRouterCounters;
    type_radio_tx_timers vehicleDebugRadioTxTimers;
 
-   t_packet_header_ruby_telemetry_extended_v3 headerRubyTelemetryExtended;
+   t_packet_header_ruby_telemetry_extended_v4 headerRubyTelemetryExtended;
    t_packet_header_ruby_telemetry_extended_extra_info headerRubyTelemetryExtraInfo;
    t_packet_header_ruby_telemetry_extended_extra_info_retransmissions headerRubyTelemetryExtraInfoRetransmissions;
    t_packet_header_ruby_telemetry_short headerRubyTelemetryShort;
@@ -156,7 +156,9 @@ extern bool g_bFirstModelPairingDone;
 extern bool g_bIsFirstConnectionToCurrentVehicle;
 extern bool g_bVideoLost;
 
+extern bool g_bDidAnUpdate;
 extern bool g_bUpdateInProgress;
+extern bool g_bLinkWizardAfterUpdate;
 extern int g_nFailedOTAUpdates;
 extern int g_nSucceededOTAUpdates;
 
@@ -182,6 +184,6 @@ void reset_vehicle_telemetry_runtime_info(t_structure_vehicle_info* pInfo);
 void shared_vars_state_reset_all_vehicles_runtime_info();
 void reset_model_settings_download_buffers(u32 uVehicleId);
 t_structure_vehicle_info* get_vehicle_runtime_info_for_vehicle_id(u32 uVehicleId);
-t_packet_header_ruby_telemetry_extended_v3* get_received_relayed_vehicle_telemetry_info();
+t_packet_header_ruby_telemetry_extended_v4* get_received_relayed_vehicle_telemetry_info();
 void log_current_runtime_vehicles_info();
 bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId);

@@ -175,6 +175,7 @@ typedef struct
    u32 uFlags;
      // bit 0,1,2: MSO OSD font: 0 - auto, 1 - BF, 2 - INAV
      // bit 3: show flight end stats
+     // bit 4: show temps in F
 } osd_parameters_t;
 
 
@@ -496,7 +497,7 @@ class Model
       Model();
 
       bool b_mustSyncFromVehicle; // non persistent
-      bool bDeveloperMode;
+      u32 uDummyM1;
       u32 uDeveloperFlags;
         // byte 0:
         //    bit 0: enable live log
@@ -620,6 +621,7 @@ class Model
       int getLastSwappedRadioInterface2();
       bool rotateRadioLinksOrder();
 
+      bool radioInterfaceIsWiFiRadio(int iRadioInterfaceIndex);
       bool radioLinkIsWiFiRadio(int iRadioLinkIndex);
       bool radioLinkIsSiKRadio(int iRadioLinkIndex);
       bool radioLinkIsELRSRadio(int iRadioLinkIndex);
@@ -646,8 +648,9 @@ class Model
       void getCameraFlags(char* szCameraFlags);
       // To fix
       void getVideoFlags(char* szVideoFlags, int iVideoProfile);//, shared_mem_video_link_overwrites* pVideoOverwrites);
-      void populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
+      void populateVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE);
       void populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
+      void populateFromVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE);
 
       void copy_video_link_profile(int from, int to);
       int get_video_profile_total_levels(int iProfile);

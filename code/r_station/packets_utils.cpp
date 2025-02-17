@@ -472,29 +472,28 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
 
    int totalLength = radio_build_new_raw_ieee_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_UPLINK, be);
    int iRepeatCount = 0;
-   bool bDuplicate = false;
+   bool bShouldDuplicate = false;
 
    t_packet_header* pPH = (t_packet_header*)pPacketData;
    if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) ||
         (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE) ||
         (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL) )
-      bDuplicate = true;
+      bShouldDuplicate = true;
 
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
    if ( pPH->packet_type == PACKET_TYPE_COMMAND )
    {
-      t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketData + sizeof(t_packet_header));
-      if ( pPHC->command_type == COMMAND_ID_SET_RADIO_LINK_FREQUENCY )
-         bDuplicate = true;
-   }
-
-   if ( bDuplicate )
-   {
-      iRepeatCount++;
       Model* pModel = findModelWithId(pPH->vehicle_id_dest, 7);
       if ( (NULL != pModel) && (pModel->uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK) )
-         iRepeatCount++;
+      {
+         t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketData + sizeof(t_packet_header));
+         if ( pPHC->command_type == COMMAND_ID_SET_RADIO_LINK_FREQUENCY )
+            bShouldDuplicate = true;
+      }
    }
+
+   if ( bShouldDuplicate )
+      iRepeatCount++;
 
    if ( radio_write_raw_ieee_packet(iRadioInterfaceIndex, s_RadioRawPacket, totalLength, iRepeatCount) )
    {
@@ -519,6 +518,7 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    return false;
 }
 
+// Returns -1 on error, 0 on success
 int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSendToSingleRadioLink, int iRepeatCount, int iTraceSource)
 {
    if ( nPacketLength <= 0 )
@@ -655,42 +655,42 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
          log_line("[Raw_Telem] Send raw telemetry packet to radio interfaces, index %u, %d / %d bytes", pPHTR->telem_segment_index, pPH->total_length - sizeof(t_packet_header) - sizeof(t_packet_header_telemetry_raw), pPH->total_length);
       }
       #endif
+      return 0;
    }
-   else
+
+   log_softerror_and_alarm("Packet not sent! No radio interface could send it. Packet type: %s", str_get_packet_type(uPacketType));
+   char szFreq1[64];
+   char szFreq2[64];
+   char szFreq3[64];
+   char szTmp[256];
+   strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+   strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
+   strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[2]));
+
+   log_softerror_and_alarm("Current local radio links: %d, current model links frequencies: 1: %s, 2: %s, 3: %s", g_SM_RadioStats.countLocalRadioLinks, szFreq1, szFreq2, szFreq3 );
+   for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
    {
-      log_softerror_and_alarm("Packet not sent! No radio interface could send it. Packet type: %s", str_get_packet_type(uPacketType));
-      char szFreq1[64];
-      char szFreq2[64];
-      char szFreq3[64];
-      char szTmp[256];
-      strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
-      strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
-      strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[2]));
+      int iVehicleRadioLinkId = g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId;
 
-      log_softerror_and_alarm("Current local radio links: %d, current model links frequencies: 1: %s, 2: %s, 3: %s", g_SM_RadioStats.countLocalRadioLinks, szFreq1, szFreq2, szFreq3 );
-      for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
+      int nicIndex = iTXInterfaceIndexForLocalRadioLinks[i];
+      if ( nicIndex < 0 || nicIndex > hardware_get_radio_interfaces_count() )
       {
-         int iVehicleRadioLinkId = g_SM_RadioStats.radio_links[i].matchingVehicleRadioLinkId;
-
-         int nicIndex = iTXInterfaceIndexForLocalRadioLinks[i];
-         if ( nicIndex < 0 || nicIndex > hardware_get_radio_interfaces_count() )
-         {
-            log_softerror_and_alarm("No radio interfaces assigned for Tx on local radio link %d.", i+1);
-            continue;          
-         }
-         radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(nicIndex);
-         if ( NULL == pRadioHWInfo )
-         {
-            log_softerror_and_alarm("Can't get NIC info for radio interface %d", nicIndex+1);
-            continue;
-         }
-         log_softerror_and_alarm("Current radio interface used for TX on local radio link %d, vehicle radio link %d: %d, freq: %s",
-            i+1, iVehicleRadioLinkId+1, nicIndex+1, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));    
-         str_get_radio_capabilities_description(g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId], szTmp);
-         log_softerror_and_alarm("Current vehicle radio link %d capabilities: %s", iVehicleRadioLinkId+1, szTmp);
+         log_softerror_and_alarm("No radio interfaces assigned for Tx on local radio link %d.", i+1);
+         continue;          
       }
+      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(nicIndex);
+      if ( NULL == pRadioHWInfo )
+      {
+         log_softerror_and_alarm("Can't get NIC info for radio interface %d", nicIndex+1);
+         continue;
+      }
+      log_softerror_and_alarm("Current radio interface used for TX on local radio link %d, vehicle radio link %d: %d, freq: %s",
+         i+1, iVehicleRadioLinkId+1, nicIndex+1, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));    
+      str_get_radio_capabilities_description(g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId], szTmp);
+      log_softerror_and_alarm("Current vehicle radio link %d capabilities: %s", iVehicleRadioLinkId+1, szTmp);
    }
-   return 0;
+
+   return -1;
 }
 
 int get_controller_radio_link_stats_size()

@@ -1035,7 +1035,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
    if ( s_bEnableVideoOutputStreamParsing )
       bParseStream = true;
 
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->bDeveloperMode )
+   if ( (NULL != g_pCurrentModel) && g_pControllerSettings->iDeveloperMode )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
    if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )

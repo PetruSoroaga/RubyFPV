@@ -35,8 +35,9 @@
 // param: byte 0: auto adjust vehicle power
 // param: byte 1: auto adjust controller power
 
-// Deprecated in 10.1
-//#define COMMAND_ID_SET_RADIO_THRESH62 10
+#define COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES 10
+// param: byte 0: radio interface index
+// param: byte 1..4: 3 bytes of interface capabilities flags
 
 #define COMMAND_ID_SET_RADIO_CARD_MODEL 11
 // param: low byte: card index, second byte: card model (if 0xFF, then autodetect it again)
@@ -57,10 +58,12 @@
 #define COMMAND_ID_SET_IONICE_VALUES 17
 #define COMMAND_ID_SET_ENABLE_DHCP 18
 
-// Deperecated in 8.1
-//#define COMMAND_ID_SET_RADIO_LINK_DATARATES 19 // added in v7.6
+#define COMMAND_ID_SET_RADIO_LINK_DATARATES 19
 // param: radio link index
-// data: type_radio_links_parameters structure
+// data: (int) datarate video downlink
+//       (int) datarate data downlink
+//       (int) datarate video uplink
+//       (int) datarate data uplink
 
 #define COMMAND_ID_REBOOT 20
 #define COMMAND_ID_RESET_ALL_TO_DEFAULTS 21
@@ -210,9 +213,6 @@ typedef struct
 
 
 #define COMMAND_ID_DEBUG_GET_TOP 201
-
-#define COMMAND_ID_ENABLE_DEBUG 202
-// param - 0/1 to enable debug (developer mode)
 
 #define COMMAND_ID_ENABLE_LIVE_LOG 203
 // param - 0/1 to enable live log

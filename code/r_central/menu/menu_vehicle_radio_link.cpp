@@ -672,7 +672,7 @@ void MenuVehicleRadioLink::valuesToUI()
 
    if ( m_bMustSelectDatarate )
    {
-      m_pItemsSelect[11]->setSelectedIndex(0);
+      //m_pItemsSelect[11]->setSelectedIndex(0);
       m_pItemsSelect[11]->setEnabled(false);
   }
    //char szBands[128];
@@ -850,18 +850,19 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
    else
       radioFlags |= RADIO_FLAGS_USE_LEGACY_DATARATES;
 
-   // Clear all MCS flags
-   radioFlags &= ~RADIO_FLAGS_MCS_MASK;
+   // Clear and set channel bandwidth
+   radioFlags &= ~(RADIO_FLAG_HT40_VEHICLE | RADIO_FLAG_HT40_CONTROLLER);
+   if ( 1 == m_pItemsSelect[11]->getSelectedIndex() )
+      radioFlags |= RADIO_FLAG_HT40_VEHICLE;
+   else if ( 2 == m_pItemsSelect[11]->getSelectedIndex() )
+      radioFlags |= RADIO_FLAG_HT40_CONTROLLER;
+   else if ( 3 == m_pItemsSelect[11]->getSelectedIndex() )
+      radioFlags |= RADIO_FLAG_HT40_VEHICLE | RADIO_FLAG_HT40_CONTROLLER;
 
    if ( bIsMCSRates )
    {
-      if ( 1 == m_pItemsSelect[11]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_HT40_VEHICLE;
-      else if ( 2 == m_pItemsSelect[11]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_HT40_CONTROLLER;
-      else if ( 3 == m_pItemsSelect[11]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_HT40_VEHICLE | RADIO_FLAG_HT40_CONTROLLER;
-     
+      radioFlags &= ~RADIO_FLAGS_MCS_MASK;
+        
       if ( 1 == m_pItemsSelect[12]->getSelectedIndex() )
          radioFlags |= RADIO_FLAG_LDPC_VEHICLE;
       else if ( 2 == m_pItemsSelect[12]->getSelectedIndex() )
@@ -875,16 +876,16 @@ void MenuVehicleRadioLink::sendRadioLinkConfig(int iRadioLink)
          radioFlags |= RADIO_FLAG_SGI_CONTROLLER;
       else if ( 3 == m_pItemsSelect[13]->getSelectedIndex() )
          radioFlags |= RADIO_FLAG_SGI_VEHICLE | RADIO_FLAG_SGI_CONTROLLER;
-   }
 
-   if ( NULL != m_pItemsSelect[14] )
-   {
-      if ( 1 == m_pItemsSelect[14]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_STBC_VEHICLE;
-      else if ( 2 == m_pItemsSelect[14]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_STBC_CONTROLLER;
-      else if ( 3 == m_pItemsSelect[14]->getSelectedIndex() )
-         radioFlags |= RADIO_FLAG_STBC_VEHICLE | RADIO_FLAG_STBC_CONTROLLER;
+      if ( NULL != m_pItemsSelect[14] )
+      {
+         if ( 1 == m_pItemsSelect[14]->getSelectedIndex() )
+            radioFlags |= RADIO_FLAG_STBC_VEHICLE;
+         else if ( 2 == m_pItemsSelect[14]->getSelectedIndex() )
+            radioFlags |= RADIO_FLAG_STBC_CONTROLLER;
+         else if ( 3 == m_pItemsSelect[14]->getSelectedIndex() )
+            radioFlags |= RADIO_FLAG_STBC_VEHICLE | RADIO_FLAG_STBC_CONTROLLER;
+      }
    }
    newRadioLinkParams.link_radio_flags[iRadioLink] = radioFlags;
 

@@ -215,6 +215,7 @@ const char* hardware_get_radio_name(int iRadioIndex);
 const char* hardware_get_radio_description(int iRadioIndex);
 
 int hardware_radio_type_is_ieee(int iRadioType);
+int hardware_radio_type_is_sikradio(int iRadioType);
 int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);

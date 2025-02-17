@@ -157,7 +157,6 @@ bool pairing_start_normal()
    g_iSearchSiKECC = -1;
    g_iSearchSiKLBT = -1;
    g_iSearchSiKMCSTR = -1;
-   g_bDidAnUpdate = false;
    g_bMustNegociateRadioLinksFlag = false;
    g_bAskedForNegociateRadioLink = false;
    
@@ -330,18 +329,6 @@ void _pairing_open_shared_mem()
    if ( NULL == g_pSM_RadioStats )
       iAnyFailed++;
 
-    ruby_signal_alive();
-   for( int i=0; i<iRetryCount; i++ )
-   {
-      if ( NULL != g_pSM_RadioStatsInterfaceRxGraph )
-         break;
-      g_pSM_RadioStatsInterfaceRxGraph = shared_mem_controller_radio_stats_interfaces_rx_graphs_open_for_read();
-      hardware_sleep_ms(2);
-      iAnyNewOpen++;
-   }
-   if ( NULL == g_pSM_RadioStatsInterfaceRxGraph )
-      iAnyFailed++;
-
 // To fix
      /*
    ruby_signal_alive();
@@ -479,8 +466,6 @@ void _pairing_close_shared_mem()
    shared_mem_radio_stats_close(g_pSM_RadioStats);
    g_pSM_RadioStats = NULL;
 
-   shared_mem_controller_radio_stats_interfaces_rx_graphs_close(g_pSM_RadioStatsInterfaceRxGraph);
-   g_pSM_RadioStatsInterfaceRxGraph = NULL;
 
 // To fix
    //shared_mem_video_link_stats_close(g_pSM_VideoLinkStats);

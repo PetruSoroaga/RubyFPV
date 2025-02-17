@@ -742,7 +742,6 @@ int r_start_vehicle(int argc, char *argv[])
          log_line("Router last radio TX time: %s, %u ms ago", szTime, g_TimeLastCheckRadioSilenceFailsafe - s_pProcessStatsRouter->lastRadioTxTime);
 
          bool bCheckRadioFailSafe = false;
-         //if ( modelVehicle.bDeveloperMode )
          if ( modelVehicle.uDeveloperFlags & DEVELOPER_FLAGS_BIT_RADIO_SILENCE_FAILSAFE )
          if ( access(szFileArmed, R_OK) != -1 ) 
             bCheckRadioFailSafe = true;

@@ -60,17 +60,30 @@ MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
    {
       m_IndexFreq[i] = -1;
       m_IndexConfigureLinks[i] = -1;
+      m_IndexTxPowers[i] = -1;
    }
-   m_IndexTxPower = -1;
 
-
+   bool bShowTxWarning = false;
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
       int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
+      if ( iCardModel < 0 )
+         iCardModel = -iCardModel;
       int iPowerRaw = tx_powers_get_max_usable_power_raw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
       int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
       log_line("[MenuVehicleRadio] Max power for radio interface %d (%s): raw: %d, mw: %d, current raw power: %d",
          i+1, str_get_radio_card_model_string(iCardModel), iPowerRaw, iPowerMw, g_pCurrentModel->radioInterfacesParams.interface_raw_power[i]);
+
+      if ( iCardModel == CARD_MODEL_RTL8812AU_DUAL_ANTENNA )
+        bShowTxWarning = true;   
+   }
+
+   if ( bShowTxWarning )
+   {
+      if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
+         addMessage2(0, L("Unknown Tx Power"), L("Your radio interface has multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."));
+      else
+         addMessage2(0, L("Unknown Tx Power"), L("Some of your radio interfaces have multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."));
    }
 
    valuesToUI();
@@ -85,12 +98,7 @@ void MenuVehicleRadioConfig::populate()
    int iTmp = getSelectedMenuItemIndex();
    removeAllItems();
 
-   char szBuff[128];
-   char szTooltip[256];
-   char szTitle[128];
-   char szInfo[128];
-   strcpy(szInfo, " A radio link can be: (C) connected, (D) disconnected or (R) used by vehicle for relaying.");
-
+   char szBuff[256];
    int len = 64;
    int res = lpp(szBuff, len);
    if ( res )
@@ -98,14 +106,96 @@ void MenuVehicleRadioConfig::populate()
    else
       m_bControllerHasKey = false;
 
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-      m_IndexFreq[i] = -1;
-
    if ( 0 == g_pCurrentModel->radioLinksParams.links_count )
    {
       addMenuItem( new MenuItemText("No radio interfaces detected on this vehicle!"));
       return;
    }
+
+   populateFrequencies();
+   populateRadioRates();
+   populateTxPowers();
+
+   m_IndexRadioConfig = addMenuItem(new MenuItem(L("Full Radio Config"), L("Full radio configuration")));
+   m_pMenuItems[m_IndexRadioConfig]->showArrow();
+
+   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
+   m_pItemsSelect[4]->addSelection("No");
+   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4]->setIsEditable();
+   m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
+
+   m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
+   m_pItemsSelect[3]->addSelection("No");
+   m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3]->setIsEditable();
+   m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
+
+   m_pItemsSelect[3]->setEnabled(true);
+   m_pItemsSelect[3]->setSelectedIndex(0);
+   if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
+      m_pItemsSelect[3]->setSelectedIndex(1); 
+
+   m_pItemsSelect[4]->setSelectedIndex(0);
+   if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
+   {
+      m_pItemsSelect[4]->setSelectedIndex(1);
+      m_pItemsSelect[3]->setSelectedIndex(0);
+      m_pItemsSelect[3]->setEnabled(false);
+   }
+
+   /*
+   m_pItemsSelect[2] = new MenuItemSelect("Radio Encryption", "Changes the encryption used for the radio links. You can encrypt the video data, or telemetry data, or everything, including the ability to search for and find this vehicle (unless your controller has the right pass phrase).");
+   m_pItemsSelect[2]->addSelection("None");
+   m_pItemsSelect[2]->addSelection("Video Stream Only");
+   m_pItemsSelect[2]->addSelection("Data Streams Only");
+   m_pItemsSelect[2]->addSelection("Video and Data Streams");
+   m_pItemsSelect[2]->addSelection("All Streams and Data");
+   m_pItemsSelect[2]->setIsEditable();
+   m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
+   */
+   m_IndexEncryption = -1;
+   /*
+   if ( -1 != m_IndexEncryption )
+   {
+      m_pItemsSelect[2]->setSelectedIndex(0);
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
+         m_pItemsSelect[2]->setSelectedIndex(1); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
+         m_pItemsSelect[2]->setSelectedIndex(2); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
+         m_pItemsSelect[2]->setSelectedIndex(3); 
+
+      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL )
+         m_pItemsSelect[2]->setSelectedIndex(4); 
+
+      if ( ! m_bControllerHasKey )
+      {
+         m_pItemsSelect[2]->setSelectedIndex(0);
+         //m_pItemsSelect[2]->setEnabled(false);
+      }
+   }
+   */
+
+   m_IndexOptimizeLinks = addMenuItem(new MenuItem("Optmize Radio Links Wizard", "Runs a process to optimize radio links parameters."));
+   m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
+
+   m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex >= m_ItemsCount )
+      m_SelectedIndex = m_ItemsCount-1;
+}
+
+void MenuVehicleRadioConfig::populateFrequencies()
+{
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      m_IndexFreq[i] = -1;
+
+   char szBuff[128];
+   char szTooltip[256];
+   char szTitle[128];
 
    u32 uControllerAllSupportedBands = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -163,16 +253,26 @@ void MenuVehicleRadioConfig::populate()
 
       if ( 0 == iCountInterfacesAssignedToThisLink )
       {
-         snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(D) %s", szTmp);
-         strcat(szTooltip, " This radio link is not connected to the controller.");
+         //snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(D) %s", szTmp);
+         //strcat(szTooltip, " This radio link is not connected to the controller.");
+         snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "%s", szTmp);
+         strcpy(szTooltip, L("Change the radio link frequency."));
       }
       else
       {
-         snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(C) %s", szTmp);
-         strcat(szTooltip, " This radio link is connected to the controller.");
+         //if ( 1 == g_pCurrentModel->radioLinksParams.links_count )
+         {
+            snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "%s", szTmp);
+            strcpy(szTooltip, L("Change the radio link frequency."));
+         }
+         /*
+         else
+         {
+            snprintf(szTitle, sizeof(szTitle)/sizeof(szTitle[0]), "(C) %s", szTmp);
+            strcat(szTooltip, " This radio link is connected to the controller.");
+         }
+         */
       }
-
-      strcat(szTooltip, szInfo);
 
       m_pItemsSelect[20+iRadioLinkId] = new MenuItemSelect(szTitle, szTooltip);
 
@@ -232,90 +332,102 @@ void MenuVehicleRadioConfig::populate()
       }
       m_IndexFreq[iRadioLinkId] = addMenuItem(m_pItemsSelect[20+iRadioLinkId]);
    }
+}
 
-   /*
-   for( int iRadioLinkId=0; iRadioLinkId<g_pCurrentModel->radioLinksParams.links_count; iRadioLinkId++ )
+void MenuVehicleRadioConfig::populateRadioRates()
+{
+   for( int iLink=0; iLink<g_pCurrentModel->radioLinksParams.links_count; iLink++ )
    {
-      int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(iRadioLinkId);
-      if ( -1 == iRadioInterfaceId )
-      {
-         log_softerror_and_alarm("Invalid radio link. No radio interfaces assigned to radio link %d.", iRadioLinkId+1);
+      if ( ! g_pCurrentModel->radioLinkIsWiFiRadio(iLink) )
          continue;
-      }
-
-      int iCountInterfacesAssignedToThisLink = 0;
-      for( int i=0; i<g_SM_RadioStats.countLocalRadioInterfaces; i++ )
-      {
-         if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId == iRadioLinkId )
-            iCountInterfacesAssignedToThisLink++;
-      }
-
-      char szTooltip[256];
-      m_IndexConfigureLinks[iRadioLinkId] = -1;
-
-      strcpy(szTooltip, "Change the radio parameters for this radio link.");
-      sprintf(szBuff, " Radio type: %s;", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId]));
-      strcat(szTooltip, szBuff);
-      
-      if ( 0 == iCountInterfacesAssignedToThisLink )
-      {
-         sprintf(szTitle, "(D) Configure Radio Link %d", iRadioLinkId+1);
-         strcat(szTooltip, " This radio link is not connected to the controller.");
-      }
+    
+      char szBuff[256];
+      if ( 1 == g_pCurrentModel->radioLinksParams.links_count )
+        strcpy(szBuff, L("Radio Link Data Rate"));
       else
+         sprintf(szBuff, L("Radio Link %d Data Rate"), iLink+1);
+      m_pItemsSelect[30+iLink] = new MenuItemSelect(szBuff, L("Sets the physical radio data rate to use on this radio link. If adaptive radio links is enabled, this will get lowered automatically by Ruby as needed."));
+     
+      for( int i=0; i<getDataRatesCount(); i++ )
       {
-         sprintf(szTitle, "(C) Configure Radio Link %d", iRadioLinkId+1);
-         strcat(szTooltip, " This radio link is connected to the controller.");
+         str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
+         m_pItemsSelect[30+iLink]->addSelection(szBuff);
+         if ( g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLink] == getDataRatesBPS()[i] )
+            m_pItemsSelect[30+iLink]->setSelectedIndex(m_pItemsSelect[30+iLink]->getSelectionsCount()-1);
       }
-      strcat(szTooltip, szInfo);
-      m_IndexConfigureLinks[iRadioLinkId] = addMenuItem(new MenuItem(szTitle, szTooltip));
-      m_pMenuItems[m_IndexConfigureLinks[iRadioLinkId]]->showArrow();
+      for( int i=0; i<=MAX_MCS_INDEX; i++ )
+      {
+         str_getDataRateDescription(-1-i, 0, szBuff);
+         m_pItemsSelect[30+iLink]->addSelection(szBuff);
+         if ( g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLink] == -1-i )
+            m_pItemsSelect[30+iLink]->setSelectedIndex(m_pItemsSelect[30+iLink]->getSelectionsCount()-1);
+      }
+      m_pItemsSelect[30+iLink]->setIsEditable();
+      m_IndexDataRates[iLink] = addMenuItem(m_pItemsSelect[30+iLink]);
    }
-   */
+}
 
-   int iMwPowers[MAX_RADIO_INTERFACES];
-   tx_power_get_current_mw_powers_for_model(g_pCurrentModel, &iMwPowers[0]);
-   m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_model(g_pCurrentModel);
-   m_pItemsSelect[0] = createMenuItemTxPowers("Radio Tx Power (mW)", false, &(iMwPowers[0]), g_pCurrentModel->radioInterfacesParams.interfaces_count, m_iMaxPowerMw);
-   m_IndexTxPower = addMenuItem(m_pItemsSelect[0]);
+void MenuVehicleRadioConfig::populateTxPowers()
+{
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+      m_IndexTxPowers[i] = -1;
    
-   MenuItemLegend* pLegend = new MenuItemLegend("Note", "Maximum selectable Tx power is computed based on detected radio interfaces on the vehicle and controller.", 0);
+   for( int iLink=0; iLink<g_pCurrentModel->radioLinksParams.links_count; iLink++ )
+   {
+      int iVehicleLinkPowerMaxMw = 0;
+      int iLinkPowersMw[MAX_RADIO_INTERFACES];
+      int iCountLinkInterfaces = 0;
+      bool bBoost2W = false;
+      bool bBoost4W = false;
+      for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+      {
+         if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] != iLink )
+            continue;
+         if ( ! hardware_radio_type_is_ieee(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) )
+            continue;
+
+         int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
+         int iCardRawPower = g_pCurrentModel->radioInterfacesParams.interface_raw_power[i];
+         int iCardPowerMw = tx_powers_convert_raw_to_mw(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel, iCardRawPower);
+         iLinkPowersMw[iCountLinkInterfaces] = iCardPowerMw;
+         iCountLinkInterfaces++;
+         int iPowerMaxMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
+         if ( iPowerMaxMw > iVehicleLinkPowerMaxMw )
+            iVehicleLinkPowerMaxMw = iPowerMaxMw;
+
+         if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_2W )
+            bBoost2W = true;
+         if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[i] & RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W )
+            bBoost4W = true;
+      }
+
+      char szTitle[128];
+      strcpy(szTitle, L("Radio Link Tx Power (mW)"));
+      if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
+         sprintf(szTitle, L("Radio Link %d Tx Power (mw)"), iLink+1);
+      m_pItemsSelect[40+iLink] = createMenuItemTxPowers(szTitle, false, bBoost2W, bBoost4W, iVehicleLinkPowerMaxMw);
+      m_IndexTxPowers[iLink] = addMenuItem(m_pItemsSelect[40+iLink]);
+      selectMenuItemTxPowersValue(m_pItemsSelect[40+iLink], false, bBoost2W, bBoost4W, &(iLinkPowersMw[0]), iCountLinkInterfaces, iVehicleLinkPowerMaxMw);
+
+   }
+   char szText[256];
+   strcpy(szText, L("The Tx power is for the radio downlink(s).\nMaximum selectable Tx power is computed based on detected radio interfaces on the vehicle: "));
+   char szBuff[256];
+   szBuff[0] = 0;
+   for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( ! g_pCurrentModel->radioInterfaceIsWiFiRadio(i) )
+         continue;
+      int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
+      if ( 0 != szBuff[0] )
+         strcat(szBuff, ", ");
+      //str_get_radio_driver_description(pRadioHWInfo->iRadioDriver);
+      strcat(szBuff, str_get_radio_card_model_string_short(iCardModel));
+   }
+   strcat(szText, szBuff);
+   MenuItemLegend* pLegend = new MenuItemLegend(L("Note"), szText, 0);
    pLegend->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
    addMenuItem(pLegend);
-
-   m_IndexRadioConfig = addMenuItem(new MenuItem("Radio Links Config", "Full radio configuration"));
-   m_pMenuItems[m_IndexRadioConfig]->showArrow();
-
-   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
-   m_pItemsSelect[4]->setIsEditable();
-   m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
-
-   m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
-   m_pItemsSelect[3]->addSelection("No");
-   m_pItemsSelect[3]->addSelection("Yes");
-   m_pItemsSelect[3]->setIsEditable();
-   m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
-
-   /*
-   m_pItemsSelect[2] = new MenuItemSelect("Radio Encryption", "Changes the encryption used for the radio links. You can encrypt the video data, or telemetry data, or everything, including the ability to search for and find this vehicle (unless your controller has the right pass phrase).");
-   m_pItemsSelect[2]->addSelection("None");
-   m_pItemsSelect[2]->addSelection("Video Stream Only");
-   m_pItemsSelect[2]->addSelection("Data Streams Only");
-   m_pItemsSelect[2]->addSelection("Video and Data Streams");
-   m_pItemsSelect[2]->addSelection("All Streams and Data");
-   m_pItemsSelect[2]->setIsEditable();
-   m_IndexEncryption = addMenuItem(m_pItemsSelect[2]);
-   */
-   m_IndexEncryption = -1;
-
-   m_IndexOptimizeLinks = addMenuItem(new MenuItem("Optmize Radio Links Wizard", "Runs a process to optimize radio links parameters."));
-   m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
-
-   m_SelectedIndex = iTmp;
-   if ( m_SelectedIndex >= m_ItemsCount )
-      m_SelectedIndex = m_ItemsCount-1;
 }
 
 void MenuVehicleRadioConfig::onShow()
@@ -327,6 +439,8 @@ void MenuVehicleRadioConfig::onShow()
    invalidate();
 
    m_SelectedIndex = iTmp;
+   if ( m_SelectedIndex < 0 )
+      m_SelectedIndex = 0;
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = m_ItemsCount-1;
 }
@@ -335,50 +449,6 @@ void MenuVehicleRadioConfig::onShow()
 void MenuVehicleRadioConfig::valuesToUI()
 {
    populate();
-   
-   if ( m_IndexEncryption != -1 )
-      m_pItemsSelect[2]->setSelectedIndex(0);
-   
-   m_pItemsSelect[3]->setSelectedIndex(0);
-
-   if ( g_pCurrentModel->uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
-      m_pItemsSelect[3]->setSelectedIndex(1); 
-
-   m_pItemsSelect[4]->setSelectedIndex(0);
-   if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
-      m_pItemsSelect[4]->setSelectedIndex(1);
-    
-   if ( m_pItemsSelect[4]->getSelectedIndex() == 1 )
-      m_pItemsSelect[3]->setEnabled(false);
-   else
-      m_pItemsSelect[3]->setEnabled(true);
-
-   if ( -1 != m_IndexEncryption )
-   {
-      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
-         m_pItemsSelect[2]->setSelectedIndex(1); 
-
-      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
-         m_pItemsSelect[2]->setSelectedIndex(2); 
-
-      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA )
-      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO )
-         m_pItemsSelect[2]->setSelectedIndex(3); 
-
-      if ( g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL )
-         m_pItemsSelect[2]->setSelectedIndex(4); 
-
-      if ( ! m_bControllerHasKey )
-      {
-         m_pItemsSelect[2]->setSelectedIndex(0);
-         //m_pItemsSelect[2]->setEnabled(false);
-      }
-   }
-
-   int iMwPowers[MAX_RADIO_INTERFACES];
-   tx_power_get_current_mw_powers_for_model(g_pCurrentModel, &iMwPowers[0]);
-   m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_model(g_pCurrentModel);
-   selectMenuItemTxPowersValue(m_pItemsSelect[0], false, &(iMwPowers[0]), g_pCurrentModel->radioInterfacesParams.interfaces_count, m_iMaxPowerMw);
 }
 
 void MenuVehicleRadioConfig::Render()
@@ -448,29 +518,41 @@ void MenuVehicleRadioConfig::sendNewRadioLinkFrequency(int iVehicleLinkIndex, u3
 }
 
 
-void MenuVehicleRadioConfig::computeSendPowerToVehicle()
+void MenuVehicleRadioConfig::computeSendPowerToVehicle(int iVehicleLinkIndex)
 {
-   int iIndex = m_pItemsSelect[0]->getSelectedIndex();
+   if ( (iVehicleLinkIndex < 0) || (iVehicleLinkIndex >= g_pCurrentModel->radioLinksParams.links_count) )
+      return;
 
-   if ( iIndex == m_pItemsSelect[0]->getSelectionsCount() -1 )
+   int iIndexSelector = 40 + iVehicleLinkIndex;
+   int iIndex = m_pItemsSelect[iIndexSelector]->getSelectedIndex();
+
+   if ( iIndex == m_pItemsSelect[iIndexSelector]->getSelectionsCount() -1 )
    {
       add_menu_to_stack(new MenuTXRawPower());
       return;
    }
 
-   log_line("MenuVehicleRadio: Setting tx power to %s", m_pItemsSelect[0]->getSelectionIndexText(iIndex));
+   log_line("MenuVehicleRadio: Setting radio link %d tx power to %s", iVehicleLinkIndex+1, m_pItemsSelect[iIndexSelector]->getSelectionIndexText(iIndex));
 
-   int iPowerLevelsCount = 0;
-   const int* piPowerLevelsMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
-   int iPowerMwToSet = piPowerLevelsMw[iIndex];
+   int iUIPowerLevelsCount = 0;
+   const int* piUIPowerLevelsMw = tx_powers_get_ui_levels_mw(&iUIPowerLevelsCount);
+   int iPowerMwToSet = piUIPowerLevelsMw[iIndex];
 
    u8 uCommandParams[MAX_RADIO_INTERFACES+1];
    uCommandParams[0] = g_pCurrentModel->radioInterfacesParams.interfaces_count;
    bool bDifferent = false;
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
    {
+      uCommandParams[i+1] = g_pCurrentModel->radioInterfacesParams.interface_raw_power[i];
+
+      if ( g_pCurrentModel->radioInterfacesParams.interface_link_id[i] != iVehicleLinkIndex )
+         continue;
+      if ( ! hardware_radio_type_is_ieee(g_pCurrentModel->radioInterfacesParams.interface_radiotype_and_driver[i] & 0xFF) )
+         continue;
+
       int iCardModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[i];
       int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iCardModel);
+ 
       int iCardNewPowerMw = iPowerMwToSet;
       if ( iCardNewPowerMw > iCardMaxPowerMw )
          iCardNewPowerMw = iCardMaxPowerMw;
@@ -487,10 +569,6 @@ void MenuVehicleRadioConfig::computeSendPowerToVehicle()
       log_line("MenuVehicleRadio: No change");
       return;
    }
-   
-   save_ControllerInterfacesSettings();
-   apply_controller_radio_tx_powers(g_pCurrentModel, get_ControllerSettings()->iFixedTxPower, false);
-   save_ControllerInterfacesSettings();
 
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_TX_POWERS, 0, uCommandParams, uCommandParams[0]+1) )
        valuesToUI();
@@ -577,10 +655,13 @@ void MenuVehicleRadioConfig::onSelectItem()
       return;
    }
 
-   if ( m_IndexTxPower == m_SelectedIndex )
+   for( int i=0; i<g_pCurrentModel->radioLinksParams.links_count; i++ )
    {
-      computeSendPowerToVehicle();
-      return;
+      if ( (m_IndexTxPowers[i] != -1) && (m_IndexTxPowers[i] == m_SelectedIndex) )
+      {
+         computeSendPowerToVehicle(i);
+         return;
+      }
    }
 
    for( int n=0; n<g_pCurrentModel->radioLinksParams.links_count; n++ )
@@ -657,21 +738,38 @@ void MenuVehicleRadioConfig::onSelectItem()
       sendNewRadioLinkFrequency(n, freq);
    }
 
-   /*
-   for( int n=0; n<g_pCurrentModel->radioLinksParams.links_count; n++ )
-   if ( m_IndexConfigureLinks[n] == m_SelectedIndex )
+   for( int iLink=0; iLink<g_pCurrentModel->radioLinksParams.links_count; iLink++ )
    {
-      Menu* pMenu = NULL;
-      if ( g_pCurrentModel->radioLinkIsSiKRadio(n) )
-         pMenu = new MenuVehicleRadioLinkSiK(n);
-      else if ( g_pCurrentModel->radioLinkIsELRSRadio(n) )
-         pMenu = new MenuVehicleRadioLinkELRS(n);
-      else
-         pMenu = new MenuVehicleRadioLink(n);
+      if ( ! g_pCurrentModel->radioLinkIsWiFiRadio(iLink) )
+         continue;
+      if ( m_IndexDataRates[iLink] == m_SelectedIndex )
+      {
+         int iIndex = m_pItemsSelect[30+iLink]->getSelectedIndex();
+         int iDataRate = 0;
+         if ( iIndex < getDataRatesCount() )
+         {
+            iDataRate = getDataRatesBPS()[iIndex];
+            if ( iDataRate == g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLink] )
+               return;
+         }
+         else
+         {
+            iDataRate = -1 - (iIndex-getDataRatesCount());
+            if ( iDataRate == g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLink] )
+               return;
+         }
+         if ( iDataRate == 0 )
+            return;
 
-      add_menu_to_stack(pMenu);
+         u8 uBuffCommand[32];
+         memcpy(&uBuffCommand[0], &iDataRate, sizeof(int));
+         memcpy(&uBuffCommand[sizeof(int)], &g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLink], sizeof(int));
+         memcpy(&uBuffCommand[2*sizeof(int)], &g_pCurrentModel->radioLinksParams.uplink_datarate_video_bps[iLink], sizeof(int));
+         memcpy(&uBuffCommand[3*sizeof(int)], &g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iLink], sizeof(int));
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_LINK_DATARATES, iLink, uBuffCommand, 4*sizeof(int)) )
+            valuesToUI();
+      }
    }
-   */
 
    if ( m_IndexRadioConfig == m_SelectedIndex )
    {

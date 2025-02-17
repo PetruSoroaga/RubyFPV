@@ -1043,8 +1043,8 @@ void MenuSearch::onSearchStep()
       }
       if ( bVehicleIsOnCurrentFreq )
       {
-         u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
-         u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
+         u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.rubyVersion;
+         u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.rubyVersion;
          vMaj = vMaj >> 4;
          vMin = vMin & 0x0F;
    
@@ -1174,7 +1174,7 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
             deleteModel(pExistingModel);
       }
       Model* pModel = addSpectatorModel(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId);
-      pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
+      pModel->populateFromVehicleTelemetryData_v4(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = true;
 
       set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, m_CurrentSearchFrequencyKhz);
@@ -1235,7 +1235,7 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
          else
             log_line("Search: Found existing controller vehicle model for VID %u.", pModel->uVehicleId);
       }
-      pModel->populateFromVehicleTelemetryData_v3(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
+      pModel->populateFromVehicleTelemetryData_v4(&(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended));
       pModel->is_spectator = false;
       set_model_main_connect_frequency(g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, m_CurrentSearchFrequencyKhz);
 
@@ -1243,6 +1243,7 @@ void MenuSearch::onReturnFromChild(int iChildMenuId, int returnValue)
       log_line("MenuSearch: Save model VID %u, mode: %s", pModel->uVehicleId, (pModel->is_spectator)?"spectator":"control");
       ruby_set_is_first_pairing_done();
       g_bFirstModelPairingDone = true;
+      g_bDidAnUpdate = false;
       setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
 

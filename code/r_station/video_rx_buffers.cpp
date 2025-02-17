@@ -70,6 +70,7 @@ VideoRxPacketsBuffer::VideoRxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
    }
    m_bBuffersAreEmpty = true;
    m_uMaxVideoBlockIndexPresentInBuffer = 0;
+   m_uMaxVideoBlockPacketIndexPresentInBuffer = 0;
    m_uMaxVideoBlockIndexReceived = 0;
    m_uMaxVideoBlockPacketIndexReceived = 0;
 }
@@ -263,6 +264,7 @@ void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header*
    m_iBufferIndexFirstReceivedPacketIndex = -1;
 
    m_uMaxVideoBlockIndexPresentInBuffer = 0;
+   m_uMaxVideoBlockPacketIndexPresentInBuffer = 0;
    m_uMaxVideoBlockIndexReceived = 0;
    m_uMaxVideoBlockPacketIndexReceived = 0;
 
@@ -389,8 +391,13 @@ bool VideoRxPacketsBuffer::_add_video_packet_to_buffer(int iBufferIndex, u8* pPa
       return false;
 
    if ( pPHVS->uCurrentBlockIndex > m_uMaxVideoBlockIndexPresentInBuffer )
+   {
       m_uMaxVideoBlockIndexPresentInBuffer = pPHVS->uCurrentBlockIndex;
-   
+      m_uMaxVideoBlockPacketIndexPresentInBuffer = pPHVS->uCurrentBlockPacketIndex;
+   }
+   else if ( (pPHVS->uCurrentBlockIndex == m_uMaxVideoBlockIndexPresentInBuffer) && (pPHVS->uCurrentBlockPacketIndex > m_uMaxVideoBlockPacketIndexPresentInBuffer) )
+      m_uMaxVideoBlockPacketIndexPresentInBuffer = pPHVS->uCurrentBlockPacketIndex;
+
    if ( m_bBuffersAreEmpty )
       log_line("[VRXBuffers] Start adding video packets to empty buffer. Adding [%u/%u] at buffer index %d, max received video block index so far: %u",
          pPHVS->uCurrentBlockIndex, pPHVS->uCurrentBlockPacketIndex, iBufferIndex, m_uMaxVideoBlockIndexReceived);
@@ -553,10 +560,26 @@ bool VideoRxPacketsBuffer::checkAddVideoPacket(u8* pPacket, int iPacketLength)
    return bReturn;
 }
 
+u32 VideoRxPacketsBuffer::getMaxReceivedVideoBlockIndex()
+{
+   return m_uMaxVideoBlockIndexReceived;
+}
+
+u32 VideoRxPacketsBuffer::getMaxReceivedVideoBlockPacketIndex()
+{
+   return m_uMaxVideoBlockPacketIndexReceived;
+}
+
 u32 VideoRxPacketsBuffer::getMaxReceivedVideoBlockIndexPresentInBuffer()
 {
    return m_uMaxVideoBlockIndexPresentInBuffer;
 }
+
+u32 VideoRxPacketsBuffer::getMaxReceivedVideoBlockPacketIndexPresentInBuffer()
+{
+   return m_uMaxVideoBlockPacketIndexPresentInBuffer;
+}
+
 
 bool VideoRxPacketsBuffer::hasFirstVideoPacketInBuffer()
 {

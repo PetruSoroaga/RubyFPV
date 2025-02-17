@@ -7,6 +7,7 @@ class MenuController: public Menu
 {
    public:
       MenuController();
+      virtual void onShow(); 
       virtual void Render();
       virtual void valuesToUI();
       virtual bool periodicLoop();

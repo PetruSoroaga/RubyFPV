@@ -5,6 +5,7 @@
 #define MAJESTIC_UDP_PORT 5600
 
 void video_source_majestic_init_all_params();
+void video_source_majestic_start_and_configure();
 void video_source_majestic_cleanup();
 void video_source_majestic_close();
 int video_source_majestic_open(int iUDPPort);
@@ -15,6 +16,8 @@ void video_source_majestic_request_update_program(u32 uChangeReason);
 
 // Returns the buffer and number of bytes read
 u8* video_source_majestic_read(int* piReadSize, bool bAsync);
+u8* video_source_majestic_raw_read(int* piReadSize, bool bAsync);
+void video_source_majestic_clear_input_buffers();
 bool video_source_majestic_last_read_is_single_nal();
 bool video_source_majestic_last_read_is_end_nal();
 u32 video_source_majestic_get_last_nal_type();

@@ -59,9 +59,6 @@ shared_mem_router_vehicles_runtime_info g_SM_RouterVehiclesRuntimeInfo;
 shared_mem_radio_stats* g_pSM_RadioStats = NULL;
 shared_mem_radio_stats g_SM_RadioStats;
 
-shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfaceRxGraph = NULL;
-shared_mem_radio_stats_interfaces_rx_graph g_SM_RadioStatsInterfaceRxGraph;
-
 shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;

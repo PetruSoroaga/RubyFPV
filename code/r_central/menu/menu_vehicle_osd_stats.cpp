@@ -175,13 +175,6 @@ MenuVehicleOSDStats::MenuVehicleOSDStats(void)
    m_pItemsSelect[30]->setIsEditable();
    m_IndexRadioRxHistoryVehicleBig = addMenuItem(m_pItemsSelect[30]);
 
-
-   m_pItemsSelect[31] = new MenuItemSelect("Radio: Controller Interfaces Graph", "Shows a graph of packets received on the controller radio interfaces.");
-   m_pItemsSelect[31]->addSelection("Off");
-   m_pItemsSelect[31]->addSelection("On");
-   m_pItemsSelect[31]->setUseMultiViewLayout();
-   m_IndexRadioRxGraphController = addMenuItem(m_pItemsSelect[31]);
-
    if ( pCS->iDeveloperMode )
    {
       m_pItemsSelect[11] = new MenuItemSelect("Radio: Extended Radio Stats", "Shows the extended developer radio stats.");
@@ -457,8 +450,6 @@ void MenuVehicleOSDStats::valuesToUI()
       }   
    }
 
-
-   m_pItemsSelect[31]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_RADIO_RX_GRAPH_CONTROLLER)?1:0);
    m_pItemsSelect[25]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_TELEMETRY_STATS)?1:0);
    m_pItemsSelect[26]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS)?1:0);
    m_pItemsSelect[17]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS)?1:0);
@@ -768,15 +759,6 @@ void MenuVehicleOSDStats::onSelectItem()
       return;
    }
 
-   if ( m_IndexRadioRxGraphController == m_SelectedIndex )
-   {
-      if ( 0 == m_pItemsSelect[31]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_RADIO_RX_GRAPH_CONTROLLER;
-      else
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_RADIO_RX_GRAPH_CONTROLLER;
-      sendToVehicle = true;
-   }
-
    if ( m_IndexVideoRefreshInterval == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
@@ -977,7 +959,7 @@ void MenuVehicleOSDStats::onSelectItem()
          g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP);
       else
          g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP;
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
+      if ( ! handle_commands_send_developer_flags(pCS->iDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
          valuesToUI();  
       return;    
    }

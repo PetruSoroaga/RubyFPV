@@ -247,15 +247,24 @@ int video_source_csi_open(const char* szPipeName)
 
 void video_source_csi_flush_discard()
 {
+   log_line("[VideoSourceCSI] Flushing video stream input buffer (pipe)...");
    if ( -1 == s_fInputVideoStreamCSIPipe )
+   {
+      log_line("[VideoSourceCSI] Flushed video stream input buffer (no pipe present)");
       return;
-   
-   for( int i=0; i<50; i++ )
+   }
+   int iCount = 0;
+   int iBytes = 0;
+   for( int i=0; i<200; i++ )
    {
       int iReadSize = 0;
-      video_source_csi_read(&iReadSize);
+      u8* pData = video_source_csi_read(&iReadSize);
+      if ( NULL == pData )
+         break;
+      iCount++;
+      iBytes += iReadSize;
    }
-   log_line("[VideoSourceCSI] Flushed video stream input buffer (pipe)");
+   log_line("[VideoSourceCSI] Flushed video stream input buffer (pipe) in %d reads, total %d bytes", iCount, iBytes);
 }
 
 int video_source_csi_get_buffer_size()
@@ -278,7 +287,7 @@ u8* video_source_csi_read(int* piReadSize)
    struct timeval timePipeInput;
    fd_set readset;
    int iSelectResult = 0;
-   static bool s_bLastCameraReadTimedOut = false;
+   static int s_iLastCameraReadTimedOutCount = 0;
 
    *piReadSize = 0;
    if ( -1 == s_fInputVideoStreamCSIPipe )
@@ -289,13 +298,14 @@ u8* video_source_csi_read(int* piReadSize)
          return NULL;
    }
 
+   // Check for exceptions first, only if we are not already getting a lot of data
+
    FD_ZERO(&readset);
    FD_SET(s_fInputVideoStreamCSIPipe, &readset);
 
-   // Check for exceptions first, only if we are not already getting a lot of data
-
-   if ( s_bLastCameraReadTimedOut )
+   if ( s_iLastCameraReadTimedOutCount > 10 )
    {
+      s_iLastCameraReadTimedOutCount = 1;
       timePipeInput.tv_sec = 0;
       timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
 
@@ -316,12 +326,12 @@ u8* video_source_csi_read(int* piReadSize)
 
    timePipeInput.tv_sec = 0;
 
-   if ( s_bLastCameraReadTimedOut )
-      timePipeInput.tv_usec = 50; // 0.05 miliseconds timeout
+   if ( s_iLastCameraReadTimedOutCount )
+      timePipeInput.tv_usec = 300; // 0.3 miliseconds timeout
    else
-      timePipeInput.tv_usec = 10; // 0.01 miliseconds timeout
+      timePipeInput.tv_usec = 500; // 0.5 miliseconds timeout
 
-   s_bLastCameraReadTimedOut = true;
+   s_iLastCameraReadTimedOutCount++;
 
    iSelectResult = select(s_fInputVideoStreamCSIPipe+1, &readset, NULL, NULL, &timePipeInput);
    if ( iSelectResult <= 0 )
@@ -330,7 +340,7 @@ u8* video_source_csi_read(int* piReadSize)
    if( 0 == FD_ISSET(s_fInputVideoStreamCSIPipe, &readset) )
       return s_uInputVideoCSIPipeBuffer;
 
-   s_bLastCameraReadTimedOut = false;
+   s_iLastCameraReadTimedOutCount = 0;
 
    int iRead = read(s_fInputVideoStreamCSIPipe, s_uInputVideoCSIPipeBuffer, sizeof(s_uInputVideoCSIPipeBuffer)/sizeof(s_uInputVideoCSIPipeBuffer[0]));
    if ( iRead < 0 )
@@ -696,14 +706,14 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
    {
       if ( pModel->camera_params[pModel->iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
       {
-         if ( pModel->bDeveloperMode )
+         if ( g_bDeveloperMode )
             sprintf(szBuff, "%s %s -dbg %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags );
          else
             sprintf(szBuff, "%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE307, szVideoFlags );
       }
       else
       {
-         if ( pModel->bDeveloperMode )
+         if ( g_bDeveloperMode )
             sprintf(szBuff, "%s %s -dbg %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags );
          else
             sprintf(szBuff, "%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags );
@@ -711,7 +721,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
    }
    else
    {
-      if ( pModel->bDeveloperMode )
+      if ( g_bDeveloperMode )
          sprintf(szBuff, "%s ./%s -dbg %s %s -log -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags );
       else
          sprintf(szBuff, "%s ./%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND, szVideoFlags, szCameraFlags );

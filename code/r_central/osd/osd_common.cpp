@@ -252,9 +252,6 @@ float _osd_convertHeightMeters(float m)
 
 bool osd_load_resources()
 {
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-      g_fOSDDbm[i] = -200.0f;
-
    g_idIconRuby = g_pRenderEngine->loadIcon("res/icon_ruby.png");
    g_idIconOpenIPC = g_pRenderEngine->loadIcon("res/openipc.png");
    g_idIconDrone = g_pRenderEngine->loadIcon("res/icon_v_drone.png");
@@ -602,13 +599,9 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
    return fWidth;
 }
 
-float osd_convertTemperature(float c)
+float osd_convertTemperature(float c, bool bToF)
 {
-   Preferences* p = get_Preferences();
-
-   if ( p->iUnits == prefUnitsMetric || p->iUnits == prefUnitsMeters )
-      return c;
-   if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
+   if ( bToF )
       return c*1.8 + 32.0;
    return c;
 }

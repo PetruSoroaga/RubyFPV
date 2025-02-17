@@ -31,6 +31,7 @@ class MenuNegociateRadio: public Menu
    private:
       void _computeQualities();
       float _getComputedQualityForDatarate(int iDatarate, int* pTestIndex);
+      float _getMinComputedQualityForDatarate(int iDatarate, int* pTestIndex);
       void _send_command_to_vehicle();
       void _switch_to_step(int iStep);
       void _advance_to_next_step();

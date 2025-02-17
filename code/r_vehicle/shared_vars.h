@@ -23,6 +23,7 @@ typedef struct
 {
    u32 timeLastLogWrongRxPacket;
    int lastReceivedDBM;
+   int lastReceivedNoiseDBM;
    int lastReceivedDataRate;
 }
 type_uplink_rx_info_stats;
@@ -52,7 +53,7 @@ extern u16 s_countTXDataPacketsOutTemp;
 extern u16 s_countTXCompactedPacketsOutTemp;
 
 // Router
-
+extern bool g_bDeveloperMode;
 extern type_u32_couters g_CoutersMainLoop;
 
 extern u32 s_debugVideoBlocksInCount;

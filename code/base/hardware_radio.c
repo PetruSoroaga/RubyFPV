@@ -1216,11 +1216,12 @@ int hardware_load_driver_rtl8812au()
    char szOutput[256];
    
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   hw_execute_bash_command("sudo modprobe 88XXau rtw_tx_pwr_idx_override=1", szOutput);
+   hw_execute_bash_command("sudo modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", szOutput);
+   log_line("Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
    {
       log_softerror_and_alarm("[HardwareRadio] Failed to load driver 8812AU on platform (%s), error: (%s)", szPlatform, szOutput);
-      return 0;
+      return hardware_install_driver_rtl8812au(0);
    }
 
    return 1;
@@ -1230,8 +1231,8 @@ int hardware_load_driver_rtl8812eu()
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("modprobe cfg80211", NULL);
-   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-   hw_execute_bash_command_raw("modprobe 8812eu rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
    return 1;
    #endif
 
@@ -1243,11 +1244,12 @@ int hardware_load_driver_rtl8812eu()
    log_line("[Hardware] Loading driver RTL8812EU for platform: %s ...", szPlatform);
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   hw_execute_bash_command("sudo modprobe 8812eu rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
+   hw_execute_bash_command("sudo modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szOutput);
+   log_line("Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
    {
       log_softerror_and_alarm("[HardwareRadio] Failed to load driver 8812EU on platform (%s), error: (%s)", szPlatform, szOutput);
-      return 0;
+      return hardware_install_driver_rtl8812eu(0);
    }
 
    return 1;
@@ -1257,8 +1259,8 @@ int hardware_load_driver_rtl8733bu()
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("modprobe cfg80211", NULL);
-   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8733bu.ko rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-   hw_execute_bash_command_raw("modprobe 8733bu rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8733bu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("modprobe 8733bu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
    return 1;
    #endif
 
@@ -1422,6 +1424,53 @@ int hardware_radio_load_radio_modules(int iEchoToConsole)
    return iCountLoaded;
 }
 
+int _hardware_try_install_rtl8812au(char* szSrcDriver)
+{
+   if ( (NULL == szSrcDriver) || (0 == szSrcDriver[0]) )
+   {
+      log_softerror_and_alarm("[HardwareRadio] No file driver specified for RTL8812AU");
+      return 0;
+   }
+   char szOutput[1024];
+   char szDriverFullPath[MAX_FILE_PATH_SIZE];
+   char szPlatform[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+
+   strcpy(szDriverFullPath, FOLDER_BINARIES);
+   strcat(szDriverFullPath, "drivers/");
+   strcat(szDriverFullPath, szSrcDriver);
+   log_line("[HardwareRadio] Driver file to use: [%s]", szDriverFullPath);
+   
+   if ( access(szDriverFullPath, R_OK) == -1 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
+      return 0;
+   }
+
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko", szDriverFullPath, szPlatform);
+   hw_execute_bash_command(szComm, NULL);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko rtw_tx_pwr_idx_override=1 2>&1", szPlatform);
+   hw_execute_bash_command_raw(szComm, szOutput);
+   log_line("[HardwareRadio] Insert mod result: [%s]", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
+      return 0;
+   }
+   hw_execute_bash_command("depmod -a", NULL);
+   hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", szOutput);
+   log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
+      return 0;
+   }
+   log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
+   return 1;
+}
 
 int hardware_install_driver_rtl8812au(int iEchoToConsole)
 {
@@ -1440,8 +1489,6 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
    }
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   char szOutput[1024];
-   char szDriverFullPath[MAX_FILE_PATH_SIZE];
    char szDriverFile[128];
    szDriverFile[0] = 0;
 
@@ -1450,22 +1497,44 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
       strcpy(szDriverFile, "88XXau-pi+.ko");
    else
       strcpy(szDriverFile, "88XXau-pi.ko");
+
+   int iRes = _hardware_try_install_rtl8812au(szDriverFile);
+   if ( 1 == iRes )
+      return iRes;
+  
+   if ( NULL != strstr(szPlatform, "v7l+") )
+      strcpy(szDriverFile, "88XXau-pi.ko");
+   else
+      strcpy(szDriverFile, "88XXau-pi+.ko");
+   return _hardware_try_install_rtl8812au(szDriverFile);
+
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
    strcpy(szDriverFile, "88XXau-radxa.ko");
+   return _hardware_try_install_rtl8812au(szDriverFile);
    #endif
 
-   if ( 0 == szDriverFile[0] )
+   return 0;
+}
+
+int _hardware_try_install_rtl8812eu(char* szSrcDriver)
+{
+   if ( (NULL == szSrcDriver) || (0 == szSrcDriver[0]) )
    {
-      log_softerror_and_alarm("[HardwareRadio] Could not find a driver for RTL8812AU");
+      log_softerror_and_alarm("[HardwareRadio] No file driver specified for RTL8812EU");
       return 0;
    }
+   char szOutput[1024];
+   char szDriverFullPath[MAX_FILE_PATH_SIZE];
+   char szPlatform[256];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
 
    strcpy(szDriverFullPath, FOLDER_BINARIES);
    strcat(szDriverFullPath, "drivers/");
-   strcat(szDriverFullPath, szDriverFile);
-   log_line("Driver file to use: [%s]", szDriverFullPath);
+   strcat(szDriverFullPath, szSrcDriver);
+   log_line("[HardwareRadio] Driver file to use: [%s]", szDriverFullPath);
    
    if ( access(szDriverFullPath, R_OK) == -1 )
    {
@@ -1474,19 +1543,26 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
    }
 
    char szComm[256];
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko", szDriverFullPath, szPlatform);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko", szDriverFullPath, szPlatform);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/88XXau.ko rtw_tx_pwr_idx_override=1 2>&1", szPlatform);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szPlatform);
    hw_execute_bash_command_raw(szComm, szOutput);
+   log_line("[HardwareRadio] Insert mod result: [%s]", szOutput);
+   if ( strlen(szOutput) > 10 )
+   {
+      log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
+      return 0;
+   }
    hw_execute_bash_command("depmod -a", NULL);
-   hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1", szOutput);
+   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szOutput);
+   log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
    {
       log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
       return 0;
    }
-
+   log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
    return 1;
 }
 
@@ -1507,8 +1583,6 @@ int hardware_install_driver_rtl8812eu(int iEchoToConsole)
    }
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   char szOutput[1024];
-   char szDriverFullPath[MAX_FILE_PATH_SIZE];
    char szDriverFile[128];
    szDriverFile[0] = 0;
 
@@ -1517,44 +1591,23 @@ int hardware_install_driver_rtl8812eu(int iEchoToConsole)
       strcpy(szDriverFile, "8812eu-pi+.ko");
    else
       strcpy(szDriverFile, "8812eu-pi.ko");
+   int iRes = _hardware_try_install_rtl8812eu(szDriverFile);
+   if ( 1 == iRes )
+      return 1;
+
+   if ( NULL != strstr(szPlatform, "v7l+") )
+      strcpy(szDriverFile, "8812eu-pi.ko");
+   else
+      strcpy(szDriverFile, "8812eu-pi+.ko");
+   return _hardware_try_install_rtl8812eu(szDriverFile);
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
    strcpy(szDriverFile, "8812eu-radxa.ko");
+   return _hardware_try_install_rtl8812eu(szDriverFile);
    #endif
 
-   if ( 0 == szDriverFile[0] )
-   {
-      log_softerror_and_alarm("[HardwareRadio] Could not find a driver for RTL8812EU");
-      return 0;
-   }
-
-   strcpy(szDriverFullPath, FOLDER_BINARIES);
-   strcat(szDriverFullPath, "drivers/");
-   strcat(szDriverFullPath, szDriverFile);
-   log_line("Driver file to use: [%s]", szDriverFullPath);
-   
-   if ( access(szDriverFullPath, R_OK) == -1 )
-   {
-      log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
-      return 0;
-   }
-
-   char szComm[256];
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko", szDriverFullPath, szPlatform);
-   hw_execute_bash_command(szComm, NULL);
-
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "insmod /lib/modules/%s/kernel/drivers/net/wireless/8812eu.ko rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szPlatform);
-   hw_execute_bash_command_raw(szComm, szOutput);
-   hw_execute_bash_command("depmod -a", NULL);
-   hw_execute_bash_command_raw("modprobe 8812eu rtw_regd_src=1 rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", szOutput);
-   if ( strlen(szOutput) > 10 )
-   {
-      log_softerror_and_alarm("[HardwareRadio] Failed to install driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
-      return 0;
-   }
-
-   return 1;
+   return 0;
 }
 
 int hardware_install_driver_rtl8733bu(int iEchoToConsole)
@@ -2083,6 +2136,13 @@ int hardware_radio_type_is_ieee(int iRadioType)
         iRadioType == RADIO_TYPE_MEDIATEK )
       return 1;
 
+   return 0;
+}
+
+int hardware_radio_type_is_sikradio(int iRadioType)
+{
+   if ( iRadioType == RADIO_TYPE_SIK )
+      return 1;
    return 0;
 }
 

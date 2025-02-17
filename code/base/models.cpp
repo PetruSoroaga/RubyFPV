@@ -328,13 +328,10 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       strcpy(szFreq1, str_format_frequency(radioLinksParams.link_frequency_khz[0]));
       strcpy(szFreq2, str_format_frequency(radioLinksParams.link_frequency_khz[1]));
       strcpy(szFreq3, str_format_frequency(radioLinksParams.link_frequency_khz[2]));
-      //log_line("Loaded vehicle successfully (%u ms) from file: %s; version %d, save count: %d, vehicle name: [%s], vehicle id: %u, software: %d.%d (b%d), is in control mode: %s, is in developer mode: %s, %d radio links, 1st link: %s, 2nd link: %s, 3rd link: %s",
-      // timeStart, filename, iLoadedFileVersion, iSaveCount, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16, is_spectator?"no (is spectator)":"yes", (bDeveloperMode?"yes":"no"), radioLinksParams.links_count, szFreq1, szFreq2, szFreq3);
 
-      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, dev mode: %s, %s, software: %d.%d (b%d), on time: %02d:%02d",
+      log_line("Loaded vehicle (%s) successfully from file: %s; name: [%s], VID: %u, %s, software: %d.%d (b%d), on time: %02d:%02d",
          bLoadStats?"with stats":"without stats",
          filename, vehicle_name, uVehicleId, 
-         bDeveloperMode?"yes":"no",
          is_spectator?"spectator mode": "control mode",
          (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
@@ -835,10 +832,8 @@ bool Model::loadVersion8(FILE* fd)
    //----------------------------------------
    // Misc
 
-   if ( 2 != fscanf(fd, "%*s %d %u", &tmp1, &uDeveloperFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 39"); bDeveloperMode = false; uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
-   else
-      bDeveloperMode = (bool)tmp1;
+   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
+      { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
 
    if ( 1 != fscanf(fd, "%u", &enc_flags) )
    {
@@ -1437,11 +1432,9 @@ bool Model::loadVersion9(FILE* fd)
    //----------------------------------------
    // Misc
 
-   if ( 2 != fscanf(fd, "%*s %d %u", &tmp1, &uDeveloperFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 39"); bDeveloperMode = false; uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
-   else
-      bDeveloperMode = (bool)tmp1;
-
+   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
+      { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
+   
    if ( 1 != fscanf(fd, "%u", &enc_flags) )
    {
       enc_flags = MODEL_ENC_FLAGS_NONE;
@@ -2027,11 +2020,9 @@ bool Model::loadVersion10(FILE* fd)
    //----------------------------------------
    // Misc
 
-   if ( 2 != fscanf(fd, "%*s %d %u", &tmp1, &uDeveloperFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 39"); bDeveloperMode = false; uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
-   else
-      bDeveloperMode = (bool)tmp1;
-
+   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
+      { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
+  
    if ( 1 != fscanf(fd, "%u", &enc_flags) )
    {
       enc_flags = MODEL_ENC_FLAGS_NONE;
@@ -2140,9 +2131,9 @@ bool Model::loadVersion10(FILE* fd)
    if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iThreadPriorityRadioRx, &processesPriorities.iThreadPriorityRadioTx, &processesPriorities.iThreadPriorityRouter) )
    {
       log_softerror_and_alarm("Load model10: Error on line th-prio");
-      processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
-      processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
-      processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
+      processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_RX;
+      processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_TX;
+      processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_VEHICLE_THREAD_ROUTER;
    }
 
    if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
@@ -2244,10 +2235,9 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       fflush(fd);
       fclose(fd);
    }
-   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, dev mode: %s, %s, on time: %02d:%02d",
+   log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, %s, on time: %02d:%02d",
          filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          isOnController?"yes":"no",
-         bDeveloperMode?"yes":"no",
          is_spectator?"spectator mode": "control mode",
          m_Stats.uCurrentOnTime/60, m_Stats.uCurrentOnTime%60);
       
@@ -2587,7 +2577,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    //----------------------------------------
    // Misc
 
-   sprintf(szSetting, "misc_dev: %d %u\n", bDeveloperMode, uDeveloperFlags);
+   sprintf(szSetting, "misc_dev: %u %u\n", uDummyM1, uDeveloperFlags);
    strcat(szModel, szSetting);
    sprintf(szSetting, "%u\n", enc_flags);
    strcat(szModel, szSetting);
@@ -2689,7 +2679,7 @@ void Model::resetVideoParamsToDefaults()
    video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
    video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
    video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
-   video_params.uVideoExtraFlags = VIDEO_FLAG_IGNORE_TX_SPIKES;
+   video_params.uVideoExtraFlags = 0;
    resetVideoLinkProfiles(-1);
 }
 
@@ -4181,7 +4171,7 @@ void Model::resetToDefaults(bool generateId)
    iGPSCount = 1;
 
    enableDHCP = false;
-   bDeveloperMode = false;
+   uDummyM1 = 0;
    
    uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
    uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
@@ -4191,9 +4181,6 @@ void Model::resetToDefaults(bool generateId)
       uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
    else
       uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
-
-   uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
-
 
    resetRelayParamsToDefaults(&relay_params);
 
@@ -4225,9 +4212,9 @@ void Model::resetToDefaults(bool generateId)
       processesPriorities.iFreqGPU = 0;
    }
 
-   processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_THREAD_RADIO_RX;
-   processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_THREAD_RADIO_TX;
-   processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_THREAD_ROUTER;
+   processesPriorities.iThreadPriorityRadioRx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_RX;
+   processesPriorities.iThreadPriorityRadioTx = DEFAULT_PRIORITY_VEHICLE_THREAD_RADIO_TX;
+   processesPriorities.iThreadPriorityRouter = DEFAULT_PRIORITY_VEHICLE_THREAD_ROUTER;
 
    resetVideoParamsToDefaults();
    resetCameraToDefaults(-1);
@@ -4362,7 +4349,7 @@ void Model::resetOSDFlags()
       }
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
-      osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
+      osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_GROUND_SPEED;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
@@ -4394,7 +4381,7 @@ void Model::resetOSDFlags()
    osd_params.osd_flags[2] |= OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_VIDEO_MBPS;
    osd_params.osd_flags[2] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
    osd_params.osd_flags2[2] = OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_PERCENTAGE;
+   osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
    osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_GROUND_SPEED;
    //osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
 }
@@ -4620,7 +4607,6 @@ bool Model::canSwapEnabledHighCapacityRadioInterfaces()
 
    if ( radioInterfacesParams.interfaces_count > 1 )
    if ( radioLinksParams.links_count > 1 )
-   if ( bDeveloperMode )
    {
       for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
       for( int k=i+1; k<radioInterfacesParams.interfaces_count; k++ )
@@ -4728,7 +4714,6 @@ bool Model::swapEnabledHighCapacityRadioInterfaces()
 
    if ( radioInterfacesParams.interfaces_count > 1 )
    if ( radioLinksParams.links_count > 1 )
-   if ( bDeveloperMode )
    {
       for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
       for( int k=i+1; k<radioInterfacesParams.interfaces_count; k++ )
@@ -4922,9 +4907,18 @@ bool Model::rotateRadioLinksOrder()
    return true;
 }
 
+bool Model::radioInterfaceIsWiFiRadio(int iRadioInterfaceIndex)
+{
+   if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= radioInterfacesParams.interfaces_count) )
+      return false;
+   if ( hardware_radio_type_is_ieee(radioInterfacesParams.interface_radiotype_and_driver[iRadioInterfaceIndex] & 0xFF) )
+      return true;
+   return false;
+}
+
 bool Model::radioLinkIsWiFiRadio(int iRadioLinkIndex)
 {
-   if ( iRadioLinkIndex < 0 || iRadioLinkIndex >= radioLinksParams.links_count )
+   if ( (iRadioLinkIndex < 0) || (iRadioLinkIndex >= radioLinksParams.links_count) )
       return false;
 
    for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
@@ -5413,8 +5407,6 @@ void Model::getCameraFlags(char* szCameraFlags)
       sprintf(szBuff, " -awbg %.1f,%.1f", pParams->awbGainR, pParams->awbGainB);
       strcat(szCameraFlags, szBuff);
    }
-   //if ( bDeveloperMode )
-   //   strcat(szCameraFlags, " -a \"DEV\"");
 }
 
 // To fix: overwrites checks
@@ -5536,7 +5528,7 @@ void Model::getVideoFlags(char* szVideoFlags, int iVideoProfile)
       strcat(szVideoFlags, " -md 1");
 }
 
-void Model::populateVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE)
+void Model::populateVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE)
 {
    if ( NULL == pPHRTE )
       return;
@@ -5581,7 +5573,7 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
    else
       telemetry_params.flags &= ~TELEMETRY_FLAGS_SPECTATOR_ENABLE;
 
-   u32 ver = pPHRTE->version;
+   u32 ver = pPHRTE->rubyVersion;
    log_line("populateFromVehicleTelemetryData (version 3): firmware type: %s, sw version from telemetry stream: %d.%d", str_format_firmware_type(getVehicleFirmwareType()), ver>>4, ver & 0x0F);
    log_line("populateFromVehicleTelemetryData (version 3): radio links: %d", pPHRTE->radio_links_count);
    for( int i=0; i<pPHRTE->radio_links_count; i++ )
@@ -5690,6 +5682,131 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
    log_line("populateFromVehicleTelemetryData (version 3): %d radio links: freq1: %s, freq2: %s, freq3: %s; %d radio interfaces.",
        radioLinksParams.links_count, szFreq1, szFreq2, szFreq3, radioInterfacesParams.interfaces_count);
    log_line("populateFromVehicleTelemetryData (v3) radio info after update:");
+   logVehicleRadioInfo();
+}
+
+
+void Model::populateFromVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE)
+{
+   uVehicleId = pPHRTE->uVehicleId;
+   strncpy(vehicle_name, (char*)pPHRTE->vehicle_name, MAX_VEHICLE_NAME_LENGTH-1);
+   vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
+   vehicle_type = pPHRTE->vehicle_type;
+
+   if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY )
+      telemetry_params.flags |= TELEMETRY_FLAGS_SPECTATOR_ENABLE;
+   else
+      telemetry_params.flags &= ~TELEMETRY_FLAGS_SPECTATOR_ENABLE;
+
+   u32 ver = pPHRTE->rubyVersion;
+   log_line("populateFromVehicleTelemetryData (version 4): firmware type: %s, sw version from telemetry stream: %d.%d", str_format_firmware_type(getVehicleFirmwareType()), ver>>4, ver & 0x0F);
+   log_line("populateFromVehicleTelemetryData (version 4): radio links: %d", pPHRTE->radio_links_count);
+   for( int i=0; i<pPHRTE->radio_links_count; i++ )
+   {
+      log_line("populateFromVehicleTelemetryData (version 4): radio link %d: %u kHz", i+1, pPHRTE->uRadioFrequenciesKhz[i]);
+   }
+   if ( ver > 0 )
+   {
+      u32 uBuild = sw_version >> 16;
+      if ( (ver>>4) < 7 )
+         uBuild = 50;
+      if ( (ver>>4) == 7 )
+      if ( (ver & 0x0F) < 7 )
+         uBuild = 50;
+
+      sw_version = ((ver>>4)) * 256 + ((ver & 0x0F)*10);
+      sw_version |= (uBuild<<16);
+      log_line("populateFromVehicleTelemetryData (version 4): set sw version to: %d.%d (b %d)", (sw_version>>8) & 0xFF, (sw_version & 0xFF)/10, sw_version >> 16);
+   }
+
+   resetRadioLinksParams();
+   radioLinksParams.links_count = pPHRTE->radio_links_count;
+   relay_params.isRelayEnabledOnRadioLinkId = -1;
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+      radioLinksParams.link_frequency_khz[i] = pPHRTE->uRadioFrequenciesKhz[i];
+      if ( pPHRTE->uRelayLinks & (1<<i) )
+      {
+         radioLinksParams.link_capabilities_flags[i] |= RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY;
+         relay_params.isRelayEnabledOnRadioLinkId = i;
+         relay_params.uRelayFrequencyKhz = pPHRTE->uRadioFrequenciesKhz[i];
+      } 
+   }
+
+   radioInterfacesParams.interfaces_count = 1;
+   radioInterfacesParams.interface_capabilities_flags[0] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+   radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+   if ( radioLinksParams.link_frequency_khz[0] > 1000000 )
+      radioInterfacesParams.interface_capabilities_flags[0] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+   radioInterfacesParams.interface_link_id[0] = 0;
+   radioInterfacesParams.interface_current_frequency_khz[0] = radioLinksParams.link_frequency_khz[0];
+   strcpy(radioInterfacesParams.interface_szMAC[0], "XXXXXX");
+   strcpy(radioInterfacesParams.interface_szPort[0], "X");
+   radioInterfacesParams.interface_raw_power[0] = DEFAULT_RADIO_TX_POWER;
+   if ( radioLinksParams.link_frequency_khz[0] < 1000000 )
+      radioInterfacesParams.interface_raw_power[0] = DEFAULT_RADIO_SIK_TX_POWER;
+   radioInterfacesParams.interface_dummy2[0] = 0;
+   radioInterfacesParams.interface_supported_bands[0] = getBand(radioLinksParams.link_frequency_khz[0]);
+   radioInterfacesParams.interface_card_model[0] = 0;
+
+   if ( getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_58 )
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+   else if ( (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_23) || 
+       (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_24) ||
+       (getBand(radioLinksParams.link_frequency_khz[0]) == RADIO_HW_SUPPORTED_BAND_25) )
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
+   else
+      radioInterfacesParams.interface_radiotype_and_driver[0] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
+
+   // Assign radio interfaces to all radio links
+
+   int iInterfaceIndex = radioInterfacesParams.interfaces_count;
+   for( int i=1; i<radioLinksParams.links_count; i++ )
+   {
+      if ( radioLinksParams.link_frequency_khz[i] == 0 )
+         continue;
+
+      radioInterfacesParams.interface_capabilities_flags[iInterfaceIndex] = RADIO_HW_CAPABILITY_FLAG_CAN_RX | RADIO_HW_CAPABILITY_FLAG_CAN_TX | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_VIDEO | RADIO_HW_CAPABILITY_FLAG_CAN_USE_FOR_DATA;
+      if ( radioLinksParams.link_frequency_khz[i] > 1000000 )
+         radioInterfacesParams.interface_capabilities_flags[iInterfaceIndex] |= RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY;
+      radioInterfacesParams.interface_link_id[iInterfaceIndex] = i;
+      radioInterfacesParams.interface_current_frequency_khz[iInterfaceIndex] = radioLinksParams.link_frequency_khz[i];
+      strcpy(radioInterfacesParams.interface_szMAC[iInterfaceIndex], "XXXXXX");
+      strcpy(radioInterfacesParams.interface_szPort[iInterfaceIndex], "X");
+      radioInterfacesParams.interface_raw_power[iInterfaceIndex] = DEFAULT_RADIO_TX_POWER;
+      if ( radioLinksParams.link_frequency_khz[i] < 1000000 )
+         radioInterfacesParams.interface_raw_power[iInterfaceIndex] = DEFAULT_RADIO_SIK_TX_POWER;
+      radioInterfacesParams.interface_dummy2[iInterfaceIndex] = 0;
+      radioInterfacesParams.interface_supported_bands[iInterfaceIndex] = getBand(radioLinksParams.link_frequency_khz[i]);
+      if ( getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_58 )
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_REALTEK | (RADIO_HW_DRIVER_REALTEK_8812AU<<8);
+      else if ( (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_23) || 
+              (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_24) ||
+              (getBand(radioLinksParams.link_frequency_khz[i]) == RADIO_HW_SUPPORTED_BAND_25) )
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_ATHEROS | (RADIO_HW_DRIVER_ATHEROS<<8);
+      else
+         radioInterfacesParams.interface_radiotype_and_driver[iInterfaceIndex] = RADIO_TYPE_SIK | (RADIO_HW_DRIVER_SERIAL_SIK<<8);
+      
+      radioInterfacesParams.interface_card_model[iInterfaceIndex] = 0;
+      radioInterfacesParams.interfaces_count++;
+      iInterfaceIndex++;
+   }
+
+   updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
+
+   constructLongName();
+
+   char szFreq1[64];
+   char szFreq2[64];
+   char szFreq3[64];
+   strcpy(szFreq1, str_format_frequency(radioLinksParams.link_frequency_khz[0]));
+   strcpy(szFreq2, str_format_frequency(radioLinksParams.link_frequency_khz[1]));
+   strcpy(szFreq3, str_format_frequency(radioLinksParams.link_frequency_khz[2]));
+
+   log_line("populateFromVehicleTelemetryData (version 4): %d radio links: freq1: %s, freq2: %s, freq3: %s; %d radio interfaces.",
+       radioLinksParams.links_count, szFreq1, szFreq2, szFreq3, radioInterfacesParams.interfaces_count);
+   log_line("populateFromVehicleTelemetryData (v4) radio info after update:");
    logVehicleRadioInfo();
 }
 

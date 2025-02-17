@@ -36,9 +36,6 @@ extern shared_mem_router_vehicles_runtime_info g_SM_RouterVehiclesRuntimeInfo;
 extern shared_mem_radio_stats* g_pSM_RadioStats;
 extern shared_mem_radio_stats g_SM_RadioStats;
 
-extern shared_mem_radio_stats_interfaces_rx_graph* g_pSM_RadioStatsInterfaceRxGraph;
-extern shared_mem_radio_stats_interfaces_rx_graph g_SM_RadioStatsInterfaceRxGraph;
-
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;

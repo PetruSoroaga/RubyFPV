@@ -163,8 +163,8 @@ void MenuSearchConnect::Render()
 
    if ( ((g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_type & MODEL_FIRMWARE_MASK) >> 5) == MODEL_FIRMWARE_TYPE_RUBY )
    {
-      u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
-      u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.version;
+      u8 vMaj = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.rubyVersion;
+      u8 vMin = g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.rubyVersion;
       vMaj = vMaj >> 4;
       vMin = vMin & 0x0F;
       //sprintf(szBuff,"Id: %u, ver: %d.%d", g_SearchVehicleRuntimeInfo.headerRubyTelemetryExtended.uVehicleId, vMaj, vMin);

@@ -10,10 +10,11 @@ const int* tx_powers_get_raw_radio_power_values(int* piOutputCount);
 const int* tx_powers_get_ui_levels_mw(int* piOutputCount);
 const int* tx_powers_get_raw_measurement_intervals(int* piOutputCount);
 
+int tx_powers_get_mw_boosted_value_from_mw(int imWValue, bool bBoost2W, bool bBoost4W);
+
 int tx_powers_get_max_usable_power_mw_for_card(u32 uBoardType, int iCardModel);
 int tx_powers_get_max_usable_power_raw_for_card(u32 uBoardType, int iCardModel);
 int tx_powers_convert_raw_to_mw(u32 uBoardType, int iCardModel, int iRawPower);
 int tx_powers_convert_mw_to_raw(u32 uBoardType, int iCardModel, int imWPower);
 
-int tx_powers_get_max_usable_power_mw_for_model(Model* pModel);
 void tx_power_get_current_mw_powers_for_model(Model* pModel, int* piOutputArray);

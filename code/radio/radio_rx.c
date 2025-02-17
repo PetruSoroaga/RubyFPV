@@ -52,7 +52,6 @@ t_radio_rx_state s_RadioRxState;
 pthread_t s_pThreadRadioRx;
 
 shared_mem_radio_stats* s_pSMRadioStats = NULL;
-shared_mem_radio_stats_interfaces_rx_graph* s_pSMRadioRxGraphs = NULL;
 int s_iSearchMode = 0;
 u32 s_uRadioRxTimeNow = 0;
 u32 s_uRadioRxMaxTimeRead = 0;
@@ -375,7 +374,7 @@ void _radio_rx_check_add_packet_to_rx_queue(u8* pPacket, int iLength, int iRadio
       return;
 
    if ( NULL != s_pSMRadioStats )
-     radio_stats_update_on_unique_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iRadioInterfaceIndex, pPacket, iLength);
+     radio_stats_update_on_unique_packet_received(s_pSMRadioStats, s_uRadioRxTimeNow, iRadioInterfaceIndex, pPacket, iLength);
 
    _radio_rx_add_packet_to_rx_queue(pPacket, iLength, iRadioInterfaceIndex);
 }
@@ -421,7 +420,7 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
 
    _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], pPacketBuffer, iPacketLength, 1);
    if ( NULL != s_pSMRadioStats )
-      radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pPacketBuffer, iPacketLength, 1, 1);
+      radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_uRadioRxTimeNow, iInterfaceIndex, pPacketBuffer, iPacketLength, 1, 1);
    
    // If there are missing packets, reset rx buffer for this interface
    
@@ -537,7 +536,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
             s_uBuffersSerialMessagesReadPos[iInterfaceIndex] -= iBytesToDiscard;
 
             _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSerialMessages[iInterfaceIndex], iBytesToDiscard, 0);
-            radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, NULL, iInterfaceIndex);
+            radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, iInterfaceIndex);
          }
          return 0;
       }
@@ -545,7 +544,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
       if ( iPacketPos > 0 )
       {
          _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSerialMessages[iInterfaceIndex], iPacketPos, 0);
-         radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, NULL, iInterfaceIndex);
+         radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, iInterfaceIndex);
       }
       t_packet_header_short* pPHS = (t_packet_header_short*)(pData+iPacketPos);
       int iShortTotalPacketSize = (int)(pPHS->data_length + sizeof(t_packet_header_short));
@@ -595,7 +594,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex, int iMaxReads)
       }
 
       iCountParsed++;
-
+      iDataIsOk = 1;
       t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
       u8 uPacketFlags = pPH->packet_flags;
       u8 uPacketType = pPH->packet_type;
@@ -675,7 +674,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex, int iMaxReads)
             s_pPacketsCounterOutputMissingMaxGap[iInterfaceIndex] = (u8)nLost;
       }
       if ( NULL != s_pSMRadioStats )
-         radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_pSMRadioRxGraphs, s_uRadioRxTimeNow, iInterfaceIndex, pPacketBuffer, iBufferLength, 0, iDataIsOk);
+         radio_stats_update_on_new_radio_packet_received(s_pSMRadioStats, s_uRadioRxTimeNow, iInterfaceIndex, pPacketBuffer, iBufferLength, 0, iDataIsOk);
    }
 
    if ( iReturn < 0 )
@@ -847,15 +846,19 @@ void * _thread_radio_rx(void *argument)
       if ( uDeltaTime > s_uRadioRxLoopTimeMax )
          s_uRadioRxLoopTimeMax = uDeltaTime;
       s_uRadioRxLoopTimeAvg = (s_uRadioRxLoopTimeAvg * 99 + uDeltaTime)/100;
-      if ( uDeltaTime > iPollTimeoutMs + 5 )
+      
+      if ( (uDeltaTime >= iPollTimeoutMs + 10) || (uTimeNow - uTimeReadSignaled > 5) )
       {
-         if ( (iLoopErrorsCounter % 20) == 0 )
-            log_softerror_and_alarm("ERROR Rx loop took %u ms", uDeltaTime);
          iLoopErrorsCounter++;
+         if ( (iLoopErrorsCounter % 20) == 1 )
+            log_softerror_and_alarm("ERROR Rx loop (count %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
       }
       else
+      {
+         if ( iLoopErrorsCounter > 1 )
+            log_softerror_and_alarm("ERROR Rx loop (lcount %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
          iLoopErrorsCounter = 0;
-     
+      }
       uTimeLastLoopCheck = uTimeNow;
 
       uDeltaTime = uTimeNow - uTimeReadSignaled;
@@ -908,7 +911,7 @@ void * _thread_radio_rx(void *argument)
 
       if ( s_iRadioRxCountFDs <= 0 )
       {
-         hardware_sleep_ms(10);
+         hardware_sleep_ms(5);
          uTimeReadSignaled = get_current_timestamp_ms();
          continue;
       }
@@ -990,13 +993,12 @@ void * _thread_radio_rx(void *argument)
    return NULL;
 }
 
-int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_radio_stats_interfaces_rx_graph* pSMRadioRxGraphs, int iSearchMode, u32 uAcceptedFirmwareType)
+int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, int iSearchMode, u32 uAcceptedFirmwareType)
 {
    if ( s_iRadioRxInitialized )
       return 1;
 
    s_pSMRadioStats = pSMRadioStats;
-   s_pSMRadioRxGraphs = pSMRadioRxGraphs;
    s_iSearchMode = iSearchMode;
    s_iRadioRxSingalStop = 0;
    s_RadioRxState.uAcceptedFirmwareType = uAcceptedFirmwareType;

@@ -318,11 +318,16 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterface);
 
    g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = -200;
+   g_UplinkInfoRxStats[iRadioInterface].lastReceivedNoiseDBM = 0;
    for( int i=0; i<pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount; i++ )
    {
       if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] < 500 )
       if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] > g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM )
+      {
          g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i];
+         if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[i] < 0 )
+            g_UplinkInfoRxStats[iRadioInterface].lastReceivedNoiseDBM = -pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[i];
+      }
    }
    g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
 

@@ -232,6 +232,7 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
          pRTInfo->vehicles[i].uMaxAckTime[iIndex][k] = 0;
       }
       pRTInfo->vehicles[i].uCountReqRetransmissions[iIndex] = 0;
+      pRTInfo->vehicles[i].uCountReqRetrPackets[iIndex] = 0;
       pRTInfo->vehicles[i].uCountAckRetransmissions[iIndex] = 0;
    }
    pRTInfo->uOutputedVideoPackets[iIndex] = 0;

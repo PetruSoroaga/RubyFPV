@@ -63,6 +63,12 @@ MenuVehicleRadioInterface::MenuVehicleRadioInterface(int iRadioInterface)
    m_pItemsSelect[1]->setIsEditable();
    m_IndexCardModel = addMenuItem(m_pItemsSelect[1]);
 
+   m_pItemsSelect[0] = new MenuItemSelect(L("Output Boost Mode"), L("If this radio interface has an output RF power booster connected to it, select the one you have."));
+   m_pItemsSelect[0]->addSelection(L("None"));
+   m_pItemsSelect[0]->addSelection(L("2W Booster"));
+   m_pItemsSelect[0]->addSelection(L("4W Booster"));
+   m_pItemsSelect[0]->setIsEditable();
+   m_iIndexBoostMode = addMenuItem(m_pItemsSelect[0]);
 }
 
 MenuVehicleRadioInterface::~MenuVehicleRadioInterface()
@@ -83,6 +89,12 @@ void MenuVehicleRadioInterface::valuesToUI()
       m_pItemsSelect[1]->setSelection(1-g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
    else
       m_pItemsSelect[1]->setSelection(1+g_pCurrentModel->radioInterfacesParams.interface_card_model[m_iRadioInterface]);
+
+   m_pItemsSelect[0]->setSelectedIndex(0);
+   if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[m_iRadioInterface] & RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_2W )
+      m_pItemsSelect[0]->setSelectedIndex(1);
+   if ( g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[m_iRadioInterface] & RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W )
+      m_pItemsSelect[0]->setSelectedIndex(2);
 }
 
 void MenuVehicleRadioInterface::Render()
@@ -144,5 +156,24 @@ void MenuVehicleRadioInterface::onSelectItem()
          valuesToUI();
 
       return;
-   }   
+   }
+
+   if ( m_iIndexBoostMode == m_SelectedIndex )
+   {
+      u32 uNewFlags = g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[m_iRadioInterface];
+      uNewFlags &= ~RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_2W;
+      uNewFlags &= ~RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W;
+      if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
+         uNewFlags |= RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_2W;
+      if ( 2 == m_pItemsSelect[0]->getSelectedIndex() )
+         uNewFlags |= RADIO_HW_CAPABILITY_FLAG_HAS_BOOSTER_4W;
+
+      if ( uNewFlags == g_pCurrentModel->radioInterfacesParams.interface_capabilities_flags[m_iRadioInterface] )
+         return;
+
+      u32 uParam = m_iRadioInterface;
+      uParam = uParam | ((uNewFlags << 8) & 0xFFFFFF00);
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES, uParam, NULL, 0) )
+         valuesToUI();
+   }
 }

@@ -72,7 +72,7 @@ extern "C" {
 #endif
 
 void * _thread_radio_rx(void *argument);
-int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, shared_mem_radio_stats_interfaces_rx_graph* pSMRadioRxGraphs, int iSearchMode, u32 uAcceptedFirmwareType);
+int radio_rx_start_rx_thread(shared_mem_radio_stats* pSMRadioStats, int iSearchMode, u32 uAcceptedFirmwareType);
 void radio_rx_stop_rx_thread();
 
 void radio_rx_set_custom_thread_priority(int iPriority);

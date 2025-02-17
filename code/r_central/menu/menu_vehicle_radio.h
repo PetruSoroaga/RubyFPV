@@ -17,13 +17,14 @@ class MenuVehicleRadioConfig: public Menu
       virtual void onSelectItem();
             
    private:
-      MenuItemSelect* m_pItemsSelect[30];
+      MenuItemSelect* m_pItemsSelect[50];
       MenuItemSlider* m_pItemsSlider[10];
       
       int m_IndexPrioritizeUplink;
       int m_IndexDisableUplink;
       int m_IndexEncryption;
-      int m_IndexTxPower;
+      int m_IndexTxPowers[MAX_RADIO_INTERFACES];
+      int m_IndexDataRates[MAX_RADIO_INTERFACES];
       int m_IndexRadioConfig;
       int m_IndexOptimizeLinks;
       int m_IndexFreq[MAX_RADIO_INTERFACES];
@@ -35,7 +36,10 @@ class MenuVehicleRadioConfig: public Menu
       int m_iMaxPowerMw;
 
       void populate();
+      void populateFrequencies();
+      void populateRadioRates();
+      void populateTxPowers();
       void sendNewRadioLinkFrequency(int iVehicleLinkIndex, u32 uNewFreqKhz);
-      void computeSendPowerToVehicle();
+      void computeSendPowerToVehicle(int iVehicleLinkIndex);
 
 };

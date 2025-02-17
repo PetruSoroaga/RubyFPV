@@ -708,24 +708,15 @@ void link_watch_loop_video()
 
       if ( g_ProcessStatsRouter.alarmFlags & PROCESS_ALARM_RADIO_STREAM_RESTARTED )
       {
+         if ( g_bDidAnUpdate && (g_nSucceededOTAUpdates > 0) )
+            g_bLinkWizardAfterUpdate = true;
+         g_bDidAnUpdate = false;
+         g_nSucceededOTAUpdates = 0;
          if ( (NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel) &&
               ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->iCameraCount > 0 ) )
             warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Video stream was restarted on vehicle.", g_idIconWarning);
          else
             warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Radio streams where restarted on vehicle.", g_idIconWarning);
-      }
-      if ( g_ProcessStatsRouter.alarmFlags & PROCESS_ALARM_RADIO_INTERFACE_BEHIND )
-      if ( g_TimeNow > s_TimeLastAlarmRadioLinkBehind + 2000 )
-      {
-         ControllerSettings* pCS = get_ControllerSettings();
-         if ( NULL != pCS && (0 != pCS->iDeveloperMode) )
-         {
-            s_TimeLastAlarmRadioLinkBehind = g_TimeNow;
-            char szBuff[256];
-            //sprintf(szBuff, "Link %d is behind on stream id %d, received packet index: %u, maximum packet index for this stream is: %u.", g_ProcessStatsRouter.alarmParam[2], g_ProcessStatsRouter.alarmParam[0], g_ProcessStatsRouter.alarmParam[3], g_ProcessStatsRouter.alarmParam[1] );
-            sprintf(szBuff, "Link %d is behind on stream id %d by %d packets", g_ProcessStatsRouter.alarmParam[2], g_ProcessStatsRouter.alarmParam[0], g_ProcessStatsRouter.alarmParam[1] - g_ProcessStatsRouter.alarmParam[3]);
-            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, szBuff, g_idIconWarning);
-         }
       }
    }
 }

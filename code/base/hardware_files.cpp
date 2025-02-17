@@ -85,19 +85,21 @@ void hardware_mount_boot()
 int hardware_get_free_space_kb()
 {
    char szOutput[2048];
+   szOutput[0] = 0;
 
    #if defined(HW_PLATFORM_RASPBERRY)
    if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
       return -1;
-   #elif defined( HW_PLATFORM_RADXA_ZERO3)
+   #endif
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
    if ( 1 != hw_execute_bash_command_raw("df / | grep dev/", szOutput) )
       return -1;
-   #else
-   szOutput[0] = 0;
-   if ( 1 != hw_execute_bash_command_raw("df . | grep overlay 2>/dev/null", szOutput) )
-      return -1;
-   if ( strlen(szOutput) < 10 )
-   if ( 1 != hw_execute_bash_command_raw("df . | grep tmpfs 2>/dev/null", szOutput) )
+   #endif
+   #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   //if ( 1 != hw_execute_bash_command_raw("df . | grep overlay 2>/dev/null", szOutput) )
+   //   return -1;
+   //if ( strlen(szOutput) < 10 )
+   if ( 1 != hw_execute_bash_command_raw("df /tmp | grep tmpfs 2>/dev/null", szOutput) )
       return -1;
    #endif
 
@@ -111,7 +113,9 @@ int hardware_get_free_space_kb()
 
 void* _thread_get_free_space_async(void *argument)
 {
+   sched_yield();
    s_iGetFreeSpaceAsyncResultValueKb = -1;
+   hardware_sleep_ms(500);
    int iFreeSpaceKb = hardware_get_free_space_kb();
    log_line("Done getting free space async");
    s_iGetFreeSpaceAsyncResultValueKb = iFreeSpaceKb;
@@ -121,8 +125,21 @@ void* _thread_get_free_space_async(void *argument)
 int hardware_get_free_space_kb_async()
 {
    s_iGetFreeSpaceAsyncResultValueKb = -1;
-   if ( 0 != pthread_create(&s_pThreadGetFreeSpaceAsync, NULL, &_thread_get_free_space_async, NULL) )
+   pthread_attr_t attr;
+   struct sched_param params;
+
+   pthread_attr_init(&attr);
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(&attr, &params);
+   if ( 0 != pthread_create(&s_pThreadGetFreeSpaceAsync, &attr, &_thread_get_free_space_async, NULL) )
+   {
+      pthread_attr_destroy(&attr);
       return -1;
+   }
+   pthread_attr_destroy(&attr);
    return 0;
 }
 

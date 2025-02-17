@@ -375,7 +375,7 @@ bool ProcessorRxVideo::checkAndDiscardBlocksTooOld()
    while ( NULL != pVideoBlockFirst )
    {
       if ( pVideoBlockFirst->uReceivedTime != 0 )
-      if ( (int)pVideoBlockFirst->uReceivedTime > uCutoffTime )
+      if ( pVideoBlockFirst->uReceivedTime > uCutoffTime )
          break;
      
       int iCountSkipped = m_pVideoRxBuffer->advanceStartPositionToVideoBlock(pVideoBlockFirst->uVideoBlockIndex+1);
@@ -993,15 +993,14 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
       return -1;
    }
 
-
-   //if ( m_uLastTimeRequestedRetransmission < g_TimeNow-200 )
-   //   m_uTimeIntervalMsForRequestingRetransmissions = 10;
-   //if ( m_uTimeIntervalMsForRequestingRetransmissions < 20 )
-   //   m_uTimeIntervalMsForRequestingRetransmissions++;
-
+   
    if ( (!bForceSyncNow) && (g_TimeNow < m_uLastTimeRequestedRetransmission + m_uTimeIntervalMsForRequestingRetransmissions) )
       return -1;
 
+   if ( g_TimeNow >= m_uLastTimeRequestedRetransmission + m_iMilisecondsMaxRetransmissionWindow )
+      m_uTimeIntervalMsForRequestingRetransmissions = 10;
+   else if ( m_uTimeIntervalMsForRequestingRetransmissions < 50 )
+      m_uTimeIntervalMsForRequestingRetransmissions += 5;
 
    // If link is lost, do not request retransmissions
    if ( pRuntimeInfo->bIsVehicleLinkToControllerLostAlarm )
@@ -1011,7 +1010,7 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    {
       u32 uDelta = (u32)g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds;
       if ( uDelta > 50 )
-      if ( uDelta > m_iMilisecondsMaxRetransmissionWindow )
+      if ( uDelta > (u32)m_iMilisecondsMaxRetransmissionWindow )
       if ( g_TimeNow > pRuntimeInfo->uLastTimeReceivedAckFromVehicle + uDelta )
          return -1;
    }
@@ -1048,7 +1047,12 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    memcpy(packet + sizeof(t_packet_header), (u8*)&m_uRequestRetransmissionUniqueId, sizeof(u32));
    memcpy(packet + sizeof(t_packet_header) + sizeof(u32), (u8*)&m_uVideoStreamIndex, sizeof(u8));
    u8* pDataInfo = packet + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8);
-   
+   u32 uTopVideoBlockIndexInBuffer = 0;
+   u32 uTopVideoBlockPacketIndexInBuffer = 0xFF;
+   u32 uTopVideoBlockLastRecvTime = 0;
+   u32 uLastRequestedVideoBlockIndex = 0;
+   int iLastRequestedVideoBlockPacketIndex = 0;
+
    int iCountPacketsRequested = 0;
    int iCountBlocks = m_pVideoRxBuffer->getBlocksCountInBuffer();
    // On the last block (the current one), request retransmissions from it only if we received at least a packet from it and last receive time is not right now
@@ -1058,13 +1062,40 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
       if ( NULL == pVideoBlock )
          continue;
       
+      int iCountToRequestFromBlock = pVideoBlock->iBlockDataPackets - pVideoBlock->iRecvDataPackets - pVideoBlock->iRecvECPackets;
+
       // Ignore current last video block if it's still receiving packets now or has not received any packet at all
       if ( i == iCountBlocks-1 )
-      if ( pVideoBlock->uVideoBlockIndex == m_pVideoRxBuffer->getMaxReceivedVideoBlockIndexPresentInBuffer() )
-      if ( (pVideoBlock->iRecvDataPackets == 0) || (pVideoBlock->uReceivedTime > g_TimeNow-5) )
-         continue;
-
-      int iCountToRequestFromBlock = pVideoBlock->iBlockDataPackets - pVideoBlock->iRecvDataPackets - pVideoBlock->iRecvECPackets;
+      {
+         uTopVideoBlockIndexInBuffer = pVideoBlock->uVideoBlockIndex;
+         uTopVideoBlockLastRecvTime = pVideoBlock->uReceivedTime;
+         bool bRequestData = false;
+         if ( pVideoBlock->iRecvECPackets > 0 )
+         if ( (pVideoBlock->iRecvDataPackets + pVideoBlock->iRecvECPackets) < pVideoBlock->iBlockDataPackets )
+             bRequestData = true;
+         if ( pVideoBlock->iRecvDataPackets > 0 )
+         {
+             for( int iPacket = pVideoBlock->iBlockDataPackets-1; iPacket >= 0; iPacket-- )
+             {
+                if ( ! pVideoBlock->packets[iPacket].bEmpty )
+                if ( pVideoBlock->packets[iPacket].pPHVSImp != NULL )
+                {
+                   uTopVideoBlockPacketIndexInBuffer = iPacket;
+                   if ( ! (pVideoBlock->packets[iPacket].pPHVSImp->uFrameAndNALFlags & VIDEO_PACKET_FLAGS_IS_END_OF_TRANSMISSION_FRAME) )
+                   if ( pVideoBlock->uReceivedTime < g_TimeNow-2 )
+                      bRequestData = true;
+                   if ( pVideoBlock->iRecvDataPackets < iPacket+1 )
+                   {
+                      bRequestData = true;
+                      iCountToRequestFromBlock = (iPacket+1) - pVideoBlock->iRecvDataPackets;
+                   }
+                   break;
+                }
+             }
+         }
+         if ( ! bRequestData )
+            continue;
+      }
       if ( iCountToRequestFromBlock > 0 )
       {
          for( int k=0; k<pVideoBlock->iBlockDataPackets; k++ )
@@ -1074,6 +1105,8 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
             if ( ! pVideoBlock->packets[k].bEmpty )
                continue;
 
+            uLastRequestedVideoBlockIndex = pVideoBlock->uVideoBlockIndex;
+            iLastRequestedVideoBlockPacketIndex = k;
             memcpy(pDataInfo, &pVideoBlock->uVideoBlockIndex, sizeof(u32));
             pDataInfo += sizeof(u32);
             u8 uPacketIndex = k;
@@ -1084,11 +1117,11 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
             iCountPacketsRequested++;
             if ( iCountToRequestFromBlock == 0 )
                break;
-            if ( iCountPacketsRequested > 20 )
+            if ( iCountPacketsRequested >= DEFAULT_VIDEO_RETRANS_MAX_PCOUNT )
               break;
          }
       }
-      if ( iCountPacketsRequested > 20 )
+      if ( iCountPacketsRequested >= DEFAULT_VIDEO_RETRANS_MAX_PCOUNT )
         break;
    }
 
@@ -1107,8 +1140,23 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    if ( NULL != pRTInfo )
    {
       pRTInfo->uCountReqRetransmissions[g_SMControllerRTInfo.iCurrentIndex]++;
+      if ( pRTInfo->uCountReqRetrPackets[g_SMControllerRTInfo.iCurrentIndex] + uCount > 255 )
+         pRTInfo->uCountReqRetrPackets[g_SMControllerRTInfo.iCurrentIndex] = 255;
+      else
+         pRTInfo->uCountReqRetrPackets[g_SMControllerRTInfo.iCurrentIndex] += uCount;
    }
 
+   pDataInfo = packet + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8);
+   u32 uFirstReqBlockIndex =0;
+   memcpy(&uFirstReqBlockIndex, pDataInfo, sizeof(u32));
+   log_line("[AdaptiveVideo] Requested retr id %u from vehicle for %d packets ([%u/%d]...[%u/%d])",
+      m_uRequestRetransmissionUniqueId, iCountPacketsRequested,
+      uFirstReqBlockIndex, (int)pDataInfo[sizeof(u32)], uLastRequestedVideoBlockIndex, iLastRequestedVideoBlockPacketIndex);
+   
+   log_line("[AdaptiveVideo] Video blocks in buffer: %d, top/max video block index in buffer: [%u/%u] / [%u/%u]",
+      iCountBlocks, uTopVideoBlockIndexInBuffer, uTopVideoBlockPacketIndexInBuffer, m_pVideoRxBuffer->getMaxReceivedVideoBlockIndexPresentInBuffer(), m_pVideoRxBuffer->getMaxReceivedVideoBlockPacketIndexPresentInBuffer());
+   log_line("[AdaptiveVideo] Max Video block packet received: [%u/%u], top video block last recv time: %u ms ago",
+      m_pVideoRxBuffer->getMaxReceivedVideoBlockIndex(), m_pVideoRxBuffer->getMaxReceivedVideoBlockPacketIndex(), g_TimeNow - uTopVideoBlockLastRecvTime);
    packets_queue_add_packet(&s_QueueRadioPacketsHighPrio, packet);
    return iCountPacketsRequested;
 }

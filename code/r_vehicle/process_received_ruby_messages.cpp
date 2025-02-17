@@ -122,13 +122,32 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
    if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST )
    {
       u32 uResendCount = 0;
+      u32 uDeveloperMode = 0;
       if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) )
          memcpy(&uResendCount, pPacketBuffer + sizeof(t_packet_header), sizeof(u32));
-
-      log_line("Received pairing request from controller (received resend count: %u). CID: %u, VID: %u.", uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest);
-      
-      if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
+      if ( pPH->total_length >= sizeof(t_packet_header) + 2*sizeof(u32) )
       {
+         memcpy(&uDeveloperMode, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u32));
+         log_line("Current developer mode: %s, received pairing request developer mode: %s",
+            g_bDeveloperMode?"on":"off", uDeveloperMode?"on":"off");
+         if ( g_bDeveloperMode != (bool) uDeveloperMode )
+         {
+            radio_tx_set_dev_mode();
+            radio_rx_set_dev_mode();
+            radio_set_debug_flag();
+            g_bDeveloperMode = (bool)uDeveloperMode;
+            if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+               video_source_majestic_request_update_program(MODEL_CHANGED_DEBUG_MODE);
+         }
+      }
+      else
+         log_line("No developer mode flag in the pairing request.");
+      log_line("Received pairing request from controller (received resend count: %u). CID: %u, VID: %u. Developer mode now: %s",
+         uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest, g_bDeveloperMode?"yes":"no");
+      log_line("Current controller ID: %u", g_uControllerId);
+      if ( (NULL != g_pCurrentModel) && (g_uControllerId != pPH->vehicle_id_src) )
+      {
+         log_line("Update controller ID to this one: %u", pPH->vehicle_id_src);
          u32 uOldControllerId = g_uControllerId;
          g_uControllerId = pPH->vehicle_id_src;
          g_pCurrentModel->uControllerId = g_uControllerId;
@@ -161,6 +180,8 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
          radio_stats_remove_received_info_for_vid(&g_SM_RadioStats, uOldControllerId);
          process_data_tx_video_reset_retransmissions_history_info();
       }
+      else
+         log_line("Controller ID has not changed.");
 
       g_bReceivedPairingRequest = true;
 

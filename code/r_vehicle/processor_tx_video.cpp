@@ -408,9 +408,9 @@ bool _check_update_video_link_profile_data()
       bChanged = true;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode != ((s_CurrentPHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS)?true:false) )
+   if ( g_bDeveloperMode != ((s_CurrentPHVF.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS)?true:false) )
    {
-      if ( g_pCurrentModel->bDeveloperMode )
+      if ( g_bDeveloperMode )
          s_CurrentPHVF.uVideoStatusFlags2 |= VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS;
       else
          s_CurrentPHVF.uVideoStatusFlags2 &= ~VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS;
@@ -663,12 +663,12 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
       return;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode )
+   if ( g_bDeveloperMode )
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_VIDEO_FAULTS )
    if ( _inject_faults(bufferIndex, pPH->stream_packet_idx, packetIndex, isRetransmitted) )
       return;
 
-   if ( g_pCurrentModel->bDeveloperMode )
+   if ( g_bDeveloperMode )
    if ( g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_INJECT_RECOVERABLE_VIDEO_FAULTS )
    if ( _inject_recoverable_faults(bufferIndex, pPH->stream_packet_idx, packetIndex, isRetransmitted) )
       return;
@@ -833,13 +833,7 @@ int process_data_tx_video_send_packets_ready_to_send(int howMany)
       if ( uMicroTime/howMany > 500000/uVideoPacketsPerSec )
       {
          sl_iCountSuccessiveOverloads++;
-         int iMaxOverloads = (int)uVideoPacketsPerSec/10;
-         if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_IGNORE_TX_SPIKES )
-            iMaxOverloads = (int)uVideoPacketsPerSec;
-         if ( sl_iCountSuccessiveOverloads > iMaxOverloads )
-         {
-            g_uTimeLastVideoTxOverload = g_TimeNow;
-         }
+         
       }
       else
       {
@@ -1359,6 +1353,8 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       u32 uRetrId = 0;
       memcpy(&uRetrId, &pPacketBuffer[sizeof(t_packet_header)], sizeof(u32));
       
+      log_line("[AdaptiveVideo] Received retr request id %u from controller for %d packets", uRetrId, (int)uCount);
+      
       u8* pDataPackets = pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8);
       for( int i=0; i<(int)uCount; i++ )
       {
@@ -1387,7 +1383,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       memcpy( &uVideoProfile, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32), sizeof(u8));
       memcpy( &uVideoStreamIndex, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), sizeof(u8));
    
-      log_line("ProcessorTxVideo: Received req id %u from CID %u to switch video level to: %d (%s)",
+      log_line("[AdaptiveVideo] Received req id %u from CID %u to switch video level to: %d (%s)",
           uRequestId, pPH->vehicle_id_src, uVideoProfile, str_get_video_profile_name(uVideoProfile));
 
       t_packet_header PH;
@@ -1442,7 +1438,7 @@ bool process_data_tx_video_command(int iRadioInterface, u8* pPacketBuffer)
       if ( pPH->total_length >= sizeof(t_packet_header) + sizeof(u32) + sizeof(u8) )
          memcpy( &uVideoStreamIndex, pPacketBuffer + sizeof(t_packet_header) + sizeof(u32) + sizeof(u8), sizeof(u8));
 
-      log_line("ProcessorTxVideo: Received req id %u from CID %u to switch video keyframe to: %d ms",
+      log_line("[AdaptiveVideo] Received req id %u from CID %u to switch video keyframe to: %d ms",
           uRequestId, pPH->vehicle_id_src, uNewKeyframeValueMs);
 
 // To fix 

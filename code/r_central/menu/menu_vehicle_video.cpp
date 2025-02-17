@@ -50,7 +50,6 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_Width = 0.42;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.1;
    float fSliderWidth = 0.12 * Menu::getScaleFactor();
-   float dxMargin = 0.03 * Menu::getScaleFactor();
 
    char szBuff[32];
 
@@ -119,27 +118,6 @@ MenuVehicleVideo::MenuVehicleVideo(void)
    m_pItemsSlider[2]->setSufix("mbps");
    m_IndexVideoBitrate = addMenuItem(m_pItemsSlider[2]);
 
-   m_pItemsSelect[13] = new MenuItemSelect("Keep constant", "Adjust camera bitrate (when there are variations due to scenery change) to try to keep the set fixed bitrate.");
-   m_pItemsSelect[13]->addSelection("Off");
-   m_pItemsSelect[13]->addSelection("On");
-   m_pItemsSelect[13]->setIsEditable();
-   m_pItemsSelect[13]->setMargin(dxMargin);
-   m_IndexVideoConstantBitrate = addMenuItem(m_pItemsSelect[13]);
-
-   m_pItemsSelect[14] = new MenuItemSelect("Video Bitrate Overload Check", "Continously monitor the video link and if the video link is overloaded (takes too much time to transmit or has too big video bitrate for current radio datarate) will temporarly reduce the video bitrate.");
-   m_pItemsSelect[14]->addSelection("Off");
-   m_pItemsSelect[14]->addSelection("On");
-   m_pItemsSelect[14]->setIsEditable();
-   m_pItemsSelect[14]->setMargin(dxMargin);
-   m_IndexVideoOverloadCheck = addMenuItem(m_pItemsSelect[14]);
-
-   m_pItemsSelect[12] = new MenuItemSelect("Ignore Video Spikes", "Ignores momentary spikes in video bandwidth or tx time and don't do any video bitrate adjustments.");
-   m_pItemsSelect[12]->addSelection("Off");
-   m_pItemsSelect[12]->addSelection("On");
-   m_pItemsSelect[12]->setIsEditable();
-   m_pItemsSelect[12]->setMargin(dxMargin);
-   m_IndexIgnoreTxSpikes = addMenuItem(m_pItemsSelect[12]);
-
    addMenuItem(new MenuItemSection("Video Link Mode"));
 
    m_pItemsRadio[0] = new MenuItemRadio("", "Set the way video link behaves: fixed broadcast video, or auto adaptive video link and stream.");
@@ -178,7 +156,6 @@ void MenuVehicleVideo::valuesToUI()
    
    checkAddWarningInMenu();
 
-   int iCameraProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
    u32 uVideoProfileEncodingFlags = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags;
 
    m_pItemsSelect[10]->setEnabled(true);
@@ -212,8 +189,6 @@ void MenuVehicleVideo::valuesToUI()
    m_pItemsSlider[0]->setMaxValue(iMaxFPS);
    m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps);
 
-   m_pItemsSelect[14]->setSelection( (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK)?1:0 );
-
    int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
    if ( keyframe_ms < 0 )
       keyframe_ms = -keyframe_ms;
@@ -232,18 +207,6 @@ void MenuVehicleVideo::valuesToUI()
       m_pItemsSelect[2]->setSelectedIndex(0);
    if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_HIGH_QUALITY )
       m_pItemsSelect[2]->setSelectedIndex(1);
-
-   if ( uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE )
-   {
-      m_pItemsSelect[13]->setSelectedIndex(1);
-      m_pItemsSelect[12]->setEnabled(true);
-   }
-   else
-   {
-      m_pItemsSelect[13]->setSelectedIndex(0);
-      m_pItemsSelect[12]->setEnabled(false);
-   }
-   m_pItemsSelect[12]->setSelectedIndex((uVideoProfileEncodingFlags & VIDEO_FLAG_IGNORE_TX_SPIKES)?1:0);
 
    int iFixedVideoLink = 0;
    if ( g_pCurrentModel->isVideoLinkFixedOneWay() )
@@ -399,10 +362,6 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
    if ( 0 == m_pItemsRadio[0]->getSelectedIndex() )
       pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO;
 
-   pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE;
-   if ( 1 == m_pItemsSelect[13]->getSelectedIndex() )
-      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_KEEP_CONSTANT_BITRATE;
-
    if ( ! forceUpdates )
    if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags )
    if ( pProfile->width == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
@@ -478,7 +437,7 @@ void MenuVehicleVideo::onSelectItem()
       return;
    }
 
-   if ( (m_IndexVideoBitrate == m_SelectedIndex) || (m_IndexVideoConstantBitrate == m_SelectedIndex) )
+   if ( m_IndexVideoBitrate == m_SelectedIndex )
    {
       sendVideoLinkProfiles();
       return;
@@ -486,37 +445,6 @@ void MenuVehicleVideo::onSelectItem()
    if ( m_IndexVideoProfile == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuVehicleVideoProfileSelector());
-      return;
-   }
-
-   if ( m_IndexVideoOverloadCheck == m_SelectedIndex )
-   {
-      if ( 0 == m_pItemsSelect[14]->getSelectedIndex() )
-         g_pCurrentModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK;
-      else
-         g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_DISABLE_VIDEO_OVERLOAD_CHECK);
-
-      if ( ! handle_commands_send_developer_flags(g_pCurrentModel->bDeveloperMode, g_pCurrentModel->uDeveloperFlags) )
-         valuesToUI();  
-      return;
-   }
-
-
-   if ( m_IndexIgnoreTxSpikes == m_SelectedIndex )
-   {
-      video_parameters_t paramsOld;
-      memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
-      if ( 0 == m_pItemsSelect[12]->getSelectedIndex() )
-         g_pCurrentModel->video_params.uVideoExtraFlags &= ~(VIDEO_FLAG_IGNORE_TX_SPIKES);
-      else
-         g_pCurrentModel->video_params.uVideoExtraFlags |= VIDEO_FLAG_IGNORE_TX_SPIKES;
-
-      video_parameters_t paramsNew;
-      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
-      memcpy(&g_pCurrentModel->video_params, &paramsOld, sizeof(video_parameters_t));
-
-      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
-         valuesToUI();
       return;
    }
 

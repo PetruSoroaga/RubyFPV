@@ -507,7 +507,12 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
 
    // Retr, adaptive
    if ( bIsNormal || bIsExtended )
+   {
       height += 2.0*height_text*s_OSDStatsLineSpacing;
+      // Retr count
+      if ( iDeveloperMode )
+         height += height_text*s_OSDStatsLineSpacing;
+   }
 
    // Graph
    if ( ! bIsMinimal )
@@ -862,7 +867,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          char szBuff3[64];
          strcpy(szBuff3, "On");
          g_pRenderEngine->setColors(get_Color_IconSucces());
-
+         int iFontId = s_idFontStats;
          ControllerSettings* pCS = get_ControllerSettings();
          if ( (NULL != g_pSM_RadioStats) && (NULL != pCS) && (0 != pCS->iDisableRetransmissionsAfterControllerLinkLostMiliseconds) )
          {
@@ -870,16 +875,17 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
             if ( g_TimeNow > g_pSM_RadioStats->uLastTimeReceivedAckFromAVehicle + uDelta )
             {
                u32 uLinkLostMilisec = g_TimeNow - g_pSM_RadioStats->uLastTimeReceivedAckFromAVehicle;
-               if ( uLinkLostMilisec < 2000 )
+               if ( uLinkLostMilisec < 1000 )
                   sprintf(szBuff3, "Off (Link Lost %u ms)", uLinkLostMilisec);
                else
                   sprintf(szBuff3, "Off (Link Lost %u sec)", uLinkLostMilisec/1000);
+               iFontId = s_idFontStatsSmall;
                g_pRenderEngine->setColors(get_Color_IconWarning());
             }
          }
 
-         g_pRenderEngine->drawText(xPos + wtmp, y, s_idFontStats, szBuff3);
-         wtmp += g_pRenderEngine->textWidth(s_idFontStats, szBuff3);
+         g_pRenderEngine->drawText(xPos + wtmp, y, iFontId, szBuff3);
+         wtmp += g_pRenderEngine->textWidth(iFontId, szBuff3);
          osd_set_colors();
 
          //sprintf(szBuff, "Params: 2Way / %s %s / %d ms / %d ms / %d ms", szDynamic,
@@ -896,6 +902,43 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          osd_set_colors();
       }
       y += height_text*s_OSDStatsLineSpacing; // line 1
+
+      if ( iDeveloperMode )
+      {
+         strcpy(szBuff, "N/A");
+         controller_runtime_info_vehicle* pRTInfoVehicle = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, uActiveVehicleId);
+         if ( NULL != pRTInfoVehicle )
+         {
+            int iCountRetr = 0;
+            int iCountPackets = 0;
+            float fMultiply = 1.0;
+            int iSlices = 1000/g_SMControllerRTInfo.uUpdateIntervalMs;
+            if ( iSlices > SYSTEM_RT_INFO_INTERVALS )
+            {
+               iSlices = 500/g_SMControllerRTInfo.uUpdateIntervalMs;
+               fMultiply = 2.0;
+            }
+            if ( iSlices > SYSTEM_RT_INFO_INTERVALS )
+            {
+               iSlices = SYSTEM_RT_INFO_INTERVALS;
+               fMultiply = 1000.0/(float)(g_SMControllerRTInfo.uUpdateIntervalMs * SYSTEM_RT_INFO_INTERVALS);
+            }
+            int iIndex = g_SMControllerRTInfo.iCurrentIndex;
+            for( int i=0; i<iSlices; i++ )
+            {
+               iCountRetr += pRTInfoVehicle->uCountReqRetransmissions[iIndex];
+               iCountPackets += pRTInfoVehicle->uCountReqRetrPackets[iIndex];
+               iIndex--;
+               if ( iIndex < 0 )
+                  iIndex = SYSTEM_RT_INFO_INTERVALS-1;
+            }
+            sprintf(szBuff, "%d %d/sec", (int)(fMultiply * (float)iCountRetr), (int)(fMultiply * (float)iCountPackets));
+         }
+         g_pRenderEngine->setColors(get_Color_Dev());
+         _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStats, L("Retr req / packets:"), szBuff);
+         osd_set_colors();     
+         y += height_text*s_OSDStatsLineSpacing;     
+      }
 
       strcpy(szBuff, "Adaptive Video: ");
       wtmp = g_pRenderEngine->textWidth(s_idFontStats, szBuff);
@@ -3350,35 +3393,35 @@ void _osd_render_stats_panels_horizontal()
       yStats = yMax;
    }
 
-   if ( (pCS->iDeveloperMode || g_pCurrentModel->bDeveloperMode) || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowDevVideoStats || p->iDebugShowDevRadioStats )
    {
       osd_render_stats_dev(xStats, yStats-osd_render_stats_dev_get_height(), fStatsSize);
       xStats -= osd_render_stats_dev_get_width() + xSpacing;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoGraphs )
    {
       osd_render_stats_video_graphs(xStats, yStats-osd_render_stats_video_graphs_get_height());
       xStats -= osd_render_stats_video_graphs_get_width() + xSpacing;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoStats )
    {
       osd_render_stats_video_stats(xStats, yStats-osd_render_stats_video_stats_get_height());
       xStats -= osd_render_stats_video_stats_get_width() + xSpacing;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( NULL != g_pCurrentModel && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP) )
    {
       osd_render_stats_graphs_vehicle_tx_gap(xStats, yStats-osd_render_stats_graphs_vehicle_tx_gap_get_height());
       xStats -= osd_render_stats_graphs_vehicle_tx_gap_get_width() + xSpacing;
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( NULL != g_pCurrentModel && (g_pCurrentModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY) )
    {
       osd_render_stats_video_bitrate_history(xStats - osd_render_stats_video_bitrate_history_get_width(), yStats-osd_render_stats_video_bitrate_history_get_height());
@@ -3387,15 +3430,15 @@ void _osd_render_stats_panels_horizontal()
    
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
-      float hStat = osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
-      osd_render_stats_video_decode(xStats, yStats-hStat, g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
-      xStats -= osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) + xSpacing;
+      float hStat = osd_render_stats_video_decode_get_height(pCS->iDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
+      osd_render_stats_video_decode(xStats, yStats-hStat, pCS->iDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
+      xStats -= osd_render_stats_video_decode_get_width(pCS->iDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) + xSpacing;
       if ( p->iDebugShowVideoSnapshotOnDiscard )
       if ( s_uOSDSnapshotTakeTime > 1 && g_TimeNow < s_uOSDSnapshotTakeTime + 15000 )
       {
-         hStat = osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize);
-         osd_render_stats_video_decode(xStats, yStats-hStat, g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize);
-         xStats -= osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize) + xSpacing;
+         hStat = osd_render_stats_video_decode_get_height(pCS->iDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize);
+         osd_render_stats_video_decode(xStats, yStats-hStat, pCS->iDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize);
+         xStats -= osd_render_stats_video_decode_get_width(pCS->iDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, fStatsSize) + xSpacing;
       }
    }
 
@@ -3468,7 +3511,7 @@ void _osd_render_stats_panels_vertical()
    if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
       xStats -= osd_getVerticalBarWidth();
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowDevVideoStats || p->iDebugShowDevRadioStats )
    {
       if ( yStats + osd_render_stats_dev_get_height() > yMax )
@@ -3484,7 +3527,7 @@ void _osd_render_stats_panels_vertical()
          fMaxColumnWidth = osd_render_stats_dev_get_width();
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoGraphs )
    {
       if ( yStats + osd_render_stats_video_graphs_get_height() > yMax )
@@ -3500,7 +3543,7 @@ void _osd_render_stats_panels_vertical()
          fMaxColumnWidth = osd_render_stats_video_graphs_get_width();
    }
 
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoStats )
    {
       if ( yStats + osd_render_stats_video_stats_get_height() > yMax )
@@ -3517,7 +3560,7 @@ void _osd_render_stats_panels_vertical()
    }
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP) )
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
       if ( yStats + osd_render_stats_graphs_vehicle_tx_gap_get_height() > yMax )
       {
@@ -3533,7 +3576,7 @@ void _osd_render_stats_panels_vertical()
    }
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_VIDEO_BITRATE_HISTORY) )
-   if ( g_pCurrentModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    {
       if ( yStats + osd_render_stats_video_bitrate_history_get_height() > yMax )
       {
@@ -3643,17 +3686,17 @@ void _osd_render_stats_panels_vertical()
    
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
-      if ( yStats + osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) > yMax )
+      if ( yStats + osd_render_stats_video_decode_get_height(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) > yMax )
       {
          yStats = yMin;
          xStats -= fMaxColumnWidth + fSpacingH;
          fMaxColumnWidth = 0.0;
       }         
-      osd_render_stats_video_decode(xStats - osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false,  &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize), yStats, g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
-      yStats += osd_render_stats_video_decode_get_height(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
+      osd_render_stats_video_decode(xStats - osd_render_stats_video_decode_get_width(pCS->iDeveloperMode, false,  &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize), yStats, pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
+      yStats += osd_render_stats_video_decode_get_height(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
       yStats += fSpacingV;
-      if ( fMaxColumnWidth < osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) )
-         fMaxColumnWidth = osd_render_stats_video_decode_get_width(g_pCurrentModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
+      if ( fMaxColumnWidth < osd_render_stats_video_decode_get_width(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize) )
+         fMaxColumnWidth = osd_render_stats_video_decode_get_width(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, fStatsSize);
    }
 
    if ( p->iDebugShowFullRXStats )
@@ -4072,20 +4115,20 @@ void osd_render_stats_panels()
    if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_CONTROLLER )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 17;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_history_get_width(false);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_history_get_height(false);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_type_history_get_width(false);
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_type_history_get_height(false);
       s_iCountOSDStatsBoundingBoxes++;
    }
 
    if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_VEHICLE )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 18;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_history_get_width(true);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_history_get_height(true);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_type_history_get_width(true);
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_radio_rx_type_history_get_height(true);
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( pModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_CONTROLLER_ADAPTIVE_VIDEO_INFO )
    if ( NULL != g_pSM_RouterVehiclesRuntimeInfo )
    {
@@ -4117,8 +4160,8 @@ void osd_render_stats_panels()
    if ( s_bDebugStatsShowAll || (pModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_VIDEO) )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 6;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pModel->bDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
       s_iCountOSDStatsBoundingBoxes++;
    }
    
@@ -4126,8 +4169,8 @@ void osd_render_stats_panels()
    if ( g_bHasVideoDecodeStatsSnapshot )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 11;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pModel->bDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_width(pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_decode_get_height(pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
       s_iCountOSDStatsBoundingBoxes++;
    }
 
@@ -4139,7 +4182,7 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( s_bDebugStatsShowAll || (pModel->bDeveloperMode && (pModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)) )
+   if ( s_bDebugStatsShowAll || (pCS->iDeveloperMode && (pModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)) )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 12;
       s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_video_stream_h264_frames_info_get_width();
@@ -4171,7 +4214,7 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( pModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowDevVideoStats || p->iDebugShowDevRadioStats )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 1;
@@ -4180,7 +4223,7 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( pModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( pModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_SEND_BACK_VEHICLE_TX_GAP )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 4;
@@ -4197,7 +4240,7 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( pModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoStats )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 3;
@@ -4206,7 +4249,7 @@ void osd_render_stats_panels()
       s_iCountOSDStatsBoundingBoxes++;
    }
 
-   if ( pModel->bDeveloperMode || s_bDebugStatsShowAll )
+   if ( pCS->iDeveloperMode || s_bDebugStatsShowAll )
    if ( p->iDebugShowVehicleVideoGraphs )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 2;
@@ -4259,10 +4302,10 @@ void osd_render_stats_panels()
          osd_render_stats_video_bitrate_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i]);
       
       if ( s_iOSDStatsBoundingBoxesIds[i] == 6 )
-         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode | pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
+         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pCS->iDeveloperMode, false, &g_SM_RadioStats, &g_SM_VideoDecodeStats, 1.0);
       
       if ( s_iOSDStatsBoundingBoxesIds[i] == 11 )
-         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pModel->bDeveloperMode | pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
+         osd_render_stats_video_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], pCS->iDeveloperMode, true, &s_OSDSnapshot_RadioStats, &s_OSDSnapshot_VideoDecodeStats, 1.0);
      
       if ( s_iOSDStatsBoundingBoxesIds[i] == 12 )
       {
@@ -4270,7 +4313,7 @@ void osd_render_stats_panels()
 
         // Developer stats
         /*
-        if ( pModel->bDeveloperMode )
+        if ( pCS->iDeveloperMode )
         {
            float heightAdaptive = osd_render_stats_dev_adaptive_video_get_height();
            float xPosAdaptive = 0.32;
@@ -4307,9 +4350,9 @@ void osd_render_stats_panels()
          osd_render_stats_rc(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], 1.0);
 
       if ( s_iOSDStatsBoundingBoxesIds[i] == 17 )
-         osd_render_stats_radio_rx_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], false);
+         osd_render_stats_radio_rx_type_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], false);
       if ( s_iOSDStatsBoundingBoxesIds[i] == 18 )
-         osd_render_stats_radio_rx_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], true);
+         osd_render_stats_radio_rx_type_history(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], true);
       
       //char szBuff[32];
       //sprintf(szBuff, "%d", i);
@@ -4317,23 +4360,16 @@ void osd_render_stats_panels()
    }
 
 
-   // Draw the ones that should be on top
+   // Draw the ones that should be on top first
 
    for( int i=0; i<s_iCountOSDStatsBoundingBoxes; i++ )
    {
-      //if ( s_iOSDStatsBoundingBoxesIds[i] == 19 )
-      //   osd_render_stats_radio_interfaces_graph(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], &g_SM_RadioStatsInterfaceRxGraph);
-   }
-
-   if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_RADIO_RX_GRAPH_CONTROLLER )
-   {
-      osd_render_stats_radio_interfaces_graph(0.0, 0.0, &g_SM_RadioStatsInterfaceRxGraph);
    }
 
    if ( p->iDebugShowFullRXStats )
       osd_render_stats_full_rx_port();
 
-   if ( pModel->bDeveloperMode )
+   if ( pCS->iDeveloperMode )
    if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_VEHICLE_DEV_STATS )
       _osd_render_vehicle_dev_stats();
 }

@@ -253,17 +253,19 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
    }
 
    int iTelemetryVersion = 0;
-   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v1) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-      iTelemetryVersion = 1;
-   else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v2) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-      iTelemetryVersion = 2;         
-   else if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-      iTelemetryVersion = 3;
-
    if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3)) )
       iTelemetryVersion = 3;
    if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info)) )
       iTelemetryVersion = 3;
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v3) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      iTelemetryVersion = 3;
+
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v4)) )
+      iTelemetryVersion = 4;
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v4) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info)) )
+      iTelemetryVersion = 4;
+   if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v4) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
+      iTelemetryVersion = 4;
       
    if ( iTelemetryVersion == 0 )
    {
@@ -297,46 +299,14 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
    pRuntimeInfo->uTimeLastRecvAnyRubyTelemetry = g_TimeNow;
    pRuntimeInfo->tmp_iCountRubyTelemetryPacketsFull++;
 
-   // v1 ruby telemetry
-   if ( 1 == iTelemetryVersion )
+   // v3 ruby telemetry
+   if ( 3 == iTelemetryVersion )
    {
-      t_packet_header_ruby_telemetry_extended_v1* pPHRTE = (t_packet_header_ruby_telemetry_extended_v1*)(pPacketBuffer+sizeof(t_packet_header));
-   
-      radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v1(&(pRuntimeInfo->headerRubyTelemetryExtended), (t_packet_header_ruby_telemetry_extended_v1*)(pPacketBuffer+sizeof(t_packet_header)));
-      int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v1);
-      int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v1);
-   
-      if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
-      {
-         t_packet_header_ruby_telemetry_extended_extra_info* pPHRTExtraInfo = (t_packet_header_ruby_telemetry_extended_extra_info*)(pPacketBuffer + dx);
-         dx += sizeof(t_packet_header_ruby_telemetry_extended_extra_info);
-         totalLength += sizeof(t_packet_header_ruby_telemetry_extended_extra_info);
-         
-         if ( ! pRuntimeInfo->bGotRubyTelemetryExtraInfo )
-            log_line("Start receiving Ruby telemetry extra info from router for vehicle id %u.", pRuntimeInfo->uVehicleId);
-         pRuntimeInfo->bGotRubyTelemetryExtraInfo = true;
-         memcpy(&(pRuntimeInfo->headerRubyTelemetryExtraInfo), pPHRTExtraInfo, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
-      }
+      t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pPacketBuffer+sizeof(t_packet_header));
+      radio_populate_ruby_telemetry_v4_from_ruby_telemetry_v3(&(pRuntimeInfo->headerRubyTelemetryExtended), pPHRTE);
 
-      if ( pPHRTE->extraSize > 0 )
-      if ( pPHRTE->extraSize == sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) )
-      if ( pPH->total_length == (totalLength + sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-      {
-          if ( ! pRuntimeInfo->bGotRubyTelemetryExtraInfoRetransmissions )
-            log_line("Start receiving Ruby telemetry retransmissions extra info from router for vehicle id %u.", pRuntimeInfo->uVehicleId);
-         pRuntimeInfo->bGotRubyTelemetryExtraInfoRetransmissions = true;
-         memcpy(&(pRuntimeInfo->headerRubyTelemetryExtraInfoRetransmissions), pPacketBuffer + dx, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
-      }
-   }
-   // v2 ruby telemetry
-   else if ( 2 == iTelemetryVersion )
-   {
-      t_packet_header_ruby_telemetry_extended_v2* pPHRTE = (t_packet_header_ruby_telemetry_extended_v2*)(pPacketBuffer+sizeof(t_packet_header));
-   
-      radio_populate_ruby_telemetry_v3_from_ruby_telemetry_v2(&(pRuntimeInfo->headerRubyTelemetryExtended), (t_packet_header_ruby_telemetry_extended_v2*)(pPacketBuffer+sizeof(t_packet_header)));
-      
-      int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v2);
-      int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v2);
+      int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
+      int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
    
       if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
       {
@@ -363,15 +333,15 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
          memcpy(&(pRuntimeInfo->headerRubyTelemetryExtraInfoRetransmissions), pPacketBuffer + dx, sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions));
       }
    }
-   // v3 ruby telemetry
-   else if ( 3 == iTelemetryVersion )
+   // v4 ruby telemetry
+   if ( 4 == iTelemetryVersion )
    {
-      t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pPacketBuffer+sizeof(t_packet_header));
+      t_packet_header_ruby_telemetry_extended_v4* pPHRTE = (t_packet_header_ruby_telemetry_extended_v4*)(pPacketBuffer+sizeof(t_packet_header));
 
-      memcpy(&(pRuntimeInfo->headerRubyTelemetryExtended), pPacketBuffer+sizeof(t_packet_header), sizeof(t_packet_header_ruby_telemetry_extended_v3) );
+      memcpy(&(pRuntimeInfo->headerRubyTelemetryExtended), pPacketBuffer+sizeof(t_packet_header), sizeof(t_packet_header_ruby_telemetry_extended_v4) );
 
-      int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
-      int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
+      int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4);
+      int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4);
    
       if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
       {
@@ -608,7 +578,8 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    if ( (pPH->packet_type != PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) &&
         (pPH->packet_type != PACKET_TYPE_RUBY_TELEMETRY_SHORT) &&
         (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLLER_ROUTER_READY) &&
-        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH) ) 
+        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROLL_VIDEO_DETECTED_ON_SEARCH) &&
+        (pPH->packet_type != PACKET_TYPE_LOCAL_CONTROL_UPDATED_RADIO_TX_POWERS) ) 
       return 0;
 
 
@@ -665,6 +636,15 @@ int _process_received_message_from_router(u8* pPacketBuffer)
                g_pCurrentModel->b_mustSyncFromVehicle = true;
          }
       }
+      return 0;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_UPDATED_RADIO_TX_POWERS )
+   {
+      log_line("Received notification from router that controller tx powers have changed. Update local config.");
+      load_ControllerSettings();
+      load_ControllerInterfacesSettings();
+      menu_refresh_all_menus();
       return 0;
    }
 
@@ -813,7 +793,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
           u8* pBuffer = pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8);
           if ( 0 == uCommandId )
           {
-             if ( pPH->vehicle_id_src == g_uControllerId )
+             if ( pPH->vehicle_id_dest == g_uControllerId )
                 pMenu->onReceivedControllerData(pBuffer, pPH->total_length - sizeof(t_packet_header) - 2 * sizeof(u8));
              else
                 pMenu->onReceivedVehicleData(pBuffer, pPH->total_length - sizeof(t_packet_header) - 2 * sizeof(u8));
@@ -903,21 +883,21 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       
       memcpy(&(pRuntimeInfo->headerFCTelemetry), (u8*)&PHFCT, sizeof(t_packet_header_fc_telemetry) );
       
-      t_packet_header_ruby_telemetry_extended_v3 PHRTE;
+      t_packet_header_ruby_telemetry_extended_v4 PHRTE;
       if ( pRuntimeInfo->bGotRubyTelemetryInfo )
-         memcpy((u8*)&PHRTE, &(pRuntimeInfo->headerRubyTelemetryExtended), sizeof(t_packet_header_ruby_telemetry_extended_v3));
+         memcpy((u8*)&PHRTE, &(pRuntimeInfo->headerRubyTelemetryExtended), sizeof(t_packet_header_ruby_telemetry_extended_v4));
       else
-         memset((u8*)&PHRTE, 0, sizeof(t_packet_header_ruby_telemetry_extended_v3));
+         memset((u8*)&PHRTE, 0, sizeof(t_packet_header_ruby_telemetry_extended_v4));
 
       PHRTE.uVehicleId = pPH->vehicle_id_src;
-      PHRTE.version = pPHRTS->version;
+      PHRTE.rubyVersion = pPHRTS->rubyVersion;
       PHRTE.radio_links_count = pPHRTS->radio_links_count;
       if ( PHRTE.radio_links_count > 3 )
          PHRTE.radio_links_count = 3;
       for( int i=0; i<PHRTE.radio_links_count; i++ )
          PHRTE.uRadioFrequenciesKhz[i] = pPHRTS->uRadioFrequenciesKhz[i];
 
-      memcpy(&(pRuntimeInfo->headerRubyTelemetryExtended), (u8*)&PHRTE, sizeof(t_packet_header_ruby_telemetry_extended_v3) );
+      memcpy(&(pRuntimeInfo->headerRubyTelemetryExtended), (u8*)&PHRTE, sizeof(t_packet_header_ruby_telemetry_extended_v4) );
       
       return 0;
    }
@@ -1082,59 +1062,67 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       t_structure_vehicle_info* pRuntimeInfo = _get_runtime_info_for_packet(pPacketBuffer);
       if ( NULL == pRuntimeInfo )
          return 0;
-
-      u8 countCards = pPacketBuffer[sizeof(t_packet_header)];
-
-      // Can have either number of cards * rx stats for each card
-      // Or index of card and rx stats for that card
-
-      // Full rx stats for all cards in a single packet
-
-      if ( (countCards != 0 ) && (pPH->total_length == (sizeof(t_packet_header) + sizeof(u8) + countCards * sizeof(shared_mem_radio_stats_radio_interface)) ) )
+      u8 uType = pPacketBuffer[sizeof(t_packet_header)];
+      u8 uCardIndex = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
+      if ( (uType != 0xFF) && (uType != 0xF0) && (uType != 0x0F) )
+         return 0;
+      
+      if ( uType == 0xFF )
+      if ( (uCardIndex > 0) && (uCardIndex <= MAX_RADIO_INTERFACES) )
+      if ( pPH->total_length >= (sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface)) )
       {
-         memcpy((u8*)&(pRuntimeInfo->SMVehicleRxStats[0]), (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(u8)), countCards*sizeof(shared_mem_radio_stats_radio_interface));
+         memcpy((u8*)&(pRuntimeInfo->SMVehicleRxStats[0]), (u8*)(pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8)), uCardIndex*sizeof(shared_mem_radio_stats_radio_interface));
          pRuntimeInfo->uTimeLastRecvVehicleRxStats = g_TimeNow;
          pRuntimeInfo->bGotStatsVehicleRxCards = true;
       }
 
-      // Rx stats for a single card
-      if ( (NULL != g_pCurrentModel) && (countCards < g_pCurrentModel->radioInterfacesParams.interfaces_count) && (pPH->total_length == (sizeof(t_packet_header) + sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact)) ) )
-      if ( (NULL != pRuntimeInfo) && (pRuntimeInfo->uTimeLastRecvVehicleRxStats+1000 < g_TimeNow ) )
-      if ( pPH->total_length == (sizeof(t_packet_header) + sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact)) )
+      if ( uType == 0xF0 )
+      if ( (uCardIndex >= 0) && (uCardIndex < MAX_RADIO_INTERFACES) )
+      if ( pPH->total_length == (sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface)) )
+      {
+         memcpy((u8*)&(pRuntimeInfo->SMVehicleRxStats[uCardIndex]), (u8*)(pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8)), sizeof(shared_mem_radio_stats_radio_interface));
+         pRuntimeInfo->uTimeLastRecvVehicleRxStats = g_TimeNow;
+         pRuntimeInfo->bGotStatsVehicleRxCards = true;
+      }
+
+      if ( uType == 0x0F )
+      if ( (uCardIndex >= 0) && (uCardIndex < MAX_RADIO_INTERFACES) )
+      if ( pPH->total_length == (sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(shared_mem_radio_stats_radio_interface_compact)) )
       {
          shared_mem_radio_stats_radio_interface_compact statsCompact;
-         memcpy((u8*)&statsCompact, (u8*)(pPacketBuffer + sizeof(t_packet_header) + sizeof(u8)), sizeof(shared_mem_radio_stats_radio_interface_compact));
+         memcpy((u8*)&statsCompact, (u8*)(pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8)), sizeof(shared_mem_radio_stats_radio_interface_compact));
          
          //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbm = statsCompact.lastDbm;
          //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmVideo = statsCompact.lastDbmVideo;
          //pRuntimeInfo->SMVehicleRxStats[countCards].lastDbmData = statsCompact.lastDbmData;
-          memcpy( &(pRuntimeInfo->SMVehicleRxStats[countCards].signalInfo), &statsCompact.signalInfo, sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
+         memcpy( &(pRuntimeInfo->SMVehicleRxStats[uCardIndex].signalInfo), &statsCompact.signalInfo, sizeof(shared_mem_radio_stats_radio_interface_rx_signal_all));
 
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRate = statsCompact.lastRecvDataRate;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateVideo = statsCompact.lastRecvDataRateVideo;
-         pRuntimeInfo->SMVehicleRxStats[countCards].lastRecvDataRateData = statsCompact.lastRecvDataRateData;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].lastRecvDataRate = statsCompact.lastRecvDataRate;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].lastRecvDataRateVideo = statsCompact.lastRecvDataRateVideo;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].lastRecvDataRateData = statsCompact.lastRecvDataRateData;
 
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalRxBytes = statsCompact.totalRxBytes;
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalTxBytes = statsCompact.totalTxBytes;
-         pRuntimeInfo->SMVehicleRxStats[countCards].rxBytesPerSec = statsCompact.rxBytesPerSec;
-         pRuntimeInfo->SMVehicleRxStats[countCards].txBytesPerSec = statsCompact.txBytesPerSec;
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalRxPackets = statsCompact.totalRxPackets;
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalRxPacketsBad = statsCompact.totalRxPacketsBad;
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalRxPacketsLost = statsCompact.totalRxPacketsLost;
-         pRuntimeInfo->SMVehicleRxStats[countCards].totalTxPackets = statsCompact.totalTxPackets;
-         pRuntimeInfo->SMVehicleRxStats[countCards].rxPacketsPerSec = statsCompact.rxPacketsPerSec;
-         pRuntimeInfo->SMVehicleRxStats[countCards].txPacketsPerSec = statsCompact.txPacketsPerSec;
-         pRuntimeInfo->SMVehicleRxStats[countCards].timeLastRxPacket = statsCompact.timeLastRxPacket;
-         pRuntimeInfo->SMVehicleRxStats[countCards].timeLastTxPacket = statsCompact.timeLastTxPacket;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalRxBytes = statsCompact.totalRxBytes;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalTxBytes = statsCompact.totalTxBytes;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].rxBytesPerSec = statsCompact.rxBytesPerSec;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].txBytesPerSec = statsCompact.txBytesPerSec;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalRxPackets = statsCompact.totalRxPackets;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalRxPacketsBad = statsCompact.totalRxPacketsBad;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalRxPacketsLost = statsCompact.totalRxPacketsLost;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].totalTxPackets = statsCompact.totalTxPackets;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].rxPacketsPerSec = statsCompact.rxPacketsPerSec;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].txPacketsPerSec = statsCompact.txPacketsPerSec;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].timeLastRxPacket = statsCompact.timeLastRxPacket;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].timeLastTxPacket = statsCompact.timeLastTxPacket;
 
-         pRuntimeInfo->SMVehicleRxStats[countCards].rxQuality = statsCompact.rxQuality;
-         pRuntimeInfo->SMVehicleRxStats[countCards].rxRelativeQuality = statsCompact.rxRelativeQuality;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].rxQuality = statsCompact.rxQuality;
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].rxRelativeQuality = statsCompact.rxRelativeQuality;
 
-         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsCount, statsCompact.hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsLostCountVideo, statsCompact.hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsLostCountData, statsCompact.hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-         memcpy(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxGapMiliseconds, statsCompact.hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
-         memset(pRuntimeInfo->SMVehicleRxStats[countCards].hist_rxPacketsBadCount, 0, MAX_HISTORY_RADIO_STATS_RECV_SLICES*sizeof(u8));
+         pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxPacketsCurrentIndex = statsCompact.hist_rxPacketsCurrentIndex;
+         memcpy(pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxPacketsCount, statsCompact.hist_rxPacketsCount, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memcpy(pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxPacketsLostCountVideo, statsCompact.hist_rxPacketsLostCountVideo, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memcpy(pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxPacketsLostCountData, statsCompact.hist_rxPacketsLostCountData, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memcpy(pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxGapMiliseconds, statsCompact.hist_rxGapMiliseconds, MAX_HISTORY_RADIO_STATS_RECV_SLICES * sizeof(u8));
+         memset(pRuntimeInfo->SMVehicleRxStats[uCardIndex].hist_rxPacketsBadCount, 0, MAX_HISTORY_RADIO_STATS_RECV_SLICES*sizeof(u8));
          
          pRuntimeInfo->bGotStatsVehicleRxCards = true;      
       }
@@ -1359,6 +1347,11 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       if ( 0 != memcmp(&(g_pCurrentModel->radioLinksParams), pPacketBuffer + sizeof(t_packet_header) + sizeof(type_relay_parameters) + sizeof(type_radio_interfaces_parameters), sizeof(type_radio_links_parameters)) )
          bChanged = true;
      
+      if ( g_bDidAnUpdate && (g_nSucceededOTAUpdates > 0) )
+         g_bLinkWizardAfterUpdate = true;
+      g_bDidAnUpdate = false;
+      g_nSucceededOTAUpdates = 0;
+
       if ( bChanged )
       {
          log_line("Radio configuration has changed on the vehicle.");

@@ -48,6 +48,8 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_RADIO_LINK_FLAGS: strcpy(szCommandDesc, "Set_Radio_Link_Flags"); break;
       case COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION: strcpy(szCommandDesc, "RadioLink_Flags_Changed_Confirmation"); break;
       case COMMAND_ID_SET_RADIO_CARD_MODEL: strcpy(szCommandDesc, "Set_Radio_Card_Model"); break;
+      case COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES: strcpy(szCommandDesc, "Set_Radio_Capabilities_Flags"); break;
+      case COMMAND_ID_SET_RADIO_LINK_DATARATES: strcpy(szCommandDesc, "Set_RadioLink_Datarates"); break;
       case COMMAND_ID_SET_MODEL_FLAGS: strcpy(szCommandDesc, "Set_Model_Flags"); break;
       case COMMAND_ID_SET_SIK_PACKET_SIZE: strcpy(szCommandDesc, "Set_SiK_Packet_Size"); break;
       case COMMAND_ID_RESET_RADIO_LINK: strcpy(szCommandDesc, "Reset_Radio_Link"); break;
@@ -104,7 +106,6 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_RESET_CPU_SPEED: strcpy(szCommandDesc, "Reset_CPU_Speed"); break;
       case COMMAND_ID_SET_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Set_Developer_Flags"); break;
       case COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Reset_All_Developer_Flags"); break;
-      case COMMAND_ID_ENABLE_DEBUG: strcpy(szCommandDesc, "Enable_Debug"); break;
       case COMMAND_ID_DEBUG_GET_TOP: strcpy(szCommandDesc, "Debug_Get_TOP"); break;
       case COMMAND_ID_SET_ENCRYPTION_PARAMS: strcpy(szCommandDesc, "Set Encryption Params"); break;
       case COMMAND_ID_DOWNLOAD_FILE: strcpy(szCommandDesc, "Download_File"); break;

@@ -308,7 +308,23 @@ u32 _get_next_frequency_switch(int nLink)
 void _process_local_notification_model_changed(t_packet_header* pPH, int changeType, int fromComponentId, int iExtraParam)
 {
    log_line("Received local notification to reload model. Change type: %d (%s), from component id: %d (%s)", changeType, str_get_model_change_type(changeType), fromComponentId, str_get_component_id(fromComponentId));
-   
+   log_line("Developer mode is: %s", g_bDeveloperMode?"on":"off");
+   if ( changeType == MODEL_CHANGED_DEBUG_MODE )
+   {
+      log_line("Received notification that developer mode changed from %s to %s",
+        g_bDeveloperMode?"yes":"no",
+        iExtraParam?"yes":"no");
+      if ( g_bDeveloperMode != (bool) iExtraParam )
+      {
+         g_bDeveloperMode = (bool)iExtraParam;
+         video_source_majestic_request_update_program(MODEL_CHANGED_DEBUG_MODE);
+      }
+      ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)pPH, pPH->total_length);
+      if ( g_pCurrentModel->rc_params.rc_enabled )
+         ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)pPH, pPH->total_length);
+      return;
+   }
+
    if ( (changeType == MODEL_CHANGED_STATS) && (fromComponentId == PACKET_COMPONENT_TELEMETRY) )
    {
       log_line("Received event from telemetry component that model stats where updated. Updating local copy. Signal other components too.");

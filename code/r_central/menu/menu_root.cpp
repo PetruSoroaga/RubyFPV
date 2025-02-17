@@ -100,8 +100,9 @@ void MenuRoot::onShow()
    log_line("Entering root menu...");
    load_Preferences();
    sCounterRefresh_RootMenu = 0;
+   
    Menu::onShow();
-   if ( iPrevSelectedItem > 0 )
+   if ( iPrevSelectedItem >= 0 )
       m_SelectedIndex = iPrevSelectedItem;
 
    log_line("Entered root menu.");

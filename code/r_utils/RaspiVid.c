@@ -2876,13 +2876,15 @@ int main(int argc, const char **argv)
 {
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("9.8 (b243)");
+      printf("10.4 (b270)");
       return 0;
    }
 
    s_iDebug = 0;
    if ( strcmp(argv[1], "-dbg") == 0 )
       s_iDebug = 1;
+
+   openOutputPipe();
 
    // Our main data storage vessel..
    RASPIVID_STATE state;

@@ -40,7 +40,8 @@ int main(int argc, char *argv[])
    fpOutput = fopen(szBuff, "wb");
 
 
-   sprintf(szComm, "aplay -c 1 --rate 44100 --format S16_LE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
+   //sprintf(szComm, "aplay -c 1 --rate 44100 --format S16_LE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
+   sprintf(szComm, "aplay -c 1 --rate 16000 --format S16_BE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
    hw_execute_bash_command(szComm, NULL);
    iPipeOutput = open(FIFO_RUBY_AUDIO1, O_WRONLY);
    if ( iPipeOutput < 0 )
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
 
       if ( -1 == iBreakPosition )
       {
-         fwrite(buffer, 1, iRead, fpOutput);
+         //fwrite(buffer, 1, iRead, fpOutput);
          if ( iPipeOutput > 0 )
             write(iPipeOutput, buffer, iRead);
          iTotalRead += iRead;
@@ -93,8 +94,8 @@ int main(int argc, char *argv[])
       if ( iBreakPosition > 0 )
       {
          int iToWrite = iBreakPosition-11;
-         if ( iToWrite > 0 )
-            fwrite(buffer, 1, iToWrite, fpOutput);
+         //if ( iToWrite > 0 )
+         //   fwrite(buffer, 1, iToWrite, fpOutput);
       }
 
       if ( iPipeOutput > 0 )

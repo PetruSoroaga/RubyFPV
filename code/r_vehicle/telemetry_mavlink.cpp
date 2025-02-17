@@ -48,7 +48,7 @@ u32 s_uMAVLinkSetupTime = 0;
 bool s_bOnArmEventHandled = false;
 bool s_bLogNextMAVLinkMessage = true;
 
-extern t_packet_header_ruby_telemetry_extended_v3 sPHRTE;
+extern t_packet_header_ruby_telemetry_extended_v4 sPHRTE;
 u32 s_SentTelemetryCounter = 0;
 long int s_lLastPosLat = 0;
 long int s_lLastPosLon = 0;
